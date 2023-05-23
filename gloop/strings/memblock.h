@@ -50,7 +50,6 @@
 
 #include "absl/flags/declare.h"
 
-ABSL_DECLARE_FLAG(uint64_t, mmappedmemblock_munmap_pages_per_call);
 ABSL_DECLARE_FLAG(uint64_t, mmappedmemblock_madvdontneed_pages_per_call);
 #endif
 
