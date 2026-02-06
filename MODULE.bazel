@@ -1,0 +1,12 @@
+module(name = "gloop")
+
+bazel_dep(name = "abseil-cpp", version = "20260107.0")
+bazel_dep(name = "rules_license", version = "1.0.0")
+bazel_dep(name = "rules_cc", version = "0.2.16")
+
+cc_configure = use_extension("@rules_cc//cc:extensions.bzl", "cc_configure_extension")
+use_repo(cc_configure, "local_config_cc")
+
+# Dev dependencies, not needed for users of Gloop.
+
+bazel_dep(name = "googletest", version = "1.17.0.bcr.2", dev_dependency = True)
