@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Description:
-#   Utility functions for sharing code originally written in google3.
+#   Utility functions for sharing code originally written in Google's codebase.
 
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("@rules_license//rules:license.bzl", "license")

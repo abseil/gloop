@@ -3,7 +3,7 @@
 go/gloop
 
 `gloop` is a library designed to speed up the process of sharing code originally
-written in `google3`.
+written in Google's codebase.
 
 ## Purpose and Scope
 

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 package(
-    default_applicable_licenses = ["//third_party/gloop:license"],
+    default_applicable_licenses = ["@gloop//:license"],
 )
 
 # TODO: Remove this placeholder once there are a non-zero number of targets in this package.
