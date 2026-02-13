@@ -45,3 +45,14 @@ jobs:
             - MODULE.bazel
       - name: Run tests
         run: bazel test ...
+
+  all-blocking-tests:
+    name: All Blocking Tests
+    needs: [linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check test results
+        run: "${{ !contains(join(needs.*.result, ' '), 'failure') && !contains(join(needs.*.result, ' '), 'cancelled') }}"
+    # This workflow must run even if one or more of the dependent workflows
+    # failed.
+    if: always()
