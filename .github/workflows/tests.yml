@@ -29,20 +29,30 @@ concurrency:
 
 jobs:
   linux:
-    runs-on: ubuntu-latest
+    # TODO(b/482506448) Private repos have lower disk space and can't handle the large abseil image.
+    runs-on: ubuntu-latest-large
     name: Linux
+    container:
+      image: gcr.io/google.com/absl-177019/linux_hybrid-latest@sha256:9a5b056cd4fa4ff783e7ced7a660d21269dc74e8726c67bd7cce8b9e9da28c30
+      # Our images happen to be public today, but use our service account's credentials anyway in
+      # case we decide to lock down access.
+      credentials:
+        username: _json_key
+        password: ${{ secrets.GAR_SERVICE_ACCOUNT }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - uses: bazel-contrib/setup-bazel@083175551ceeceebc757ebee2127fde78840ca77 # 0.18.0
         with:
           bazelisk-cache: true
-          # Github cache is limited to 10GB, don't write for pull requests.
-          cache-save: ${{ github.event_name != 'pull_request' }}
-          disk-cache: true
+          cache-save: true
           external-cache: true
           repository-cache: |
             - MODULE.bazel
+          google-credentials: ${{ secrets.GAR_SERVICE_ACCOUNT }}
+          bazelrc: common --remote_cache=https://storage.googleapis.com/gloop-bazel-remote-cache
+
       - name: Run tests
         run: bazel test ...
 
