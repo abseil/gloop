@@ -30,7 +30,7 @@ concurrency:
 jobs:
   linux:
     runs-on: ubuntu-latest
-    name: Linux
+    name: Linux (${{ matrix.config }})
     container:
       image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:f51b87a65f323231dcb0003079367e91291a3e0b7f91dc43a39e84c614bd73eb
       # Our images happen to be public today, but use our service account's credentials anyway in
@@ -38,6 +38,10 @@ jobs:
       credentials:
         username: _json_key
         password: ${{ secrets.GAR_SERVICE_ACCOUNT }}
+    strategy:
+      fail-fast: false   # Don't cancel all jobs if one fails.
+      matrix:
+        config: [opt, dbg, asan, ubsan, msan, tsan]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,7 +57,7 @@ jobs:
           bazelrc: common --remote_cache=https://storage.googleapis.com/gloop-bazel-remote-cache
 
       - name: Run tests
-        run: bazel test ...
+        run: bazel test ... --config=${{ matrix.config }}
 
   all-blocking-tests:
     name: All Blocking Tests

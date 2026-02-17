@@ -1,1 +1,38 @@
 build --cxxopt=-std=c++20 --host_cxxopt=-std=c++20
+
+# Gloop does not support exceptions.
+build --copt=-fno-exceptions
+
+# Disable warnings from dependencies.
+build --per_file_copt=-external/.*@-Wno-thread-safety-analysis,-Wno-character-conversion
+
+# Disable any warnings we don't support, and treat the rest as errors.
+build --copt=-Werror
+
+test --test_output=errors
+
+build:dbg --compilation_mode=dbg
+build:opt --compilation_mode=opt
+
+build:san-common --config=dbg --strip=never --copt=-Og --copt=-fno-omit-frame-pointer
+
+build:asan --config=san-common
+build:asan --copt=-fsanitize=address --linkopt=-fsanitize=address
+test:asan --test_tag_filters=-nosan,-noasan
+
+build:ubsan --config=san-common
+build:ubsan --copt=-fsanitize=undefined --linkopt=-fsanitize=undefined
+build:ubsan --copt=-fno-sanitize=function --copt=-fno-sanitize=vptr --copt=-fno-sanitize=nonnull-attribute
+test:ubsan --test_env=UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
+test:ubsan --test_tag_filters=-nosan,-noubsan
+
+build:msan --config=san-common
+build:msan --copt=-fsanitize=memory --linkopt=-fsanitize=memory
+build:msan --copt=-fsanitize-memory-track-origins --copt=-fsanitize-memory-use-after-dtor
+build:msan --copt=-O0 # Avoids false positives
+test:msan --test_env=MSAN_OPTIONS=symbolize=1:fast_unwind_on_malloc=0:poison_in_dtor=1
+test:msan --test_tag_filters=-nosan,-nomsan
+
+build:tsan --config=san-common
+build:tsan --copt=-fsanitize=thread --linkopt=-fsanitize=thread
+test:tsan --test_tag_filters=-nosan,-notsan
