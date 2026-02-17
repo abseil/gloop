@@ -29,11 +29,10 @@ concurrency:
 
 jobs:
   linux:
-    # TODO(b/482506448) Private repos have lower disk space and can't handle the large abseil image.
-    runs-on: ubuntu-latest-large
+    runs-on: ubuntu-latest
     name: Linux
     container:
-      image: gcr.io/google.com/absl-177019/linux_hybrid-latest@sha256:9a5b056cd4fa4ff783e7ced7a660d21269dc74e8726c67bd7cce8b9e9da28c30
+      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:f51b87a65f323231dcb0003079367e91291a3e0b7f91dc43a39e84c614bd73eb
       # Our images happen to be public today, but use our service account's credentials anyway in
       # case we decide to lock down access.
       credentials:
