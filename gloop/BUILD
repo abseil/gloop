@@ -15,6 +15,7 @@
 # Description:
 #   Utility functions for sharing code originally written in Google's codebase.
 
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("@rules_license//rules:license.bzl", "license")
 
@@ -32,11 +33,23 @@ licenses(["notice"])
 
 exports_files(["LICENSE"])
 
+cc_library(
+    name = "enforce_gloop_support",
+    hdrs = ["enforce_gloop_support.h"],
+    visibility = [
+        "@gloop//gloop:__subpackages__",
+    ],
+    deps = [
+        "@host_distro//:gloop_distro",
+    ],
+)
+
 cc_test(
     name = "basic_test",
     srcs = ["basic_test.cc"],
     deps = [
         "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:enforce_gloop_support",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
