@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
 package(
     default_applicable_licenses = ["@gloop//gloop:license"],
 )
@@ -19,7 +21,11 @@ package(
 # TODO: Remove this placeholder once there are a non-zero number of targets in this package.
 #       This test_suite rule only serves to prevent TAP errors resulting from references to this
 #       package in blueprints that resolve to zero rules.
-test_suite(
+cc_test(
     name = "placeholder",
-    tags = ["-flaky"],
+    deps = [
+        "@gloop//gloop:enforce_gloop_support",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
 )
