@@ -44,6 +44,7 @@ cc_library(
     ],
 )
 
+# <link>
 cc_test(
     name = "basic_test",
     srcs = ["basic_test.cc"],
