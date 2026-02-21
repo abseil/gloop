@@ -22,6 +22,63 @@ package(
 )
 
 cc_library(
+    name = "comparator",
+    hdrs = ["comparator.h"],
+    deps = [
+        ":compressed_tuple",
+        "@abseil-cpp//absl/base:core_headers",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "comparator_test",
+    size = "small",
+    srcs = ["comparator_test.cc"],
+    tags = [
+        "no_test_android_arm",
+        "no_test_android_x86",
+        "no_test_lexan",
+        "no_test_loonix",
+        "no_test_wasm",
+    ],
+    deps = [
+        ":comparator",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "compressed_tuple",
+    hdrs = ["compressed_tuple.h"],
+    deps = [
+        "@abseil-cpp//absl/container:compressed_tuple",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "compressed_tuple_test",
+    size = "small",
+    srcs = ["compressed_tuple_test.cc"],
+    deps = [
+        ":compressed_tuple",
+        "@gloop//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "requires",
     hdrs = ["requires.h"],
     deps = ["@gloop//gloop:enforce_gloop_support"],
