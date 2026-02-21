@@ -12,14 +12,84 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
 package(
-    default_applicable_licenses = ["@gloop//gloop:license"],
+    default_applicable_licenses = ["//gloop:license"],
+    default_visibility = ["//visibility:public"],
+    features = ["header_modules"],
 )
 
-# TODO: Remove this placeholder once there are a non-zero number of targets in this package.
-#       This test_suite rule only serves to prevent TAP errors resulting from references to this
-#       package in blueprints that resolve to zero rules.
-test_suite(
-    name = "placeholder",
-    tags = ["-flaky"],
+cc_library(
+    name = "requires",
+    hdrs = ["requires.h"],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
+)
+
+cc_library(
+    name = "stl_util",
+    hdrs = ["stl_util.h"],
+    deps = [
+        ":requires",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@abseil-cpp//absl/strings:resize_and_overwrite",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "stl_util_unittest",
+    srcs = ["stl_util_unittest.cc"],
+    tags = [
+        "no_test_ios_arm64",
+        "no_test_ios_x86_64",
+        "no_test_wasm",
+    ],
+    deps = [
+        ":stl_util",
+        ":unique_array",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:chunked_queue",
+        "@abseil-cpp//absl/container:node_hash_map",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@gloop//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "unique_array",
+    srcs = ["unique_array.cc"],
+    hdrs = ["unique_array.h"],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:str_format",
+        "@gloop//gloop:enforce_gloop_support",
+        "@tcmalloc//tcmalloc:malloc_extension",
+    ],
+)
+
+cc_test(
+    name = "unique_array_test",
+    srcs = ["unique_array_test.cc"],
+    malloc = "//gloop:malloc",
+    deps = [
+        ":unique_array",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
 )

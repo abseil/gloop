@@ -15,13 +15,13 @@
 # Description:
 #   Utility functions for sharing code originally written in Google's codebase.
 
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
-load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load("@rules_license//rules:license.bzl", "license")
 
 package(
     default_applicable_licenses = [":license"],
-    default_visibility = ["//visibility:public"],
+    default_visibility = ["//visibility:private"],
 )
 
 license(
@@ -44,14 +44,42 @@ cc_library(
     ],
 )
 
-# <link>
-cc_test(
-    name = "basic_test",
-    srcs = ["basic_test.cc"],
-    deps = [
-        "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:enforce_gloop_support",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
+string_flag(
+    name = "sanitizer",
+    build_setting_default = "none",
+)
+
+config_setting(
+    name = "asan_enabled",
+    flag_values = {":sanitizer": "asan"},
+)
+
+config_setting(
+    name = "tsan_enabled",
+    flag_values = {":sanitizer": "tsan"},
+)
+
+config_setting(
+    name = "msan_enabled",
+    flag_values = {":sanitizer": "msan"},
+)
+
+config_setting(
+    name = "ubsan_enabled",
+    flag_values = {":sanitizer": "ubsan"},
+)
+
+# The default malloc to use for tests.
+cc_library(
+    name = "malloc",
+    testonly = True,
+    visibility = [
+        "//gloop:__subpackages__",
     ],
+    deps = select({
+        ":asan_enabled": [],
+        ":tsan_enabled": [],
+        ":msan_enabled": [],
+        "//conditions:default": ["@tcmalloc//tcmalloc"],
+    }) + ["@gloop//gloop:enforce_gloop_support"],
 )

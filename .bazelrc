@@ -1,5 +1,7 @@
 build --cxxopt=-std=c++20 --host_cxxopt=-std=c++20
 
+test --test_output=errors
+
 # Gloop does not support exceptions.
 build --copt=-fno-exceptions
 
@@ -8,6 +10,9 @@ build --per_file_copt=-external/.*@-Wno-thread-safety-analysis,-Wno-character-co
 
 # Disable any warnings we don't support, and treat the rest as errors.
 build --copt=-Werror
+build --copt=-Wno-deprecated-declarations # Gloop contains a lot of deprecated code
+build --copt=-Wno-nullability-completeness # Nullability annotations are not yet enforced
+build --copt=-Wno-uninitialized-const-pointer # Cheap ASLR randomization false-positives
 
 test --test_output=errors
 
@@ -17,16 +22,19 @@ build:opt --compilation_mode=opt
 build:san-common --config=dbg --strip=never --copt=-Og --copt=-fno-omit-frame-pointer
 
 build:asan --config=san-common
+build:asan --//gloop:sanitizer=asan
 build:asan --copt=-fsanitize=address --linkopt=-fsanitize=address
 test:asan --test_tag_filters=-nosan,-noasan
 
 build:ubsan --config=san-common
+build:ubsan --//gloop:sanitizer=ubsan
 build:ubsan --copt=-fsanitize=undefined --linkopt=-fsanitize=undefined
 build:ubsan --copt=-fno-sanitize=function --copt=-fno-sanitize=vptr --copt=-fno-sanitize=nonnull-attribute
 test:ubsan --test_env=UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
 test:ubsan --test_tag_filters=-nosan,-noubsan
 
 build:msan --config=san-common
+build:msan --//gloop:sanitizer=msan
 build:msan --copt=-fsanitize=memory --linkopt=-fsanitize=memory
 build:msan --copt=-fsanitize-memory-track-origins --copt=-fsanitize-memory-use-after-dtor
 build:msan --copt=-O0 # Avoids false positives
@@ -34,5 +42,6 @@ test:msan --test_env=MSAN_OPTIONS=symbolize=1:fast_unwind_on_malloc=0:poison_in_
 test:msan --test_tag_filters=-nosan,-nomsan
 
 build:tsan --config=san-common
+build:tsan --//gloop:sanitizer=tsan
 build:tsan --copt=-fsanitize=thread --linkopt=-fsanitize=thread
 test:tsan --test_tag_filters=-nosan,-notsan

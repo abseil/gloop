@@ -16,7 +16,7 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 package(
-    default_applicable_licenses = ["@gloop//gloop:license"],
+    default_applicable_licenses = ["//gloop:license"],
     default_visibility = ["//visibility:private"],
     features = ["header_modules"],
 )
@@ -40,6 +40,7 @@ cc_test(
     deps = [
         ":atomic_danger",
         "@gloop//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],

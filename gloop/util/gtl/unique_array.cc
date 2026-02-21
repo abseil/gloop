@@ -18,18 +18,24 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-#include "absl/strings/string_view.h"
-#include "gtest/gtest.h"
+#include "gloop/util/gtl/unique_array.h"
 
-namespace {
-namespace gloop {
+#include <cstddef>
 
-// This is just some placeholder code to make sure that we can build and test in
-// OSS with dependencies.
-TEST(BasicTest, Add) {
-  constexpr absl::string_view kFoo = "foo";
-  EXPECT_EQ(kFoo, "foo");
+#include "absl/log/check.h"
+#include "absl/log/log.h"
+
+namespace gtl {
+namespace internal {
+
+[[noreturn]] void CrashOnNullUniqueArrayWithNonzeroSize(size_t size) {
+  // Although the caller has already determined that size != 0, we repeat the
+  // comparison here to put the usual CHECK failure message into the log.
+  CHECK_EQ(size, 0ul);
+
+  LOG(FATAL) << "Bug in UniquePtr: CrashOnNullUniqueArrayWithNonzeroSize"
+                " called with zero size";
 }
 
-}  // namespace gloop
-}  // namespace
+}  // namespace internal
+}  // namespace gtl
