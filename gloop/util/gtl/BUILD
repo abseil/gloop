@@ -79,6 +79,87 @@ cc_test(
 )
 
 cc_library(
+    name = "flat_internal",
+    hdrs = ["flat_internal.h"],
+    visibility = [
+        "//gloop/util/gtl:__pkg__",
+    ],
+    deps = [
+        ":unchecked_tags",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/utility",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "flat_internal_test",
+    srcs = ["flat_internal_test.cc"],
+    deps = [
+        ":flat_internal",
+        ":requires",
+        "@abseil-cpp//absl/strings:cord",
+        "@gloop//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "flat_set",
+    hdrs = ["flat_set.h"],
+    deps = [
+        ":flat_internal",
+        ":heterogeneous_lookup",
+        ":unchecked_tags",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "flat_set_test",
+    srcs = ["flat_set_test.cc"],
+    deps = [
+        ":comparator",
+        ":flat_set",
+        ":stl_util",
+        ":switch",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/container:inlined_vector",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/hash:hash_testing",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "heterogeneous_lookup",
+    hdrs = ["heterogeneous_lookup.h"],
+    visibility = [
+        "//gloop/util/gtl:__subpackages__",
+    ],
+    deps = [
+        "@abseil-cpp//absl/container:common",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
     name = "requires",
     hdrs = ["requires.h"],
     deps = ["@gloop//gloop:enforce_gloop_support"],
@@ -117,6 +198,37 @@ cc_test(
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
+)
+
+cc_library(
+    name = "switch",
+    hdrs = ["switch.h"],
+    deps = [
+        "@abseil-cpp//absl/utility",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "switch_test",
+    size = "small",
+    srcs = ["switch_test.cc"],
+    deps = [
+        ":switch",
+        "@gloop//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "unchecked_tags",
+    hdrs = ["unchecked_tags.h"],
+    visibility = [
+        "//gloop/util/gtl:__pkg__",
+    ],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
 )
 
 cc_library(
