@@ -35,13 +35,6 @@ cc_test(
     name = "comparator_test",
     size = "small",
     srcs = ["comparator_test.cc"],
-    tags = [
-        "no_test_android_arm",
-        "no_test_android_x86",
-        "no_test_lexan",
-        "no_test_loonix",
-        "no_test_wasm",
-    ],
     deps = [
         ":comparator",
         "@abseil-cpp//absl/algorithm:container",
@@ -181,11 +174,6 @@ cc_library(
 cc_test(
     name = "stl_util_unittest",
     srcs = ["stl_util_unittest.cc"],
-    tags = [
-        "no_test_ios_arm64",
-        "no_test_ios_x86_64",
-        "no_test_wasm",
-    ],
     deps = [
         ":stl_util",
         ":unique_array",
