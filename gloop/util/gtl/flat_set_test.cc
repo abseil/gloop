@@ -43,6 +43,7 @@
 #include "absl/flags/flag.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/log/log.h"
+#include "absl/meta/internal/constexpr_testing.h"
 #include "absl/meta/type_traits.h"
 #include "absl/random/random.h"
 #include "absl/strings/cord.h"
@@ -1032,6 +1033,129 @@ TEST(FlatSetTest, ConstexprLimitsUnsorted) {
   constexpr auto set = gtl::fixed_flat_set_of(data.values);
   EXPECT_EQ(set.size(), size);
 }
+
+TEST(FlatSetTest, NonConstexprOnDuplicates) {
+  EXPECT_TRUE(absl::meta_internal::HasConstexprEvaluation(
+      [] { return gtl::fixed_flat_set_of<int>({0, 1, 2}); }));
+  EXPECT_FALSE(absl::meta_internal::HasConstexprEvaluation(
+      [] { return gtl::fixed_flat_set_of<int>({0, 1, 1}); }));
+  EXPECT_FALSE(absl::meta_internal::HasConstexprEvaluation([] {
+    std::array<int, 3> kArr = {0, 1, 1};
+    return gtl::fixed_flat_set_of<int>(kArr);
+  }));
+}
+
+TEST(FlatSetTest, ConstexprKeyComp) {
+  static constexpr auto kSet = gtl::fixed_flat_set_of<int>({1});
+
+  EXPECT_TRUE(absl::meta_internal::HasConstexprEvaluation(
+      [] { return kSet.key_comp(); }));
+}
+
+TEST(FlatSetTest, ConstexprValueComp) {
+  static constexpr auto kSet = gtl::fixed_flat_set_of<int>({1});
+
+  EXPECT_TRUE(absl::meta_internal::HasConstexprEvaluation(
+      [] { return kSet.value_comp(); }));
+}
+
+TEST(FlatSetTest, ConstexprMemberFunctionsCapacity) {
+  static constexpr auto kSet = gtl::fixed_flat_set_of<int>({1});
+
+  EXPECT_TRUE(
+      absl::meta_internal::HasConstexprEvaluation([] { return kSet.empty(); }));
+
+  EXPECT_TRUE(
+      absl::meta_internal::HasConstexprEvaluation([] { return kSet.size(); }));
+
+  EXPECT_TRUE(absl::meta_internal::HasConstexprEvaluation(
+      [] { return kSet.max_size(); }));
+}
+
+TEST(FlatSetTest, ConstexprMemberFunctionsIterators) {
+  static constexpr auto kSet = gtl::fixed_flat_set_of<int>({1});
+
+  EXPECT_TRUE(
+      absl::meta_internal::HasConstexprEvaluation([] { return kSet.begin(); }));
+
+  EXPECT_TRUE(
+      absl::meta_internal::HasConstexprEvaluation([] { return kSet.end(); }));
+
+  EXPECT_TRUE(absl::meta_internal::HasConstexprEvaluation(
+      [] { return kSet.cbegin(); }));
+
+  EXPECT_TRUE(
+      absl::meta_internal::HasConstexprEvaluation([] { return kSet.cend(); }));
+
+  EXPECT_TRUE(absl::meta_internal::HasConstexprEvaluation(
+      [] { return kSet.rbegin(); }));
+
+  EXPECT_TRUE(
+      absl::meta_internal::HasConstexprEvaluation([] { return kSet.rend(); }));
+
+  EXPECT_TRUE(absl::meta_internal::HasConstexprEvaluation(
+      [] { return kSet.crbegin(); }));
+
+  EXPECT_TRUE(
+      absl::meta_internal::HasConstexprEvaluation([] { return kSet.crend(); }));
+}
+
+TEST(FlatSetTest, ConstexprPairAsKey) {
+  EXPECT_TRUE(absl::meta_internal::HasConstexprEvaluation([] {
+    return gtl::fixed_flat_set_of<std::pair<int, int>>(
+        {{0, 0}, {1, 1}, {2, 2}});
+  }));
+  EXPECT_TRUE(absl::meta_internal::HasConstexprEvaluation([] {
+    return gtl::fixed_flat_set_of<std::pair<int, int>>(
+        {{2, 2}, {1, 1}, {0, 0}});
+  }));
+}
+
+TEST(FlatSetTest, ConstexprTupleAsKey) {
+  EXPECT_TRUE(absl::meta_internal::HasConstexprEvaluation([] {
+    return gtl::fixed_flat_set_of<std::tuple<int, int>>(
+        {{0, 0}, {1, 1}, {2, 2}});
+  }));
+  EXPECT_TRUE(absl::meta_internal::HasConstexprEvaluation([] {
+    return gtl::fixed_flat_set_of<std::tuple<int, int>>(
+        {{2, 2}, {1, 1}, {0, 0}});
+  }));
+}
+
+// constexpr flat_set operations require constexpr STL algorithms.
+#ifdef __cpp_lib_constexpr_algorithms
+using Set = gtl::flat_set<int>;
+
+TEST(FlatSetTest, ConstexprFind) {
+  EXPECT_TRUE(absl::meta_internal::HasConstexprEvaluation(
+      [] { return Set().find(1); }));
+}
+
+TEST(FlatSetTest, ConstexprCount) {
+  EXPECT_TRUE(absl::meta_internal::HasConstexprEvaluation(
+      [] { return Set().count(1); }));
+}
+
+TEST(FlatSetTest, ConstexprContains) {
+  EXPECT_TRUE(absl::meta_internal::HasConstexprEvaluation(
+      [] { return Set().contains(1); }));
+}
+
+TEST(FlatSetTest, ConstexprLowerBound) {
+  EXPECT_TRUE(absl::meta_internal::HasConstexprEvaluation(
+      [] { return Set().lower_bound(1); }));
+}
+
+TEST(FlatSetTest, ConstexprUpperBound) {
+  EXPECT_TRUE(absl::meta_internal::HasConstexprEvaluation(
+      [] { return Set().upper_bound(1); }));
+}
+
+TEST(FlatSetTest, ConstexprEqualRange) {
+  EXPECT_TRUE(absl::meta_internal::HasConstexprEvaluation(
+      [] { return Set().equal_range(1); }));
+}
+#endif  // __cpp_lib_constexpr_algorithms
 
 TEST(FlatSetTest, NoexceptMove) {
   EXPECT_TRUE(std::is_nothrow_move_constructible_v<gtl::flat_set<int>>);

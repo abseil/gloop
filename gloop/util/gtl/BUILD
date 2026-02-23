@@ -127,6 +127,7 @@ cc_test(
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/hash:hash_testing",
         "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/meta:constexpr_testing",
         "@abseil-cpp//absl/meta:type_traits",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/strings:cord",
