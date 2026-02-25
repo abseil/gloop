@@ -25,8 +25,9 @@ bazel_dep(name = "google_benchmark", version = "1.9.5", dev_dependency = True)
 # upstream this patch into Abseil and declare a noop dependency there for enabling visibility.
 # TODO: Make Gloop public
 # TODO: Add Gloop to BCR
-single_version_override(
+git_override(
     module_name = "abseil-cpp",
+    commit = "45c8989b870443421ac0ebcb8bb303622693acfe",
     patches = ["//gloop:abseil.patch"],
-    version = "20260107.1",
+    remote = "https://github.com/abseil/abseil-cpp",
 )

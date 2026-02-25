@@ -1,10 +1,10 @@
 diff --git MODULE.bazel MODULE.bazel
-index 7f542c9d..2f5bded7 100644
+index edb49d0b..c16aa93d 100644
 --- MODULE.bazel
 +++ MODULE.bazel
 @@ -41,3 +41,13 @@ bazel_dep(
      name = "googletest",
-     version = "1.17.0",
+     version = "1.17.0.bcr.2",
  )
 +
 +bazel_dep(
@@ -16,15 +16,16 @@ index 7f542c9d..2f5bded7 100644
 +    remote = "https://github.com/abseil/gloop",
 +    commit = "8eead4aaf1eb3685921b09e4fc03a69a31e35d53",
 +)
-diff --git absl/meta/BUILD.bazel absl/meta/BUILD.bazel
-index 26468c65..195bcc8a 100644
---- absl/meta/BUILD.bazel
-+++ absl/meta/BUILD.bazel
-@@ -42,6 +42,7 @@ cc_library(
-     linkopts = ABSL_DEFAULT_LINKOPTS,
-     visibility = [
-         "//absl:__subpackages__",
-+        "@do_not_use_for_gloop_visibility_only//gloop:__subpackages__",
-     ],
-     deps = [
-         "//absl/base:config",
+diff --git absl/BUILD.bazel absl/BUILD.bazel
+index e33d6489..0d7d4f7c 100644
+--- absl/BUILD.bazel
++++ absl/BUILD.bazel
+@@ -64,5 +64,7 @@ selects.config_setting_group(
+ # Expose internals to privileged external repositories.
+ package_group(
+     name = "friends",
+-    packages = [],
++    packages = [
++        "@do_not_use_for_gloop_visibility_only//gloop/...",
++    ],
+ )
