@@ -58,10 +58,61 @@ jobs:
 
       - name: Run tests
         run: bazel test ... --config=${{ matrix.config }}
+  non_compilation:
+    name: Check Non-compilation for ${{ matrix.config }}
+    runs-on: ubuntu-latest
+    container:
+      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:f51b87a65f323231dcb0003079367e91291a3e0b7f91dc43a39e84c614bd73eb
+      # Our images happen to be public today, but use our service account's credentials anyway in
+      # case we decide to lock down access.
+      credentials:
+        username: _json_key
+        password: ${{ secrets.GAR_SERVICE_ACCOUNT }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - config: C++ less than C++20
+            flags: --cxxopt=-std=c++17
+            expected_error: Gloop requires C++20 or later
+          - config: Bazel less than 9.0
+            env: USE_BAZEL_VERSION=8.0.1
+            expected_error: Bazel compatibility check failed
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: bazel-contrib/setup-bazel@083175551ceeceebc757ebee2127fde78840ca77 # 0.18.0
+        with:
+          bazelisk-cache: true
+          cache-save: true
+          external-cache: true
+          repository-cache: |
+            - MODULE.bazel
+          google-credentials: ${{ secrets.GAR_SERVICE_ACCOUNT }}
+          bazelrc: common --remote_cache=https://storage.googleapis.com/gloop-bazel-remote-cache
+
+      - name: Run tests
+        run: |
+          # Use of `util/math:mathutil` is arbitrary. Any public gloop cc_library with a `.cc` in its srcs would work, if it breaks switch to something else.
+          if ${{ matrix.env || '' }} bazel build ${{ matrix.flags || '' }} @gloop//gloop/util/math:mathutil > build.log 2>&1; then
+            echo "${{ matrix.config }} compiled successfully, but should have failed."
+            echo "Build output was:"
+            cat build.log
+            exit 1
+          else
+            if ! grep -q "${{ matrix.expected_error }}" build.log; then
+              echo "${{ matrix.config }} compilation failed, but missing expected error message."
+              echo "Expected error message: ${{ matrix.expected_error }}"
+              echo "Actual output was:"
+              cat build.log
+              exit 1
+            fi
+          fi
 
   all-blocking-tests:
     name: All Blocking Tests
-    needs: [linux]
+    needs: [linux, non_compilation]
     runs-on: ubuntu-latest
     steps:
       - name: Check test results

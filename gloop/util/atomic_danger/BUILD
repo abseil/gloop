@@ -39,7 +39,6 @@ cc_test(
     srcs = ["atomic_danger_test.cc"],
     deps = [
         ":atomic_danger",
-        "@gloop//gloop:enforce_gloop_support",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
