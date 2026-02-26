@@ -22,12 +22,19 @@ use_repo(host_ext, "host_distro")
 bazel_dep(name = "googletest", version = "1.17.0.bcr.2", dev_dependency = True)
 bazel_dep(name = "google_benchmark", version = "1.9.5", dev_dependency = True)
 
-# Override our visibility settings in Abseil with a patch.  Once Gloop is public and in BCR, we can
-# upstream this patch into Abseil and declare a noop dependency there for enabling visibility.
+# Override our visibility settings in with patches.  Once Gloop is public and in BCR, we can
+# upstream these changes and declare a noop dependency in these repos for enabling visibility.
 # TODO: Make Gloop public
 # TODO: Add Gloop to BCR
 single_version_override(
     module_name = "abseil-cpp",
     patches = ["//gloop:abseil.patch"],
     version = "20260107.1",
+)
+
+git_override(
+    module_name = "tcmalloc",
+    commit = "29bae22bff6cd2adcb32972f1cb4928f34dfa213",
+    patches = ["//gloop:tcmalloc.patch"],
+    remote = "https://github.com/google/tcmalloc",
 )

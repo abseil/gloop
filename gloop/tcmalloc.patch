@@ -1,0 +1,38 @@
+diff --git MODULE.bazel MODULE.bazel
+index 2a729b0f..43244c5a 100644
+--- MODULE.bazel
++++ MODULE.bazel
+@@ -29,3 +29,13 @@ bazel_dep(name = "fuzztest", version = "20250805.0", dev_dependency = True, repo
+ bazel_dep(name = "google_benchmark", version = "1.9.2", dev_dependency = True, repo_name = "com_github_google_benchmark")
+ bazel_dep(name = "googletest", version = "1.17.0", dev_dependency = True, repo_name = "com_google_googletest")
+ bazel_dep(name = "rules_fuzzing", version = "0.5.2", dev_dependency = True)
++
++bazel_dep(
++    name = "gloop",
++    repo_name = "do_not_use_for_gloop_visibility_only",
++)
++git_override(
++    module_name = "gloop",
++    remote = "https://github.com/abseil/gloop",
++    commit = "8eead4aaf1eb3685921b09e4fc03a69a31e35d53",
++)
+diff --git tcmalloc/internal/BUILD tcmalloc/internal/BUILD
+index 7ac7ad9f..9c81644e 100644
+--- tcmalloc/internal/BUILD
++++ tcmalloc/internal/BUILD
+@@ -297,6 +297,7 @@ cc_test(
+ cc_library(
+     name = "linux_syscall_support",
+     hdrs = ["linux_syscall_support.h"],
++    visibility = ["@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__"],
+     copts = TCMALLOC_DEFAULT_COPTS,
+ )
+ 
+@@ -1133,6 +1134,7 @@ cc_library(
+     visibility = [
+         "//tcmalloc:__pkg__",
+         "//tcmalloc:__subpackages__",
++        "@do_not_use_for_gloop_visibility_only//gloop:__subpackages__",
+     ],
+     deps = [
+         ":config",
