@@ -16,15 +16,39 @@ index 7f542c9d..2f5bded7 100644
 +    remote = "https://github.com/abseil/gloop",
 +    commit = "8eead4aaf1eb3685921b09e4fc03a69a31e35d53",
 +)
+diff --git absl/base/BUILD.bazel absl/base/BUILD.bazel
+index 1d27796a..202ae114 100644
+--- absl/base/BUILD.bazel
++++ absl/base/BUILD.bazel
+@@ -383,6 +383,7 @@ cc_library(
+     linkopts = ABSL_DEFAULT_LINKOPTS,
+     visibility = [
+         "//absl:__subpackages__",
++        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
+     ],
+     deps = [
+         ":config",
+diff --git absl/container/BUILD.bazel absl/container/BUILD.bazel
+index e90aaecc..656fd61b 100644
+--- absl/container/BUILD.bazel
++++ absl/container/BUILD.bazel
+@@ -227,6 +227,7 @@ cc_library(
+     linkopts = ABSL_DEFAULT_LINKOPTS,
+     visibility = [
+         "//absl:__subpackages__",
++        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
+     ],
+     deps = ["//absl/types:compare"],
+ )
 diff --git absl/meta/BUILD.bazel absl/meta/BUILD.bazel
-index 26468c65..195bcc8a 100644
+index 26468c65..769ca55b 100644
 --- absl/meta/BUILD.bazel
 +++ absl/meta/BUILD.bazel
 @@ -42,6 +42,7 @@ cc_library(
      linkopts = ABSL_DEFAULT_LINKOPTS,
      visibility = [
          "//absl:__subpackages__",
-+        "@do_not_use_for_gloop_visibility_only//gloop:__subpackages__",
++        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
      ],
      deps = [
          "//absl/base:config",

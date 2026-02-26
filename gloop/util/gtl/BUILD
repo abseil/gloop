@@ -99,6 +99,42 @@ cc_test(
 )
 
 cc_library(
+    name = "flat_map",
+    hdrs = ["flat_map.h"],
+    deps = [
+        ":flat_internal",
+        ":heterogeneous_lookup",
+        ":iterator_adaptors",
+        ":unchecked_tags",
+        "@abseil-cpp//absl/base:throw_delegate",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "flat_map_test",
+    srcs = ["flat_map_test.cc"],
+    deps = [
+        ":flat_map",
+        ":stl_util",
+        "@abseil-cpp//absl/container:inlined_vector",
+        "@abseil-cpp//absl/container:test_instance_tracker",
+        "@abseil-cpp//absl/hash:hash_testing",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/meta:constexpr_testing",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "flat_set",
     hdrs = ["flat_set.h"],
     deps = [
@@ -146,6 +182,40 @@ cc_library(
     deps = [
         "@abseil-cpp//absl/container:common",
         "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "iterator_adaptors",
+    hdrs = ["iterator_adaptors.h"],
+    deps = [
+        ":compressed_tuple",
+        ":requires",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:throw_delegate",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "iterator_adaptors_unittest",
+    srcs = ["iterator_adaptors_unittest.cc"],
+    deps = [
+        ":iterator_adaptors",
+        "//gloop/util/gtl:flat_map",
+        "//gloop/util/gtl:flat_set",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/container:node_hash_map",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@protobuf//:duration_cc_proto",
     ],
 )
 

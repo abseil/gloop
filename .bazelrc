@@ -7,6 +7,7 @@ build --copt=-fno-exceptions
 
 # Disable warnings from dependencies.
 build --per_file_copt=-external/.*@-Wno-thread-safety-analysis,-Wno-character-conversion
+build --host_per_file_copt=-external/.*@-Wno-deprecated-declarations
 
 # Disable any warnings we don't support, and treat the rest as errors.
 build --copt=-Werror
