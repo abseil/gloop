@@ -11,3 +11,45 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+load(
+    "@rules_cc//cc:cc_library.bzl",
+    "cc_library",
+)
+load(
+    "@rules_cc//cc:cc_test.bzl",
+    "cc_test",
+)
+
+package_group(
+    name = "base_implementation",
+    packages = [
+        "//gloop/base/...",
+    ],
+)
+
+package(
+    default_applicable_licenses = ["//gloop:license"],
+    default_visibility = [":base_implementation"],
+    features = ["header_modules"],
+)
+
+cc_library(
+    name = "strtoint",
+    srcs = ["strtoint.cc"],
+    hdrs = ["strtoint.h"],
+    visibility = ["//visibility:public"],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
+)
+
+cc_test(
+    name = "strtoint_test",
+    size = "small",
+    srcs = ["strtoint_test.cc"],
+    deps = [
+        ":strtoint",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
