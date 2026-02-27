@@ -1,10 +1,8 @@
 diff --git MODULE.bazel MODULE.bazel
-index 7f542c9d..2f5bded7 100644
+index edb49d0b..c16aa93d 100644
 --- MODULE.bazel
 +++ MODULE.bazel
-@@ -41,3 +41,13 @@ bazel_dep(
-     name = "googletest",
-     version = "1.17.0",
+@@ -43 +43,11 @@ bazel_dep(
  )
 +
 +bazel_dep(
@@ -17,38 +15,242 @@ index 7f542c9d..2f5bded7 100644
 +    commit = "8eead4aaf1eb3685921b09e4fc03a69a31e35d53",
 +)
 diff --git absl/base/BUILD.bazel absl/base/BUILD.bazel
-index 1d27796a..202ae114 100644
+index 4fcb4f1f..7e36dcf3 100644
 --- absl/base/BUILD.bazel
 +++ absl/base/BUILD.bazel
-@@ -383,6 +383,7 @@ cc_library(
-     linkopts = ABSL_DEFAULT_LINKOPTS,
-     visibility = [
-         "//absl:__subpackages__",
-+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
+@@ -59,2 +59,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
-     deps = [
-         ":config",
+@@ -136,2 +137,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -160,2 +162,3 @@ cc_library(
+         "//absl/base:__pkg__",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -190,2 +193,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -272,2 +276,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -452,2 +457,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -466,2 +472,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -548,2 +555,3 @@ cc_library(
+         "//absl/base:__pkg__",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -583,2 +591,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -853,2 +862,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -952,2 +962,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
 diff --git absl/container/BUILD.bazel absl/container/BUILD.bazel
-index e90aaecc..656fd61b 100644
+index 15fa6630..5198d376 100644
 --- absl/container/BUILD.bazel
 +++ absl/container/BUILD.bazel
-@@ -227,6 +227,7 @@ cc_library(
-     linkopts = ABSL_DEFAULT_LINKOPTS,
-     visibility = [
-         "//absl:__subpackages__",
-+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
+@@ -228,2 +228,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
-     deps = ["//absl/types:compare"],
- )
+@@ -445,2 +446,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -943,2 +945,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/container:__pkg__",
+@@ -961,2 +964,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/container:__pkg__",
+@@ -978,2 +982,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/container:__pkg__",
+@@ -995,2 +1000,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/container:__pkg__",
+@@ -1014,2 +1020,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/container:__pkg__",
+@@ -1030,2 +1037,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/container:__pkg__",
+@@ -1046,2 +1054,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/container:__pkg__",
+@@ -1063,2 +1072,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/container:__pkg__",
+@@ -1241,2 +1251,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/container:__pkg__",
+diff --git absl/debugging/BUILD.bazel absl/debugging/BUILD.bazel
+index a5c736c9..cf176167 100644
+--- absl/debugging/BUILD.bazel
++++ absl/debugging/BUILD.bazel
+@@ -157,2 +157,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/log/internal:__pkg__",
+@@ -220,3 +221,6 @@ cc_library(
+     linkopts = ABSL_DEFAULT_LINKOPTS,
+-    visibility = ["//absl:friends"],
++    visibility = [
++        "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
++    ],
+     deps = [
+@@ -238,2 +242,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/container:__pkg__",
+diff --git absl/flags/BUILD.bazel absl/flags/BUILD.bazel
+index b5ecb7f7..c7163a6d 100644
+--- absl/flags/BUILD.bazel
++++ absl/flags/BUILD.bazel
+@@ -46,2 +46,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/flags:__pkg__",
+@@ -66,2 +67,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/flags:__pkg__",
+@@ -134,2 +136,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -173,2 +176,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/flags:__pkg__",
+@@ -274,2 +278,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/flags:__pkg__",
+diff --git absl/log/internal/BUILD.bazel absl/log/internal/BUILD.bazel
+index 6635118b..36cd6431 100644
+--- absl/log/internal/BUILD.bazel
++++ absl/log/internal/BUILD.bazel
+@@ -29,2 +29,3 @@ package(
+         ":internal_users",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -111,2 +112,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/log:__pkg__",
+@@ -157,2 +159,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/log:__pkg__",
+@@ -190,2 +193,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/log:__pkg__",
+@@ -309,2 +313,3 @@ cc_library(
+         ":structured_proto_users",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -383,2 +388,3 @@ cc_library(
+         ":structured_proto_users",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -404,2 +410,3 @@ cc_library(
+         ":structured_proto_users",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -467,2 +474,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl/log:__subpackages__",
+@@ -565,2 +573,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
 diff --git absl/meta/BUILD.bazel absl/meta/BUILD.bazel
-index 26468c65..769ca55b 100644
+index 6e52c6ec..9aef4b2a 100644
 --- absl/meta/BUILD.bazel
 +++ absl/meta/BUILD.bazel
-@@ -42,6 +42,7 @@ cc_library(
-     linkopts = ABSL_DEFAULT_LINKOPTS,
-     visibility = [
-         "//absl:__subpackages__",
-+        "@do_not_use_for_gloop_visibility_only//gloop/util/gtl:__subpackages__",
+@@ -45,2 +45,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
-     deps = [
-         "//absl/base:config",
+@@ -71,2 +72,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+diff --git absl/profiling/BUILD.bazel absl/profiling/BUILD.bazel
+index 3896f46b..b3bc04fd 100644
+--- absl/profiling/BUILD.bazel
++++ absl/profiling/BUILD.bazel
+@@ -43,2 +43,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -81,2 +82,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -112,2 +114,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+         "//absl:__subpackages__",
+diff --git absl/random/internal/BUILD.bazel absl/random/internal/BUILD.bazel
+index c2f2c367..0a2ee72c 100644
+--- absl/random/internal/BUILD.bazel
++++ absl/random/internal/BUILD.bazel
+@@ -32,2 +32,3 @@ default_package_visibility = [
+     "//absl:friends",
++    "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+ ]
+diff --git absl/strings/BUILD.bazel absl/strings/BUILD.bazel
+index 2f2b8eaa..ef1aece1 100644
+--- absl/strings/BUILD.bazel
++++ absl/strings/BUILD.bazel
+@@ -1560,2 +1560,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+diff --git absl/synchronization/BUILD.bazel absl/synchronization/BUILD.bazel
+index 583eff2d..ffdf46e1 100644
+--- absl/synchronization/BUILD.bazel
++++ absl/synchronization/BUILD.bazel
+@@ -68,2 +68,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -299,2 +300,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -348,2 +350,3 @@ cc_library(
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],

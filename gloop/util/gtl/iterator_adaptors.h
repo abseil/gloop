@@ -31,8 +31,8 @@
 #include <utility>
 
 #include "absl/base/attributes.h"
-#include "absl/base/internal/throw_delegate.h"
 #include "absl/base/optimization.h"
+#include "absl/base/throw_delegate.h"
 #include "absl/meta/type_traits.h"
 #include "gloop/util/gtl/compressed_tuple.h"
 #include "gloop/util/gtl/requires.h"
@@ -568,7 +568,7 @@ class ABSL_ATTRIBUTE_VIEW container_view {
   constexpr std::enable_if_t<!is_mutable && has_subscript, const_reference> at(
       size_type i) const {
     if (ABSL_PREDICT_FALSE(i >= size())) {
-      absl::base_internal::ThrowStdOutOfRange(
+      absl::ThrowStdOutOfRange(
           "`container_view::at(size_type)` failed bounds check");
     }
     return begin()[i];
@@ -599,7 +599,7 @@ class ABSL_ATTRIBUTE_VIEW container_view {
   constexpr std::enable_if_t<is_mutable && has_subscript, reference> at(
       size_type i) const {
     if (ABSL_PREDICT_FALSE(i >= size())) {
-      absl::base_internal::ThrowStdOutOfRange(
+      absl::ThrowStdOutOfRange(
           "`container_view::at(size_type)` failed bounds check");
     }
     return begin()[i];

@@ -66,7 +66,7 @@
 #include <utility>
 #include <vector>
 
-#include "absl/base/internal/throw_delegate.h"
+#include "absl/base/throw_delegate.h"
 #include "absl/meta/type_traits.h"
 #include "gloop/util/gtl/flat_internal.h"
 #include "gloop/util/gtl/heterogeneous_lookup.h"
@@ -234,13 +234,13 @@ class flat_map : public internal_flat::FlatContainersMaybeExportData<
   template <typename K = key_type>
   constexpr mapped_type& at(const key_arg<K>& k) {
     auto it = find(k);
-    if (it == end()) absl::base_internal::ThrowStdOutOfRange("flat_map::at");
+    if (it == end()) absl::ThrowStdOutOfRange("flat_map::at");
     return it->second;
   }
   template <typename K = key_type>
   constexpr const mapped_type& at(const key_arg<K>& k) const {
     auto it = find(k);
-    if (it == end()) absl::base_internal::ThrowStdOutOfRange("flat_map::at");
+    if (it == end()) absl::ThrowStdOutOfRange("flat_map::at");
     return it->second;
   }
 
