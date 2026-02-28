@@ -1,6 +1,6 @@
 build --cxxopt=-std=c++20 --host_cxxopt=-std=c++20
 
-test --test_output=errors
+test --test_output=errors --keep_going
 
 # Gloop does not support exceptions.
 build --copt=-fno-exceptions
@@ -11,6 +11,7 @@ build --host_per_file_copt=-external/.*@-Wno-deprecated-declarations
 
 # Disable any warnings we don't support, and treat the rest as errors.
 build --copt=-Werror
+build --copt=-Wno-unused-private-field # False positives that ignore [[maybe_unused]]
 build --copt=-Wno-deprecated-declarations # Gloop contains a lot of deprecated code
 build --copt=-Wno-nullability-completeness # Nullability annotations are not yet enforced
 build --copt=-Wno-uninitialized-const-pointer # Cheap ASLR randomization false-positives

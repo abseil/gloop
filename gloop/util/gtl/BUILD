@@ -70,6 +70,29 @@ cc_test(
 )
 
 cc_library(
+    name = "container_logging",
+    hdrs = ["container_logging.h"],
+    deps = [
+        "@abseil-cpp//absl/log/internal:container",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "container_logging_test",
+    srcs = ["container_logging_test.cc"],
+    deps = [
+        ":container_logging",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "flat_internal",
     hdrs = ["flat_internal.h"],
     visibility = [
