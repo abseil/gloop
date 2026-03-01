@@ -15,6 +15,7 @@ build --copt=-Wno-unused-private-field # False positives that ignore [[maybe_unu
 build --copt=-Wno-deprecated-declarations # Gloop contains a lot of deprecated code
 build --copt=-Wno-nullability-completeness # Nullability annotations are not yet enforced
 build --copt=-Wno-uninitialized-const-pointer # Cheap ASLR randomization false-positives
+build --copt=-Wno-c++11-compat # We don't support C++11
 build --copt=-Wno-implicit-float-conversion
 
 test --test_output=errors
