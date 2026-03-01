@@ -299,49 +299,6 @@ cc_test(
 )
 
 cc_library(
-    name = "unaligned",
-    hdrs = ["unaligned.h"],
-    deps = [
-        ":unaligned_internal",
-        "@abseil-cpp//absl/base",
-        "@abseil-cpp//absl/meta:type_traits",
-        "@gloop//gloop:enforce_gloop_support",
-    ],
-)
-
-cc_library(
-    name = "unaligned_internal",
-    hdrs = ["unaligned_internal.h"],
-    visibility = [
-        "//gloop/util/gtl:__subpackages__",
-    ],
-    deps = [
-        "//gloop/util/gtl:requires",
-        "@abseil-cpp//absl/base",
-        "@gloop//gloop:enforce_gloop_support",
-    ],
-)
-
-cc_test(
-    name = "unaligned_test",
-    srcs = ["unaligned_test.cc"],
-    deps = [
-        ":unaligned",
-        ":unaligned_internal",
-        "//gloop/util/endian",
-        "//gloop/util/gtl:requires",
-        "@abseil-cpp//absl/base",
-        "@abseil-cpp//absl/container:flat_hash_map",
-        "@abseil-cpp//absl/hash:hash_testing",
-        "@abseil-cpp//absl/numeric:int128",
-        "@abseil-cpp//absl/types:span",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
-    ],
-)
-
-cc_library(
     name = "unchecked_tags",
     hdrs = ["unchecked_tags.h"],
     visibility = [
