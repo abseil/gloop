@@ -34,6 +34,34 @@ package(
     features = ["header_modules"],
 )
 
+# Platform specific library that currently contains implementations of snprintf
+# and vsnprintf for Windows.
+cc_library(
+    name = "port",
+    hdrs = ["port.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "port_test",
+    size = "small",
+    srcs = ["port_test.cc"] + [
+        "port_byteswap_test.cc",
+    ],
+    deps = [
+        ":port",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "strtoint",
     srcs = ["strtoint.cc"],
@@ -52,4 +80,11 @@ cc_test(
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
+)
+
+cc_library(
+    name = "uword",
+    hdrs = ["uword.h"],
+    visibility = ["//visibility:public"],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
 )

@@ -1,0 +1,1039 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Removing the following header is prohibited as it can introduce undefined
+// behavior.
+// clang-format off
+#include "gloop/enforce_gloop_support.h"
+// clang-format on
+
+// Utility functions that depend on bytesex. We define htonll and ntohll,
+// as well as "Google" versions of all the standards: ghtonl, ghtons, and
+// so on. These functions do exactly the same as their standard variants,
+// but don't require including the dangerous netinet/in.h.
+//
+// Buffer routines will copy to and from buffers without causing
+// a bus error when the architecture requires different byte alignments.
+//
+#ifndef THIRD_PARTY_GLOOP_UTIL_ENDIAN_ENDIAN_H_
+#define THIRD_PARTY_GLOOP_UTIL_ENDIAN_ENDIAN_H_
+
+#include <assert.h>
+
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <type_traits>
+
+#include "absl/base/casts.h"
+#include "absl/base/macros.h"
+#include "absl/base/optimization.h"
+#include "absl/numeric/bits.h"
+#include "absl/numeric/int128.h"
+#include "gloop/base/port.h"
+#include "gloop/base/uword.h"
+#include "gloop/util/gtl/unaligned.h"
+
+template <typename T>
+ABSL_DEPRECATE_AND_INLINE()
+inline uint64_t gbswap_64(T host_int) {
+  return absl::byteswap<uint64_t>(host_int);
+}
+
+template <>
+ABSL_DEPRECATE_AND_INLINE()
+inline uint64_t gbswap_64(uint64_t host_int) {
+  return absl::byteswap(host_int);
+}
+
+template <typename T>
+ABSL_DEPRECATE_AND_INLINE()
+inline uint32_t gbswap_32(T host_int) {
+  return absl::byteswap<uint32_t>(host_int);
+}
+
+template <>
+ABSL_DEPRECATE_AND_INLINE()
+inline uint32_t gbswap_32(uint32_t host_int) {
+  return absl::byteswap(host_int);
+}
+
+template <typename T>
+ABSL_DEPRECATE_AND_INLINE()
+inline uint16_t gbswap_16(T host_int) {
+  return absl::byteswap<uint16_t>(host_int);
+}
+
+template <>
+ABSL_DEPRECATE_AND_INLINE()
+inline uint16_t gbswap_16(uint16_t host_int) {
+  return absl::byteswap(host_int);
+}
+
+inline absl::uint128 gbswap_128(absl::uint128 host_int) {
+  return absl::MakeUint128(absl::byteswap(absl::Uint128Low64(host_int)),
+                           absl::byteswap(absl::Uint128High64(host_int)));
+}
+
+#ifdef IS_LITTLE_ENDIAN
+
+// Definitions for ntohl etc. that don't require us to include netinet/in.h.
+inline uint16_t ghtons(uint16_t x) { return absl::byteswap(x); }
+inline uint32_t ghtonl(uint32_t x) { return absl::byteswap(x); }
+inline uint64_t ghtonll(uint64_t x) { return absl::byteswap(x); }
+
+#elif defined IS_BIG_ENDIAN
+
+// These definitions are simpler on big-endian machines
+// These are functions instead of macros to avoid self-assignment warnings
+// on calls such as "i = ghtnol(i);".  This also provides type checking.
+inline uint16_t ghtons(uint16_t x) { return x; }
+inline uint32_t ghtonl(uint32_t x) { return x; }
+inline uint64_t ghtonll(uint64_t x) { return x; }
+
+#else
+#error \
+    "Unsupported bytesex: Either IS_BIG_ENDIAN or IS_LITTLE_ENDIAN must be defined"  // NOLINT
+#endif  // bytesex
+
+#ifndef htonll
+// With the rise of 64-bit, some systems are beginning to define this.
+#define htonll(x) ghtonll(x)
+#endif  // htonll
+
+// ntoh* and hton* are the same thing for any size and bytesex,
+// since the function is an involution, i.e., its own inverse.
+inline uint16_t gntohs(uint16_t x) { return ghtons(x); }
+inline uint32_t gntohl(uint32_t x) { return ghtonl(x); }
+inline uint64_t gntohll(uint64_t x) { return ghtonll(x); }
+
+#ifndef ntohll
+#define ntohll(x) htonll(x)
+#endif  // ntohll
+
+namespace endian_internal {
+
+// We provide unified FromHost and ToHost APIs for all integral types and float,
+// double types. If variable v's type is known to be one of these types, the
+// client can simply call the following function without worrying about its
+// return type.
+//     LittleEndian::FromHost(v), or BigEndian::FromHost(v)
+//     LittleEndian::ToHost(v), or BigEndian::ToHost(v)
+// This unified FromHost and ToHost APIs are useful inside a template when the
+// type of v is a template parameter.
+//
+// In order to unify all "IntType FromHostxx(ValueType)" and "IntType
+// ToHostxx(ValueType)" APIs, we use the following trait class to automatically
+// find the corresponding IntType given a ValueType, where IntType is an
+// unsigned integer type with the same size of ValueType. The supported
+// ValueTypes are uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t,
+// int32_t, int64_t, bool, float, double.
+//
+// template <class ValueType>
+// struct fromhost_traits {
+//   typedef IntType int_type;
+// }
+//
+// We don't provide the default implementation for this trait struct.
+// So that if ValueType is not supported by the FromHost and ToHost APIs, it
+// will give a compile time error.
+template <class ValueType>
+struct fromhost_traits;
+
+// General byte order converter class template. It provides a common
+// implementation for LittleEndian::FromHost(ValueType),
+// BigEndian::FromHost(ValueType), LittleEndian::ToHost(ValueType), and
+// BigEndian::ToHost(ValueType).
+template <class EndianClass, typename ValueType>
+class GeneralFormatConverter {
+ public:
+  static ValueType FromHost(ValueType v);
+  static ValueType ToHost(ValueType v);
+};
+
+}  // namespace endian_internal
+
+// Utilities to convert numbers between the current hosts's native byte
+// order and little-endian byte order
+//
+// Load/Store methods are alignment safe
+class LittleEndian {
+ public:
+  // Conversion functions.
+#ifdef IS_LITTLE_ENDIAN
+
+  static uint16_t FromHost16(uint16_t x) { return x; }
+  static uint16_t ToHost16(uint16_t x) { return x; }
+
+  static uint32_t FromHost32(uint32_t x) { return x; }
+  static uint32_t ToHost32(uint32_t x) { return x; }
+
+  static uint64_t FromHost64(uint64_t x) { return x; }
+  static uint64_t ToHost64(uint64_t x) { return x; }
+
+  static absl::uint128 FromHost128(absl::uint128 x) { return x; }
+  static absl::uint128 ToHost128(absl::uint128 x) { return x; }
+
+  static constexpr bool IsLittleEndian() { return true; }
+
+#elif defined IS_BIG_ENDIAN
+
+  static uint16_t FromHost16(uint16_t x) { return absl::byteswap(x); }
+  static uint16_t ToHost16(uint16_t x) { return absl::byteswap(x); }
+
+  static uint32_t FromHost32(uint32_t x) { return absl::byteswap(x); }
+  static uint32_t ToHost32(uint32_t x) { return absl::byteswap(x); }
+
+  static uint64_t FromHost64(uint64_t x) { return absl::byteswap(x); }
+  static uint64_t ToHost64(uint64_t x) { return absl::byteswap(x); }
+
+  static absl::uint128 FromHost128(absl::uint128 x) { return gbswap_128(x); }
+  static absl::uint128 ToHost128(absl::uint128 x) { return gbswap_128(x); }
+
+  static constexpr bool IsLittleEndian() { return false; }
+
+#endif /* ENDIAN */
+
+  // Unified LittleEndian::FromHost(ValueType v) API.
+  template <class ValueType>
+  static typename endian_internal::fromhost_traits<ValueType>::int_type
+  FromHost(ValueType v) {
+    using IntType =
+        typename endian_internal::fromhost_traits<ValueType>::int_type;
+    return absl::bit_cast<IntType>(
+        endian_internal::GeneralFormatConverter<LittleEndian,
+                                                ValueType>::FromHost(v));
+  }
+
+  // Unified LittleEndian::ToHost(ValueType v) API.
+  template <class ValueType>
+  static ValueType ToHost(ValueType v) {
+    return endian_internal::GeneralFormatConverter<LittleEndian,
+                                                   ValueType>::ToHost(v);
+  }
+
+  // Functions to do unaligned loads and stores in little-endian order.
+  template <typename T, size_t N>
+  static uint16_t Load16(T (&p)[N]) {
+    static_assert(sizeof(T) * N >= sizeof(uint16_t),
+                  "Not enough space in buffer to load value from");
+    return Load16(static_cast<const void*>(p));
+  }
+
+  template <typename T = void*, size_t N = 0>
+  static uint16_t Load16(const void* p) {
+    return ToHost16(UNALIGNED_LOAD16(p));
+  }
+
+  template <typename T, size_t N>
+  static void Store16(T (&p)[N], uint16_t v) {
+    static_assert(sizeof(T) * N >= sizeof(uint16_t),
+                  "Not enough space in buffer to store value");
+    return Store16(static_cast<void*>(p), v);
+  }
+
+  template <typename T = void*, size_t N = 0>
+  static void Store16(void* p, uint16_t v) {
+    UNALIGNED_STORE16(p, FromHost16(v));
+  }
+
+  template <typename T, size_t N>
+  static uint32_t Load24(T (&p)[N]) {
+    static_assert(sizeof(T) * N >= 3,
+                  "Not enough space in buffer to load value from");
+    return Load24(static_cast<const void*>(p));
+  }
+
+  template <typename T = const void*, size_t N = 0>
+  static uint32_t Load24(const void* p) {
+#ifdef IS_LITTLE_ENDIAN
+    uint32_t result = 0;
+    memcpy(&result, p, 3);
+    return result;
+#else
+    const uint8_t* data = reinterpret_cast<const uint8_t*>(p);
+    return Load16(data) + (data[2] << 16);
+#endif
+  }
+
+  template <typename T, size_t N>
+  static void Store24(T (&p)[N], uint32_t v) {
+    static_assert(sizeof(T) * N >= 3,
+                  "Not enough space in buffer to store value");
+    return Store24(static_cast<void*>(p), v);
+  }
+
+  template <typename T = void*, size_t N = 0>
+  static void Store24(void* p, uint32_t v) {
+#ifdef IS_LITTLE_ENDIAN
+    memcpy(p, &v, 3);
+#else
+    uint8_t* data = reinterpret_cast<uint8_t*>(p);
+    data[0] = v & 0xFF;
+    data[1] = (v >> 8) & 0xFF;
+    data[2] = (v >> 16) & 0xFF;
+#endif
+  }
+
+  template <typename T, size_t N>
+  static uint32_t Load32(T (&p)[N]) {
+    static_assert(sizeof(T) * N >= sizeof(uint32_t),
+                  "Not enough space in buffer to load value from");
+    return Load32(static_cast<const void*>(p));
+  }
+
+  template <typename T = const void*, size_t N = 0>
+  static uint32_t Load32(const void* p) {
+    return ToHost32(UNALIGNED_LOAD32(p));
+  }
+
+  template <typename T, size_t N>
+  static void Store32(T (&p)[N], uint32_t v) {
+    static_assert(sizeof(T) * N >= sizeof(uint32_t),
+                  "Not enough space in buffer to store value");
+    Store32(static_cast<void*>(p), v);
+  }
+
+  template <typename T = void*, size_t N = 0>
+  static void Store32(void* p, uint32_t v) {
+    UNALIGNED_STORE32(p, FromHost32(v));
+  }
+
+  template <typename T, size_t N>
+  static uint64_t Load64(T (&p)[N]) {
+    static_assert(sizeof(T) * N >= sizeof(uint64_t),
+                  "Not enough space in buffer to load value from");
+    return Load64(static_cast<const void*>(p));
+  }
+
+  template <typename T = const void*, size_t N = 0>
+  static uint64_t Load64(const void* p) {
+    return ToHost64(UNALIGNED_LOAD64(p));
+  }
+
+  // Build a uint64_t from 1-8 bytes.
+  // 8 * len least significant bits are loaded from the memory with
+  // LittleEndian order. The 64 - 8 * len most significant bits are
+  // set all to 0.
+  // In latex-friendly words, this function returns:
+  //     $\sum_{i=0}^{len-1} p[i] 256^{i}$, where p[i] is unsigned.
+  //
+  // This function is equivalent to:
+  // uint64_t val = 0;
+  // memcpy(&val, p, len);
+  // return ToHost64(val);
+  //
+  // The caller needs to guarantee that 0 <= len <= 8.
+  static uint64_t Load64VariableLength(const void* const p, size_t len) {
+    ABSL_ASSUME(len <= 8);
+    uint64_t val = 0;
+    const uint8_t* const src = static_cast<const uint8_t*>(p);
+    for (size_t i = 0; i < len; ++i) {
+      val |= static_cast<uint64_t>(src[i]) << (8 * i);
+    }
+    return val;
+  }
+
+  // Store the least significant 1-8 bytes of a uint64_t.
+  // 8 * len least significant bits are loaded from the given uint64_t and
+  // written to the provided buffer in LittleEndian order. The 64 - 8 * len
+  // most significant bits are ignored.
+  //
+  // The caller needs to guarantee that len <= 8.
+  static void Store64VariableLength(void* const p, uint64_t v, size_t len) {
+    assert(len <= 8);
+    v = FromHost64(v);
+    memcpy(p, &v, len);
+  }
+
+  template <typename T, size_t N>
+  static void Store64(T (&p)[N], uint64_t v) {
+    static_assert(sizeof(T) * N >= sizeof(uint64_t),
+                  "Not enough space in buffer to store value");
+    Store64(static_cast<void*>(p), v);
+  }
+
+  template <typename T = void*, size_t N = 0>
+  static void Store64(void* p, uint64_t v) {
+    UNALIGNED_STORE64(p, FromHost64(v));
+  }
+
+  template <typename T, size_t N>
+  static absl::uint128 Load128(T (&p)[N]) {
+    static_assert(sizeof(T) * N >= 16,
+                  "Not enough space in buffer to load value from");
+    return Load128(static_cast<const void*>(p));
+  }
+
+  template <typename T = void*, size_t N = 0>
+  static absl::uint128 Load128(const void* p) {
+    return absl::MakeUint128(
+        ToHost64(UNALIGNED_LOAD64(reinterpret_cast<const uint64_t*>(p) + 1)),
+        ToHost64(UNALIGNED_LOAD64(p)));
+  }
+
+  template <typename T, size_t N>
+  static void Store128(T (&p)[N], const absl::uint128 v) {
+    static_assert(sizeof(T) * N >= 16,
+                  "Not enough space in buffer to store value");
+    return Store128(static_cast<void*>(p), v);
+  }
+
+  template <typename T = void*, size_t N = 0>
+  static void Store128(void* p, const absl::uint128 v) {
+    UNALIGNED_STORE64(p, FromHost64(absl::Uint128Low64(v)));
+    UNALIGNED_STORE64(reinterpret_cast<uint64_t*>(p) + 1,
+                      FromHost64(absl::Uint128High64(v)));
+  }
+
+  // Build a uint128 from 1-16 bytes.
+  // 8 * len least significant bits are loaded from the memory with
+  // LittleEndian order. The 128 - 8 * len most significant bits are
+  // set all to 0.
+  static absl::uint128 Load128VariableLength(const void* p, size_t len) {
+    if (len <= 8) {
+      return absl::uint128(Load64VariableLength(p, len));
+    } else {
+      return absl::MakeUint128(
+          Load64VariableLength(static_cast<const char*>(p) + 8, len - 8),
+          Load64(p));
+    }
+  }
+
+  // Load & Store in machine's word size.
+  template <typename T, size_t N>
+  static uword_t LoadUnsignedWord(T (&p)[N]) {
+    static_assert(sizeof(T) * N >= sizeof(uword_t),
+                  "Not enough space in buffer to load value from");
+    return LoadUnsignedWord(static_cast<const void*>(p));
+  }
+
+  template <typename T = const void*, size_t N = 0>
+  static uword_t LoadUnsignedWord(const void* p) {
+    if constexpr (sizeof(uword_t) == 8)
+      return Load64(p);
+    else
+      return Load32(p);
+  }
+
+  template <typename T, size_t N>
+  static void StoreUnsignedWord(T (&p)[N], uword_t v) {
+    static_assert(sizeof(T) * N <= sizeof(uword_t),
+                  "Not enough space in buffer to store value");
+    StoreUnsignedWord(static_cast<void*>(p), v);
+  }
+
+  template <typename T = const void*, size_t N = 0>
+  static void StoreUnsignedWord(void* p, uword_t v) {
+    if constexpr (sizeof(v) == 8)
+      Store64(p, v);
+    else
+      Store32(p, v);
+  }
+
+  // Unified LittleEndian::Load/Store<T> API.
+
+  // Returns the T value encoded by the leading bytes of 'p', interpreted
+  // according to the format specified below. 'p' has no alignment restrictions.
+  //
+  // Type              Format
+  // ----------------  -------------------------------------------------------
+  // uint{8,16,32,64}  Little-endian binary representation.
+  // int{8,16,32,64}   Little-endian twos-complement binary representation.
+  // float,double      Little-endian IEEE-754 format.
+  // char              The raw byte.
+  // bool              A byte. 0 maps to false; all other values map to true.
+  template <typename T>
+  static T Load(const char* p);
+
+  // Encodes 'value' in the format corresponding to T. Supported types are
+  // described in Load<T>(). 'p' has no alignment restrictions. In-place Store
+  // is safe (that is, it is safe to call
+  // Store(x, reinterpret_cast<char*>(&x))).
+  template <typename T>
+  static void Store(T value, char* p);
+};
+
+// Utilities to convert numbers between the current hosts's native byte
+// order and big-endian byte order (same as network byte order)
+//
+// Load/Store methods are alignment safe
+class BigEndian {
+ public:
+#ifdef IS_LITTLE_ENDIAN
+
+  static uint16_t FromHost16(uint16_t x) { return absl::byteswap(x); }
+  static uint16_t ToHost16(uint16_t x) { return absl::byteswap(x); }
+
+  static uint32_t FromHost32(uint32_t x) { return absl::byteswap(x); }
+  static uint32_t ToHost32(uint32_t x) { return absl::byteswap(x); }
+
+  static uint64_t FromHost64(uint64_t x) { return absl::byteswap(x); }
+  static uint64_t ToHost64(uint64_t x) { return absl::byteswap(x); }
+
+  static absl::uint128 FromHost128(absl::uint128 x) { return gbswap_128(x); }
+  static absl::uint128 ToHost128(absl::uint128 x) { return gbswap_128(x); }
+
+  static constexpr bool IsLittleEndian() { return true; }
+
+#elif defined IS_BIG_ENDIAN
+
+  static uint16_t FromHost16(uint16_t x) { return x; }
+  static uint16_t ToHost16(uint16_t x) { return x; }
+
+  static uint32_t FromHost32(uint32_t x) { return x; }
+  static uint32_t ToHost32(uint32_t x) { return x; }
+
+  static uint64_t FromHost64(uint64_t x) { return x; }
+  static uint64_t ToHost64(uint64_t x) { return x; }
+
+  static absl::uint128 FromHost128(absl::uint128 x) { return x; }
+  static absl::uint128 ToHost128(absl::uint128 x) { return x; }
+
+  static constexpr bool IsLittleEndian() { return false; }
+
+#endif /* ENDIAN */
+
+  // Unified BigEndian::FromHost(ValueType v) API.
+  template <class ValueType>
+  static typename endian_internal::fromhost_traits<ValueType>::int_type
+  FromHost(ValueType v) {
+    using IntType =
+        typename endian_internal::fromhost_traits<ValueType>::int_type;
+    return absl::bit_cast<IntType>(
+        endian_internal::GeneralFormatConverter<BigEndian, ValueType>::FromHost(
+            v));
+  }
+
+  // Unified BigEndian::ToHost(ValueType v) API.
+  template <class ValueType>
+  static ValueType ToHost(ValueType v) {
+    return endian_internal::GeneralFormatConverter<BigEndian,
+                                                   ValueType>::ToHost(v);
+  }
+
+  // Functions to do unaligned loads and stores in big-endian order.
+  template <typename T, size_t N>
+  static uint16_t Load16(T (&p)[N]) {
+    static_assert(sizeof(T) * N >= sizeof(uint16_t),
+                  "Not enough space in buffer to load value from");
+    return Load16(static_cast<const void*>(p));
+  }
+
+  template <typename T = const void*, size_t N = 0>
+  static uint16_t Load16(const void* p) {
+    return ToHost16(UNALIGNED_LOAD16(p));
+  }
+
+  template <typename T, size_t N>
+  static void Store16(T (&p)[N], uint16_t v) {
+    static_assert(sizeof(T) * N >= sizeof(uint16_t),
+                  "Not enough space in buffer to store value");
+    return Store16(static_cast<void*>(p), v);
+  }
+
+  template <typename T = void*, size_t N = 0>
+  static void Store16(void* p, uint16_t v) {
+    UNALIGNED_STORE16(p, FromHost16(v));
+  }
+
+  template <typename T, size_t N>
+  static uint32_t Load24(T (&p)[N]) {
+    static_assert(sizeof(T) * N >= 3,
+                  "Not enough space in buffer to load value from");
+    return Load24(static_cast<const void*>(p));
+  }
+
+  template <typename T = const void*, size_t N = 0>
+  static uint32_t Load24(const void* p) {
+    const uint8_t* data = reinterpret_cast<const uint8_t*>(p);
+    return (uint32_t{data[0]} << 16) + Load16(data + 1);
+  }
+
+  template <typename T, size_t N>
+  static void Store24(T (&p)[N], uint32_t v) {
+    static_assert(sizeof(T) * N >= 3,
+                  "Not enough space in buffer to store value");
+    return Store24(static_cast<void*>(p), v);
+  }
+
+  template <typename T = void*, size_t N = 0>
+  static void Store24(void* p, uint32_t v) {
+    uint8_t* data = reinterpret_cast<uint8_t*>(p);
+    Store16(data + 1, static_cast<uint16_t>(v));
+    *data = static_cast<uint8_t>(v >> 16);
+  }
+
+  template <typename T, size_t N>
+  static uint32_t Load32(T (&p)[N]) {
+    static_assert(sizeof(T) * N >= sizeof(uint32_t),
+                  "Not enough space in buffer to load value from");
+    return ToHost32(UNALIGNED_LOAD32(p));
+  }
+
+  template <typename T = const void*, size_t N = 0>
+  static uint32_t Load32(const void* p) {
+    return ToHost32(UNALIGNED_LOAD32(p));
+  }
+
+  template <typename T, size_t N>
+  static void Store32(T (&x)[N], uint32_t v) {
+    static_assert(sizeof(T) * N >= sizeof(uint32_t),
+                  "Not enough space in buffer to store value");
+    UNALIGNED_STORE32(x, FromHost32(v));
+  }
+
+  template <typename T = void*, size_t N = 0>
+  static void Store32(void* p, uint32_t v) {
+    UNALIGNED_STORE32(p, FromHost32(v));
+  }
+
+  template <typename T, size_t N>
+  static uint64_t Load64(T (&p)[N]) {
+    static_assert(sizeof(T) * N >= sizeof(uint64_t),
+                  "Not enough space in buffer to load value from");
+    return Load64(static_cast<const void*>(p));
+  }
+
+  static uint64_t Load64(const void* p) {
+    return ToHost64(UNALIGNED_LOAD64(p));
+  }
+
+  // Semantically build a uint64_t from 1-8 bytes.
+  // 8 * len least significant bits are loaded from the memory with
+  // BigEndian order. The 64 - 8 * len most significant bits are
+  // set all to 0.
+  // In latex-friendly words, this function returns:
+  //     $\sum_{i=0}^{len-1} p[i] 256^{i}$, where p[i] is unsigned.
+  //
+  // This function is equivalent to:
+  // uint64_t val = 0;
+  // memcpy(&val, p, len);
+  // return ToHost64(val);
+  //
+  // The caller needs to guarantee that len <= 8.
+  static uint64_t Load64VariableLength(const void* const p, size_t len) {
+    assert(len <= 8);
+    uint64_t val = 0;
+    const uint8_t* const src = static_cast<const uint8_t*>(p);
+    for (size_t i = 0; i < 8; ++i) {
+      if (i < len) {
+        val = (val << 8) | src[i];
+      }
+    }
+    return val;
+  }
+
+  // Store the least significant 1-8 bytes of a uint64_t.
+  // 8 * len least significant bits are loaded from the given uint64_t and
+  // written to the provided buffer in BigEndian order. The 64 - 8 * len most
+  // significant bits are ignored.
+  //
+  // The caller needs to guarantee that len <= 8.
+  static void Store64VariableLength(void* const p, uint64_t v, size_t len) {
+    assert(len <= 8);
+    v = FromHost64(v);
+    memcpy(p, reinterpret_cast<uint8_t*>(&v) + sizeof(uint64_t) - len, len);
+  }
+
+  template <typename T, size_t N>
+  static void Store64(T (&p)[N], uint64_t v) {
+    static_assert(sizeof(T) * N >= sizeof(uint64_t),
+                  "Not enough space in buffer to store value");
+    return Store64(static_cast<void*>(p), v);
+  }
+
+  template <typename T = void*, size_t N = 0>
+  static void Store64(void* p, uint64_t v) {
+    UNALIGNED_STORE64(p, FromHost64(v));
+  }
+
+  static absl::uint128 Load128(const void* p) {
+    return absl::MakeUint128(
+        ToHost64(UNALIGNED_LOAD64(p)),
+        ToHost64(UNALIGNED_LOAD64(reinterpret_cast<const uint64_t*>(p) + 1)));
+  }
+
+  static void Store128(void* p, const absl::uint128 v) {
+    UNALIGNED_STORE64(p, FromHost64(absl::Uint128High64(v)));
+    UNALIGNED_STORE64(reinterpret_cast<uint64_t*>(p) + 1,
+                      FromHost64(absl::Uint128Low64(v)));
+  }
+
+  // Build a uint128 from 1-16 bytes.
+  // 8 * len least significant bits are loaded from the memory with
+  // BigEndian order. The 128 - 8 * len most significant bits are
+  // set all to 0.
+  static absl::uint128 Load128VariableLength(const void* p, size_t len) {
+    if (len <= 8) {
+      return absl::uint128(
+          Load64VariableLength(static_cast<const char*>(p), len));
+    } else if (len < 16) {
+      return absl::MakeUint128(Load64VariableLength(p, len - 8),
+                               Load64(static_cast<const char*>(p) + len - 8));
+    } else {
+      return absl::MakeUint128(Load64(static_cast<const char*>(p)),
+                               Load64(static_cast<const char*>(p) + 8));
+    }
+  }
+
+  // Load & Store in machine's word size.
+  template <typename T, size_t N>
+  static uword_t LoadUnsignedWord(T (&p)[N]) {
+    static_assert(sizeof(T) * N >= sizeof(uword_t),
+                  "Not enough space in buffer to load value from");
+    return LoadUnsignedWord(static_cast<const void*>(p));
+  }
+
+  template <typename T = const void*, size_t N = 0>
+  static uword_t LoadUnsignedWord(const void* p) {
+    if constexpr (sizeof(uword_t) == 8)
+      return Load64(p);
+    else
+      return Load32(p);
+  }
+
+  template <typename T, size_t N>
+  static void StoreUnsignedWord(T (&p)[N], uword_t v) {
+    static_assert(sizeof(T) * N >= sizeof(uword_t),
+                  "Not enough space in buffer to store value");
+    return StoreUnsignedWord(static_cast<void*>(p), v);
+  }
+
+  template <typename T = const void*, size_t N = 0>
+  static void StoreUnsignedWord(void* p, uword_t v) {
+    if constexpr (sizeof(uword_t) == 8)
+      Store64(p, v);
+    else
+      Store32(p, v);
+  }
+
+  // Unified BigEndian::Load/Store<T> API.
+
+  // Returns the T value encoded by the leading bytes of 'p', interpreted
+  // according to the format specified below. 'p' has no alignment restrictions.
+  //
+  // Type              Format
+  // ----------------  -------------------------------------------------------
+  // uint{8,16,32,64}  Big-endian binary representation.
+  // int{8,16,32,64}   Big-endian twos-complement binary representation.
+  // float,double      Big-endian IEEE-754 format.
+  // char              The raw byte.
+  // bool              A byte. 0 maps to false; all other values map to true.
+  template <typename T>
+  static T Load(const char* p);
+
+  // Encodes 'value' in the format corresponding to T. Supported types are
+  // described in Load<T>(). 'p' has no alignment restrictions. In-place Store
+  // is safe (that is, it is safe to call
+  // Store(x, reinterpret_cast<char*>(&x))).
+  template <typename T>
+  static void Store(T value, char* p);
+};  // BigEndian
+
+// Network byte order is big-endian
+typedef BigEndian NetworkByteOrder;
+
+namespace endian_internal {
+
+//////////////////////////////////////////////////////////////////////
+// Implementation details: Clients can stop reading here.
+//
+// Define ValueType->IntType mapping for the unified
+// "IntType FromHost(ValueType)" API. The mapping is implemented via
+// fromhost_traits trait struct. Every legal ValueType has its own
+// specialization. There is no default body for this trait struct, so that
+// any type that is not supported by the unified FromHost API
+// will trigger a compile time error.
+#define FROMHOST_TYPE_MAP(ITYPE, VTYPE) \
+  template <>                           \
+  struct fromhost_traits<VTYPE> {       \
+    typedef ITYPE int_type;             \
+  }
+
+FROMHOST_TYPE_MAP(uint8_t, uint8_t);
+FROMHOST_TYPE_MAP(uint8_t, int8_t);
+FROMHOST_TYPE_MAP(uint16_t, uint16_t);
+FROMHOST_TYPE_MAP(uint16_t, int16_t);
+FROMHOST_TYPE_MAP(uint32_t, uint32_t);
+FROMHOST_TYPE_MAP(uint32_t, int32_t);
+FROMHOST_TYPE_MAP(uint64_t, uint64_t);
+FROMHOST_TYPE_MAP(uint64_t, int64_t);
+FROMHOST_TYPE_MAP(uint32_t, float);
+FROMHOST_TYPE_MAP(uint64_t, double);
+FROMHOST_TYPE_MAP(uint8_t, bool);
+FROMHOST_TYPE_MAP(absl::uint128, absl::uint128);
+#undef FROMHOST_TYPE_MAP
+
+// Default implementation for the unified FromHost(ValueType) API, which
+// handles all integral types (ValueType is one of uint8_t, int8_t, uint16_t,
+// int16_t, uint32_t, int32_t, uint64_t, int64_t).
+template <class EndianClass, typename ValueType>
+ValueType GeneralFormatConverter<EndianClass, ValueType>::FromHost(
+    ValueType v) {
+  static_assert(std::is_integral_v<ValueType>);
+  if constexpr (sizeof(ValueType) == sizeof(uint8_t)) {
+    return static_cast<uint8_t>(v);
+  } else if constexpr (sizeof(ValueType) == sizeof(uint16_t)) {
+    return EndianClass::FromHost16(static_cast<uint16_t>(v));
+  } else if constexpr (sizeof(ValueType) == sizeof(uint32_t)) {
+    return EndianClass::FromHost32(static_cast<uint32_t>(v));
+  } else {
+    static_assert(sizeof(ValueType) == sizeof(uint64_t),
+                  "ValueType must be 8, 16, 32, or 64 bits");
+    return EndianClass::FromHost64(static_cast<uint64_t>(v));
+  }
+}
+
+// Default implementation for the unified ToHost(ValueType) API, which handles
+// all integral types (ValueType is one of uint8_t, int8_t, uint16_t, int16_t,
+// uint32_t, int32_t, uint64_t, int64_t).
+template <class EndianClass, typename ValueType>
+ValueType GeneralFormatConverter<EndianClass, ValueType>::ToHost(ValueType v) {
+  static_assert(std::is_integral_v<ValueType>);
+  if constexpr (sizeof(ValueType) == sizeof(uint8_t)) {
+    return static_cast<uint8_t>(v);
+  } else if constexpr (sizeof(ValueType) == sizeof(uint16_t)) {
+    return EndianClass::ToHost16(static_cast<uint16_t>(v));
+  } else if constexpr (sizeof(ValueType) == sizeof(uint32_t)) {
+    return EndianClass::ToHost32(static_cast<uint32_t>(v));
+  } else {
+    static_assert(sizeof(ValueType) == sizeof(uint64_t),
+                  "ValueType must be 8, 16, 32, or 64 bits");
+    return EndianClass::ToHost64(static_cast<uint64_t>(v));
+  }
+}
+
+// Specialization of the unified FromHost(ValueType) API, which handles
+// float types (ValueType is float).
+template <class EndianClass>
+class GeneralFormatConverter<EndianClass, float> {
+ public:
+  static float FromHost(float v) {
+    return absl::bit_cast<float>(
+        EndianClass::FromHost32(absl::bit_cast<uint32_t>(v)));
+  }
+  static float ToHost(float v) {
+    return absl::bit_cast<float>(
+        EndianClass::ToHost32(absl::bit_cast<uint32_t>(v)));
+  }
+};
+
+// Specialization of the unified FromHost(ValueType) API, which handles
+// double types (ValueType is double).
+template <class EndianClass>
+class GeneralFormatConverter<EndianClass, double> {
+ public:
+  static double FromHost(double v) {
+    return absl::bit_cast<double>(
+        EndianClass::FromHost64(absl::bit_cast<uint64_t>(v)));
+  }
+  static double ToHost(double v) {
+    return absl::bit_cast<double>(
+        EndianClass::ToHost64(absl::bit_cast<uint64_t>(v)));
+  }
+};
+
+// Specialization of the unified FromHost(ValueType) API, which handles
+// uint128 types (ValueType is uint128).
+template <class EndianClass>
+class GeneralFormatConverter<EndianClass, absl::uint128> {
+ public:
+  static absl::uint128 FromHost(absl::uint128 v) {
+    return EndianClass::FromHost128(v);
+  }
+  static absl::uint128 ToHost(absl::uint128 v) {
+    return EndianClass::ToHost128(v);
+  }
+};
+
+// Integer helper methods for the unified Load/Store APIs.
+
+// Which branch of the 'case' to use is decided at compile time, so despite the
+// apparent size of this function, it compiles into efficient code.
+template <typename EndianClass, typename T>
+inline T LoadInteger(const char* p) {
+  static_assert(std::is_integral_v<T>);
+  if constexpr (sizeof(T) == sizeof(uint8_t)) {
+    return gtl::UnalignedLoad<T>(p);
+  } else if constexpr (sizeof(T) == sizeof(uint16_t)) {
+    return EndianClass::ToHost16(UNALIGNED_LOAD16(p));
+  } else if constexpr (sizeof(T) == sizeof(uint32_t)) {
+    return EndianClass::ToHost32(UNALIGNED_LOAD32(p));
+  } else {
+    static_assert(sizeof(T) == sizeof(uint64_t),
+                  "T must be 8, 16, 32, or 64 bits");
+    return EndianClass::ToHost64(UNALIGNED_LOAD64(p));
+  }
+}
+
+// Which branch of the 'case' to use is decided at compile time, so despite the
+// apparent size of this function, it compiles into efficient code.
+template <typename EndianClass, typename T>
+inline void StoreInteger(T value, char* p) {
+  static_assert(std::is_integral_v<T>);
+  if constexpr (sizeof(T) == sizeof(uint8_t)) {
+    *reinterpret_cast<T*>(p) = value;
+  } else if constexpr (sizeof(T) == sizeof(uint16_t)) {
+    UNALIGNED_STORE16(p, EndianClass::FromHost16(value));
+  } else if constexpr (sizeof(T) == sizeof(uint32_t)) {
+    UNALIGNED_STORE32(p, EndianClass::FromHost32(value));
+  } else {
+    static_assert(sizeof(T) == sizeof(uint64_t),
+                  "T must be 8, 16, 32, or 64 bits");
+    UNALIGNED_STORE64(p, EndianClass::FromHost64(value));
+  }
+}
+
+// Floating point helper methods for the unified Load/Store APIs.
+
+template <typename EndianClass>
+inline float LoadFloat(const char* p) {
+  return absl::bit_cast<float>(EndianClass::ToHost32(UNALIGNED_LOAD32(p)));
+}
+
+template <typename EndianClass>
+inline void StoreFloat(float value, char* p) {
+  UNALIGNED_STORE32(p,
+                    EndianClass::FromHost32(absl::bit_cast<uint32_t>(value)));
+}
+
+template <typename EndianClass>
+inline double LoadDouble(const char* p) {
+  return absl::bit_cast<double>(EndianClass::ToHost64(UNALIGNED_LOAD64(p)));
+}
+
+template <typename EndianClass>
+inline void StoreDouble(double value, char* p) {
+  UNALIGNED_STORE64(p,
+                    EndianClass::FromHost64(absl::bit_cast<uint64_t>(value)));
+}
+
+}  // namespace endian_internal
+
+// Load/Store for integral values.
+
+template <typename T>
+inline T LittleEndian::Load(const char* p) {
+  return endian_internal::LoadInteger<LittleEndian, T>(p);
+}
+
+template <typename T>
+inline void LittleEndian::Store(T value, char* p) {
+  endian_internal::StoreInteger<LittleEndian, T>(value, p);
+}
+
+template <typename T>
+inline T BigEndian::Load(const char* p) {
+  return endian_internal::LoadInteger<BigEndian, T>(p);
+}
+
+template <typename T>
+inline void BigEndian::Store(T value, char* p) {
+  endian_internal::StoreInteger<BigEndian, T>(value, p);
+}
+
+// Load/Store for bool. Sanitizes bool on the way in for safety.
+
+template <>
+inline bool LittleEndian::Load<bool>(const char* p) {
+  static_assert(sizeof(bool) == 1, "Unexpected sizeof(bool)");
+  return *p != 0;
+}
+
+template <>
+inline void LittleEndian::Store<bool>(bool value, char* p) {
+  static_assert(sizeof(bool) == 1, "Unexpected sizeof(bool)");
+  *p = value ? 1 : 0;
+}
+
+template <>
+inline bool BigEndian::Load<bool>(const char* p) {
+  static_assert(sizeof(bool) == 1, "Unexpected sizeof(bool)");
+  return *p != 0;
+}
+
+template <>
+inline void BigEndian::Store<bool>(bool value, char* p) {
+  static_assert(sizeof(bool) == 1, "Unexpected sizeof(bool)");
+  *p = value ? 1 : 0;
+}
+
+// Load/Store for float.
+
+template <>
+inline float LittleEndian::Load<float>(const char* p) {
+  return endian_internal::LoadFloat<LittleEndian>(p);
+}
+
+template <>
+inline void LittleEndian::Store<float>(float value, char* p) {
+  endian_internal::StoreFloat<LittleEndian>(value, p);
+}
+
+template <>
+inline float BigEndian::Load<float>(const char* p) {
+  return endian_internal::LoadFloat<BigEndian>(p);
+}
+
+template <>
+inline void BigEndian::Store<float>(float value, char* p) {
+  endian_internal::StoreFloat<BigEndian>(value, p);
+}
+
+// Load/Store for double.
+
+template <>
+inline double LittleEndian::Load<double>(const char* p) {
+  return endian_internal::LoadDouble<LittleEndian>(p);
+}
+
+template <>
+inline void LittleEndian::Store<double>(double value, char* p) {
+  endian_internal::StoreDouble<LittleEndian>(value, p);
+}
+
+template <>
+inline double BigEndian::Load<double>(const char* p) {
+  return endian_internal::LoadDouble<BigEndian>(p);
+}
+
+template <>
+inline void BigEndian::Store<double>(double value, char* p) {
+  endian_internal::StoreDouble<BigEndian>(value, p);
+}
+
+// Load/Store for uint128.
+
+template <>
+inline absl::uint128 LittleEndian::Load<absl::uint128>(const char* p) {
+  return LittleEndian::Load128(p);
+}
+
+template <>
+inline void LittleEndian::Store<absl::uint128>(absl::uint128 value, char* p) {
+  LittleEndian::Store128(p, value);
+}
+
+template <>
+inline absl::uint128 BigEndian::Load<absl::uint128>(const char* p) {
+  return BigEndian::Load128(p);
+}
+
+template <>
+inline void BigEndian::Store<absl::uint128>(absl::uint128 value, char* p) {
+  BigEndian::Store128(p, value);
+}
+
+#endif  // THIRD_PARTY_GLOOP_UTIL_ENDIAN_ENDIAN_H_
