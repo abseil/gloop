@@ -16,6 +16,18 @@ index 2a729b0f..43244c5a 100644
 +    remote = "https://github.com/abseil/gloop",
 +    commit = "8eead4aaf1eb3685921b09e4fc03a69a31e35d53",
 +)
+diff --git tcmalloc/BUILD tcmalloc/BUILD
+index 3b7c960c..43665bd0 100644
+--- tcmalloc/BUILD
++++ tcmalloc/BUILD
+@@ -48,6 +48,7 @@ cc_library(
+     copts = TCMALLOC_DEFAULT_COPTS,
+     visibility = [
+         "//tcmalloc:__subpackages__",
++        "@do_not_use_for_gloop_visibility_only//gloop/base:__subpackages__",
+     ],
+     deps = [
+         ":malloc_extension",
 diff --git tcmalloc/internal/BUILD tcmalloc/internal/BUILD
 index 7ac7ad9f..9c81644e 100644
 --- tcmalloc/internal/BUILD
