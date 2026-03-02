@@ -21,7 +21,7 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_GTL_REQUIRES_H_
 #define THIRD_PARTY_GLOOP_UTIL_GTL_REQUIRES_H_
 
-#include <type_traits>
+#include "absl/meta/internal/requires.h"
 
 namespace gtl {
 
@@ -58,8 +58,8 @@ namespace gtl {
 //              [] (auto&& v) -> decltype(<expr>) {})>>
 //
 template <typename... T, typename F>
-constexpr bool Requires(F) {
-  return std::is_invocable_v<F, T...>;
+constexpr bool Requires(F f) {
+  return absl::meta_internal::Requires<T...>(f);
 }
 
 }  // namespace gtl

@@ -245,7 +245,10 @@ cc_test(
 cc_library(
     name = "requires",
     hdrs = ["requires.h"],
-    deps = ["@gloop//gloop:enforce_gloop_support"],
+    deps = [
+        "@abseil-cpp//absl/meta:requires",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
 )
 
 cc_library(
