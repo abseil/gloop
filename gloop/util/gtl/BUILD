@@ -209,6 +209,33 @@ cc_library(
 )
 
 cc_library(
+    name = "intrusive_list",
+    hdrs = ["intrusive_list.h"],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:prefetch",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "intrusive_list_test",
+    size = "small",
+    srcs = ["intrusive_list_test.cc"],
+    deps = [
+        ":intrusive_list",
+        ":iterator_adaptors",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "iterator_adaptors",
     hdrs = ["iterator_adaptors.h"],
     deps = [
