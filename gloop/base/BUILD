@@ -34,6 +34,26 @@ package(
     features = ["header_modules"],
 )
 
+cc_library(
+    name = "atomic_sequence_num",
+    hdrs = ["atomic_sequence_num.h"],
+    visibility = ["//visibility:public"],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
+)
+
+cc_test(
+    name = "atomic_sequence_num_test",
+    size = "medium",
+    srcs = ["atomic_sequence_num_test.cc"],
+    deps = [
+        ":atomic_sequence_num",
+        "@abseil-cpp//absl/log:check",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 # Platform specific library that currently contains implementations of snprintf
 # and vsnprintf for Windows.
 cc_library(

@@ -1,0 +1,81 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Removing the following header is prohibited as it can introduce undefined
+// behavior.
+// clang-format off
+#include "gloop/enforce_gloop_support.h"
+// clang-format on
+
+#ifndef THIRD_PARTY_GLOOP_BASE_ATOMIC_SEQUENCE_NUM_H_
+#define THIRD_PARTY_GLOOP_BASE_ATOMIC_SEQUENCE_NUM_H_
+// Copyright 2008 Google Inc.
+// All rights reserved.
+
+// Atomic operation to generate unique sequence numbers from a counter.
+//
+//     base::SequenceNumber x;
+//      ...
+//     y = x.GetNext();     // get the next sequence number
+
+// If your code already uses a Mutex, you may find it faster to protect a
+// simple counter with that Mutex.
+// The type is guaranteed to have a trivial destructor, so does not need
+// to be wrapped in an absl::NoDestructor.
+// For statistics counters, see atomic_stats_counter.h.
+// For reference counters, see atomic_refcount.h.
+
+#include <atomic>
+#include <cstdint>
+#include <type_traits>
+
+namespace base {
+
+class SequenceNumber {
+ public:
+  constexpr SequenceNumber() : word_(0) {
+    static_assert(std::is_trivially_destructible_v<SequenceNumber>,
+                  "SequenceNumber must be trivially destructible");
+  }
+
+  SequenceNumber(const SequenceNumber&) = delete;
+  SequenceNumber& operator=(const SequenceNumber&) = delete;
+
+  ~SequenceNumber() = default;
+
+  // We use intptr_t as a proxy for a type most likely to be sufficiently
+  // large and lock free.
+  using Value = intptr_t;
+
+  // Return the integer one greater than was returned by the previous call on
+  // this instance, or 0 if there have been no such calls.
+  // Provided overflow does not occur, no two calls on the same instance will
+  // return the same value, even in the face of concurrency.
+  Value GetNext() {
+    // As always, clients may not assume properties implied by the
+    // implementation, which may change.
+    return word_.fetch_add(1, std::memory_order_relaxed);
+  }
+
+  // SequenceNumber is implemented as a class specifically to stop clients
+  // from reading the value of word_ without also incrementing it.
+  // Please do not add such a call.
+
+ private:
+  std::atomic<Value> word_;
+};
+
+}  // namespace base
+
+#endif  // THIRD_PARTY_GLOOP_BASE_ATOMIC_SEQUENCE_NUM_H_
