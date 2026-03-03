@@ -38,6 +38,12 @@
 #error "Gloop doesn't support Android."
 #endif  // !defined(__ANDROID__)
 
+static_assert(sizeof(void*) == 8);
+
+#if !defined(__x86_64__) && !defined(__aarch64__)
+#error "Gloop only supports x86-64 and AArch64."
+#endif  // !defined(__x86_64__) && !defined(__aarch64__)
+
 #include "gloop_distro.h"
 #if GLOOP_ON_DEBIAN != 1
 #error "Gloop only supports Debian."
