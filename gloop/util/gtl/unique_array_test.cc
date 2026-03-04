@@ -261,7 +261,7 @@ TEST(UniqueArrayTest, CtorFromUniquePtrFailsWithBadSize) {
 }
 
 TEST(UniqueArrayTest, CtorFromUniquePtrFailsWithBadSizeOveraligned) {
-#if !defined(NDEBUG) || ABSL_OPTION_HARDENED
+#if !defined(NDEBUG)
   auto ptr = std::unique_ptr<Overaligned[]>(new Overaligned[kArraySize]);
   EXPECT_DEATH(UniqueArray<Overaligned> buffer(std::move(ptr), kArraySize + 1),
                "");
