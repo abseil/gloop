@@ -55,6 +55,37 @@ cc_test(
 )
 
 cc_library(
+    name = "global_id",
+    srcs = ["global_id.cc"],
+    hdrs = ["global_id.h"],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "global_id_test",
+    size = "large",
+    srcs = ["global_id_test.cc"],
+    shard_count = 2,
+    deps = [
+        ":global_id",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:str_format",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "mt_random",
     srcs = ["mt_random.cc"],
     hdrs = ["mt_random.h"],
