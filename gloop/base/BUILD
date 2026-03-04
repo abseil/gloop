@@ -54,11 +54,26 @@ cc_test(
     ],
 )
 
-# Platform specific library that currently contains implementations of snprintf
-# and vsnprintf for Windows.
 cc_library(
-    name = "port",
-    hdrs = ["port.h"],
+    name = "config",
+    hdrs = ["config.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/base:config",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+# Unique Global Symbol Compliance.
+# The below targets allow shared library owners to annotate their shared library
+# targets as 'not global symbol compliant', and common library code to detect
+# this. Common library code such as `percpu` can then avoid undefined behavior
+# and failures from symbol duplication resulting from dlopen.
+# See <link> for more details and background.
+cc_library(
+    name = "global_symbol_compliance",
+    srcs = ["global_symbol_compliance.cc"],
+    hdrs = ["global_symbol_compliance.h"],
     visibility = ["//visibility:public"],
     deps = [
         "@abseil-cpp//absl/base:core_headers",
@@ -67,46 +82,15 @@ cc_library(
 )
 
 cc_test(
-    name = "port_test",
-    size = "small",
-    srcs = ["port_test.cc"] + [
-        "port_byteswap_test.cc",
-    ],
+    name = "global_symbol_compliant_test",
+    srcs = ["global_symbol_compliant_test.cc"],
     deps = [
-        ":port",
-        "@abseil-cpp//absl/base",
+        ":global_symbol_compliance",
         "@abseil-cpp//absl/base:core_headers",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
-)
-
-cc_library(
-    name = "strtoint",
-    srcs = ["strtoint.cc"],
-    hdrs = ["strtoint.h"],
-    visibility = ["//visibility:public"],
-    deps = ["@gloop//gloop:enforce_gloop_support"],
-)
-
-cc_test(
-    name = "strtoint_test",
-    size = "small",
-    srcs = ["strtoint_test.cc"],
-    deps = [
-        ":strtoint",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
-    ],
-)
-
-cc_library(
-    name = "uword",
-    hdrs = ["uword.h"],
-    visibility = ["//visibility:public"],
-    deps = ["@gloop//gloop:enforce_gloop_support"],
 )
 
 PERCPU_LINUX_DEPS = [
@@ -214,26 +198,11 @@ cc_test(
     ],
 )
 
+# Platform specific library that currently contains implementations of snprintf
+# and vsnprintf for Windows.
 cc_library(
-    name = "config",
-    hdrs = ["config.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "@abseil-cpp//absl/base:config",
-        "@gloop//gloop:enforce_gloop_support",
-    ],
-)
-
-# Unique Global Symbol Compliance.
-# The below targets allow shared library owners to annotate their shared library
-# targets as 'not global symbol compliant', and common library code to detect
-# this. Common library code such as `percpu` can then avoid undefined behavior
-# and failures from symbol duplication resulting from dlopen.
-# See <link> for more details and background.
-cc_library(
-    name = "global_symbol_compliance",
-    srcs = ["global_symbol_compliance.cc"],
-    hdrs = ["global_symbol_compliance.h"],
+    name = "port",
+    hdrs = ["port.h"],
     visibility = ["//visibility:public"],
     deps = [
         "@abseil-cpp//absl/base:core_headers",
@@ -242,10 +211,14 @@ cc_library(
 )
 
 cc_test(
-    name = "global_symbol_compliant_test",
-    srcs = ["global_symbol_compliant_test.cc"],
+    name = "port_test",
+    size = "small",
+    srcs = ["port_test.cc"] + [
+        "port_byteswap_test.cc",
+    ],
     deps = [
-        ":global_symbol_compliance",
+        ":port",
+        "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -274,5 +247,99 @@ cc_library(
     deps = [
         "@abseil-cpp//absl/base",
         "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "strtoint",
+    srcs = ["strtoint.cc"],
+    hdrs = ["strtoint.h"],
+    visibility = ["//visibility:public"],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
+)
+
+cc_test(
+    name = "strtoint_test",
+    size = "small",
+    srcs = ["strtoint_test.cc"],
+    deps = [
+        ":strtoint",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "timer",
+    srcs = ["timer.cc"],
+    hdrs = ["timer.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":port",
+        ":walltime",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "timer_unittest",
+    size = "medium",
+    srcs = ["timer_unittest.cc"],
+    flaky = 1,
+    deps = [
+        ":timer",
+        "//gloop/util/gtl:unique_array",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "uword",
+    hdrs = ["uword.h"],
+    visibility = ["//visibility:public"],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
+)
+
+cc_library(
+    name = "walltime",
+    srcs = ["walltime.cc"],
+    hdrs = ["walltime.h"],
+    aspect_hints = [
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "walltime_unittest",
+    size = "medium",
+    srcs = ["walltime_unittest.cc"],
+    deps = [
+        ":walltime",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
