@@ -22,6 +22,31 @@ package(
 )
 
 cc_library(
+    name = "associative_view_internal",
+    hdrs = ["associative_view_internal.h"],
+    deps = [
+        ":requires",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:throw_delegate",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:cord",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "associative_view_internal_test",
+    srcs = ["associative_view_internal_test.cc"],
+    deps = [
+        ":associative_view_internal",
+        ":set_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "comparator",
     hdrs = ["comparator.h"],
     deps = [
@@ -275,6 +300,39 @@ cc_library(
     deps = [
         "@abseil-cpp//absl/meta:requires",
         "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "set_view",
+    hdrs = ["set_view.h"],
+    deps = [
+        ":associative_view_internal",
+        ":iterator_adaptors",
+        "@abseil-cpp//absl/base:core_headers",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "set_view_test",
+    size = "small",
+    srcs = ["set_view_test.cc"],
+    deps = [
+        ":flat_set",
+        ":iterator_adaptors",
+        ":set_view",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/meta:constexpr_testing",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:cord",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
