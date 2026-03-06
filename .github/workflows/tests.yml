@@ -30,9 +30,9 @@ concurrency:
 jobs:
   linux:
     runs-on: ubuntu-latest
-    name: Linux (${{ matrix.config }})
+    name: Linux (${{ matrix.config.name || matrix.config.value }})
     container:
-      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:71ad015c7e389400952705f1676b42c900584c19661bfb5be0ce7c12463ab226
+      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:1cee72be79e45b3ba9a7eeb1eb56ab0a8df56549eba570b5e65484e839f043f4
       # Our images happen to be public today, but use our service account's credentials anyway in
       # case we decide to lock down access.
       credentials:
@@ -41,10 +41,23 @@ jobs:
     strategy:
       fail-fast: false   # Don't cancel all jobs if one fails.
       matrix:
-        config: [opt, dbg, asan, ubsan, msan, tsan]
+        config:
+          - value: opt
+          - value: dbg
+          - value: asan
+          - value: ubsan
+          - value: msan
+          - value: tsan
+          - name: Bazel 8
+            value: asan
+            env: USE_BAZEL_VERSION=8.x
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Override environments variables
+        run: |
+          echo "${{ matrix.config.env }}" >> $GITHUB_ENV
 
       - uses: bazel-contrib/setup-bazel@083175551ceeceebc757ebee2127fde78840ca77 # 0.18.0
         with:
@@ -57,7 +70,8 @@ jobs:
           bazelrc: common --remote_cache=https://storage.googleapis.com/gloop-bazel-remote-cache
 
       - name: Run tests
-        run: bazel test ... --config=${{ matrix.config }}
+        run: bazel test ... --config=${{ matrix.config.value }}
+
   non_compilation:
     name: Check Non-compilation for ${{ matrix.config }}
     runs-on: ubuntu-latest
@@ -75,8 +89,8 @@ jobs:
           - config: C++ less than C++20
             flags: --cxxopt=-std=c++17
             expected_error: Gloop requires C++20 or later
-          - config: Bazel less than 9.0
-            env: USE_BAZEL_VERSION=8.0.1
+          - config: Bazel less than 8.0
+            env: USE_BAZEL_VERSION=7.7.1
             expected_error: Bazel compatibility check failed
     steps:
       - name: Checkout
