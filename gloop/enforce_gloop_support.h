@@ -30,6 +30,14 @@
 #error "Gloop requires C++20 or later."
 #endif  // !defined(__cplusplus) || __cplusplus < 202002L
 
+// Explicitly use some C++20 syntax, to prevent teams from adding
+// flags like `-Wc++17-compat`, which are not supported and which will
+// lead to breakages as more C++20 syntax gets added to common
+// library headers.
+namespace gloop::requires_cpp20_or_later {
+consteval void requires_cpp20() {}
+}  // namespace gloop::requires_cpp20_or_later
+
 #if !defined(__linux__)
 #error "Gloop only supports Linux."
 #endif  // !defined(__linux__)
@@ -44,8 +52,4 @@ static_assert(sizeof(void*) == 8);
 #error "Gloop only supports x86-64 and AArch64."
 #endif  // !defined(__x86_64__) && !defined(__aarch64__)
 
-#include "gloop_distro.h"
-#if GLOOP_ON_DEBIAN != 1
-#error "Gloop only supports Debian."
-#endif
 #endif  // THIRD_PARTY_GLOOP_ENFORCE_GLOOP_SUPPORT_H_

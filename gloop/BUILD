@@ -39,9 +39,6 @@ cc_library(
     visibility = [
         "@gloop//gloop:__subpackages__",
     ],
-    deps = [
-        "@host_distro//:gloop_distro",
-    ],
 )
 
 string_flag(
