@@ -234,6 +234,76 @@ cc_library(
 )
 
 cc_library(
+    name = "interval",
+    hdrs = ["interval.h"],
+    deps = [
+        ":heterogeneous_lookup",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:str_format",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "interval_test",
+    size = "small",
+    srcs = ["interval_test.cc"],
+    deps = [
+        ":interval",
+        "@abseil-cpp//absl/hash:hash_testing",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "interval_set",
+    hdrs = ["interval_set.h"],
+    deps = [
+        ":container_logging",
+        ":heterogeneous_lookup",
+        ":interval",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "interval_set_unittest",
+    size = "medium",
+    srcs = ["interval_set_unittest.cc"],
+    deps = [
+        ":interval",
+        ":interval_set",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/container:container_memory",
+        "@abseil-cpp//absl/hash:hash_testing",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "intrusive_list",
     hdrs = ["intrusive_list.h"],
     deps = [
