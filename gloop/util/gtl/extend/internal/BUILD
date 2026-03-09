@@ -32,3 +32,15 @@ cc_library(
         "@gloop//gloop:enforce_gloop_support",
     ],
 )
+
+cc_library(
+    name = "is_tuple_hashable",
+    hdrs = ["is_tuple_hashable.h"],
+    visibility = [
+        "//gloop/util/gtl/extend:__subpackages__",
+    ],
+    deps = [
+        "@abseil-cpp//absl/hash",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)

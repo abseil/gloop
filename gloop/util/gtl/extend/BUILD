@@ -25,6 +25,31 @@ package(
 )
 
 cc_library(
+    name = "equality",
+    hdrs = ["equality.h"],
+    deps = [
+        ":extend",
+        "//gloop/util/gtl/extend/internal:is_tuple_hashable",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "equality_test",
+    srcs = ["equality_test.cc"],
+    deps = [
+        ":equality",
+        ":extend",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/hash:hash_testing",
+        "@abseil-cpp//absl/meta:constexpr_testing",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "extend",
     hdrs = ["extend.h"],
     deps = [
