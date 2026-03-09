@@ -351,7 +351,9 @@ static inline FetchAddResult RseqFunction_PerCpuAtomicFetchAdd(
         [shift] "n"(PERCPU_BYTES_PER_REGION_SHIFT)
       : PERCPU_RSEQ_CLOBBERS, "memory");
 
-  return FetchAddResult{static_cast<int>(cpu), new_value - delta};
+  return FetchAddResult{static_cast<int>(cpu),
+                        static_cast<int64_t>(static_cast<uint64_t>(new_value) -
+                                             static_cast<uint64_t>(delta))};
 }
 
 #else  // !if PERCPU_USE_RSEQ || !defined(__x86_64__)
