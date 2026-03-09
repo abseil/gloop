@@ -25,7 +25,7 @@
 
 namespace gtl {
 
-// Utilities to implement heterogeneous lookup (<link>).
+// Utilities to implement heterogeneous lookup (https://abseil.io/tips/144).
 
 // `gtl::IsTransparent<Functor>::value` is true if `Functor` is transparent.
 using absl::container_internal::IsTransparent;

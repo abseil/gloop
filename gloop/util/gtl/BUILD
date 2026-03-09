@@ -365,6 +365,41 @@ cc_test(
 )
 
 cc_library(
+    name = "map_view",
+    hdrs = ["map_view.h"],
+    deps = [
+        ":associative_view_internal",
+        "@abseil-cpp//absl/base:core_headers",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "map_view_test",
+    size = "small",
+    srcs = ["map_view_test.cc"],
+    shard_count = 10,
+    deps = [
+        ":flat_map",
+        ":map_view",
+        ":set_view",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:exception_testing",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/meta:constexpr_testing",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:cord",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@protobuf//:protobuf_lite",
+    ],
+)
+
+cc_library(
     name = "requires",
     hdrs = ["requires.h"],
     deps = [

@@ -126,7 +126,7 @@ struct ExtensionSet<T, NumFields, void (*)(Extensions...)>
      ...
     };
     ```
-See <link> for a worked example.
+See https://abseil.io/tips/205#extending-classes for a worked example.
     )");
       // Because we already have a `static_assert`, what we return here has no
       // effect. We simply want to choose a type that provides the best possible

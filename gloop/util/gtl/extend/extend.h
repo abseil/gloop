@@ -71,7 +71,7 @@
 // };
 // ```
 //
-// Also see <link>
+// Also see https://abseil.io/tips/205
 //
 // ## Using `gtl::Extend` with classes:
 //

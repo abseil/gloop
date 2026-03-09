@@ -784,7 +784,8 @@ constexpr auto reversed_view(C&& c ABSL_ATTRIBUTE_LIFETIME_BOUND) {
 // `C::reference` and returns "extracted" type: this could be a lambda, a
 // function pointer, a pointer to member (see example below) and more (see
 // https://en.cppreference.com/w/cpp/named_req/Callable). Please keep in mind
-// <link> when choosing an extractor for a type that you do not own.
+// https://abseil.io/tips/133 when choosing an extractor for a type that you do
+// not own.
 //
 // Note that projection_view preserves iterator category of the source container
 // (i.e. if source container has random access iterators, then the view will

@@ -35,7 +35,7 @@ namespace gtl {
 // A type that is provided to `gtl::SetView` as `ExtraLookupTypes` parameter
 // in order to add lookup overloads.
 //
-// Example (please see <link> first):
+// Example (please see https://abseil.io/tips/144 first):
 //
 //   using WithThreadIdLookup = gtl::AlsoSupportsLookupWith<std::thread::id>;
 //   template <typename T>

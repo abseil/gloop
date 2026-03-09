@@ -289,7 +289,7 @@ class AssociateView<KeyType, ValueType, AlsoSupportsLookupWith<Keys...>>
   // view must not outlive the container.
   //
   // We distinguish two types of containers: with and without heterogeneous
-  // support (<link>).
+  // support (https://abseil.io/tips/144).
   // First type:
   //   These containers are required to support lookup with `key_type`
   //   and all types from `AlsoSupportsLookupWith`. Failure to meet this
