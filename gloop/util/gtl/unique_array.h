@@ -81,6 +81,9 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI ABSL_NULLABILITY_COMPATIBLE UniqueArray {
 
   using pointer = T*;
   using const_pointer = const T*;
+  using reference = T&;
+  using const_reference = const T&;
+  using size_type = size_t;
   using deleter_type = std::conditional_t<std::is_void_v<Deleter>,
                                           std::default_delete<T[]>, Deleter>;
 
