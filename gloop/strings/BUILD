@@ -11,3 +11,82 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+load(
+    "@rules_cc//cc:cc_library.bzl",
+    "cc_library",
+)
+load(
+    "@rules_cc//cc:cc_test.bzl",
+    "cc_test",
+)
+
+package(
+    default_applicable_licenses = ["//gloop:license"],
+    default_visibility = ["//visibility:public"],
+    features = ["header_modules"],
+)
+
+cc_library(
+    name = "human_readable",
+    srcs = ["human_readable.cc"],
+    hdrs = ["human_readable.h"],
+    deps = [
+        ":si_prefix",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "human_readable_test",
+    size = "small",
+    srcs = ["human_readable_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":human_readable",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "si_prefix",
+    srcs = ["si_prefix.cc"],
+    hdrs = ["si_prefix.h"],
+    deps = [
+        "//gloop/util/math:mathutil",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/types:optional",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "si_prefix_test",
+    size = "small",
+    srcs = ["si_prefix_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":si_prefix",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:optional",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
