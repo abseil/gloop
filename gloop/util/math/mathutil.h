@@ -1451,17 +1451,19 @@ IntegralType MathUtil::CeilOrFloorOfRatio(IntegralType numerator,
                                           IntegralType denominator) {
   static_assert(std::numeric_limits<IntegralType>::is_integer,
                 "CeilOfRatio is only defined for integral types");
-  DCHECK_NE(0, denominator) << "Division by zero is not supported.";
+  DCHECK_NE(IntegralType(0), denominator)
+      << "Division by zero is not supported.";
   DCHECK(!std::numeric_limits<IntegralType>::is_signed ||
          numerator != std::numeric_limits<IntegralType>::lowest() ||
-         denominator != -1)
+         denominator != IntegralType(-1))
       << "Dividing " << numerator << "by -1 is not supported: it would SIGFPE";
 
-  const IntegralType rounded_toward_zero = numerator / denominator;
-  const bool needs_round = (numerator % denominator) != 0;
+  const IntegralType rounded_toward_zero(numerator / denominator);
+  const bool needs_round = (numerator % denominator) != IntegralType(0);
   // It is important to use >= here, even for the denominator, to ensure that
   // this value is a compile-time constant for unsigned types.
-  const bool same_sign = (numerator >= 0) == (denominator >= 0);
+  const bool same_sign =
+      (numerator >= IntegralType(0)) == (denominator >= IntegralType(0));
 
   if constexpr (ceil) {
     return rounded_toward_zero +
@@ -1486,7 +1488,7 @@ IntegralType MathUtil::CeilOrFloorOfScaledRatio(IntegralType numerator,
   const auto result =
       MulDiv<IntegralType>(scale_factor, numerator, denominator);
   if constexpr (ceil) {
-    return result.quotient + (result.remainder > 0);
+    return result.quotient + (result.remainder > IntegralType(0));
   } else {
     return result.quotient;
   }
@@ -1503,15 +1505,15 @@ MathUtil::DivisionResult<IntegralType> MathUtil::MulDiv(IntegralType a,
   DCHECK_LE(0, a) << "Negative numbers are not supported.";
   DCHECK_LE(0, b) << "Negative numbers are not supported.";
 
-  IntegralType q = b * (a / d);
+  IntegralType q(b * (a / d));
   a %= d;
   q += a * (b / d);
   b %= d;
-  const IntegralType k = std::min(a, b);
-  if (k == 0) {
+  const IntegralType k(std::min(a, b));
+  if (k == IntegralType(0)) {
     return {.quotient = q, .remainder = 0};
   }
-  const IntegralType n = std::max(a, b);
+  const IntegralType n(std::max(a, b));
 
   auto result = MulDiv_Optimal<IntegralType>(k, n, d);
   result.quotient += q;
@@ -1527,7 +1529,7 @@ MathUtil::DivisionResult<IntegralType> MathUtil::MulDiv_Optimal(
 
   // Dispatch to the most optimal implementation.
 #if ABSL_HAVE_BUILTIN(__builtin_mul_overflow)
-  IntegralType numerator = 0;
+  IntegralType numerator(0);
   if (!__builtin_mul_overflow(k, n, &numerator)) {
     return {.quotient = static_cast<IntegralType>(numerator / d),
             .remainder = static_cast<IntegralType>(numerator % d)};
@@ -1543,17 +1545,19 @@ template <typename IntegralType>
 MathUtil::DivisionResult<IntegralType> MathUtil::MulDiv_SmallK(IntegralType k,
                                                                IntegralType n,
                                                                IntegralType d) {
-  DCHECK_GT(k, 0) << "This method assumes k is positive.";
-  DCHECK_LE(k, n) << "This method assumes N is not smaller than k.";
-  DCHECK_GT(d, 0) << "Negative and zero denominators are not supported.";
+  DCHECK_GT(k, IntegralType(0)) << "This method assumes k is positive.";
+  DCHECK_LE(k, IntegralType(n))
+      << "This method assumes N is not smaller than k.";
+  DCHECK_GT(d, IntegralType(0))
+      << "Negative and zero denominators are not supported.";
   DCHECK(CanSquare<IntegralType>(k - 1))
       << "k is too large for this method to support.";
 
   // We first approximate the ratio from below: k*N / D ~= N / ceil(D/k).
   // Taking D' = ceil(D/k), we let (P', R') = divmod(N, D'), so N = P'D' + R'.
-  const IntegralType d_prime = CeilOfRatio(d, k);
-  const IntegralType p_prime = n / d_prime;
-  const IntegralType r_prime = n % d_prime;
+  const IntegralType d_prime(CeilOfRatio(d, k));
+  const IntegralType p_prime(n / d_prime);
+  const IntegralType r_prime(n % d_prime);
 
   // We note that
   //   kN/D = P' + (kN - P'D)/D
@@ -1570,14 +1574,14 @@ MathUtil::DivisionResult<IntegralType> MathUtil::MulDiv_SmallK(IntegralType k,
   //   P'(kD' - D) <= (k-1)^2.
   // By our assumption that (k-1)^2 fits in IntegralType, the product can't
   // overflow.
-  const IntegralType t1 = p_prime * (k - (d - k * (d_prime - 1)));
+  const IntegralType t1(p_prime * (k - (d - k * (d_prime - 1))));
   result.quotient += t1 / d;
-  const IntegralType r1 = t1 % d;
+  const IntegralType r1(t1 % d);
 
   // kR' can't overflow, since R' <= D' - 1 <= floor(D/k).
-  const IntegralType t2 = k * r_prime;
+  const IntegralType t2(k * r_prime);
   result.quotient += t2 / d;
-  const IntegralType r2 = t2 % d;
+  const IntegralType r2(t2 % d);
 
   // We compute R_1 + R_2 - D as R_1 - (D - R_2) to avoid potential overflow.
   if (r1 < d - r2) {
@@ -1593,15 +1597,17 @@ template <typename IntegralType>
 MathUtil::DivisionResult<IntegralType> MathUtil::MulDiv_LargeK(IntegralType k,
                                                                IntegralType n,
                                                                IntegralType d) {
-  DCHECK_GT(k, 0) << "This method assumes k is positive.";
-  DCHECK_LE(k, n) << "This method assumes N is not smaller than k.";
-  DCHECK_GT(d, 0) << "Negative and zero denominators are not supported.";
+  DCHECK_GT(k, IntegralType(0)) << "This method assumes k is positive.";
+  DCHECK_LE(k, IntegralType(n))
+      << "This method assumes N is not smaller than k.";
+  DCHECK_GT(d, IntegralType(0))
+      << "Negative and zero denominators are not supported.";
 
-  if (k == 1) {
+  if (k == IntegralType(1)) {
     return {.quotient = 0, .remainder = n};
   }
 
-  const IntegralType kp = k >> 1;
+  const IntegralType kp(k >> 1);
   auto result = MulDiv_Optimal(kp, n, d);
   // Double k: add [q, r] into itself.
   result.quotient <<= 1;
@@ -1611,7 +1617,7 @@ MathUtil::DivisionResult<IntegralType> MathUtil::MulDiv_LargeK(IntegralType k,
   } else {
     result.remainder <<= 1;
   }
-  if ((k & 1) != 0) {
+  if ((k & 1) != IntegralType(0)) {
     // Adding 1 to k: add [0, n] into [q, r].
     if (result.remainder >= d - n) {
       result.remainder -= d - n;
