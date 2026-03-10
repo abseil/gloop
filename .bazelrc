@@ -20,6 +20,7 @@ build --copt=-Wno-nullability-completeness # Nullability annotations are not yet
 build --copt=-Wno-uninitialized-const-pointer # Cheap ASLR randomization false-positives
 build --copt=-Wno-c++11-compat # We don't support C++11
 build --copt=-Wno-implicit-float-conversion
+build --copt=-Wno-unused-command-line-argument
 
 test --test_output=errors
 
