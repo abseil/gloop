@@ -45,7 +45,7 @@ test:ubsan --test_tag_filters=-nosan,-noubsan
 build:msan --config=san-common
 build:msan --//gloop:sanitizer=msan
 build:msan --copt=-fsanitize=memory --linkopt=-fsanitize=memory
-build:msan --copt=-fsanitize-memory-track-origins --copt=-fsanitize-memory-use-after-dtor
+build:msan --copt=-fsanitize-memory-use-after-dtor
 build:msan --copt=-O0 # Avoids false positives
 test:msan --test_env=MSAN_OPTIONS=symbolize=1:fast_unwind_on_malloc=0:poison_in_dtor=1
 test:msan --test_tag_filters=-nosan,-nomsan

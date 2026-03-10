@@ -66,12 +66,11 @@ TEST(ContainerTest, CanInstantiateEmptyConstClassWithInlinedBitVectorField) {
 template <class BitVec>
 class BitVecTest : public testing::Test {};
 
-#if defined(ABSL_HAVE_MEMORY_SANITIZER) || defined(ABSL_HAVE_THREAD_SANITIZER)
-constexpr bool kSmallerTests = true;
+#ifndef ABSL_HAVE_MEMORY_SANITIZER
+constexpr size_t kMaxTestSize = 128;
 #else
-constexpr bool kSmallerTests = false;
+constexpr size_t kMaxTestSize = 20;
 #endif
-constexpr size_t kMaxTestSize = kSmallerTests ? 40 : 128;
 
 using TestedTypes = testing::Types<
     // small
@@ -132,8 +131,7 @@ TYPED_TEST(BitVecTest, SimpleOps) {
 TYPED_TEST(BitVecTest, ClearBits) {
   // Pick sizes that are both multiples and non-multiples of 64 to
   // catch partial last word, or read-past-end errors.
-  for (int size : kSmallerTests ? std::initializer_list<int>{60, 90}
-                                : std::initializer_list<int>{140, 256}) {
+  for (int size : std::initializer_list<int>{140, 256}) {
     TypeParam bv_ones(size);
     for (int i = 0; i < size; ++i) {
       bv_ones.set_bit(i);
@@ -158,8 +156,7 @@ TYPED_TEST(BitVecTest, ClearBits) {
 TYPED_TEST(BitVecTest, SetBits) {
   // Pick sizes that are both multiples and non-multiples of 64 to
   // catch partial last word, or read-past-end errors.
-  for (int size : kSmallerTests ? std::initializer_list<int>{60, 90}
-                                : std::initializer_list<int>{140, 256}) {
+  for (int size : std::initializer_list<int>{140, 256}) {
     TypeParam bv_zeros(size);
     for (int i = 0; i < size; ++i) {
       bv_zeros.clear_bit(i);

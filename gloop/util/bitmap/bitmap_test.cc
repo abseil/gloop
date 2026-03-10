@@ -473,7 +473,6 @@ std::vector<typename B::size_type> IteratedBits(const B& bitmap,
 TYPED_TEST_P(BitmapIteratorTest, SingleIteratorTest) {
   using size_type = typename BasicBitmap<TypeParam>::size_type;
   for (size_type size : kInterestingSizes) {
-    if (kSmallerTests && size > 32) continue;
     BasicBitmap<TypeParam> map(size);
     for (size_type i = 0; i < size; ++i) {
       map.SetAll(false);
@@ -494,7 +493,6 @@ TYPED_TEST_P(BitmapIteratorTest, SingleIteratorTest) {
 TYPED_TEST_P(BitmapIteratorTest, PairedIteratorTest) {
   using size_type = typename BasicBitmap<TypeParam>::size_type;
   for (size_type size : kInterestingSizes) {
-    if (kSmallerTests && size > 32) continue;
     BasicBitmap<TypeParam> map(size);
     for (size_type i = 0; i < size; ++i) {
       for (size_type j = i + 1; j < size; ++j) {
@@ -529,7 +527,6 @@ TYPED_TEST_P(BitmapIteratorTest, RandomBitmapIteratorTest) {
   ACMRandom random(ACMRandom::DeterministicSeed());
 
   for (size_type size : kInterestingSizes) {
-    if (kSmallerTests && size > 32) continue;
     if (size == 0) continue;
     for (double density : {0.1, 0.2, 0.5, 0.9, 1.0}) {
       for (size_type iter = 0; iter < 10; ++iter) {

@@ -59,7 +59,7 @@ TYPED_TEST_SUITE_P(BitmapLargeTest);
 
 TYPED_TEST_P(BitmapLargeTest, Large) {
   uint32_t large = std::numeric_limits<uint32_t>::max();
-#if defined(ABSL_HAVE_MEMORY_SANITIZER) || defined(ABSL_HAVE_THREAD_SANITIZER)
+#if defined(ABSL_HAVE_MEMORY_SANITIZER)
   large /= 100;
 #endif
   BasicBitmap<TypeParam> map(large);

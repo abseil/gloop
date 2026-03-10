@@ -48,8 +48,7 @@ ABSL_FLAG(int32_t, num_urns, 1000, "Number of urns for collision test");
 // We asume that we that after 300000 experiments we are within 1% of
 // steady state (i.e. the average of the numbers generated so far are
 // withing 1% of the average steady state average of 2^30)
-#if defined(ABSL_HAVE_ADDRESS_SANITIZER) || \
-    defined(ABSL_HAVE_MEMORY_SANITIZER) || defined(ABSL_HAVE_THREAD_SANITIZER)
+#if defined(ABSL_HAVE_MEMORY_SANITIZER)
 const int kSteadyStateReached = 30000;
 const float kSteadyStateWithin = 0.05;
 #else

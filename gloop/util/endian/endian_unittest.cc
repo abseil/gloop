@@ -619,12 +619,7 @@ void Swap128(char* bytes) {
 
 }  // namespace
 
-#ifdef ABSL_HAVE_MEMORY_SANITIZER
-// This is extremely slow with MSAN.
-static constexpr int kNumValuesToTest = 1000;
-#else
 static constexpr int kNumValuesToTest = 1000000;
-#endif
 
 TEST(SwapTest, ChangeOfWidth) {
   EXPECT_EQ(gbswap_64(uint32_t{0xDEADBEEF}), uint64_t{0xEFBEADDE00000000});

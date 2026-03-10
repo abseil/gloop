@@ -142,13 +142,11 @@ TEST(UniqueArrayTest, CtorFromRawPointerFailsWithBadSize) {
 #endif
 }
 
-#if defined(ABSL_HAVE_ADDRESS_SANITIZER) || defined(ABSL_HAVE_MEMORY_SANITIZER)
 TEST(UniqueArrayTest, CtorFromRawPointerReadsCookieWithSanitizer) {
   std::vector<int>* raw = new std::vector<int>[kArraySize];
   UniqueArray<std::vector<int>> buffer(raw, kArraySize);
   EXPECT_THAT(buffer, SizeIs(kArraySize));
 }
-#endif
 
 TEST(UniqueArrayTest,
      CtorFromRawPointerDoesNotValidateSizeForTriviallyDestructibleType) {
