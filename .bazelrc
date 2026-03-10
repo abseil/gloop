@@ -5,6 +5,9 @@ test --test_output=errors --keep_going
 # Gloop does not support exceptions.
 build --copt=-fno-exceptions
 
+# Gloop only supports building with unsigned chars.
+build --copt=-funsigned-char
+
 # Disable warnings from dependencies.
 build --per_file_copt=-external/.*@-Wno-thread-safety-analysis,-Wno-character-conversion
 build --host_per_file_copt=-external/.*@-Wno-deprecated-declarations
@@ -34,6 +37,7 @@ build:ubsan --config=san-common
 build:ubsan --//gloop:sanitizer=ubsan
 build:ubsan --copt=-fsanitize=undefined --linkopt=-fsanitize=undefined
 build:ubsan --copt=-fno-sanitize=function --copt=-fno-sanitize=vptr --copt=-fno-sanitize=nonnull-attribute
+build:ubsan --copt=-D__SANITIZE_UNDEFINED__=1
 test:ubsan --test_env=UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
 test:ubsan --test_tag_filters=-nosan,-noubsan
 
