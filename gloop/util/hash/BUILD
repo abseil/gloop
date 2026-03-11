@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This package is part of Components, and generally cannot be modified in the
-# same changelist as other packages. See <link> for details.
-
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
@@ -119,6 +116,90 @@ cc_test(
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "crc",
+    srcs = [
+        "crc.cc",
+        "crc_internal.h",
+        "crc_poly.cc",
+        "crc_powerpc.h",
+        "crc_x86_arm_combined.cc",
+    ],
+    hdrs = ["crc.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop/util/endian",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/base:prefetch",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/container:fixed_array",
+        "@abseil-cpp//absl/crc:crc32c",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "crc_concat_test",
+    size = "small",
+    srcs = ["crc_concat_test.cc"],
+    deps = [
+        ":crc",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "crc_unittest",
+    size = "medium",
+    srcs = ["crc_unittest.cc"],
+    deps = [
+        ":crc",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:fixed_array",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:flags",
+        "@abseil-cpp//absl/strings:str_format",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "crc32c_x86_arm_combined_test",
+    size = "small",
+    srcs = [
+        "crc32c_x86_arm_combined_test.cc",
+        "crc_internal.h",
+    ],
+    deps = [
+        ":crc",
+        "//gloop/util/bits",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:log_streamer",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/strings:str_format",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
