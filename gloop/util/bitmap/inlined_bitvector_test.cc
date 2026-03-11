@@ -27,7 +27,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/base/config.h"  // IWYU pragma: keep
 #include "absl/hash/hash_testing.h"
 #include "absl/log/log.h"
 #include "benchmark/benchmark.h"
@@ -66,11 +65,7 @@ TEST(ContainerTest, CanInstantiateEmptyConstClassWithInlinedBitVectorField) {
 template <class BitVec>
 class BitVecTest : public testing::Test {};
 
-#ifndef ABSL_HAVE_MEMORY_SANITIZER
 constexpr size_t kMaxTestSize = 128;
-#else
-constexpr size_t kMaxTestSize = 20;
-#endif
 
 using TestedTypes = testing::Types<
     // small

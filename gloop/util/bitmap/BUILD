@@ -58,7 +58,6 @@ cc_test(
     deps = [
         ":bitmap",
         "//gloop/util/random:acmrandom",
-        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:dynamic_annotations",
         "@abseil-cpp//absl/flags:flag",
         "@google_benchmark//:benchmark",
@@ -94,7 +93,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":bitmap",
-        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/hash:hash_testing",
         "@abseil-cpp//absl/log",
         "@google_benchmark//:benchmark",

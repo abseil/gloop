@@ -32,7 +32,6 @@
 #include <cstdint>
 #include <string>
 
-#include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/container/fixed_array.h"
 #include "absl/flags/flag.h"
@@ -48,13 +47,8 @@ ABSL_FLAG(int32_t, num_urns, 1000, "Number of urns for collision test");
 // We asume that we that after 300000 experiments we are within 1% of
 // steady state (i.e. the average of the numbers generated so far are
 // withing 1% of the average steady state average of 2^30)
-#if defined(ABSL_HAVE_MEMORY_SANITIZER)
-const int kSteadyStateReached = 30000;
-const float kSteadyStateWithin = 0.05;
-#else
 const int kSteadyStateReached = 300000;
 const float kSteadyStateWithin = 0.01;
-#endif
 
 // Standard constants for ACMRandom
 const int M = 0x7FFFFFFF;

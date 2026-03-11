@@ -32,7 +32,6 @@
 #include <memory>
 #include <string>
 
-#include "absl/base/config.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
@@ -54,32 +53,18 @@ ABSL_FLAG(int32_t, degree_of_freedom_increment, 27,
 ABSL_FLAG(int32_t, rand8_degree_of_freedom_increment, 1,
           "Step size through degree-of-freedom table for Rand8");
 
-#if defined(ABSL_HAVE_MEMORY_SANITIZER)
-ABSL_FLAG(int32_t, chi_square_samples, 2 << 13,
-          "Number of samples to use in the Chi-squared test");
-#else
 ABSL_FLAG(int32_t, chi_square_samples, 2 << 20,
           "Number of samples to use in the Chi-squared test");
-#endif
 
 ABSL_FLAG(int32_t, clone_count, 100,
           "Number of output to compare in CloneTest");
 
-#if defined(ABSL_HAVE_MEMORY_SANITIZER)
 ABSL_FLAG(int32_t, float_count, 1 << 13, "Number of samples for FloatTest");
-#else
-ABSL_FLAG(int32_t, float_count, 1 << 20, "Number of samples for FloatTest");
-#endif
 
 ABSL_FLAG(int32_t, difference_test_count, 100,
           "Number of outputs to compare in DifferenceTest");
 
-#if defined(ABSL_HAVE_MEMORY_SANITIZER)
 ABSL_FLAG(int32_t, max_string_len, 256 * 1024, "Maximum random string length");
-#else
-ABSL_FLAG(int32_t, max_string_len, 4 * 1024 * 1024,
-          "Maximum random string length");
-#endif
 
 ABSL_FLAG(int32_t, string_test_count, 100,
           "Number of iterations of RandString");

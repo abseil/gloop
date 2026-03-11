@@ -34,7 +34,7 @@
 #include <cstdint>
 
 #include "absl/base/attributes.h"
-#include "absl/base/config.h"  // NOLINT
+#include "absl/base/config.h"  // IWYU pragma: keep
 #include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
 #include "gloop/util/endian/endian.h"
@@ -103,8 +103,8 @@ uint64_t MurmurHash64Reference(const void* key, size_t len) {
   return h;
 }
 
-#if defined(ABSL_HAVE_THREAD_SANITIZER) || defined(ABSL_HAVE_MEMORY_SANITIZER)
-// TSAN and MSAN run out of memory for these large allocations.
+#if defined(ABSL_HAVE_THREAD_SANITIZER)
+// TSAN runs out of memory for these large allocations.
 constexpr size_t kLargeInputLen = (1ULL << 16) + 97;
 #else
 constexpr size_t kLargeInputLen = (1ULL << 31) + 97;

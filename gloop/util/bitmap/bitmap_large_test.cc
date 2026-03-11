@@ -24,7 +24,6 @@
 #include <string>
 #include <utility>
 
-#include "absl/base/config.h"  // IWYU pragma: keep
 #include "absl/base/dynamic_annotations.h"
 #include "absl/flags/flag.h"
 #include "gloop/util/bitmap/bitmap.h"
@@ -59,9 +58,6 @@ TYPED_TEST_SUITE_P(BitmapLargeTest);
 
 TYPED_TEST_P(BitmapLargeTest, Large) {
   uint32_t large = std::numeric_limits<uint32_t>::max();
-#if defined(ABSL_HAVE_MEMORY_SANITIZER)
-  large /= 100;
-#endif
   BasicBitmap<TypeParam> map(large);
   uint32_t i;
 

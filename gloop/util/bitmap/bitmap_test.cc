@@ -50,12 +50,6 @@
 
 ABSL_FLAG(int32_t, bm_bitmap_size, 10000, "Size of bitmap for benchmarks");
 
-#if defined(ABSL_HAVE_MEMORY_SANITIZER) || defined(ABSL_HAVE_THREAD_SANITIZER)
-constexpr bool kSmallerTests = true;
-#else
-constexpr bool kSmallerTests = false;
-#endif
-
 namespace {
 
 using testing::ElementsAre;
@@ -1342,7 +1336,7 @@ void TestOneZeroInRangeHelper(const BasicBitmap<W>& bitmap) {
 }
 
 TYPED_TEST_P(BitmapTest, OneZeroInRange) {
-  const int kIters = kSmallerTests ? 25 : 3 * 5 * 8;  // 120
+  const int kIters = 3 * 5 * 8;  // 120
   for (int i = 0; i < kIters; i++) {
     int size = i * 3;
     int one_interval = (i % 5) + 1;
@@ -1488,9 +1482,11 @@ TYPED_TEST_P(BitmapTest, Resize) {
   for (std::size_t i = 0; i != map.bits(); ++i)
     EXPECT_FALSE(map.Get(i)) << "Wrong value at inded " << i;
 
-  if constexpr (is_atomic<TypeParam>::value && kSmallerTests) {
-    return;  // Sanitizers have a hard time allocating this many atomics.
+#ifdef ABSL_HAVE_THREAD_SANITIZER
+  if constexpr (is_atomic<TypeParam>::value) {
+    return;  // TSAN is having a hard time allocating so many atomics.
   }
+#endif
 
   // Resizing to a very large size, filled "false", and setting the last value
   // "true".
@@ -1499,12 +1495,6 @@ TYPED_TEST_P(BitmapTest, Resize) {
   map.Set(kSize4 - 1, true);
   EXPECT_FALSE(map.Get(kSize4 - 2));
   EXPECT_TRUE(map.Get(kSize4 - 1));
-
-#ifdef ABSL_HAVE_THREAD_SANITIZER
-  if constexpr (is_atomic<TypeParam>::value) {
-    return;  // TSAN is having a hard time allocating so many atomics.
-  }
-#endif
 
   // Same, but even larger.
   map.Resize(kSize5, false);

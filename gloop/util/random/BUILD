@@ -41,7 +41,6 @@ cc_test(
     deps = [
         ":acmrandom",
         "//gloop/util/math:mathutil",
-        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/flags:flag",
@@ -152,7 +151,6 @@ cc_library(
     hdrs = ["random_base_testutils.h"],
     deps = [
         ":random_base",
-        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
