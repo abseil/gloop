@@ -37,6 +37,7 @@ cc_library(
         "@abseil-cpp//absl/numeric:bits",
         "@abseil-cpp//absl/numeric:int128",
         "@gloop//gloop:enforce_gloop_support",
+        "@googletest//:gtest_prod",
     ],
 )
 

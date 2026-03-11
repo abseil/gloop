@@ -1,0 +1,180 @@
+# Copyright 2026 Google LLC.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Libraries in this low-level package may not depend on libraries in packages
+# that are not low level.   For more information, including how to submit
+# changes to this file, see    <link>howto/build-monitors.html
+
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
+package(
+    default_applicable_licenses = ["//gloop:license"],
+    default_visibility = ["//visibility:public"],
+    features = ["header_modules"],
+)
+
+# Description:
+#
+# This package implements various compression algorithms.
+# The "coding" library includes various low-level compression routines.
+# The "vcdiff" library is an implementation of the Bentley-McIlroy
+#   compression technique for long strings.
+# The "bmdiff" library is a simpler implementation of the Bentley-McIlroy
+#   compression technique for long strings that omits zlib based compression
+#   and just computes a plain diff.
+# The "compressed-array" library provides an interface for building
+#   and dereferencing compressed uint32 arrays.
+# The "shrunk-array" library provides an interface for shrinking and
+#   then reading arrays of uint8, uint16, uint32, or uint64.  Whereas
+#   compressed-array is best suited for compressing a few large arrays,
+#   shrunk-array is designed to accommodate many small independent
+#   arrays, and offers faster compression and faster random-access
+#   reads, even when jumping between different arrays.
+
+cc_library(
+    name = "coding",
+    srcs = [
+        "bitcoding.cc",
+        "coder.cc",
+        "huffcoding.cc",
+        "two-values-varint.cc",
+        "varint.cc",
+    ],
+    hdrs = [
+        "bitcoding.h",
+        "coder.h",
+        "huffcoding.h",
+        "tablecoding.h",
+        "two-values-varint.h",
+        "varint.h",
+    ],
+    deps = [
+        "//gloop/base:uword",
+        "//gloop/util/bits",
+        "//gloop/util/endian",
+        "//gloop/util/gtl:stl_util",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:fixed_array",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@abseil-cpp//absl/numeric:bits",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:enforce_gloop_support",
+        "@tcmalloc//tcmalloc:malloc_extension",
+    ],
+)
+
+cc_test(
+    name = "bitcoding_unittest",
+    size = "small",
+    timeout = "moderate",
+    srcs = ["bitcoding_unittest.cc"],
+    visibility = ["//devtools/crosstool/perflab/benchmarks:__pkg__"],
+    deps = [
+        ":coding",
+        "//gloop/util/gtl:unique_array",
+        "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:fixed_array",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/random:distributions",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "huffcoding_unittest",
+    srcs = ["huffcoding_unittest.cc"],
+    deps = [
+        ":coding",
+        "//gloop/util/endian",
+        "//gloop/util/gtl:unique_array",
+        "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/random",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# Linked statically to make it easier to copy to production machines
+# for timing tests and for more realistic measurement of benchmarks
+cc_test(
+    name = "varint_unittest",
+    srcs = ["varint_unittest.cc"],
+    copts = ["$(STACK_FRAME_UNLIMITED)"],
+    linkstatic = 1,
+    deps = [
+        ":coding",
+        "//gloop/util/gtl:unique_array",
+        "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/container:fixed_array",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/random",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# Linked statically to make it easier to copy to production machines
+# for timing tests and for more realistic measurement of benchmarks
+cc_test(
+    name = "two-values-varint_test",
+    srcs = ["two-values-varint_test.cc"],
+    copts = ["$(STACK_FRAME_UNLIMITED)"],
+    linkstatic = 1,
+    # Guarantees changelist stability for the random number generators.
+    # See <link>.
+    stamp = 1,
+    deps = [
+        ":coding",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/random:distributions",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "coder_unittest",
+    srcs = ["coder_unittest.cc"],
+    deps = [
+        ":coding",
+        "//gloop/util/gtl:unique_array",
+        "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
