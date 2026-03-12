@@ -17,6 +17,13 @@ The goal of `gloop` is to provide a middle layer of utilities that facilitates
 the transition of internal code to open source without the immediate need for a
 full OSS-ready library like `absl`.
 
+## Ownership
+
+While most of Gloop's code was developed inside Google and we don't accept
+external contributions, it is not 100% Google-owned. There are some historical
+external contributions contained in this project, but are covered by Google's
+CLA and Apache2 license.
+
 ## Contact
 
 If you have any questions, please reach out to the gloop-eng@ mailing list.
