@@ -12,8 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# This package is part of Components, and generally cannot be modified in the
+# same changelist as other packages. See <link> for details.
+
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
+# This package is part of Components, and generally cannot be modified in the
+# same changelist as other packages. See <link> for details.
 
 package(
     default_applicable_licenses = ["//gloop:license"],
@@ -21,6 +27,231 @@ package(
     features = [
         "parse_headers",
         "header_modules",
+    ],
+)
+
+cc_library(
+    name = "hash",
+    srcs = [
+        "hash.cc",
+        "hasher.cc",
+    ],
+    hdrs = [
+        "hash.h",
+        "hasher.h",
+    ],
+    textual_hdrs = [
+        "builtin_type_hash.h",  # depend on :builtin_type_hash instead
+        "hash128to64.h",  # depend on :hash128to64 instead
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":builtin_type_hash",
+        ":city",
+        ":hash128to64",
+        ":jenkins",
+        ":string_hash",
+        "//gloop/util/endian",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/log:absl_check",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+# Define select clauses which should be consistent across every hasher.
+OPTIMIZATION_SELECTOR = {
+    "//conditions:default": ["-O3"],
+}
+
+cc_library(
+    name = "farmhash",
+    srcs = ["farmhashte.cc"],
+    hdrs = [
+        "farmhash.h",
+        "farmhashte.h",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop/util/endian",
+        "@abseil-cpp//absl/numeric:bits",
+        "@abseil-cpp//absl/numeric:int128",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "farmhashte_test",
+    size = "small",
+    timeout = "long",
+    srcs = ["farmhashte_test.cc"],
+    deps = [
+        ":farmhash",
+        "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/log",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "builtin_type_hash",
+    hdrs = ["builtin_type_hash.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":jenkins",
+        "@abseil-cpp//absl/base",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "string_hash",
+    hdrs = ["string_hash.h"],
+    visibility = [
+        "//gloop/util/hash:__subpackages__",
+    ],
+    deps = [
+        ":city",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "legacy_hash",
+    hdrs = ["legacy_hash.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":builtin_type_hash",
+        ":hash",
+        ":jenkins",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "jenkins",
+    srcs = ["jenkins.cc"],
+    hdrs = [
+        "jenkins.h",
+        "jenkins_lookup2.h",
+    ],
+    textual_hdrs = [
+        "builtin_type_hash.h",  # depend on :builtin_type_hash instead
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop/base:port",
+        "//gloop/util/endian",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:prefetch",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "hash_unittest",
+    size = "small",
+    srcs = ["hash_unittest.cc"],
+    copts = [
+        "$(STACK_FRAME_UNLIMITED)",  # hash_unittest.cc
+    ] + select({
+        # Include the benchmarks only for prod builds.
+        "//conditions:default": [],
+    }),
+    linkstatic = 1,
+    deps = [
+        ":builtin_type_hash",
+        ":farmhash",
+        ":hash",
+        ":jenkins",
+        ":legacy_hash",
+        ":string_hash",
+        "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/container:node_hash_map",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:cord_test_helpers",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "legacy_hash_test",
+    size = "small",
+    srcs = ["legacy_hash_test.cc"],
+    deps = [
+        ":builtin_type_hash",
+        ":legacy_hash",
+        "//gloop/util/random:acmrandom",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "hash128to64",
+    textual_hdrs = ["hash128to64.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/numeric:int128",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "cityhash128_test",
+    size = "small",
+    srcs = ["cityhash128_test.cc"],
+    deps = [
+        ":city",
+        "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "city",
+    srcs = ["city.cc"],
+    hdrs = ["city.h"],
+    copts = select(OPTIMIZATION_SELECTOR),
+    textual_hdrs = ["hash128to64.h"],  # depend on :hash128to64 instead
+    visibility = ["//visibility:public"],
+    deps = [
+        ":builtin_type_hash",
+        ":farmhash",
+        ":hash128to64",
+        "//gloop/util/endian",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 

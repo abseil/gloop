@@ -8,6 +8,9 @@ build --copt=-fno-exceptions
 # Gloop only supports building with unsigned chars.
 build --copt=-funsigned-char
 
+# Enable hardware-specific optimizations.
+build --copt=-march=x86-64-v2
+
 # Disable warnings from dependencies.
 build --per_file_copt=-external/.*@-Wno-thread-safety-analysis,-Wno-character-conversion
 build --host_per_file_copt=-external/.*@-Wno-deprecated-declarations
