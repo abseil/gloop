@@ -1,0 +1,21 @@
+edition = "2024";
+
+package util.tuple;
+
+import option "google/protobuf/cpp_features.proto";
+
+option features.utf8_validation = NONE;
+
+message TestProto {
+  enum Color {
+    option features.(pb.cpp).enum_name_uses_string_view = false;
+    option features.enum_type = CLOSED;
+
+    COLOR_BLACK = 0;
+    COLOR_WHITE = 2;
+  }
+
+  string foo = 1;
+  int32 bar = 2;
+  string redact = 3 [debug_redact = true];
+}

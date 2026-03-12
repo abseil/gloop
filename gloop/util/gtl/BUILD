@@ -492,6 +492,26 @@ cc_test(
 )
 
 cc_library(
+    name = "typeid",
+    hdrs = ["typeid.h"],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
+)
+
+cc_test(
+    name = "typeid_unittest",
+    srcs = [
+        "typeid_unittest.cc",
+        "typeid_unittest2.cc",
+    ],
+    deps = [
+        ":typeid",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "unaligned",
     hdrs = ["unaligned.h"],
     deps = [
