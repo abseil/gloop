@@ -62,6 +62,10 @@ index 4fcb4f1f..7e36dcf3 100644
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
+@@ -1012,2 +1022,3 @@ cc_library(
+         "//absl:__subpackages__",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
 diff --git absl/container/BUILD.bazel absl/container/BUILD.bazel
 index 15fa6630..5198d376 100644
 --- absl/container/BUILD.bazel

@@ -593,3 +593,23 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "iterator_range",
+    hdrs = ["iterator_range.h"],
+    deps = [
+        "@abseil-cpp//absl/base:iterator_traits_internal",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "iterator_range_test",
+    srcs = ["iterator_range_test.cc"],
+    deps = [
+        ":iterator_range",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
