@@ -231,6 +231,7 @@ cc_library(
     hdrs = ["scoped_sigmask.h"],
     visibility = [
         "//gloop/base:__subpackages__",
+        "//gloop/concurrent/rcu:__subpackages__",
     ],
     deps = [
         "@abseil-cpp//absl/base:raw_logging_internal",
@@ -342,4 +343,33 @@ cc_test(
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
+)
+
+cc_library(
+    name = "signal_util_subtle",
+    srcs = ["signal_util_subtle.cc"],
+    hdrs = ["signal_util_subtle.h"],
+    visibility = [
+        "//gloop/base:__subpackages__",
+        "//gloop/concurrent/rcu:__subpackages__",
+    ],
+    deps = [
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+# For tests that cannot coexist with fast-mode percpu,
+# prevent its use by depending on this library.
+# Do not use this unless you're actively working with
+# restartable sequences somehow.
+cc_library(
+    name = "percpu_disable_rseq",
+    testonly = 1,
+    srcs = ["percpu_disable_rseq.cc"],
+    visibility = ["//visibility:public"],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
+    alwayslink = 1,
 )

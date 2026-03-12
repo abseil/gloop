@@ -1,0 +1,151 @@
+# Copyright 2026 Google LLC.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+
+package(
+    default_applicable_licenses = ["//gloop:license"],
+    default_hdrs_check = "strict",
+    default_visibility = ["//visibility:private"],
+    features = ["header_modules"],
+)
+
+cc_library(
+    name = "view",
+    srcs = ["view.cc"],
+    hdrs = [
+        "view.h",
+        "view_advanced.h",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":global_domain",
+        ":internal",
+        ":policy",
+        ":rcu",
+        ":snapshot",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "snapshot",
+    hdrs = ["snapshot.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":snapshot_rcu_deleter",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "snapshot_rcu_deleter",
+    hdrs = ["snapshot_rcu_deleter.h"],
+    visibility = [
+        "//gloop/concurrent/rcu:__subpackages__",
+    ],
+    deps = [
+        ":global_domain",
+        ":rcu",
+        "@abseil-cpp//absl/base:core_headers",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "global_domain",
+    hdrs = ["global_domain.h"],
+    visibility = [
+        "//gloop/concurrent/rcu:__subpackages__",
+    ],
+    deps = [
+        ":rcu",
+        "@abseil-cpp//absl/base:core_headers",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "internal",
+    srcs = ["internal.cc"],
+    hdrs = ["internal.h"],
+    visibility = [
+        "//gloop/concurrent/rcu:__subpackages__",
+    ],
+    deps = [
+        ":global_domain",
+        ":rcu",
+        ":snapshot",
+        ":snapshot_rcu_deleter",
+        "@abseil-cpp//absl/base:core_headers",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "policy",
+    hdrs = ["policy.h"],
+    visibility = [
+        "//gloop/concurrent/rcu:__subpackages__",
+    ],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
+)
+
+cc_library(
+    name = "llist",
+    hdrs = ["llist.h"],
+    visibility = [
+        "//gloop/concurrent/rcu:__subpackages__",
+    ],
+    deps = [
+        "//gloop/util/atomic_danger",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "rcu",
+    srcs = [
+        "pile.cc",
+        "rcu.cc",
+        "rcu-impl.inc",
+    ],
+    hdrs = [
+        "pile.h",
+        "rcu.h",
+    ],
+    visibility = [
+        "//gloop/concurrent/rcu:__subpackages__",
+    ],
+    deps = [
+        ":llist",
+        "//gloop/base:percpu",
+        "//gloop/base:scoped_sigmask",
+        "//gloop/base:signal_util_subtle",
+        "//gloop/base:spinlock",
+        "//gloop/base/scheduling:scheduling_mode",
+        "//gloop/util/atomic_danger",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:malloc_internal",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/debugging:leak_check",
+        "@abseil-cpp//absl/numeric:bits",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:enforce_gloop_support",
+        "@tcmalloc//tcmalloc:malloc_extension",
+        "@tcmalloc//tcmalloc/internal:sysinfo",
+    ],
+)
