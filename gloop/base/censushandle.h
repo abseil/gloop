@@ -45,7 +45,7 @@ class WithLifetimeBoundContext;
 // as part of the NewCallback mechanism. It is only interpreted by Census
 // library. See stats/census/public/census-interface.h for details.
 // CensusHandle is thread-compatible.
-class CensusHandle {
+class ABSL_ATTRIBUTE_TRIVIAL_ABI CensusHandle {
   // This class carefully synchronizes with the SIGPROF signal handler. Any
   // operation which mutates a `CensusHandle` by reference or pointer might be
   // modifying the thread-local CensusHandle. Any subsequent `Unref()` can race
@@ -194,15 +194,41 @@ class CensusHandle {
 
   // Returns the current value of `entry` using a relaxed atomic load.
   EntryBase* get_entry() const {
-    return entry_.load(std::memory_order_relaxed);
+#if defined(__cpp_lib_atomic_ref)
+    return std::atomic_ref(entry_).load(std::memory_order_relaxed);
+#else
+    static_assert(__atomic_always_lock_free(sizeof(entry_), &entry_));
+
+    EntryBase* result;
+    __atomic_load(&entry_, &result, __ATOMIC_RELAXED);
+    return result;
+#endif
   }
 
   // Sets the current value of `entry` using a relaxed atomic store.
-  void set_entry(EntryBase* e) { entry_.store(e, std::memory_order_relaxed); }
+  void set_entry(EntryBase* const e) {
+#if defined(__cpp_lib_atomic_ref)
+    std::atomic_ref(entry_).store(e, std::memory_order_relaxed);
+#else
+    static_assert(__atomic_always_lock_free(sizeof(entry_), &entry_));
+    __atomic_store_n(&entry_, e, __ATOMIC_RELAXED);
+#endif
+  }
 
-  // Atomic to be read from signal handlers (SIGPROF).
-  std::atomic<EntryBase*> entry_ = {nullptr};
-  static_assert(std::atomic<EntryBase*>::is_always_lock_free);
+  // Some weird configurations that exist on TAP as of 2026-03 do not have
+  // std::atomic_ref despite claiming to be C++20.
+#if defined(__cpp_lib_atomic_ref)
+  // Always accessed via std::atomic_ref in order to be read from signal
+  // handlers (SIGPROF).
+  alignas(std::atomic_ref<
+          EntryBase*>::required_alignment) mutable EntryBase* entry_ = nullptr;
+
+  // Assumption check: atomic access to entry_ won't cause locks to be used
+  // (which would be a problem for signal handlers.
+  static_assert(std::atomic_ref<decltype(entry_)>::is_always_lock_free);
+#else
+  alignas(sizeof(EntryBase*)) mutable EntryBase* entry_ = nullptr;
+#endif
 };
 
 #endif  // THIRD_PARTY_GLOOP_BASE_CENSUSHANDLE_H_
