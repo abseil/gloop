@@ -1087,9 +1087,9 @@ TEST(Hash, CordFunctions) {
   EXPECT_EQ(Fingerprint(str), Fingerprint(fragmented_cord));
   EXPECT_EQ(Fingerprint(""), Fingerprint(absl::Cord()));
 
-  EXPECT_EQ(HashTo32(str.data(), str.size()), HashTo32(flat_cord));
-  EXPECT_EQ(HashTo32(str.data(), str.size()), HashTo32(fragmented_cord));
-  EXPECT_EQ(HashTo32("", 0), HashTo32(absl::Cord()));
+  EXPECT_EQ(HashTo32(str), HashTo32(flat_cord));
+  EXPECT_EQ(HashTo32(str), HashTo32(fragmented_cord));
+  EXPECT_EQ(HashTo32(""), HashTo32(absl::Cord()));
 
   EXPECT_EQ(util_hash::Hash(flat_cord), util_hash::Hash(fragmented_cord));
   EXPECT_EQ(util_hash::Hash(flat_cord, 42),

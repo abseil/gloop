@@ -99,6 +99,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
+#include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
 #include "absl/numeric/int128.h"
@@ -121,9 +122,13 @@ ABSL_NAMESPACE_END
 // TODO: This is one of the legacy hashes, kept here only
 // temporarily for making it easier to remove the physical dependency
 // to legacy_hash.h
-inline uint32_t HashTo32(const char* s, size_t slen) {
-  uint32_t retval = Hash32StringWithSeed(absl::string_view(s, slen), MIX32);
+inline uint32_t HashTo32(absl::string_view buf) {
+  uint32_t retval = Hash32StringWithSeed(buf, MIX32);
   return retval == kIllegalHash32 ? static_cast<uint32_t>(retval - 1) : retval;
+}
+ABSL_DEPRECATE_AND_INLINE()
+inline uint32_t HashTo32(const char* s, size_t slen) {
+  return HashTo32(absl::string_view(s, slen));
 }
 
 // HashTo32(const absl::Cord& c).
@@ -137,7 +142,7 @@ inline uint32_t HashTo32(const AbslCord& c) {
   for (absl::string_view chunk : c.Chunks()) {
     flat.append(chunk.data(), chunk.size());
   }
-  return HashTo32(flat.data(), flat.size());
+  return HashTo32(flat);
 }
 
 inline uint64_t Hash64StringWithSeed(absl::string_view s, uint64_t seed) {
