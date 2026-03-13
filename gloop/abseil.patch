@@ -15,7 +15,7 @@ index edb49d0b..c16aa93d 100644
 +    commit = "8eead4aaf1eb3685921b09e4fc03a69a31e35d53",
 +)
 diff --git absl/base/BUILD.bazel absl/base/BUILD.bazel
-index 4fcb4f1f..7e36dcf3 100644
+index c6e4be62..22b81698 100644
 --- absl/base/BUILD.bazel
 +++ absl/base/BUILD.bazel
 @@ -59,2 +59,3 @@ cc_library(
@@ -26,39 +26,39 @@ index 4fcb4f1f..7e36dcf3 100644
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
-@@ -160,2 +162,3 @@ cc_library(
+@@ -161,2 +163,3 @@ cc_library(
          "//absl/base:__pkg__",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
-@@ -190,2 +193,3 @@ cc_library(
+@@ -191,2 +194,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
-@@ -272,2 +276,3 @@ cc_library(
+@@ -273,2 +277,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
-@@ -452,2 +457,3 @@ cc_library(
+@@ -453,2 +458,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
-@@ -466,2 +472,3 @@ cc_library(
+@@ -467,2 +473,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
-@@ -548,2 +555,3 @@ cc_library(
+@@ -549,2 +556,3 @@ cc_library(
          "//absl/base:__pkg__",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
-@@ -583,2 +591,3 @@ cc_library(
+@@ -584,2 +592,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
-@@ -853,2 +862,3 @@ cc_library(
+@@ -854,2 +863,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
-@@ -952,2 +962,3 @@ cc_library(
+@@ -953,2 +963,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
@@ -67,7 +67,7 @@ index 4fcb4f1f..7e36dcf3 100644
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
 diff --git absl/container/BUILD.bazel absl/container/BUILD.bazel
-index 15fa6630..5198d376 100644
+index be10bb5d..60438d30 100644
 --- absl/container/BUILD.bazel
 +++ absl/container/BUILD.bazel
 @@ -228,2 +228,3 @@ cc_library(
@@ -78,51 +78,51 @@ index 15fa6630..5198d376 100644
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
-@@ -943,2 +945,3 @@ cc_library(
+@@ -946,2 +948,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
          "//absl/container:__pkg__",
-@@ -961,2 +964,3 @@ cc_library(
+@@ -964,2 +967,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
          "//absl/container:__pkg__",
-@@ -978,2 +982,3 @@ cc_library(
+@@ -981,2 +985,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
          "//absl/container:__pkg__",
-@@ -995,2 +1000,3 @@ cc_library(
+@@ -998,2 +1003,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
          "//absl/container:__pkg__",
-@@ -1014,2 +1020,3 @@ cc_library(
+@@ -1017,2 +1023,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
          "//absl/container:__pkg__",
-@@ -1030,2 +1037,3 @@ cc_library(
+@@ -1033,2 +1040,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
          "//absl/container:__pkg__",
-@@ -1046,2 +1054,3 @@ cc_library(
+@@ -1049,2 +1057,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
          "//absl/container:__pkg__",
-@@ -1063,2 +1072,3 @@ cc_library(
+@@ -1066,2 +1075,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
          "//absl/container:__pkg__",
-@@ -1241,2 +1251,3 @@ cc_library(
+@@ -1244,2 +1254,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
          "//absl/container:__pkg__",
 diff --git absl/debugging/BUILD.bazel absl/debugging/BUILD.bazel
-index a5c736c9..cf176167 100644
+index e6f11e84..5b7480b2 100644
 --- absl/debugging/BUILD.bazel
 +++ absl/debugging/BUILD.bazel
-@@ -157,2 +157,3 @@ cc_library(
+@@ -160,2 +160,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
          "//absl/log/internal:__pkg__",
-@@ -220,3 +221,6 @@ cc_library(
+@@ -223,3 +224,6 @@ cc_library(
      linkopts = ABSL_DEFAULT_LINKOPTS,
 -    visibility = ["//absl:friends"],
 +    visibility = [
@@ -130,7 +130,7 @@ index a5c736c9..cf176167 100644
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
 +    ],
      deps = [
-@@ -238,2 +242,3 @@ cc_library(
+@@ -241,2 +245,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
          "//absl/container:__pkg__",
@@ -211,7 +211,7 @@ index 6e52c6ec..9aef4b2a 100644
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
 diff --git absl/profiling/BUILD.bazel absl/profiling/BUILD.bazel
-index 3896f46b..b3bc04fd 100644
+index 34e3d254..b058c8f3 100644
 --- absl/profiling/BUILD.bazel
 +++ absl/profiling/BUILD.bazel
 @@ -43,2 +43,3 @@ cc_library(
@@ -222,8 +222,8 @@ index 3896f46b..b3bc04fd 100644
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
-@@ -112,2 +114,3 @@ cc_library(
-         "//absl:friends",
+@@ -110,2 +112,3 @@ cc_library(
+     visibility = [
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
          "//absl:__subpackages__",
 diff --git absl/random/internal/BUILD.bazel absl/random/internal/BUILD.bazel
@@ -235,10 +235,10 @@ index c2f2c367..0a2ee72c 100644
 +    "@do_not_use_for_gloop_visibility_only//:__subpackages__",
  ]
 diff --git absl/strings/BUILD.bazel absl/strings/BUILD.bazel
-index 2f2b8eaa..ef1aece1 100644
+index 5f428945..23caee70 100644
 --- absl/strings/BUILD.bazel
 +++ absl/strings/BUILD.bazel
-@@ -1560,2 +1560,3 @@ cc_library(
+@@ -1561,2 +1561,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],

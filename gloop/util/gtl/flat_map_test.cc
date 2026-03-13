@@ -42,21 +42,12 @@
 #include "absl/random/random.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/source_location.h"
 #include "absl/types/span.h"
 #include "benchmark/benchmark.h"
 #include "gloop/util/gtl/stl_util.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-
-// TODO Use a test stub until SourceLocation is available.
-namespace absl {
-class SourceLocation {
- public:
-  static SourceLocation current() { return SourceLocation(); }
-  std::string file_name() const { return ""; }
-  uint_fast32_t line() const { return 0; }
-};
-}  // namespace absl
 
 namespace gtl {
 namespace {

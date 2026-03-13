@@ -101,29 +101,7 @@
 #include "absl/log/absl_check.h"
 #include "absl/log/check.h"
 #include "absl/synchronization/mutex.h"
-
-namespace util_registration_internal {
-
-class SourceLocation {
- public:
-  static constexpr SourceLocation current(
-      const char* file_name = __builtin_FILE()) {
-    return SourceLocation(file_name);
-  }
-  constexpr const char* file_name() const { return file_name_; }
-
-  template <typename Sink>
-  friend void AbslStringify(Sink& sink, SourceLocation l) {
-    sink.Append(l.file_name());
-  }
-
- private:
-  constexpr SourceLocation(const char* file_name) : file_name_(file_name) {}
-
-  const char* file_name_;
-};
-
-}  // namespace util_registration_internal
+#include "absl/types/source_location.h"
 
 namespace util_registration {
 
@@ -169,8 +147,7 @@ class StaticMapBase {
   // Do not call this outside of file scope.
   static bool InsertValue(
       KeyType key, ValueType value,
-      const util_registration_internal::SourceLocation& location =
-          util_registration_internal::SourceLocation::current()) {
+      const absl::SourceLocation& location = absl::SourceLocation::current()) {
     MapName* static_map = GetSingleton();
     absl::MutexLock l(&static_map->map_lock_);
 
@@ -179,20 +156,20 @@ class StaticMapBase {
         std::forward_as_tuple(location.file_name(), std::move(value)));
     ABSL_CHECK(inserted) << "Attempting to redefine value for key " << it->first
                          << ", that has been defined at " << it->second.first
-                         << ", at " << location;
+                         << ", at " << location.file_name();
     return false;
   }
 
   static bool SetDefaultValue(
       ValueType value,
-      const util_registration_internal::SourceLocation& location =
-          util_registration_internal::SourceLocation::current()) {
+      const absl::SourceLocation& location = absl::SourceLocation::current()) {
     MapName* static_map = GetSingleton();
     absl::MutexLock l(static_map->map_lock_);
 
     ABSL_CHECK(static_map->default_value_.get() == nullptr)
-        << "Attempting to redefine static map default value at " << location
-        << ", that has been defined at " << static_map->default_value_location_;
+        << "Attempting to redefine static map default value at "
+        << location.file_name() << ", that has been defined at "
+        << static_map->default_value_location_;
     static_map->default_value_ = std::make_unique<ValueType>(std::move(value));
     static_map->default_value_location_ = location.file_name();
     return false;
@@ -255,9 +232,8 @@ class StaticSetBase {
   }
 
   // Do not call this outside of file scope.
-  static bool InsertKey(
-      KeyType key, const util_registration_internal::SourceLocation& location =
-                       util_registration_internal::SourceLocation::current()) {
+  static bool InsertKey(KeyType key, const absl::SourceLocation& location =
+                                         absl::SourceLocation::current()) {
     SetName* static_set = GetSingleton();
     absl::MutexLock l(static_set->set_lock_);
 
@@ -265,7 +241,7 @@ class StaticSetBase {
         {std::move(key), location.file_name()});
     CHECK(inserted) << "Attempting to reinsert key " << it->first
                     << ", that has been defined at " << it->second << ", at "
-                    << location;
+                    << location.file_name();
     return false;
   }
 

@@ -173,6 +173,7 @@ cc_test(
     size = "small",
     timeout = "long",
     srcs = ["safe_int_test.cc"],
+    shard_count = 16,
     deps = [
         ":intops",
         "@google_benchmark//:benchmark",

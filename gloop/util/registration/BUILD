@@ -37,6 +37,7 @@ cc_library(
         "@abseil-cpp//absl/log:absl_check",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/types:source_location",
         "@gloop//gloop:enforce_gloop_support",
     ],
 )
