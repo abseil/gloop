@@ -1,0 +1,5 @@
+Filename                                Type            Size    Used    Priority
+/dev/hda2                               partition       524280  0       -1
+/dev/hdc2                               partition       524280  0       -2
+/export/hda3/swapfile                   file            524280  0       private
+/dev/hde2                               partition       524280  0       -3

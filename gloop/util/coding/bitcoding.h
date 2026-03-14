@@ -736,8 +736,8 @@ inline bool BitDecoder::GetUnary(uint32_t* x) {
   // cmov:
   //   tzcnt/bsf eax, eax; cmp rsi, 0xffffffffffffffffh; cmovz eax, r11d
   // The former may be much faster than the latter (tzcnt+cmovz).
-  // chandlerc@: "tzcnt has weird dependency bugs on intel chips and cmov isn't
-  // gonna help with that kind of stall".
+  // tzcnt has weird dependency bugs on intel chips and cmov isn't
+  // gonna help with that kind of stall.
   // This check can be conditionally removed if there is some way to get rid of
   // the cmp+cmovz pattern when tzcnt (x86_64)/cnttzd (Power ISA 3.0) is
   // available.

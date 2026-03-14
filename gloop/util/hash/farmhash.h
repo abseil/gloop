@@ -67,7 +67,8 @@
 //     the header file so that targets that use both farmhash and
 //     the TP/their internal copy continue to work together.
 // This is used by other files in this package, but please do not use it
-// for anything else.  Please ask hashing@ if you want to break this rule.
+// for anything else.  Please ask <internal team> if you want to break this
+// rule.
 
 #ifndef THIRD_PARTY_GLOOP_UTIL_HASH_FARMHASH_H_
 #define THIRD_PARTY_GLOOP_UTIL_HASH_FARMHASH_H_

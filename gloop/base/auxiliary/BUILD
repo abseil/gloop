@@ -15,6 +15,8 @@
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
+# Auxiliary implementation details for base
+
 package(
     default_applicable_licenses = ["//gloop:license"],
     default_visibility = ["//visibility:private"],
@@ -22,46 +24,29 @@ package(
 )
 
 cc_library(
-    name = "atomic_danger",
-    hdrs = ["atomic_danger.h"],
+    name = "parsed_process_stat",
+    srcs = ["parsed_process_stat.cc"],
+    hdrs = ["parsed_process_stat.h"],
     visibility = [
-        "//:__subpackages__",
+        "//gloop/base:__subpackages__",
     ],
     deps = [
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/meta:type_traits",
-        "@gloop//gloop:enforce_gloop_support",
-    ],
-)
-
-cc_test(
-    name = "atomic_danger_test",
-    srcs = ["atomic_danger_test.cc"],
-    deps = [
-        ":atomic_danger",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
-    ],
-)
-
-cc_library(
-    name = "refcount",
-    hdrs = ["refcount.h"],
-    # TODO: Consider restricting this once <link> is done.
-    visibility = ["//visibility:public"],
-    deps = [
-        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
 cc_test(
-    name = "refcount_test",
-    srcs = ["refcount_test.cc"],
+    name = "parsed_process_stat_test",
+    srcs = ["parsed_process_stat_test.cc"],
     deps = [
-        ":refcount",
+        ":parsed_process_stat",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_matchers",
+        "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
