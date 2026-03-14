@@ -62,6 +62,26 @@ cc_test(
 )
 
 cc_library(
+    name = "ostringstream",
+    srcs = ["ostringstream.cc"],
+    hdrs = ["ostringstream.h"],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
+)
+
+cc_test(
+    name = "ostringstream_test",
+    size = "small",
+    srcs = ["ostringstream_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":ostringstream",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "si_prefix",
     srcs = ["si_prefix.cc"],
     hdrs = ["si_prefix.h"],
