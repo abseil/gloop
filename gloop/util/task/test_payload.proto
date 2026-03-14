@@ -1,0 +1,18 @@
+edition = "2024";
+
+package util;
+
+import "google/protobuf/bridge/message_set.proto";
+
+import option "google/protobuf/cpp_features.proto";
+
+option features.utf8_validation = NONE;
+
+// A test-only payload message for Status values.
+message TestPayload {
+  extend google.protobuf.bridge.MessageSet {
+    TestPayload message_set_extension = 166355976;
+  }
+
+  string message = 1 [features.(pb.cpp).string_type = STRING];
+}

@@ -27,7 +27,7 @@ bazel_dep(name = "google_benchmark", version = "1.9.5", dev_dependency = True)
 # TODO: Add Gloop to BCR
 git_override(
     module_name = "abseil-cpp",
-    commit = "1bcce1bda4df1f81b0c6cb84f16a0585a7152ab2",
+    commit = "0a7fe7e8da159b3bbbb39c9fa460bb2f7ba49dfc",
     patches = ["//gloop:abseil.patch"],
     remote = "https://github.com/abseil/abseil-cpp",
 )
