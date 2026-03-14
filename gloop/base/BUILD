@@ -572,3 +572,30 @@ cc_library(
     deps = ["@gloop//gloop:enforce_gloop_support"],
     alwayslink = 1,
 )
+
+cc_library(
+    name = "futex",
+    srcs = ["futex.cc"],
+    hdrs = ["futex.h"],
+    visibility = [
+        "//gloop/base:__subpackages__",
+    ],
+    deps = [
+        ":inlined_syscall",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "inlined_syscall",
+    hdrs = ["inlined_syscall.h"],
+    visibility = [
+        "//gloop/base:__subpackages__",
+    ],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
