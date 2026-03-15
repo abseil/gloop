@@ -107,6 +107,7 @@ cc_library(
     ],
     deps = [
         "//gloop/util/atomic_danger:refcount",
+        "@abseil-cpp//absl/base:core_headers",
         "@gloop//gloop:enforce_gloop_support",
     ],
 )

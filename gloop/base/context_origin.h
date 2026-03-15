@@ -26,6 +26,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "gloop/util/atomic_danger/refcount.h"
 
 namespace base {
@@ -51,7 +52,7 @@ namespace base {
 //   if (origin.has_value())
 //     LOG(INFO) << util::SymbolizeStackTraceAsString(origin->data(),
 //                                                    origin->size());
-class ContextOrigin final {
+class ABSL_ATTRIBUTE_TRIVIAL_ABI ContextOrigin final {
  public:
   constexpr ContextOrigin() = default;
 
