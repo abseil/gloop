@@ -250,7 +250,7 @@ class TraceSpan;
 }  // namespace perftools::tracing
 
 // TraceContext is thread-compatible.
-class TraceContext {
+class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
  public:
   struct ThreadInitType {};
   inline static constexpr ThreadInitType kThread{};
