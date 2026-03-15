@@ -35,6 +35,7 @@ build:san-common --config=dbg --strip=never --copt=-Og --copt=-fno-omit-frame-po
 build:asan --config=san-common
 build:asan --//gloop:sanitizer=asan
 build:asan --copt=-fsanitize=address --linkopt=-fsanitize=address
+build:asan --copt=-O2 # TODO Workaround cord/status false positive
 test:asan --test_tag_filters=-nosan,-noasan
 
 build:ubsan --config=san-common
