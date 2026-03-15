@@ -205,6 +205,7 @@
 #include "absl/strings/cord.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
+#include "gloop/strings/ostringstream.h"
 #include "gloop/util/gtl/typeid.h"
 #include "gloop/util/tuple/components/for_each.h"
 #include "gloop/util/tuple/components/intrinsics.h"
@@ -1033,9 +1034,10 @@ streamable_t<T, Writer> streamable(const T& obj, const Writer& writer) {
 // Returns a human readable string representation of the object.
 template <class T>
 ::std::string to_string(const T& obj) {
-  ::std::ostringstream stream;
+  ::std::string res;
+  ::strings::OStringStream stream(&res);
   stream << ::util::tuple::streamable(obj);
-  return stream.str();
+  return res;
 }
 
 // This version supports custom serialization. Writer should be compatible with
@@ -1046,17 +1048,17 @@ template <class T>
 // See comments at the top of the file for examples.
 template <class T, class Writer>
 ::std::string to_string(const T& obj, const Writer& writer) {
-  ::std::ostringstream stream;
+  ::std::string res;
+  ::strings::OStringStream stream(&res);
   stream << ::util::tuple::streamable(obj, writer);
-  return stream.str();
+  return res;
 }
 
 struct strappend_t {
   template <class T>
   void operator()(::std::string* out, const T& t) const {
-    ::std::ostringstream stream;
+    ::strings::OStringStream stream(out);
     stream << ::util::tuple::streamable(t);
-    *out += stream.str();
   }
 };
 

@@ -189,6 +189,7 @@ cc_library(
         ":for_each",
         ":intrinsics",
         ":rank",
+        "//gloop/strings:ostringstream",
         "//gloop/util/gtl:typeid",
         "//gloop/util/symbolize:demangle",
         "@abseil-cpp//absl/base",
