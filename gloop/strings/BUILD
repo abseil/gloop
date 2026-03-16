@@ -137,3 +137,34 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "string_view_utils",
+    srcs = ["string_view_utils.cc"],
+    hdrs = ["string_view_utils.h"],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "string_view_utils_test",
+    size = "medium",
+    srcs = ["string_view_utils_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":string_view_utils",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/random:distributions",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@re2",
+    ],
+)
