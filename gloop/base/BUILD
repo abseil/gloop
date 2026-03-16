@@ -600,3 +600,10 @@ cc_library(
         "@gloop//gloop:enforce_gloop_support",
     ],
 )
+
+cc_library(
+    name = "fprint",
+    hdrs = ["fprint.h"],
+    visibility = ["//visibility:public"],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
+)

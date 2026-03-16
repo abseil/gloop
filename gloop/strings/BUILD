@@ -62,6 +62,66 @@ cc_test(
 )
 
 cc_library(
+    name = "numbers",
+    srcs = ["numbers.cc"],
+    hdrs = ["numbers.h"],
+    deps = [
+        ":string_view_utils",
+        ":util",
+        "//gloop/base:fprint",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "numbers_test",
+    size = "small",
+    srcs = [
+        "numbers_test.cc",
+        "numbers_test_common.h",
+    ],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":numbers",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "numbers_benchmark",
+    size = "small",
+    srcs = [
+        "numbers_benchmark.cc",
+        "numbers_test_common.h",
+    ],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":numbers",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "ostringstream",
     srcs = ["ostringstream.cc"],
     hdrs = ["ostringstream.h"],
