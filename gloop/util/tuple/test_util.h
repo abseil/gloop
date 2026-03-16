@@ -39,11 +39,6 @@ class TestValues : public ::testing::Test {
    private:
     Value() {}
     friend class TestValues;
-    // this is a workaround for a bug in the gcc standard library.
-    // make_tuple(make_tuple(a)) doesn't work if 'a' is an instance of an empty
-    // struct.
-    // // TODO: remove this field after the release of crosstool 17.
-    int dummy;
   };
 
   typedef Value<0> A;
