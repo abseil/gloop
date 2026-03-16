@@ -112,6 +112,7 @@
 #include <utility>
 
 #include "absl/base/attributes.h"
+#include "absl/base/macros.h"
 #include "absl/base/prefetch.h"
 #include "absl/log/check.h"
 #include "absl/types/span.h"
@@ -342,12 +343,12 @@ class intrusive_list {
     splice(pos, src, src.begin(), src.end());
   }
 
-  void splice(iterator pos, intrusive_list& src, iterator i) {
-    splice(pos, src, i, std::next(i));
-  }
+  void splice(iterator pos, iterator i) { splice(pos, i, std::next(i)); }
 
-  void splice(iterator pos, intrusive_list& /*src*/, iterator first,
-              iterator last) {
+  ABSL_DEPRECATE_AND_INLINE()
+  void splice(iterator pos, intrusive_list&, iterator i) { splice(pos, i); }
+
+  void splice(iterator pos, iterator first, iterator last) {
     if (first == last) return;
 
     link_type* const last_prev = last.link()->prev_;
@@ -361,6 +362,11 @@ class intrusive_list {
     pos.link()->prev_->next_ = first.link();
     last_prev->next_ = pos.link();
     pos.link()->prev_ = last_prev;
+  }
+
+  ABSL_DEPRECATE_AND_INLINE()
+  void splice(iterator pos, intrusive_list&, iterator first, iterator last) {
+    splice(pos, first, last);
   }
 
   // Prefetches the next or prev element relative to the given position.
