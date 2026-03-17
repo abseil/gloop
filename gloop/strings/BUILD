@@ -201,6 +201,55 @@ cc_test(
 )
 
 cc_library(
+    name = "split",
+    srcs = ["split.cc"],
+    hdrs = ["split.h"],
+    deps = [
+        ":util",
+        "//gloop/base:strtoint",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:charset",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "split_benchmark",
+    size = "small",
+    srcs = ["split_benchmark.cc"],
+    deps = [
+        ":split",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "split_test",
+    srcs = ["split_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":numbers",
+        ":split",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:charset",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "strip",
     srcs = ["strip.cc"],
     hdrs = ["strip.h"],
