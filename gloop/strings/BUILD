@@ -28,6 +28,35 @@ package(
 )
 
 cc_library(
+    name = "host_port",
+    srcs = ["host_port.cc"],
+    hdrs = ["host_port.h"],
+    deps = [
+        ":numbers",
+        ":util",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "host_port_test",
+    size = "small",
+    srcs = ["host_port_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":host_port",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "human_readable",
     srcs = ["human_readable.cc"],
     hdrs = ["human_readable.h"],
