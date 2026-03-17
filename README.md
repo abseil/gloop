@@ -19,4 +19,4 @@ full OSS-ready library like `absl`.
 
 ## Contact
 
-If you have any questions, please reach out to the gloop-eng@ mailing list.
+If you have any questions, please reach out to the <internal team> mailing list.
