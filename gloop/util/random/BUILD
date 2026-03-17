@@ -170,3 +170,27 @@ cc_library(
         "@gloop//gloop:enforce_gloop_support",
     ],
 )
+
+cc_library(
+    name = "shared_bit_gen",
+    hdrs = ["shared_bit_gen.h"],
+    deps = [
+        "//gloop/concurrent/percpu:object",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/random",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "shared_bit_gen_test",
+    srcs = ["shared_bit_gen_test.cc"],
+    deps = [
+        ":shared_bit_gen",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/random:distributions",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)

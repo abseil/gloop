@@ -1,0 +1,30 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef CONCURRENT_PERCPU_OBJECT_NATIVE_H_
+#define CONCURRENT_PERCPU_OBJECT_NATIVE_H_
+
+#include "gloop/base/percpu_types.h"
+
+namespace concurrent {
+namespace percpu {
+namespace percpu_internal {
+
+typedef base::subtle::percpu::PerCpuSpinLock PerCpuLock;
+
+}  // namespace percpu_internal
+}  // namespace percpu
+}  // namespace concurrent
+
+#endif  // CONCURRENT_PERCPU_OBJECT_NATIVE_H_

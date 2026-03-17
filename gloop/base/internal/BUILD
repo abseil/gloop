@@ -24,6 +24,7 @@ cc_library(
     hdrs = ["percpu.inc"],
     visibility = [
         "//gloop/base:__subpackages__",
+        "//gloop/concurrent/percpu:__subpackages__",
     ],
     deps = [
         "@abseil-cpp//absl/base:config",
