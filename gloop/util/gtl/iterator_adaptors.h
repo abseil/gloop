@@ -155,6 +155,10 @@ class ABSL_ATTRIBUTE_VIEW ExtractingIteratorBase {
   friend constexpr Sub operator-(const Sub& it, difference_type d) {
     return ExtractingIteratorBase(it.base() - d, it.extractor()).sub();
   }
+  template <typename It = Iterator,
+            typename = absl::enable_if_t<std::is_base_of<
+                std::random_access_iterator_tag,
+                typename std::iterator_traits<It>::iterator_category>::value>>
   friend constexpr difference_type operator-(const Sub& a, const Sub& b) {
     return a.base() - b.base();
   }
