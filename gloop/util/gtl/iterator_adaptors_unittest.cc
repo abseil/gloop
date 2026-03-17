@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2005 Google Inc. All Rights Reserved.
-
 #include "gloop/util/gtl/iterator_adaptors.h"
 
 #include <algorithm>

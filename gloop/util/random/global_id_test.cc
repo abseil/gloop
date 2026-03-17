@@ -18,9 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2007 Google Inc.
-// All rights reserved.
-
 #include "gloop/util/random/global_id.h"
 
 #include <math.h>

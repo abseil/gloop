@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2013 Google Inc. All Rights Reserved.
-
 #ifndef THIRD_PARTY_GLOOP_UTIL_TUPLE_COMPONENTS_INTERNAL_ITERATE_H_
 #define THIRD_PARTY_GLOOP_UTIL_TUPLE_COMPONENTS_INTERNAL_ITERATE_H_
 

@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2006 Google Inc. All Rights Reserved.
-
 #include "gloop/util/gtl/interval_set.h"
 
 #include <stdarg.h>

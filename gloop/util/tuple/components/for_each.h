@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2013 Google Inc. All Rights Reserved.
-
 //
 // Algorithm for_each() applies the unary function to all elements of the tuple,
 // from first to the last.

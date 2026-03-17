@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2001 and onwards Google Inc.
-
 //
 // Raw support for varint encoding.  Higher level interfaces are
 // provided by Encoder/Decoder/IOBuffer.  Clients should typically use

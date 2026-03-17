@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2011 Google Inc. All Rights Reserved.
-//
 // Contains the legacy hashing routines from mobile/util/hash/hash.cc,
 // adapted for use in place of the legacy Jenkins newhash-based routines.
 

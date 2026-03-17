@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2013 Google Inc. All Rights Reserved.
-
 //
 // Definitions of primitive tuple operations such as size and element access.
 

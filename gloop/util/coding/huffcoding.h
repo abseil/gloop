@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2001 and onwards Google Inc.
-
 //
 // An instance of the class "HuffmanCode" represents a huffman code:
 // i.e., a map from symbols to bit patterns.  Operations are provided to:

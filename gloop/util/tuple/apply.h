@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2013 Google Inc. All Rights Reserved.
-
 //
 // apply(a1, ..., aN, make_tuple(b1, ..., bM)) is equivalent to
 // std::invoke(a1, ..., aN, b1, ..., bM).

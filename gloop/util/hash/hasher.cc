@@ -18,10 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2000 and onwards Google Inc.
-//
-//
-//
 // This module contains legacy compatibility code for the stream interface
 // hashers Hasher32 and Hasher64. For simple hashing of strings with the same
 // algorithm, use Hash{32,64}StringWithSeed in util/hash/hash.h.

@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2010 Google Inc. All Rights Reserved.
-
 #ifndef THIRD_PARTY_GLOOP_UTIL_HASH_HASH128TO64_H_
 #define THIRD_PARTY_GLOOP_UTIL_HASH_HASH128TO64_H_
 

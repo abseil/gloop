@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2007, Google Inc.  All rights reserved.
-
 //
 // Unit test for base/port.h.
 // Many things are tested only to see that they compile.

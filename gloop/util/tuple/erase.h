@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2013 Google Inc. All Rights Reserved.
-
 //
 // Function templates erase() and erase_range() return a subset of the original
 // tuple with the elements with the specified indices removed.

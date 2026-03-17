@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2012 Google Inc. All rights reserved.
-//
 // This file provides the StrongVector container that wraps around the STL
 // vector. The wrapper restrict indexing to a pre-specified type-safe integer
 // type or StrongInt (see util/intops/strong_int.h).  It prevents accidental

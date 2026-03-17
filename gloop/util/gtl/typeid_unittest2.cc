@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2005 Google Inc. All Rights Reserved.
-
 //
 // This file tests that FastTypeId<Type> / TypeId<Type> return the same value
 // no matter what translation unit it's called from.

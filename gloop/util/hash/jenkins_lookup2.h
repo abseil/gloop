@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2011 Google Inc. All Rights Reserved.
-
 //
 // Legacy implementation of the core Jenkins lookup2 algorithm. This is used in
 // many older hash functions which we are unable to remove or change due to the

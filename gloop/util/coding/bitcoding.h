@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2000 and onwards Google Inc.
-
 // FixedBitWidthArray added by Priyendra Deshwal
 
 #ifndef THIRD_PARTY_GLOOP_UTIL_CODING_BITCODING_H_

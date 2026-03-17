@@ -18,9 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2006, Google Inc.
-//
-
 //
 // Implementation of the Mersenne Twister random number generator. See:
 // http://scholar.google.com/scholar?q=mersenne+twister&ie=UTF-8&oe=UTF-8&hl=en&btnG=Search

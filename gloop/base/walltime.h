@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2002 and onwards Google Inc.
-
 //
 // Prefer to use the functions in base/time.h (<link>) in new code
 // and APIs since they provide better type safety and more precision than

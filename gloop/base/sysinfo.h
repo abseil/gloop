@@ -19,10 +19,6 @@
 // clang-format on
 
 //
-// Copyright (C) 1999 and onwards Google, Inc.
-//
-
-//
 // This file includes routines to find out characteristics
 // of the machine a program is running on.  It is undoubtedly
 // system-dependent.

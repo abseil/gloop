@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2009 Google Inc. All Rights Reserved.
-
 //
 // Tests for the fast hashing algorithm based on Austin Appleby's
 // MurmurHash 2.0 algorithm. See http://murmurhash.googlepages.com/

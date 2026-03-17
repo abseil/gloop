@@ -18,10 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2004 Google Inc.
-// All Rights Reserved.
-//
-
 // Functions that copy specified bits from one location to another
 
 #ifndef THIRD_PARTY_GLOOP_UTIL_BITS_BIT_COPY_H_

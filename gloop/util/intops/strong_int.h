@@ -18,9 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2012 Google Inc. All Rights Reserved.
-//
-
 //
 // StrongInt<T> is a simple template class mechanism for defining "logical"
 // integer-like class types that support almost all of the same functionality

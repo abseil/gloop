@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2013 Google Inc. All Rights Reserved.
-
 #include "gloop/util/tuple/accumulate.h"
 
 #include <stddef.h>

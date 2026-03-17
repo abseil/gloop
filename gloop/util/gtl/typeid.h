@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2005 Google Inc. All Rights Reserved.
-
 //
 // This file defines two ways to get a unique integer from any type.
 //

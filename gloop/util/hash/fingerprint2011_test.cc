@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2011 Google Inc. All Rights Reserved.
-
 #include "gloop/util/hash/fingerprint2011.h"
 
 #include <cstdint>

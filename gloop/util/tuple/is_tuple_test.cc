@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2014 Google Inc. All Rights Reserved.
-
 #include "gloop/util/tuple/is_tuple.h"
 
 #include <tuple>

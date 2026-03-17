@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2013 Google Inc. All Rights Reserved.
-
 //
 // Function templates filter() and filter_range() return a subset of the
 // original tuple based on the supplied predicate.

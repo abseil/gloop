@@ -19,10 +19,6 @@
 // clang-format on
 
 //
-// Copyright (C) 1999 and onwards Google, Inc.
-//
-
-//
 // This file tests timer.h
 // It calls each timer in various ways.
 

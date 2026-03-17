@@ -18,9 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2002 Google Inc.  All Rights Reserved.
-//
-
 // Unit Test Party, 08/29/02 :-)
 
 #include "gloop/util/coding/varint.h"

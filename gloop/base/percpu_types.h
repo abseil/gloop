@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2011 Google Inc. All Rights Reserved.
-
 #ifndef THIRD_PARTY_GLOOP_BASE_PERCPU_TYPES_H_
 #define THIRD_PARTY_GLOOP_BASE_PERCPU_TYPES_H_
 

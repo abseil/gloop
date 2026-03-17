@@ -19,10 +19,6 @@
 // clang-format on
 
 //
-// Copyright 2006, Google Inc.
-//
-
-//
 
 #ifndef THIRD_PARTY_GLOOP_UTIL_RANDOM_RANDOM_BASE_H_
 #define THIRD_PARTY_GLOOP_UTIL_RANDOM_RANDOM_BASE_H_

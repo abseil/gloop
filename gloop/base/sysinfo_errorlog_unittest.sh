@@ -1,5 +1,4 @@
 #!/bin/bash
-# Copyright 2005 Google, Inc.
 # Author: Paul Menage
 
 # Simple test to check that errors are logged by sysinfo functions at

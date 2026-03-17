@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2005 Google Inc. All Rights Reserved.
-
 //
 // Unit test for Demangling functions.
 

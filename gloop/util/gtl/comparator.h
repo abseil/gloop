@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2010 Google Inc. All Rights Reserved.
-
 // This file defines some commonly used comparators and utilities for
 // composing comparators.  Read <link> for the full
 // documentation.

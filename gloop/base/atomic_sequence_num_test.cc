@@ -18,9 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2008 Google Inc.
-// All rights reserved.
-
 // A test for the atomic counter operations in atomic_sequence_num.h
 
 #include "gloop/base/atomic_sequence_num.h"

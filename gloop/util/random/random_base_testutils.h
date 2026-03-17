@@ -18,10 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2004 Google Inc.
-// All Rights Reserved.
-//
-
 // Source code authored by Bennet Yee in secure_random_unittest.cc. It
 // was moved to this file so it can be utilized across multiple
 // unit test files.

@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2014 Google Inc. All Rights Reserved.
-
 //
 // Metafunction is_tuple<T> returns true if T is a tuple (more specifically,
 // if util::tuple::tag<T>::type is defined).

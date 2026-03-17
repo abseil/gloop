@@ -18,9 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2004, Google Inc.
-//
-
 //
 // Implementation of the Mersenne Twister RNG.  (MT19937). MT is a very
 // good RNG, and is intended to be a replacement for users of ACMRandom.

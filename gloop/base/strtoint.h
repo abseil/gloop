@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2008 Google Inc. All Rights Reserved.
-
 //
 // Architecture-neutral plug compatible replacements for strtol() friends.
 //

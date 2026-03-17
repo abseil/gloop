@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2002 Google Inc.
-//
 // Some of these functions are faster than their built-in alternatives. Some
 // have a more Google-friendly API and are easier to use.
 //

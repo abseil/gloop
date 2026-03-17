@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2010 Google Inc. All Rights Reserved.
-
 #include "gloop/util/gtl/comparator.h"
 
 #include <algorithm>
