@@ -37,12 +37,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-#if defined(__linux__)
-#define HAVE_SCHED_SETAFFINITY 1
-#else
-#undef HAVE_SCHED_SETAFFINITY
-#endif
-
 namespace {
 
 using concurrent::percpu::PerCpu;
