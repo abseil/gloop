@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load(
+    "@rules_cc//cc:cc_test.bzl",
+    "cc_test",
+)
+
 # Base scheduling support.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
@@ -23,11 +28,103 @@ package(
 )
 
 cc_library(
+    name = "domain_thread_assignment_callback_accessor",
+    hdrs = ["domain_thread_assignment_callback_accessor.h"],
+    visibility = [
+        "//gloop/base/scheduling:__subpackages__",
+    ],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
+)
+
+cc_library(
+    name = "low-level-support",
+    hdrs = ["low-level-support.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/base",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "scheduling",
+    # Work around circular references.
+    srcs = [
+        "domain.cc",
+        "domain_thread_assignment_callback_accessor.cc",
+        "downcalls.cc",
+        "scheduler.cc",
+    ],
+    hdrs = [
+        "domain.h",
+        "downcalls.h",
+        "scheduler.h",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":domain_thread_assignment_callback_accessor",
+        ":low-level-support",
+        "//gloop/base:examine_stack",
+        "//gloop/base:spinlock",
+        "//gloop/base:static_threadlocal",
+        "//gloop/base:thread_identity",
+        "//gloop/thread/fiber:per-domain-counters",
+        "//gloop/util/atomic_danger",
+        "//gloop/util/atomic_danger:refcount",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/debugging:leak_check",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:die_if_null",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+    alwayslink = 1,
+)
+
+cc_test(
+    name = "scheduler_test",
+    srcs = ["scheduler_test.cc"],
+    deps = [
+        ":scheduling",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "scheduling_mode",
     hdrs = ["scheduling_mode.h"],
     visibility = ["//visibility:public"],
     deps = [
         "@abseil-cpp//absl/base:base_internal",
         "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "downcalls_test",
+    srcs = ["downcalls_test.cc"],
+    deps = [
+        ":low-level-support",
+        ":scheduling",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:flags",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
     ],
 )

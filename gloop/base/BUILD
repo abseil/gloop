@@ -26,6 +26,7 @@ package_group(
     name = "base_implementation",
     packages = [
         "//gloop/base/...",
+        "//gloop/concurrent/...",
     ],
 )
 
@@ -49,6 +50,7 @@ cc_test(
     deps = [
         ":atomic_sequence_num",
         "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -546,6 +548,87 @@ cc_test(
 )
 
 cc_library(
+    name = "examine_stack",
+    srcs = ["examine_stack.cc"],
+    hdrs = ["examine_stack.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":proc_maps",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/debugging:examine_stack",
+        "@abseil-cpp//absl/debugging:stacktrace",
+        "@abseil-cpp//absl/debugging:symbolize",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/functional:function_ref",
+        "@abseil-cpp//absl/log:log_streamer",
+        "@abseil-cpp//absl/log/internal:globals",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "static_threadlocal",
+    srcs = ["static_threadlocal.cc"],
+    hdrs = ["static_threadlocal.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":per_thread",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/debugging:leak_check",
+        "@abseil-cpp//absl/log:check",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "thread_identity",
+    hdrs = ["thread-identity.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/base",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "examine_stack_unittest",
+    srcs = ["examine_stack_unittest.cc"],
+    deps = [
+        ":examine_stack",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+        "@re2",
+    ],
+)
+
+cc_library(
+    name = "per_thread",
+    srcs = ["per_thread.cc"],
+    hdrs = ["per_thread.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":spinlock",
+        "//gloop/base/scheduling:scheduling_mode",
+        "//gloop/util/atomic_danger",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:malloc_internal",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
     name = "signal_util_subtle",
     srcs = ["signal_util_subtle.cc"],
     hdrs = ["signal_util_subtle.h"],
@@ -558,6 +641,43 @@ cc_library(
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/time",
         "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "static_threadlocal_test",
+    size = "medium",
+    srcs = [
+        "static_threadlocal_test.cc",
+        "static_threadlocal_test_static_order.cc",
+    ],
+    linkstatic = 1,
+    deps = [
+        ":static_threadlocal",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ] + select({
+        "//conditions:default": [],
+    }),
+)
+
+cc_test(
+    name = "per_thread_test",
+    size = "medium",
+    srcs = ["per_thread_test.cc"],
+    deps = [
+        ":per_thread",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/memory",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
