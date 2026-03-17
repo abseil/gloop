@@ -614,3 +614,37 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "string_hash_map",
+    hdrs = ["string_hash_map.h"],
+    deps = [
+        "@abseil-cpp//absl/container:container_memory",
+        "@abseil-cpp//absl/container:hash_function_defaults",
+        "@abseil-cpp//absl/container:layout",
+        "@abseil-cpp//absl/container:node_hash_map",
+        "@abseil-cpp//absl/container:node_slot_policy",
+        "@abseil-cpp//absl/container:raw_hash_map",
+        "@abseil-cpp//absl/memory",
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "string_hash_map_test",
+    srcs = ["string_hash_map_test.cc"],
+    copts = ["-DUNORDERED_MAP_CXX17"],
+    deps = [
+        ":string_hash_map",
+        "@abseil-cpp//absl/container:hash_policy_testing",
+        "@abseil-cpp//absl/container:unordered_map_constructor_test",
+        "@abseil-cpp//absl/container:unordered_map_lookup_test",
+        "@abseil-cpp//absl/container:unordered_map_modifiers_test",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/types:any",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
