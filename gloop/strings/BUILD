@@ -28,6 +28,40 @@ package(
 )
 
 cc_library(
+    name = "escaping",
+    srcs = ["escaping.cc"],
+    hdrs = ["escaping.h"],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:charset",
+        "@abseil-cpp//absl/strings:internal",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "escaping_test",
+    size = "small",
+    srcs = ["escaping_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":escaping",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/log:scoped_mock_log",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:charset",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "host_port",
     srcs = ["host_port.cc"],
     hdrs = ["host_port.h"],
