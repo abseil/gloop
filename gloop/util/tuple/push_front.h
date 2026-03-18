@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2013 Google Inc. All Rights Reserved.
-
 //
 // Function template push_front() inserts a copy of the object to the front
 // of the tuple; push_front_ref() inserts a reference.

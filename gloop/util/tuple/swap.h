@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2013 Google Inc. All Rights Reserved.
-
 //
 // Function template swap(Tuple&, Tuple&) swaps two tuples. A standard swap
 // idiom is used to swap each element:

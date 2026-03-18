@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2011 Google Inc. All Rights Reserved.
-
 //
 // Fingerprint2011() is a fingerprinting function that is both
 // higher-quality and faster than Fingerprint() for fingerprinting strings.

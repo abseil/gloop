@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2011 Google Inc. All Rights Reserved.
-
 //
 // Hash functions for C++ builtin types. These are all of the fundamental
 // integral and floating point types in the language as well as pointers. This

@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2012 Google, Inc. All rights reserved.
-
 //
 // Saturated arithmetic operations.
 // A Saturated<T> behaves like a T with clipping at the range boundaries.

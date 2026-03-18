@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2011 Google Inc. All Rights Reserved.
-
 //
 // This is the legacy unified hash library implementation. Its components are
 // being split up into smaller, dedicated libraries. What remains here are

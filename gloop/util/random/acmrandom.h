@@ -18,10 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2000 Google, Inc.
-// All Rights Reserved.
-//
-
 //
 // ACM minimal standard random number generator.
 // 1. Thoroughly tested in the literature

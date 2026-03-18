@@ -18,9 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2002 Google Inc. All Rights Reserved.
-//
-
 #include "gloop/util/coding/coder.h"
 
 #include <stddef.h>

@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2010 Google Inc. All Rights Reserved.
-
 //
 // This file provides CityHash64() and related functions.
 //

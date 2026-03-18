@@ -21,8 +21,6 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_BITS_BITS_H_
 #define THIRD_PARTY_GLOOP_UTIL_BITS_BITS_H_
 
-// Copyright 2002 and onwards Google Inc.
-
 //
 // Various bit-twiddling functions, all of which are static members of the Bits
 // class (making it effectively a namespace). Operands are unsigned integers.

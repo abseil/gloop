@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#
-# Copyright 2006 Google Inc. All Rights Reserved.
-#
 # Description:
 #   Helpers for registering classes.
 

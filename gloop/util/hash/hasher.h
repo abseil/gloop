@@ -19,10 +19,6 @@
 // clang-format on
 
 //
-// Copyright (C) 1999 and onwards Google, Inc.
-//
-
-//
 // WARNING: these are legacy hashers, avoid in new code.
 // These algorithms ar about 10x slower than the state of the art, are
 // platform-dependent, and should be avoided when possible.

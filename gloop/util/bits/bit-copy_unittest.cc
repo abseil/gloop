@@ -18,10 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2004 Google Inc.
-// All Rights Reserved.
-//
-
 // Testing bit-copy functionality
 
 #include "gloop/util/bits/bit-copy.h"

@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2005 Google Inc. All Rights Reserved.
-
 #if (defined(__ANDROID__) || defined(ANDROID)) && !defined(OS_ANDROID)
 #define OS_ANDROID
 #endif

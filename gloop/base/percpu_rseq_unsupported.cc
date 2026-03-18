@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2011 Google Inc. All Rights Reserved.
-
 //
 // Provides skeleton RSEQ functions which raise a hard error in the case of
 // being erroneously called on an unsupported platform.

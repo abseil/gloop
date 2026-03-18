@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Copyright 2012, Google Inc.  All rights reserved.
-#
-
 # Libraries in this low-level package may not depend on libraries in packages
 # that are not low level.   For more information, including how to submit
 # changes to this file, see    <link>howto/build-monitors.html

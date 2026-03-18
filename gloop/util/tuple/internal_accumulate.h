@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2013 Google Inc. All Rights Reserved.
-
 // NOLINT(build/header_guard)
 #ifndef IN_UTIL_TUPLE_ACCUMULATE_H
 // This is an auxilary header for util/tuple/accumulate.h. It must not be

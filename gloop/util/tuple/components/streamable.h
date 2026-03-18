@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2013 Google Inc. All Rights Reserved.
-
 //
 // Function template streamable() allows logging objects of any type,
 // including tuples. This file does *not* define operator<< for tuples.

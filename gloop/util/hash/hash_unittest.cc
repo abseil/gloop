@@ -19,10 +19,6 @@
 // clang-format on
 
 //
-// Copyright (C) 1999 and onwards Google, Inc.
-//
-
-//
 // This file tests hash.h
 // For some hash functions it calls the function once and prints the output.
 // For others it does a bit more.  There are few if any "serious" tests of

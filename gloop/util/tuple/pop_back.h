@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2013 Google Inc. All Rights Reserved.
-
 //
 // Function template pop_back() returns a copy of the tuple without the
 // last element. The type type of the Nth element in the resulting tuple is the

@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2001 and onwards Google Inc.
-
 //
 // This class is intended to contain a collection of useful (static)
 // mathematical functions, properly coded (by consulting numerical

@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2006 Google Inc. All Rights Reserved.
-
 //
 // This file contains some helper classes used to test
 // the RNGs and algorithms.  DO NOT USE in regular code.

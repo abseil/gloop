@@ -20,8 +20,6 @@
 
 #ifndef THIRD_PARTY_GLOOP_BASE_ATOMIC_SEQUENCE_NUM_H_
 #define THIRD_PARTY_GLOOP_BASE_ATOMIC_SEQUENCE_NUM_H_
-// Copyright 2008 Google Inc.
-// All rights reserved.
 
 // Atomic operation to generate unique sequence numbers from a counter.
 //

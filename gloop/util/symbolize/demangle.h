@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2005 Google Inc. All Rights Reserved.
-
 //
 // Functions for demangling symbol names.  This works by calling a
 // demangler API defined by C++ ABI if available.

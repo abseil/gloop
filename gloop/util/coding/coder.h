@@ -18,9 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2000 - 2003 Google Inc.
-//
-
 //
 // This holds the encoding/decoding routines that used to live in netutil
 

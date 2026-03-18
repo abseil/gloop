@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2013 Google Inc. All Rights Reserved.
-
 //
 // Function template back() returns the last element of the tuple.
 // back(t) is equivalent to get<size<T>::value - 1>(t); consequently, it can't

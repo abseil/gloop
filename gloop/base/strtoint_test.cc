@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2008 Google Inc. All Rights Reserved.
-
 #include "gloop/base/strtoint.h"
 
 #include <errno.h>

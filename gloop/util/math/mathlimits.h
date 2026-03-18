@@ -18,10 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2005 Google Inc.
-// All Rights Reserved.
-//
-
 //
 // Legacy Google-specific variation on `<cmath>` `std::is*` predicates.
 // New code should prefer to use the standard form.

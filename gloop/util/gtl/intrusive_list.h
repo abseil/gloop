@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2011 Google Inc. All Rights Reserved.
-
 //
 // An intrusive_list<> is a doubly-linked list where the link pointers are
 // embedded in the elements. They are circularly linked making insertion and

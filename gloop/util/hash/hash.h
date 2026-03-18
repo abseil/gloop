@@ -19,10 +19,6 @@
 // clang-format on
 
 //
-// Copyright (C) 1999 and onwards Google, Inc.
-//
-
-//
 // This file contains routines for hashing and fingerprinting.
 //
 // A hash function takes an arbitrary input bitstring (string, char*,

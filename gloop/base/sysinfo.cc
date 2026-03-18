@@ -19,10 +19,6 @@
 // clang-format on
 
 //
-// Copyright (C) 1999 and onwards Google, Inc.
-//
-
-//
 // Typically, these routines will all be os, and possibly processor,
 // specific.  Every routine should thus be protected by ifdefs so
 // that programs won't compile if these routines are run on a

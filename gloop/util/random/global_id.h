@@ -18,12 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2003-2007 Google Inc.
-// All rights reserved.
-//
-
-// Saito.
-
 #ifndef UTIL_RANDOM_GLOBAL_ID_H__
 #define UTIL_RANDOM_GLOBAL_ID_H__
 #include <cstdint>

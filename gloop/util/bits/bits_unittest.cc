@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright (C) 2002 and onwards Google, Inc.
-
 //
 // This tests common/bits.{cc,h}
 

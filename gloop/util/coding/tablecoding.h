@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2001 and onwards Google Inc.
-
 #ifndef THIRD_PARTY_GLOOP_UTIL_CODING_TABLECODING_H_
 #define THIRD_PARTY_GLOOP_UTIL_CODING_TABLECODING_H_
 

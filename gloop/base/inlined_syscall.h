@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2012 Google Inc. All Rights Reserved.
-
 //
 // Fully inlined syscalls.  Provides a family of calls which should
 // inline to just the <syscall> instruction (and minimal register

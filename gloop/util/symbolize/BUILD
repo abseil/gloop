@@ -14,7 +14,6 @@
 
 # Libraries in this low-level package may not depend on libraries in packages
 # that are not low level. For more information, see <link>
-# Copyright 2005 Google Inc. All Rights Reserved.
 #
 # Description: Code for symbolizing a stack trace of the current process.
 

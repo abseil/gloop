@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2012 Google Inc. All rights reserved.
-//
 // Unit test cases for SafeInt containers.
 
 #include <cstdint>

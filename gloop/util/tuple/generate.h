@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2013 Google Inc. All Rights Reserved.
-
 //
 // The family of generate algorithms calls a polymorphic functor a number of
 // times and returns all results packed in a tuple.

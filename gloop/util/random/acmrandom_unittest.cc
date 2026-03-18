@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2002 and onwards Google Inc.
-//
 // This small piece of code tests acm random. It provides some simple
 // checking plus a collision test
 //

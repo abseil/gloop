@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2012 Google Inc. All Rights Reserved.
-
 //
 // A "safe int" is a StrongInt<T> which does additional validation of the
 // various arithmetic and logical operations, and reacts to overflows and

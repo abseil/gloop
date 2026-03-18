@@ -18,9 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2007 Google Inc. All Rights Reserved
-//
-
 //
 // Tests for static map and static set.
 

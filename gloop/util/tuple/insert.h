@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2013 Google Inc. All Rights Reserved.
-
 //
 // Function template insert() inserts copies of the objects at a given position
 // in the tuple. insert_ref() inserts reference to the objects. insert_tuple()

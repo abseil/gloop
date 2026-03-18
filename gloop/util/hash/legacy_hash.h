@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2011 Google Inc. All Rights Reserved.
-
 //
 // This is a library of legacy hashing routines. These routines are still in
 // use, but are not encouraged for any new code, and may be removed at some

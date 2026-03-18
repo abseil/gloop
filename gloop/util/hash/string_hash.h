@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2011 Google Inc. All Rights Reserved.
-
 //
 // These are the core hashing routines which operate on strings. We define
 // strings loosely as a sequence of bytes, and these routines are designed to

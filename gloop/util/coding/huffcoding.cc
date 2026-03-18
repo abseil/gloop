@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2001 and onwards Google Inc.
-
 #include "gloop/util/coding/huffcoding.h"
 
 #include <stdio.h>
