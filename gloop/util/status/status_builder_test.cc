@@ -48,12 +48,12 @@
 #include "absl/time/time.h"
 #include "absl/types/source_location.h"
 #include "benchmark/benchmark.h"
+#include "gloop/util/status/posixerrorspace.h"
 #include "gloop/util/status/status.h"
+#include "gloop/util/status/status_macros.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/bridge/message_set.pb.h"
 #include "gtest/gtest.h"
-#include "util/task/posixerrorspace.h"
-#include "util/task/status_macros.h"
 
 namespace util {
 // We use `#line` to produce some `source_location` values pointing at various

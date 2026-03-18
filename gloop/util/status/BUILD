@@ -92,6 +92,37 @@ cc_test(
 )
 
 cc_library(
+    name = "posixerrorspace",
+    srcs = ["posixerrorspace.cc"],
+    hdrs = ["posixerrorspace.h"],
+    deps = [
+        ":errno_mapping",
+        ":status",
+        "//gloop/base:strerror",
+        "//gloop/util/status:message_set_cc_proto",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/types:source_location",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "posixerrorspace_test",
+    srcs = ["posixerrorspace_test.cc"],
+    deps = [
+        ":posixerrorspace",
+        ":status",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/types:source_location",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "status",
     srcs = [
         "error_space.cc",
@@ -199,6 +230,37 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "status_builder_test",
+    srcs = ["status_builder_test.cc"],
+    deps = [
+        ":posixerrorspace",
+        ":status",
+        ":status_builder",
+        ":status_macros",
+        "//gloop/util/status:message_set_cc_proto",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:flags",
+        "@abseil-cpp//absl/log:globals",
+        "@abseil-cpp//absl/log:log_entry",
+        "@abseil-cpp//absl/log:log_sink",
+        "@abseil-cpp//absl/log:scoped_mock_log",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_matchers",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:source_location",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "status_macros",
     srcs = ["status_macros.cc"],
@@ -220,6 +282,7 @@ cc_test(
     size = "small",
     srcs = ["status_macros_test.cc"],
     deps = [
+        ":posixerrorspace",
         ":status",
         ":status_builder",
         ":status_macros",
