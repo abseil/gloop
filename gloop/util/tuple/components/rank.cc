@@ -20,13 +20,10 @@
 
 #include "gloop/util/tuple/components/rank.h"
 
-#include <type_traits>
-
 namespace util {
 namespace tuple {
 
-static_assert(std::is_pod<rank_selector_t>(), "Must be POD for static init");
-extern const rank_selector_t rank_selector = {};
+extern constexpr rank_selector_t rank_selector = {};
 
 }  // namespace tuple
 }  // namespace util
