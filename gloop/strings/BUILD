@@ -28,6 +28,52 @@ package(
 )
 
 cc_library(
+    name = "case",
+    srcs = ["case.cc"],
+    hdrs = ["case.h"],
+    deps = [
+        ":memutil",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "case_test",
+    size = "small",
+    srcs = ["case_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":case",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "case_benchmark",
+    size = "small",
+    srcs = [
+        "case_benchmark.cc",
+    ],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":case",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "escaping",
     srcs = ["escaping.cc"],
     hdrs = ["escaping.h"],
