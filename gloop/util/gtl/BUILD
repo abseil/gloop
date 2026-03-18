@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
@@ -647,4 +649,44 @@ cc_test(
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
+)
+
+cc_library(
+    name = "generic_printer",
+    hdrs = ["generic_printer.h"],
+    deps = [
+        "@abseil-cpp//absl/strings:generic_printer",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "generic_printer_test",
+    srcs = ["generic_printer_test.cc"],
+    deps = [
+        ":generic_printer",
+        "//gloop/util/gtl/extend",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:generic_printer",
+        "@abseil-cpp//absl/types:optional_ref",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_proto_library(
+    name = "generic_printer_test_cc_proto",
+    deps = [":generic_printer_test_proto"],
+)
+
+proto_library(
+    name = "generic_printer_test_proto",
+    srcs = [
+        "generic_printer_test.proto",
+    ],
+    option_deps = ["@protobuf//:cpp_features_proto"],
 )

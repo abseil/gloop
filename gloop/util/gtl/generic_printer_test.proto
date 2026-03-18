@@ -1,0 +1,13 @@
+edition = "2024";
+
+package gtl.internal;
+
+import option "google/protobuf/cpp_features.proto";
+
+enum TestProtoEnum {
+  option features.enum_type = CLOSED;
+  option features.(pb.cpp).enum_name_uses_string_view = false;
+
+  TEST_PROTO_ENUM0 = 0;
+  TEST_PROTO_ENUM1 = 1;
+}
