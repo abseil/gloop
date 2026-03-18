@@ -205,6 +205,65 @@ cc_test(
 )
 
 cc_library(
+    name = "serialize",
+    srcs = ["serialize.cc"],
+    hdrs = ["serialize.h"],
+    deps = [
+        ":numbers",
+        "//gloop/util/endian",
+        "//gloop/util/gtl:stl_util",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:dynamic_annotations",
+        "@abseil-cpp//absl/functional:function_ref",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@abseil-cpp//absl/numeric:bits",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:resize_and_overwrite",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "serialize_test",
+    size = "small",
+    srcs = ["serialize_test.cc"],
+    shard_count = 10,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":serialize",
+        "@abseil-cpp//absl/container:node_hash_map",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    # Separated from serialize_test for non-ASCL features.
+    name = "serialize_hash_test",
+    size = "small",
+    srcs = ["serialize_hash_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":serialize",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "si_prefix",
     srcs = ["si_prefix.cc"],
     hdrs = ["si_prefix.h"],
