@@ -223,12 +223,6 @@ class StaticThreadLocalImpl {
     // The acquire here pairs with the release fence in the initialization
     // logic in the pointer method.
     //
-    // NOTE: accessing the thread-local variable itself is
-    // explicitly undefined behavior according to the standard. It's
-    // documented as safe by GRTE, but the documentation doesn't really
-    // give details on this and in any case it's not clear how a library
-    // could guarantee this without cooperation from the compiler. As of
-    // 2024-05 it seems to work in practice, however.
     return static_cast<T*>(
         Derived::Var().value.load(std::memory_order_acquire));
   }
