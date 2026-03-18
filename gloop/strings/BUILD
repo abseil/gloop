@@ -125,6 +125,33 @@ cc_test(
 )
 
 cc_library(
+    name = "memutil",
+    srcs = ["memutil.cc"],
+    hdrs = ["memutil.h"],
+    deps = [
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "memutil_unittest",
+    size = "small",
+    srcs = ["memutil_unittest.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":memutil",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:flags",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "numbers",
     srcs = ["numbers.cc"],
     hdrs = ["numbers.h"],
