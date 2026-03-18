@@ -69,6 +69,16 @@ OPTIMIZATION_SELECTOR = {
 }
 
 cc_library(
+    name = "seeds",
+    srcs = ["seeds.cc"],
+    hdrs = ["seeds.h"],
+    visibility = ["//visibility:private"],
+    deps = [
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
     name = "farmhash",
     srcs = ["farmhashte.cc"],
     hdrs = [
@@ -139,6 +149,21 @@ cc_library(
 )
 
 cc_library(
+    name = "legacy_hash_cord",
+    srcs = ["legacy_hash_cord.cc"],
+    hdrs = ["legacy_hash_cord.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":hash",
+        ":jenkins",
+        ":seeds",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
     name = "jenkins",
     srcs = ["jenkins.cc"],
     hdrs = [
@@ -203,6 +228,22 @@ cc_test(
         ":builtin_type_hash",
         ":legacy_hash",
         "//gloop/util/random:acmrandom",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "legacy_hash_cord_test",
+    size = "small",
+    srcs = ["legacy_hash_cord_test.cc"],
+    deps = [
+        ":hash",
+        ":legacy_hash_cord",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:cord_test_helpers",
+        "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

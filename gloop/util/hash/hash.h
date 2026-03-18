@@ -133,6 +133,8 @@ inline uint32_t HashTo32(const char* s, size_t slen) {
 // It is a template to avoid adding a hard dependency on Cord.
 template <typename AbslCord, typename = typename std::enable_if<std::is_same<
                                  AbslCord, absl::Cord>::value>::type>
+[[deprecated(
+    "Prefer absl::Hash or use util_hash::HashCordTo32() if necessary")]]
 inline uint32_t HashTo32(const AbslCord& c) {
   std::string flat;
   for (absl::string_view chunk : c.Chunks()) {
@@ -624,6 +626,7 @@ inline uint64_t Fingerprint(absl::string_view s) {
 // It is a template to avoid adding a hard dependency on Cord.
 template <typename AbslCord, typename = typename std::enable_if<std::is_same<
                                  AbslCord, absl::Cord>::value>::type>
+[[deprecated("Use util_hash::FingerprintCord()")]]
 inline uint64_t Fingerprint(const AbslCord& c) {
   std::string flat;
   for (absl::string_view chunk : c.Chunks()) {
