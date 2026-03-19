@@ -690,3 +690,34 @@ proto_library(
     ],
     option_deps = ["@protobuf//:cpp_features_proto"],
 )
+
+cc_library(
+    name = "intervalmap",
+    hdrs = ["intervalmap.h"],
+    deps = [
+        "//gloop/util/gtl:heterogeneous_lookup",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/container:compressed_tuple",
+        "@abseil-cpp//absl/log:check",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "intervalmap_test",
+    size = "small",
+    srcs = ["intervalmap_test.cc"],
+    deps = [
+        ":intervalmap",
+        "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
