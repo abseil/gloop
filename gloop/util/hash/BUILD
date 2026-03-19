@@ -477,3 +477,30 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "transparent_hash",
+    hdrs = ["transparent_hash.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":string_hash",
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "transparent_hash_test",
+    srcs = ["transparent_hash_test.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":transparent_hash",
+        "//gloop/util/gtl:stl_util",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)

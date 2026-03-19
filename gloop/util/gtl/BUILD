@@ -721,3 +721,70 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "lockfree_hashmap",
+    hdrs = ["lockfree_hashmap.h"],
+    deps = [
+        ":lockfree_hashtable_internal",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "lockfree_hashtable_internal",
+    hdrs = ["lockfree_hashtable_internal.h"],
+    visibility = [
+        "//gloop/util/gtl:__pkg__",
+    ],
+    deps = [
+        ":compressed_tuple",
+        ":hashtable_common",
+        "//gloop/util/bits",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "lockfree_hashmap_test",
+    srcs = ["lockfree_hashmap_test.cc"],
+    deps = [
+        ":lockfree_hashmap",
+        "//gloop/base:sysinfo",
+        "//gloop/util/gtl/extend",
+        "//gloop/util/gtl/extend:equality",
+        "//gloop/util/hash:transparent_hash",
+        "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:dynamic_annotations",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/random:distributions",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "hashtable_common",
+    hdrs = ["hashtable_common.h"],
+    visibility = [
+        "//gloop/util/gtl:__pkg__",
+    ],
+    deps = [
+        "@abseil-cpp//absl/log",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
