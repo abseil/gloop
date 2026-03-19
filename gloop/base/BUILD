@@ -700,6 +700,7 @@ cc_library(
     hdrs = ["futex.h"],
     visibility = [
         "//gloop/base:__subpackages__",
+        "//gloop/concurrent/percpu:__pkg__",
     ],
     deps = [
         ":inlined_syscall",

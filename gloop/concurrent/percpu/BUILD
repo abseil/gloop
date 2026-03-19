@@ -64,3 +64,83 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "counting_mutex",
+    srcs = ["counting_mutex.cc"],
+    hdrs = ["counting_mutex.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop/base:futex",
+        "//gloop/base:percpu",
+        "//gloop/base/scheduling",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:dynamic_annotations",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "counting_mutex_test",
+    srcs = ["counting_mutex_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":counting_mutex",
+        "//gloop/base:sysinfo",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "rseq_clobber_test",
+    srcs = ["rseq_clobber_test.cc"],
+    linkopts = ["-Wl,--script=$(location rseq_clobber_test.lds)"],
+    linkstatic = True,
+    visibility = ["//visibility:private"],
+    deps = [
+        "rseq_clobber_test.lds",
+        ":counting_mutex",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "counting_mutex_no_rseq_test",
+    srcs = ["counting_mutex_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":counting_mutex",
+        "//gloop/base:percpu_disable_rseq",
+        "//gloop/base:sysinfo",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
