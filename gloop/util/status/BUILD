@@ -62,6 +62,36 @@ cc_test(
 )
 
 cc_library(
+    name = "errno_mapping",
+    srcs = ["errno_mapping.cc"],
+    hdrs = ["errno_mapping.h"],
+    deps = [
+        ":status",
+        ":status_builder",
+        "//gloop/util/status:message_set_cc_proto",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/types:source_location",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "errno_mapping_test",
+    srcs = ["errno_mapping_test.cc"],
+    deps = [
+        ":errno_mapping",
+        ":status",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_matchers",
+        "@abseil-cpp//absl/types:source_location",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "status",
     srcs = [
         "error_space.cc",
