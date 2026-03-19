@@ -123,8 +123,8 @@ int AvailableCPUs();
 };  // namespace base
 
 // Number of logical processors (hyperthreads) in system.
-// See https://github.com/abseil/gloop/gloop/base/cpuid/cpuid.h for more
-// CPU-related info.
+// See https://github.com/abseil/gloop/tree/main/gloop/base/cpuid/cpuid.h for
+// more CPU-related info.
 //
 // This value is appropriate for sizing a per-CPU structure, such as an array
 // indexed by the result of getcpu() / RDTSCP.  It's also a reasonable choice

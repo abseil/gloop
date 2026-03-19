@@ -34,7 +34,7 @@ namespace atomic_danger {
 // RefCount is a low-level primitive that can be used to implement a scheme
 // similar to std::shared_ptr<T>. It should be very rare that you want this
 // class instead of std::shared_ptr<T>, or (less commonly) one of the tools in
-// https://github.com/abseil/gloop/gloop/util/refcount.
+// https://github.com/abseil/gloop/tree/main/gloop/util/refcount.
 //
 // This is not a general purpose atomic integer class!  The memory orderings
 // chosen are as relaxed as possible for the semantics described above.  Using

@@ -174,7 +174,8 @@ void CheckSourceLocation(
 // `MakeTestPayload(payload_message)`.
 //
 // Note: most code should not validate Status values this way.  Use
-// https://github.com/abseil/abseil-cpp/status/status_matchers.h instead.
+// https://github.com/abseil/abseil-cpp/tree/master/absl/status/status_matchers.h
+// instead.
 static void CheckStatus(
     const absl::Status& s, const util::ErrorSpace* space, const int error_code,
     const util::error::Code canonical_code, absl::string_view message,

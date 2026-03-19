@@ -41,8 +41,8 @@
 namespace base {
 
 // 99.9% of users want `rcu::View`:
-// https://github.com/abseil/gloop/gloop/concurrent/rcu/view.h `View` is a easy
-// to use, zero-overhead wrapper for the technology here.
+// https://github.com/abseil/gloop/tree/main/gloop/concurrent/rcu/view.h `View`
+// is a easy to use, zero-overhead wrapper for the technology here.
 //
 // RCU implements an extremely scalable form of reader-writer lock.  Reader
 // locks are extremely cheap and should scale linearly to any number of readers;
@@ -238,8 +238,8 @@ class ABSL_LOCKABLE Domain : public ::base::LListEntry<Domain> {
   // a "reader critical section.", which may be nested.
   //
   // These functions are async signal safe if and only if
-  // https://github.com/abseil/gloop/gloop/base:percpu is async-signal-safe in
-  // your configuration; see comment in rcu.cc.
+  // https://github.com/abseil/gloop/tree/main/gloop/base:percpu is
+  // async-signal-safe in your configuration; see comment in rcu.cc.
   //
   // REQUIRES: Lock and Unlock must occur within the same thread.
   Token ReaderLock() ABSL_SHARED_LOCK_FUNCTION();

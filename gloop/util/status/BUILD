@@ -139,6 +139,71 @@ cc_test(
     ],
 )
 
+cc_library(
+    name = "status_builder",
+    srcs = ["status_builder.cc"],
+    hdrs = ["status_builder.h"],
+    deps = [
+        ":status",
+        "//gloop/base:examine_stack",
+        "//gloop/strings:ostringstream",
+        "//gloop/util/status:message_set_cc_proto",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:log_entry",
+        "@abseil-cpp//absl/log:log_sink",
+        "@abseil-cpp//absl/log/internal:vlog_config",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:stringify_stream",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:optional",
+        "@abseil-cpp//absl/types:source_location",
+        "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "status_macros",
+    srcs = ["status_macros.cc"],
+    hdrs = ["status_macros.h"],
+    deps = [
+        ":status",
+        ":status_builder",
+        "//gloop/util/status:message_set_cc_proto",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/types:source_location",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "status_macros_test",
+    size = "small",
+    srcs = ["status_macros_test.cc"],
+    deps = [
+        ":status",
+        ":status_builder",
+        ":status_macros",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/types:source_location",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 proto_library(
     name = "test_payload_proto",
     testonly = 1,
