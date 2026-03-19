@@ -615,9 +615,7 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // available via `source_location()`). When the builder is converted to a
   // Status, the builder's location will be appended to this list of previous
   // locations. For `StatusBuilder`s created without an original status (e.g.,
-  // from a status code), this will be empty. Also note, due to b/184652869,
-  // `SourceLocation`s will be missing from `StatusProto`-constructed builders.
-  // TODO: b/184652869 - Remove this note once fixed.
+  // from a status code), this will be empty.
   decltype(auto) GetPreviousSourceLocations() const {
     if (rep_ == nullptr) {
       return absl::OkStatus().GetSourceLocations();
