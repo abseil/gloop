@@ -788,3 +788,33 @@ cc_library(
         "@gloop//gloop:enforce_gloop_support",
     ],
 )
+
+cc_library(
+    name = "string_hash_set",
+    hdrs = ["string_hash_set.h"],
+    deps = [
+        "@abseil-cpp//absl/container:container_memory",
+        "@abseil-cpp//absl/container:hash_function_defaults",
+        "@abseil-cpp//absl/container:node_slot_policy",
+        "@abseil-cpp//absl/container:raw_hash_set",
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "string_hash_set_test",
+    srcs = ["string_hash_set_test.cc"],
+    copts = ["-DUNORDERED_SET_CXX17"],
+    deps = [
+        ":string_hash_set",
+        "@abseil-cpp//absl/container:hash_policy_testing",
+        "@abseil-cpp//absl/container:unordered_set_constructor_test",
+        "@abseil-cpp//absl/container:unordered_set_lookup_test",
+        "@abseil-cpp//absl/container:unordered_set_modifiers_test",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
