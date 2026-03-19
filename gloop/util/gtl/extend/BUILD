@@ -80,3 +80,26 @@ cc_library(
     hdrs = ["extension.h"],
     deps = ["@gloop//gloop:enforce_gloop_support"],
 )
+
+cc_library(
+    name = "ordering",
+    hdrs = ["ordering.h"],
+    deps = [
+        ":equality",
+        ":extend",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "ordering_test",
+    srcs = ["ordering_test.cc"],
+    deps = [
+        ":extend",
+        ":ordering",
+        "@abseil-cpp//absl/meta:constexpr_testing",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
