@@ -42,7 +42,10 @@ cc_library(
     hdrs = ["demangle.h"],
     copts = COPTS,
     features = ["-use_header_modules"],
-    deps = ["@gloop//gloop:enforce_gloop_support"],
+    deps = [
+        "@abseil-cpp//absl/debugging:demangle_rust",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
 )
 
 cc_test(
