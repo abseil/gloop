@@ -78,3 +78,30 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "constant_divisor",
+    srcs = ["constant_divisor.cc"],
+    hdrs = ["constant_divisor.h"],
+    deps = [
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/numeric:int128",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "constant_divisor_test",
+    size = "small",
+    srcs = ["constant_divisor_test.cc"],
+    deps = [
+        ":constant_divisor",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/random:bit_gen_ref",
+        "@abseil-cpp//absl/random:distributions",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
