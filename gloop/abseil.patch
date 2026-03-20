@@ -15,7 +15,7 @@ index edb49d0b..c16aa93d 100644
 +    commit = "8eead4aaf1eb3685921b09e4fc03a69a31e35d53",
 +)
 diff --git absl/base/BUILD.bazel absl/base/BUILD.bazel
-index 2e2630f2..1a0c878e 100644
+index 2e2630f2..0f57b452 100644
 --- absl/base/BUILD.bazel
 +++ absl/base/BUILD.bazel
 @@ -59,2 +59,3 @@ cc_library(
@@ -64,6 +64,10 @@ index 2e2630f2..1a0c878e 100644
      ],
 @@ -1014,2 +1025,3 @@ cc_library(
          "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+@@ -1043,2 +1055,3 @@ cc_library(
+         "//absl:__subpackages__",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
 diff --git absl/container/BUILD.bazel absl/container/BUILD.bazel
