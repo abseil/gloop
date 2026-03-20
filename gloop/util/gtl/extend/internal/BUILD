@@ -44,3 +44,31 @@ cc_library(
         "@gloop//gloop:enforce_gloop_support",
     ],
 )
+
+cc_library(
+    name = "debug_print_value",
+    hdrs = ["debug_print_value.h"],
+    visibility = [
+        "//gloop/util/gtl/extend:__subpackages__",
+    ],
+    deps = [
+        ":reflection",
+        "//gloop/util/gtl/extend:reflection_extension",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "reflection",
+    srcs = ["reflection.cc"],
+    hdrs = ["reflection.h"],
+    visibility = [
+        "//gloop/util/gtl/extend:__subpackages__",
+    ],
+    deps = [
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)

@@ -127,3 +127,134 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "debug_printing",
+    hdrs = ["debug_printing.h"],
+    deps = [
+        ":stream_printing",
+        ":stringify",
+        "//gloop/util/gtl/extend:extension",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "stream_printing",
+    hdrs = ["stream_printing.h"],
+    deps = [
+        ":reflection_extension",
+        "//gloop/util/gtl:generic_printer",
+        "//gloop/util/gtl/extend:extension",
+        "//gloop/util/gtl/extend/internal:debug_print_value",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "stringify",
+    hdrs = ["stringify.h"],
+    deps = [
+        ":extension",
+        ":reflection_extension",
+        "//gloop/util/gtl:generic_printer",
+        "//gloop/util/gtl/extend/internal:debug_print_value",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "debug_printing_test",
+    srcs = ["debug_printing_test.cc"],
+    deps = [
+        ":debug_printing",
+        ":stringification_tests",
+        "//gloop/util/gtl:generic_printer",
+        "//gloop/util/gtl/extend",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "reflection_extension",
+    hdrs = ["reflection_extension.h"],
+    visibility = [
+        "//gloop/util/gtl/extend:__subpackages__",
+    ],
+    deps = [
+        "//gloop/util/gtl/extend",
+        "//gloop/util/gtl/extend/internal:reflection",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "stream_printing_test",
+    srcs = ["stream_printing_test.cc"],
+    deps = [
+        ":stream_printing",
+        ":stringification_tests",
+        "//gloop/util/gtl:generic_printer",
+        "//gloop/util/gtl/extend",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "stringify_test",
+    srcs = ["stringify_test.cc"],
+    deps = [
+        ":extend",
+        ":stringification_tests",
+        ":stringify",
+        "//gloop/util/gtl:generic_printer",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "stringification_tests",
+    testonly = True,
+    hdrs = ["stringification_tests.h"],
+    visibility = [
+        "//gloop/util/gtl/extend:__subpackages__",
+    ],
+    deps = [
+        "//gloop/util/gtl/extend",
+        "//gloop/util/gtl/extend:equality",
+        "//gloop/util/gtl/extend/internal:reflection",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:enforce_gloop_support",
+        "@googletest//:gtest_for_library",
+    ],
+)
+
+cc_test(
+    name = "reflection_extension_test",
+    srcs = ["reflection_extension_test.cc"],
+    deps = [
+        ":reflection_extension",
+        "//gloop/util/gtl/extend",
+        "//gloop/util/gtl/extend:equality",
+        "//gloop/util/gtl/extend/internal:reflection",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
