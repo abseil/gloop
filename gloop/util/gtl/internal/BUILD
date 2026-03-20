@@ -24,7 +24,7 @@ cc_library(
     name = "aggregate",
     hdrs = ["aggregate.h"],
     visibility = [
-        "//gloop/util/gtl/extend/internal:__subpackages__",
+        "//gloop/util/gtl/extend:__subpackages__",
         "//gloop/util/gtl/internal:__subpackages__",
     ],
     deps = [

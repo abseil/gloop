@@ -103,3 +103,27 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "tuple",
+    hdrs = ["tuple.h"],
+    deps = [
+        ":extend",
+        "//gloop/util/gtl/internal:aggregate",
+        "@abseil-cpp//absl/base:core_headers",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "tuple_test",
+    srcs = ["tuple_test.cc"],
+    deps = [
+        ":extend",
+        ":tuple",
+        "@abseil-cpp//absl/meta:constexpr_testing",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
