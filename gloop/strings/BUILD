@@ -24,7 +24,10 @@ load(
 package(
     default_applicable_licenses = ["//gloop:license"],
     default_visibility = ["//visibility:public"],
-    features = ["header_modules"],
+    features = [
+        "parse_headers",
+        "header_modules",
+    ],
 )
 
 cc_library(
