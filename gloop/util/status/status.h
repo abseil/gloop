@@ -44,6 +44,7 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
+#include "gloop/util/status/codes.pb.h"     // IWYU pragma: export
 #include "gloop/util/status/error_space.h"  // IWYU pragma: export
 #include "google/protobuf/any.pb.h"
 #include "google/protobuf/bridge/message_set.pb.h"
@@ -114,6 +115,21 @@ inline const ::util::ErrorSpace* GetErrorSpace(
   return ::util::CanonicalErrorSpace();
 }
 }  // namespace error
+
+// Protocol object that can hold a serialized Status object
+class StatusProto;
+
+#ifndef SWIG
+// task.swig redefined this routine so that MessageSet conversion to proto
+// happens on Python side.
+void SaveStatusToProto(const absl::Status& s, util::StatusProto* proto);
+#endif
+// To be used only from SWIG.
+void InternalSaveStatusToProto(const absl::Status& s, util::StatusProto* proto);
+
+absl::Status MakeStatusFromProto(
+    const util::StatusProto& proto,
+    absl::SourceLocation loc = absl::SourceLocation::current());
 
 // Returns a copy of the status object with error message, payload and source
 // locations stripped off. Useful for comparing against expected status when

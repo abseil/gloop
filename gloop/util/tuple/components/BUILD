@@ -214,6 +214,7 @@ cc_test(
         ":streamable",
         ":streamable_test_cc_proto",
         "//gloop/util/gtl/extend",
+        "//gloop/util/status:codes_cc_proto",
         "//gloop/util/tuple:struct",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",

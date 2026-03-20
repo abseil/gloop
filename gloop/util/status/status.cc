@@ -48,6 +48,7 @@
 #include "absl/types/span.h"
 #include "gloop/util/coding/varint.h"
 #include "gloop/util/status/error_space.h"
+#include "gloop/util/status/status.pb.h"  // TO BE DELETED
 #include "gloop/util/status/status_internal.h"
 #include "google/protobuf/any.pb.h"
 #include "google/protobuf/bridge/message_set.pb.h"  // TO BE DELETED

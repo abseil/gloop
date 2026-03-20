@@ -409,6 +409,12 @@ inline StatusAdaptorForMacros MacroAdaptor(
     StatusBuilder&& s, absl::SourceLocation loc = absl::SourceLocation()) {
   return StatusAdaptorForMacros(std::move(s), loc);
 }
+/// TODO: Remove this once all uses are migrated.
+ABSL_DEPRECATED("Pass util::MakeStatusFromProto(status) instead")
+inline StatusAdaptorForMacros MacroAdaptor(const util::StatusProto& s,
+                                           absl::SourceLocation loc) {
+  return MacroAdaptor(StatusBuilder(util::MakeStatusFromProto(s), loc));
+}
 
 }  // namespace status_macro_internal
 }  // namespace util

@@ -33,11 +33,37 @@ cc_proto_library(
     deps = ["@protobuf//src/google/protobuf/bridge:message_set_proto"],
 )
 
+proto_library(
+    name = "codes_proto",
+    srcs = ["codes.proto"],
+    features = ["-proto_dynamic_mode_static_link"],
+)
+
+cc_proto_library(
+    name = "codes_cc_proto",
+    deps = [":codes_proto"],
+)
+
+proto_library(
+    name = "status_proto",
+    srcs = ["status.proto"],
+    features = ["-proto_dynamic_mode_static_link"],
+    deps = [
+        "@protobuf//src/google/protobuf/bridge:message_set_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "status_cc_proto",
+    deps = [":status_proto"],
+)
+
 cc_test(
     name = "canonical_errors_test",
     size = "small",
     srcs = ["canonical_errors_test.cc"],
     deps = [
+        ":codes_cc_proto",
         ":status",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/status",
@@ -141,6 +167,8 @@ cc_library(
         "status_oss_shim.inc",
     ],
     deps = [
+        ":codes_cc_proto",
+        ":status_cc_proto",
         "//gloop/util/coding",
         "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/base:core_headers",
@@ -175,6 +203,7 @@ cc_test(
     ],
     deps = [
         ":status",
+        ":status_cc_proto",
         ":test_payload_cc_proto",
         "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/base:core_headers",
@@ -234,9 +263,11 @@ cc_test(
     name = "status_builder_test",
     srcs = ["status_builder_test.cc"],
     deps = [
+        ":codes_cc_proto",
         ":posixerrorspace",
         ":status",
         ":status_builder",
+        ":status_cc_proto",
         ":status_macros",
         "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/base:core_headers",
@@ -285,6 +316,7 @@ cc_test(
         ":posixerrorspace",
         ":status",
         ":status_builder",
+        ":status_cc_proto",
         ":status_macros",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/status",

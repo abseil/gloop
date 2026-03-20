@@ -45,6 +45,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "gloop/util/gtl/extend/extend.h"
+#include "gloop/util/status/codes.pb.h"
 #include "gloop/util/tuple/components/streamable_test.pb.h"
 #include "gloop/util/tuple/struct.h"
 #include "gmock/gmock.h"
@@ -505,6 +506,10 @@ TEST(Unprintable, Basic) {
   static_assert(sizeof(Unprintable) == 4, "");
   EXPECT_EQ(to_string(Unprintable{0x012345678}), "4-byte object <78-56 34-12>");
   EXPECT_EQ(to_string(WithImaginaryHook()), "<recursive>");
+}
+
+TEST(StatusCode, Basic) {
+  EXPECT_EQ(to_string(::util::error::OUT_OF_RANGE), "OUT_OF_RANGE (11)");
 }
 
 TEST(ProtoEnum, Basic) {

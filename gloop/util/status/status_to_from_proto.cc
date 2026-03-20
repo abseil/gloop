@@ -34,6 +34,121 @@
 // from status.cc without necessarily pulling in the code here.
 
 #include "gloop/util/status/error_space.h"
+#include "gloop/util/status/status.pb.h"
 #include "gloop/util/status/status_internal.h"
 #include "google/protobuf/any.pb.h"
 #include "google/protobuf/bridge/message_set.pb.h"
+
+namespace {
+
+// Constructs a Status via its 3-arg c'tor.  Unlike the actual constructor,
+// this does not provide a default value for `loc`.
+absl::Status MakeStatusInternal(absl::StatusCode code, absl::string_view msg,
+                                absl::SourceLocation loc) {
+  return absl::Status(code, msg, loc);
+}
+
+}  // namespace
+
+namespace util {
+
+void SaveStatusToProto(const absl::Status& s, util::StatusProto* proto) {
+  InternalSaveStatusToProto(s, proto);
+
+  if (HasPayload(s)) {
+    proto->mutable_message_set()->MergeFrom(MakePayloadsSet(s));
+  }
+}
+
+void InternalSaveStatusToProto(const absl::Status& s,
+                               util::StatusProto* proto) {
+  proto->Clear();
+  const util::status_internal::ErrorSpaceAndCode space_and_code =
+      util::status_internal::ErrorSpacePayload::Retrieve(s);
+  int code = space_and_code.code;
+  if (code == 0) return;
+
+  absl::string_view space_name = space_and_code.GetErrorSpaceName();
+
+  proto->set_code(code);
+  proto->set_space(space_name);
+
+  if (!space_and_code.MatchErrorSpace(GenericErrorSpace::Get())) {
+    proto->set_canonical_code(s.raw_code());
+  }
+
+  absl::string_view msg = s.message();
+  if (!msg.empty()) {
+    proto->set_message(msg);
+  }
+
+  // Store non-MessageSet payloads as `google.protobuf.Any` in a unique entry
+  // of MessageSet.
+  s.ForEachPayload([&](absl::string_view type_url, const absl::Cord& payload) {
+    // Skip `ErrorSpace` payload because it is already in `StatusProto`.
+    if (type_url == status_internal::kErrorSpaceUrl) return;
+
+    // Skip `MessageSet` payload as well.
+    if (type_url == status_internal::kMessageSetUrl) return;
+  });
+}
+
+namespace {
+
+template <typename T, typename Loc>
+absl::Status MakeStatusFromProtoHelper(const T& proto, Loc loc) {
+  if (proto.code() == 0) return absl::OkStatus();
+
+  std::string message_buf;
+  absl::string_view msg = proto.message();
+
+  const ErrorSpace* space = ErrorSpace::Find(proto.space());
+
+  absl::StatusCode canonical_code;
+  if (space != GenericErrorSpace::Get() && proto.has_canonical_code()) {
+    canonical_code = static_cast<absl::StatusCode>(proto.canonical_code());
+  } else if (space == GenericErrorSpace::Get()) {
+    canonical_code = static_cast<absl::StatusCode>(proto.code());
+  } else if (space != nullptr) {
+    canonical_code = space->CanonicalCode(proto.code());
+  } else {
+    canonical_code = absl::StatusCode::kUnknown;
+  }
+
+  if (space == nullptr) {
+    space = GenericErrorSpace::Get();
+
+    // An unknown space, use the generic error space for this status.
+    message_buf = absl::StrCat("invalid status ", proto.space(),
+                               "::", proto.code(), ": ", proto.message());
+    msg = message_buf;
+
+    if (canonical_code == absl::StatusCode::kOk) {
+      canonical_code = absl::StatusCode::kUnknown;
+    }
+  }
+
+  absl::Status ret;
+  if (space == GenericErrorSpace::Get()) {
+    ret = MakeStatusInternal(canonical_code, msg, loc);
+  } else {
+    DCHECK(canonical_code != absl::StatusCode::kOk);
+    absl::Status ret = MakeStatusInternal(canonical_code, msg, loc);
+    status_internal::ErrorSpacePayload::Set(space, proto.code(), &ret);
+  }
+
+  if (!proto.has_message_set()) return ret;
+
+  return ret;
+}
+
+}  // namespace
+
+absl::Status MakeStatusFromProto(const util::StatusProto& proto,
+                                 absl::SourceLocation loc) {
+  // Delegate to a templated helper function so that we can take advantage of
+  // constexpr if.
+  return MakeStatusFromProtoHelper(proto, loc);
+}
+
+}  // namespace util

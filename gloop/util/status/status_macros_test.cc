@@ -37,6 +37,7 @@
 #include "benchmark/benchmark.h"
 #include "gloop/util/status/posixerrorspace.h"
 #include "gloop/util/status/status.h"
+#include "gloop/util/status/status.pb.h"
 #include "gloop/util/status/status_builder.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -48,6 +49,19 @@ using ::testing::Eq;
 using ::testing::HasSubstr;
 
 absl::Status ReturnOk() { return absl::OkStatus(); }
+
+util::StatusProto ReturnOkProto() {
+  util::StatusProto proto;
+  ::util::SaveStatusToProto(absl::OkStatus(), &proto);
+  return proto;
+}
+
+util::StatusProto ReturnErrorProto(absl::string_view msg) {
+  util::StatusProto proto;
+  ::util::SaveStatusToProto(absl::Status(absl::StatusCode::kUnknown, msg),
+                            &proto);
+  return proto;
+}
 
 util::StatusBuilder ReturnOkBuilder() {
   return util::StatusBuilder(absl::OkStatus());
@@ -567,6 +581,17 @@ TEST(ReturnIfError, WorksWithSourceLocationOn2Arg) {
     };
     CheckSourceLocation(func4());
   }
+}
+
+TEST(ReturnIfError, WorksWithProto) {
+  auto func = []() -> absl::Status {
+    RETURN_IF_ERROR(ReturnOkProto());
+    RETURN_IF_ERROR(ReturnOkProto());
+    RETURN_IF_ERROR(ReturnErrorProto("EXPECTED"));
+    return ReturnError("ERROR");
+  };
+
+  EXPECT_THAT(func().message(), Eq("EXPECTED"));
 }
 
 TEST(ReturnIfError, WorksWithBuilder) {
