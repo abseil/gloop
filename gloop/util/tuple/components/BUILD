@@ -278,3 +278,36 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "dump_vars",
+    hdrs = ["dump_vars.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop/util/tuple/components:internal_preprocessor",
+        "//gloop/util/tuple/components:streamable",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:structured",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "dump_vars_test",
+    size = "small",
+    srcs = ["dump_vars_test.cc"],
+    deps = [
+        ":dump_vars",
+        ":streamable_test_cc_proto",
+        "//gloop/util/tuple/components:streamable",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:log_entry",
+        "@abseil-cpp//absl/log:scoped_mock_log",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)

@@ -625,3 +625,12 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "dump_vars",
+    hdrs = ["dump_vars.h"],
+    deps = [
+        "//gloop/util/tuple/components:dump_vars",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
