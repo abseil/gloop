@@ -57,8 +57,6 @@ namespace util {
 //
 // Also, Android x86 is not supported because STLs don't define __cxa_demangle.
 //
-// If Rust symbols, starting with '_R', Rust demangling is applied.
-//
 std::string Demangle(const char* mangled);
 
 // CLIF-friendly version

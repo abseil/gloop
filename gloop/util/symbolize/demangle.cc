@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-#include "gloop/util/symbolize/demangle.h"
-
 #if (defined(__ANDROID__) || defined(ANDROID)) && !defined(OS_ANDROID)
 #define OS_ANDROID
 #endif
@@ -41,35 +39,13 @@
 
 #include <string>
 #endif
-
-#include "absl/debugging/internal/demangle_rust.h"
+#include "gloop/util/symbolize/demangle.h"
 
 namespace util {
-static bool DemangleRustSymbol(const char* mangled, std::string* out) {
-  char buf[2048];
-  using absl::debugging_internal::DemangleRustSymbolEncoding;
-  if (DemangleRustSymbolEncoding(mangled, buf, sizeof(buf))) {
-    out->append(buf);
-    return true;
-  }
-  return false;
-}
-
 // The API reference of abi::__cxa_demangle() can be found in
 // libstdc++'s manual.
 // https://gcc.gnu.org/onlinedocs/libstdc++/libstdc++-html-USERS-4.3/a01696.html
 void DemangleToString(const char* mangled, std::string* out) {
-  // Rust symbols start with "_R"
-  // https://doc.rust-lang.org/rustc/symbol-mangling/v0.html#symbol-name
-  if (mangled[0] == '_' && mangled[1] == 'R') {
-    if (!DemangleRustSymbol(mangled, out)) {
-      out->append(mangled);
-    }
-    return;
-  }
-
-  // ... while mangled C++ symbols are distinct and start with "_Z"
-  // https://itanium-cxx-abi.github.io/cxx-abi/abi.html#mangling
   size_t length = 0;
   int status = 0;
   char* demangled = nullptr;
