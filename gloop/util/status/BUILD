@@ -123,6 +123,48 @@ cc_test(
 )
 
 cc_library(
+    name = "ret_check",
+    srcs = ["ret_check.cc"],
+    hdrs = ["ret_check.h"],
+    deps = [
+        ":status",
+        ":status_builder",
+        ":status_macros",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:die_if_null",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:has_ostream_operator",
+        "@abseil-cpp//absl/types:source_location",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "ret_check_test",
+    size = "small",
+    srcs = ["ret_check_test.cc"],
+    deps = [
+        ":ret_check",
+        ":status_macros",
+        "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log:scoped_mock_log",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_matchers",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "status",
     srcs = [
         "error_space.cc",
