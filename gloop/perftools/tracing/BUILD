@@ -13,6 +13,7 @@
 # limitations under the License.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 package(
     default_applicable_licenses = ["//gloop:license"],
@@ -30,6 +31,13 @@ package_group(
 )
 
 cc_library(
+    name = "test_only_access",
+    testonly = True,
+    hdrs = ["test_only_access.h"],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
+)
+
+cc_library(
     name = "trace_source_location",
     hdrs = ["trace_source_location.h"],
     deps = [
@@ -37,6 +45,20 @@ cc_library(
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/types:source_location",
         "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "trace_source_location_test",
+    srcs = ["trace_source_location_test.cc"],
+    deps = [
+        ":test_only_access",
+        ":trace_source_location",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/types:source_location",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -72,6 +94,20 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "tracing_base_test",
+    srcs = ["tracing_base_test.cc"],
+    deps = [
+        ":mock_trace_event_listener",
+        ":tracing_base",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/flags:flag",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "trace_event_listener",
     srcs = ["trace_event_listener.cc"],
@@ -82,6 +118,19 @@ cc_library(
     deps = [
         ":tracing_base",
         "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "trace_event_listener_test",
+    srcs = ["trace_event_listener_test.cc"],
+    deps = [
+        ":mock_trace_event_listener",
+        ":trace_event_listener",
+        ":tracing_base",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -96,6 +145,20 @@ cc_library(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "multiplex_trace_event_listener_test",
+    srcs = ["multiplex_trace_event_listener_test.cc"],
+    deps = [
+        ":mock_trace_event_listener",
+        ":multiplex_trace_event_listener",
+        ":trace_event_listener",
+        ":tracing_base",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -127,6 +190,25 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "tracing_core_test",
+    srcs = ["tracing_core_test.cc"],
+    deps = [
+        ":mock_trace_event_listener",
+        ":tracing_base",
+        ":tracing_core",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:tracing_internal",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "perftools_verify",
     hdrs = ["perftools_verify.h"],
@@ -134,6 +216,17 @@ cc_library(
         "//gloop/base:examine_stack",
         "@abseil-cpp//absl/log",
         "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "perftools_verify_test",
+    srcs = ["perftools_verify_test.cc"],
+    deps = [
+        ":perftools_verify",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -165,6 +258,19 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "format_to_buffer_sink_test",
+    srcs = ["format_to_buffer_sink_test.cc"],
+    deps = [
+        ":format_to_buffer_sink",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "with_trace_event_listener",
     hdrs = ["with_trace_event_listener.h"],
@@ -188,5 +294,20 @@ cc_library(
         "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/log:check",
         "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "tracing_test",
+    srcs = ["tracing_test.cc"],
+    deps = [
+        ":mock_trace_event_listener",
+        ":trace_source_location",
+        ":tracing",
+        ":tracing_base",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
