@@ -150,8 +150,10 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // location from which the log message occurs.  A typical user will not
   // specify `location`, allowing it to default to the current location.
   // Note: `Enum` must not be `util::error::Code`.
+  // TODO: Remove this when it becomes unused.
   template <typename Enum, typename = typename std::enable_if<
                                EnumHasErrorSpace<Enum>::value>::type>
+  ABSL_DEPRECATED("Use MakeStatusBuilder instead")
   explicit StatusBuilder(Enum code, absl::SourceLocation location =
                                         absl::SourceLocation::current());
 
@@ -167,6 +169,8 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // DEPRECATED: Use the constructor that takes `absl::StatusCode`.
   // This constructor exists for backward compatibility and its usage will be
   // migrated to the `absl::StatusCode` constructor.
+  // TODO: Remove this when it becomes unused.
+  ABSL_DEPRECATED("Use MakeStatusBuilder instead")
   explicit StatusBuilder(
       util::error::Code code,
       absl::SourceLocation location = absl::SourceLocation::current());
@@ -175,6 +179,8 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // enabled, it will use `location` as the location from which the log message
   // occurs.  A typical user will not specify `location`, allowing it to default
   // to the current location.
+  // TODO: Remove this when it becomes unused.
+  ABSL_DEPRECATED("Use MakeStatusBuilder instead")
   explicit StatusBuilder(
       const ErrorSpace* space, int code,
       absl::SourceLocation location = absl::SourceLocation::current());
@@ -877,11 +883,28 @@ class ExtraMessage {
   status_internal::Stream stream_;
 };
 
+template <typename Enum>
+inline std::enable_if_t<EnumHasErrorSpace<Enum>::value, StatusBuilder>
+MakeStatusBuilder(Enum code, absl::SourceLocation location) {
+  return StatusBuilder(::util::MakeStatus(code, ""), location);
+}
+
+inline StatusBuilder MakeStatusBuilder(util::error::Code code,
+                                       absl::SourceLocation location) {
+  return StatusBuilder(static_cast<absl::StatusCode>(code), location);
+}
+
+inline StatusBuilder MakeStatusBuilder(const ErrorSpace* space, int code,
+                                       absl::SourceLocation location) {
+  return StatusBuilder(::util::MakeStatus(space, code, ""), location);
+}
+
 // Implementation details follow; clients should ignore.
 
 template <typename Enum, typename>
 inline StatusBuilder::StatusBuilder(Enum code, absl::SourceLocation location)
-    : loc_(location), rep_(InitRep(::util::MakeStatus(code, ""))) {}
+    : StatusBuilder(
+          ::util::MakeStatusBuilder(std::forward<Enum>(code), location)) {}
 
 inline StatusBuilder::StatusBuilder(absl::StatusCode code,
                                     absl::SourceLocation location)
@@ -889,11 +912,11 @@ inline StatusBuilder::StatusBuilder(absl::StatusCode code,
 
 inline StatusBuilder::StatusBuilder(util::error::Code code,
                                     absl::SourceLocation location)
-    : StatusBuilder(static_cast<absl::StatusCode>(code), location) {}
+    : StatusBuilder(::util::MakeStatusBuilder(std::move(code), location)) {}
 
 inline StatusBuilder::StatusBuilder(const ErrorSpace* space, int code,
                                     absl::SourceLocation location)
-    : loc_(location), rep_(InitRep(::util::MakeStatus(space, code, ""))) {}
+    : StatusBuilder(::util::MakeStatusBuilder(space, code, location)) {}
 
 inline StatusBuilder::StatusBuilder(const StatusBuilder& sb) : loc_(sb.loc_) {
   if (sb.rep_ != nullptr) {
