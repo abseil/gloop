@@ -815,8 +815,12 @@ void BasicBitmap<W>::Resize(size_type size, bool fill) {
       for (size_t i = 0; i < copy_array_size; ++i) {
         new_map[i].exchange(map_[i]);
       }
+      for (size_t i = copy_array_size; i < new_array_size; ++i) {
+        new_map[i].store(Word{0});
+      }
     } else {
       std::copy(map_, map_ + copy_array_size, new_map);
+      std::fill(new_map + copy_array_size, new_map + new_array_size, Word{0});
     }
     if (alloc_) {
       DeleteMap(map_, array_size());
