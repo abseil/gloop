@@ -44,8 +44,8 @@
 #include "base/tracecontext-ktrace.h"
 #include "base/tracer.h"
 #include "gloop/base/censushandle.h"
-#include "perftools/tracing/public/sync_context.h"
-#include "perftools/tracing/public/trace_event_listener.h"
+#include "gloop/perftools/tracing/sync_context.h"
+#include "gloop/perftools/tracing/trace_event_listener.h"
 
 #ifdef ENABLE_CONTEXT_ORIGIN
 #include "gloop/base/context_origin.h"

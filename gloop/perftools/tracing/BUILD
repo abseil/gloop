@@ -17,8 +17,31 @@ load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 package(
     default_applicable_licenses = ["//gloop:license"],
-    default_visibility = ["//visibility:public"],
+    default_visibility = ["//visibility:private"],
     features = ["header_modules"],
+)
+
+# Allow list including perftools / dapper depot paths
+package_group(
+    name = "internal_visibility",
+    packages = [
+        "//gloop/perftools/tracing/...",
+    ],
+)
+
+# Allow list including gloop base paths
+package_group(
+    name = "base_visibility",
+    packages = [
+        "//gloop/base/...",
+    ],
+)
+
+# Allow list including paths with explicit access to trace_event_listener
+package_group(
+    name = "trace_event_listener_visibility",
+    packages = [
+    ],
 )
 
 # Allow list for access to lower level tracing libraries
@@ -34,12 +57,14 @@ cc_library(
     name = "test_only_access",
     testonly = True,
     hdrs = ["test_only_access.h"],
+    visibility = ["//visibility:public"],
     deps = ["@gloop//gloop:enforce_gloop_support"],
 )
 
 cc_library(
     name = "trace_source_location",
     hdrs = ["trace_source_location.h"],
+    visibility = ["//visibility:public"],
     deps = [
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/strings:str_format",
@@ -76,6 +101,7 @@ cc_library(
         "string_registry.h",
         "tracing_base.h",
     ],
+    visibility = ["//visibility:public"],
     deps = [
         ":trace_source_location",
         "//gloop/util/gtl:lockfree_hashmap",
@@ -113,7 +139,9 @@ cc_library(
     srcs = ["trace_event_listener.cc"],
     hdrs = ["trace_event_listener.h"],
     visibility = [
-        ":tracing_core_visibility",
+        ":base_visibility",
+        ":internal_visibility",
+        ":trace_event_listener_visibility",
     ],
     deps = [
         ":tracing_base",
@@ -138,6 +166,10 @@ cc_library(
     name = "multiplex_trace_event_listener",
     srcs = ["multiplex_trace_event_listener.cc"],
     hdrs = ["multiplex_trace_event_listener.h"],
+    visibility = [
+        ":base_visibility",
+        ":internal_visibility",
+    ],
     deps = [
         ":trace_event_listener",
         ":tracing_base",
@@ -166,6 +198,7 @@ cc_library(
     name = "mock_trace_event_listener",
     testonly = True,
     hdrs = ["mock_trace_event_listener.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":trace_event_listener",
         ":tracing_base",
@@ -178,7 +211,7 @@ cc_library(
     name = "tracing_core",
     srcs = ["tracing_core.cc"],
     hdrs = ["tracing_core.h"],
-    visibility = [":tracing_core_visibility"],
+    visibility = [":internal_visibility"],
     deps = [
         ":trace_event_listener",
         ":tracing_base",
@@ -212,6 +245,7 @@ cc_test(
 cc_library(
     name = "perftools_verify",
     hdrs = ["perftools_verify.h"],
+    visibility = ["//visibility:public"],
     deps = [
         "//gloop/base:examine_stack",
         "@abseil-cpp//absl/log",
@@ -234,6 +268,10 @@ cc_library(
     name = "sync_context",
     srcs = ["sync_context.cc"],
     hdrs = ["sync_context.h"],
+    visibility = [
+        ":base_visibility",
+        ":internal_visibility",
+    ],
     deps = [
         ":multiplex_trace_event_listener",
         ":perftools_verify",
@@ -250,6 +288,10 @@ cc_library(
 cc_library(
     name = "format_to_buffer_sink",
     hdrs = ["format_to_buffer_sink.h"],
+    visibility = [
+        ":base_visibility",
+        ":internal_visibility",
+    ],
     deps = [
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/strings:string_view",
@@ -274,6 +316,7 @@ cc_test(
 cc_library(
     name = "with_trace_event_listener",
     hdrs = ["with_trace_event_listener.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":trace_event_listener",
         ":tracing_base",
@@ -286,6 +329,7 @@ cc_library(
     name = "tracing",
     srcs = ["tracing.cc"],
     hdrs = ["tracing.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":trace_event_listener",
         ":trace_source_location",

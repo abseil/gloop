@@ -214,10 +214,10 @@ const TraceContext* CurrentTraceContextNoAlloc();
 #include "base/context_access.h"
 #include "base/tracecontext-ktrace.h"
 #include "base/xray/tracing_annotations.h"
-#include "perftools/tracing/public/string_label.h"
-#include "perftools/tracing/public/sync_context.h"
-#include "perftools/tracing/public/trace_event_listener.h"
-#include "perftools/tracing/public/trace_source_location.h"
+#include "gloop/perftools/tracing/string_label.h"
+#include "gloop/perftools/tracing/sync_context.h"
+#include "gloop/perftools/tracing/trace_event_listener.h"
+#include "gloop/perftools/tracing/trace_source_location.h"
 
 namespace base {
 class Context;
