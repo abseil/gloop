@@ -241,6 +241,8 @@ cc_test(
     deps = [
         ":hash",
         ":legacy_hash_cord",
+        ":murmur",
+        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:cord_test_helpers",
         "@abseil-cpp//absl/strings:string_view",

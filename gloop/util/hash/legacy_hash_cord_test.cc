@@ -20,10 +20,18 @@
 
 #include "gloop/util/hash/legacy_hash_cord.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <vector>
+
 #include "absl/strings/cord.h"
 #include "absl/strings/cord_test_helpers.h"
+#include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
+#include "benchmark/benchmark.h"
 #include "gloop/util/hash/hash.h"
+#include "gloop/util/hash/murmur.h"
 #include "gtest/gtest.h"
 
 namespace {
@@ -41,5 +49,69 @@ TEST(LegacyHashCord, CordFunctions) {
   EXPECT_EQ(HashTo32(str), util_hash::HashCordTo32(fragmented_cord));
   EXPECT_EQ(HashTo32(""), util_hash::HashCordTo32(absl::Cord()));
 }
+
+static void GrowCord(absl::Cord* c, int n) {
+  for (int i = 0; i < n; i++) {
+    c->Append("x");
+  }
+}
+
+static void BM_Fingerprint(benchmark::State& state) {
+  const int arg = state.range(0);
+  absl::Cord c;
+  GrowCord(&c, arg);
+  const size_t n = c.size();
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(util_hash::FingerprintCord(c));
+  }
+  state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) * n);
+}
+BENCHMARK(BM_Fingerprint)->Range(0, 512);
+
+void BM_CordHash(benchmark::State& state) {
+  const int arg = state.range(0);
+  absl::Cord c;
+  GrowCord(&c, arg);
+  const size_t n = c.size();
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(util_hash::HashCordTo32(c));
+  }
+  state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) * n);
+}
+BENCHMARK(BM_CordHash)->Range(1, 512);
+
+static void BM_StringHash(benchmark::State& state) {
+  const int arg = state.range(0);
+  std::string s(arg, 'x');
+  const size_t n = s.size();
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(HashTo32(s));
+  }
+  state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) * n);
+}
+BENCHMARK(BM_StringHash)->Range(1, 512);
+
+void BM_CordMurmurHash(benchmark::State& state) {
+  const int arg = state.range(0);
+  absl::Cord c;
+  GrowCord(&c, arg);
+  const size_t n = c.size();
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(util_hash::MurmurHash64(c));
+  }
+  state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) * n);
+}
+BENCHMARK(BM_CordMurmurHash)->Range(1, 512);
+
+static void BM_StringMurmurHash(benchmark::State& state) {
+  const int arg = state.range(0);
+  std::string s(arg, 'x');
+  const size_t n = s.size();
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(util_hash::MurmurHash64(s));
+  }
+  state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) * n);
+}
+BENCHMARK(BM_StringMurmurHash)->Range(1, 512);
 
 }  // namespace
