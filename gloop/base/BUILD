@@ -13,6 +13,10 @@
 # limitations under the License.
 
 load(
+    "@rules_cc//cc:cc_binary.bzl",
+    "cc_binary",
+)
+load(
     "@rules_cc//cc:cc_library.bzl",
     "cc_library",
 )
@@ -233,6 +237,44 @@ PERCPU_LINUX_DEPS = [
 ]
 
 cc_library(
+    name = "per-thread-sem",
+    srcs = ["per-thread-sem.cc"],
+    hdrs = ["per-thread-sem.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":spinlock",
+        "//gloop/base/scheduling",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
+        "@gloop//gloop:enforce_gloop_support",
+        "@tcmalloc//tcmalloc:malloc_extension",
+    ],
+    alwayslink = 1,
+)
+
+# This version of per-thread-sem_test links in //per-thread-sem, therefore
+# picking up the symbol overrides.
+cc_test(
+    name = "per-thread-sem_test",
+    size = "medium",
+    tags = [
+        "noubsan",  # TODO Times out on UBSAN+ARM
+    ],
+    deps = [
+        ":per-thread-sem",
+        "@abseil-cpp//absl/synchronization:per_thread_sem_test_common",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "percpu",
     srcs = [
         "percpu.cc",
@@ -429,6 +471,42 @@ cc_library(
     deps = [
         "@abseil-cpp//absl/base",
         "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_binary(
+    name = "libthreadidentitytest_shared_lib.so",
+    testonly = 1,
+    srcs = [
+        "thread-identity_test_shared.cc",
+    ],
+    linkshared = 1,
+    linkstatic = 1,
+    deps = [
+        ":per-thread-sem",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "thread-identity_test_shared",
+    srcs = ["thread-identity_test_shared.cc"],
+    copts = ["-DABSL_THREADIDENTITYTEST_SHARED_MAIN"],
+    data = [":libthreadidentitytest_shared_lib.so"],
+    linkstatic = 1,
+    deps = [
+        ":per-thread-sem",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
