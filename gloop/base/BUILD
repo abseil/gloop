@@ -728,3 +728,10 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = ["@gloop//gloop:enforce_gloop_support"],
 )
+
+cc_library(
+    name = "atomic_stats_counter",
+    hdrs = ["atomic_stats_counter.h"],
+    visibility = ["//visibility:public"],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
+)
