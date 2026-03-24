@@ -144,7 +144,7 @@ constexpr int NumFields() {
 
 // Structured binding declarations are weird in that they produce the same
 // bindings whether the object is an rvalue or lvalue.  See
-// http://g/c-compiler-team/9Yro9UJ2o7c. Hence we add reference qualifiers
+// <internal thread>. Hence we add reference qualifiers
 // ourselves.
 
 struct FieldGetter {

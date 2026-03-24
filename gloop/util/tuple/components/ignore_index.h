@@ -54,7 +54,7 @@ struct ignore_index_no_args_t {
   // We can't just put these two methods in ignore_index_t because GCC
   // has a tendency to instantiate functions as soon as all template parameters
   // are known even if the number of arguments doesn't match.
-  // See http://g/c-compiler-team/hSmIy2FEfco/H5E4UdkW3hoJ.
+  // See <internal thread>.
   //
   // This causes problems if instantiating the result type causes hard failure
   // and that's exactly what happens when users pass std::reference_wrapper to

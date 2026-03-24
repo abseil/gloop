@@ -50,7 +50,7 @@ using ::std::tuple;
 //
 //  Foo<>();
 //
-// See http://g/c-compiler-team/hv-4yTX1APk/fXvcp6Z8Y0gJ.
+// See <internal thread>.
 //
 // TODO: Remove this struct when the bug is fixed.
 template <::size_t N>
