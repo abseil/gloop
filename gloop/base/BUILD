@@ -711,6 +711,7 @@ cc_test(
         ":sysinfo",
         "//gloop/base/auxiliary:parsed_process_stat",
         "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/flags:flag",
@@ -1093,6 +1094,69 @@ cc_test(
     ],
     deps = [
         ":process_state",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "arena",
+    srcs = ["arena.cc"],
+    hdrs = ["arena.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":config",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:enforce_gloop_support",
+        "@tcmalloc//tcmalloc:malloc_extension",
+    ],
+)
+
+cc_test(
+    name = "arena_unittest",
+    size = "medium",
+    srcs = ["arena_unittest.cc"],
+    deps = [
+        ":arena",
+        ":arena_allocator",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:node_hash_set",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/memory",
+        "@abseil-cpp//absl/strings:str_format",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "arena_allocator",
+    srcs = ["arena_allocator.cc"],
+    hdrs = ["arena_allocator.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":arena",
+        ":port",
+        "@abseil-cpp//absl/base:core_headers",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+# test for leakage
+cc_test(
+    name = "arena_leakage_unittest",
+    size = "small",
+    srcs = ["arena_leakage_unittest.cc"],
+    deps = [
+        ":arena",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
