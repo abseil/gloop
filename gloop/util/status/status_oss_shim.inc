@@ -15,47 +15,6 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_STATUS_STATUS_OSS_SHIM_H_
 #define THIRD_PARTY_GLOOP_UTIL_STATUS_STATUS_OSS_SHIM_H_
 
-// TODO: Remove this once codes.proto has been released to Gloop.
-// This is copied verbatim from protobuf gencode as a temporary measure.
-namespace util {
-namespace error {
-enum Code : int {
-  OK = 0,
-  CANCELLED = 1,
-  UNKNOWN = 2,
-  INVALID_ARGUMENT = 3,
-  DEADLINE_EXCEEDED = 4,
-  NOT_FOUND = 5,
-  ALREADY_EXISTS = 6,
-  PERMISSION_DENIED = 7,
-  UNAUTHENTICATED = 16,
-  RESOURCE_EXHAUSTED = 8,
-  FAILED_PRECONDITION = 9,
-  ABORTED = 10,
-  OUT_OF_RANGE = 11,
-  UNIMPLEMENTED = 12,
-  INTERNAL = 13,
-  UNAVAILABLE = 14,
-  DATA_LOSS = 15,
-  DO_NOT_USE_RESERVED_FOR_FUTURE_EXPANSION_USE_DEFAULT_IN_SWITCH_INSTEAD_ = 20,
-};
-
-inline constexpr Code Code_MIN =
-    static_cast<Code>(0);
-inline constexpr Code Code_MAX =
-    static_cast<Code>(20);
-inline bool Code_IsValid(int value) {
-  return 0 <= value && value <= 20 && ((1179647u >> value) & 1) != 0;
-}
-
-}  // namespace error
-}  // namespace util
-namespace google::protobuf {
-template <>
-struct is_proto_enum<::util::error::Code> : std::true_type {};
-
-}  // namespace google::protobuf
-
 // TODO Remove this once base_logging has been moved to Gloop.
 namespace base_logging {
 

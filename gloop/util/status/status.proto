@@ -1,0 +1,38 @@
+syntax = "proto2";
+
+package util;
+
+import "google/protobuf/bridge/message_set.proto";
+
+option java_package = "com.google.net.util";
+option cc_enable_arenas = true;
+option objc_class_prefix = "UTIL";
+
+// Wire-format for a Status object
+message StatusProto {
+  extend google.protobuf.bridge.MessageSet {
+    optional StatusProto message_set_extension = 10071;
+  }
+
+  // Numeric code drawn from the space specified below. Often, this is the
+  // canonical error space, and code is drawn from //gloop/util/task/codes.proto
+  optional int32 code = 1;
+
+  // The following are usually only present when code != 0
+
+  optional string space = 2;  // Space to which this status belongs
+
+  // Detail message
+  optional string message = 3;
+
+  // The canonical error code (see codes.proto) that most closely corresponds to
+  // this status. This may be missing, and in the common case of the generic
+  // space, it definitely will be.
+
+  optional int32 canonical_code = 6;
+
+  // message_set associates an arbitrary proto message with the status.
+  optional google.protobuf.bridge.MessageSet message_set = 5;
+
+  reserved 4;
+}

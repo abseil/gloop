@@ -44,6 +44,7 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
+#include "gloop/util/status/codes.pb.h"     // IWYU pragma: export
 #include "gloop/util/status/error_space.h"  // IWYU pragma: export
 #include "google/protobuf/any.pb.h"
 #include "google/protobuf/bridge/message_set.pb.h"

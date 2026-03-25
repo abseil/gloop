@@ -1366,6 +1366,24 @@ TEST(SourceLocation, SetMessage) {
   }
 }
 
+TEST(StatusCode, StatusCodeToString) {
+  // Make sure `StatusCodeToString()` outputs the same results as
+  // `util::error::Code_Name()` on all valid `util::error::Code`.
+  // We cannot use EnumerateEnumValues here; to be compatible with lite protos
+  // we have to avoid relying on descriptors.
+  // NOLINTNEXTLINE
+  for (int i = util::error::Code_MIN; i <= util::error::Code_MAX; ++i) {
+    auto code = static_cast<util::error::Code>(i);
+    if (util::error::Code_IsValid(code) &&
+        code !=
+            util::error::
+                DO_NOT_USE_RESERVED_FOR_FUTURE_EXPANSION_USE_DEFAULT_IN_SWITCH_INSTEAD_) {  // NOLINT
+      EXPECT_EQ(util::error::Code_Name(code),
+                absl::StatusCodeToString(util::ToAbslStatusCode(code)));
+    }
+  }
+}
+
 TEST(PrintStatusPayload, CanPrintKnownProto) {
   google::protobuf::Int32Value payload;
   payload.set_value(123);

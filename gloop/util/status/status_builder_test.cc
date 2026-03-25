@@ -48,6 +48,7 @@
 #include "absl/time/time.h"
 #include "absl/types/source_location.h"
 #include "benchmark/benchmark.h"
+#include "gloop/util/status/codes.pb.h"
 #include "gloop/util/status/posixerrorspace.h"
 #include "gloop/util/status/status.h"
 #include "gloop/util/status/status_macros.h"
@@ -736,6 +737,8 @@ TEST(CanonicalErrorsTest, CreateAndClassify) {
   };
 
   for (const auto& test : canonical_errors) {
+    SCOPED_TRACE(absl::StrCat("error::", Code_Name(test.code)));
+
     // Ensure that the creator does, in fact, create status objects in the
     // canonical space, with the expected error code and message.
     std::string message =
