@@ -49,6 +49,12 @@ void StatusBuilder::Destroy(std::unique_ptr<Rep>) {
   // nothing to do. The unique_ptr will do the cleanup.
 }
 
+StatusBuilder foo();
+
+StatusBuilder foo(const ErrorSpace* space, int code) {
+  return StatusBuilder(space, code);
+}
+
 // These constructors are not-inlined and defined in the .cc file to reduce
 // binary size. See cl/354351433 for a quantification.
 StatusBuilder::StatusBuilder() {}

@@ -31,6 +31,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/log_severity.h"
+#include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/log/log_sink.h"
 #include "absl/status/status.h"
@@ -96,6 +97,16 @@ using Conversion =
 
 }  // namespace status_internal
 
+template <typename Enum>
+std::enable_if_t<EnumHasErrorSpace<Enum>::value, StatusBuilder>
+MakeStatusBuilder(Enum code, absl::SourceLocation location);
+
+StatusBuilder MakeStatusBuilder(util::error::Code code,
+                                absl::SourceLocation location);
+
+StatusBuilder MakeStatusBuilder(const ErrorSpace* space, int code,
+                                absl::SourceLocation location);
+
 // Creates a status based on an original_status, but enriched with additional
 // information.  The builder implicitly converts to Status and StatusOr<T>
 // allowing for it to be returned directly.
@@ -150,9 +161,11 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // TODO: Remove this when it becomes unused.
   template <typename Enum, typename = typename std::enable_if<
                                EnumHasErrorSpace<Enum>::value>::type>
-  ABSL_DEPRECATED("Use MakeStatusBuilder instead")
+  ABSL_DEPRECATE_AND_INLINE()
   explicit StatusBuilder(Enum code, absl::SourceLocation location =
-                                        absl::SourceLocation::current());
+                                        absl::SourceLocation::current())
+      : StatusBuilder(
+            ::util::MakeStatusBuilder(std::forward<Enum>(code), location)) {}
 
   // Creates a `StatusBuilder` from a status code in
   // `util::CanonicalErrorSpace()`  If logging is enabled, it will use
@@ -167,20 +180,22 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // This constructor exists for backward compatibility and its usage will be
   // migrated to the `absl::StatusCode` constructor.
   // TODO: Remove this when it becomes unused.
-  ABSL_DEPRECATED("Use MakeStatusBuilder instead")
+  ABSL_DEPRECATE_AND_INLINE()
   explicit StatusBuilder(
       util::error::Code code,
-      absl::SourceLocation location = absl::SourceLocation::current());
+      absl::SourceLocation location = absl::SourceLocation::current())
+      : StatusBuilder(::util::MakeStatusBuilder(code, location)) {}
 
   // Creates a `StatusBuilder` from an `ErrorSpace` and a code.  If logging is
   // enabled, it will use `location` as the location from which the log message
   // occurs.  A typical user will not specify `location`, allowing it to default
   // to the current location.
   // TODO: Remove this when it becomes unused.
-  ABSL_DEPRECATED("Use MakeStatusBuilder instead")
+  ABSL_DEPRECATE_AND_INLINE()
   explicit StatusBuilder(
       const ErrorSpace* space, int code,
-      absl::SourceLocation location = absl::SourceLocation::current());
+      absl::SourceLocation location = absl::SourceLocation::current())
+      : StatusBuilder(::util::MakeStatusBuilder(space, code, location)) {}
 
   StatusBuilder(const StatusBuilder& sb);
   StatusBuilder& operator=(const StatusBuilder& sb);
@@ -898,22 +913,9 @@ inline StatusBuilder MakeStatusBuilder(const ErrorSpace* space, int code,
 
 // Implementation details follow; clients should ignore.
 
-template <typename Enum, typename>
-inline StatusBuilder::StatusBuilder(Enum code, absl::SourceLocation location)
-    : StatusBuilder(
-          ::util::MakeStatusBuilder(std::forward<Enum>(code), location)) {}
-
 inline StatusBuilder::StatusBuilder(absl::StatusCode code,
                                     absl::SourceLocation location)
     : loc_(location), rep_(InitRep(absl::Status(code, ""))) {}
-
-inline StatusBuilder::StatusBuilder(util::error::Code code,
-                                    absl::SourceLocation location)
-    : StatusBuilder(::util::MakeStatusBuilder(std::move(code), location)) {}
-
-inline StatusBuilder::StatusBuilder(const ErrorSpace* space, int code,
-                                    absl::SourceLocation location)
-    : StatusBuilder(::util::MakeStatusBuilder(space, code, location)) {}
 
 inline StatusBuilder::StatusBuilder(const StatusBuilder& sb) : loc_(sb.loc_) {
   if (sb.rep_ != nullptr) {
