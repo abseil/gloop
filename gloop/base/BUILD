@@ -452,8 +452,8 @@ cc_library(
     hdrs = ["signal-handler.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//gloop/base:config",
-        "//gloop/base:sysinfo",
+        ":config",
+        ":sysinfo",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/flags:flag",
