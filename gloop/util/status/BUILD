@@ -61,6 +61,17 @@ cc_test(
     ],
 )
 
+proto_library(
+    name = "codes_proto",
+    srcs = ["codes.proto"],
+    features = ["-proto_dynamic_mode_static_link"],
+)
+
+cc_proto_library(
+    name = "codes_cc_proto",
+    deps = [":codes_proto"],
+)
+
 cc_library(
     name = "errno_mapping",
     srcs = ["errno_mapping.cc"],
@@ -184,6 +195,7 @@ cc_library(
     ],
     deps = [
         "//gloop/util/coding",
+        "//gloop/util/status:codes_cc_proto",
         "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
@@ -278,6 +290,7 @@ cc_test(
         ":status",
         ":status_builder",
         ":status_macros",
+        "//gloop/util/status:codes_cc_proto",
         "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
@@ -335,6 +348,20 @@ cc_test(
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
+)
+
+proto_library(
+    name = "status_proto",
+    srcs = ["status.proto"],
+    features = ["-proto_dynamic_mode_static_link"],
+    deps = [
+        "@protobuf//src/google/protobuf/bridge:message_set_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "status_cc_proto",
+    deps = [":status_proto"],
 )
 
 proto_library(

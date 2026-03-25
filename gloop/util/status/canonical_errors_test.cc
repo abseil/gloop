@@ -28,6 +28,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
+#include "gloop/util/status/codes.pb.h"
 #include "gloop/util/status/error_space.h"
 #include "gloop/util/status/status.h"
 #include "gtest/gtest.h"
@@ -125,6 +126,8 @@ constexpr CanonicalErrorTest kCanonicalErrorTests[]{
 
 TEST(CanonicalErrorsTest, CreateAndClassify) {
   for (const auto& test : kCanonicalErrorTests) {
+    SCOPED_TRACE(absl::StrCat("error::", Code_Name(test.code)));
+
     // Ensure that the creator does, in fact, create status objects in the
     // canonical space, with the expected error code and message.
     std::string message =
