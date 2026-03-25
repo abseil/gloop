@@ -334,12 +334,12 @@ class StrongInt {
 
   // Unary operators.
   bool operator!() const { return value_ == 0; }
-  StrongInt operator+() const { return StrongInt(value_); }
-  StrongInt operator-() const {
+  StrongInt constexpr operator+() const { return StrongInt(value_); }
+  StrongInt constexpr operator-() const {
     STRONG_INT_CALL_VALIDATOR(ValidateNegate<ValueType>(value_));
     return StrongInt(-value_);
   }
-  StrongInt operator~() const {
+  StrongInt constexpr operator~() const {
     STRONG_INT_CALL_VALIDATOR(ValidateBitNot<ValueType>(value_));
     return StrongInt(ValueType(~value_));
   }

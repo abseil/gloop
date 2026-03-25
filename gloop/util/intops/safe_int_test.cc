@@ -28,6 +28,7 @@
 #include <climits>
 #include <cstdint>
 #include <limits>
+#include <string>
 
 #include "gtest/gtest.h"
 
@@ -56,7 +57,15 @@ typedef ::testing::Types<SafeInt8, SafeUInt8, SafeInt16, SafeUInt16, SafeInt32,
                          SafeUInt32, SafeInt64, SafeUInt64>
     AllSafeIntTypes;
 
-TYPED_TEST_SUITE(SignNeutralSafeIntTest, AllSafeIntTypes);
+class SafeIntTypeNames {
+ public:
+  template <typename T>
+  static std::string GetName(int) {
+    return std::string{T::TypeName()};
+  }
+};
+
+TYPED_TEST_SUITE(SignNeutralSafeIntTest, AllSafeIntTypes, SafeIntTypeNames);
 
 TYPED_TEST(SignNeutralSafeIntTest, TestCtors) {
   typedef typename TestFixture::SafeIntTypeUnderTest T;
@@ -421,6 +430,54 @@ TYPED_TEST(SignNeutralSafeIntTest, TestFloatToIntTruncation) {
   }
 }
 
+TYPED_TEST(SignNeutralSafeIntTest, TestAddConstexpr) {
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  constexpr T sum = T{12} + T{34};
+  EXPECT_EQ(sum, T{12 + 34});
+}
+
+TYPED_TEST(SignNeutralSafeIntTest, TestSubtractConstexpr) {
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  constexpr T diff = T{34} - T{12};
+  EXPECT_EQ(diff, T{34 - 12});
+}
+
+TYPED_TEST(SignNeutralSafeIntTest, TestMultiplyConstexpr) {
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  constexpr T product = T{12} * 3;
+  EXPECT_EQ(product, T{12 * 3});
+}
+
+TYPED_TEST(SignNeutralSafeIntTest, TestDivideConstexpr) {
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  constexpr T quotient = T{34} / 12;
+  EXPECT_EQ(quotient, T{34 / 12});
+}
+
+TYPED_TEST(SignNeutralSafeIntTest, TestModuloConstexpr) {
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  constexpr T remainder = T{34} % 12;
+  EXPECT_EQ(remainder, T{34 % 12});
+}
+
+TYPED_TEST(SignNeutralSafeIntTest, TestLeftShiftConstexpr) {
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  constexpr T shifted = T{1} << 3;
+  EXPECT_EQ(shifted, T{1 << 3});
+}
+
+TYPED_TEST(SignNeutralSafeIntTest, TestRightShiftConstexpr) {
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  constexpr T shifted = T{0b1111} >> 3;
+  EXPECT_EQ(shifted, T{0b1111 >> 3});
+}
+
+TYPED_TEST(SignNeutralSafeIntTest, TestUnaryOperatorsConstexpr) {
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  constexpr T pos = +T{12};
+  EXPECT_EQ(pos, T{+12});
+}
+
 //
 // Test cases that apply only to signed types.
 //
@@ -449,7 +506,7 @@ constexpr T SignedSafeIntTest<T>::kTestConstexprFloatNeg;
 typedef ::testing::Types<SafeInt8, SafeInt16, SafeInt32, SafeInt64>
     SignedSafeIntTypes;
 
-TYPED_TEST_SUITE(SignedSafeIntTest, SignedSafeIntTypes);
+TYPED_TEST_SUITE(SignedSafeIntTest, SignedSafeIntTypes, SafeIntTypeNames);
 
 TYPED_TEST(SignedSafeIntTest, ConstexprInitWorks) {
   typedef typename TestFixture::SafeIntTypeUnderTest T;
@@ -488,6 +545,15 @@ TYPED_TEST(SignedSafeIntTest, TestUnaryOperators) {
     EXPECT_EQ(false, !x);
     EXPECT_EQ(true, !!x);
   }
+}
+
+TYPED_TEST(SignedSafeIntTest, TestUnaryOperatorsConstexpr) {
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  constexpr T pos = +T{123};
+  EXPECT_EQ(pos, T{+123});
+
+  constexpr T neg = -T{123};
+  EXPECT_EQ(neg, T{-123});
 }
 
 TYPED_TEST(SignedSafeIntTest, TestUnaryOperatorsFailures) {
@@ -537,6 +603,21 @@ TYPED_TEST(SignedSafeIntTest, TestSubtract) {
   TEST_T_OP_T(3, -, 9);
   // Test subtraction from zero.
   TEST_T_OP_T(0, -, 93);
+}
+
+TYPED_TEST(SignedSafeIntTest, TestSubtractConstexpr) {
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  constexpr T diff = T{34} - T{12};
+  EXPECT_EQ(diff, T{34 - 12});
+
+  constexpr T diff2 = T{12} - T{34};
+  EXPECT_EQ(diff2, T{12 - 34});
+
+  constexpr T diff3 = T{12} - T{-34};
+  EXPECT_EQ(diff3, T{12 + 34});
+
+  constexpr T diff4 = T{0} - T{34};
+  EXPECT_EQ(diff4, T{-34});
 }
 
 TYPED_TEST(SignedSafeIntTest, TestSubtractFailures) {
@@ -725,7 +806,7 @@ constexpr T UnsignedSafeIntTest<T>::kTestConstexprFloat;
 typedef ::testing::Types<SafeUInt8, SafeUInt16, SafeUInt32, SafeUInt64>
     UnsignedSafeIntTypes;
 
-TYPED_TEST_SUITE(UnsignedSafeIntTest, UnsignedSafeIntTypes);
+TYPED_TEST_SUITE(UnsignedSafeIntTest, UnsignedSafeIntTypes, SafeIntTypeNames);
 
 TYPED_TEST(UnsignedSafeIntTest, ConstexprInitWorks) {
   typedef typename TestFixture::SafeIntTypeUnderTest T;
@@ -764,6 +845,36 @@ TYPED_TEST(UnsignedSafeIntTest, TestUnaryOperators) {
     EXPECT_EQ(V(~(x.value())), (~x).value());
     EXPECT_EQ(x.value(), (~~x).value());
   }
+}
+
+TYPED_TEST(UnsignedSafeIntTest, TestUnaryOperatorsConstexpr) {
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = T::ValueType;
+
+  constexpr T x = T{123};
+  constexpr T y = T{~x};
+  constexpr T z = ~~T{123};
+  EXPECT_EQ(x, T{123});
+  EXPECT_EQ(y, T{V{std::numeric_limits<V>::max() & ~V{123}}});
+  EXPECT_EQ(x, z);
+}
+
+TYPED_TEST(UnsignedSafeIntTest, TestBitwiseAndConstexpr) {
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  constexpr T conjunction = T{0b0011} & T{0b0001};
+  EXPECT_EQ(conjunction, T{0b0011 & 0b0001});
+}
+
+TYPED_TEST(UnsignedSafeIntTest, TestBitwiseOrConstexpr) {
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  constexpr T disjunction = T{0b0011} | T{0b0001};
+  EXPECT_EQ(disjunction, T{0b0011 | 0b0001});
+}
+
+TYPED_TEST(UnsignedSafeIntTest, TestBitwiseXorConstexpr) {
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  constexpr T xord = T{0b1001} ^ T { 0b0101 };
+  EXPECT_EQ(xord, T{0b1001 ^ 0b0101});
 }
 
 TYPED_TEST(UnsignedSafeIntTest, TestMultiply) {
