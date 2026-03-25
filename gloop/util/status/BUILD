@@ -249,7 +249,6 @@ cc_library(
     deps = [
         ":status",
         "//gloop/base:examine_stack",
-        "//gloop/strings:ostringstream",
         "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
@@ -262,12 +261,11 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:internal",
         "@abseil-cpp//absl/strings:stringify_stream",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@abseil-cpp//absl/types:optional",
         "@abseil-cpp//absl/types:source_location",
-        "@abseil-cpp//absl/types:span",
         "@gloop//gloop:enforce_gloop_support",
     ],
 )
