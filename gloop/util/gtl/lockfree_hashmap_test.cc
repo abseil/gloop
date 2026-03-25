@@ -252,6 +252,76 @@ TEST(LockFreeHashTest, Clear) {
   }
 }
 
+TEST(KeyValueDestroyTest, Erase) {
+  // Since reads don't lock, keys and values can't simply be destroyed when
+  // removed from the map.
+
+  auto key = std::make_shared<int>(0);
+  auto value = std::make_shared<int>(0);
+  {
+    LockFreeHashMap<std::shared_ptr<int>, std::shared_ptr<int>> h;
+    h.insert({key, value});
+
+    auto it = h.find(key);
+    h.erase(it);
+
+    EXPECT_EQ(h.size(), 0);
+    // We didn't destroy anything yet, because a concurrent reader should still
+    // be able to use the retrieved objects.
+    EXPECT_EQ(key.use_count(), 2);
+    EXPECT_EQ(value.use_count(), 2);
+  }
+  // But we do destroy things in the destructor.
+  EXPECT_EQ(key.use_count(), 1);
+  EXPECT_EQ(value.use_count(), 1);
+}
+
+TEST(KeyValueDestroyTest, EraseWithKey) {
+  // Since reads don't lock, keys and values can't simply be destroyed when
+  // removed from the map.
+
+  auto key = std::make_shared<int>(0);
+  auto value = std::make_shared<int>(0);
+  {
+    LockFreeHashMap<std::shared_ptr<int>, std::shared_ptr<int>> h;
+    h.insert({key, value});
+
+    h.erase(key);
+
+    EXPECT_EQ(h.size(), 0);
+    // We didn't destroy anything yet, because a concurrent reader should still
+    // be able to use the retrieved objects.
+    EXPECT_EQ(key.use_count(), 2);
+    EXPECT_EQ(value.use_count(), 2);
+  }
+  // But we do destroy things in the destructor.
+  EXPECT_EQ(key.use_count(), 1);
+  EXPECT_EQ(value.use_count(), 1);
+}
+
+TEST(KeyValueDestroyTest, Clear) {
+  // Since reads don't lock, keys and values can't simply be destroyed when
+  // removed from the map.
+
+  auto key = std::make_shared<int>(0);
+  auto value = std::make_shared<int>(0);
+  {
+    LockFreeHashMap<std::shared_ptr<int>, std::shared_ptr<int>> h;
+    h.insert({key, value});
+
+    h.clear();
+
+    EXPECT_EQ(h.size(), 0);
+    // We didn't destroy anything yet, because a concurrent reader should still
+    // be able to use the retrieved objects.
+    EXPECT_EQ(key.use_count(), 2);
+    EXPECT_EQ(value.use_count(), 2);
+  }
+  // But we do destroy things in the destructor.
+  EXPECT_EQ(key.use_count(), 1);
+  EXPECT_EQ(value.use_count(), 1);
+}
+
 TEST(LockFreeHashTest, Emplace) {
   LockFreeHashMap<int, std::atomic<int>> data;
   EXPECT_TRUE(data.emplace(std::piecewise_construct, std::forward_as_tuple(1),

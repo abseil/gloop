@@ -21,9 +21,10 @@
 // `LockFreeHashMap<Key, Value>` is a thread-safe hash map that executes
 // `find()` without requiring a lock, though mutating operations such as
 // `insert()`[*] and `erase()` are serialized using a mutex, just like a normal
-// hash table.  The downside is that `LockFreeHashMap` does not by default
-// free any memory until the destructor is called. You can use EpochGC or RCU
-// (<link>++-concurrency#garbage_collection) to free memory earlier than that.
+// hash table. The downside is that `LockFreeHashMap` does not by default free
+// any memory or destroy any keys or values until the destructor is called. You
+// can use EpochGC or RCU (<link>++-concurrency#garbage_collection) to free
+// memory earlier than that.
 //
 // The API is a subset of hash_map<>'s.
 //
