@@ -26,6 +26,8 @@ cc_library(
     name = "acmrandom",
     srcs = ["acmrandom.cc"],
     hdrs = ["acmrandom.h"],
+    # This library is highly deprecated and should not be marked public for wider use.
+    visibility = ["//gloop:__subpackages__"],
     deps = [
         ":random_base",
         "@abseil-cpp//absl/base:core_headers",
@@ -88,6 +90,8 @@ cc_library(
     name = "mt_random",
     srcs = ["mt_random.cc"],
     hdrs = ["mt_random.h"],
+    # This library is highly deprecated and should not be marked public for wider use.
+    visibility = ["//gloop:__subpackages__"],
     deps = [
         ":random_base",
         "//gloop/util/endian",
@@ -117,6 +121,8 @@ cc_library(
     name = "random_base",
     srcs = ["random_base.cc"],
     hdrs = ["random_base.h"],
+    # This library is highly deprecated and should not be marked public for wider use.
+    visibility = ["//gloop:__subpackages__"],
     deps = [
         "//gloop/base:atomic_sequence_num",
         "//gloop/base:port",
