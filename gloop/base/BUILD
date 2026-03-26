@@ -129,6 +129,68 @@ cc_library(
 )
 
 cc_library(
+    name = "context",
+    srcs = ["context.cc"],
+    hdrs = ["context.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":context_access",
+        ":tracecontext",
+        "//gloop/base:censushandle",
+        "//gloop/base:static_threadlocal",
+        "//gloop/perftools/tracing:trace_source_location",
+        "//gloop/perftools/tracing:tracing_base",
+        "//gloop/util/refcount:reffed_ptr",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "context_access",
+    hdrs = ["context_access.h"],
+    visibility = ["//visibility:public"],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
+)
+
+cc_test(
+    name = "context_test",
+    size = "medium",
+    srcs = ["context_test.cc"],
+    deps = [
+        ":context",
+        ":context_access",
+        ":sysinfo",
+        ":tracecontext",
+        "//gloop/base:censushandle",
+        "//gloop/perftools/tracing:mock_trace_event_listener",
+        "//gloop/perftools/tracing:tracing_base",
+        "//gloop/util/refcount:reffed_ptr",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/cleanup",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/memory",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ] + select({
+        "//conditions:default": [],
+    }),
+)
+
+cc_library(
     name = "context_origin",
     hdrs = ["context_origin.h"],
     visibility = [
