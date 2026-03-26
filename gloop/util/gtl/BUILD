@@ -823,3 +823,26 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "subspan",
+    hdrs = ["subspan.h"],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/types:any_span",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "subspan_test",
+    srcs = ["subspan_test.cc"],
+    deps = [
+        ":subspan",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/types:any_span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
