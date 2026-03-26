@@ -63,3 +63,32 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "reffed_ptr",
+    hdrs = ["reffed_ptr.h"],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "reffed_ptr_test",
+    size = "small",
+    srcs = ["reffed_ptr_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":reffed_ptr",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/container:node_hash_map",
+        "@abseil-cpp//absl/hash:hash_testing",
+        "@abseil-cpp//absl/log",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
