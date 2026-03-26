@@ -68,6 +68,7 @@ cc_library(
     deps = [
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
         "@gloop//gloop:enforce_gloop_support",
     ],

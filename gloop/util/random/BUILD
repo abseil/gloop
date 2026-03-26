@@ -97,7 +97,7 @@ cc_library(
         "//gloop/util/endian",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
         "@gloop//gloop:enforce_gloop_support",
     ],
 )

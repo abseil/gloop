@@ -45,7 +45,7 @@ cc_test(
     deps = [
         ":function_registry",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:source_location",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

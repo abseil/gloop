@@ -213,6 +213,7 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:cord_test_helpers",
+        "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -309,8 +310,8 @@ cc_library(
         "//gloop/util/endian",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:prefetch",
-        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:string_view",
         "@gloop//gloop:enforce_gloop_support",
     ],
 )
@@ -430,7 +431,7 @@ cc_test(
     deps = [
         ":crc",
         "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -486,7 +487,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":string_hash",
-        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
         "@gloop//gloop:enforce_gloop_support",
     ],
 )
