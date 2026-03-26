@@ -105,3 +105,34 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "round",
+    srcs = ["round.cc"],
+    hdrs = ["round.h"],
+    deps = [
+        ":mathutil",
+        "//gloop/util/bits",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "round_test",
+    srcs = ["round_test.cc"],
+    deps = [
+        ":round",
+        "//gloop/strings:numbers",
+        "//gloop/util/bits",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/numeric:bits",
+        "@abseil-cpp//absl/random:distributions",
+        "@abseil-cpp//absl/strings:str_format",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
