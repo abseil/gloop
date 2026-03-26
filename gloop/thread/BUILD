@@ -32,8 +32,8 @@ cc_library(
     hdrs = ["os_semaphore.h"],
     visibility = [
         "//gloop/thread:__subpackages__",
-        "//thread:__subpackages__",
-        "//thread/fiber:__pkg__",
+        "@gloop//gloop/thread:__subpackages__",
+        "@gloop//gloop/thread/fiber:__pkg__",
     ],
     deps = [
         "@abseil-cpp//absl/time",

@@ -76,8 +76,8 @@
 
 #if !ABSL_HAVE_BUILTIN(__builtin_bitreverse16) && \
     !(defined(__aarch64__) && defined(__GNUC__)) && !defined(__powerpc64__)
-#include "base/port.h"
-#include "base/types.h"
+#include "gloop/base/port.h"
+#include "gloop/base/types.h"
 #endif
 
 class Bits {

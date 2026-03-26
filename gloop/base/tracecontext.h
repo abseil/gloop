@@ -211,9 +211,9 @@ const TraceContext* CurrentTraceContextNoAlloc();
 #include <string>
 #include <utility>
 
-#include "base/context_access.h"
-#include "base/tracecontext-ktrace.h"
-#include "base/xray/tracing_annotations.h"
+#include "gloop/base/context_access.h"
+#include "gloop/base/tracecontext-ktrace.h"
+#include "gloop/base/xray/tracing_annotations.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/sync_context.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"

@@ -40,10 +40,10 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-#include "base/context_access.h"
-#include "base/tracecontext-ktrace.h"
-#include "base/tracer.h"
 #include "gloop/base/censushandle.h"
+#include "gloop/base/context_access.h"
+#include "gloop/base/tracecontext-ktrace.h"
+#include "gloop/base/tracer.h"
 #include "gloop/perftools/tracing/sync_context.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
 

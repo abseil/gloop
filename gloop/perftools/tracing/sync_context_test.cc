@@ -30,10 +30,10 @@
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/tracing_base.h"
 #include "gloop/perftools/tracing/tracing_core.h"
+#include "gloop/thread/thread.h"
+#include "gloop/thread/thread_options.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "thread/thread.h"
-#include "thread/thread_options.h"
 
 namespace perftools::tracing::core {
 

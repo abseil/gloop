@@ -38,7 +38,7 @@
 
 #if GTEST_GOOGLE3_MODE_
 #include "benchmark/benchmark.h"
-#include "thread/threadlocal.h"
+#include "gloop/thread/threadlocal.h"
 #endif  // GTEST_GOOGLE3_MODE_
 
 STATIC_THREAD_LOCAL(int, value);
