@@ -846,3 +846,48 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "float128",
+    srcs = ["float128.cc"],
+    hdrs = ["float128.h"],
+    deps = [
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/container:inlined_vector",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@gloop//gloop:enforce_gloop_support",
+        "@googletest//:gtest_prod",
+    ],
+)
+
+cc_test(
+    name = "float128_test",
+    srcs = ["float128_test.cc"],
+    shard_count = 50,
+    deps = [
+        ":float128",
+        ":float128_matchers",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings:str_format",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "float128_matchers",
+    testonly = 1,
+    hdrs = ["float128_matchers.h"],
+    deps = [
+        ":float128",
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:enforce_gloop_support",
+        "@googletest//:gtest_for_library",
+    ],
+)
