@@ -891,3 +891,27 @@ cc_library(
         "@googletest//:gtest_for_library",
     ],
 )
+
+cc_library(
+    name = "circularbuffer",
+    hdrs = ["circularbuffer.h"],
+    deps = [
+        ":container_logging",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/log:check",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "circularbuffer_unittest",
+    srcs = ["circularbuffer_unittest.cc"],
+    deps = [
+        ":circularbuffer",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
