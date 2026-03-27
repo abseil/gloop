@@ -90,7 +90,8 @@
 //     RETURN_IF_ERROR(foo.Method(args...));
 //     return absl::OkStatus();
 //   }
-#define RETURN_IF_ERROR(expr) STATUS_MACROS_RETURN_IF_ERROR_IMPL_(return, expr)
+#define RETURN_IF_ERROR(...) \
+  STATUS_MACROS_RETURN_IF_ERROR_IMPL_(return, __VA_ARGS__)
 
 // Executes an expression `rexpr` that returns an `absl::StatusOr<T>`. On OK,
 // moves its value into the variable defined by `lhs`, otherwise returns
@@ -161,13 +162,13 @@
 // == Implementation details, do not rely on anything below here. ==
 // =================================================================
 
-#define STATUS_MACROS_RETURN_IF_ERROR_IMPL_(return_keyword, expr) \
-  STATUS_MACROS_IMPL_ELSE_BLOCKER_                                \
-  if (auto status_macro_internal_adaptor =                        \
-          ::util::status_macro_internal::MacroAdaptor(            \
-              (expr), ::absl::SourceLocation::current())) {       \
-  } else /* NOLINT */                                             \
-    return_keyword status_macro_internal_adaptor.Consume(         \
+#define STATUS_MACROS_RETURN_IF_ERROR_IMPL_(return_keyword, ...)   \
+  STATUS_MACROS_IMPL_ELSE_BLOCKER_                                 \
+  if (auto status_macro_internal_adaptor =                         \
+          ::util::status_macro_internal::MacroAdaptor(             \
+              (__VA_ARGS__), ::absl::SourceLocation::current())) { \
+  } else /* NOLINT */                                              \
+    return_keyword status_macro_internal_adaptor.Consume(          \
         ::absl::SourceLocation::current())
 
 #define STATUS_MACROS_ASSIGN_OR_RETURN_IMPL_(return_keyword, ...)            \
