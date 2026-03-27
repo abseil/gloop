@@ -731,8 +731,8 @@ cc_library(
     deps = [
         ":censushandle",
         ":context_origin",
-        "//gloop/base:port",
-        "//gloop/base:sysinfo",
+        ":port",
+        ":sysinfo",
         "//gloop/perftools/tracing:sync_context",
         "//gloop/perftools/tracing:trace_event_listener",
         "//gloop/perftools/tracing:trace_source_location",
