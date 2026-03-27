@@ -85,6 +85,53 @@ cc_test(
 )
 
 cc_library(
+    name = "callback-types",
+    srcs = ["callback.cc"],
+    hdrs = ["callback-types.h"],
+    visibility = [
+        "//gloop/base:__subpackages__",
+        "//gloop/util/functional:__subpackages__",
+        "@gloop//gloop/base:__subpackages__",
+    ],
+    deps = [
+        ":tracecontext",
+        "//gloop/perftools/tracing:trace_source_location",
+        "//gloop/perftools/tracing:tracing_base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@gloop//gloop:enforce_gloop_support",
+        "@gloop//gloop/base:context",
+    ],
+)
+
+cc_library(
+    name = "callback",
+    hdrs = ["callback.h"],
+    visibility = ["//gloop:__subpackages__"],
+    deps = [
+        ":callback-types",
+        "//gloop/util/functional:from_callback",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "callback_unittest",
+    size = "small",
+    srcs = ["callback_unittest.cc"],
+    deps = [
+        ":callback",
+        "//gloop/util/functional:from_callback",
+        "//gloop/util/functional:to_callback",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "censushandle",
     hdrs = ["censushandle.h"],
     visibility = ["//visibility:public"],
