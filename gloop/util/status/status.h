@@ -46,6 +46,7 @@
 #include "absl/types/source_location.h"
 #include "gloop/util/status/codes.pb.h"     // IWYU pragma: export
 #include "gloop/util/status/error_space.h"  // IWYU pragma: export
+#include "gloop/util/status/non_message_set_payload.pb.h"
 #include "google/protobuf/any.pb.h"
 #include "google/protobuf/bridge/message_set.pb.h"
 

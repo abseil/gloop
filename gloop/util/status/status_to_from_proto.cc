@@ -34,6 +34,7 @@
 // from status.cc without necessarily pulling in the code here.
 
 #include "gloop/util/status/error_space.h"
+#include "gloop/util/status/non_message_set_payload.pb.h"
 #include "gloop/util/status/status_internal.h"
 #include "google/protobuf/any.pb.h"
 #include "google/protobuf/bridge/message_set.pb.h"

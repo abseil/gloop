@@ -196,6 +196,7 @@ cc_library(
         "status_oss_shim.inc",
     ],
     deps = [
+        ":non_message_set_payload_cc_proto",
         "//gloop/util/coding",
         "//gloop/util/status:codes_cc_proto",
         "//gloop/util/status:message_set_cc_proto",
@@ -231,6 +232,7 @@ cc_test(
         "status_test.cc",
     ],
     deps = [
+        ":non_message_set_payload_cc_proto",
         ":status",
         ":test_payload_cc_proto",
         "//gloop/util/status:message_set_cc_proto",
@@ -383,4 +385,23 @@ cc_proto_library(
     name = "test_payload_cc_proto",
     testonly = 1,
     deps = [":test_payload_proto"],
+)
+
+# The non_message_set_payload_proto shouldn't be public, because it's only for
+# storing the new payloads in `MessageSet` so they are preserved when converting
+# `Status` to `StatusProto`. Users should use the public APIs to convert
+# between `StatusProto` and `Status` and never need to know about this type.
+proto_library(
+    name = "non_message_set_payload_proto",
+    srcs = ["non_message_set_payload.proto"],
+    deps = [
+        "@protobuf//:any_proto",
+        "@protobuf//src/google/protobuf/bridge:message_set_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "non_message_set_payload_cc_proto",
+    visibility = ["//visibility:private"],
+    deps = [":non_message_set_payload_proto"],
 )

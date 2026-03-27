@@ -43,6 +43,7 @@
 #include "absl/types/source_location.h"
 #include "benchmark/benchmark.h"
 #include "gloop/util/status/error_space.h"
+#include "gloop/util/status/non_message_set_payload.pb.h"
 #include "gloop/util/status/status_internal.h"
 #include "gloop/util/status/test_payload.pb.h"
 #include "gmock/gmock.h"
