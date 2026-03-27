@@ -46,3 +46,24 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "roundedops",
+    hdrs = ["roundedops.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/base:config",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "roundedops_test",
+    srcs = ["roundedops_test.cc"],
+    deps = [
+        ":roundedops",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
