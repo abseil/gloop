@@ -59,11 +59,6 @@
 #include <utility>
 #include <vector>
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-W#warnings"
-#include <ext/__hash>
-#pragma clang diagnostic pop
-
 #include "absl/base/attributes.h"
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
@@ -80,8 +75,6 @@
 #include "absl/types/span.h"
 #include "gloop/util/endian/endian.h"
 #include "gloop/util/tuple/components/dump_vars.h"
-
-using __gnu_cxx::hash;
 
 #ifdef _WIN32
 

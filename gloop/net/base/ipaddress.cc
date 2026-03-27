@@ -35,11 +35,6 @@
 #include <utility>
 #include <vector>
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-W#warnings"
-#include <ext/__hash>
-#pragma clang diagnostic pop
-
 #include "absl/base/attributes.h"
 #include "absl/base/log_severity.h"
 #include "absl/base/nullability.h"
