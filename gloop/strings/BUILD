@@ -179,6 +179,49 @@ cc_test(
 )
 
 cc_library(
+    name = "memblock",
+    srcs = ["memblock.cc"],
+    hdrs = ["memblock.h"],
+    deps = [
+        "//gloop/base:config",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/container:container_memory",
+        "@abseil-cpp//absl/container:layout",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/memory",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "memblock_unittest",
+    size = "small",
+    srcs = ["memblock_unittest.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":memblock",
+        "@abseil-cpp//absl/container:fixed_array",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/memory",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:cord_test_helpers",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "memutil",
     srcs = ["memutil.cc"],
     hdrs = ["memutil.h"],
