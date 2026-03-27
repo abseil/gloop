@@ -498,6 +498,32 @@ cc_test(
 )
 
 cc_library(
+    name = "top_n",
+    hdrs = ["top_n.h"],
+    deps = [
+        "@abseil-cpp//absl/log:check",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "top_n_unittest",
+    srcs = ["top_n_unittest.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":stl_util",
+        ":top_n",
+        "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "typeid",
     hdrs = ["typeid.h"],
     deps = ["@gloop//gloop:enforce_gloop_support"],
