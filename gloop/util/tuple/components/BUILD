@@ -287,8 +287,8 @@ cc_library(
     hdrs = ["dump_vars.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//gloop/util/tuple/components:internal_preprocessor",
-        "//gloop/util/tuple/components:streamable",
+        ":internal_preprocessor",
+        ":streamable",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:structured",
@@ -302,8 +302,8 @@ cc_test(
     srcs = ["dump_vars_test.cc"],
     deps = [
         ":dump_vars",
+        ":streamable",
         ":streamable_test_cc_proto",
-        "//gloop/util/tuple/components:streamable",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:log_entry",

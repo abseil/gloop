@@ -132,9 +132,9 @@ cc_library(
     name = "debug_printing",
     hdrs = ["debug_printing.h"],
     deps = [
+        ":extension",
         ":stream_printing",
         ":stringify",
-        "//gloop/util/gtl/extend:extension",
         "@gloop//gloop:enforce_gloop_support",
     ],
 )
@@ -143,9 +143,9 @@ cc_library(
     name = "stream_printing",
     hdrs = ["stream_printing.h"],
     deps = [
+        ":extension",
         ":reflection_extension",
         "//gloop/util/gtl:generic_printer",
-        "//gloop/util/gtl/extend:extension",
         "//gloop/util/gtl/extend/internal:debug_print_value",
         "@gloop//gloop:enforce_gloop_support",
     ],
@@ -168,9 +168,9 @@ cc_test(
     srcs = ["debug_printing_test.cc"],
     deps = [
         ":debug_printing",
+        ":extend",
         ":stringification_tests",
         "//gloop/util/gtl:generic_printer",
-        "//gloop/util/gtl/extend",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -185,7 +185,7 @@ cc_library(
         "//gloop/util/gtl/extend:__subpackages__",
     ],
     deps = [
-        "//gloop/util/gtl/extend",
+        ":extend",
         "//gloop/util/gtl/extend/internal:reflection",
         "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/strings:string_view",
@@ -198,10 +198,10 @@ cc_test(
     name = "stream_printing_test",
     srcs = ["stream_printing_test.cc"],
     deps = [
+        ":extend",
         ":stream_printing",
         ":stringification_tests",
         "//gloop/util/gtl:generic_printer",
-        "//gloop/util/gtl/extend",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -232,8 +232,8 @@ cc_library(
         "//gloop/util/gtl/extend:__subpackages__",
     ],
     deps = [
-        "//gloop/util/gtl/extend",
-        "//gloop/util/gtl/extend:equality",
+        ":equality",
+        ":extend",
         "//gloop/util/gtl/extend/internal:reflection",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
@@ -248,9 +248,9 @@ cc_test(
     name = "reflection_extension_test",
     srcs = ["reflection_extension_test.cc"],
     deps = [
+        ":equality",
+        ":extend",
         ":reflection_extension",
-        "//gloop/util/gtl/extend",
-        "//gloop/util/gtl/extend:equality",
         "//gloop/util/gtl/extend/internal:reflection",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",

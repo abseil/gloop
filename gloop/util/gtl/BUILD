@@ -351,9 +351,9 @@ cc_test(
     name = "iterator_adaptors_unittest",
     srcs = ["iterator_adaptors_unittest.cc"],
     deps = [
+        ":flat_map",
+        ":flat_set",
         ":iterator_adaptors",
-        "//gloop/util/gtl:flat_map",
-        "//gloop/util/gtl:flat_set",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
@@ -535,7 +535,7 @@ cc_library(
         "//gloop/util/gtl:__subpackages__",
     ],
     deps = [
-        "//gloop/util/gtl:requires",
+        ":requires",
         "@abseil-cpp//absl/base",
         "@gloop//gloop:enforce_gloop_support",
     ],
@@ -545,10 +545,10 @@ cc_test(
     name = "unaligned_test",
     srcs = ["unaligned_test.cc"],
     deps = [
+        ":requires",
         ":unaligned",
         ":unaligned_internal",
         "//gloop/util/endian",
-        "//gloop/util/gtl:requires",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/hash:hash_testing",
@@ -699,7 +699,7 @@ cc_library(
     name = "intervalmap",
     hdrs = ["intervalmap.h"],
     deps = [
-        "//gloop/util/gtl:heterogeneous_lookup",
+        ":heterogeneous_lookup",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/container:compressed_tuple",
         "@abseil-cpp//absl/log:check",

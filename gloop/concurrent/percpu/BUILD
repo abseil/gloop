@@ -116,8 +116,8 @@ cc_test(
     linkstatic = True,
     visibility = ["//visibility:private"],
     deps = [
-        "rseq_clobber_test.lds",
         ":counting_mutex",
+        ":rseq_clobber_test.lds",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
