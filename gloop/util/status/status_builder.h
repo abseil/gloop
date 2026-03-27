@@ -99,13 +99,16 @@ using Conversion =
 
 template <typename Enum>
 std::enable_if_t<EnumHasErrorSpace<Enum>::value, StatusBuilder>
-MakeStatusBuilder(Enum code, absl::SourceLocation location);
+MakeStatusBuilder(
+    Enum code, absl::SourceLocation location = absl::SourceLocation::current());
 
-StatusBuilder MakeStatusBuilder(util::error::Code code,
-                                absl::SourceLocation location);
+StatusBuilder MakeStatusBuilder(
+    util::error::Code code,
+    absl::SourceLocation location = absl::SourceLocation::current());
 
-StatusBuilder MakeStatusBuilder(const ErrorSpace* space, int code,
-                                absl::SourceLocation location);
+StatusBuilder MakeStatusBuilder(
+    const ErrorSpace* space, int code,
+    absl::SourceLocation location = absl::SourceLocation::current());
 
 // Creates a status based on an original_status, but enriched with additional
 // information.  The builder implicitly converts to Status and StatusOr<T>
@@ -161,7 +164,7 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // TODO: Remove this when it becomes unused.
   template <typename Enum, typename = typename std::enable_if<
                                EnumHasErrorSpace<Enum>::value>::type>
-  ABSL_DEPRECATE_AND_INLINE()
+  ABSL_DEPRECATED("Use MakeStatusBuilder instead")
   explicit StatusBuilder(Enum code, absl::SourceLocation location =
                                         absl::SourceLocation::current())
       : StatusBuilder(
@@ -180,7 +183,7 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // This constructor exists for backward compatibility and its usage will be
   // migrated to the `absl::StatusCode` constructor.
   // TODO: Remove this when it becomes unused.
-  ABSL_DEPRECATE_AND_INLINE()
+  ABSL_DEPRECATED("Use MakeStatusBuilder instead")
   explicit StatusBuilder(
       util::error::Code code,
       absl::SourceLocation location = absl::SourceLocation::current())
@@ -191,7 +194,7 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // occurs.  A typical user will not specify `location`, allowing it to default
   // to the current location.
   // TODO: Remove this when it becomes unused.
-  ABSL_DEPRECATE_AND_INLINE()
+  ABSL_DEPRECATED("Use MakeStatusBuilder instead")
   explicit StatusBuilder(
       const ErrorSpace* space, int code,
       absl::SourceLocation location = absl::SourceLocation::current())
