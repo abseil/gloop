@@ -65,6 +65,27 @@ cc_test(
 )
 
 cc_library(
+    name = "compact_reference_counted",
+    hdrs = ["compact_reference_counted.h"],
+    deps = [
+        ":reffed_ptr",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "compact_reference_counted_test",
+    srcs = ["compact_reference_counted_test.cc"],
+    deps = [
+        ":compact_reference_counted",
+        ":test_common",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "reffed_ptr",
     hdrs = ["reffed_ptr.h"],
     deps = [
@@ -90,5 +111,19 @@ cc_test(
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "test_common",
+    testonly = 1,
+    hdrs = ["test_common.h"],
+    visibility = [
+        "//visibility:private",
+    ],
+    deps = [
+        ":reffed_ptr",
+        "@gloop//gloop:enforce_gloop_support",
+        "@googletest//:gtest_for_library",
     ],
 )
