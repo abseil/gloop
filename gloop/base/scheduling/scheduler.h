@@ -131,13 +131,6 @@ class BASE_SCHEDULABLE_ALIGNAS Schedulable {
                      // thread or fiber) which may be run within the domain.
   };
 
-  static Schedulable* GetBoundSchedulable(
-      absl::base_internal::ThreadIdentity* identity) {
-    // TODO: b/495759467 - Migrate all callers of get_bound_schedulable() to
-    // this, then change ThreadIdentity to use a void* and cast the result here.
-    return identity->scheduler_state.get_bound_schedulable();
-  }
-
   // Construct a new Schedulable representing work scheduled by manager.
   // Always constructed in blocked state with no manager/managed flags_ set.
   Schedulable(Scheduler* manager, Type schedulable_type);
@@ -606,13 +599,5 @@ void Scheduler::Unref() {
 
 }  // namespace scheduling
 }  // namespace base
-
-// b/495759467
-namespace absl {
-ABSL_NAMESPACE_BEGIN
-namespace base_internal {
-using Schedulable = ::base::scheduling::Schedulable;
-}  // namespace base_internal
-}  // namespace absl
 
 #endif  // THIRD_PARTY_GLOOP_BASE_SCHEDULING_SCHEDULER_H_
