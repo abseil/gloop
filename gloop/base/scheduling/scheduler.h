@@ -132,7 +132,7 @@ class BASE_SCHEDULABLE_ALIGNAS Schedulable {
   };
 
   static Schedulable* GetBoundSchedulable(
-      absl::base_internal::ThreadIdentity* identity) {
+      const absl::base_internal::ThreadIdentity* identity) {
     // TODO: b/495759467 - Migrate all callers of get_bound_schedulable() to
     // this, then change ThreadIdentity to use a void* and cast the result here.
     return identity->scheduler_state.get_bound_schedulable();
