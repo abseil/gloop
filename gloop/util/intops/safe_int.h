@@ -115,7 +115,7 @@ class SafeIntStrongIntValidator {
     }
   }
   template <typename T>
-  static void ValidateNegate(  // Signed types only.
+  static constexpr void ValidateNegate(  // Signed types only.
       typename std::enable_if<std::numeric_limits<T>::is_signed, T>::type
           value) {
     // It T uses 2s complement, the negative max is non-negateable.
@@ -125,13 +125,13 @@ class SafeIntStrongIntValidator {
     }
   }
   template <typename T>
-  static void ValidateBitNot(  // Unsigned types only.
+  static constexpr void ValidateBitNot(  // Unsigned types only.
       typename std::enable_if<!std::numeric_limits<T>::is_signed, T>::type
           value) {
     // Do nothing.
   }
   template <typename T>
-  static void ValidateAdd(T lhs, T rhs) {
+  static constexpr void ValidateAdd(T lhs, T rhs) {
     // The same logic applies to signed and unsigned types.
     if ((rhs > 0) && (lhs > (std::numeric_limits<T>::max() - rhs))) {
       ErrorType::Error("SafeInt: overflow", lhs, rhs, "+");
@@ -140,7 +140,7 @@ class SafeIntStrongIntValidator {
     }
   }
   template <typename T>
-  static void ValidateSubtract(T lhs, T rhs) {
+  static constexpr void ValidateSubtract(T lhs, T rhs) {
     // The same logic applies to signed and unsigned types.
     if ((rhs > 0) && (lhs < (std::numeric_limits<T>::min() + rhs))) {
       ErrorType::Error("SafeInt: underflow", lhs, rhs, "-");
@@ -149,7 +149,7 @@ class SafeIntStrongIntValidator {
     }
   }
   template <typename T, typename U>
-  static void ValidateMultiply(T lhs, U rhs) {
+  static constexpr void ValidateMultiply(T lhs, U rhs) {
     if (!std::numeric_limits<T>::is_signed) {
       // Unsigned types only.
       if (rhs < 0) {
@@ -191,7 +191,7 @@ class SafeIntStrongIntValidator {
     }
   }
   template <typename T, typename U>
-  static void ValidateDivide(T lhs, U rhs) {
+  static constexpr void ValidateDivide(T lhs, U rhs) {
     // This applies to signed and unsigned types.
     if (rhs == 0) {
       ErrorType::Error("SafeInt: divide by zero", lhs, rhs, "/");
@@ -209,7 +209,7 @@ class SafeIntStrongIntValidator {
     }
   }
   template <typename T, typename U>
-  static void ValidateModulo(T lhs, U rhs) {
+  static constexpr void ValidateModulo(T lhs, U rhs) {
     // This applies to signed and unsigned types.
     if (rhs == 0) {
       ErrorType::Error("SafeInt: divide by zero", lhs, rhs, "%");
@@ -227,7 +227,7 @@ class SafeIntStrongIntValidator {
     }
   }
   template <typename T>
-  static void ValidateLeftShift(T lhs, int64_t rhs) {
+  static constexpr void ValidateLeftShift(T lhs, int64_t rhs) {
     if (std::numeric_limits<T>::is_signed) {
       // Signed types only.
       if (lhs < 0) {
@@ -246,7 +246,7 @@ class SafeIntStrongIntValidator {
     }
   }
   template <typename T>
-  static void ValidateRightShift(T lhs, int64_t rhs) {
+  static constexpr void ValidateRightShift(T lhs, int64_t rhs) {
     if (std::numeric_limits<T>::is_signed) {
       // Signed types only.
       if (lhs < 0) {
@@ -262,21 +262,21 @@ class SafeIntStrongIntValidator {
     }
   }
   template <typename T>
-  static void ValidateBitAnd(  // Unsigned types only.
+  static constexpr void ValidateBitAnd(  // Unsigned types only.
       typename std::enable_if<!std::numeric_limits<T>::is_signed, T>::type lhs,
       typename std::enable_if<!std::numeric_limits<T>::is_signed, T>::type
           rhs) {
     // Do nothing.
   }
   template <typename T>
-  static void ValidateBitOr(  // Unsigned types only.
+  static constexpr void ValidateBitOr(  // Unsigned types only.
       typename std::enable_if<!std::numeric_limits<T>::is_signed, T>::type lhs,
       typename std::enable_if<!std::numeric_limits<T>::is_signed, T>::type
           rhs) {
     // Do nothing.
   }
   template <typename T>
-  static void ValidateBitXor(  // Unsigned types only.
+  static constexpr void ValidateBitXor(  // Unsigned types only.
       typename std::enable_if<!std::numeric_limits<T>::is_signed, T>::type lhs,
       typename std::enable_if<!std::numeric_limits<T>::is_signed, T>::type
           rhs) {
@@ -314,11 +314,13 @@ struct LogDfatalOnError {
 // strong checking of under/overflow conditions.
 // The struct int_type_name ## _tag_ trickery is needed to ensure that a new
 // type is created per type_name.
-#define DEFINE_SAFE_INT_TYPE(type_name, value_type, policy_type) \
-  struct type_name##_safe_tag_ {};                               \
-  typedef ::util_intops::StrongInt<                              \
-      type_name##_safe_tag_, value_type,                         \
-      ::util_intops::SafeIntStrongIntValidator<policy_type> >    \
+#define DEFINE_SAFE_INT_TYPE(type_name, value_type, policy_type)         \
+  struct type_name##_safe_tag_ {                                         \
+    static constexpr absl::string_view TypeName() { return #type_name; } \
+  };                                                                     \
+  typedef ::util_intops::StrongInt<                                      \
+      type_name##_safe_tag_, value_type,                                 \
+      ::util_intops::SafeIntStrongIntValidator<policy_type> >            \
       type_name;
 
 #endif  // THIRD_PARTY_GLOOP_UTIL_INTOPS_SAFE_INT_H_
