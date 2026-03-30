@@ -711,6 +711,7 @@ cc_test(
         ":sysinfo",
         "//gloop/base/auxiliary:parsed_process_stat",
         "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/flags:flag",

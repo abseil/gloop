@@ -42,6 +42,7 @@
 #include <cstdint>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/optimization.h"
 #include "gloop/base/config.h"
@@ -575,7 +576,7 @@ inline void CompilerBarrier() {
 
 // Internal tsan annotations, do not use externally.
 // Required as tsan does not natively understand RSEQ.
-#ifdef THREAD_SANITIZER
+#ifdef ABSL_HAVE_THREAD_SANITIZER
 extern "C" {
 void __tsan_acquire(void* addr);
 void __tsan_release(void* addr);
@@ -587,13 +588,13 @@ void __tsan_release(void* addr);
 // which means it doesn't know about the semantics our sequences
 // enforce.  So if we're under TSAN, add barrier annotations.
 inline void TSANAcquire(void* p) {
-#ifdef THREAD_SANITIZER
+#ifdef ABSL_HAVE_THREAD_SANITIZER
   __tsan_acquire(p);
 #endif
 }
 
 inline void TSANRelease(void* p) {
-#ifdef THREAD_SANITIZER
+#ifdef ABSL_HAVE_THREAD_SANITIZER
   __tsan_release(p);
 #endif
 }

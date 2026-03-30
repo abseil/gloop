@@ -40,6 +40,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/log/flags.h"
 #include "absl/log/globals.h"
@@ -470,9 +471,9 @@ void TestProcMaps() {
     bool expect_consecutive_map_regions;
     uint64_t standard_elf_load_address;
   } kProcMapData = {
-#if defined(_GOOGLE_HARDENED_BUILD) || defined(THREAD_SANITIZER) || \
-    defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) ||      \
-    defined(__PIC__)
+#if defined(_GOOGLE_HARDENED_BUILD) || defined(ABSL_HAVE_THREAD_SANITIZER) || \
+    defined(ABSL_HAVE_ADDRESS_SANITIZER) ||                                   \
+    defined(ABSL_HAVE_MEMORY_SANITIZER) || defined(__PIC__)
       // When a build is hardened (<link>), or dynamic tools are
       // used the ELF segments are loaded under random addresses due to full
       // ASLR of the binary. Therefore, testing addresses of TEXT and BSS

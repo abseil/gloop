@@ -21,7 +21,9 @@
 //
 #include "gloop/base/percpu_types.h"
 
-#ifdef MEMORY_SANITIZER
+#include "absl/base/config.h"
+
+#ifdef ABSL_HAVE_MEMORY_SANITIZER
 #include <sanitizer/msan_interface.h>
 #endif
 

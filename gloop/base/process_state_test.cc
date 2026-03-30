@@ -479,7 +479,8 @@ TEST_F(FailureSignalHandlers, CancelRunSignalSafeOnFailureCallback2) {
   EXPECT_FALSE(callback_called_);
 }
 
-#if ADDRESS_SANITIZER || MEMORY_SANITIZER || THREAD_SANITIZER
+#if ABSL_HAVE_ADDRESS_SANITIZER || ABSL_HAVE_MEMORY_SANITIZER || \
+    ABSL_HAVE_THREAD_SANITIZER
 // Sanitizers don't allow reading of "random" stack regions.
 #else
 // From process_state.cc

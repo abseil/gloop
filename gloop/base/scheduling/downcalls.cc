@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/optimization.h"
 #include "absl/strings/string_view.h"
@@ -48,7 +49,7 @@ ABSL_ATTRIBUTE_WEAK absl::string_view InternalGetCurrentFiberName() {
 }
 }  // namespace thread
 
-#ifdef THREAD_SANITIZER
+#ifdef ABSL_HAVE_THREAD_SANITIZER
 extern "C" {
 void __tsan_acquire(void* addr);
 void __tsan_release(void* addr);
@@ -403,7 +404,7 @@ Schedulable* Downcalls::ScheduleNext(Schedulable* prev, bool runnable) {
   identity = absl::synchronization_internal::GetOrCreateCurrentThreadIdentity();
   EnterScheduleNext(identity);
 
-#ifdef THREAD_SANITIZER
+#ifdef ABSL_HAVE_THREAD_SANITIZER
   __tsan_acquire(&prev->managing_slot);  // Pairs with __tsan_release below.
 #endif
   Schedulable* managing_slot;
@@ -492,7 +493,7 @@ Schedulable* Downcalls::ScheduleNext(Schedulable* prev, bool runnable) {
     } else {
       // We were able to schedule something from our current Scheduler.
       next->managing_slot = Slot::FromSchedulable(managing_slot);
-#ifdef THREAD_SANITIZER
+#ifdef ABSL_HAVE_THREAD_SANITIZER
       __tsan_release(&next->managing_slot);  // Pairs with __tsan_acquire above.
 #endif
       if (next->type == Schedulable::kWorkItem) {
@@ -548,7 +549,7 @@ bool Downcalls::UserSchedule(bool runnable, KernelTimeout t) {
   timeout = !DomainOf(prev)->SwapOrBlockCurrent(prev, next, t);
 
   ABSL_RAW_DCHECK(IsRunnable(prev), "current not runnable");
-#if !THREAD_SANITIZER
+#if !ABSL_HAVE_THREAD_SANITIZER
   ABSL_RAW_DCHECK(prev->managing_slot != Slot::NullSlot(),
                   "current unscheduled");
 #endif
@@ -655,7 +656,8 @@ Schedulable* Downcalls::DomainObservedTimeout(Schedulable* expired) {
   return HierarchicalPostAndSchedule(expired);
 }
 
-#if defined(ADDRESS_SANITIZER) && (__GOOGLE_GRTE_VERSION__ < 20140228L)
+#if defined(ABSL_HAVE_ADDRESS_SANITIZER) && \
+    (__GOOGLE_GRTE_VERSION__ < 20140228L)
 // ASAN note:
 // When compiled as a shared library, prior to GRTEv4, the callbacks below could
 // be invoked prior to ASAN initialization being complete.
