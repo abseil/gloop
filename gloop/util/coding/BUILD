@@ -79,6 +79,23 @@ cc_library(
 )
 
 cc_test(
+    name = "coder_unittest",
+    srcs = ["coder_unittest.cc"],
+    deps = [
+        ":coding",
+        "//gloop/util/gtl:unique_array",
+        "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "bitcoding_unittest",
     size = "small",
     timeout = "moderate",
@@ -162,17 +179,40 @@ cc_test(
     ],
 )
 
-cc_test(
-    name = "coder_unittest",
-    srcs = ["coder_unittest.cc"],
+cc_library(
+    name = "shrunk-array",
+    srcs = ["shrunk-array.cc"],
+    hdrs = ["shrunk-array.h"],
+    # b/119699200 -- this file is a dependency of almost all binaries (via
+    # util/sybmolize), and the speed matters. Build it with optimization
+    # even in non-opt modes.
+    # Note: if you need to debug this file and would like to disable
+    # optimization, use --per_file_copt=util/coding@-O0.
+    copts = ["-O3"],
     deps = [
-        ":coding",
-        "//gloop/util/gtl:unique_array",
-        "//gloop/util/random:acmrandom",
+        "//gloop/base:port",
+        "//gloop/util/bits",
+        "//gloop/util/endian",
+        "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/numeric:int128",
-        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/numeric:bits",
+        "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "shrunk-array_unittest",
+    size = "small",
+    srcs = ["shrunk-array_unittest.cc"],
+    malloc = "//gloop:malloc",
+    deps = [
+        ":shrunk-array",
+        "//gloop/util/endian",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
