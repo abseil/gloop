@@ -323,6 +323,33 @@ cc_test(
 )
 
 cc_library(
+    name = "log",
+    hdrs = ["log.h"],
+    deps = [
+        ":status_builder",
+        ":status_macros",
+        "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/types:source_location",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "log_test",
+    size = "small",
+    srcs = ["log_test.cc"],
+    deps = [
+        ":log",
+        "@abseil-cpp//absl/log:scoped_mock_log",
+        "@abseil-cpp//absl/status",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "status_macros",
     srcs = ["status_macros.cc"],
     hdrs = ["status_macros.h"],
