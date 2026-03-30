@@ -432,3 +432,26 @@ cc_proto_library(
     visibility = ["//visibility:private"],
     deps = [":non_message_set_payload_proto"],
 )
+
+cc_library(
+    name = "return",
+    hdrs = ["return.h"],
+    deps = [
+        "@abseil-cpp//absl/meta:type_traits",
+        "@abseil-cpp//absl/status",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "return_test",
+    srcs = ["return_test.cc"],
+    deps = [
+        ":return",
+        ":status_macros",
+        "@abseil-cpp//absl/status",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
