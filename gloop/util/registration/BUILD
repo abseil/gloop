@@ -69,6 +69,35 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "registerer",
+    srcs = ["registerer.cc"],
+    hdrs = ["registerer.h"],
+    deps = [
+        "//gloop/util/gtl:lockfree_hashmap",
+        "//gloop/util/hash",
+        "//gloop/util/hash:transparent_hash",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "registerer_tracker",
+    srcs = ["registerer_tracker.cc"],
+    hdrs = ["registerer_tracker.h"],
+    deps = [
+        ":registerer",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+    alwayslink = 1,
+)
+
 cc_test(
     name = "static_map_test",
     size = "small",
@@ -76,6 +105,29 @@ cc_test(
     deps = [
         ":static_map",
         "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "registerer_unittest",
+    srcs = ["registerer_unittest.cc"],
+    deps = [
+        ":registerer",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:flags",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/synchronization",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
