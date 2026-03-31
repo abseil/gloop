@@ -108,15 +108,15 @@ TEST(MagicNumbers, constants) {
   CHECK_EQ(u, 0xdea713f1);
 
   if (absl::GetFlag(FLAGS_crc32c_generate_constants)) {
-    absl::PrintF("const uint64 k1 = 0x%09x;\n", k1);
-    absl::PrintF("const uint64 k2 = 0x%09x;\n", k2);
-    absl::PrintF("const uint64 k3 = 0x%09x;\n", k3);
-    absl::PrintF("const uint64 k4 = 0x%09x;\n", k4);
-    absl::PrintF("const uint64 k5 = 0x%09x;\n", k5);
-    absl::PrintF("const uint64 k6 = 0x%09x;\n", k6);
-    absl::PrintF("const uint64 k7 = 0x%09x;\n", k7);
-    absl::PrintF("const uint64 kP = 0x%09x;\n", p);
-    absl::PrintF("const uint64 kU = 0x%09x;\n", u);
+    absl::PrintF("const uint64_t k1 = 0x%09x;\n", k1);
+    absl::PrintF("const uint64_t k2 = 0x%09x;\n", k2);
+    absl::PrintF("const uint64_t k3 = 0x%09x;\n", k3);
+    absl::PrintF("const uint64_t k4 = 0x%09x;\n", k4);
+    absl::PrintF("const uint64_t k5 = 0x%09x;\n", k5);
+    absl::PrintF("const uint64_t k6 = 0x%09x;\n", k6);
+    absl::PrintF("const uint64_t k7 = 0x%09x;\n", k7);
+    absl::PrintF("const uint64_t kP = 0x%09x;\n", p);
+    absl::PrintF("const uint64_t kU = 0x%09x;\n", u);
   }
 }
 

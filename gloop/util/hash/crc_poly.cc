@@ -103,7 +103,7 @@ inline absl::uint128 FirstNBits(int n) {
 // in reversed bit order with an implict coefficient of 1 for x^n.  Result
 // is a degree n-1 polynomial with all terms represented explicitly in
 // reversed bit order.
-absl::uint128 PowerOf2Mod(uint32 k, const absl::uint128& p, uint32 n) {
+absl::uint128 PowerOf2Mod(uint32_t k, const absl::uint128& p, uint32_t n) {
   CHECK_GE(128, n);
   const absl::uint128 kOne = 1;
   if (k < n) {
@@ -127,7 +127,7 @@ absl::uint128 PowerOf2Mod(uint32 k, const absl::uint128& p, uint32 n) {
 // coefficient for x^(n-1) is at bit 0.  If k < n, return 0.  Otherwise result
 // is a degree k-n polynomial with all terms represented explicitly in with
 // highest term starting at bit 0.
-absl::uint128 PowerOf2Div(uint32 k, const absl::uint128& p, uint32 n) {
+absl::uint128 PowerOf2Div(uint32_t k, const absl::uint128& p, uint32_t n) {
   if (k < n) {
     return 0;
   }
@@ -156,7 +156,7 @@ absl::uint128 PowerOf2Div(uint32 k, const absl::uint128& p, uint32 n) {
 
 // Helper to read the next aligned chunk at ptr + offset * kChunkSize and fold
 // the current chunk to it using a given folding constant.
-inline Chunk ReadNextAndFold(const uint8* ptr, int offset, Chunk chunk,
+inline Chunk ReadNextAndFold(const uint8_t* ptr, int offset, Chunk chunk,
                              Chunk kFold) {
   const Chunk next_chunk = LoadAlignedChunk(ptr, offset * kChunkSize);
   return Z2MultiplyAndAdd(chunk, kFold) ^ next_chunk;
@@ -171,9 +171,9 @@ class CRCHWPolyMul : public Base {
   CRCHWPolyMul() {}
   virtual ~CRCHWPolyMul() {}
 
-  virtual void Extend(uint64* lo, uint64* hi, const void* bytes,
-                      int64 length) const;
-  virtual void ExtendByZeroes(uint64* lo, uint64* hi, int64 length) const;
+  virtual void Extend(uint64_t* lo, uint64_t* hi, const void* bytes,
+                      int64_t length) const;
+  virtual void ExtendByZeroes(uint64_t* lo, uint64_t* hi, int64_t length) const;
   virtual void InitTables();
 
  private:
@@ -194,14 +194,15 @@ class CRCHWPolyMul : public Base {
   static constexpr size_t kLogZeroBase = 4;
   static constexpr size_t kZeroBase = 1 << kLogZeroBase;  // must be power of 2
   static constexpr size_t kBigZeroTableRows =
-      ((sizeof(int64) * CHAR_BIT - kLogSmallZeroTableSize + kLogZeroBase - 1) /
+      ((sizeof(int64_t) * CHAR_BIT - kLogSmallZeroTableSize + kLogZeroBase -
+        1) /
        kLogZeroBase);
 
   // CRC extension for input length less than a Chunk.
-  void ExtendSmall(uint64* lo, uint64* hi, const void* bytes,
-                   int64 length) const;
+  void ExtendSmall(uint64_t* lo, uint64_t* hi, const void* bytes,
+                   int64_t length) const;
 
-  void ExtendTail(uint64* lo, uint64* hi, Chunk chunk, const uint8* bytes,
+  void ExtendTail(uint64_t* lo, uint64_t* hi, Chunk chunk, const uint8_t* bytes,
                   int length) const;
 
   // Compute a * b mod P(x).
@@ -209,7 +210,7 @@ class CRCHWPolyMul : public Base {
 
   // Compute 2^n mod P(x) in using a slow method.  This is used before the
   // zero extension tables are initialized.
-  Chunk SlowPowerOf2Remainder(int32 n) const {
+  Chunk SlowPowerOf2Remainder(int32_t n) const {
     const absl::uint128 remainder = PowerOf2Mod(n, this->poly_, this->degree_);
     CHECK_EQ(0, absl::Uint128High64(remainder));
     return ChunkFromUint64(absl::Uint128Low64(remainder));
@@ -218,16 +219,16 @@ class CRCHWPolyMul : public Base {
   // Compute 2^n mod P(x) in using a fast method.  This is used after the zero
   // extention tables are initialized.  This is used to compute folding
   // constants so the output type is CRCValue.
-  CRCValue FastPowerOf2Remainder(int32 n) const {
+  CRCValue FastPowerOf2Remainder(int32_t n) const {
     CHECK_LE(0, n);
-    const uint32 bits = n % CHAR_BIT;
-    const uint32 bytes = n / CHAR_BIT;
+    const uint32_t bits = n % CHAR_BIT;
+    const uint32_t bytes = n / CHAR_BIT;
     const Chunk r = this->ZeroExtensionFactor(bytes);
     return ChunkLow64(bits != 0 ? Z2MultiplyModP(r, bit_zero_table_[bits]) : r);
   }
 
   // Compute folding constant for 2^n.
-  uint64 FoldingConstant(int n) const {
+  uint64_t FoldingConstant(int n) const {
     // We need to subtract 1 from n owing to fact that we use bit 0 for the
     // highest term and bit 127 for the lowest.  FastPowerOf2Remainder below
     // calls Z2MultiplyAndAdd, which multiply corresponding two halves of
@@ -243,7 +244,7 @@ class CRCHWPolyMul : public Base {
     // one would expect in this convention.  It would appear that the result
     // was shifted one bit towards right (i.e. higher power).  Hence we need
     // to adjust n.
-    const uint64 folding_constant = this->FastPowerOf2Remainder(n - 1);
+    const uint64_t folding_constant = this->FastPowerOf2Remainder(n - 1);
     return folding_constant << (64 - this->degree_);
   }
 
@@ -258,7 +259,7 @@ class CRCHWPolyMul : public Base {
   // Compute a scaling factor to extend a message by number of bytes specified
   // in length.  This is effectively finding x^(legnth*8) mod P(x).  This can
   // only be used after the zero extension tables are initialized.
-  Chunk ZeroExtensionFactor(int64 length) const;
+  Chunk ZeroExtensionFactor(int64_t length) const;
 
   // Perform Barrett reduction on a polynomial R(x).
   inline Chunk BarrettReduction(Chunk r, Chunk mask, Chunk shift) const;
@@ -349,10 +350,9 @@ Chunk CRCHWPolyMul<Base, CRCValue>::Z2MultiplyModP(Chunk a, Chunk b) const {
 }
 
 template <class Base, typename CRCValue>
-void CRCHWPolyMul<Base, CRCValue>::Extend(uint64* lo, uint64* hi,
+void CRCHWPolyMul<Base, CRCValue>::Extend(uint64_t* lo, uint64_t* hi,
                                           const void* bytes,
-                                          int64 length) const {
-  compiler::PrefetchNta(bytes);
+                                          int64_t length) const {
   if (length < kSmallInputSize) {
     Base::Extend(lo, hi, bytes, length);
     return;
@@ -367,8 +367,8 @@ void CRCHWPolyMul<Base, CRCValue>::Extend(uint64* lo, uint64* hi,
   // but drop any bytes after alignment boundary so that all subsequent reads
   // are aligned.  We do not do an aligned read at the beginning because it
   // may read beyond a variable in caller and trigger an ASAN error.
-  const uint8* ptr = reinterpret_cast<const uint8*>(bytes);
-  const uint8* next_aligned = AlignPointer(ptr + kChunkSize, kChunkSize);
+  const uint8_t* ptr = reinterpret_cast<const uint8_t*>(bytes);
+  const uint8_t* next_aligned = AlignPointer(ptr + kChunkSize, kChunkSize);
   const size_t bytes_consumed = next_aligned - ptr;
   const Chunk shift =
       PrepareVariableShift((kChunkSize - bytes_consumed) * CHAR_BIT);
@@ -380,12 +380,10 @@ void CRCHWPolyMul<Base, CRCValue>::Extend(uint64* lo, uint64* hi,
 
   ptr += bytes_consumed;
   length -= bytes_consumed;
-  const uint8* const bytes_end = ptr + length;
+  const uint8_t* const bytes_end = ptr + length;
   const Chunk kZeros = ChunkFromUint64s(0, 0);
   Chunk chunk_0 = kZeros, chunk_1 = kZeros, chunk_2 = kZeros, chunk_3 = kZeros,
         chunk_4 = kZeros, chunk_5 = kZeros, chunk_6 = kZeros, chunk_7 = chunk;
-  const size_t distance =
-      length < kPrefetchDistance ? ABSL_CACHELINE_SIZE : kPrefetchDistance;
 
   const Chunk kFold8Ahead = this->kFold8Ahead_;
   const Chunk kFold4Ahead = this->kFold4Ahead_;
@@ -394,7 +392,6 @@ void CRCHWPolyMul<Base, CRCValue>::Extend(uint64* lo, uint64* hi,
     // POWER).   To maximize vector instruction issuing bandwidth, interleave
     // 8 CRC streams and merge them at end of loop.
     while (ptr <= bytes_end - 8 * kChunkSize) {
-      compiler::PrefetchNta(ptr + distance);
       chunk_0 = ReadNextAndFold(ptr, 0, chunk_0, kFold8Ahead);
       chunk_1 = ReadNextAndFold(ptr, 1, chunk_1, kFold8Ahead);
       chunk_2 = ReadNextAndFold(ptr, 2, chunk_2, kFold8Ahead);
@@ -452,21 +449,21 @@ void CRCHWPolyMul<Base, CRCValue>::Extend(uint64* lo, uint64* hi,
 }
 
 template <class Base, typename CRCValue>
-void CRCHWPolyMul<Base, CRCValue>::ExtendSmall(uint64* lo, uint64* hi,
+void CRCHWPolyMul<Base, CRCValue>::ExtendSmall(uint64_t* lo, uint64_t* hi,
                                                const void* bytes,
-                                               int64 length) const {
+                                               int64_t length) const {
   Chunk c;
-  const uint8* ptr = reinterpret_cast<const uint8*>(bytes);
+  const uint8_t* ptr = reinterpret_cast<const uint8_t*>(bytes);
 
   if (kAddressChecking) {
     // This is free of undefined behaviour but significantly slower than
     // doing a full Chunk read and zeroing the undefined parts.
     memset(&c, 0, sizeof(Chunk));
-    uint8* chunk_ptr = reinterpret_cast<uint8*>(&c) + kChunkSize - length;
+    uint8_t* chunk_ptr = reinterpret_cast<uint8_t*>(&c) + kChunkSize - length;
     memcpy(chunk_ptr, ptr, length);
   } else {
-    const uint8* aligned_ptr = AlignPointer(ptr, kChunkSize);
-    const uint8* aligned_end = AlignPointer(ptr + length - 1, kChunkSize);
+    const uint8_t* aligned_ptr = AlignPointer(ptr, kChunkSize);
+    const uint8_t* aligned_end = AlignPointer(ptr + length - 1, kChunkSize);
 
     if (aligned_ptr == aligned_end) {
       // All input in single trunk.
@@ -491,8 +488,8 @@ void CRCHWPolyMul<Base, CRCValue>::ExtendSmall(uint64* lo, uint64* hi,
 // chunk containing the reduced input and the last remaining bytes in the
 // tail that do not fit in a chunk.
 template <class Base, typename CRCValue>
-void CRCHWPolyMul<Base, CRCValue>::ExtendTail(uint64* lo, uint64* hi,
-                                              Chunk chunk, const uint8* bytes,
+void CRCHWPolyMul<Base, CRCValue>::ExtendTail(uint64_t* lo, uint64_t* hi,
+                                              Chunk chunk, const uint8_t* bytes,
                                               int length) const {
   CHECK_LT(length, kChunkSize);
 
@@ -513,7 +510,7 @@ void CRCHWPolyMul<Base, CRCValue>::ExtendTail(uint64* lo, uint64* hi,
     chunk = Z2MultiplyAndAdd(chunk, this->kPaddingZeros_);
 
   // Use base class CRC to extend remaining data in the last chunk.
-  uint64 lo_new = 0;
+  uint64_t lo_new = 0;
   if (this->degree_ > kChunkBitSize / 4) {
     if (this->degree_ != 64) {
       Base::Extend(&lo_new, hi, &chunk, kChunkSize);
@@ -531,7 +528,7 @@ void CRCHWPolyMul<Base, CRCValue>::ExtendTail(uint64* lo, uint64* hi,
     chunk ^= Z2MultiplyAndAdd(first_half, this->kFoldHalf_);
     if (this->degree_ != 32) {
       Base::Extend(&lo_new, hi,
-                   reinterpret_cast<uint8*>(&chunk) + kChunkSize / 2,
+                   reinterpret_cast<uint8_t*>(&chunk) + kChunkSize / 2,
                    kChunkSize / 2);
       *lo ^= lo_new;
     } else {
@@ -548,20 +545,20 @@ void CRCHWPolyMul<Base, CRCValue>::ExtendTail(uint64* lo, uint64* hi,
 // in length.  This is effectively finding x^(legnth*8) mod P(x).  This can
 // only be used after the zero extension tables are initialized.
 template <class Base, typename CRCValue>
-Chunk CRCHWPolyMul<Base, CRCValue>::ZeroExtensionFactor(int64 length) const {
+Chunk CRCHWPolyMul<Base, CRCValue>::ZeroExtensionFactor(int64_t length) const {
   if (length < kSmallZeroTableSize) {
     // For small input size, just look up a precomputed factor.
     return this->small_zero_table_[length];
   } else {
     // For big input size, scan bits in length and multiply scaling factors
     // for bits together.
-    constexpr int64 kOne(1);
-    constexpr int64 small_input_mask = (kOne << kLogSmallZeroTableSize) - 1;
-    const int64 small_extension = length & small_input_mask;
+    constexpr int64_t kOne(1);
+    constexpr int64_t small_input_mask = (kOne << kLogSmallZeroTableSize) - 1;
+    const int64_t small_extension = length & small_input_mask;
     Chunk multiplier = this->small_zero_table_[small_extension];
 
     // Treat top bits of length as a number in base kZeroBase.
-    uint64 z = static_cast<uint64>(length) >> kLogSmallZeroTableSize;
+    uint64_t z = static_cast<uint64_t>(length) >> kLogSmallZeroTableSize;
     for (size_t i = 0; z != 0 && i < kBigZeroTableRows; i++, z /= kZeroBase) {
       const size_t digit = z % kZeroBase;
       if (digit != 0) {
@@ -574,8 +571,8 @@ Chunk CRCHWPolyMul<Base, CRCValue>::ZeroExtensionFactor(int64 length) const {
 }
 
 template <class Base, typename CRCValue>
-void CRCHWPolyMul<Base, CRCValue>::ExtendByZeroes(uint64* lo, uint64* hi,
-                                                  int64 length) const {
+void CRCHWPolyMul<Base, CRCValue>::ExtendByZeroes(uint64_t* lo, uint64_t* hi,
+                                                  int64_t length) const {
   // Let M(x) be a message, P(x) be a polynomial of degree n,
   //     C(X) = (M(x) * x^n) mod P(x) be the current CRC and
   //     M'(x) = M(x) * x^L be input extended by L bits.
@@ -738,7 +735,7 @@ void CRCHWPolyMul<Base, CRCValue>::InitTables() {
 // Return a newly created CRCHWPolyMul object if we can use fast polynomial
 // multiplication instructions for a given polynomial.  Return nullptr
 // otherwise.
-CRCImpl* TryNewCRCHWPolyMul(uint64 lo, uint64 hi, int degree) {
+CRCImpl* TryNewCRCHWPolyMul(uint64_t lo, uint64_t hi, int degree) {
   // Check that we have the required vector instructions.
   static bool has_fast_polynomial_multiply;
   static absl::once_flag once;
@@ -748,10 +745,10 @@ CRCImpl* TryNewCRCHWPolyMul(uint64 lo, uint64 hi, int degree) {
   // Reject trivial polynomials P(x) = c to simplify code for degree >= 32.
   if (has_fast_polynomial_multiply && degree > 0) {
     if (degree <= 32) {
-      return new CRCHWPolyMul<CRC32, uint32>();
+      return new CRCHWPolyMul<CRC32, uint32_t>();
     }
     if (degree <= 64) {
-      return new CRCHWPolyMul<CRC64, uint64>();
+      return new CRCHWPolyMul<CRC64, uint64_t>();
     }
   }
 

@@ -66,7 +66,7 @@ namespace crc_internal {
 
 static const char zeroes[1 << SMALL_BITS] = {0};  // an array of zeroes
 
-constexpr int64_t kOneInt64 = 1;  // A 1 with type int64
+constexpr int64_t kOneInt64 = 1;  // A 1 with type int64_t
 
 // A table of irreducible polynomials suitable for use with the implementation.
 // Indexes 0...1 have degree 32 polynomials.

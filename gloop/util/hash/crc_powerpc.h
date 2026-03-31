@@ -71,10 +71,10 @@ inline Chunk ChunkUnpackFirstHalf(Chunk chunk) {
       vec_mergeh(kZeroes, chunk_as_vec_unsigned_int));
 }
 
-// Make a Chunk out of two uint64s. First is stored in half with lower address
-// and second in half with higher address.
-inline Chunk ChunkFromUint64s(uint64_t low, uint64_t high) {
-  const Chunk v = {high, low};
+// Make a Chunk out of two uint64s. First is stored in half with higher address
+// and second in half with lower address.
+inline Chunk ChunkFromUint64s(uint64_t high, uint64_t low) {
+  const Chunk v = {low, high};
   return v;
 }
 

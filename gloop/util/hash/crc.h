@@ -47,8 +47,8 @@
 // // prepare to do 64-bit CRCs using the default polynomial.  No rolling hash.
 // CRC *crc = CRC::Default(64, 0);
 // ...
-// uint64 lo;   // declare a lo,hi pair to hold the CRC
-// uint64 hi;
+// uint64_t lo;   // declare a lo,hi pair to hold the CRC
+// uint64_t hi;
 // crc->Empty(&lo, &hi);      // Initialize to CRC of empty string
 // crc->Extend(&lo, &hi, "hello", 5);     // Get CRC of "hello"
 // ...
@@ -56,8 +56,8 @@
 // // prepare to use a 32-bit rolling hash over 6 bytes
 // CRC *crc = CRC::Default(32, 6);
 // ...
-// uint64 lo;   // declare a lo,hi pair to hold the CRC
-// uint64 hi;
+// uint64_t lo;   // declare a lo,hi pair to hold the CRC
+// uint64_t hi;
 // crc->Empty(&lo, &hi);      // Initialize to CRC of empty string
 // crc->Extend(&lo, &hi, data, 6);     // Get CRC of first 6 bytes
 // for (int i = 6; i != sizeof (data); i++) {
