@@ -224,11 +224,11 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_REGISTRATION_FUNCTION_REGISTRY_H_
 #define THIRD_PARTY_GLOOP_UTIL_REGISTRATION_FUNCTION_REGISTRY_H_
 
+#include <concepts>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -242,18 +242,12 @@
 
 namespace util_registration {
 namespace function_registry_internal {
-
-// Type trait fallback that matches types that cannot be passed to absl::StrCat.
-template <typename T, typename = void>
-struct IsStrCatable : std::false_type {};
-
-// Type trait that matches types that can be passed to absl::StrCat.
+// IsStrCatable returns true if `T` can be converted to a string using
+// absl::StrCat.
 template <typename T>
-struct IsStrCatable<
-    T, std::enable_if_t<std::is_same_v<
-           decltype(absl::StrCat(std::declval<T>())), std::string>>>
-    : std::true_type {};
-
+concept IsStrCatable = requires(T t) {
+  { absl::StrCat(t) } -> std::same_as<std::string>;
+};
 }  // namespace function_registry_internal
 
 // A registry that maps keys of type K to functions of type Fn.
@@ -287,7 +281,7 @@ class FunctionRegistry {
     if (!insert_result.second) {
       const absl::SourceLocation& old_loc = insert_result.first->second->loc;
       std::string key_log = "key";
-      if constexpr (function_registry_internal::IsStrCatable<KeyArg>::value) {
+      if constexpr (function_registry_internal::IsStrCatable<KeyArg>) {
         key_log = absl::StrCat("key '", key, "'");
       }
       LOG(ERROR).AtLocation(loc.file_name(), loc.line())
