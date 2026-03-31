@@ -121,6 +121,32 @@ cc_test(
 )
 
 cc_library(
+    name = "env",
+    srcs = [
+        "env.cc",
+    ],
+    hdrs = ["env.h"],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "env_test",
+    srcs = ["env_test.cc"],
+    deps = [
+        ":env",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "flat_internal",
     hdrs = ["flat_internal.h"],
     visibility = [
