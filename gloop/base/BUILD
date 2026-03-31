@@ -777,6 +777,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":censushandle",
+        ":context_access",
         ":context_origin",
         ":port",
         ":sysinfo",

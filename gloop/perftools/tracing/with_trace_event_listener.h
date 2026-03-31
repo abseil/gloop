@@ -21,13 +21,10 @@
 #ifndef THIRD_PARTY_GLOOP_PERFTOOLS_TRACING_WITH_TRACE_EVENT_LISTENER_H_
 #define THIRD_PARTY_GLOOP_PERFTOOLS_TRACING_WITH_TRACE_EVENT_LISTENER_H_
 
+#include "gloop/base/context_access.h"
 #include "gloop/base/tracecontext.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
 #include "gloop/perftools/tracing/tracing_base.h"
-
-namespace base {
-class ContextAccess {};
-}  // namespace base
 
 namespace perftools::tracing {
 
@@ -80,15 +77,19 @@ class WithTraceEventListener {
 inline WithTraceEventListener::WithTraceEventListener(
     TraceEventListener* listener)
     : listener_(listener) {
+#if BASE_HAVE_TRACECONTEXT
   if (listener_) {
     TraceContext::AddTraceEventListener(base::ContextAccess(), listener_);
   }
+#endif
 }
 
 inline WithTraceEventListener::~WithTraceEventListener() {
+#if BASE_HAVE_TRACECONTEXT
   if (listener_) {
     TraceContext::RemoveTraceEventListener(base::ContextAccess(), listener_);
   }
+#endif
 }
 
 }  // namespace perftools::tracing

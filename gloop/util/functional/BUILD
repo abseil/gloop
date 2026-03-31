@@ -136,3 +136,46 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+# For only util::functional::WithContext
+cc_library(
+    name = "with_context",
+    srcs = ["with_context_internal.h"],
+    hdrs = ["with_context.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop/base:context",
+        "//gloop/perftools/tracing:trace_source_location",
+        "//gloop/perftools/tracing:tracing_base",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "with_context_test",
+    srcs = ["with_context_test.cc"],
+    deps = [
+        ":with_context",
+        "//gloop/base:context",
+        "//gloop/base:tracecontext",
+        "//gloop/perftools/tracing:mock_trace_event_listener",
+        "//gloop/perftools/tracing:tracing_base",
+        "//gloop/perftools/tracing:with_trace_event_listener",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "with_context_benchmark",
+    srcs = ["with_context_benchmark.cc"],
+    deps = [
+        ":with_context",
+        "//gloop/base:context",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)

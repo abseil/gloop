@@ -313,6 +313,7 @@ cc_library(
     deps = [
         ":trace_event_listener",
         ":tracing_base",
+        "//gloop/base:context_access",
         "//gloop/base:tracecontext",
         "@gloop//gloop:enforce_gloop_support",
     ],

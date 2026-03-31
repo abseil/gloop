@@ -148,7 +148,7 @@ class TraceContext {
   constexpr TraceContext() = default;
   explicit constexpr TraceContext(DefaultInitType) {}
   explicit TraceContext(ThreadInitType) {}
-  explicit TraceContext(const TraceContext&) {}
+  TraceContext(const TraceContext&) = default;
   explicit TraceContext(const TraceContext*) {}
   void CopyTo(TraceContext*) const {}
   friend void swap(TraceContext&, TraceContext&) noexcept {}
@@ -157,7 +157,7 @@ class TraceContext {
   base::Tracer* tracer() const { return nullptr; }
   base::Tracer* get_tracer_signal_safe() const { return nullptr; }
   void Reset() {}
-  uint64_t rpc_id() const { return 0; }
+  uint64_t rpc_id() const { return this->rpc_id_; }
   uint64_t parent_rpc_id() const { return 0; }
   uint64_t global_id() const { return 0; }
   uint32_t mask() const { return 0; }
@@ -165,6 +165,7 @@ class TraceContext {
   double inverse_sampling_probability() const { return 0; }
   void set_census_handle(const CensusHandle& h) {}
   void set_census_handle(CensusHandle&& h) {}
+  void set_rpc_id(uint64_t rpc_id) { this->rpc_id_ = rpc_id; }
   void set_status(const absl::Status&) {}
   base::ContextOrigin origin() const { return base::ContextOrigin(); }
   void set_origin(base::ContextOrigin&&) {}
@@ -191,6 +192,7 @@ class TraceContext {
 
  private:
   CensusHandle census_handle_;
+  uint64_t rpc_id_ = 0;
   friend class base::Context;
 };
 
