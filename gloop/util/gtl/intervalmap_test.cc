@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <random>
 #include <string>
 #include <utility>
 #include <vector>
@@ -1824,20 +1825,53 @@ TYPED_TEST(SpecialTypeTest, SetAndCoalesce) {
 
 }  // namespace test_specialtype_string
 
+// Creates an IntervalMap with K string-like keys. The key can be either a Cord
+// or a string.
+template <class IMap>
+static void SetupStringLikeMap(IMap* imap, int K) {
+  // Populate IntervalMap with "K" entries
+  for (int i = 0; i < K; i++) {
+    typename IMap::key_type start(absl::StrFormat("%010d", i));
+    typename IMap::key_type limit(absl::StrFormat("%010d.end", i));
+    imap->Set(start, limit, true);
+  }
+}
+
+// Measures the cost of erasing a range from an IntervalMap with string-like
+// keys. The key can be either a Cord or a string.
+template <class IMap>
+static void BM_StringLikeKeyErase(benchmark::State& state) {
+  const int arg = state.range(0);
+
+  IMap src;
+  SetupStringLikeMap(&src, arg);
+  std::vector<IMap> maps;
+  static constexpr int kBacthSize = 1000;
+  std::seed_seq seed{1, 2, 3};
+  std::mt19937 gen(seed);
+  std::uniform_int_distribution<> distrib(0, arg);
+  for (auto s : state) {
+    state.PauseTiming();
+    maps.clear();
+    maps.resize(kBacthSize, src);
+    // Choose a random start index in the range [0, arg).
+    const int start_index = distrib(gen);
+    typename IMap::key_type start(absl::StrFormat("%010d", start_index));
+    // The limit is chosen so that the deleted range is approximately 1/10th
+    // of the size of the map.
+    typename IMap::key_type limit(
+        absl::StrFormat("%010d.end", start_index + arg / 10));
+    state.ResumeTiming();
+    for (auto& map : maps) {
+      map.Erase(start, limit);
+    }
+  }
+}
+
 namespace benchmark_cord_bool {
 
 // IntervalMap types we benchmark.
 using STLSet = MapTypes<absl::Cord, bool>::STL_IMap;
-
-template <class IMap>
-static void SetupCordMap(IMap* imap, int K) {
-  // Populate IntervalMap with "K" entries
-  for (int i = 0; i < K; i++) {
-    absl::Cord start(absl::StrFormat("%010d", i));
-    absl::Cord limit(absl::StrFormat("%010d.end", i));
-    imap->Set(start, limit, true);
-  }
-}
 
 // Measure the cost of seeking into an IntervalMap with K short Cords
 template <class IMap>
@@ -1845,7 +1879,7 @@ static void BM_CordIntervalSeek(benchmark::State& state) {
   const int K = state.range(0);
 
   IMap imap;
-  SetupCordMap(&imap, K);
+  SetupStringLikeMap(&imap, K);
 
   absl::Cord key(absl::StrFormat("%010d", K / 2));
   absl::Cord start, limit;
@@ -1862,7 +1896,7 @@ static void BM_CordFindNextIterate(benchmark::State& state) {
   const int size = state.range(0);
 
   IMap imap;
-  SetupCordMap(&imap, size);
+  SetupStringLikeMap(&imap, size);
 
   absl::Cord i, start, limit;
   bool b;
@@ -1881,7 +1915,7 @@ static void BM_CordIterate(benchmark::State& state) {
   const int size = state.range(0);
 
   gtl::IntervalMap<absl::Cord, bool> imap;
-  SetupCordMap(&imap, size);
+  SetupStringLikeMap(&imap, size);
 
   gtl::IntervalMap<absl::Cord, bool>::const_iterator i = imap.begin();
   gtl::IntervalMap<absl::Cord, bool>::const_iterator end = imap.end();
@@ -1897,6 +1931,8 @@ static void BM_CordIterate(benchmark::State& state) {
   ASSERT_NE(r, 0);
 }
 BENCHMARK_TEMPLATE(BM_CordIterate, STLSet)->Range(1, 256 << 10);
+
+BENCHMARK_TEMPLATE(BM_StringLikeKeyErase, STLSet)->Range(1, 64 << 10);
 
 }  // namespace benchmark_cord_bool
 
@@ -1926,6 +1962,8 @@ static void BM_StringIntervalSeek(benchmark::State& state) {
   }
 }
 BENCHMARK_TEMPLATE(BM_StringIntervalSeek, STLSet)->Range(1, 256 << 10);
+
+BENCHMARK_TEMPLATE(BM_StringLikeKeyErase, STLSet)->Range(1, 64 << 10);
 
 }  // namespace benchmark_string_bool
 
@@ -1979,6 +2017,38 @@ static void BM_MergeFrom(benchmark::State& state) {
   ASSERT_NE(r, 0);
 }
 BENCHMARK_TEMPLATE(BM_MergeFrom, STLSet)->Range(1, 100000);
+
+template <class IMap>
+static void BM_IntKeyErase(benchmark::State& state) {
+  const int arg = state.range(0);
+
+  IMap src;
+  // We add arg non-overlapping entries.
+  for (int i = 0; i < arg; i++) {
+    src.Set(2 * i, 2 * i + 1, true);
+  }
+  CHECK_EQ(src.size(), arg);
+  std::vector<IMap> maps;
+  static constexpr int kBacthSize = 1000;
+  std::seed_seq seed{1, 2, 3};
+  std::mt19937 gen(seed);
+  std::uniform_int_distribution<> distrib(0, arg);
+  for (auto s : state) {
+    state.PauseTiming();
+    maps.clear();
+    maps.resize(kBacthSize, src);
+    // Choose a random start index in the range [0, arg).
+    const int start = distrib(gen);
+    // The limit is chosen so that the deleted range is approximately 1/10th
+    // of the size of the map.
+    const int limit = start + arg / 10;
+    state.ResumeTiming();
+    for (auto& map : maps) {
+      map.Erase(start, limit);
+    }
+  }
+}
+BENCHMARK_TEMPLATE(BM_IntKeyErase, STLSet)->Range(1, 64 << 10);
 
 }  // namespace benchmark_int_int
 
