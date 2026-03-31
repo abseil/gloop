@@ -18,8 +18,3 @@ package(
     default_applicable_licenses = ["//gloop:license"],
     default_visibility = ["//gloop/base:__subpackages__"],
 )
-
-filegroup(
-    name = "sysinfo_test_proc",
-    srcs = glob(["sysinfo_test_proc/**"]),
-)

@@ -704,7 +704,6 @@ cc_test(
     name = "sysinfo_unittest",
     size = "small",
     srcs = ["sysinfo_unittest.cc"],
-    data = ["//gloop/base/testdata:sysinfo_test_proc"],
     malloc = "//gloop:malloc",
     deps = [
         ":proc_maps",
