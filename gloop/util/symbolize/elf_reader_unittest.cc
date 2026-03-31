@@ -54,8 +54,6 @@
 #include "absl/strings/string_view.h"
 #include "gloop/base/proc_maps.h"
 #include "gloop/base/strerror.h"
-#include "gloop/util/symbolize/symbolize-inl.h"
-#include "gloop/util/symbolize/symbolize.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -65,7 +63,6 @@ using testing::ContainerEq;
 using testing::HasSubstr;
 using testing::UnorderedElementsAre;
 using util::ElfReader;
-using util::SymbolMap;
 
 ABSL_FLAG(std::string, input, "",
           "Dump symbols in the input file, if it's not empty.");
@@ -167,19 +164,5 @@ TEST(ElfReader, IgnoreVsyscall) {
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
 
-  // Dumps symbols and exits if FLAGS_input is not empty.
-  if (!absl::GetFlag(FLAGS_input).empty()) {
-    ElfReader reader(absl::GetFlag(FLAGS_input));
-    std::unique_ptr<SymbolMap> symbol_map(util::SymbolMap::GetEmpty());
-    reader.AddSymbols(symbol_map.get(), 0, 0, 0);
-
-    std::unique_ptr<SymbolMap::Iterator> iter(symbol_map->GetIterator());
-    while (!iter->done()) {
-      absl::PrintF("0x%08x 0x%08x %s\n", iter->start(), iter->size(),
-                   iter->name());
-      iter->Next();
-    }
-    return 0;
-  }
   return RUN_ALL_TESTS();
 }

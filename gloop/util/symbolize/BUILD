@@ -99,7 +99,6 @@ cc_test(
     ],
     deps = [
         ":elf_reader",
-        ":symbolize",
         "//gloop/base:proc_maps",
         "//gloop/base:strerror",
         "@abseil-cpp//absl/algorithm:container",
@@ -114,131 +113,6 @@ cc_test(
         "@abseil-cpp//absl/strings:str_format",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-    ],
-)
-
-# On an Apple OS this target will always supply empty results and fail to symbolize all addresses.
-cc_library(
-    name = "symbolize",
-    srcs = [
-        "symbolize.cc",
-        "symbolized_stacktrace.cc",
-    ],
-    hdrs = [
-        "symbolize.h",
-        "symbolize-inl.h",
-        "symbolized_stacktrace.h",
-    ],
-    copts = COPTS,
-    features = ["-use_header_modules"],
-    deps = [
-        ":demangle",
-        ":elf_reader",
-        ":symbol_map_sink",
-        "//gloop/base:arena",
-        "//gloop/base:proc_maps",
-        "//gloop/strings:util",
-        "//gloop/util/coding:shrunk-array",
-        "@abseil-cpp//absl/base",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/container:flat_hash_set",
-        "@abseil-cpp//absl/debugging:debugging_internal",
-        "@abseil-cpp//absl/debugging:stacktrace",
-        "@abseil-cpp//absl/debugging:symbolize",
-        "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/functional:any_invocable",
-        "@abseil-cpp//absl/functional:function_ref",
-        "@abseil-cpp//absl/hash",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/memory",
-        "@abseil-cpp//absl/status:statusor",
-        "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/strings:str_format",
-        "@abseil-cpp//absl/strings:string_view",
-        "@abseil-cpp//absl/types:span",
-        "@gloop//gloop:enforce_gloop_support",
-    ],
-)
-
-# We run this test twice: with and without --symbol_map_copy_names.
-# This exercises both implementation variants.
-# @unused
-_ = [cc_test(
-    name = "symbolize_unittest_" + str(t),
-    srcs = ["symbolize_unittest.cc"],
-    args = ["--symbol_map_copy_names=" + str(t)],
-    malloc = "//gloop:malloc",  # b/179154437
-    deps = [
-        ":demangle",
-        ":symbolize",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/container:node_hash_set",
-        "@abseil-cpp//absl/debugging:debugging_internal",
-        "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/memory",
-        "@abseil-cpp//absl/strings",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
-        "@tcmalloc//tcmalloc:malloc_extension",
-    ],
-) for t in [
-    True,
-    False,
-]]
-
-cc_test(
-    name = "symbolized_stacktrace_unittest",
-    srcs = ["symbolized_stacktrace_unittest.cc"],
-    deps = [
-        ":symbolize",
-        "//gloop/base:examine_stack",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/debugging:stacktrace",
-        "@abseil-cpp//absl/debugging:symbolize",
-        "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/functional:function_ref",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:flags",
-        "@abseil-cpp//absl/strings",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
-    ],
-)
-
-# Build foobar.cc with -fbasic-block-sections=all.
-cc_library(
-    name = "foobar_bbsections_all",
-    testonly = 1,
-    srcs = ["foobar.cc"],
-    hdrs = ["foobar.h"],
-    copts = ["-fbasic-block-sections=all"],
-    deps = [
-        ":symbolize",
-        "@abseil-cpp//absl/base:core_headers",
-        "@gloop//gloop:enforce_gloop_support",
-    ],
-)
-
-cc_library(
-    name = "symbolize_dlopen_with_offset_test_helper",
-    testonly = True,
-    srcs = ["symbolize_dlopen_with_offset_test_helper.cc"],
-    deps = ["@gloop//gloop:enforce_gloop_support"],
-)
-
-cc_test(
-    name = "symbolized_stacktrace_bb_sections_unittest",
-    srcs = ["symbolized_stacktrace_bb_sections_unittest.cc"],
-    deps = [
-        ":foobar_bbsections_all",
-        "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/types:span",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
