@@ -551,12 +551,13 @@ template <typename, typename = void, typename = void>
 struct Unordered : std::false_type {};
 
 template <typename T>
-struct Unordered<T, absl::void_t<typename T::hasher>> : std::true_type {};
+struct Unordered<T, std::conditional_t<true, void, typename T::hasher>>
+    : std::true_type {};
 
 template <typename T>
-struct Unordered<T, absl::void_t<typename T::hasher>,
-                 absl::void_t<typename T::reverse_iterator>> : std::false_type {
-};
+struct Unordered<T, std::conditional_t<true, void, typename T::hasher>,
+                 std::conditional_t<true, void, typename T::reverse_iterator>>
+    : std::false_type {};
 
 // TODO: Replace with the proper type trait.
 template <typename T>
