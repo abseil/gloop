@@ -23,8 +23,8 @@
 // unit test files.
 //
 
-#ifndef UTIL_RANDOM_RANDOM_BASE_TESTUTILS_H__
-#define UTIL_RANDOM_RANDOM_BASE_TESTUTILS_H__
+#ifndef THIRD_PARTY_GLOOP_UTIL_RANDOM_RANDOM_BASE_TESTUTILS_H_
+#define THIRD_PARTY_GLOOP_UTIL_RANDOM_RANDOM_BASE_TESTUTILS_H_
 
 #include "absl/base/attributes.h"
 #include "absl/flags/declare.h"
@@ -108,4 +108,4 @@ ABSL_DECLARE_FLAG(int32_t, string_test_count);
 
 void StringTest(const char* name, class RandomBase* gen);
 
-#endif  // UTIL_RANDOM_RANDOM_BASE_TESTUTILS_H__
+#endif  // THIRD_PARTY_GLOOP_UTIL_RANDOM_RANDOM_BASE_TESTUTILS_H_

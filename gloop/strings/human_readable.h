@@ -21,8 +21,8 @@
 // A collection of methods to convert back and forth between a number
 // and a human-readable string representing the number.
 
-#ifndef STRINGS_HUMAN_READABLE_H__
-#define STRINGS_HUMAN_READABLE_H__
+#ifndef THIRD_PARTY_GLOOP_STRINGS_HUMAN_READABLE_H_
+#define THIRD_PARTY_GLOOP_STRINGS_HUMAN_READABLE_H_
 
 #include <cstdint>
 #include <string>
@@ -208,4 +208,4 @@ std::string NowAndThen(absl::Time now, absl::Time then,
 
 }  // namespace strings
 
-#endif  // STRINGS_HUMAN_READABLE_H__
+#endif  // THIRD_PARTY_GLOOP_STRINGS_HUMAN_READABLE_H_

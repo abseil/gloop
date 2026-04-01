@@ -26,8 +26,8 @@
 // 4. Compact: 4 bytes of state
 // 5. Thread-compatible
 
-#ifndef UTIL_RANDOM_ACMRANDOM_H__
-#define UTIL_RANDOM_ACMRANDOM_H__
+#ifndef THIRD_PARTY_GLOOP_UTIL_RANDOM_ACMRANDOM_H_
+#define THIRD_PARTY_GLOOP_UTIL_RANDOM_ACMRANDOM_H_
 
 #include <cstdint>
 #include <random>
@@ -266,4 +266,4 @@ inline int32_t ACMRandom::Next() {
   return seed_;
 }
 
-#endif  // UTIL_RANDOM_ACMRANDOM_H__
+#endif  // THIRD_PARTY_GLOOP_UTIL_RANDOM_ACMRANDOM_H_

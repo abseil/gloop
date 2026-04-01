@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef CONCURRENT_PERCPU_OBJECT_EMULATED_H_
-#define CONCURRENT_PERCPU_OBJECT_EMULATED_H_
+#ifndef THIRD_PARTY_GLOOP_CONCURRENT_PERCPU_OBJECT_EMULATED_H_
+#define THIRD_PARTY_GLOOP_CONCURRENT_PERCPU_OBJECT_EMULATED_H_
 
 #include "absl/base/internal/cycleclock.h"
 #include "absl/base/thread_annotations.h"
@@ -82,4 +82,4 @@ class ABSL_LOCKABLE PerCpuLock {
 }  // namespace percpu
 }  // namespace concurrent
 
-#endif  // CONCURRENT_PERCPU_OBJECT_EMULATED_H_
+#endif  // THIRD_PARTY_GLOOP_CONCURRENT_PERCPU_OBJECT_EMULATED_H_

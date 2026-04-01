@@ -44,8 +44,8 @@
 // ::1.2.3.4 (compatible IPv4 embedded in IPv6) and
 // ::ffff:1.2.3.4 (mapped IPv4 embedded in IPv6) as all distinct.
 
-#ifndef NET_BASE_IPADDRESS_H__
-#define NET_BASE_IPADDRESS_H__
+#ifndef THIRD_PARTY_GLOOP_NET_BASE_IPADDRESS_H_
+#define THIRD_PARTY_GLOOP_NET_BASE_IPADDRESS_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -1760,4 +1760,4 @@ inline const in6_addr& IPAddress::Variant::get_ipv6() const {
 #undef s6_addr16
 #endif
 
-#endif  // NET_BASE_IPADDRESS_H__
+#endif  // THIRD_PARTY_GLOOP_NET_BASE_IPADDRESS_H_

@@ -18,8 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-#ifndef STRINGS_NUMBERS_TEST_COMMON_H_
-#define STRINGS_NUMBERS_TEST_COMMON_H_
+#ifndef THIRD_PARTY_GLOOP_STRINGS_NUMBERS_TEST_COMMON_H_
+#define THIRD_PARTY_GLOOP_STRINGS_NUMBERS_TEST_COMMON_H_
 
 #include <string>
 
@@ -56,4 +56,4 @@ inline bool Itoa(IntType value, int base, std::string* destination) {
 
 }  // namespace strings
 
-#endif  // STRINGS_NUMBERS_TEST_COMMON_H_
+#endif  // THIRD_PARTY_GLOOP_STRINGS_NUMBERS_TEST_COMMON_H_

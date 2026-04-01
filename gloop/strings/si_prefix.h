@@ -18,8 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-#ifndef STRINGS_SI_PREFIX_H__
-#define STRINGS_SI_PREFIX_H__
+#ifndef THIRD_PARTY_GLOOP_STRINGS_SI_PREFIX_H_
+#define THIRD_PARTY_GLOOP_STRINGS_SI_PREFIX_H_
 
 #include <optional>
 #include <string>
@@ -173,4 +173,4 @@ bool LessThan(const std::string& a, const std::string& b);
 };  // namespace si_prefix
 };  // namespace strings
 
-#endif  // STRINGS_SI_PREFIX_H__
+#endif  // THIRD_PARTY_GLOOP_STRINGS_SI_PREFIX_H_

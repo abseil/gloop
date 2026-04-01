@@ -27,8 +27,8 @@
 // stacktrace takes ~250ms. Extracting symbol information adds ~75ms
 // and is typically cached.
 
-#ifndef UTIL_SYMBOLIZE_SYMBOLIZED_STACK_WRITER_H__
-#define UTIL_SYMBOLIZE_SYMBOLIZED_STACK_WRITER_H__
+#ifndef THIRD_PARTY_GLOOP_UTIL_SYMBOLIZE_SYMBOLIZED_STACK_WRITER_H_
+#define THIRD_PARTY_GLOOP_UTIL_SYMBOLIZE_SYMBOLIZED_STACK_WRITER_H_
 
 #include <memory>
 #include <string>
@@ -108,4 +108,4 @@ class SymbolizedStackWriter : public ThreadStackWriter {
 };
 }  // namespace util
 
-#endif  // UTIL_SYMBOLIZE_SYMBOLIZED_STACK_WRITER_H__
+#endif  // THIRD_PARTY_GLOOP_UTIL_SYMBOLIZE_SYMBOLIZED_STACK_WRITER_H_

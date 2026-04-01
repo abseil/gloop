@@ -44,8 +44,8 @@
 // available implementations, and methods that generate real numbers also
 // differ from other publicly available implementations, so take care when
 // comparing with non-Google implementations.
-#ifndef UTIL_RANDOM_MT_RANDOM_H__
-#define UTIL_RANDOM_MT_RANDOM_H__
+#ifndef THIRD_PARTY_GLOOP_UTIL_RANDOM_MT_RANDOM_H_
+#define THIRD_PARTY_GLOOP_UTIL_RANDOM_MT_RANDOM_H_
 
 #include <cstdint>
 
@@ -156,4 +156,4 @@ class MTRandom : public RandomBase {
   MTContext context_;
 };
 
-#endif  // UTIL_RANDOM_MT_RANDOM_H__
+#endif  // THIRD_PARTY_GLOOP_UTIL_RANDOM_MT_RANDOM_H_

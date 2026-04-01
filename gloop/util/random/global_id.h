@@ -18,8 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-#ifndef UTIL_RANDOM_GLOBAL_ID_H__
-#define UTIL_RANDOM_GLOBAL_ID_H__
+#ifndef THIRD_PARTY_GLOOP_UTIL_RANDOM_GLOBAL_ID_H_
+#define THIRD_PARTY_GLOOP_UTIL_RANDOM_GLOBAL_ID_H_
 #include <cstdint>
 
 // NewGlobalID generates a 64bit number that's likely to be globally
@@ -59,4 +59,4 @@ void ResetPerThreadGlobalIDGenerator();
 }  // namespace random.
 }  // namespace util.
 
-#endif  // UTIL_RANDOM_GLOBAL_ID_H__
+#endif  // THIRD_PARTY_GLOOP_UTIL_RANDOM_GLOBAL_ID_H_

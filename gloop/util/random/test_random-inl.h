@@ -23,8 +23,8 @@
 // the RNGs and algorithms.  DO NOT USE in regular code.
 // The aim is to make checking algorithms against known
 // sequences easier.
-#ifndef UTIL_RANDOM_TEST_RANDOM_INL_H__
-#define UTIL_RANDOM_TEST_RANDOM_INL_H__
+#ifndef THIRD_PARTY_GLOOP_UTIL_RANDOM_TEST_RANDOM_INL_H_
+#define THIRD_PARTY_GLOOP_UTIL_RANDOM_TEST_RANDOM_INL_H_
 
 #include <cstdint>
 #include <initializer_list>
@@ -225,4 +225,4 @@ class RandDoubleSequence : public RandomBase {
 
 }  // namespace random_test
 
-#endif  // UTIL_RANDOM_TEST_RANDOM_INL_H__
+#endif  // THIRD_PARTY_GLOOP_UTIL_RANDOM_TEST_RANDOM_INL_H_

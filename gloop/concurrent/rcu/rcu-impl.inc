@@ -13,8 +13,8 @@
 // limitations under the License.
 
 // Private implementation details of RCU.
-#ifndef CONCURRENT_RCU_RCU_IMPL_INC_
-#define CONCURRENT_RCU_RCU_IMPL_INC_
+#ifndef THIRD_PARTY_GLOOP_CONCURRENT_RCU_RCU_IMPL_INC_
+#define THIRD_PARTY_GLOOP_CONCURRENT_RCU_RCU_IMPL_INC_
 
 inline constexpr Domain* AssertDomainNotNull(Domain* d) {
   return ABSL_ASSERT(d != nullptr), d;
@@ -223,4 +223,4 @@ inline Token DummyToken() {
   return Token(::base::subtle::percpu::HandleFromInt(0));
 }
 
-#endif  // CONCURRENT_RCU_RCU_IMPL_INC_
+#endif  // THIRD_PARTY_GLOOP_CONCURRENT_RCU_RCU_IMPL_INC_
