@@ -68,7 +68,7 @@ ElapsedTimer::~ElapsedTimer() {
   if (ct_.IsRunning()) {
     double elapsed = ct_.Get();
     if (elapsed > mintime_) {
-      LOG(INFO) << prefix_ << ": " << (elapsed * 1000.0) << " ms (elapsed)";
+      VLOG(1) << prefix_ << ": " << (elapsed * 1000.0) << " ms (elapsed)";
     }
   }
 }
