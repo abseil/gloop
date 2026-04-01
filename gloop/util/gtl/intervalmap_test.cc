@@ -1989,11 +1989,12 @@ static void BM_MergeSubRangeFrom(benchmark::State& state) {
   int r = 1;
   IMap src;
   for (int i = 0; i < arg; i++) {
-    src.Set(i, i + 1, true);
+    src.Set(2 * i, 2 * i + 1, true);
   }
+  CHECK_EQ(src.size(), arg);
   for (auto s : state) {
     IMap dst;
-    dst.MergeSubRangeFrom(src, 0, arg);
+    dst.MergeSubRangeFrom(src, 0, 2 * arg + 1);
     r += dst.size();
   }
   ASSERT_NE(r, 0);
@@ -2007,8 +2008,9 @@ static void BM_MergeFrom(benchmark::State& state) {
   int r = 1;
   IMap src;
   for (int i = 0; i < arg; i++) {
-    src.Set(i, i + 1, true);
+    src.Set(2 * i, 2 * i + 1, true);
   }
+  CHECK_EQ(src.size(), arg);
   for (auto s : state) {
     IMap dst;
     dst.MergeFrom(src);
