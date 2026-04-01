@@ -156,6 +156,47 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
       absl::Status&& original_status,
       absl::SourceLocation location = absl::SourceLocation::current());
 
+#ifdef ABSL_REFACTOR_INLINER_IS_RUNNING
+  // HACK: This block NEVER compiled. It is only a replacement code pattern that
+  // the inliner sees to enable it to handle absl::SourceLocation correctly
+  // without spelling it out at every call site.
+
+  // TODO: Remove this when it becomes unused.
+  template <typename Enum, typename = typename std::enable_if<
+                               EnumHasErrorSpace<Enum>::value>::type>
+  ABSL_DEPRECATE_AND_INLINE()
+  explicit StatusBuilder(Enum code)
+      : StatusBuilder(::util::MakeStatusBuilder(std::forward<Enum>(code))) {}
+
+  // TODO: Remove this when it becomes unused.
+  template <typename Enum, typename = typename std::enable_if<
+                               EnumHasErrorSpace<Enum>::value>::type>
+  ABSL_DEPRECATE_AND_INLINE()
+  explicit StatusBuilder(Enum code, absl::SourceLocation location)
+      : StatusBuilder(
+            ::util::MakeStatusBuilder(std::forward<Enum>(code), location)) {}
+
+  // TODO: Remove this when it becomes unused.
+  ABSL_DEPRECATE_AND_INLINE()
+  explicit StatusBuilder(util::error::Code code)
+      : StatusBuilder(::util::MakeStatusBuilder(code)) {}
+
+  // TODO: Remove this when it becomes unused.
+  ABSL_DEPRECATE_AND_INLINE()
+  explicit StatusBuilder(util::error::Code code, absl::SourceLocation location)
+      : StatusBuilder(::util::MakeStatusBuilder(code, location)) {}
+
+  // TODO: Remove this when it becomes unused.
+  ABSL_DEPRECATE_AND_INLINE()
+  explicit StatusBuilder(const ErrorSpace* space, int code)
+      : StatusBuilder(::util::MakeStatusBuilder(space, code)) {}
+
+  // TODO: Remove this when it becomes unused.
+  ABSL_DEPRECATE_AND_INLINE()
+  explicit StatusBuilder(const ErrorSpace* space, int code,
+                         absl::SourceLocation location)
+      : StatusBuilder(::util::MakeStatusBuilder(space, code, location)) {}
+#else
   // Creates a `StatusBuilder` from an enum code and its associated
   // `ErrorSpace`.  If logging is enabled, it will use `location` as the
   // location from which the log message occurs.  A typical user will not
@@ -169,15 +210,6 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
                                         absl::SourceLocation::current())
       : StatusBuilder(
             ::util::MakeStatusBuilder(std::forward<Enum>(code), location)) {}
-
-  // Creates a `StatusBuilder` from a status code in
-  // `util::CanonicalErrorSpace()`  If logging is enabled, it will use
-  // `location` as the location from which the log message occurs.  A typical
-  // user will not specify `location`, allowing it to default to the current
-  // location.
-  explicit StatusBuilder(
-      absl::StatusCode code,
-      absl::SourceLocation location = absl::SourceLocation::current());
 
   // DEPRECATED: Use the constructor that takes `absl::StatusCode`.
   // This constructor exists for backward compatibility and its usage will be
@@ -199,6 +231,16 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
       const ErrorSpace* space, int code,
       absl::SourceLocation location = absl::SourceLocation::current())
       : StatusBuilder(::util::MakeStatusBuilder(space, code, location)) {}
+#endif
+
+  // Creates a `StatusBuilder` from a status code in
+  // `util::CanonicalErrorSpace()`  If logging is enabled, it will use
+  // `location` as the location from which the log message occurs.  A typical
+  // user will not specify `location`, allowing it to default to the current
+  // location.
+  explicit StatusBuilder(
+      absl::StatusCode code,
+      absl::SourceLocation location = absl::SourceLocation::current());
 
   StatusBuilder(const StatusBuilder& sb);
   StatusBuilder& operator=(const StatusBuilder& sb);
