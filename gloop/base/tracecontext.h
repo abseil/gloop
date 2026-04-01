@@ -239,10 +239,9 @@ namespace perftools::tracing {
 
 void AdoptTracer(TraceContext* tc, base::Tracer* tracer);
 
-namespace testing {
-void AbandonTracer(TraceContext* tc);
+void AbandonTracerForTesting(TraceContext* tc);
+
 void AdoptTracerForTesting(TraceContext* tc, base::Tracer* tracer);
-}  // namespace testing
 class OperationTraceSpan;
 class RpcTraceSpanState;
 class SkeletalTracingAccess;
@@ -820,10 +819,10 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
   void AdoptTracer(base::Tracer* tracer);
 
   // To access AbandonTracer for testing only.
-  friend void perftools::tracing::testing::AbandonTracer(TraceContext* tc);
+  friend void perftools::tracing::AbandonTracerForTesting(TraceContext* tc);
   // To access AdoptTracer for testing only.
-  friend void perftools::tracing::testing::AdoptTracerForTesting(TraceContext*,
-                                                                 base::Tracer*);
+  friend void perftools::tracing::AdoptTracerForTesting(TraceContext*,
+                                                        base::Tracer*);
 
   // Removes this context's reference to its associated tracer, which will
   // be destroyed and freed automatically via reference counting.

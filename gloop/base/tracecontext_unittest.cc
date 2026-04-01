@@ -563,10 +563,10 @@ TEST(TraceContextTest,
 
   tc.UpdateMask(0x1, 0x0);
   ASSERT_EQ(tc.mask(), kUnusedMask | 0x1);
-  perftools::tracing::testing::AbandonTracer(&tc);
+  perftools::tracing::AbandonTracerForTesting(&tc);
   ASSERT_EQ(tc.mask(), kUnusedMask | 0x1);
 
-  perftools::tracing::testing::AbandonTracer(&copy);
+  perftools::tracing::AbandonTracerForTesting(&copy);
   ASSERT_EQ(copy.mask(), kUnusedMask | 0x1);
 }
 
@@ -591,7 +591,7 @@ TEST(TraceContextTest, TraceInitiatorId) {
   EXPECT_TRUE(copy.is_traced());
   EXPECT_EQ(copy.initiator_id(), 1234);
 
-  perftools::tracing::testing::AbandonTracer(&tc);
+  perftools::tracing::AbandonTracerForTesting(&tc);
   ASSERT_EQ(tc.mask(), kUnusedMask | 0x1);
   // No more access to Tracer, unable to retrieve initiator ID.
   EXPECT_THAT(tc.initiator_id(), testing::Eq(std::nullopt));
@@ -599,7 +599,7 @@ TEST(TraceContextTest, TraceInitiatorId) {
   // The copy still has the same Tracer attached, remembering initiator ID.
   EXPECT_EQ(copy.initiator_id(), 1234);
 
-  perftools::tracing::testing::AbandonTracer(&copy);
+  perftools::tracing::AbandonTracerForTesting(&copy);
   ASSERT_EQ(copy.mask(), kUnusedMask | 0x1);
   // No more access to Tracer, unable to retrieve initiator ID.
   EXPECT_THAT(copy.initiator_id(), testing::Eq(std::nullopt));
@@ -1649,13 +1649,13 @@ void BM_WithTraceContext(benchmark::State& state, base::Tracer* tracerA,
                          base::Tracer* tracerB) {
   TraceContext tca(1, 2, 3, 0);
   if (tracerA != nullptr) {
-    perftools::tracing::testing::AdoptTracerForTesting(&tca, tracerA);
+    perftools::tracing::AdoptTracerForTesting(&tca, tracerA);
   }
   base::WithTraceContext with_a(std::move(tca));
 
   TraceContext tcb(4, 5, 6, 0);
   if (tracerB != nullptr) {
-    perftools::tracing::testing::AdoptTracerForTesting(&tcb, tracerB);
+    perftools::tracing::AdoptTracerForTesting(&tcb, tracerB);
   }
   for (auto s : state) {
     base::WithTraceContext with_b(tcb);
