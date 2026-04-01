@@ -15,7 +15,7 @@ index edb49d0b..c16aa93d 100644
 +    commit = "8eead4aaf1eb3685921b09e4fc03a69a31e35d53",
 +)
 diff --git absl/base/BUILD.bazel absl/base/BUILD.bazel
-index 2e2630f2..0f57b452 100644
+index a0e71edb..ac359b23 100644
 --- absl/base/BUILD.bazel
 +++ absl/base/BUILD.bazel
 @@ -59,2 +59,3 @@ cc_library(
@@ -66,8 +66,8 @@ index 2e2630f2..0f57b452 100644
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
-@@ -1043,2 +1055,3 @@ cc_library(
-         "//absl:__subpackages__",
+@@ -1044,2 +1056,3 @@ cc_library(
+         "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
 diff --git absl/container/BUILD.bazel absl/container/BUILD.bazel
@@ -231,7 +231,7 @@ index 34e3d254..b058c8f3 100644
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
          "//absl:__subpackages__",
 diff --git absl/random/internal/BUILD.bazel absl/random/internal/BUILD.bazel
-index c2f2c367..0a2ee72c 100644
+index 56377ed1..c229570a 100644
 --- absl/random/internal/BUILD.bazel
 +++ absl/random/internal/BUILD.bazel
 @@ -32,2 +32,3 @@ default_package_visibility = [
@@ -239,16 +239,16 @@ index c2f2c367..0a2ee72c 100644
 +    "@do_not_use_for_gloop_visibility_only//:__subpackages__",
  ]
 diff --git absl/strings/BUILD.bazel absl/strings/BUILD.bazel
-index 6762ecda..15ce2e0f 100644
+index 27150c23..ea56cfdb 100644
 --- absl/strings/BUILD.bazel
 +++ absl/strings/BUILD.bazel
-@@ -433,3 +433,4 @@ cc_library(
+@@ -434,3 +434,4 @@ cc_library(
          "//visibility:private",
 -    ],
 +       "@do_not_use_for_gloop_visibility_only//:__subpackages__",
 +     ],
      deps = [
-@@ -1591,2 +1592,3 @@ cc_library(
+@@ -1594,2 +1595,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
