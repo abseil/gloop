@@ -218,7 +218,7 @@ TEST(util, CheckSymbolizedStackTraceConstCorrectness) {
 
 TEST(util, CurrentStackTraceWorks) {
   // ::CurrentStackTrace decorates symbols with file/line info in debug builds.
-  absl::debugging_internal::RemoveAllSymbolDecorators();
+  absl::debugging_internal::SetSymbolDecoratorFactory(nullptr);
   const auto str1 = util::CurrentStackTrace();
   VLOG(1) << "util::CurrentStackTrace\n" << str1;
   const auto str2 = CurrentStackTrace();
