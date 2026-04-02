@@ -31,3 +31,15 @@ cc_library(
         "@gloop//gloop:enforce_gloop_support",
     ],
 )
+
+cc_library(
+    name = "init_google",
+    hdrs = ["init_google.h"],
+    visibility = [
+        "//gloop/base:__pkg__",
+    ],
+    deps = [
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)

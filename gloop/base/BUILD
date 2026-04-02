@@ -26,6 +26,14 @@ load(
 )
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
+# Dependencies of //gloop/base that rely on POSIX support.
+POSIX_DEPS = [
+    ":per-thread-sem",
+    ":process_state",
+    ":signal-handler",
+    "//gloop/base/scheduling",
+]
+
 package_group(
     name = "base_implementation",
     packages = [
@@ -1161,4 +1169,103 @@ cc_test(
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
+)
+
+cc_library(
+    name = "googleinit",
+    srcs = ["googleinit.cc"],
+    hdrs = ["googleinit.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":init_google_flags",
+        ":port",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log/internal:globals",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "googleinit_unittest",
+    size = "small",
+    srcs = ["googleinit_unittest.cc"],
+    deps = [
+        ":googleinit",
+        ":init_google",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:flags",
+        "@abseil-cpp//absl/strings:str_format",
+    ],
+)
+
+cc_library(
+    name = "init_google",
+    srcs = ["init_google.cc"],
+    hdrs = ["init_google.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":config",
+        ":examine_stack",
+        ":googleinit",
+        ":init_google_flags",
+        ":spinlock",
+        ":sysinfo",
+        "//gloop/base/internal:init_google",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:base_internal",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/debugging:demangle_internal",
+        "@abseil-cpp//absl/debugging:symbolize",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/flags:program_name",
+        "@abseil-cpp//absl/flags:usage",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:initialize",
+        "@abseil-cpp//absl/log:log_sink_registry",
+        "@abseil-cpp//absl/log/internal:globals",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:enforce_gloop_support",
+        "@tcmalloc//tcmalloc:malloc_extension",
+    ] + select({
+        "@platforms//os:linux": POSIX_DEPS,
+        "//conditions:default": [],
+    }),
+)
+
+cc_test(
+    name = "init_google_test",
+    size = "small",
+    srcs = ["init_google_test.cc"],
+    deps = [
+        ":config",
+        ":init_google",
+        "//gloop/base/internal:init_google",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ] + select({
+        "//conditions:default": [":process_state"],
+    }),
 )
