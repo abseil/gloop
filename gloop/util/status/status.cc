@@ -87,6 +87,13 @@ static std::string LegacyUnredactedShortDebugString(
 
 }  // namespace
 
+class absl::status_internal::StatusPrivateAccessor {
+ public:
+  static absl::Status MakeNonOkStatusWithOkCode(absl::string_view message) {
+    return absl::Status::MakeNonOkStatusWithOkCode(message);
+  }
+};
+
 namespace util {
 
 namespace error {
@@ -233,8 +240,10 @@ absl::Status MakeStatusWithCanonicalCode(
       canonical_code.value_or(space->CanonicalCode(code));
   // Some `ErrorSpace` maps its error code to `kOk`, the resulting `Status`
   // is not `ok()` but `code() == kOk`.
-  DCHECK(inferred_canonical_code != absl::StatusCode::kOk);
-  absl::Status ret = MakeStatusInternal(inferred_canonical_code, msg, loc);
+  absl::Status ret =
+      inferred_canonical_code == absl::StatusCode::kOk
+          ? status_internal::MakeNonOkStatusWithOkCode(msg)
+          : MakeStatusInternal(inferred_canonical_code, msg, loc);
   status_internal::ErrorSpacePayload::Set(space, code, &ret);
   return ret;
 }
@@ -509,6 +518,11 @@ ErrorSpaceAndCode ErrorSpacePayload::Retrieve(const absl::Status& status) {
     }
   }
   return {util::CanonicalErrorSpace(), status.raw_code()};
+}
+
+absl::Status MakeNonOkStatusWithOkCode(absl::string_view message) {
+  return absl::status_internal::StatusPrivateAccessor::
+      MakeNonOkStatusWithOkCode(message);
 }
 
 static std::optional<std::string> PrintStatusPayload(

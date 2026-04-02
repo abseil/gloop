@@ -84,6 +84,8 @@ struct ErrorSpacePayload {
   static void Set(const ErrorSpace* space, int code, absl::Status* status);
 };
 
+absl::Status MakeNonOkStatusWithOkCode(absl::string_view message);
+
 }  // namespace status_internal
 
 const ErrorSpace* CanonicalErrorSpace();
