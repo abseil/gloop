@@ -32,7 +32,9 @@ jobs:
     runs-on: ubuntu-latest
     name: Linux (${{ matrix.config.name || matrix.config.value }})
     container:
-      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:e8964ea90c9d31b097ce639a99f82e36cdb6e4c6882fc169b11e9635b3a9f088
+      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:0b9278a22862546d2c25d730cfcb0b72d69a89adb46aabcc9b874f7ff5166d57
+      options: --shm-size=2gb --memory=6gb --memory-swap=10gb --init --ulimit core=0 --tmpfs=/tmp
+      # --privileged
       # Our images happen to be public today, but use our service account's credentials anyway in
       # case we decide to lock down access.
       credentials:
@@ -43,7 +45,7 @@ jobs:
       matrix:
         config:
           - value: opt
-          - value: dbg
+          - value: fastbuild
           - value: asan
           - value: ubsan
           - value: msan
@@ -67,16 +69,45 @@ jobs:
           repository-cache: |
             - MODULE.bazel
           google-credentials: ${{ secrets.GAR_SERVICE_ACCOUNT }}
-          bazelrc: common --remote_cache=https://storage.googleapis.com/gloop-bazel-remote-cache
+          bazelrc: common --remote_cache=https://storage.googleapis.com/gloop-bazel-remote-cache/v2
+
+      - name: addr2line hack
+        run: |
+          cp -f /opt/llvm/bin/llvm-addr2line /usr/bin/addr2line
+          cp -f /opt/llvm/bin/llvm-cxxfilt /usr/bin/c++filt
 
       - name: Run tests
-        run: bazel test ... --config=${{ matrix.config.value }}
+        run: |
+          # Background heartbeat to print Disk, RAM, and CPU usage numbers every 60s
+          (set +e; while true; do
+            echo "=== HEARTBEAT ==="
+            echo "Disk:" && df -h /
+            echo "RAM:" && (i=0; while read l && [ $i -lt 5 ]; do echo "$l"; i=$((i+1)); done < /proc/meminfo)
+            echo "Swap Stats:" && grep Swap /proc/meminfo
+            echo "CPU Load:" && cat /proc/loadavg
+            echo "Test Stack Dumps:" && for p in $(ls /proc | grep -E '^[0-9]+$'); do cmd=$(cat /proc/$p/cmdline 2>/dev/null | tr '\0' ' '); case "$cmd" in *bazel-out*) echo "PID $p Stack:" && cat /proc/$p/stack 2>/dev/null ;; esac; done
+            echo "Running Processes:" && for p in $(ls /proc | grep -E '^[0-9]+$'); do [ -f "/proc/$p/stat" ] || continue; read pid comm state ppid rest < /proc/$p/stat; cmd=$(cat /proc/$p/cmdline 2>/dev/null | tr '\0' ' '); [ -z "$cmd" ] && cmd="$comm"; threads=$(grep Threads /proc/$p/status 2>/dev/null); echo "$pid (parent $ppid) $state $cmd [$threads]"; done | head -n 50
+            sleep 5
+          done) &
+          HEARTBEAT_PID=$!
+
+          ulimit -c 0
+
+          # Batch tests to avoid running out of resources on default runner.
+          failed=0
+          bazel query 'tests(//...)' | xargs -n 300 > batches.txt
+          while read batch; do
+            echo "Running batch: $batch"
+            bazel test $batch --config=${{ matrix.config.value }} --keep_going || failed=1
+            bazel clean
+          done < batches.txt
+          exit $failed
 
   non_compilation:
     name: Check Non-compilation for ${{ matrix.config }}
     runs-on: ubuntu-latest
     container:
-      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:e8964ea90c9d31b097ce639a99f82e36cdb6e4c6882fc169b11e9635b3a9f088
+      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:0b9278a22862546d2c25d730cfcb0b72d69a89adb46aabcc9b874f7ff5166d57
       # Our images happen to be public today, but use our service account's credentials anyway in
       # case we decide to lock down access.
       credentials:
@@ -104,7 +135,7 @@ jobs:
           repository-cache: |
             - MODULE.bazel
           google-credentials: ${{ secrets.GAR_SERVICE_ACCOUNT }}
-          bazelrc: common --remote_cache=https://storage.googleapis.com/gloop-bazel-remote-cache
+          bazelrc: common --remote_cache=https://storage.googleapis.com/gloop-bazel-remote-cache/v2
 
       - name: Run tests
         run: |

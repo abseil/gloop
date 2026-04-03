@@ -67,6 +67,7 @@ cc_library(
 cc_test(
     name = "mathutil_unittest",
     srcs = ["mathutil_unittest.cc"],
+    shard_count = 16,
     deps = [
         ":mathlimits",
         ":mathutil",

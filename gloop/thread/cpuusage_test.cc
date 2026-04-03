@@ -30,6 +30,7 @@
 static void Calibrate();
 
 int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, argv);
   InitGoogle(argv[0], &argc, &argv, true);
   Calibrate();
   return RUN_ALL_TESTS();

@@ -1,6 +1,25 @@
+startup --host_jvm_args=-Xmx1g
+common --define=absl=1 # Tell gtest to use Abseil
+test --cache_test_results=no --local_test_jobs=1 --discard_analysis_cache --local_resources=memory=HOST_RAM*.3 --local_resources=cpu=HOST_CPUS*.3
+# test --spawn_strategy=local
+test  --test_sharding_strategy=disabled
+# test --test_tmpdir=/dev/shm --test_env=RLIMIT_CORE=0
+
+# Disable binary groveling during death test failures on Docker
+# test --test_arg=--symbolize_stacktrace=false
+# test --test_arg=--dump_stack_frames_limit=10
+# test --test_arg=--alarm_on_failure=true
+# test --test_arg=--stacktrace_timeout=3
+# test --test_arg=--skip_address_map=true
+# test --test_arg=--coredump_timeout=2
+
 build --cxxopt=-std=c++20 --host_cxxopt=-std=c++20
 
-test --test_output=errors --keep_going
+test --test_output=streamed --keep_going
+
+# Force a full rebuild after swapping out the C++ toolchain in our CI.
+build --copt=-DFORCE_BAZEL_CACHE_REBUILD=20260405
+build --host_copt=-DFORCE_BAZEL_CACHE_REBUILD=20260405
 
 # Gloop does not support exceptions.
 build --copt=-fno-exceptions
@@ -11,8 +30,10 @@ build --copt=-funsigned-char
 # Enable hardware-specific optimizations.
 build --copt=-march=x86-64-v2
 
-# Disable frame pointer omission to aid debugging.
+# Interacts badly with death tests and useful stack traces.
 build --copt=-fno-omit-frame-pointer
+
+build --copt=-DDISABLE_FAST_COUNTING_MUTEX
 
 # Disable warnings from dependencies.
 build --per_file_copt=-external/.*@-Wno-thread-safety-analysis,-Wno-character-conversion
@@ -30,11 +51,19 @@ build --copt=-Wno-unused-command-line-argument
 build --copt=-Wno-deprecated-volatile
 
 test --test_output=errors
+test --test_arg=--gtest_death_test_style=threadsafe # Avoids deadlocks on death tests
+test --test_arg=--gtest_death_test_use_fork=true
 
 build:dbg --compilation_mode=dbg
+build:fastbuild --compilation_mode=fastbuild --copt=-O0
 build:opt --compilation_mode=opt
 
-build:san-common --config=dbg --strip=never --copt=-Og
+# Reduce debug symbols to avoid timeouts from death tests.
+build:opt --copt=-g0
+build:fastbuild --strip=always --copt=-g0
+build:ubsan --copt=-g0
+
+build:san-common --config=dbg --strip=never --copt=-O2
 
 build:asan --config=san-common
 build:asan --//gloop:sanitizer=asan
@@ -46,9 +75,9 @@ build:ubsan --config=san-common
 build:ubsan --//gloop:sanitizer=ubsan
 build:ubsan --copt=-fsanitize=undefined --linkopt=-fsanitize=undefined
 build:ubsan --copt=-fno-sanitize=function --copt=-fno-sanitize=vptr --copt=-fno-sanitize=nonnull-attribute
+# build:ubsan --copt=-fsanitize-undefined-trap-on-error # Prevents deadlocks on death tests
 build:ubsan --copt=-D__SANITIZE_UNDEFINED__=1
-build:ubsan --copt=-O2
-test:ubsan --test_env=UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
+test:ubsan --test_env=UBSAN_OPTIONS=halt_on_error=1:abort_on_error=1:print_stacktrace=1
 test:ubsan --test_tag_filters=-nosan,-noubsan
 
 build:msan --config=san-common

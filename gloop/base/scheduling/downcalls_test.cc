@@ -186,6 +186,7 @@ TEST(Schedulable, FlagsWork) {
 }  // namespace base
 
 int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, argv);
   InitGoogle(argv[0], &argc, &argv, true);
 
   // Ensure that a ThreadIdentity is installed for all tests and benchmarks.

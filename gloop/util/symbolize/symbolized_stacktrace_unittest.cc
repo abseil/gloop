@@ -309,6 +309,7 @@ BENCHMARK(BM_UtilCurrentStackTrace);
 }  // namespace
 
 ABSL_ATTRIBUTE_NO_TAIL_CALL int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, argv);
   InitGoogle(argv[0], &argc, &argv, true);
 
   if (util::SymbolMap::GetCached().binary_is_stripped()) {

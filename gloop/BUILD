@@ -90,6 +90,9 @@ cc_library(
     ],
     deps = [
         "//gloop/base:init_google",
+        "//gloop/base:process_state",
+        "@abseil-cpp//absl/debugging:symbolize",
+        "@abseil-cpp//absl/flags:flag",
         "@gloop//gloop:enforce_gloop_support",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest_for_library",

@@ -18,18 +18,35 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+#include <sys/resource.h>
+
 #include <cstdio>
 #include <cstdlib>
 
+#include "absl/debugging/internal/symbolize.h"
+#include "absl/flags/flag.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/init_google.h"
+#include "gloop/base/process_state.h"
 #include "gtest/gtest.h"
 
 GTEST_API_ int main(int argc, char** argv) {
   printf("Running main() from %s\n", __FILE__);
+
+  // Disables core allocations for sandbox natively
+  struct rlimit limit;
+  limit.rlim_cur = 0;
+  limit.rlim_max = 0;
+  setrlimit(RLIMIT_CORE, &limit);
+
+  // Emulate Google3DeathTestChildSetup.  We should probably inject this into
+  // child processes in death tests though.
+  absl::debugging_internal::SetSymbolDecoratorFactory(nullptr);
+  absl::SetFlag(&FLAGS_suppress_failure_output, true);
+
+  testing::InitGoogleTest(&argc, argv);
   InitGoogleExceptChangeRootAndUser(/*usage=*/nullptr, &argc, &argv,
                                     /*remove_flags=*/true);
-  testing::InitGoogleTest(&argc, argv);
 
   // TODO Use benchmark::RunSpecifiedBenchmarksThenExit() once
   // the migration is complete.

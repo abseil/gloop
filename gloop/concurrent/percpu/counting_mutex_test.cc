@@ -48,6 +48,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "benchmark/benchmark.h"
+#include "gloop/base/init_google.h"
 #include "gloop/base/sysinfo.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
@@ -235,7 +236,7 @@ TEST(CountingMutexTest, WriterLockUnlock) {
 }
 
 bool WaitFor(absl::Notification& notification,
-             absl::Duration duration = absl::Minutes(1)) {
+             absl::Duration duration = absl::Seconds(20)) {
   return notification.WaitForNotificationWithTimeout(duration);
 }
 
@@ -248,7 +249,7 @@ TEST(CountingMutexTest, ConcurrentReaderLocks) {
     notification.Notify();
     mutex.unlock_shared();
   });
-  EXPECT_TRUE(WaitFor(notification));
+  EXPECT_TRUE(WaitFor(notification, absl::Seconds(5)));
   mutex.unlock_shared();
   thread.Join();
 }
@@ -264,7 +265,7 @@ TEST(CountingMutexTest, ConcurrentReaderTryLocks) {
     notification.Notify();
     if (ret) mutex.unlock_shared();
   });
-  EXPECT_TRUE(WaitFor(notification));
+  EXPECT_TRUE(WaitFor(notification, absl::Seconds(5)));
   if (ret) mutex.unlock_shared();
   thread.Join();
 }
@@ -281,7 +282,7 @@ TEST(CountingMutexTest, ReaderTryLockWithConcurrentWriterLock) {
   });
   EXPECT_FALSE(WaitFor(notification, absl::Seconds(0.5)));
   if (ret) mutex.unlock_shared();
-  EXPECT_TRUE(WaitFor(notification));
+  EXPECT_TRUE(WaitFor(notification, absl::Seconds(5)));
   thread.Join();
 }
 
@@ -296,7 +297,7 @@ TEST(CountingMutexTest, ReaderWithConcurrentWriterLock) {
   });
   EXPECT_FALSE(WaitFor(notification, absl::Seconds(0.5)));
   mutex.unlock_shared();
-  EXPECT_TRUE(WaitFor(notification));
+  EXPECT_TRUE(WaitFor(notification, absl::Seconds(5)));
   thread.Join();
 }
 
@@ -311,7 +312,7 @@ TEST(CountingMutexTest, WriterWithConcurrentReaderLock) {
   });
   EXPECT_FALSE(WaitFor(notification, absl::Seconds(1)));
   mutex.unlock();
-  EXPECT_TRUE(WaitFor(notification));
+  EXPECT_TRUE(WaitFor(notification, absl::Seconds(5)));
   thread.Join();
 }
 
@@ -325,7 +326,7 @@ TEST(CountingMutexTest, WriterWithConcurrentReaderTryLock) {
     if (ret) mutex.unlock_shared();
     notification.Notify();
   });
-  EXPECT_TRUE(WaitFor(notification));
+  EXPECT_TRUE(WaitFor(notification, absl::Seconds(5)));
   mutex.unlock();
   thread.Join();
 }
@@ -1184,6 +1185,7 @@ BENCHMARK(BM_ReaderWriter_ReaderLock<CountingMutex, kSingle>);
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
+  InitGoogle(argv[0], &argc, &argv, true);
 
   return RUN_ALL_TESTS();
 }

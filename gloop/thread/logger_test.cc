@@ -101,6 +101,7 @@ class TestLogger : public base::Logger {
 };
 
 int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, &argv);
   absl::SetFlag(&FLAGS_disable_threaded_logging, false);
 
   // Use a special logger so we can check whether it got the message.

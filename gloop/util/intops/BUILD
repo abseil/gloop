@@ -172,7 +172,7 @@ cc_test(
     size = "small",
     timeout = "long",
     srcs = ["safe_int_test.cc"],
-    shard_count = 16,
+    shard_count = 32,
     deps = [
         ":intops",
         "@gloop//gloop:gloop_test_main",

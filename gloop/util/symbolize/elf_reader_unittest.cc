@@ -166,6 +166,7 @@ TEST(ElfReader, IgnoreVsyscall) {
 }  // namespace
 
 int main(int argc, char** argv) {
+  testing::InitGoogleTest(&argc, argv);
   InitGoogle(argv[0], &argc, &argv, true);
 
   // Dumps symbols and exits if FLAGS_input is not empty.

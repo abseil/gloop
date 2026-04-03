@@ -94,6 +94,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":counting_mutex",
+        "//gloop/base:init_google",
         "//gloop/base:sysinfo",
         "//gloop/thread",
         "@abseil-cpp//absl/base:core_headers",
@@ -132,6 +133,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":counting_mutex",
+        "//gloop/base:init_google",
         "//gloop/base:percpu_disable_rseq",
         "//gloop/base:sysinfo",
         "//gloop/thread",
