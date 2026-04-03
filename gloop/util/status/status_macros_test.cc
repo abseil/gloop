@@ -832,6 +832,8 @@ ABSL_ATTRIBUTE_NOINLINE absl::Status DummyMakeStatus() {
 
 // Dummy stubs that exercise the macros to have something to dump and inspect
 // the assembly.
+// Can be dumped like:
+//  $ lldb ${BINARY} --one-line "disassemble --name ${FUNC}" --batch
 absl::Status Codegen_Control_Status_Status(int& out) {
   if (auto status = DummyMakeStatus(); ABSL_PREDICT_FALSE(!status.ok())) {
     status.AddSourceLocation(absl::SourceLocation::current());
@@ -893,6 +895,25 @@ absl::StatusOr<int> Codegen_Control_StatusOr_StatusOr() {
   }
 }
 
+absl::Status Codegen_Control_BoundsCheck(int* ptr, int a, int b) {
+  if (a < b) {
+    return absl::InternalError("");
+  }
+  *ptr = a - b;
+  return absl::OkStatus();
+}
+
+absl::Status CodegenBoundCheck(int a, int b) {
+  if (a < b) return absl::InternalError("");
+  return absl::OkStatus();
+}
+
+absl::Status Codegen_RETURN_IF_ERROR_BoundsCheck(int* ptr, int a, int b) {
+  RETURN_IF_ERROR(CodegenBoundCheck(a, b));
+  *ptr = a - b;
+  return absl::OkStatus();
+}
+
 absl::StatusOr<int> Codegen_ASSIGN_OR_RETURN_StatusOr() {
   ASSIGN_OR_RETURN(int x, DummyMakeStatusOr());
   return ~x;
@@ -926,7 +947,8 @@ int codegen_dummy =
          Codegen_RETURN_IF_ERROR_LValue, Codegen_RETURN_IF_ERROR_StatusOr,
          Codegen_Control_StatusOr_Status, Codegen_ASSIGN_OR_RETURN_Status,
          Codegen_Control_StatusOr_StatusOr, Codegen_ASSIGN_OR_RETURN_StatusOr,
-         Codegen_StatusFactories_Status, Codegen_StatusFactories_StatusOr)),
+         Codegen_StatusFactories_Status, Codegen_StatusFactories_StatusOr,
+         Codegen_Control_BoundsCheck, Codegen_RETURN_IF_ERROR_BoundsCheck)),
      1);
 
 }  // namespace
