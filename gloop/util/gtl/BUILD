@@ -780,6 +780,33 @@ cc_test(
 )
 
 cc_library(
+    name = "intrusive_heap",
+    srcs = ["intrusive_heap.cc"],
+    hdrs = ["intrusive_heap.h"],
+    deps = [
+        "@abseil-cpp//absl/log:check",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "intrusive_heap_test",
+    size = "small",
+    srcs = ["intrusive_heap_test.cc"],
+    deps = [
+        ":intrusive_heap",
+        "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/random",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "lockfree_hashmap",
     hdrs = ["lockfree_hashmap.h"],
     deps = [
