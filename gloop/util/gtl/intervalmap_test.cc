@@ -1845,27 +1845,32 @@ static void BM_StringLikeKeyErase(benchmark::State& state) {
 
   IMap src;
   SetupStringLikeMap(&src, arg);
-  std::vector<IMap> maps;
-  static constexpr int kBacthSize = 1000;
+  // Use a batch of maps to overflow the cache.
+  const int kBatchSize = std::max(1, 1000 / arg);
+  std::vector<IMap> maps(kBatchSize, src);
   std::seed_seq seed{1, 2, 3};
   std::mt19937 gen(seed);
   std::uniform_int_distribution<> distrib(0, arg);
-  for (auto s : state) {
+  int num_items_processed = 0;
+  while (state.KeepRunningBatch(kBatchSize)) {
     state.PauseTiming();
     maps.clear();
-    maps.resize(kBacthSize, src);
+    maps.resize(kBatchSize, src);
     // Choose a random start index in the range [0, arg).
     const int start_index = distrib(gen);
     typename IMap::key_type start(absl::StrFormat("%010d", start_index));
     // The limit is chosen so that the deleted range is approximately 1/10th
-    // of the size of the map.
+    // of the size of the map. Note that if the start_index is close to arg,
+    // the deleted range will be smaller.
     typename IMap::key_type limit(
         absl::StrFormat("%010d.end", start_index + arg / 10));
     state.ResumeTiming();
     for (auto& map : maps) {
       map.Erase(start, limit);
     }
+    num_items_processed += kBatchSize;
   }
+  state.SetItemsProcessed(num_items_processed);
 }
 
 namespace benchmark_cord_bool {
@@ -1881,13 +1886,21 @@ static void BM_CordIntervalSeek(benchmark::State& state) {
   IMap imap;
   SetupStringLikeMap(&imap, K);
 
+  // Use a batch of maps to overflow the cache.
+  const int kBatchSize = std::max(1, 1000 / K);
+  const std::vector<IMap> maps(kBatchSize, imap);
   absl::Cord key(absl::StrFormat("%010d", K / 2));
   absl::Cord start, limit;
   bool b;
 
-  for (auto s : state) {
-    imap.FindNext(key, &start, &limit, &b);
+  int num_items_processed = 0;
+  while (state.KeepRunningBatch(kBatchSize)) {
+    for (const auto& map : maps) {
+      map.FindNext(key, &start, &limit, &b);
+    }
+    num_items_processed += kBatchSize;
   }
+  state.SetItemsProcessed(num_items_processed);
 }
 BENCHMARK_TEMPLATE(BM_CordIntervalSeek, STLSet)->Range(1, 256 << 10);
 
@@ -1898,15 +1911,23 @@ static void BM_CordFindNextIterate(benchmark::State& state) {
   IMap imap;
   SetupStringLikeMap(&imap, size);
 
+  // Use a batch of maps to overflow the cache.
+  const int kBatchSize = std::max(1, 1000 / size);
+  const std::vector<IMap> maps(kBatchSize, imap);
   absl::Cord i, start, limit;
   bool b;
-  for (auto s : state) {
-    if (imap.FindNext(i, &start, &limit, &b)) {
-      i = limit;
-    } else {
-      i.Clear();  // Restart at front
+  int num_items_processed = 0;
+  while (state.KeepRunningBatch(kBatchSize)) {
+    for (const auto& map : maps) {
+      if (map.FindNext(i, &start, &limit, &b)) {
+        i = limit;
+      } else {
+        i.Clear();  // Restart at front
+      }
     }
+    num_items_processed += kBatchSize;
   }
+  state.SetItemsProcessed(num_items_processed);
 }
 BENCHMARK_TEMPLATE(BM_CordFindNextIterate, STLSet)->Range(1, 256 << 10);
 
@@ -1917,18 +1938,19 @@ static void BM_CordIterate(benchmark::State& state) {
   gtl::IntervalMap<absl::Cord, bool> imap;
   SetupStringLikeMap(&imap, size);
 
-  gtl::IntervalMap<absl::Cord, bool>::const_iterator i = imap.begin();
-  gtl::IntervalMap<absl::Cord, bool>::const_iterator end = imap.end();
-  int r = 0;
-  for (auto s : state) {
-    if (i == end) {
-      i = imap.begin();
-    } else {
-      r += i->start.size();
-      ++i;
+  // Use a batch of maps to overflow the cache.
+  const int kBatchSize = std::max(1, 1000 / size);
+  const std::vector<IMap> maps(kBatchSize, imap);
+  int num_items_processed = 0;
+  while (state.KeepRunningBatch(kBatchSize)) {
+    for (const auto& map : maps) {
+      for (const auto& entry : map) {
+        benchmark::DoNotOptimize(entry);
+      }
+      num_items_processed += map.size();
     }
   }
-  ASSERT_NE(r, 0);
+  state.SetItemsProcessed(num_items_processed);
 }
 BENCHMARK_TEMPLATE(BM_CordIterate, STLSet)->Range(1, 256 << 10);
 
@@ -1953,13 +1975,21 @@ static void BM_StringIntervalSeek(benchmark::State& state) {
     imap.Set(start, limit, true);
   }
 
+  // Use a batch of maps to overflow the cache.
+  const int kBatchSize = std::max(1, 1000 / K);
+  const std::vector<IMap> maps(kBatchSize, imap);
   std::string key(absl::StrFormat("%010d", K / 2));
   std::string start, limit;
   bool b;
 
-  for (auto s : state) {
-    imap.FindNext(key, &start, &limit, &b);
+  int num_items_processed = 0;
+  while (state.KeepRunningBatch(kBatchSize)) {
+    for (const auto& map : maps) {
+      map.FindNext(key, &start, &limit, &b);
+    }
+    num_items_processed += kBatchSize;
   }
+  state.SetItemsProcessed(num_items_processed);
 }
 BENCHMARK_TEMPLATE(BM_StringIntervalSeek, STLSet)->Range(1, 256 << 10);
 
@@ -1986,18 +2016,28 @@ template <class IMap>
 static void BM_MergeSubRangeFrom(benchmark::State& state) {
   const int arg = state.range(0);
 
-  int r = 1;
   IMap src;
   for (int i = 0; i < arg; i++) {
     src.Set(2 * i, 2 * i + 1, true);
   }
   CHECK_EQ(src.size(), arg);
-  for (auto s : state) {
-    IMap dst;
-    dst.MergeSubRangeFrom(src, 0, 2 * arg + 1);
-    r += dst.size();
+
+  // Use a batch of maps to overflow the cache.
+  const int kBatchSize = std::max(1, 1000 / arg);
+  std::vector<IMap> dst_maps(kBatchSize);
+  int num_items_processed = 0;
+  while (state.KeepRunningBatch(kBatchSize)) {
+    state.PauseTiming();
+    dst_maps.clear();
+    dst_maps.resize(kBatchSize);
+    state.ResumeTiming();
+    for (auto& dst : dst_maps) {
+      dst.MergeSubRangeFrom(src, 0, 2 * arg + 1);
+      num_items_processed += src.size();
+    }
   }
-  ASSERT_NE(r, 0);
+  state.SetItemsProcessed(num_items_processed);
+  ASSERT_NE(num_items_processed, 0);
 }
 BENCHMARK_TEMPLATE(BM_MergeSubRangeFrom, STLSet)->Range(1, 100000);
 
@@ -2005,18 +2045,28 @@ template <class IMap>
 static void BM_MergeFrom(benchmark::State& state) {
   const int arg = state.range(0);
 
-  int r = 1;
   IMap src;
   for (int i = 0; i < arg; i++) {
     src.Set(2 * i, 2 * i + 1, true);
   }
   CHECK_EQ(src.size(), arg);
-  for (auto s : state) {
-    IMap dst;
-    dst.MergeFrom(src);
-    r += dst.size();
+
+  // Use a batch of maps to overflow the cache.
+  const int kBatchSize = std::max(1, 1000 / arg);
+  std::vector<IMap> dst_maps(kBatchSize);
+  int num_items_processed = 0;
+  while (state.KeepRunningBatch(kBatchSize)) {
+    state.PauseTiming();
+    dst_maps.clear();
+    dst_maps.resize(kBatchSize);
+    state.ResumeTiming();
+    for (auto& dst : dst_maps) {
+      dst.MergeFrom(src);
+      num_items_processed += src.size();
+    }
   }
-  ASSERT_NE(r, 0);
+  state.SetItemsProcessed(num_items_processed);
+  ASSERT_NE(num_items_processed, 0);
 }
 BENCHMARK_TEMPLATE(BM_MergeFrom, STLSet)->Range(1, 100000);
 
@@ -2030,15 +2080,18 @@ static void BM_IntKeyErase(benchmark::State& state) {
     src.Set(2 * i, 2 * i + 1, true);
   }
   CHECK_EQ(src.size(), arg);
-  std::vector<IMap> maps;
-  static constexpr int kBacthSize = 1000;
+  // Use a batch of maps to overflow the cache.
+  const int kBatchSize = std::max(1, 1000 / arg);
+  std::vector<IMap> maps(kBatchSize, src);
   std::seed_seq seed{1, 2, 3};
   std::mt19937 gen(seed);
   std::uniform_int_distribution<> distrib(0, arg);
+  int num_items_processed = 0;
   for (auto s : state) {
     state.PauseTiming();
+    // Reset the maps.
     maps.clear();
-    maps.resize(kBacthSize, src);
+    maps.resize(kBatchSize, src);
     // Choose a random start index in the range [0, arg).
     const int start = distrib(gen);
     // The limit is chosen so that the deleted range is approximately 1/10th
@@ -2048,7 +2101,9 @@ static void BM_IntKeyErase(benchmark::State& state) {
     for (auto& map : maps) {
       map.Erase(start, limit);
     }
+    num_items_processed += kBatchSize;
   }
+  state.SetItemsProcessed(num_items_processed);
 }
 BENCHMARK_TEMPLATE(BM_IntKeyErase, STLSet)->Range(1, 64 << 10);
 
@@ -2069,19 +2124,29 @@ template <class IMap, class InputT>
 static void BM_CordSet(benchmark::State& state) {
   const int arg = state.range(0);
 
-  int64_t r = 1;
   std::vector<InputT> inputs;
   for (int i = 0; i <= arg; i++) {
     inputs.push_back(InputT(absl::StrFormat("%010d", i)));
   }
-  for (auto s : state) {
-    IMap m;
-    for (int i = 0; i < arg; i++) {
-      m.Set(GetCord(inputs[i]), GetCord(inputs[i + 1]), true);
+
+  // Use a batch of maps to overflow the cache.
+  const int kBatchSize = std::max(1, 1000 / arg);
+  std::vector<IMap> maps(kBatchSize);
+  int num_items_processed = 0;
+  while (state.KeepRunningBatch(kBatchSize)) {
+    state.PauseTiming();
+    // Reset the maps.
+    maps.clear();
+    maps.resize(kBatchSize);
+    state.ResumeTiming();
+    for (auto& map : maps) {
+      for (int i = 0; i < arg; i++) {
+        map.Set(GetCord(inputs[i]), GetCord(inputs[i + 1]), true);
+      }
+      num_items_processed += arg;
     }
-    r += m.size();
   }
-  state.SetItemsProcessed(r);
+  state.SetItemsProcessed(num_items_processed);
 }
 BENCHMARK_TEMPLATE(BM_CordSet, STLSet, absl::Cord)->Range(1, 16384);
 BENCHMARK_TEMPLATE(BM_CordSet, STLSet, std::string)->Range(1, 16384);
@@ -2090,19 +2155,28 @@ template <class IMap, class InputT>
 static void BM_CordSetNoOverlap(benchmark::State& state) {
   const int arg = state.range(0);
 
-  int64_t r = 1;
   std::vector<InputT> inputs;
   for (int i = 0; i <= arg; i++) {
     inputs.push_back(InputT(absl::StrFormat("%010d", i)));
   }
-  for (auto s : state) {
-    IMap m;
-    for (int i = 0; i < arg; i++) {
-      m.SetNoOverlap(GetCord(inputs[i]), GetCord(inputs[i + 1]), true);
+
+  // Use a batch of maps to overflow the cache.
+  const int kBatchSize = std::max(1, 1000 / arg);
+  std::vector<IMap> maps(kBatchSize);
+  int num_items_processed = 0;
+  while (state.KeepRunningBatch(kBatchSize)) {
+    state.PauseTiming();
+    maps.clear();
+    maps.resize(kBatchSize);
+    state.ResumeTiming();
+    for (auto& map : maps) {
+      for (int i = 0; i < arg; i++) {
+        map.SetNoOverlap(GetCord(inputs[i]), GetCord(inputs[i + 1]), true);
+      }
+      num_items_processed += arg;
     }
-    r += m.size();
   }
-  state.SetItemsProcessed(r);
+  state.SetItemsProcessed(num_items_processed);
 }
 BENCHMARK_TEMPLATE(BM_CordSetNoOverlap, STLSet, absl::Cord)->Range(1, 16384);
 BENCHMARK_TEMPLATE(BM_CordSetNoOverlap, STLSet, std::string)->Range(1, 16384);
@@ -2111,7 +2185,6 @@ template <class IMap>
 static void BM_CordSetManyNoOverlap(benchmark::State& state) {
   const int arg = state.range(0);
 
-  int64_t r = 1;
   std::vector<absl::Cord> cords;
   for (int i = 0; i <= arg; i++) {
     cords.push_back(absl::Cord(absl::StrFormat("%010d", i)));
@@ -2122,13 +2195,24 @@ static void BM_CordSetManyNoOverlap(benchmark::State& state) {
     entries[i].limit = cords[i + 1];
     entries[i].value = true;
   }
-  for (auto s : state) {
-    IMap m;
-    m.SetManyNoOverlap(arg, &entries[0]);
-    ASSERT_THAT(m, SizeIs(arg));
-    r += m.size();
+
+  // Use a batch of maps to overflow the cache.
+  const int kBatchSize = std::max(1, 1000 / arg);
+  std::vector<IMap> maps(kBatchSize);
+  int num_items_processed = 0;
+  while (state.KeepRunningBatch(kBatchSize)) {
+    state.PauseTiming();
+    // Reset the maps.
+    maps.clear();
+    maps.resize(kBatchSize);
+    state.ResumeTiming();
+    for (auto& map : maps) {
+      map.SetManyNoOverlap(arg, &entries[0]);
+      ASSERT_THAT(map, SizeIs(arg));
+      num_items_processed += arg;
+    }
   }
-  state.SetItemsProcessed(r);
+  state.SetItemsProcessed(num_items_processed);
 }
 BENCHMARK_TEMPLATE(BM_CordSetManyNoOverlap, STLSet)->Range(1, 16384);
 
