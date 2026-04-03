@@ -280,6 +280,26 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "getpc",
+    hdrs = ["getpc.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "getpc_test",
+    size = "small",
+    srcs = ["getpc_test.cc"],
+    tags = [
+        "notsan",  # TODO: Investigate.
+    ],
+    deps = [":getpc"],
+)
+
 # Unique Global Symbol Compliance.
 # The below targets allow shared library owners to annotate their shared library
 # targets as 'not global symbol compliant', and common library code to detect
