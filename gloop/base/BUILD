@@ -550,6 +550,34 @@ cc_test(
     ],
 )
 
+# As with heap-checker, this is always optimized.
+cc_library(
+    name = "raw_printer",
+    srcs = ["raw_printer.cc"],
+    hdrs = ["raw_printer.h"],
+    copts = ["-O3"],
+    visibility = [
+        "//gloop/base:__subpackages__",
+        "//gloop/thread:__subpackages__",
+    ],
+    deps = [
+        "@abseil-cpp//absl/strings:str_format",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "raw_printer_test",
+    srcs = ["raw_printer_test.cc"],
+    deps = [
+        ":raw_printer",
+        "@abseil-cpp//absl/base:core_headers",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "scoped_sigmask",
     hdrs = ["scoped_sigmask.h"],
