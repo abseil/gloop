@@ -936,16 +936,6 @@ class MathUtil {
     }
   }
 
-  // Clamps value to the range [low, high].  Requires low <= high.
-  // These functions are split in two to differentate between callers that pass
-  // <T> explicitly and those that don't. Those that pass it explicitly will be
-  // inlined with an explicit template parameter.
-  template <int&..., typename T>  // T models LessThanComparable.
-  ABSL_DEPRECATE_AND_INLINE() ABSL_MUST_USE_RESULT
-      static const T& Clamp(const T& low, const T& high, const T& value) {
-    return std::clamp(value, low, high);
-  }
-
   template <typename T>
   ABSL_DEPRECATE_AND_INLINE()
   ABSL_MUST_USE_RESULT
@@ -967,7 +957,7 @@ class MathUtil {
                   "MathUtil::Smoothstep arguments must be floating point type");
     DCHECK_NE(low, high);
     const FloatType x =
-        Clamp(FloatType{0}, FloatType{1}, (value - low) / (high - low));
+        std::clamp((value - low) / (high - low), FloatType{0}, FloatType{1});
     return x * x * (3 - 2 * x);
   }
 

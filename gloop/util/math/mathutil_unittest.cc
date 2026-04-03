@@ -2595,16 +2595,6 @@ TEST(MathUtil, Clamping) {
   constexpr int kLow = 7;
   constexpr int kHigh = 42;
 
-  EXPECT_EQ(33, MathUtil::Clamp(kLow, kHigh, 33));
-  EXPECT_EQ(kLow, MathUtil::Clamp(kLow, kHigh, kLow));
-  EXPECT_EQ(kHigh, MathUtil::Clamp(kLow, kHigh, kHigh));
-  EXPECT_EQ(kLow, MathUtil::Clamp(kLow, kHigh, kLow - 1));
-  EXPECT_EQ(kHigh, MathUtil::Clamp(kLow, kHigh, kHigh + 1));
-
-  EXPECT_EQ(kLow, MathUtil::Clamp(kLow, kLow, kLow - 1));
-  EXPECT_EQ(kLow, MathUtil::Clamp(kLow, kLow, kLow));
-  EXPECT_EQ(kLow, MathUtil::Clamp(kLow, kLow, kLow + 1));
-
   int result = 33;
   EXPECT_EQ(33, CallClampValue(kLow, kHigh, &result));
   result = kLow;
@@ -2629,15 +2619,6 @@ TEST(MathUtil, FloatClamping) {
   constexpr float kHigh = 42.0f;
   constexpr float kInf = std::numeric_limits<float>::infinity();
   const float kNan = std::nanf("");
-
-  EXPECT_EQ(MathUtil::Clamp(kLow, kHigh, 33.0f), 33.0f);
-  EXPECT_EQ(MathUtil::Clamp(kLow, kHigh, kLow), kLow);
-  EXPECT_EQ(MathUtil::Clamp(kLow, kHigh, kHigh), kHigh);
-  EXPECT_EQ(MathUtil::Clamp(kLow, kHigh, kLow - 1.0f), kLow);
-  EXPECT_EQ(MathUtil::Clamp(kLow, kHigh, kHigh + 1.0f), kHigh);
-  EXPECT_EQ(MathUtil::Clamp(kLow, kHigh, -kInf), kLow);
-  EXPECT_EQ(MathUtil::Clamp(kLow, kHigh, kInf), kHigh);
-  EXPECT_TRUE(std::isnan(MathUtil::Clamp(kLow, kHigh, kNan)));
 
   float result = 33.0f;
   EXPECT_EQ(CallClampValue(kLow, kHigh, &result), 33.0f);
@@ -2676,12 +2657,6 @@ class LessThanType {
 TEST(MathUtil, ClampingLessThanType) {
   const LessThanType kLow(7);
   const LessThanType kHigh(42);
-
-  EXPECT_EQ(LessThanType(33), MathUtil::Clamp(kLow, kHigh, LessThanType(33)));
-  EXPECT_EQ(kLow, MathUtil::Clamp(kLow, kHigh, kLow));
-  EXPECT_EQ(kHigh, MathUtil::Clamp(kLow, kHigh, kHigh));
-  EXPECT_EQ(kLow, MathUtil::Clamp(kLow, kHigh, LessThanType(6)));
-  EXPECT_EQ(kHigh, MathUtil::Clamp(kLow, kHigh, LessThanType(43)));
 
   LessThanType result(33);
   EXPECT_EQ(LessThanType(33), CallClampValue(kLow, kHigh, &result));
