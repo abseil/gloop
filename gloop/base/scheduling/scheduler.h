@@ -133,9 +133,9 @@ class BASE_SCHEDULABLE_ALIGNAS Schedulable {
 
   static Schedulable* GetBoundSchedulable(
       const absl::base_internal::ThreadIdentity* identity) {
-    // TODO: b/495759467 - Migrate all callers of get_bound_schedulable() to
-    // this, then change ThreadIdentity to use a void* and cast the result here.
-    return identity->scheduler_state.get_bound_schedulable();
+    return reinterpret_cast<Schedulable*>(
+        identity->scheduler_state.bound_schedulable.load(
+            std::memory_order_relaxed));
   }
 
   // Construct a new Schedulable representing work scheduled by manager.
@@ -545,7 +545,7 @@ inline void InternalDetachFiber(void* fiber) {
   auto* identity = absl::base_internal::CurrentThreadIdentityIfPresent();
   if (identity != nullptr) {
     SpinLockHolder l(*identity->scheduler_state.association_lock());
-    auto* schedulable = identity->scheduler_state.get_bound_schedulable();
+    auto* schedulable = Schedulable::GetBoundSchedulable(identity);
     if (schedulable != nullptr) {
       ABSL_RAW_DCHECK(
           schedulable->type == base::scheduling::Schedulable::kWorkItem,

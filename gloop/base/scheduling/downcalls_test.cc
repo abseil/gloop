@@ -46,8 +46,8 @@ using absl::synchronization_internal::KernelTimeout;
 
 // Avoid requiring friendship with Domain.
 static inline Schedulable* CurrentSchedulable() {
-  return absl::synchronization_internal::GetOrCreateCurrentThreadIdentity()
-      ->scheduler_state.get_bound_schedulable();
+  return Schedulable::GetBoundSchedulable(
+      absl::synchronization_internal::GetOrCreateCurrentThreadIdentity());
 }
 
 class DowncallsTestlets {

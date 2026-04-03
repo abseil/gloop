@@ -354,13 +354,12 @@ class ConditionalPotentiallyBlockingRegion {
 //------------------------------------------------------------------------------
 
 inline Schedulable* Domain::CurrentThreadSchedulable() {
-  absl::base_internal::ThreadIdentity* identity;
-  identity = absl::base_internal::CurrentThreadIdentityIfPresent();
-  if (identity) {
-    return identity->scheduler_state.get_bound_schedulable();
-  } else {
-    return nullptr;
+  absl::base_internal::ThreadIdentity* identity =
+      absl::base_internal::CurrentThreadIdentityIfPresent();
+  if (identity != nullptr) {
+    return Schedulable::GetBoundSchedulable(identity);
   }
+  return nullptr;
 }
 
 inline Domain* Domain::CurrentDomain() {
@@ -374,11 +373,16 @@ inline void Domain::StartPotentiallyBlockingRegion() {
   // transmogrify.
   //
   // To be cooperative we must have both an identity and a bound schedulable.
-  absl::base_internal::ThreadIdentity* identity;
-  identity = absl::base_internal::CurrentThreadIdentityIfPresent();
-  if (identity == nullptr) return;
-  Schedulable* current = identity->scheduler_state.get_bound_schedulable();
-  if (current == nullptr) return;
+  absl::base_internal::ThreadIdentity* identity =
+      absl::base_internal::CurrentThreadIdentityIfPresent();
+  if (identity == nullptr) {
+    return;
+  }
+
+  Schedulable* current = Schedulable::GetBoundSchedulable(identity);
+  if (current == nullptr) {
+    return;
+  }
 
   // Handle nested blocking regions; only increment depth.
   if (identity->scheduler_state.potentially_blocking_depth++) {
@@ -398,11 +402,16 @@ inline void Domain::StartPotentiallyBlockingRegion() {
 
 inline void Domain::FinishPotentiallyBlockingRegion() {
   // To be cooperative we must have both an identity and a bound schedulable.
-  absl::base_internal::ThreadIdentity* identity;
-  identity = absl::base_internal::CurrentThreadIdentityIfPresent();
-  if (identity == nullptr) return;
-  Schedulable* current = identity->scheduler_state.get_bound_schedulable();
-  if (current == nullptr) return;
+  absl::base_internal::ThreadIdentity* identity =
+      absl::base_internal::CurrentThreadIdentityIfPresent();
+  if (identity == nullptr) {
+    return;
+  }
+
+  Schedulable* current = Schedulable::GetBoundSchedulable(identity);
+  if (current == nullptr) {
+    return;
+  }
 
   // Handle nested blocking regions; only decrement depth.
   if (--identity->scheduler_state.potentially_blocking_depth) {

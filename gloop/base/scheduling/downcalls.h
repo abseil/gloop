@@ -202,13 +202,15 @@ class Downcalls {
 //------------------------------------------------------------------------------
 
 inline bool Downcalls::CurrentThreadIsCooperative() {
-  absl::base_internal::ThreadIdentity* identity;
-  identity = absl::base_internal::CurrentThreadIdentityIfPresent();
+  absl::base_internal::ThreadIdentity* identity =
+      absl::base_internal::CurrentThreadIdentityIfPresent();
 
   // We may only co-operatively schedule if we're not already below an entry
   // point to the scheduling code.
   // TODO: Move to low-level-support.h and make more consistent.
-  return identity && identity->scheduler_state.get_bound_schedulable() &&
+  return identity != nullptr &&
+         identity->scheduler_state.bound_schedulable.load(
+             std::memory_order_relaxed) &&
          identity->scheduler_state.scheduling_disabled_depth.load(
              std::memory_order_relaxed) == 0;
 }

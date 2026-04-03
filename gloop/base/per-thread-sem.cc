@@ -89,14 +89,14 @@ void ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemPost)(
     absl::base_internal::ThreadIdentity* identity) {
   // We use careful double-checked locking to avoid requiring the association
   // lock for non-cooperative threads.
-  if (identity->scheduler_state.get_bound_schedulable()) {
+  if (base::scheduling::Schedulable::GetBoundSchedulable(identity) != nullptr) {
     SpinLockHolder l(*identity->scheduler_state.association_lock());
     // Holding the association lock guarantees a consistent read of the thread's
     // bound schedulable (nullptr for non-cooperative threads).  This
     // synchronization is required in the presence of imprecise wake-ups as
     // only the ThreadIdentity object is guaranteed persistent lifetime.
-    base::scheduling::Schedulable* schedulable;
-    schedulable = identity->scheduler_state.get_bound_schedulable();
+    base::scheduling::Schedulable* schedulable =
+        base::scheduling::Schedulable::GetBoundSchedulable(identity);
     if (schedulable != nullptr) {
       base::scheduling::Downcalls::Post(schedulable);
       return;
@@ -109,8 +109,8 @@ void ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemPost)(
 ABSL_ATTRIBUTE_UNUSED bool ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemWait)(
     absl::synchronization_internal::KernelTimeout t) {
   bool timeout = false;
-  absl::base_internal::ThreadIdentity* identity;
-  identity = absl::synchronization_internal::GetOrCreateCurrentThreadIdentity();
+  absl::base_internal::ThreadIdentity* identity =
+      absl::synchronization_internal::GetOrCreateCurrentThreadIdentity();
 
   // Ensure wait_start != 0.
   int ticker = identity->ticker.load(std::memory_order_relaxed);
@@ -122,7 +122,7 @@ ABSL_ATTRIBUTE_UNUSED bool ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemWait)(
     identity->blocked_count_ptr->fetch_add(1, std::memory_order_relaxed);
   }
 
-  if (identity->scheduler_state.get_bound_schedulable()) {
+  if (base::scheduling::Schedulable::GetBoundSchedulable(identity) != nullptr) {
     // We do not require the association lock when blocking as no other thread
     // has the right to modify this field.
     timeout = !base::scheduling::Downcalls::Wait(t);

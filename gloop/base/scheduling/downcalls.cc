@@ -301,7 +301,7 @@ inline Schedulable* Downcalls::LeaveScheduleNext(
     // ourselves.  When this occurs we always specify that we return ourselves
     // as scheduled.  This is translated at [2].
     if (result != nullptr &&
-        result == identity->scheduler_state.get_bound_schedulable()) {
+        result == Schedulable::GetBoundSchedulable(identity)) {
       *state |= kScheduleNextPickedSelf;
       result = nullptr;
     }
