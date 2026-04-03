@@ -52,6 +52,7 @@ cc_library(
     name = "address_is_readable",
     hdrs = ["address_is_readable.h"],
     visibility = [
+        "//gloop/thread:__pkg__",
     ],
     deps = [
         "@abseil-cpp//absl/debugging:debugging_internal",
@@ -340,6 +341,71 @@ cc_library(
         "@gloop//gloop:enforce_gloop_support",
     ],
     alwayslink = 1,
+)
+
+cc_library(
+    name = "linux_syscall_support",
+    hdrs = ["linux_syscall_support.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop/base/auxiliary:syscall_linux",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "linux_syscall_support_unittest",
+    size = "small",
+    srcs = ["linux_syscall_support_unittest.cc"],
+    features = [
+        "-leak_sanitize",
+    ],
+    linkstatic = 1,
+    # Can't use lsan, therefore bypass lsan malloc (see <link>).
+    malloc = "//gloop:malloc",
+    tags = [
+        "notsan",  # TODO: Investigate.
+    ],
+    deps = [
+        ":linux_syscall_support",
+        ":linux_syscall_support_unittest_helper",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:flags",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "linux_syscall_support_unittest_helper",
+    srcs = ["linux_syscall_support_unittest_helper.cc"],
+    hdrs = ["linux_syscall_support_unittest_helper.h"],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
+)
+
+# Test for sanitizer call backs by linux_syscall_support.h functions.
+cc_test(
+    name = "linux_syscall_support_hooks_unittest",
+    size = "small",
+    srcs = [
+        # We redefine stuff before including this.
+        "linux_syscall_support.h",
+        "linux_syscall_support_hooks_unittest.cc",
+    ],
+    tags = [
+        "noasan",
+        "nomsan",
+        "notsan",
+    ],
+    deps = [
+        "//gloop/base/auxiliary:syscall_linux",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
 )
 
 cc_library(
@@ -905,6 +971,7 @@ cc_library(
         "@abseil-cpp//absl/log/internal:globals",
         "@abseil-cpp//absl/strings:string_view",
         "@gloop//gloop:enforce_gloop_support",
+        "@gloop//gloop/base:signal-handler",
     ],
 )
 

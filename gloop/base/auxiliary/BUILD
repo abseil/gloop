@@ -54,3 +54,21 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "syscall_linux",
+    hdrs = [
+        "linux_syscall_support_sanitizer.inc",
+        "syscall_linux_aarch64.inc",
+        "syscall_linux_arm.inc",
+        "syscall_linux_riscv.inc",
+        "syscall_linux_x86.inc",
+        "syscall_linux_x86_64.inc",
+    ],
+    visibility = [
+        "//gloop/base:__subpackages__",
+        "@gloop//gloop/base:__pkg__",
+        "@gloop//gloop/base/auxiliary:__subpackages__",
+    ],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
+)
