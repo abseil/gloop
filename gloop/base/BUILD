@@ -1317,3 +1317,34 @@ cc_test(
         "//conditions:default": [":process_state"],
     }),
 )
+
+cc_library(
+    name = "nsscache",
+    srcs = ["nsscache.cc"],
+    hdrs = ["nsscache.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/debugging:leak_check",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "nsscache_unittest",
+    size = "medium",
+    srcs = [
+        "nsscache_unittest.cc",
+    ],
+    deps = [
+        ":nsscache",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
