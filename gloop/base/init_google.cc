@@ -333,6 +333,11 @@ static void InitializeSanitizers() {}  // No-op without sanitizers
 // dependency from base to protobuf.
 extern "C" ABSL_ATTRIBUTE_WEAK void RegisterCpuProfiler() {}
 
+// Initializes on demand wall profiling configured by the --wall_profile flag.
+// The implementation is weakly provided by
+// //gloop/util/profiling/wallprofiler.cc.
+extern "C" ABSL_ATTRIBUTE_WEAK void RegisterWallProfiler() {}
+
 // Try to syslog() on program start-up.  We collect these logs to
 // identify used (vs obsolete) binaries.
 static void MaybeSyslogOnStart() {
@@ -494,6 +499,9 @@ static void RealInitGoogle(absl::string_view usage, int* argc, char*** argv,
   RegisterCpuProfiler();
 
 #endif  // BASE_HAVE_CPU_PROFILER
+
+  // Initialize on demand wall profiling, see comment to RegisterWallProfiler.
+  RegisterWallProfiler();
 
   // Run registered initializers
   RUN_MODULE_INITIALIZERS();
