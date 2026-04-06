@@ -265,67 +265,67 @@ std::ostream& operator<<(std::ostream& os, StatusBuilder&& builder) {
 }
 
 StatusBuilder AbortedErrorBuilder(absl::SourceLocation location) {
-  return StatusBuilder(error::ABORTED, location);
+  return util::MakeStatusBuilder(error::ABORTED, location);
 }
 
 StatusBuilder AlreadyExistsErrorBuilder(absl::SourceLocation location) {
-  return StatusBuilder(error::ALREADY_EXISTS, location);
+  return util::MakeStatusBuilder(error::ALREADY_EXISTS, location);
 }
 
 StatusBuilder CancelledErrorBuilder(absl::SourceLocation location) {
-  return StatusBuilder(error::CANCELLED, location);
+  return util::MakeStatusBuilder(error::CANCELLED, location);
 }
 
 StatusBuilder DataLossErrorBuilder(absl::SourceLocation location) {
-  return StatusBuilder(error::DATA_LOSS, location);
+  return util::MakeStatusBuilder(error::DATA_LOSS, location);
 }
 
 StatusBuilder DeadlineExceededErrorBuilder(absl::SourceLocation location) {
-  return StatusBuilder(error::DEADLINE_EXCEEDED, location);
+  return util::MakeStatusBuilder(error::DEADLINE_EXCEEDED, location);
 }
 
 StatusBuilder FailedPreconditionErrorBuilder(absl::SourceLocation location) {
-  return StatusBuilder(error::FAILED_PRECONDITION, location);
+  return util::MakeStatusBuilder(error::FAILED_PRECONDITION, location);
 }
 
 StatusBuilder InternalErrorBuilder(absl::SourceLocation location) {
-  return StatusBuilder(error::INTERNAL, location);
+  return util::MakeStatusBuilder(error::INTERNAL, location);
 }
 
 StatusBuilder InvalidArgumentErrorBuilder(absl::SourceLocation location) {
-  return StatusBuilder(error::INVALID_ARGUMENT, location);
+  return util::MakeStatusBuilder(error::INVALID_ARGUMENT, location);
 }
 
 StatusBuilder NotFoundErrorBuilder(absl::SourceLocation location) {
-  return StatusBuilder(error::NOT_FOUND, location);
+  return util::MakeStatusBuilder(error::NOT_FOUND, location);
 }
 
 StatusBuilder OutOfRangeErrorBuilder(absl::SourceLocation location) {
-  return StatusBuilder(error::OUT_OF_RANGE, location);
+  return util::MakeStatusBuilder(error::OUT_OF_RANGE, location);
 }
 
 StatusBuilder PermissionDeniedErrorBuilder(absl::SourceLocation location) {
-  return StatusBuilder(error::PERMISSION_DENIED, location);
+  return util::MakeStatusBuilder(error::PERMISSION_DENIED, location);
 }
 
 StatusBuilder UnauthenticatedErrorBuilder(absl::SourceLocation location) {
-  return StatusBuilder(error::UNAUTHENTICATED, location);
+  return util::MakeStatusBuilder(error::UNAUTHENTICATED, location);
 }
 
 StatusBuilder ResourceExhaustedErrorBuilder(absl::SourceLocation location) {
-  return StatusBuilder(error::RESOURCE_EXHAUSTED, location);
+  return util::MakeStatusBuilder(error::RESOURCE_EXHAUSTED, location);
 }
 
 StatusBuilder UnavailableErrorBuilder(absl::SourceLocation location) {
-  return StatusBuilder(error::UNAVAILABLE, location);
+  return util::MakeStatusBuilder(error::UNAVAILABLE, location);
 }
 
 StatusBuilder UnimplementedErrorBuilder(absl::SourceLocation location) {
-  return StatusBuilder(error::UNIMPLEMENTED, location);
+  return util::MakeStatusBuilder(error::UNIMPLEMENTED, location);
 }
 
 StatusBuilder UnknownErrorBuilder(absl::SourceLocation location) {
-  return StatusBuilder(error::UNKNOWN, location);
+  return util::MakeStatusBuilder(error::UNKNOWN, location);
 }
 
 }  // namespace util
