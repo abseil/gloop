@@ -788,8 +788,13 @@ class ElfReaderImpl {
             (sec >= SHN_LORESERVE && sec <= SHN_HIRESERVE)) {
           continue;
         }
+        if (sec >= num_sections) {
+          LOG(ERROR) << "Ignoring symbol @"
+                     << reinterpret_cast<void*>(sym->st_value)
+                     << " due to bogus section index " << sec;
+          continue;
+        }
 
-        CHECK_LT(sec, num_sections);
         const typename ElfArch::Shdr& hdr = section_headers_[sec];
 
         // Adjust for difference between where we expected to mmap
