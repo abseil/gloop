@@ -29,7 +29,6 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "gloop/base/callback.h"
-#include "gloop/base/context.h"
 
 namespace util {
 namespace callback {
@@ -53,15 +52,13 @@ enum {
 // All uses of the constructor are via New() to ensure that all instances are
 // heap-allocated and reference-counted.
 CancellableClosure::CancellableClosure(Closure* wrapped_cl)
-    : Closure(::base::Context::kThread),
-      refcount_(2),  // internal extra refcount for invocation of Run()
+    : refcount_(2),  // internal extra refcount for invocation of Run()
       state_(STATE_NOT_YET_CALLED),
       wrapped_cl_(wrapped_cl) {}
 
 CancellableClosure::~CancellableClosure() {}
 
 /*static*/ CancellableClosure* CancellableClosure::New(Closure* wrapped_cl) {
-  base::WithContext wc(*(wrapped_cl->context_ptr()));
   return new CancellableClosure(wrapped_cl);
 }
 
