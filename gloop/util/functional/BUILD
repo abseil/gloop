@@ -151,6 +151,19 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "callable_once",
+    srcs = ["callable_once_internal.h"],
+    hdrs = ["callable_once.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
 cc_test(
     name = "with_context_test",
     srcs = ["with_context_test.cc"],
@@ -174,6 +187,21 @@ cc_test(
     deps = [
         ":with_context",
         "//gloop/base:context",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "callable_once_test",
+    srcs = ["callable_once_test.cc"],
+    deps = [
+        ":callable_once",
+        ":to_callback",
+        "//gloop/base:callback",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log:check",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
