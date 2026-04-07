@@ -51,10 +51,12 @@ build:msan --//gloop:sanitizer=msan
 build:msan --copt=-fsanitize=memory --linkopt=-fsanitize=memory
 build:msan --copt=-fno-sanitize-memory-use-after-dtor --copt=-fsanitize-memory-track-origins=0
 build:msan --copt=-O2 # Avoids false positives from -Og
+build:msan --copt=-DLINUX_SYSCALL_ENABLE_HOOKS
 test:msan --test_env=MSAN_OPTIONS=symbolize=1:fast_unwind_on_malloc=0:poison_in_dtor=0
 test:msan --test_tag_filters=-nosan,-nomsan
 
 build:tsan --config=san-common
 build:tsan --//gloop:sanitizer=tsan
 build:tsan --copt=-fsanitize=thread --linkopt=-fsanitize=thread
+build:tsan --copt=-DLINUX_SYSCALL_ENABLE_HOOKS
 test:tsan --test_tag_filters=-nosan,-notsan
