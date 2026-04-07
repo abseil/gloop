@@ -43,3 +43,29 @@ cc_library(
         "@gloop//gloop:enforce_gloop_support",
     ],
 )
+
+cc_library(
+    name = "logging_directories",
+    srcs = ["logging_directories.cc"],
+    hdrs = ["logging_directories.h"],
+    deps = [
+        ":temp_directories",
+        "//gloop/base:log_file_flags",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log/internal:config",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "temp_directories",
+    srcs = ["temp_directories.cc"],
+    hdrs = ["temp_directories.h"],
+    deps = [
+        "@abseil-cpp//absl/algorithm:container",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
