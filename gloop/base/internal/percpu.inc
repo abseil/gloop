@@ -29,7 +29,7 @@
 #ifdef PERCPU_USE_RSEQ
 #error PERCPU_USE_RSEQ cannot be directly set
 #endif
-#if defined(OS_LINUX) && (defined(__x86_64__) || defined(__aarch64__)) && \
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__)) && \
     !defined(__ppc__)
 #define PERCPU_USE_RSEQ 1
 #else

@@ -211,7 +211,7 @@
 // -----------------------------------------------------------------------------
 
 // IS_LITTLE_ENDIAN, IS_BIG_ENDIAN
-#if defined OS_LINUX || defined OS_ANDROID || defined(__ANDROID__)
+#if defined __linux__ || defined OS_ANDROID || defined(__ANDROID__)
 // TODO: http://b/21460321; use one of OS_ANDROID or __ANDROID__.
 // _BIG_ENDIAN
 #include <endian.h>
@@ -330,7 +330,7 @@ const char PATH_SEPARATOR = '/';
 // -----------------------------------------------------------------------------
 
 // uint, ushort, ulong
-#if defined OS_LINUX
+#if defined __linux__
 // The uint mess:
 // mysql.h sets _GNU_SOURCE which sets __USE_MISC in <features.h>
 // sys/types.h typedefs uint if __USE_MISC
@@ -352,7 +352,7 @@ typedef unsigned long ulong;  // NOLINT
 #endif                        // !HAVE_ULONG
 #endif                        // !__USE_MISC
 
-#endif  // OS_LINUX
+#endif  // __linux__
 
 #ifdef COMPILER_MSVC /* if Visual C++ */
 // VC++ doesn't understand "uint"

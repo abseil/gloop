@@ -25,7 +25,7 @@
 
 #include <cmath>
 #include <cstdint>
-#ifdef OS_LINUX
+#ifdef __linux__
 #include <syscall.h>  // for __NR_gettimeofday
 #endif
 #include <sys/time.h>
@@ -146,7 +146,7 @@ static void BM_gettimeofday(benchmark::State& state) {
 }
 BENCHMARK(BM_gettimeofday);
 
-#ifdef OS_LINUX
+#ifdef __linux__
 static void BM_syscall_gettimeofday(benchmark::State& state) {
   WallTime w = 1;
   for (auto _ : state) {
