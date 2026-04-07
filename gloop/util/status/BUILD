@@ -268,6 +268,7 @@ cc_library(
         ":status",
         "//gloop/base:examine_stack",
         "//gloop/util/status:message_set_cc_proto",
+        "//gloop/util/symbolize",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",

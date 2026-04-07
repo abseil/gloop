@@ -42,6 +42,7 @@
 #include "absl/types/source_location.h"
 #include "gloop/base/examine_stack.h"
 #include "gloop/util/status/status.h"
+#include "gloop/util/symbolize/symbolized_stacktrace.h"
 
 namespace util {
 
@@ -193,8 +194,9 @@ void StatusBuilder::ConditionallyLog(const absl::Status& status,
   // Use a lambda instead of defining and moving a string to avoid a false
   // positive use-after-move finding (http://b/493875031).
   auto make_msg = [&] {
-    return rep.should_log_stack_trace ? absl::StrCat("\n", CurrentStackTrace())
-                                      : "";
+    return rep.should_log_stack_trace
+               ? absl::StrCat("\n", util::CurrentStackTrace())
+               : "";
   };
 
   // Avoid calling ToSinkAlso or ToSinkOnly if we don't have a sink, since their
