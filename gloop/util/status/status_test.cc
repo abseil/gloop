@@ -728,7 +728,7 @@ TEST(Status, HasErrorSpace) {
       util::HasErrorSpace(absl::Status(absl::StatusCode::kCancelled, "msg"),
                           util::CanonicalErrorSpace()));
   EXPECT_TRUE(util::HasErrorSpace(
-      util::MakeStatus(MyErrorSpace ::Get(), 1, "msg"), MyErrorSpace ::Get()));
+      util::MakeStatus(MyErrorSpace::Get(), 1, "msg"), MyErrorSpace::Get()));
 }
 
 TEST(Status, HasErrorCodeOnOkStatus) {

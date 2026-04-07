@@ -238,8 +238,8 @@ TEST_F(IntrusiveHeapTest, IteratorYieldsAllElems) {
   EXPECT_EQ(seen_elems.size(), heap_.size());
   EXPECT_TRUE(absl::c_all_of(
       elems_, [&](const Elem& elem) { return seen_elems.contains(&elem); }));
-  EXPECT_TRUE(absl ::c_all_of(seen_elems,
-                              std::bind_front(&ElemHeap::Contains, &heap_)));
+  EXPECT_TRUE(
+      absl::c_all_of(seen_elems, std::bind_front(&ElemHeap::Contains, &heap_)));
 }
 
 TEST_F(IntrusiveHeapTest, IteratorDistanceIsCorrect) {

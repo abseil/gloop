@@ -330,6 +330,33 @@ cc_test(
 )
 
 cc_library(
+    name = "hostname",
+    srcs = ["hostname.cc"],
+    hdrs = ["hostname.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "hostname_test",
+    size = "small",
+    srcs = ["hostname_test.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":hostname",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "init_google_flags",
     srcs = ["init_google_flags.cc"],
     hdrs = ["init_google_flags.h"],
