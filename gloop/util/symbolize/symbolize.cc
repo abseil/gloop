@@ -490,7 +490,7 @@ void SymbolMap::PopulateSymbols(bool self, ProcMapsIterator* it,
     Info info;
     uint64_t end;
     char *file_name, *flags;
-    std ::string memfd_name;
+    std::string memfd_name;
     while (it->Next(&info.mem_offset, &end, &flags, &info.file_offset, nullptr,
                     &file_name)) {
       VLOG(10) << "[" << std::hex << info.mem_offset << ", " << std::hex << end

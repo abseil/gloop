@@ -63,7 +63,7 @@ auto DependenciesImpl(void (*)(T, Ts...), void (*)(Processed...)) {
                             static_cast<void (*)(Processed...)>(nullptr));
   } else {
     using deps = decltype(GetDependencies(static_cast<T*>(nullptr)));
-    if constexpr (std ::is_same_v<deps, void (*)()>) {
+    if constexpr (std::is_same_v<deps, void (*)()>) {
       return DependenciesImpl(static_cast<void (*)(Ts...)>(nullptr),
                               static_cast<void (*)(T, Processed...)>(nullptr));
     } else {
