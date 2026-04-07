@@ -435,8 +435,8 @@ static void TestScramble() {
             << "degree " << degree << " Unscramble()!=Scramble^-1()";
         if (s[i].lo == s[0].lo && s[i].hi == s[0].hi) {
           cycle_count++;
-          LOG(INFO) << std::hex << "Scramble^" << i << "(" << s[i].lo << ", "
-                    << s[i].hi << ") maps to argument";
+          VLOG(1) << std::hex << "Scramble^" << i << "(" << s[i].lo << ", "
+                  << s[i].hi << ") maps to argument";
         }
       }
     }

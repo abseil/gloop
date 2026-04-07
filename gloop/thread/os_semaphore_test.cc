@@ -37,7 +37,7 @@ constexpr absl::Duration kTestTimeout = absl::Seconds(2);
 
 void PostWait(OsSemaphore* poster, OsSemaphore* waiter) {
   EXPECT_EQ(OsSemaphorePost(poster), 0);
-  EXPECT_EQ(OsSemaphoreWait(waiter), 0);
+  EXPECT_EQ(OsSemaphoreTimedWaitRelative(waiter, absl::Seconds(5)), 0);
 }
 
 TEST(SemaphoreTest, Basic) {
