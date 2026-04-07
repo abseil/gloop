@@ -34,6 +34,7 @@
 #include "absl/log/flags.h"
 #include "absl/strings/str_format.h"
 #include "gloop/base/init_google.h"
+#include "gtest/gtest.h"
 
 // ========================================================================= //
 
@@ -239,6 +240,7 @@ int main(int argc, char** argv) {
   my_argv.push_back(arg);
   argc += 1;
   argv = &(my_argv[0]);
+  testing::InitGoogleTest(&argc, argv);
   InitGoogle(argv[0], &argc, &argv, true);
 
   // clang-format off

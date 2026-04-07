@@ -32,7 +32,9 @@ jobs:
     runs-on: ubuntu-latest
     name: Linux (${{ matrix.config.name || matrix.config.value }})
     container:
-      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:e9fd3ad77e8d34221e56d2e13fd59c42dd728136ef073df791be7a2646230c48
+      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:0b9278a22862546d2c25d730cfcb0b72d69a89adb46aabcc9b874f7ff5166d57
+      options: --shm-size=2gb --memory=16gb --memory-swap=16gb --privileged
+      # --tmpfs=/tmp
       # Our images happen to be public today, but use our service account's credentials anyway in
       # case we decide to lock down access.
       credentials:
@@ -43,7 +45,7 @@ jobs:
       matrix:
         config:
           - value: opt
-          - value: dbg
+          - value: fastbuild
           - value: asan
           - value: ubsan
           - value: msan
@@ -67,16 +69,23 @@ jobs:
           repository-cache: |
             - MODULE.bazel
           google-credentials: ${{ secrets.GAR_SERVICE_ACCOUNT }}
-          bazelrc: common --remote_cache=https://storage.googleapis.com/gloop-bazel-remote-cache
+          bazelrc: common --remote_cache=https://storage.googleapis.com/gloop-bazel-remote-cache/v2
+
+      - name: addr2line hack
+        run: |
+          cp -f /opt/llvm/bin/llvm-addr2line /usr/bin/addr2line
+          cp -f /opt/llvm/bin/llvm-cxxfilt /usr/bin/c++filt
 
       - name: Run tests
-        run: bazel test ... --config=${{ matrix.config.value }}
+        run: |
+          bazel build ... --config=${{ matrix.config.value }}
+          bazel test ... --config=${{ matrix.config.value }}
 
   non_compilation:
     name: Check Non-compilation for ${{ matrix.config }}
     runs-on: ubuntu-latest
     container:
-      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:e9fd3ad77e8d34221e56d2e13fd59c42dd728136ef073df791be7a2646230c48
+      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:0b9278a22862546d2c25d730cfcb0b72d69a89adb46aabcc9b874f7ff5166d57
       # Our images happen to be public today, but use our service account's credentials anyway in
       # case we decide to lock down access.
       credentials:
@@ -104,7 +113,7 @@ jobs:
           repository-cache: |
             - MODULE.bazel
           google-credentials: ${{ secrets.GAR_SERVICE_ACCOUNT }}
-          bazelrc: common --remote_cache=https://storage.googleapis.com/gloop-bazel-remote-cache
+          bazelrc: common --remote_cache=https://storage.googleapis.com/gloop-bazel-remote-cache/v2
 
       - name: Run tests
         run: |

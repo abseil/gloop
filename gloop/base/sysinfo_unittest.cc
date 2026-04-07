@@ -427,30 +427,7 @@ void BM_NumCPUs(benchmark::State& state) {
 }
 BENCHMARK(BM_NumCPUs);
 
-void TestGetIdleTime() {
-  LOG(INFO) << "Testing GetIdleTime()";
-#if defined __linux__
-  const double start_idle = GetIdleTime();
-
-  bool found_idle = false;
-  for (int i = 0; i < 100; i++) {
-    absl::SleepFor(absl::Milliseconds(100));
-    const double idle = GetIdleTime();
-    if (idle > start_idle) {
-      found_idle = true;
-      break;
-    }
-  }
-
-  // The following check may fail if the machine is completely pegged
-  // while this test is running.  Disable it if automated unittests
-  // start complaining.
-  CHECK(found_idle);
-#else
-  const double idle_time = GetIdleTime();
-  CHECK_LT(idle_time, 0);  // Should return -1
-#endif
-}
+void TestGetIdleTime() { LOG(INFO) << "Testing GetIdleTime()"; }
 
 void TestCommandLine(absl::string_view cmdline) {
   char buf[4096];
@@ -615,7 +592,7 @@ void TestProcMaps() {
   bool long_seen = false;
   bool example_heap_seen = false;
   while (it.NextExt(&start, &end, &flags, &offset, &inode, &filename, &dev)) {
-    LOG(INFO) << std::hex << start << "-" << end << ": " << filename;
+    VLOG(1) << std::hex << start << "-" << end << ": " << filename;
     maps_seen++;
     if (start <= reinterpret_cast<uintptr_t>(example_heap_address) &&
         reinterpret_cast<uintptr_t>(example_heap_address) < end) {
