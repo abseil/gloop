@@ -180,12 +180,12 @@ class flat_map : public internal_flat::FlatContainersMaybeExportData<
   // The constructed container MUST be strictly ordered and not contain any
   // duplicates. If not, the behavior is undefined (and the ordering is verified
   // with assert() in debug builds).
-  template <typename... Args, typename = absl::enable_if_t<
+  template <typename... Args, typename = std::enable_if_t<
                                   std::is_constructible<Rep, Args...>::value>>
   constexpr explicit flat_map(sorted_unique_container_t, Args&&... args)
       : impl_(sorted_container, value_compare(), std::forward<Args>(args)...) {}
 
-  template <typename... Args, typename = absl::enable_if_t<
+  template <typename... Args, typename = std::enable_if_t<
                                   std::is_constructible<Rep, Args...>::value>>
   constexpr flat_map(sorted_unique_container_t, const Compare& cmp,
                      Args&&... args)
