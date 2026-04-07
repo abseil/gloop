@@ -31,6 +31,15 @@ package(
 )
 
 cc_library(
+    name = "bytestream",
+    hdrs = ["bytestream.h"],
+    deps = [
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
     name = "case",
     srcs = ["case.cc"],
     hdrs = ["case.h"],
@@ -74,6 +83,15 @@ cc_test(
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "cord_bytestream",
+    hdrs = ["cord_bytestream.h"],
+    deps = [
+        "@abseil-cpp//absl/strings:cord",
+        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
