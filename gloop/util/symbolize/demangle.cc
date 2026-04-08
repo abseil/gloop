@@ -36,6 +36,8 @@
 #endif
 
 #include <stdlib.h>
+#include <string.h>
+
 #if HAS_CXA_DEMANGLE
 #include <cxxabi.h>
 
@@ -66,6 +68,21 @@ void DemangleToString(const char* mangled, std::string* out) {
       out->append(mangled);
     }
     return;
+  }
+
+  // Check for __alloc_token prefix (Clang alloc-token ABI).
+  if (mangled[0] == '_' && mangled[1] == '_' &&
+      strncmp(mangled + 2, "alloc_token_", 12) == 0) {
+    const char* p = mangled + 14;
+    const char* q = p;
+    while (*q >= '0' && *q <= '9') {
+      q++;
+    }
+    if (q > p && *q == '_') {
+      mangled = q + 1;  // fast ABI: __alloc_token_<id>_<func>
+    } else {
+      mangled = p;  // default ABI: __alloc_token_<func>
+    }
   }
 
   // ... while mangled C++ symbols are distinct and start with "_Z"
