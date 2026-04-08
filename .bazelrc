@@ -43,6 +43,7 @@ build:ubsan --//gloop:sanitizer=ubsan
 build:ubsan --copt=-fsanitize=undefined --linkopt=-fsanitize=undefined
 build:ubsan --copt=-fno-sanitize=function --copt=-fno-sanitize=vptr --copt=-fno-sanitize=nonnull-attribute
 build:ubsan --copt=-D__SANITIZE_UNDEFINED__=1
+build:ubsan --copt=-O2
 test:ubsan --test_env=UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
 test:ubsan --test_tag_filters=-nosan,-noubsan
 
