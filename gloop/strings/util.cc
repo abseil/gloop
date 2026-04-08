@@ -19,7 +19,7 @@
 // clang-format on
 
 // TODO: visit each const_cast.  Some of them are no longer necessary
-// because last Single Unix Spec and grte v2 are more const-y.
+// because last Single Unix Spec.
 
 #include "gloop/strings/util.h"
 

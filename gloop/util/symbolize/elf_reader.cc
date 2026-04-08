@@ -83,7 +83,7 @@
 #include "gloop/util/symbolize/symbol_map_sink.h"
 #include "zlib.h"
 
-// usr/grte/v4/include/elf.h is too old to define SHF_COMPRESSED and Elf64_Chdr
+// elf.h is too old to define SHF_COMPRESSED and Elf64_Chdr
 #ifndef SHF_COMPRESSED
 #define SHF_COMPRESSED (1 << 11) /* Section with compressed data. */
 #define ELFCOMPRESS_ZLIB 1       /* ZLIB/DEFLATE algorithm.  */
@@ -101,7 +101,7 @@ struct Elf64_Chdr {
   Elf64_Xword ch_addralign; /* Uncompressed data alignment.  */
 };
 #endif
-// usr/grte/v5/include/elf.h does not define ELFCOMPRESS_ZSTD
+// elf.h does not define ELFCOMPRESS_ZSTD
 #define ELFCOMPRESS_ZSTD 2
 
 // TODO: Can be removed once all Java code is using the Google3

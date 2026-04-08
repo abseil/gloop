@@ -1510,13 +1510,7 @@ TEST(IPAddressTest, GetCoercedIPv4Address_Hashed_SpecificExample) {
   IPAddress addr, coerced;
 
   ASSERT_TRUE(StringToIPAddress("2001:4860::1", &addr));
-  // The hashing algorithm used on non-GRTE platforms is different than the one
-  // we use in production.
-#if !defined(__GOOGLE_GRTE_VERSION__)
   const std::string expected_address = "231.31.35.241";
-#else
-  const std::string expected_address = "242.163.117.221";
-#endif
   ASSERT_TRUE(StringToIPAddress(expected_address, &coerced));
 
   EXPECT_EQ(coerced, GetCoercedIPv4Address(addr));

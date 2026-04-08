@@ -48,8 +48,6 @@ namespace gtl {
 Float128::StringRepBuffer Float128::ToString(const int width, const char fill,
                                              const int precision,
                                              const char conversion_char) const {
-  // GRTE's `strfromf128` doesn't support an explicit width; this function
-  // emulates it.
   assert(width >= 0);
 
   std::string format_str = "%";
@@ -325,7 +323,7 @@ bool signbit(Float128 x) { return __builtin_signbit(x.data_); }
 std::ostream& operator<<(std::ostream& out, Float128 x) {
   if (out.flags() & (std::ostream::left | std::ostream::internal |
                      std::ostream::showpoint | std::ostream::showpos)) {
-    out.setstate(std::ostream::failbit);  // GRTE doesn't support these flags.
+    out.setstate(std::ostream::failbit);
     return out;
   }
 
@@ -361,7 +359,7 @@ AbslFormatConvert(Float128 x, const absl::FormatConversionSpec& spec,
                   absl::FormatSink* absl_nonnull sink) {
   if (spec.has_left_flag() || spec.has_show_pos_flag() ||
       spec.has_sign_col_flag() || spec.has_alt_flag()) {
-    return {false};  // GRTE doesn't support these flags.
+    return {false};
   }
 
   char fmt;

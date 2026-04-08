@@ -76,7 +76,6 @@ class MathUtil {
     kTwoRealRoots = 2
   };
 
-  // Pi, as defined in <cmath> from GRTE v3.
   static constexpr double kPi = 3.14159265358979323846;
 
   // Returns the QuadraticRootType of the equation a * x^2 + b * x + c = 0.

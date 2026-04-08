@@ -114,8 +114,6 @@
 #if __GLIBC_PREREQ(2, 27)
 #define GTL_FLOAT128_INTERNAL_HAVE_FULL_LIBC_SUPPORT 1
 #else
-// We're on GRTEv4, which is missing some quad-precision functions. Make parts
-// of the API unavailable. TODO: b/205579037 - remove this.
 #define GTL_FLOAT128_INTERNAL_HAVE_FULL_LIBC_SUPPORT 0
 #endif  // __GLIBC_PREREQ(2, 27)
 #else   // defined(__GLIBC_PREREQ)

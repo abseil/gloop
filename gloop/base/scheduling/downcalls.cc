@@ -656,29 +656,7 @@ Schedulable* Downcalls::DomainObservedTimeout(Schedulable* expired) {
   return HierarchicalPostAndSchedule(expired);
 }
 
-#if defined(ABSL_HAVE_ADDRESS_SANITIZER) && \
-    (__GOOGLE_GRTE_VERSION__ < 20140228L)
-// ASAN note:
-// When compiled as a shared library, prior to GRTEv4, the callbacks below could
-// be invoked prior to ASAN initialization being complete.
-//
-// This is problematic as the shadow map which ASAN annotates each access with
-// has not yet been initialized.  In this case we do not allow any interception
-// until our own constructor has run, which is always ordered after ASAN init.
-// (We are also guaranteed that no cooperative entities exist prior to
-// //gloop/base load.)
-//
-// Implementation note:
-// While it might be nicer to have a helper function for __asan_ready; ASAN
-// emits annotations on call so that just results in a proliferation of
-// ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS tags.
-static bool __asan_ready;
-static struct InitModuleLoaded {
-  InitModuleLoaded() { __asan_ready = true; }
-} init_module_loaded;
-#else
 static const bool __asan_ready = true;
-#endif
 
 // The following three callback definitions allow for (typically glibc) code
 // outside of google3 to schedule cooperatively when locking.

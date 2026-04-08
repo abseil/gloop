@@ -47,13 +47,6 @@
 #define GOOGLE_HAVE_PRCTL
 #endif
 
-#ifdef BASE_HAVE_THREAD_STACK
-#error BASE_HAVE_THREAD_STACK cannot be directly set
-// While somewhat indirect, "thread_stack" library relies on GRTE extensions.
-#elif !PORTABLE_BASE && defined(__GOOGLE_GRTE_VERSION__)
-#define BASE_HAVE_THREAD_STACK 1
-#endif
-
 #include <errno.h>
 #include <string.h>
 #include <sys/types.h>
