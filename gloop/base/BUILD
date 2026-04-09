@@ -1163,6 +1163,23 @@ cc_library(
     deps = ["@gloop//gloop:enforce_gloop_support"],
 )
 
+cc_test(
+    name = "futex_test",
+    size = "small",
+    srcs = ["futex_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":futex",
+        "//gloop/thread",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "atomic_stats_counter",
     hdrs = ["atomic_stats_counter.h"],
