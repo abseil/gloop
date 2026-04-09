@@ -160,6 +160,7 @@ cc_library(
     visibility = [
         ":base_visibility",
         ":internal_visibility",
+        "//assistant/boq/humboldt/modules/tempus:__subpackages__",
     ],
     deps = [
         ":trace_event_listener",
