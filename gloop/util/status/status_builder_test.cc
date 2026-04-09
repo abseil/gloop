@@ -566,22 +566,22 @@ TEST_F(StatusBuilderTest, StreamInsertionOperator) {
   }
 }
 
-struct HasAbslStringify {
+struct StringifiableType {
   absl::string_view message;
 
   template <typename Sink>
-  friend void AbslStringify(Sink& sink, const HasAbslStringify& o) {
+  friend void AbslStringify(Sink& sink, const StringifiableType& o) {
     sink.Append(o.message);
   }
 };
 TEST_F(StatusBuilderTest, AbslStringify) {
   absl::Status status = util::MakeStatus(TestSpace::Get(), kZomg, "zomg");
   auto builder = MakeStatusBuilder(TestSpace::Get(), kZomg)
-                 << HasAbslStringify{"zomg"};
+                 << StringifiableType{"zomg"};
   EXPECT_EQ(ToStringViaStream(status), ToStringViaStream(builder));
   EXPECT_EQ(ToStringViaStream(status),
             ToStringViaStream(MakeStatusBuilder(TestSpace::Get(), kZomg)
-                              << HasAbslStringify{"zomg"}));
+                              << StringifiableType{"zomg"}));
 }
 
 TEST_F(StatusBuilderTest, ToStringDefaultStatusBuilder) {
@@ -670,7 +670,7 @@ TEST(WithExtraMessagePolicyTest, AppendsToExtraMessage) {
               Eq(absl::AbortedError("world, hello")));
   EXPECT_THAT(ToStatus(StatusBuilder(absl::AbortedError("hello"),
                                      absl::SourceLocation())
-                           .With(ExtraMessage() << HasAbslStringify{"world"})),
+                           .With(ExtraMessage() << StringifiableType{"world"})),
               Eq(absl::AbortedError("hello; world")));
 
   // The above examples use temporary StatusBuilder rvalues; verify things also
