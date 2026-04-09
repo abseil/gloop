@@ -119,6 +119,21 @@ inline const ::util::ErrorSpace* GetErrorSpace(
 }
 }  // namespace error
 
+// Protocol object that can hold a serialized Status object
+class StatusProto;
+
+#ifndef SWIG
+// task.swig redefined this routine so that MessageSet conversion to proto
+// happens on Python side.
+void SaveStatusToProto(const absl::Status& s, util::StatusProto* proto);
+#endif
+// To be used only from SWIG.
+void InternalSaveStatusToProto(const absl::Status& s, util::StatusProto* proto);
+
+absl::Status MakeStatusFromProto(
+    const util::StatusProto& proto,
+    absl::SourceLocation loc = absl::SourceLocation::current());
+
 // Returns a copy of the status object with error message, payload and source
 // locations stripped off. Useful for comparing against expected status when
 // error message might vary, e.g.

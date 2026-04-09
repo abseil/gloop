@@ -38,6 +38,7 @@
 #include "benchmark/benchmark.h"
 #include "gloop/util/status/posixerrorspace.h"
 #include "gloop/util/status/status.h"
+#include "gloop/util/status/status.pb.h"
 #include "gloop/util/status/status_builder.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"

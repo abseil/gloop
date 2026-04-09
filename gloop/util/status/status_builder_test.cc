@@ -51,10 +51,18 @@
 #include "gloop/util/status/codes.pb.h"
 #include "gloop/util/status/posixerrorspace.h"
 #include "gloop/util/status/status.h"
+#include "gloop/util/status/status.pb.h"
 #include "gloop/util/status/status_macros.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/bridge/message_set.pb.h"
+#include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
+
+namespace testing {
+MATCHER_P(EqualsProto, msg, "") {
+  return msg.DebugString() == arg.DebugString();
+}
+}  // namespace testing
 
 namespace util {
 // We use `#line` to produce some `source_location` values pointing at various
@@ -127,6 +135,30 @@ absl::StatusOr<T> ToStatusOr(const StatusBuilder& s) {
   return s;
 }
 
+// Makes a StatusProto with a Status.
+StatusProto MakeStatusProto(const absl::Status& s) {
+  StatusProto proto;
+  ::util::SaveStatusToProto(s, &proto);
+  return proto;
+}
+
+// Makes a payload proto suitable for attaching to a status.
+StatusProto MakePayloadProto(absl::string_view str) {
+  StatusProto proto;
+  proto.set_message(str);
+  return proto;
+}
+
+// Makes a message set contains a payload proto, suitable for passing to the
+// constructor of `absl::Status`.
+google::protobuf::bridge::MessageSet MakePayloadMessageSet(
+    absl::string_view str) {
+  google::protobuf::bridge::MessageSet out;
+  *out.MutableExtension(StatusProto::message_set_extension) =
+      MakePayloadProto(str);
+  return out;
+}
+
 void CheckSourceLocation(
     const absl::Status& status, std::vector<int> lines = {},
     absl::SourceLocation loc = absl::SourceLocation::current()) {
@@ -170,6 +202,64 @@ TEST_F(StatusBuilderTest, Ctors) {
 }
 
 TEST_F(StatusBuilderTest, RepCopyCtor) { TestRepCopyCtor(); }
+
+TEST_F(StatusBuilderTest, Identity) {
+  google::protobuf::bridge::MessageSet payload_message_set =
+      MakePayloadMessageSet("zomg");
+
+  const std::vector<absl::Status> statuses = {
+      absl::OkStatus(),
+      absl::CancelledError(),
+      absl::InvalidArgumentError("yup"),
+      ::util::MakeStatus(CanonicalErrorSpace(), error::UNKNOWN, "ow",
+                         &payload_message_set),
+      PosixErrorToStatus(ENOSYS, "enosys"),
+  };
+
+  for (const absl::Status& base : statuses) {
+    EXPECT_THAT(ToStatus(StatusBuilder(base, absl::SourceLocation())),
+                Eq(base));
+    EXPECT_EQ(StatusBuilder(base, absl::SourceLocation()).ok(), base.ok());
+    if (!base.ok()) {
+      EXPECT_THAT(
+          ToStatusOr<int>(StatusBuilder(base, absl::SourceLocation())).status(),
+          Eq(base));
+    }
+  }
+}
+
+TEST_F(StatusBuilderTest, IdentityWithStatusProto) {
+  google::protobuf::bridge::MessageSet payload_message_set =
+      MakePayloadMessageSet("zomg");
+
+  const std::vector<StatusProto> status_protos = {
+      MakeStatusProto(absl::OkStatus()),
+      MakeStatusProto(absl::CancelledError()),
+      MakeStatusProto(absl::InvalidArgumentError("yup")),
+      MakeStatusProto(::util::MakeStatus(CanonicalErrorSpace(), error::UNKNOWN,
+                                         "ow", &payload_message_set)),
+      MakeStatusProto(PosixErrorToStatus(ENOSYS, "enosys")),
+  };
+
+  for (const StatusProto& proto : status_protos) {
+    absl::Status base;
+    base = ::util::MakeStatusFromProto(proto);
+
+    EXPECT_THAT(ToStatus(StatusBuilder(
+                    util::MakeStatusFromProto(proto, absl::SourceLocation()))),
+                Eq(base));
+    EXPECT_EQ(
+        StatusBuilder(util::MakeStatusFromProto(proto, absl::SourceLocation()))
+            .ok(),
+        base.ok());
+    if (!base.ok()) {
+      EXPECT_THAT(ToStatusOr<int>(StatusBuilder(util::MakeStatusFromProto(
+                                      proto, absl::SourceLocation())))
+                      .status(),
+                  Eq(base));
+    }
+  }
+}
 
 TEST_F(StatusBuilderTest, ExplicitSourceLocation) {
   const absl::SourceLocation kLocation = absl::SourceLocation::current();
@@ -331,6 +421,11 @@ TEST_F(StatusBuilderTest, OkIgnoresStuff) {
   EXPECT_THAT(ToStatus(StatusBuilder(absl::OkStatus(), absl::SourceLocation())
                        << "booyah"),
               Eq(absl::OkStatus()));
+  EXPECT_THAT(ToStatus(std::move(StatusBuilder(absl::OkStatus(),
+                                               absl::SourceLocation()))
+                           .AttachPayload(MakePayloadProto("test"))
+                       << "zombies"),
+              Eq(absl::OkStatus()));
   EXPECT_THAT(ToStatus(StatusBuilder(absl::OkStatus(), absl::SourceLocation())
                            .SetPayload("url", absl::Cord("payload"))
                        << "aliens"),
@@ -460,6 +555,234 @@ TEST_F(StatusBuilderTest, AppendRvalue) {
 
     EXPECT_EQ(absl::StatusCode::kPermissionDenied, transformed.code());
   }
+}
+
+TEST_F(StatusBuilderTest, SetErrorCodeLvalue) {
+  {
+    StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
+    const auto mset = MakePayloadMessageSet("oops");
+    EXPECT_THAT(ToStatus(builder.AttachPayload(MakePayloadProto("oops"))
+                             .SetErrorCode(error::FAILED_PRECONDITION)),
+                Eq(util::MakeStatus(CanonicalErrorSpace(),
+                                    error::FAILED_PRECONDITION, "", &mset)));
+  }
+  {
+    StatusBuilder builder(absl::CancelledError("monkey"),
+                          absl::SourceLocation());
+    EXPECT_THAT(
+        ToStatus(builder.SetErrorCode(error::FAILED_PRECONDITION) << "nuts"),
+        Eq(::util::MakeStatus(CanonicalErrorSpace(), error::FAILED_PRECONDITION,
+                              "monkey; nuts")));
+  }
+}
+
+TEST_F(StatusBuilderTest, SetErrorCodeRvalue) {
+  const auto mset = MakePayloadMessageSet("oops");
+  EXPECT_THAT(ToStatus(std::move(StatusBuilder(absl::CancelledError(),
+                                               absl::SourceLocation()))
+                           .AttachPayload(MakePayloadProto("oops"))
+                           .SetErrorCode(error::FAILED_PRECONDITION)),
+              Eq(util::MakeStatus(CanonicalErrorSpace(),
+                                  error::FAILED_PRECONDITION, "", &mset)));
+  EXPECT_THAT(
+      ToStatus(
+          StatusBuilder(absl::CancelledError("monkey"), absl::SourceLocation())
+              .SetErrorCode(error::FAILED_PRECONDITION)
+          << "nuts"),
+      Eq(::util::MakeStatus(CanonicalErrorSpace(), error::FAILED_PRECONDITION,
+                            "monkey; nuts")));
+}
+
+TEST_F(StatusBuilderTest, SetCodeLvalue) {
+  {
+    StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
+    auto attach = MakePayloadMessageSet("paperclip");
+    EXPECT_THAT(
+        ToStatus(builder.AttachPayload(MakePayloadProto("paperclip"))
+                     .SetCode(absl::StatusCode::kFailedPrecondition)),
+        Eq(::util::MakeStatus(CanonicalErrorSpace(), error::FAILED_PRECONDITION,
+                              "", &attach)));
+  }
+  {
+    StatusBuilder builder(absl::CancelledError("nope"), absl::SourceLocation());
+    EXPECT_THAT(
+        ToStatus(builder.SetCode(absl::StatusCode::kFailedPrecondition)
+                 << "nuh uh"),
+        Eq(::util::MakeStatus(CanonicalErrorSpace(), error::FAILED_PRECONDITION,
+                              "nope; nuh uh")));
+  }
+}
+
+TEST_F(StatusBuilderTest, SetCodeRvalue) {
+  auto attach = MakePayloadMessageSet("paperclip");
+  EXPECT_THAT(ToStatus(std::move(StatusBuilder(absl::CancelledError(),
+                                               absl::SourceLocation()))
+                           .AttachPayload(MakePayloadProto("paperclip"))
+                           .SetCode(absl::StatusCode::kFailedPrecondition)),
+              Eq(::util::MakeStatus(CanonicalErrorSpace(),
+                                    error::FAILED_PRECONDITION, "", &attach)));
+  EXPECT_THAT(
+      ToStatus(
+          StatusBuilder(absl::CancelledError("nope"), absl::SourceLocation())
+              .SetCode(absl::StatusCode::kFailedPrecondition)
+          << "nuh uh"),
+      Eq(::util::MakeStatus(CanonicalErrorSpace(), error::FAILED_PRECONDITION,
+                            "nope; nuh uh")));
+}
+
+TEST_F(StatusBuilderTest, AttachLvalue) {
+  {
+    const auto mset = MakePayloadMessageSet("oops");
+    StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
+    EXPECT_THAT(ToStatus(builder.AttachPayload(MakePayloadProto("oops"))),
+                Eq(::util::MakeStatus(CanonicalErrorSpace(), error::CANCELLED,
+                                      "", &mset)));
+  }
+  {
+    const auto mset = MakePayloadMessageSet("boom");
+    StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
+    EXPECT_THAT(
+        ToStatus(builder.AttachPayload(MakePayloadProto("boom")) << "stick"),
+        Eq(::util::MakeStatus(CanonicalErrorSpace(), error::CANCELLED, "stick",
+                              &mset)));
+  }
+  {
+    StatusBuilder builder(PosixErrorToStatus(ENOSYS, "so"),
+                          absl::SourceLocation());
+    const auto mset = MakePayloadMessageSet("this");
+    EXPECT_THAT(
+        ToStatus(builder.AttachPayload(MakePayloadProto("this")) << "happened"),
+        Eq(::util::MakeStatus(PosixErrorSpace(), ENOSYS, "so; happened",
+                              &mset)));
+  }
+}
+
+TEST_F(StatusBuilderTest, AttachPayloadLvalue) {
+  {
+    const auto mset = MakePayloadMessageSet("oops");
+    StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
+    EXPECT_THAT(ToStatus(builder.AttachPayload(MakePayloadProto("oops"))),
+                Eq(::util::MakeStatus(CanonicalErrorSpace(), error::CANCELLED,
+                                      "", &mset)));
+  }
+  {
+    const auto mset = MakePayloadMessageSet("boom");
+    StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
+    EXPECT_THAT(
+        ToStatus(builder.AttachPayload(MakePayloadProto("boom")) << "stick"),
+        Eq(::util::MakeStatus(CanonicalErrorSpace(), error::CANCELLED, "stick",
+                              &mset)));
+  }
+  {
+    StatusBuilder builder(PosixErrorToStatus(ENOSYS, "so"),
+                          absl::SourceLocation());
+    const auto mset = MakePayloadMessageSet("this");
+    EXPECT_THAT(
+        ToStatus(builder.AttachPayload(MakePayloadProto("this")) << "happened"),
+        Eq(::util::MakeStatus(PosixErrorSpace(), ENOSYS, "so; happened",
+                              &mset)));
+  }
+}
+
+TEST_F(StatusBuilderTest, AttachRvalue) {
+  auto mset = MakePayloadMessageSet("oops");
+  EXPECT_THAT(ToStatus(std::move(StatusBuilder(absl::CancelledError(),
+                                               absl::SourceLocation()))
+                           .AttachPayload(MakePayloadProto("oops"))),
+              Eq(::util::MakeStatus(CanonicalErrorSpace(), error::CANCELLED, "",
+                                    &mset)));
+  mset = MakePayloadMessageSet("boom");
+  EXPECT_THAT(ToStatus(std::move(StatusBuilder(absl::CancelledError(),
+                                               absl::SourceLocation()))
+                           .AttachPayload(MakePayloadProto("boom"))
+                       << "stick"),
+              Eq(::util::MakeStatus(CanonicalErrorSpace(), error::CANCELLED,
+                                    "stick", &mset)));
+  mset = MakePayloadMessageSet("this");
+  EXPECT_THAT(
+      ToStatus(std::move(StatusBuilder(PosixErrorToStatus(ENOSYS, "so"),
+                                       absl::SourceLocation()))
+                   .AttachPayload(MakePayloadProto("this"))
+               << "happened"),
+      Eq(::util::MakeStatus(PosixErrorSpace(), ENOSYS, "so; happened", &mset)));
+}
+
+TEST_F(StatusBuilderTest, AttachPayloadRvalue) {
+  auto mset = MakePayloadMessageSet("oops");
+  EXPECT_THAT(
+      ToStatus(StatusBuilder(absl::CancelledError(), absl::SourceLocation())
+                   .AttachPayload(MakePayloadProto("oops"))),
+      Eq(::util::MakeStatus(CanonicalErrorSpace(), error::CANCELLED, "",
+                            &mset)));
+  mset = MakePayloadMessageSet("boom");
+  EXPECT_THAT(
+      ToStatus(StatusBuilder(absl::CancelledError(), absl::SourceLocation())
+                   .AttachPayload(MakePayloadProto("boom"))
+               << "stick"),
+      Eq(::util::MakeStatus(CanonicalErrorSpace(), error::CANCELLED, "stick",
+                            &mset)));
+  mset = MakePayloadMessageSet("this");
+  EXPECT_THAT(
+      ToStatus(StatusBuilder(PosixErrorToStatus(ENOSYS, "so"),
+                             absl::SourceLocation())
+                   .AttachPayload(MakePayloadProto("this"))
+               << "happened"),
+      Eq(::util::MakeStatus(PosixErrorSpace(), ENOSYS, "so; happened", &mset)));
+}
+
+TEST_F(StatusBuilderTest, AttachPayloadStandard) {
+  auto mset = MakePayloadMessageSet("oops");
+  StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
+  util::AttachPayload(&builder, MakePayloadProto("oops"));
+  EXPECT_THAT(ToStatus(builder),
+              Eq(::util::MakeStatus(CanonicalErrorSpace(), error::CANCELLED, "",
+                                    &mset)));
+}
+
+TEST_F(StatusBuilderTest, AttachPayloadMethodStandard) {
+  auto mset = MakePayloadMessageSet("oops");
+  EXPECT_THAT(
+      ToStatus(StatusBuilder(absl::CancelledError(), absl::SourceLocation())
+                   .AttachPayload(MakePayloadProto("oops"))),
+      Eq(::util::MakeStatus(CanonicalErrorSpace(), error::CANCELLED, "",
+                            &mset)));
+}
+
+TEST_F(StatusBuilderTest, MessageSetPayloadHelpers) {
+  static const char* kPayloadMsg = "payload";
+  StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
+  EXPECT_FALSE(util::HasPayload(builder));
+  builder.AttachPayload(MakePayloadProto(kPayloadMsg));
+  EXPECT_TRUE(util::HasPayload(builder));
+  EXPECT_TRUE(util::HasPayloadWithType<util::StatusProto>(builder));
+  EXPECT_THAT(util::GetPayload<util::StatusProto>(builder),
+              testing::EqualsProto(MakePayloadProto(kPayloadMsg)));
+}
+
+TEST_F(StatusBuilderTest, MessageSetPayloadMethods) {
+  static const char* kPayloadMsg = "payload";
+  StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
+  EXPECT_FALSE(builder.HasPayload());
+  builder.AttachPayload(MakePayloadProto(kPayloadMsg));
+  EXPECT_TRUE(builder.HasPayload());
+  EXPECT_TRUE(builder.HasPayloadWithType<util::StatusProto>());
+  EXPECT_TRUE(builder.HasPayloadWithType<util::StatusProto>(
+      util::StatusProto::message_set_extension));
+  EXPECT_THAT(builder.GetPayload<util::StatusProto>(),
+              testing::EqualsProto(MakePayloadProto(kPayloadMsg)));
+  EXPECT_THAT(builder.GetPayload<util::StatusProto>(
+                  util::StatusProto::message_set_extension),
+              testing::EqualsProto(MakePayloadProto(kPayloadMsg)));
+}
+
+TEST_F(StatusBuilderTest, MessageSetPayloadMethodsOnOkStatus) {
+  static const char* kPayloadMsg = "payload";
+  StatusBuilder builder(absl::OkStatus(), absl::SourceLocation());
+  EXPECT_FALSE(builder.HasPayload());
+  EXPECT_FALSE(builder.HasPayloadWithType<util::StatusProto>());
+  builder.AttachPayload(MakePayloadProto(kPayloadMsg));
+  EXPECT_FALSE(builder.HasPayload());
+  EXPECT_FALSE(builder.HasPayloadWithType<util::StatusProto>());
 }
 
 TEST_F(StatusBuilderTest, SetPayloadLvalue) {
@@ -614,6 +937,15 @@ TEST_F(StatusBuilderTest, ToStringWithStreamInsertionOperator) {
   }
 }
 
+TEST_F(StatusBuilderTest, ToStringWithPayloads) {
+  auto mset = MakePayloadMessageSet("oops");
+  absl::Status status =
+      ::util::MakeStatus(CanonicalErrorSpace(), error::CANCELLED, "", &mset);
+  StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
+  util::AttachPayload(&builder, MakePayloadProto("oops"));
+  EXPECT_EQ(ToStringViaStream(status), builder.ToString());
+}
+
 class MockLogSink : public absl::LogSink {
  public:
   MOCK_METHOD(void, Send, (const absl::LogEntry&), (override));
@@ -630,11 +962,13 @@ TEST_F(StatusBuilderTest, ToStringDoesntHaveSideEffects) {
   }
 
   StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
+  util::AttachPayload(&builder, MakePayloadProto("oops"));
   builder << "hello world!";
   builder.LogError();
   builder.AlsoOutputToSink(&log_sink);
 
   absl::Status status = absl::CancelledError("hello world!");
+  util::AttachPayload(&status, MakePayloadProto("oops"));
 
   EXPECT_EQ(
       ToStringViaStream(status),

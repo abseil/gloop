@@ -44,6 +44,7 @@
 #include "benchmark/benchmark.h"
 #include "gloop/util/status/error_space.h"
 #include "gloop/util/status/non_message_set_payload.pb.h"
+#include "gloop/util/status/status.pb.h"
 #include "gloop/util/status/status_internal.h"
 #include "gloop/util/status/test_payload.pb.h"
 #include "gmock/gmock.h"
@@ -137,6 +138,12 @@ const util::ErrorSpace* GetErrorSpace(util::ErrorSpaceAdlTag<MyCodes>) {
   return MyErrorSpace2::Get();
 }
 }  // namespace s2
+
+static util::StatusProto MakeStatusProto(absl::string_view message) {
+  util::StatusProto proto;
+  proto.set_message(message);
+  return proto;
+}
 
 static google::protobuf::bridge::MessageSet MakeTestPayload(
     absl::string_view payload_message) {
@@ -854,6 +861,378 @@ TEST(Status, MoveOps_NonGlobal) {
   EXPECT_EQ(from.message(), "Status accessed after move.");
 }
 
+TEST(Proto, Empty) {
+  absl::Status src;
+
+  {
+    util::StatusProto proto;
+    ::util::SaveStatusToProto(src, &proto);
+    EXPECT_FALSE(proto.has_code());
+    EXPECT_FALSE(proto.has_space());
+    EXPECT_FALSE(proto.has_message());
+    EXPECT_FALSE(proto.has_message_set());
+    EXPECT_FALSE(proto.has_canonical_code());
+    absl::Status dst = ::util::MakeStatusFromProto(proto);
+    EXPECT_EQ(::util::RetrieveErrorSpace(src), ::util::RetrieveErrorSpace(dst));
+    EXPECT_EQ(util::RetrieveErrorCode(src), util::RetrieveErrorCode(dst));
+    EXPECT_EQ("", dst.message());
+    CheckSourceLocation(dst);
+  }
+}
+
+TEST(Proto, NonEmpty) {
+  absl::Status src = util::MakeStatus(MyErrorSpace::Get(), 1, "message");
+
+  {
+    util::StatusProto proto;
+    ::util::SaveStatusToProto(src, &proto);
+    EXPECT_EQ(1, proto.code());
+    EXPECT_EQ(ExpectedErrorSpaceName(), proto.space());
+    EXPECT_EQ(util::error::UNKNOWN, proto.canonical_code());
+    EXPECT_EQ("message", proto.message());
+    EXPECT_FALSE(proto.has_message_set());
+    absl::Status dst = ::util::MakeStatusFromProto(proto);
+    int line = GET_SOURCE_LOCATION(1);
+    EXPECT_EQ(::util::RetrieveErrorSpace(src), ::util::RetrieveErrorSpace(dst));
+    EXPECT_EQ(util::RetrieveErrorCode(src), util::RetrieveErrorCode(dst));
+    EXPECT_EQ("message", dst.message());
+    CheckSourceLocation(dst, {line});
+  }
+}
+
+TEST(Proto, WithPayload) {
+  const google::protobuf::bridge::MessageSet payload = MakeTestPayload("foo");
+  absl::Status src =
+      util::MakeStatus(MyErrorSpace::Get(), 1, "message", &payload);
+  CheckStatus(src, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message",
+              "foo", {}, {GET_SOURCE_LOCATION(2)});
+
+  {
+    util::StatusProto proto;
+    ::util::SaveStatusToProto(src, &proto);
+    EXPECT_EQ(1, proto.code());
+    EXPECT_EQ(ExpectedErrorSpaceName(), proto.space());
+    EXPECT_EQ(util::error::UNKNOWN, proto.canonical_code());
+    EXPECT_EQ("message", proto.message());
+    EXPECT_TRUE(proto.has_message_set());
+    EXPECT_THAT(proto.message_set(), EqualsProto(MakeTestPayload("foo")));
+    absl::Status dst = ::util::MakeStatusFromProto(proto);
+    int line = GET_SOURCE_LOCATION(1);
+
+    EXPECT_EQ(src, dst);
+    CheckStatus(dst, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message",
+                "foo", {}, {line});
+  }
+}
+
+google::protobuf::bridge::MessageSet MakeNonMessageSetPayload(
+    const PayloadsVec& payloads) {
+  google::protobuf::bridge::MessageSet mset;
+  for (const auto& p : payloads) {
+    google::protobuf::Any* any =
+        mset.MutableExtension(util::NonMessageSetPayload::message_set_extension)
+            ->add_payloads();
+    any->set_type_url(p.first);
+    any->set_value(std::string(p.second));
+  }
+  return mset;
+}
+
+TEST(Proto, WithNonMessageSetPayload) {
+  absl::Status src = util::MakeStatus(MyErrorSpace::Get(), 1, "message");
+  src.SetPayload(kUrl, absl::Cord(kPayload));
+  CheckStatus(src, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message", "",
+              {{kUrl, absl::Cord(kPayload)}}, {GET_SOURCE_LOCATION(3)});
+
+  {
+    util::StatusProto proto;
+    util::SaveStatusToProto(src, &proto);
+    EXPECT_EQ(1, proto.code());
+    EXPECT_EQ(ExpectedErrorSpaceName(), proto.space());
+    EXPECT_EQ(util::error::UNKNOWN, proto.canonical_code());
+    EXPECT_EQ("message", proto.message());
+    EXPECT_TRUE(proto.has_message_set());
+    EXPECT_THAT(
+        proto.message_set(),
+        EqualsProto(MakeNonMessageSetPayload({{kUrl, absl::Cord(kPayload)}})));
+    absl::Status dst = ::util::MakeStatusFromProto(proto);
+    EXPECT_EQ(src, dst);
+    CheckStatus(dst, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message",
+                "", {{kUrl, absl::Cord(kPayload)}}, {GET_SOURCE_LOCATION(3)});
+  }
+}
+
+TEST(Proto, WithBothPayloads) {
+  absl::Status src = util::MakeStatus(MyErrorSpace::Get(), 1, "message");
+  src.SetPayload(kUrl, absl::Cord(kPayload));
+  util::TestPayload payload;
+  payload.set_message("test");
+  util::AttachPayload(&src, payload);
+
+  {
+    util::StatusProto proto;
+    util::SaveStatusToProto(src, &proto);
+    EXPECT_EQ(1, proto.code());
+    EXPECT_EQ(ExpectedErrorSpaceName(), proto.space());
+    EXPECT_EQ(util::error::UNKNOWN, proto.canonical_code());
+    EXPECT_EQ("message", proto.message());
+    EXPECT_TRUE(proto.has_message_set());
+    google::protobuf::bridge::MessageSet expected_mset =
+        MakeNonMessageSetPayload({{kUrl, absl::Cord(kPayload)}});
+    expected_mset.MutableExtension(util::TestPayload::message_set_extension)
+        ->set_message("test");
+    EXPECT_THAT(proto.message_set(), EqualsProto(expected_mset));
+    absl::Status dst = ::util::MakeStatusFromProto(proto);
+    EXPECT_EQ(src, dst);
+    CheckStatus(dst, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message",
+                "test", {{kUrl, absl::Cord(kPayload)}},
+                {GET_SOURCE_LOCATION(4)});
+  }
+}
+
+TEST(Proto, UnknownSpace) {
+  util::StatusProto proto;
+  proto.set_code(100);
+  proto.set_space("unknown_space");
+  proto.set_message("msg");
+  absl::Status dst;
+  dst = ::util::MakeStatusFromProto(proto);
+  EXPECT_TRUE(::util::HasErrorCode(dst, absl::StatusCode::kUnknown));
+  EXPECT_THAT(dst.message(), HasSubstr("msg"));
+  EXPECT_THAT(dst.message(), HasSubstr("100"));
+  EXPECT_THAT(dst.message(), HasSubstr("unknown_space"));
+}
+
+TEST(Proto, UnknownSpaceZeroCanonicalCode) {
+  util::StatusProto proto;
+  proto.set_code(100);
+  proto.set_space("unknown_space");
+  proto.set_message("msg");
+  proto.set_canonical_code(0);
+  absl::Status dst;
+  dst = ::util::MakeStatusFromProto(proto);
+  EXPECT_TRUE(::util::HasErrorCode(dst, absl::StatusCode::kUnknown));
+  EXPECT_THAT(dst.message(), HasSubstr("msg"));
+  EXPECT_THAT(dst.message(), HasSubstr("100"));
+  EXPECT_THAT(dst.message(), HasSubstr("unknown_space"));
+}
+
+TEST(Proto, NegativeCode) {
+  util::StatusProto proto;
+  proto.set_code(-100);
+  proto.set_space(ExpectedErrorSpaceName());
+  proto.set_message("msg");
+  absl::Status dst;
+  dst = ::util::MakeStatusFromProto(proto);
+  CheckStatus(dst, MyErrorSpace::Get(), -100, util::error::UNKNOWN, "msg", "",
+              {}, {GET_SOURCE_LOCATION(2)});
+}
+
+TEST(Proto, RestoreInConstructor) {
+  const google::protobuf::bridge::MessageSet payload = MakeTestPayload("foo");
+  absl::Status src;
+  src = util::MakeStatus(MyErrorSpace::Get(), 1, "message", &payload);
+  util::StatusProto proto;
+  ::util::SaveStatusToProto(src, &proto);
+  EXPECT_EQ(1, proto.code());
+  EXPECT_EQ(ExpectedErrorSpaceName(), proto.space());
+  EXPECT_EQ("message", proto.message());
+  absl::Status dst = util::MakeStatusFromProto(proto);
+  EXPECT_EQ(::util::RetrieveErrorSpace(src), ::util::RetrieveErrorSpace(dst));
+  EXPECT_EQ(util::RetrieveErrorCode(src), util::RetrieveErrorCode(dst));
+  CheckStatus(dst, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message",
+              "foo", {}, {GET_SOURCE_LOCATION(4)});
+}
+
+TEST(Proto, MessageSetDoesNotSetTypedMessage) {
+  util::StatusProto payload;
+  payload.set_message("blah");
+
+  absl::Status src;
+  src = ::util::MakeStatus(MyErrorSpace::Get(), 1, "message");
+  util::AttachPayload(&src, payload);
+  EXPECT_TRUE(util::HasPayload(src));
+
+  ASSERT_TRUE(util::HasPayloadWithType<util::StatusProto>(src));
+  util::StatusProto p2 = util::GetPayload<util::StatusProto>(src);
+  EXPECT_THAT(payload, EqualsProto(p2));
+
+  util::StatusProto encoded;
+  ::util::SaveStatusToProto(src, &encoded);
+  EXPECT_TRUE(encoded.has_message_set());
+
+  absl::Status dst = util::MakeStatusFromProto(encoded);
+  EXPECT_EQ(::util::RetrieveErrorSpace(src), ::util::RetrieveErrorSpace(dst));
+  EXPECT_EQ(util::RetrieveErrorCode(src), util::RetrieveErrorCode(dst));
+  EXPECT_EQ(src, dst);
+  EXPECT_TRUE(util::HasPayload(dst));
+
+  ASSERT_TRUE(util::HasPayloadWithType<util::StatusProto>(dst));
+  util::StatusProto p3 = util::GetPayload<util::StatusProto>(dst);
+  EXPECT_THAT(payload, EqualsProto(p3));
+}
+
+TEST(Proto, AttachToOk) {
+  absl::Status s;
+  util::AttachPayload(&s, MakeStatusProto("foo"));
+  ASSERT_EQ(absl::OkStatus(), s);
+}
+
+TEST(Proto, AttachToUnsharedStatus) {
+  absl::Status x(absl::StatusCode::kDeadlineExceeded, "foo");
+  absl::Status y(absl::StatusCode::kDeadlineExceeded, "foo");
+
+  util::AttachPayload(&y, MakeStatusProto("bar"));
+  EXPECT_NE(x, y);
+  EXPECT_EQ(::util::RetrieveErrorSpace(x), ::util::RetrieveErrorSpace(y));
+  EXPECT_EQ(util::RetrieveErrorCode(x), util::RetrieveErrorCode(y));
+  EXPECT_EQ(x.message(), y.message());
+  if (std::is_base_of_v<google::protobuf::Message,
+                        google::protobuf::bridge::MessageSet>) {
+    // These test cases only pass with full protos (lite protos do not provide a
+    // human-readable representation).
+    EXPECT_THAT(y.ToString(), HasSubstr("message:"));
+    EXPECT_THAT(y.ToString(), HasSubstr("bar"));
+  }
+
+  // Check that attachment occurs in message set
+  ASSERT_TRUE(util::HasPayload(y));
+  EXPECT_TRUE(util::HasPayloadWithType<util::StatusProto>(y));
+}
+
+TEST(Proto, AttachToSharedStatus) {
+  absl::Status x(absl::StatusCode::kDeadlineExceeded, "foo");
+
+  // Extend with a fixed message
+  absl::Status y = x;
+  util::AttachPayload(&y, MakeStatusProto("bar"));
+  EXPECT_NE(x, y);
+  EXPECT_EQ(::util::RetrieveErrorSpace(x), ::util::RetrieveErrorSpace(y));
+  EXPECT_EQ(util::RetrieveErrorCode(x), util::RetrieveErrorCode(y));
+  EXPECT_EQ(x.message(), y.message());
+  if (std::is_base_of_v<google::protobuf::Message,
+                        google::protobuf::bridge::MessageSet>) {
+    // These test cases only pass with full protos (lite protos do not provide a
+    // human-readable representation).
+    EXPECT_THAT(y.ToString(), HasSubstr("message:"));
+    EXPECT_THAT(y.ToString(), HasSubstr("bar"));
+  }
+
+  // Extend a copy with another message of same type
+  absl::Status z = y;
+  util::AttachPayload(&z, MakeStatusProto("box"));
+  EXPECT_NE(y, z);
+  EXPECT_EQ(::util::RetrieveErrorSpace(x), ::util::RetrieveErrorSpace(z));
+  EXPECT_EQ(util::RetrieveErrorCode(x), util::RetrieveErrorCode(z));
+  EXPECT_EQ(x.message(), z.message());
+  if (std::is_base_of_v<google::protobuf::Message,
+                        google::protobuf::bridge::MessageSet>) {
+    // These test cases only pass with full protos (lite protos do not provide a
+    // human-readable representation).
+    EXPECT_THAT(z.ToString(), HasSubstr("message:"));
+    EXPECT_THAT(z.ToString(), HasSubstr("box"));
+    EXPECT_THAT(z.ToString(), Not(HasSubstr("bar")));
+  }
+}
+
+TEST(Proto, ErasePayloadFromOk) {
+  absl::Status s;
+  EXPECT_FALSE(util::ErasePayload<util::StatusProto>(&s));
+  EXPECT_EQ(absl::OkStatus(), s);
+}
+
+TEST(Proto, ErasePayloadFromErrorWithoutPayloads) {
+  absl::Status error(absl::StatusCode::kDeadlineExceeded, "foo");
+  EXPECT_FALSE(util::ErasePayload<util::StatusProto>(&error));
+  EXPECT_EQ(absl::Status(absl::StatusCode::kDeadlineExceeded, "foo"), error);
+}
+
+TEST(Proto, EraseLastMessageSetPayload) {
+  absl::Status error(absl::StatusCode::kDeadlineExceeded, "foo");
+  util::AttachPayload(&error, MakeStatusProto("bar"));
+
+  EXPECT_TRUE(util::HasPayloadWithType<util::StatusProto>(error));
+  EXPECT_THAT(error.ToString(), HasSubstr("util.MessageSetPayload"));
+
+  EXPECT_TRUE(util::ErasePayload<util::StatusProto>(&error));
+
+  EXPECT_FALSE(util::HasPayloadWithType<util::StatusProto>(error));
+  EXPECT_THAT(error.ToString(), Not(HasSubstr("util.MessageSetPayload")));
+}
+
+TEST(Proto, ErasePayloadFromErrorWithOtherPayloads) {
+  absl::Status error(absl::StatusCode::kDeadlineExceeded, "foo");
+  util::AttachPayload(&error, MakeStatusProto("bar"));
+  util::TestPayload test_payload;
+  test_payload.set_message("baz");
+  util::AttachPayload(&error, test_payload);
+
+  EXPECT_TRUE(util::HasPayloadWithType<util::StatusProto>(error));
+  EXPECT_TRUE(util::HasPayloadWithType<util::TestPayload>(error));
+
+  EXPECT_TRUE(util::ErasePayload<util::StatusProto>(&error));
+
+  EXPECT_FALSE(util::HasPayloadWithType<util::StatusProto>(error));
+  EXPECT_TRUE(util::HasPayloadWithType<util::TestPayload>(error));
+  EXPECT_THAT(error.ToString(), HasSubstr("util.MessageSetPayload"));
+}
+
+TEST(Proto, SourceLocation) {
+  util::StatusProto proto;
+  proto.set_code(util::error::PERMISSION_DENIED);
+  proto.set_space("generic");
+  proto.set_message("message");
+  proto.set_canonical_code(util::error::PERMISSION_DENIED);
+
+  absl::Status explicit_loc =
+      ::util::MakeStatusFromProto(proto, ::absl::SourceLocation::current());
+
+  // This should grab the local filename.
+  EXPECT_THAT(
+      explicit_loc.ToString(absl::StatusToStringMode::kWithSourceLocation),
+      HasSubstr("status_test.cc"));
+
+  absl::Status implicit_loc = ::util::MakeStatusFromProto(proto);
+
+  EXPECT_THAT(
+      implicit_loc.ToString(absl::StatusToStringMode::kWithSourceLocation),
+      HasSubstr("status_test.cc"));
+
+  // <source_location> is a bogus source location currently being returned
+  // by SourceLocation::current().  Ensure it does not leak out here.
+  EXPECT_THAT(
+      implicit_loc.ToString(absl::StatusToStringMode::kWithSourceLocation),
+      Not(HasSubstr("<source_location>")));
+}
+
+TEST(Canonical, SaveTo) {
+  absl::Status s = util::MakeStatus(
+      MyErrorSpace::Get(),
+      static_cast<int>(MyErrorCode::kCustomPermissionDenied), "message");
+  util::StatusProto proto;
+  ::util::SaveStatusToProto(s, &proto);
+  EXPECT_EQ(util::error::PERMISSION_DENIED, proto.canonical_code());
+}
+
+TEST(Canonical, SaveFromCanonicalSpace) {
+  absl::Status s(absl::StatusCode::kPermissionDenied, "");
+  util::StatusProto proto;
+  ::util::SaveStatusToProto(s, &proto);
+  EXPECT_FALSE(proto.has_canonical_code());  // Unset when space is canonical.
+  EXPECT_EQ(util::error::PERMISSION_DENIED, proto.code());
+}
+
+TEST(Canonical, RestoreFromCustomSpace) {
+  util::StatusProto proto;
+  proto.set_code(static_cast<int>(MyErrorCode::kCustomPermissionDenied));
+  proto.set_space(ExpectedErrorSpaceName());
+  proto.set_message("message");
+
+  absl::Status dst;
+  dst = ::util::MakeStatusFromProto(proto);
+  EXPECT_EQ(absl::StatusCode::kPermissionDenied, dst.code());
+}
+
 TEST(Canonical, CustomMapping) {
   absl::Status s = util::MakeStatus(
       MyErrorSpace::Get(),
@@ -915,6 +1294,70 @@ TEST(Canonical, CanonicalCode) {
   util::SetCanonicalCode(
       static_cast<absl::StatusCode>(util::error::Code_MAX + 1), &perm);
   EXPECT_EQ(perm.code(), absl::StatusCode::kUnknown);
+}
+
+TEST(Canonical, RestoreFrom) {
+  absl::Status src = util::MakeStatus(
+      MyErrorSpace::Get(),
+      static_cast<int>(MyErrorCode::kCustomPermissionDenied), "message");
+  util::StatusProto proto;
+  ::util::SaveStatusToProto(src, &proto);
+
+  absl::Status dst;
+  dst = ::util::MakeStatusFromProto(proto);
+  EXPECT_EQ(absl::StatusCode::kPermissionDenied, dst.code());
+
+  proto.set_canonical_code(util::error::UNAVAILABLE);
+  dst = ::util::MakeStatusFromProto(proto);
+  EXPECT_EQ(absl::StatusCode::kUnavailable, dst.code());
+}
+
+TEST(Canonical, RestoreFromUnknownSpace) {
+  util::StatusProto proto;
+  proto.set_code(100);
+  proto.set_space("unknown_space");
+  proto.set_message("message");
+  proto.set_canonical_code(util::error::PERMISSION_DENIED);
+
+  absl::Status dst;
+  dst = ::util::MakeStatusFromProto(proto);
+  EXPECT_EQ(util::CanonicalErrorSpace(), ::util::RetrieveErrorSpace(dst));
+  EXPECT_EQ(util::error::PERMISSION_DENIED, util::RetrieveErrorCode(dst));
+  EXPECT_EQ(absl::StatusCode::kPermissionDenied, dst.code());
+}
+
+TEST(Canonical, RestoreFromMismatchedCodes) {
+  util::StatusProto proto;
+  proto.set_code(util::error::PERMISSION_DENIED);
+  proto.set_space("generic");
+  proto.set_message("message");
+  proto.set_canonical_code(util::error::UNAVAILABLE);
+
+  absl::Status dst;
+  dst = ::util::MakeStatusFromProto(proto);
+  EXPECT_EQ(util::CanonicalErrorSpace(), ::util::RetrieveErrorSpace(dst));
+  EXPECT_EQ(util::error::PERMISSION_DENIED, util::RetrieveErrorCode(dst));
+  EXPECT_EQ(absl::StatusCode::kPermissionDenied, dst.code());
+}
+
+TEST(Canonical, RestoreFromUnknownCode) {
+  util::StatusProto proto;
+  proto.set_code(9999);
+  proto.set_space("generic");
+  proto.set_message("message");
+
+  absl::Status dst;
+  dst = ::util::MakeStatusFromProto(proto);
+  EXPECT_EQ(util::CanonicalErrorSpace(), ::util::RetrieveErrorSpace(dst));
+  EXPECT_EQ(9999, dst.raw_code());
+  EXPECT_EQ(9999, util::RetrieveErrorCode(dst));
+  // Unknown error_code is preserved in RetrieveErrorCode() even in
+  // canonicalized Status values.
+  EXPECT_EQ(9999, util::RetrieveErrorCode(util::ToCanonical(dst)));
+  EXPECT_EQ(9999, util::ToCanonical(dst).raw_code());
+  // But is canonicalized to util::error::UNKNOWN.
+  EXPECT_EQ(absl::StatusCode::kUnknown, util::ToCanonical(dst).code());
+  EXPECT_EQ(absl::StatusCode::kUnknown, dst.code());
 }
 
 TEST(Canonical, SetCanonicalCode) {
