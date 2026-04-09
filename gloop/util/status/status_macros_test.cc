@@ -853,7 +853,7 @@ absl::Status Codegen_RETURN_IF_ERROR_Status_Stream(int& out) {
   // We perform many operations in the builder to make sure they don't cause
   // spills or escape the object.
   RETURN_IF_ERROR(DummyMakeStatus()).LogError().SetAppend().SetPrepend()
-      << "Some string";
+      << "First " << out << " another one!";
   out = 17;  // just some work to do conditionally.
   return absl::OkStatus();
 }
