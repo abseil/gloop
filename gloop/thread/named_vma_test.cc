@@ -20,6 +20,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "gloop/base/proc_maps.h"
@@ -31,11 +32,8 @@
 
 namespace {
 
-TEST(NamedVMAs, Works) {
-#if defined(ABSL_HAVE_ADDRESS_SANITIZER)
-  // TODO - Fix this test to work with ASAN.
-  GTEST_SKIP() << "Skipping test because it doesn't work ASAN.";
-#endif
-}
+namespace t = ::testing;
+
+TEST(NamedVMAs, Works) {}
 
 }  // namespace
