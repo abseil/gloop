@@ -240,7 +240,7 @@ TEST_F(StatusBuilderTest, ErrorCode) {
   // Custom OK immediately gets converted into a canonical OK, but it still
   // "Is" the custom OK as well.
   {
-    const StatusBuilder builder(kCustomOK);
+    const StatusBuilder builder = MakeStatusBuilder(kCustomOK);
     EXPECT_TRUE(builder.ok());
     EXPECT_THAT(builder.CanonicalCode(), Eq(error::OK));
     EXPECT_THAT(builder.code(), Eq(absl::StatusCode::kOk));
@@ -256,7 +256,7 @@ TEST_F(StatusBuilderTest, ErrorCode) {
 
   // Non-OK canonical code
   {
-    const StatusBuilder builder(error::INVALID_ARGUMENT);
+    const StatusBuilder builder = MakeStatusBuilder(error::INVALID_ARGUMENT);
     EXPECT_FALSE(builder.ok());
     EXPECT_THAT(builder.CanonicalCode(), Eq(error::INVALID_ARGUMENT));
     EXPECT_THAT(builder.code(), Eq(absl::StatusCode::kInvalidArgument));
@@ -276,7 +276,7 @@ TEST_F(StatusBuilderTest, ErrorCode) {
 
   // Custom error space
   {
-    const StatusBuilder builder(kZomg);
+    const StatusBuilder builder = MakeStatusBuilder(kZomg);
     EXPECT_FALSE(builder.ok());
     EXPECT_THAT(builder.CanonicalCode(), Eq(error::UNKNOWN));
     EXPECT_FALSE(builder.Is(error::UNKNOWN));
@@ -289,7 +289,7 @@ TEST_F(StatusBuilderTest, ErrorCode) {
   }
   // Custom error space without ADL
   {
-    const StatusBuilder builder(PosixErrorSpace(), EINVAL);
+    const StatusBuilder builder = MakeStatusBuilder(PosixErrorSpace(), EINVAL);
     EXPECT_FALSE(builder.ok());
     EXPECT_FALSE(builder.Is(kCustomOK));
     EXPECT_FALSE(builder.Is(kZomg));
@@ -551,18 +551,18 @@ TEST_F(StatusBuilderTest, StreamInsertionOperator) {
   }
   {
     absl::Status status = util::MakeStatus(TestSpace::Get(), kZomg, "zomg");
-    auto builder = StatusBuilder(TestSpace::Get(), kZomg) << "zomg";
+    auto builder = MakeStatusBuilder(TestSpace::Get(), kZomg) << "zomg";
     EXPECT_EQ(ToStringViaStream(status), ToStringViaStream(builder));
-    EXPECT_EQ(
-        ToStringViaStream(status),
-        ToStringViaStream(StatusBuilder(TestSpace::Get(), kZomg) << "zomg"));
+    EXPECT_EQ(ToStringViaStream(status),
+              ToStringViaStream(MakeStatusBuilder(TestSpace::Get(), kZomg)
+                                << "zomg"));
   }
   {
     absl::Status status = PosixErrorToStatus(ENOSYS, "nope");
-    auto builder = StatusBuilder(PosixErrorSpace(), ENOSYS) << "nope";
-    EXPECT_EQ(
-        ToStringViaStream(status),
-        ToStringViaStream(StatusBuilder(PosixErrorSpace(), ENOSYS) << "nope"));
+    auto builder = MakeStatusBuilder(PosixErrorSpace(), ENOSYS) << "nope";
+    EXPECT_EQ(ToStringViaStream(status),
+              ToStringViaStream(MakeStatusBuilder(PosixErrorSpace(), ENOSYS)
+                                << "nope"));
   }
 }
 
@@ -576,11 +576,11 @@ struct HasAbslStringify {
 };
 TEST_F(StatusBuilderTest, AbslStringify) {
   absl::Status status = util::MakeStatus(TestSpace::Get(), kZomg, "zomg");
-  auto builder = StatusBuilder(TestSpace::Get(), kZomg)
+  auto builder = MakeStatusBuilder(TestSpace::Get(), kZomg)
                  << HasAbslStringify{"zomg"};
   EXPECT_EQ(ToStringViaStream(status), ToStringViaStream(builder));
   EXPECT_EQ(ToStringViaStream(status),
-            ToStringViaStream(StatusBuilder(TestSpace::Get(), kZomg)
+            ToStringViaStream(MakeStatusBuilder(TestSpace::Get(), kZomg)
                               << HasAbslStringify{"zomg"}));
 }
 
@@ -599,16 +599,18 @@ TEST_F(StatusBuilderTest, ToStringWithStreamInsertionOperator) {
   }
   {
     absl::Status status = util::MakeStatus(TestSpace::Get(), kZomg, "zomg");
-    auto builder = StatusBuilder(TestSpace::Get(), kZomg) << "zomg";
+    auto builder = MakeStatusBuilder(TestSpace::Get(), kZomg) << "zomg";
     EXPECT_EQ(ToStringViaStream(status), ToStringViaStream(builder));
-    EXPECT_EQ(ToStringViaStream(status),
-              (StatusBuilder(TestSpace::Get(), kZomg) << "zomg").ToString());
+    EXPECT_EQ(
+        ToStringViaStream(status),
+        (MakeStatusBuilder(TestSpace::Get(), kZomg) << "zomg").ToString());
   }
   {
     absl::Status status = PosixErrorToStatus(ENOSYS, "nope");
-    auto builder = StatusBuilder(PosixErrorSpace(), ENOSYS) << "nope";
-    EXPECT_EQ(ToStringViaStream(status),
-              (StatusBuilder(PosixErrorSpace(), ENOSYS) << "nope").ToString());
+    auto builder = MakeStatusBuilder(PosixErrorSpace(), ENOSYS) << "nope";
+    EXPECT_EQ(
+        ToStringViaStream(status),
+        (MakeStatusBuilder(PosixErrorSpace(), ENOSYS) << "nope").ToString());
   }
 }
 
