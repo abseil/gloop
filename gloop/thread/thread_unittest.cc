@@ -1782,22 +1782,19 @@ TEST(ThreadTest, CheckOtherStack) {
   }
   std::string dump;
 
-  // Fetch stack trace while recursing in another thread
+  // Fetch stack trace while recursing to an arbitrary depth in another thread
   {
     ThreadPool pool(1);
     pool.Schedule(
-        absl::bind_front(Recurse, 100, [&dump] { SaveStackTraceDump(&dump); }));
+        absl::bind_front(Recurse, 20, [&dump] { SaveStackTraceDump(&dump); }));
   }
 
   void* pc = RecursiveCallPC();
   CHECK(RE2::PartialMatch(dump, absl::StrFormat(" %p +%p", pc, pc)))
       << pc << " in " << dump;
 
-#ifdef __OPTIMIZE__
-  // TODO - This doesn't work in unoptimized builds.
   // Must contain a creator: entry
   CHECK(RE2::PartialMatch(dump, "creator:")) << dump;
-#endif
 }
 
 TEST(ThreadTest, CheckStackLineWrap) {
