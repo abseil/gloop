@@ -25,6 +25,7 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -46,6 +47,15 @@ namespace {
 using ::testing::AllOf;
 using ::testing::Eq;
 using ::testing::HasSubstr;
+
+using ::util::status_macro_internal::ReturnIfErrorAdaptor;
+using ::util::status_macro_internal::StatusAdaptorForMacros;
+static_assert(!std::is_default_constructible_v<ReturnIfErrorAdaptor>);
+static_assert(!std::is_default_constructible_v<StatusAdaptorForMacros>);
+static_assert(!std::is_copy_constructible_v<ReturnIfErrorAdaptor>);
+static_assert(!std::is_copy_constructible_v<StatusAdaptorForMacros>);
+static_assert(!std::is_copy_assignable_v<ReturnIfErrorAdaptor>);
+static_assert(!std::is_copy_assignable_v<StatusAdaptorForMacros>);
 
 absl::Status ReturnOk() { return absl::OkStatus(); }
 

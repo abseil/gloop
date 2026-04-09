@@ -48,7 +48,7 @@
 #define LOG_IF_ERROR(level, expr)                                              \
   STATUS_MACROS_IMPL_ELSE_BLOCKER_                                             \
   if (::util::status_macro_internal::StatusAdaptorForMacros status_adaptor = { \
-          (expr), ::absl::SourceLocation::current()}) {                        \
+          (expr)}) {                                                           \
   } else /* NOLINT */                                                          \
     ::util::status_macro_internal::StatusBuilderHolder{                        \
         status_adaptor.Consume()}                                              \

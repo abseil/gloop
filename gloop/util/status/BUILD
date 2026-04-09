@@ -351,7 +351,6 @@ cc_test(
 
 cc_library(
     name = "status_macros",
-    srcs = ["status_macros.cc"],
     hdrs = ["status_macros.h"],
     deps = [
         ":status",
