@@ -278,8 +278,8 @@ cc_library(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:log_entry",
         "@abseil-cpp//absl/log:log_sink",
-        "@abseil-cpp//absl/log/internal:vlog_config",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_builder",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:internal",
@@ -289,6 +289,8 @@ cc_library(
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:source_location",
         "@gloop//gloop:enforce_gloop_support",
+        "@gloop//gloop/base:raw_logging",
+        "@gloop//gloop/util/gtl:source_location",
     ],
 )
 
@@ -311,6 +313,7 @@ cc_test(
         "@abseil-cpp//absl/log:log_sink",
         "@abseil-cpp//absl/log:scoped_mock_log",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_builder",
         "@abseil-cpp//absl/status:status_matchers",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",

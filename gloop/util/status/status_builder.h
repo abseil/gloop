@@ -35,896 +35,24 @@
 #include "absl/base/optimization.h"
 #include "absl/log/log_sink.h"
 #include "absl/status/status.h"
+#include "absl/status/status_builder.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/internal/ostringstream.h"
 #include "absl/strings/internal/stringify_stream.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "absl/types/source_location.h"
+#include "gloop/base/raw_logging.h"
 #include "gloop/util/status/status.h"
 
 namespace util {
 
-class StatusBuilder;
-
-namespace status_internal {
-
-// StatusBuilder's operator<< overloads use an AbslStringifyStream to allow us
-// to use AbslStringify. This wraps (but does not own) an OStringStream, which
-// we use for speed. We bundle them together in Stream here, partly for
-// convenience in StatusBuilder's implementation, and partly to help make sure
-// their lifetimes are managed correctly.
-class Stream {
- public:
-  explicit Stream(std::string& message)
-      : ostringstream_(&message), absl_stringify_stream_(ostringstream_) {}
-
-  template <typename T>
-  friend Stream& operator<<(Stream& stream, const T& t) {
-    stream.absl_stringify_stream_ << t;
-    return stream;
-  }
-
- private:
-  absl::strings_internal::OStringStream ostringstream_;
-  absl::strings_internal::StringifyStream absl_stringify_stream_;
-};
-
-// StatusBuilder::With() adaptors can be classified as either "pure policy" or
-// "terminal". Terminal adaptors are a mix of "side effect" or "conversion".
-// We differentiate between these types by the functor's return type.
-//
-// This is currently for analysis only, as part of an ongoing LSC investigation.
-template <typename Fn, typename Arg, typename Expected>
-inline constexpr bool kResultMatches =
-    std::is_same_v<std::decay_t<std::invoke_result_t<Fn, Arg>>, Expected>;
-
-template <typename Adaptor, typename Builder>
-using PurePolicy =
-    std::enable_if_t<kResultMatches<Adaptor, Builder, StatusBuilder>,
-                     std::invoke_result_t<Adaptor, Builder>>;
-
-template <typename Adaptor, typename Builder>
-using SideEffect =
-    std::enable_if_t<kResultMatches<Adaptor, Builder, absl::Status>,
-                     std::invoke_result_t<Adaptor, Builder>>;
-
-template <typename Adaptor, typename Builder>
-using Conversion =
-    std::enable_if_t<!kResultMatches<Adaptor, Builder, StatusBuilder> &&
-                         !kResultMatches<Adaptor, Builder, absl::Status>,
-                     std::invoke_result_t<Adaptor, Builder>>;
-
-class StatusBuilderPrivateAccessor;
-
-}  // namespace status_internal
-
-// Forward declarations for inlining. See definitions for documentation.
-
-template <typename MessageSetExtension, typename ExtensionIdentifier>
-StatusBuilder& AttachPayload(StatusBuilder*, const MessageSetExtension&,
-                             const ExtensionIdentifier&);
-
-template <typename MessageSetExtension>
-StatusBuilder& AttachPayload(StatusBuilder*, const MessageSetExtension&);
-
-template <typename MessageSetExtension, typename ExtensionIdentifier>
-bool HasPayloadWithType(const StatusBuilder&, const ExtensionIdentifier&);
-template <typename MessageSetExtension>
-bool HasPayloadWithType(const StatusBuilder&);
-
-template <typename MessageSetExtension, typename ExtensionIdentifier>
-MessageSetExtension GetPayload(const StatusBuilder&,
-                               const ExtensionIdentifier&);
-template <typename MessageSetExtension>
-MessageSetExtension GetPayload(const StatusBuilder&);
-
-template <typename Enum>
-decltype(std::conditional_t<false, Enum,
-                            status_internal::StatusBuilderPrivateAccessor>::
-             SetErrorCode(std::declval<StatusBuilder&>(),
-                          std::declval<const ErrorSpace*>(),
-                          std::declval<std::conditional_t<false, Enum, int>>()))
-SetErrorCode(StatusBuilder& builder ABSL_ATTRIBUTE_LIFETIME_BOUND, Enum);
-template <typename Enum>
-decltype(std::move(util::SetErrorCode(std::declval<StatusBuilder&>(),
-                                      std::declval<Enum>())))
-SetErrorCode(StatusBuilder&& builder, Enum code) {
-  return std::move(util::SetErrorCode(builder, code));
-}
-
-util::error::Code GetCanonicalCode(const StatusBuilder&);
-
-template <typename Enum>
-ABSL_MUST_USE_RESULT decltype(util::HasErrorCode(
-    std::declval<const absl::Status&>(), std::declval<Enum>()))
-HasErrorCode(const StatusBuilder&, Enum);
-bool HasErrorCode(const StatusBuilder&, util::error::Code);
-bool HasErrorCode(const StatusBuilder&, const ErrorSpace*, int);
-bool HasErrorSpace(const StatusBuilder&, const ErrorSpace*);
-
-// Specifies how to join the error message in the original status and any
-// additional message that has been streamed into the builder.
-enum class MessageJoinStyle {
-  kAnnotate,
-  kAppend,
-  kPrepend,
-};
+using StatusBuilder ABSL_DEPRECATE_AND_INLINE() = absl::StatusBuilder;
 
 // Creates a new status based on an old one by joining the message from the
 // original to an additional message.
 absl::Status JoinMessageToStatus(absl::Status s, absl::string_view msg,
-                                 MessageJoinStyle style);
-
-template <typename Enum>
-std::enable_if_t<EnumHasErrorSpace<Enum>::value, StatusBuilder>
-MakeStatusBuilder(
-    Enum code, absl::SourceLocation location = absl::SourceLocation::current());
-
-StatusBuilder MakeStatusBuilder(
-    util::error::Code code,
-    absl::SourceLocation location = absl::SourceLocation::current());
-
-StatusBuilder MakeStatusBuilder(
-    const ErrorSpace* space, int code,
-    absl::SourceLocation location = absl::SourceLocation::current());
-
-// Creates a status based on an original_status, but enriched with additional
-// information.  The builder implicitly converts to Status and StatusOr<T>
-// allowing for it to be returned directly.
-//
-//   StatusBuilder builder(original);
-//   util::AttachPayload(&builder, proto);
-//   builder << "info about error";
-//   return builder;
-//
-// It provides method chaining to simplify typical usage:
-//
-//   return StatusBuilder(original)
-//       .Log(base_logging::WARNING) << "oh no!";
-//
-// In more detail:
-// - When the original status is OK, all methods become no-ops and nothing will
-//   be logged.
-// - Messages streamed into the status builder are collected into a single
-//   additional message string.
-// - The original Status's message and the additional message are joined
-//   together when the result status is built.
-// - By default, the messages will be joined as if by `util::Annotate`, which
-//   includes a convenience separator between the original message and the
-//   additional one.  This behavior can be changed with the `SetAppend()` and
-//   `SetPrepend()` methods of the builder.
-// - By default, the result status is not logged.  The `Log` and
-//   `EmitStackTrace` methods will cause the builder to log the result status
-//   when it is built.
-// - All side effects (like logging or constructing a stack trace) happen when
-//   the builder is converted to a status.
-class ABSL_MUST_USE_RESULT StatusBuilder {
- public:
-  explicit StatusBuilder();
-  ~StatusBuilder();
-
-  // Creates a `StatusBuilder` based on an original status.  If logging is
-  // enabled, it will use `location` as the location from which the log message
-  // occurs.  A typical user will not specify `location`, allowing it to default
-  // to the current location.
-  explicit StatusBuilder(
-      const absl::Status& original_status,
-      absl::SourceLocation location = absl::SourceLocation::current());
-  explicit StatusBuilder(
-      absl::Status&& original_status,
-      absl::SourceLocation location = absl::SourceLocation::current());
-
-#ifdef ABSL_REFACTOR_INLINER_IS_RUNNING
-  // HACK: This block NEVER compiled. It is only a replacement code pattern that
-  // the inliner sees to enable it to handle absl::SourceLocation correctly
-  // without spelling it out at every call site.
-
-  // TODO: Remove this when it becomes unused.
-  template <typename Enum, typename = typename std::enable_if<
-                               EnumHasErrorSpace<Enum>::value>::type>
-  ABSL_DEPRECATE_AND_INLINE()
-  explicit StatusBuilder(Enum code)
-      : StatusBuilder(::util::MakeStatusBuilder(std::forward<Enum>(code))) {}
-
-  // TODO: Remove this when it becomes unused.
-  template <typename Enum, typename = typename std::enable_if<
-                               EnumHasErrorSpace<Enum>::value>::type>
-  ABSL_DEPRECATE_AND_INLINE()
-  explicit StatusBuilder(Enum code, absl::SourceLocation location)
-      : StatusBuilder(
-            ::util::MakeStatusBuilder(std::forward<Enum>(code), location)) {}
-
-  // TODO: Remove this when it becomes unused.
-  ABSL_DEPRECATE_AND_INLINE()
-  explicit StatusBuilder(util::error::Code code)
-      : StatusBuilder(::util::MakeStatusBuilder(code)) {}
-
-  // TODO: Remove this when it becomes unused.
-  ABSL_DEPRECATE_AND_INLINE()
-  explicit StatusBuilder(util::error::Code code, absl::SourceLocation location)
-      : StatusBuilder(::util::MakeStatusBuilder(code, location)) {}
-
-  // TODO: Remove this when it becomes unused.
-  ABSL_DEPRECATE_AND_INLINE()
-  explicit StatusBuilder(const ErrorSpace* space, int code)
-      : StatusBuilder(::util::MakeStatusBuilder(space, code)) {}
-
-  // TODO: Remove this when it becomes unused.
-  ABSL_DEPRECATE_AND_INLINE()
-  explicit StatusBuilder(const ErrorSpace* space, int code,
-                         absl::SourceLocation location)
-      : StatusBuilder(::util::MakeStatusBuilder(space, code, location)) {}
-#else
-  // Creates a `StatusBuilder` from an enum code and its associated
-  // `ErrorSpace`.  If logging is enabled, it will use `location` as the
-  // location from which the log message occurs.  A typical user will not
-  // specify `location`, allowing it to default to the current location.
-  // Note: `Enum` must not be `util::error::Code`.
-  // TODO: Remove this when it becomes unused.
-  template <typename Enum, typename = typename std::enable_if<
-                               EnumHasErrorSpace<Enum>::value>::type>
-  ABSL_DEPRECATED("Use MakeStatusBuilder instead")
-  explicit StatusBuilder(Enum code, absl::SourceLocation location =
-                                        absl::SourceLocation::current())
-      : StatusBuilder(
-            ::util::MakeStatusBuilder(std::forward<Enum>(code), location)) {}
-
-  // DEPRECATED: Use the constructor that takes `absl::StatusCode`.
-  // This constructor exists for backward compatibility and its usage will be
-  // migrated to the `absl::StatusCode` constructor.
-  // TODO: Remove this when it becomes unused.
-  ABSL_DEPRECATED("Use MakeStatusBuilder instead")
-  explicit StatusBuilder(
-      util::error::Code code,
-      absl::SourceLocation location = absl::SourceLocation::current())
-      : StatusBuilder(::util::MakeStatusBuilder(code, location)) {}
-
-  // Creates a `StatusBuilder` from an `ErrorSpace` and a code.  If logging is
-  // enabled, it will use `location` as the location from which the log message
-  // occurs.  A typical user will not specify `location`, allowing it to default
-  // to the current location.
-  // TODO: Remove this when it becomes unused.
-  ABSL_DEPRECATED("Use MakeStatusBuilder instead")
-  explicit StatusBuilder(
-      const ErrorSpace* space, int code,
-      absl::SourceLocation location = absl::SourceLocation::current())
-      : StatusBuilder(::util::MakeStatusBuilder(space, code, location)) {}
-#endif
-
-  // Creates a `StatusBuilder` from a status code.  If logging is enabled, it
-  // will use `location` as the location from which the log message occurs.  A
-  // typical user will not specify `location`, allowing it to default to the
-  // current location.
-  explicit StatusBuilder(
-      absl::StatusCode code,
-      absl::SourceLocation location = absl::SourceLocation::current());
-
-  StatusBuilder(const StatusBuilder& sb);
-  StatusBuilder& operator=(const StatusBuilder& sb);
-  StatusBuilder(StatusBuilder&&) = default;
-  StatusBuilder& operator=(StatusBuilder&&) = default;
-
-  // Mutates the builder so that the final additional message is prepended to
-  // the original error message in the status.  A convenience separator is not
-  // placed between the messages.
-  //
-  // NOTE: Multiple calls to `SetPrepend` and `SetAppend` just adjust the
-  // behavior of the final join of the original status with the extra message.
-  //
-  // Returns `*this` to allow method chaining.
-  StatusBuilder& SetPrepend() &;
-  ABSL_MUST_USE_RESULT StatusBuilder&& SetPrepend() &&;
-
-  // Mutates the builder so that the final additional message is appended to the
-  // original error message in the status.  A convenience separator is not
-  // placed between the messages.
-  //
-  // NOTE: Multiple calls to `SetPrepend` and `SetAppend` just adjust the
-  // behavior of the final join of the original status with the extra message.
-  //
-  // Returns `*this` to allow method chaining.
-  StatusBuilder& SetAppend() &;
-  ABSL_MUST_USE_RESULT StatusBuilder&& SetAppend() &&;
-
-  // Mutates the builder to disable any logging that was set using any of the
-  // logging functions below.  Returns `*this` to allow method chaining.
-  StatusBuilder& SetNoLogging() &;
-  ABSL_MUST_USE_RESULT StatusBuilder&& SetNoLogging() &&;
-
-  // Mutates the builder so that the result status will be logged (without a
-  // stack trace) when this builder is converted to a Status.  This overrides
-  // the logging settings from earlier calls to any of the logging mutator
-  // functions.  Returns `*this` to allow method chaining.
-  StatusBuilder& Log(base_logging::LogSeverity level) &;
-  ABSL_MUST_USE_RESULT StatusBuilder&& Log(base_logging::LogSeverity level) &&;
-  StatusBuilder& LogError() & { return Log(base_logging::ERROR); }
-  ABSL_MUST_USE_RESULT StatusBuilder&& LogError() && {
-    return std::move(LogError());
-  }
-  StatusBuilder& LogWarning() & { return Log(base_logging::WARNING); }
-  ABSL_MUST_USE_RESULT StatusBuilder&& LogWarning() && {
-    return std::move(LogWarning());
-  }
-  StatusBuilder& LogInfo() & { return Log(base_logging::INFO); }
-  ABSL_MUST_USE_RESULT StatusBuilder&& LogInfo() && {
-    return std::move(LogInfo());
-  }
-
-  // Mutates the builder so that the result status will be logged every N
-  // invocations (without a stack trace) when this builder is converted to a
-  // Status.  This overrides the logging settings from earlier calls to any of
-  // the logging mutator functions.  Returns `*this` to allow method chaining.
-  StatusBuilder& LogEveryN(base_logging::LogSeverity level, int n) &;
-  ABSL_MUST_USE_RESULT StatusBuilder&& LogEveryN(
-      base_logging::LogSeverity level, int n) &&;
-
-  // Mutates the builder so that the result status will be logged once per
-  // period (without a stack trace) when this builder is converted to a Status.
-  // This overrides the logging settings from earlier calls to any of the
-  // logging mutator functions.  Returns `*this` to allow method chaining.
-  // If period is absl::ZeroDuration() or less, then this is equivalent to
-  // calling the Log() method.
-  StatusBuilder& LogEvery(base_logging::LogSeverity level,
-                          absl::Duration period) &;
-  ABSL_MUST_USE_RESULT StatusBuilder&& LogEvery(base_logging::LogSeverity level,
-                                                absl::Duration period) &&;
-
-  // Mutates the builder so that the result status will be VLOGged (without a
-  // stack trace) when this builder is converted to a Status.  `verbose_level`
-  // indicates the verbosity level that would be passed to VLOG().  This
-  // overrides the logging settings from earlier calls to any of the logging
-  // mutator functions.  Returns `*this` to allow method chaining.
-  StatusBuilder& VLog(int verbose_level) &;
-  ABSL_MUST_USE_RESULT StatusBuilder&& VLog(int verbose_level) &&;
-
-  // Mutates the builder so that a stack trace will be logged if the status is
-  // logged. One of the logging setters above should be called as well. If
-  // logging is not yet enabled this behaves as if LogInfo().EmitStackTrace()
-  // was called. Returns `*this` to allow method chaining.
-  StatusBuilder& EmitStackTrace() &;
-  ABSL_MUST_USE_RESULT StatusBuilder&& EmitStackTrace() &&;
-
-  // Mutates the builder so that the result status will also be logged to the
-  // provided `sink` when this builder is converted to a status. Overwrites any
-  // sink set prior. The provided `sink` must point to a valid object by the
-  // time this builder is converted to a status. Has no effect if this builder
-  // is not configured to log by calling any of the LogXXX methods. Returns
-  // `*this` to allow method chaining.
-  StatusBuilder& AlsoOutputToSink(absl::LogSink* sink) &;
-  ABSL_MUST_USE_RESULT StatusBuilder&& AlsoOutputToSink(absl::LogSink* sink) &&;
-
-  // Mutates the builder so that the result status will only be logged to the
-  // provided `sink` when this builder is converted to a status. Overwrites any
-  // sink set prior. The provided `sink` must point to a valid object by the
-  // time this builder is converted to a status. Has no effect if this builder
-  // is not configured to log by calling any of the LogXXX methods. Returns
-  // `*this` to allow method chaining.
-  StatusBuilder& OnlyOutputToSink(absl::LogSink* sink) &;
-  ABSL_MUST_USE_RESULT StatusBuilder&& OnlyOutputToSink(absl::LogSink* sink) &&;
-
-  // Appends to the extra message that will be added to the original status.  By
-  // default, the extra message is added to the original message as if by
-  // `util::Annotate`, which includes a convenience separator between the
-  // original message and the enriched one.
-  template <typename T>
-  StatusBuilder& operator<<(const T& value) &;
-
-  template <typename T>
-  ABSL_MUST_USE_RESULT StatusBuilder&& operator<<(const T& value) &&;
-
-  // Adds a payload for the status that will be returned by this StatusBuilder.
-  // Note that this is equivalent to `Status::SetPayload`, to attach protos to
-  // the MessageSet payload, use `util::AttachPayload`. Returns '*this' to allow
-  // method chaining.
-  StatusBuilder& SetPayload(absl::string_view type_url, absl::Cord payload) &;
-  ABSL_MUST_USE_RESULT StatusBuilder&& SetPayload(absl::string_view type_url,
-                                                  absl::Cord payload) && {
-    return std::move(SetPayload(type_url, std::move(payload)));
-  }
-
-  std::optional<absl::Cord> GetPayload(absl::string_view type_url) const;
-
-  // AttachPayload()
-  //
-  // If `ok()`, does nothing. Else sets message `obj` as the payload for
-  // extension `id`.
-  //
-  // `T` must be a protocol buffer type that can be stored in a MessageSet.
-  // Usually `T::message_set_extension` is the extension id. If that's not the
-  // case, call the overload that takes `ExtensionIdentifier` as an argument,
-  // e.g. `google::rpc::Status` has a non-standard extension id
-  // `google::rpc::error_details_ext`.
-  //
-  // Example:
-  //   util::StatusBuilder builder;
-  //   util::TestPayload test_payload;
-  //   test_payload.set_message("test");
-  //   builder.AttachPayload(test_payload);
-  //
-  //   google::rpc::Status rpc_status;
-  //   rpc_status.set_message("message for external");
-  //   builder.AttachPayload(rpc_status, google::rpc::error_details_ext);
-  //
-  template <typename MessageSetExtension, typename ExtensionIdentifier>
-  StatusBuilder& AttachPayload(const MessageSetExtension& obj,
-                               const ExtensionIdentifier& id) & {
-    return ::util::AttachPayload(this, obj, id);
-  }
-  template <typename MessageSetExtension, typename ExtensionIdentifier>
-  ABSL_MUST_USE_RESULT StatusBuilder&& AttachPayload(
-      const MessageSetExtension& obj, const ExtensionIdentifier& id) && {
-    return std::move(::util::AttachPayload(this, obj, id));
-  }
-
-  template <typename MessageSetExtension>
-  StatusBuilder& AttachPayload(const MessageSetExtension& obj) & {
-    return ::util::AttachPayload(this, obj);
-  }
-  template <typename MessageSetExtension>
-  ABSL_MUST_USE_RESULT StatusBuilder&& AttachPayload(
-      const MessageSetExtension& obj) && {
-    return std::move(::util::AttachPayload(this, obj));
-  }
-
-  // HasPayload()
-  //
-  // Indicates whether the Status object that will be returned by the
-  // StatusBuilder contains any payloads with a type extending proto2's
-  // `MessageSet`, returning `true` if so. Having a payload does not guarantee
-  // the presence of a payload with a specific type. Note that returning `false`
-  // does not necessarily indicate the absence of a payload, but only the
-  // absence on one which extends `MessageSet`.
-  bool HasPayload() const;
-
-  // HasPayloadWithType()
-  //
-  // Indicates whether the Status object that will be returned by the
-  // StatusBuilder contains a payload with a type extending proto2's MessageSet,
-  // returning `true` if so. The extension identifier is specified as the second
-  // argument. This function implicitly invokes `HasPayload()`, so you do not
-  // need to call it alongside a `HasPayloadWithType()` call.
-  template <typename MessageSetExtension, typename ExtensionIdentifier>
-  ABSL_DEPRECATE_AND_INLINE()
-  bool HasPayloadWithType(const ExtensionIdentifier& id) const {
-    return ::util::HasPayloadWithType<MessageSetExtension>(*this, id);
-  }
-
-  // Indicates whether the Status object that will be returned by the
-  // StatusBuilder contains a payload with a type extending proto2's
-  // `MessageSet`, returning `true` if so. The extension identifier is expected
-  // to be accessible as `MessageSetExtension::message_set_extension()`. This
-  // function implicitly invokes `HasPayload()`, so you do not need to call it
-  // alongside a `HasPayloadWithType()` call.
-  template <typename MessageSetExtension>
-  ABSL_DEPRECATE_AND_INLINE()
-  bool HasPayloadWithType() const {
-    return ::util::HasPayloadWithType<MessageSetExtension>(*this);
-  }
-
-  // GetPayload()
-  //
-  // Returns a copy of a payload object with type MessageSetExtension. The
-  // second argument specifies the ExtensionIdentifier. Before calling
-  // GetPayload, you should check the presence of the payload with this type by
-  // invoking HasPayloadWithType with the same arguments. Otherwise this call
-  // will lead to crash in case if payload if absent.
-  template <typename MessageSetExtension, typename ExtensionIdentifier>
-  ABSL_DEPRECATE_AND_INLINE()
-  MessageSetExtension GetPayload(const ExtensionIdentifier& id) const {
-    return ::util::GetPayload<MessageSetExtension>(*this, id);
-  }
-
-  // Returns a copy of a payload object with type MessageSetExtension. An
-  // extension id is expected to be accessible as
-  //   MessageSetExtension::message_set_extension.
-  //
-  // Note: before calling `GetPayload()`, you should check for the presence of a
-  // payload by invoking `HasPayloadWithType()` with the same arguments; not
-  // performing this check may lead to undefined behavior in cases where the
-  // payload is absent.
-  template <typename MessageSetExtension>
-  ABSL_DEPRECATE_AND_INLINE()
-  MessageSetExtension GetPayload() const {
-    return ::util::GetPayload<MessageSetExtension>(*this);
-  }
-
-  // Sets the error code for the status that will be returned by this
-  // StatusBuilder.  Returns `*this` to allow method chaining.
-  template <typename Enum>
-  StatusBuilder& SetErrorCode(Enum code) & {
-    return ::util::SetErrorCode(*this, code);
-  }
-  template <typename Enum>
-  ABSL_MUST_USE_RESULT StatusBuilder&& SetErrorCode(Enum code) && {
-    return ::util::SetErrorCode(std::move(*this), code);
-  }
-
-  // Sets the status code for the status that will be returned by this
-  // StatusBuilder. Returns `*this` to allow method chaining.
-  StatusBuilder& SetCode(absl::StatusCode code) &;
-  ABSL_MUST_USE_RESULT StatusBuilder&& SetCode(absl::StatusCode code) &&;
-
-  ///////////////////////////////// Adaptors /////////////////////////////////
-  //
-  // A StatusBuilder `adaptor` is a functor which can be included in a builder
-  // method chain. There are two common variants:
-  //
-  // 1. `Pure policy` adaptors modify the StatusBuilder and return the modified
-  //    object, which can then be chained with further adaptors or mutations.
-  //
-  // 2. `Terminal` adaptors consume the builder's Status and return some
-  //    other type of object. Alternatively, the consumed Status may be used
-  //    for side effects, e.g. by passing it to a side channel. A terminal
-  //    adaptor cannot be chained.
-  //
-  // Careful: The conversion of StatusBuilder to Status has side effects!
-  // Adaptors must ensure that this conversion happens at most once in the
-  // builder chain. The easiest way to do this is to determine the adaptor type
-  // and follow the corresponding guidelines:
-  //
-  // Pure policy adaptors should:
-  // (a) Take a StatusBuilder as input parameter.
-  // (b) NEVER convert the StatusBuilder to Status:
-  //     - Never assign the builder to a Status variable.
-  //     - Never pass the builder to a function whose parameter type is Status,
-  //       including by reference (e.g. const Status&).
-  //     - Never pass the builder to any function which might convert the
-  //       builder to Status (i.e. this restriction is viral).
-  // (c) Return a StatusBuilder (usually the input parameter).
-  //
-  // Terminal adaptors should:
-  // (a) Take a Status as input parameter (not a StatusBuilder!).
-  // (b) Return a type matching the enclosing function. (This can be `void`.)
-  //
-  // Adaptors do not necessarily fit into one of these categories. However, any
-  // which satisfies the conversion rule can always be decomposed into a pure
-  // adaptor chained into a terminal adaptor. (This is recommended.)
-  //
-  // Examples
-  //
-  // Pure adaptors allow teams to configure team-specific error handling
-  // policies.  For example:
-  //
-  //   StatusBuilder TeamPolicy(StatusBuilder builder) {
-  //     util::AttachPayload(&builder, ...);
-  //     return std::move(builder).Log(base_logging::WARNING);
-  //   }
-  //
-  //   RETURN_IF_ERROR(foo()).With(TeamPolicy);
-  //
-  // Because pure policy adaptors return the modified StatusBuilder, they
-  // can be chained with further adaptors, e.g.:
-  //
-  //   RETURN_IF_ERROR(foo()).With(TeamPolicy).With(OtherTeamPolicy);
-  //
-  // Terminal adaptors are often used for type conversion. This allows
-  // RETURN_IF_ERROR to be used in functions which do not return Status. For
-  // example, a function might want to return some default value on error:
-  //
-  //   int GetSysCounter() {
-  //     int value;
-  //     RETURN_IF_ERROR(ReadCounterFile(filename, &value))
-  //         .LogInfo()
-  //         .With([](const absl::Status& unused) { return 0; });
-  //     return value;
-  //   }
-  //
-  // For the simple case of returning a constant (e.g. zero, false, nullptr) on
-  // error, consider `status_macros::Return` or `status_macros::ReturnVoid`:
-  //
-  //   #include "gloop/util/status/return.h"
-  //
-  //   bool DoMyThing() {
-  //     RETURN_IF_ERROR(foo()).LogWarning().With(status_macros::Return(false));
-  //     ...
-  //   }
-  //
-  // A terminal adaptor may instead (or additionally) be used to create side
-  // effects that are not supported natively by `StatusBuilder`, such as
-  // returning the Status through a side channel. For example,
-  // `util::TaskReturn` returns the Status through the `util::Task` that it was
-  // initialized with. This adaptor then returns `void`, to match the typical
-  // return type of functions that maintain state through `util::Task`:
-  //
-  //   class TaskReturn {
-  //    public:
-  //     explicit TaskReturn(Task* t) : task_(t) {}
-  //     void operator()(const Status& status) const { task_->Return(status); }
-  //     // ...
-  //   };
-  //
-  //   void Read(absl::string_view name, util::Task* task) {
-  //     int64 id;
-  //     RETURN_IF_ERROR(GetIdForName(name, &id)).With(TaskReturn(task));
-  //     RETURN_IF_ERROR(ReadForId(id)).With(TaskReturn(task));
-  //     task->Return();
-  //   }
-
-  // Calls `adaptor` on this status builder to apply policies, type conversions,
-  // and/or side effects on the StatusBuilder. Returns the value returned by
-  // `adaptor`, which may be any type including `void`. See comments above.
-  //
-  // Style guide exception for Ref qualified methods and rvalue refs
-  // (cl/128258530).  This allows us to avoid a copy in the common case.
-  //
-  // Note: All With() overrides are equivalent, and return Adaptor(this). They
-  // are part of an ongoing LSC investigation.
-  template <typename Adaptor>
-  auto With(Adaptor&& adaptor) & -> status_internal::PurePolicy<
-      Adaptor, StatusBuilder&> {
-    return std::forward<Adaptor>(adaptor)(*this);
-  }
-  template <typename Adaptor>
-  ABSL_MUST_USE_RESULT auto With(
-      Adaptor&&
-          adaptor) && -> status_internal::PurePolicy<Adaptor, StatusBuilder&&> {
-    return std::forward<Adaptor>(adaptor)(std::move(*this));
-  }
-
-  template <typename Adaptor>
-  auto With(Adaptor&& adaptor) & -> status_internal::SideEffect<
-      Adaptor, StatusBuilder&> {
-    return std::forward<Adaptor>(adaptor)(*this);
-  }
-  template <typename Adaptor>
-  ABSL_MUST_USE_RESULT auto With(
-      Adaptor&&
-          adaptor) && -> status_internal::SideEffect<Adaptor, StatusBuilder&&> {
-    return std::forward<Adaptor>(adaptor)(std::move(*this));
-  }
-
-  template <typename Adaptor>
-  auto With(Adaptor&& adaptor) & -> status_internal::Conversion<
-      Adaptor, StatusBuilder&> {
-    return std::forward<Adaptor>(adaptor)(*this);
-  }
-  template <typename Adaptor>
-  ABSL_MUST_USE_RESULT auto With(
-      Adaptor&&
-          adaptor) && -> status_internal::Conversion<Adaptor, StatusBuilder&&> {
-    return std::forward<Adaptor>(adaptor)(std::move(*this));
-  }
-
-  // Returns true if the Status created by this builder will be ok().
-  ABSL_MUST_USE_RESULT bool ok() const;
-
-  // DEPRECATED: Use `code()`.
-  // Returns the canonical code for the Status created by this builder.
-  // Automatically converts to the canonical space if necessary.
-  ABSL_DEPRECATE_AND_INLINE()
-  ABSL_MUST_USE_RESULT util::error::Code CanonicalCode() const {
-    return ::util::GetCanonicalCode(*this);
-  }
-
-  // Returns the (canonical) error code for the Status created by this builder.
-  absl::StatusCode code() const;
-
-  // Returns true iff the status created by this builder will have the code and
-  // associated error space of `code`. Intended to be called with enumerators
-  // from non-canonical error spaces.
-  // `StatusBuilder(Status(code, "")).Is(code)` is always true. In particular,
-  // if the `code` is zero, returns true if `status_builder.ok()`.
-  // Sample usage:
-  //
-  //   StatusBuilder TeamPolicy(StatusBuilder builder) {
-  //     if (builder.Is(frobber::kNoMoreFrobs)) {
-  //       builder.Log(base_logging::WARNING);
-  //     }
-  //     return std::move(builder);
-  //   }
-  //
-  // REQUIRES: `code` is in an enum associated with an error space; see the
-  // `ErrorSpace` class documentation for details. Also, `code` must not be a
-  // `util::error::Code`.
-  template <typename Enum>
-  ABSL_DEPRECATE_AND_INLINE()
-  ABSL_MUST_USE_RESULT
-      decltype(util::HasErrorCode(std::declval<const StatusBuilder&>(),
-                                  std::declval<Enum>())) Is(Enum code) const {
-    return ::util::HasErrorCode(*this, code);
-  }
-
-  ABSL_DEPRECATE_AND_INLINE()
-  ABSL_MUST_USE_RESULT bool Is(error::Code code) const {
-    return ::util::HasErrorCode(*this, code);
-  }
-
-  // Returns true iff the status created by this builder will have an error code
-  // equal to `code` and an error space equal to `space`.
-  // NOTE: Most error spaces can and should use the one-arg `Is()` function
-  // taking an enum. This overload is provided for error spaces such as
-  // util::PosixErrorSpace() which cannot use that templace because they lack an
-  // associated Enum type.
-  ABSL_DEPRECATE_AND_INLINE()
-  ABSL_MUST_USE_RESULT bool Is(const ErrorSpace* space, int code) const {
-    return ::util::HasErrorCode(*this, space, code);
-  }
-
-  // Returns true iff the status created by this builder will have an error
-  // space equal to `space`.
-  ABSL_DEPRECATE_AND_INLINE()
-  ABSL_MUST_USE_RESULT bool Is(const ErrorSpace* space) const {
-    return ::util::HasErrorSpace(*this, space);
-  }
-
-  // Implicit conversion to Status.
-  //
-  // Careful: this operator has side effects, so it should be called at
-  // most once. In particular, do NOT use this conversion operator to inspect
-  // the status from an adapter object passed into With().
-  //
-  // Style guide exception for using Ref qualified methods and for implicit
-  // conversions (cl/124566728).  This override allows us to implement
-  // RETURN_IF_ERROR with 2 move operations in the common case.
-  operator absl::Status() const&;  // NOLINT: Builder converts implicitly.
-  operator absl::Status() &&;      // NOLINT: Builder converts implicitly.
-
-  // Returns the source location used to create this builder. This differs from
-  // `GetPreviousSourceLocations()` as this location is the single location for
-  // the creation of this builder.
-  ABSL_MUST_USE_RESULT absl::SourceLocation source_location() const;
-
-  // Returns the source locations previously recorded in the status. This will
-  // not include the source location of the `StatusBuilder` itself (which is
-  // available via `source_location()`). When the builder is converted to a
-  // Status, the builder's location will be appended to this list of previous
-  // locations. For `StatusBuilder`s created without an original status (e.g.,
-  // from a status code), this will be empty.
-  decltype(auto) GetPreviousSourceLocations() const {
-    if (rep_ == nullptr) {
-      return absl::OkStatus().GetSourceLocations();
-    }
-    return rep_->status.GetSourceLocations();
-  }
-
-  // Returns a string based on the `mode`. This produces the same string as
-  // would converting to a Status and calling operator<<, but it does so without
-  // side effects (e.g., logging). Therefore, it is safe to use from within an
-  // adapter object passed into With().
-  std::string ToString() const;
-
- private:
-  friend class status_internal::StatusBuilderPrivateAccessor;
-
-  // Returns true if the compiler can determine that the instance is empty. That
-  // is, `rep_ == nullptr`.
-  // A `false` return does not necessarily indicate that it has a rep. It just
-  // can't prove it doesn't.
-  ABSL_ATTRIBUTE_ALWAYS_INLINE bool IsKnownToBeEmpty() const {
-#if ABSL_HAVE_BUILTIN(__builtin_constant_p)
-    // __builtin_constant_p does not like it when it has non trivial expressions
-    // in it, and `rep_==nullptr` is a user-defined operator.
-    // Do it out of the builtin and pass the bool instead.
-    bool is_empty = rep_ == nullptr;
-    return __builtin_constant_p(is_empty) && is_empty;
-#else
-    return false;
-#endif
-  }
-
-  // Tells the compiler that it can assume that `rep_` is null.
-  // This is verified in non-opt mode.
-  void AssumeEmpty() const {
-    if (rep_ != nullptr) ABSL_UNREACHABLE();
-  }
-
-  struct Rep;
-  // Destroy the `Rep` object. It is just calling the destructor of the
-  // `unique_ptr`, but out of line.
-  static void Destroy(std::unique_ptr<Rep>);
-
-  // Creates a Status from this builder and logs it if the builder has been
-  // configured to log itself.
-  // NOTE: This function is `static` to prevent escaping the `this` pointer. We
-  //       transfer the `Rep` to delegate the destruction.
-  static absl::Status CreateStatusAndConditionallyLog(absl::SourceLocation loc,
-                                                      std::unique_ptr<Rep> rep);
-
-  // Conditionally logs if the builder has been configured to log.  This method
-  // is split from the above to isolate the portability issues around logging
-  // into a single place.
-  static void ConditionallyLog(const absl::Status& status,
-                               absl::SourceLocation loc, const Rep& rep);
-
-  // Infrequently set builder options, instantiated lazily. This reduces
-  // average construction/destruction time (e.g. the `stream` is fairly
-  // expensive). Stacks can also be blown if StatusBuilder grows too large.
-  // This is primarily an issue for debug builds, which do not necessarily
-  // re-use stack space within a function across the sub-scopes used by
-  // status macros.
-  struct Rep {
-    explicit Rep(const absl::Status& s);
-    explicit Rep(absl::Status&& s);
-    Rep(const Rep& r);
-    ~Rep();
-    void InitStream();
-
-    // The status that the result will be based on.  Can be modified by
-    // util::AttachPayload().
-    absl::Status status;
-
-    enum class LoggingMode {
-      kDisabled,
-      kLog,
-      kVLog,
-      kLogEveryN,
-      kLogEveryPeriod
-    };
-    LoggingMode logging_mode = LoggingMode::kDisabled;
-
-    // The severity level at which the Status should be logged. Note that
-    // `logging_mode == LoggingMode::kVLog` always logs at severity INFO.
-    base_logging::LogSeverity log_severity;
-
-    // The level at which the Status should be VLOGged.
-    // Only used when `logging_mode == LoggingMode::kVLog`.
-    int verbose_level;
-
-    // Only log every N invocations.
-    // Only used when `logging_mode == LoggingMode::kLogEveryN`.
-    int n;
-
-    // Only log once per period.
-    // Only used when `logging_mode == LoggingMode::kLogEveryPeriod`.
-    absl::Duration period;
-
-    // Gathers additional messages added with `<<` for use in the final status.
-    std::string stream_message;
-    std::optional<status_internal::Stream> stream;
-
-    // If not nullptr, specifies the log sink where log output should be
-    // sent to.  Only used when `logging_mode != LoggingMode::kDisabled`.
-    absl::LogSink* sink = nullptr;
-
-    // Specifies how to join the message in `status` and `stream`.
-    MessageJoinStyle message_join_style = MessageJoinStyle::kAnnotate;
-
-    // Whether to log stack trace.  Only used when `logging_mode !=
-    // LoggingMode::kDisabled`.
-    bool should_log_stack_trace = false;
-
-    // When this is true, will send both to `sink` and will log. When this is
-    // false, will only send to `sink`.
-    bool also_send_to_log = true;
-  };
-
-  static Rep* InitRep(const absl::Status& s) {
-    if (s.ok()) {
-      return nullptr;
-    } else {
-      return new Rep(s);
-    }
-  }
-
-  static Rep* InitRep(absl::Status&& s) {
-    if (s.ok()) {
-      return nullptr;
-    } else {
-      Rep* rep = InitRepImpl(std::move(s));
-      ABSL_ASSUME(rep != nullptr);
-      return rep;
-    }
-  }
-
-  // Out of line function that constructs the Rep.
-  // Note that `s` is by value because of the TRIVIAL_ABI.
-  static Rep* InitRepImpl(absl::Status s);
-
-  // The location to record if this status is logged.
-  absl::SourceLocation loc_;
-
-  // nullptr if the result status will be OK.  Extra fields moved to the heap to
-  // minimize stack space.
-  std::unique_ptr<Rep> rep_;
-
-  // For testing Rep's implememntation.
-  friend class StatusBuilderTest;
-};
-
-// Implicitly converts `builder` to `Status` and write it to `os`.
-std::ostream& operator<<(std::ostream& os, const StatusBuilder& builder);
-std::ostream& operator<<(std::ostream& os, StatusBuilder&& builder);
+                                 absl::MessageJoinStyle style);
 
 // Each of the functions below creates StatusBuilder with a canonical error.
 // The error code of the StatusBuilder matches the name of the function.
@@ -1018,10 +146,12 @@ class ExtraMessage {
 
  private:
   std::string msg_;
-  status_internal::Stream stream_;
+  absl::status_internal::Stream stream_;
 };
 
-class status_internal::StatusBuilderPrivateAccessor {
+}  // namespace util
+
+class absl::status_internal::StatusBuilderPrivateAccessor {
  public:
   static absl::SourceLocation GetLoc(const StatusBuilder& builder) {
     return builder.loc_;
@@ -1031,8 +161,8 @@ class status_internal::StatusBuilderPrivateAccessor {
     return builder.rep_.get();
   }
 
-  static StatusBuilder& SetErrorCode(StatusBuilder& builder,
-                                     const ErrorSpace* space, int code_int) {
+  static void SetErrorCode(StatusBuilder& builder,
+                           const ::util::ErrorSpace* space, int code_int) {
     if (builder.rep_ == nullptr) {
       builder.rep_ = std::make_unique<StatusBuilder::Rep>(
           ::util::SetErrorSpaceAndCode(absl::Status(), space, code_int));
@@ -1040,231 +170,57 @@ class status_internal::StatusBuilderPrivateAccessor {
       builder.rep_->status =
           ::util::SetErrorSpaceAndCode(builder.rep_->status, space, code_int);
     }
-    return builder;
   }
 };
 
+namespace util {
+
 template <typename Enum>
 inline std::enable_if_t<EnumHasErrorSpace<Enum>::value, StatusBuilder>
-MakeStatusBuilder(Enum code, absl::SourceLocation location) {
+MakeStatusBuilder(Enum code, absl::SourceLocation location =
+                                 absl::SourceLocation::current()) {
   return StatusBuilder(::util::MakeStatus(code, ""), location);
 }
 
-inline StatusBuilder MakeStatusBuilder(util::error::Code code,
-                                       absl::SourceLocation location) {
+inline StatusBuilder MakeStatusBuilder(
+    util::error::Code code,
+    absl::SourceLocation location = absl::SourceLocation::current()) {
   return StatusBuilder(static_cast<absl::StatusCode>(code), location);
 }
 
-inline StatusBuilder MakeStatusBuilder(const ErrorSpace* space, int code,
-                                       absl::SourceLocation location) {
+inline StatusBuilder MakeStatusBuilder(
+    const ErrorSpace* space, int code,
+    absl::SourceLocation location = absl::SourceLocation::current()) {
   return StatusBuilder(::util::MakeStatus(space, code, ""), location);
 }
 
-// Implementation details follow; clients should ignore.
+}  // namespace util
 
-inline StatusBuilder::StatusBuilder(absl::StatusCode code,
-                                    absl::SourceLocation location)
-    : loc_(location), rep_(InitRep(absl::Status(code, ""))) {}
-
-inline StatusBuilder::StatusBuilder(const StatusBuilder& sb) : loc_(sb.loc_) {
-  if (sb.rep_ != nullptr) {
-    rep_ = std::make_unique<Rep>(*sb.rep_);
-  }
-}
-
-inline StatusBuilder::StatusBuilder(absl::Status&& original_status,
-                                    absl::SourceLocation location)
-    : loc_(location), rep_(InitRep(std::move(original_status))) {}
-
-inline StatusBuilder::~StatusBuilder() {
-  if (IsKnownToBeEmpty()) {
-    // Nothing to do.
-    return;
-  }
-  // We will run the destructor logic, so move it out of line.
-  // The destructor of the unique_ptr runs ~Rep() and then ::operator delete.
-  // We don't want that bloat on the caller.
-  Destroy(std::move(rep_));
-  // Tell the compiler that `rep_` was not filled again even if `this` escaped.
-  AssumeEmpty();
-}
-
-inline StatusBuilder& StatusBuilder::operator=(const StatusBuilder& sb) {
-  loc_ = sb.loc_;
-  if (sb.rep_ != nullptr) {
-    rep_ = std::make_unique<Rep>(*sb.rep_);
-  } else {
-    rep_ = nullptr;
-  }
-  return *this;
-}
-
-inline StatusBuilder& StatusBuilder::SetPrepend() & {
-  if (rep_ == nullptr) return *this;
-  rep_->message_join_style = MessageJoinStyle::kPrepend;
-  return *this;
-}
-inline StatusBuilder&& StatusBuilder::SetPrepend() && {
-  return std::move(SetPrepend());
-}
-
-inline StatusBuilder& StatusBuilder::SetAppend() & {
-  if (rep_ == nullptr) return *this;
-  rep_->message_join_style = MessageJoinStyle::kAppend;
-  return *this;
-}
-inline StatusBuilder&& StatusBuilder::SetAppend() && {
-  return std::move(SetAppend());
-}
-
-inline StatusBuilder& StatusBuilder::SetNoLogging() & {
-  if (rep_ != nullptr) {
-    rep_->logging_mode = Rep::LoggingMode::kDisabled;
-    rep_->should_log_stack_trace = false;
-  }
-  return *this;
-}
-inline StatusBuilder&& StatusBuilder::SetNoLogging() && {
-  return std::move(SetNoLogging());
-}
-
-inline StatusBuilder& StatusBuilder::Log(base_logging::LogSeverity level) & {
-  if (rep_ == nullptr) return *this;
-  rep_->logging_mode = Rep::LoggingMode::kLog;
-  rep_->log_severity = level;
-  return *this;
-}
-inline StatusBuilder&& StatusBuilder::Log(base_logging::LogSeverity level) && {
-  return std::move(Log(level));
-}
-
-inline StatusBuilder& StatusBuilder::LogEveryN(base_logging::LogSeverity level,
-                                               int n) & {
-  if (rep_ == nullptr) return *this;
-  if (n < 1) return Log(level);
-  rep_->logging_mode = Rep::LoggingMode::kLogEveryN;
-  rep_->log_severity = level;
-  rep_->n = n;
-  return *this;
-}
-inline StatusBuilder&& StatusBuilder::LogEveryN(base_logging::LogSeverity level,
-                                                int n) && {
-  return std::move(LogEveryN(level, n));
-}
-
-inline StatusBuilder& StatusBuilder::LogEvery(base_logging::LogSeverity level,
-                                              absl::Duration period) & {
-  if (rep_ == nullptr) return *this;
-  if (period <= absl::ZeroDuration()) return Log(level);
-  rep_->logging_mode = Rep::LoggingMode::kLogEveryPeriod;
-  rep_->log_severity = level;
-  rep_->period = period;
-  return *this;
-}
-inline StatusBuilder&& StatusBuilder::LogEvery(base_logging::LogSeverity level,
-                                               absl::Duration period) && {
-  return std::move(LogEvery(level, period));
-}
-
-inline StatusBuilder& StatusBuilder::VLog(int verbose_level) & {
-  if (rep_ == nullptr) return *this;
-  rep_->logging_mode = Rep::LoggingMode::kVLog;
-  rep_->verbose_level = verbose_level;
-  return *this;
-}
-inline StatusBuilder&& StatusBuilder::VLog(int verbose_level) && {
-  return std::move(VLog(verbose_level));
-}
-
-inline StatusBuilder& StatusBuilder::EmitStackTrace() & {
-  if (rep_ == nullptr) return *this;
-  if (rep_->logging_mode == Rep::LoggingMode::kDisabled) {
-    // Default to INFO logging, otherwise nothing would be emitted.
-    rep_->logging_mode = Rep::LoggingMode::kLog;
-    rep_->log_severity = base_logging::INFO;
-  }
-  rep_->should_log_stack_trace = true;
-  return *this;
-}
-inline StatusBuilder&& StatusBuilder::EmitStackTrace() && {
-  return std::move(EmitStackTrace());
-}
-
-inline StatusBuilder& StatusBuilder::AlsoOutputToSink(absl::LogSink* sink) & {
-  if (rep_ == nullptr) return *this;
-  rep_->sink = sink;
-  rep_->also_send_to_log = true;
-  return *this;
-}
-inline StatusBuilder&& StatusBuilder::AlsoOutputToSink(absl::LogSink* sink) && {
-  return std::move(AlsoOutputToSink(sink));
-}
-inline StatusBuilder& StatusBuilder::OnlyOutputToSink(absl::LogSink* sink) & {
-  if (rep_ == nullptr) return *this;
-  rep_->sink = sink;
-  rep_->also_send_to_log = false;
-  return *this;
-}
-inline StatusBuilder&& StatusBuilder::OnlyOutputToSink(absl::LogSink* sink) && {
-  return std::move(OnlyOutputToSink(sink));
-}
-
-template <typename T>
-StatusBuilder& StatusBuilder::operator<<(const T& value) & {
-  if (rep_ == nullptr) return *this;
-  if (!rep_->stream.has_value()) {
-    rep_->InitStream();
-  }
-  *rep_->stream << value;
-  return *this;
-}
-
-template <typename T>
-StatusBuilder&& StatusBuilder::operator<<(const T& value) && {
-  return std::move(operator<<(value));
-}
-
-inline StatusBuilder& StatusBuilder::SetPayload(absl::string_view type_url,
-                                                absl::Cord payload) & {
-  if (rep_ != nullptr) {
-    rep_->status.SetPayload(type_url, std::move(payload));
-  }
-  return *this;
-}
-
-inline std::optional<absl::Cord> StatusBuilder::GetPayload(
-    absl::string_view type_url) const {
-  return rep_ == nullptr ? std::nullopt : rep_->status.GetPayload(type_url);
-}
+// TODO: Shuffle the namespaces to organize them better
+namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 template <typename Enum>
-decltype(std::conditional_t<false, Enum,
-                            status_internal::StatusBuilderPrivateAccessor>::
-             SetErrorCode(std::declval<StatusBuilder&>(),
-                          std::declval<const ErrorSpace*>(),
+decltype(std::conditional_t<
+         false, Enum, absl::status_internal::StatusBuilderPrivateAccessor>::
+             SetErrorCode(std::declval<absl::StatusBuilder&>(),
+                          std::declval<const ::util::ErrorSpace*>(),
                           std::declval<std::conditional_t<false, Enum, int>>()))
-SetErrorCode(StatusBuilder& builder ABSL_ATTRIBUTE_LIFETIME_BOUND, Enum code) {
-  return status_internal::StatusBuilderPrivateAccessor::SetErrorCode(
-      builder, GetErrorSpaceForEnum(code), static_cast<int>(code));
+AbslInternalSetErrorCode(StatusBuilder& builder ABSL_ATTRIBUTE_LIFETIME_BOUND,
+                         Enum code) {
+  return absl::status_internal::StatusBuilderPrivateAccessor::SetErrorCode(
+      builder, util::GetErrorSpaceForEnum(code), static_cast<int>(code));
 }
 
-inline StatusBuilder& StatusBuilder::SetCode(absl::StatusCode code) & {
-  return util::SetErrorCode(*this, static_cast<error::Code>(code));
-}
-inline StatusBuilder&& StatusBuilder::SetCode(absl::StatusCode code) && {
-  return std::move(SetCode(code));
-}
+ABSL_NAMESPACE_END
+}  // namespace absl
 
-inline bool StatusBuilder::ok() const {
-  return rep_ == nullptr ? true : rep_->status.ok();
-}
+namespace util {
+
+// Implementation details follow; clients should ignore.
 
 inline util::error::Code GetCanonicalCode(const StatusBuilder& builder) {
   return static_cast<error::Code>(builder.code());
-}
-
-inline absl::StatusCode StatusBuilder::code() const {
-  return rep_ == nullptr ? absl::StatusCode::kOk : rep_->status.code();
 }
 
 // Returns true iff the status created by the builder will have the code and
@@ -1275,7 +231,7 @@ inline absl::StatusCode StatusBuilder::code() const {
 //
 //   StatusBuilder TeamPolicy(StatusBuilder builder) {
 //     if (builder.Is(frobber::kNoMoreFrobs)) {
-//       builder.Log(base_logging::WARNING);
+//       builder.Log(absl::LogSeverity::kWarning);
 //     }
 //     return std::move(builder);
 //   }
@@ -1287,13 +243,15 @@ template <typename Enum>
 ABSL_MUST_USE_RESULT decltype(::util::HasErrorCode(
     std::declval<const absl::Status&>(), std::declval<Enum>()))
 HasErrorCode(const StatusBuilder& builder, Enum code) {
-  auto* rep = status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
+  auto* rep =
+      absl::status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
   return ::util::HasErrorCode(rep == nullptr ? absl::OkStatus() : rep->status,
                               code);
 }
 inline bool HasErrorCode(const StatusBuilder& builder,
                          ::util::error::Code code) {
-  auto* rep = status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
+  auto* rep =
+      absl::status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
   return ::util::HasErrorCode(rep == nullptr ? absl::OkStatus() : rep->status,
                               static_cast<absl::StatusCode>(code));
 }
@@ -1306,7 +264,8 @@ inline bool HasErrorCode(const StatusBuilder& builder,
 // associated Enum type.
 inline bool HasErrorCode(const StatusBuilder& builder, const ErrorSpace* space,
                          int code) {
-  auto* rep = status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
+  auto* rep =
+      absl::status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
   return ::util::HasErrorCode(rep == nullptr ? absl::OkStatus() : rep->status,
                               space, code);
 }
@@ -1315,31 +274,17 @@ inline bool HasErrorCode(const StatusBuilder& builder, const ErrorSpace* space,
 // space equal to `space`.
 inline bool HasErrorSpace(const StatusBuilder& builder,
                           const ErrorSpace* space) {
-  auto* rep = status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
+  auto* rep =
+      absl::status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
   return ::util::RetrieveErrorSpace(rep == nullptr ? absl::OkStatus()
                                                    : rep->status) == space;
 }
 
-inline StatusBuilder::operator absl::Status() && {
-  // Tell the compiler that the `ok()` path will return an `Ok` status, but do
-  // it only if the compiler can determine it at compile time.
-  // When it can't, we delegate this check into the out of line function.
-  if (IsKnownToBeEmpty()) {
-    return absl::OkStatus();
-  }
-  absl::Status result = CreateStatusAndConditionallyLog(loc_, std::move(rep_));
-  // Tell the compiler that `rep_` was not filled again even if `this` escaped.
-  AssumeEmpty();
-  return result;
-}
+}  // namespace util
 
-inline absl::SourceLocation StatusBuilder::source_location() const {
-  return loc_;
-}
-
-inline bool StatusBuilder::HasPayload() const {
-  return rep_ != nullptr && ::util::HasPayload(rep_->status);
-}
+// TODO: Shuffle the namespaces to organize them better
+namespace absl {
+ABSL_NAMESPACE_BEGIN
 
 // AttachPayload()
 //
@@ -1362,34 +307,27 @@ inline bool StatusBuilder::HasPayload() const {
 //   rpc_status.set_message("message for external");
 //   util::AttachPayload(&builder, rpc_status, google::rpc::error_details_ext);
 template <typename MessageSetExtension, typename ExtensionIdentifier>
-inline util::StatusBuilder& AttachPayload(util::StatusBuilder* builder,
-                                          const MessageSetExtension& obj,
-                                          const ExtensionIdentifier& id) {
-  auto* rep = status_internal::StatusBuilderPrivateAccessor::GetRep(*builder);
+void AbslInternalAttachPayload(util::StatusBuilder& builder,
+                               const MessageSetExtension& obj,
+                               const ExtensionIdentifier& id) {
+  auto* rep =
+      absl::status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
   if (rep != nullptr) {
     util::AttachPayload(&rep->status, obj, id);
   }
-  return *builder;
 }
 
 template <typename MessageSetExtension>
-inline util::StatusBuilder& AttachPayload(util::StatusBuilder* builder,
-                                          const MessageSetExtension& obj) {
-  return util::AttachPayload(builder, obj,
-                             MessageSetExtension::message_set_extension);
+void AbslInternalAttachPayload(util::StatusBuilder& builder,
+                               const MessageSetExtension& obj) {
+  return AbslInternalAttachPayload(builder, obj,
+                                   MessageSetExtension::message_set_extension);
 }
 
-// HasPayload()
-//
-// Indicates whether the Status object that will be returned by the
-// StatusBuilder contains any payloads with a type extending proto2's
-// `MessageSet`, returning `true` if so. Having a payload does not guarantee the
-// presence of a payload with a specific type. Note that returning `false` does
-// not necessarily indicate the absense of a payload, but only the absence on
-// one which extends `MessageSet`.
-inline bool HasPayload(const util::StatusBuilder& builder) {
-  return builder.HasPayload();
-}
+ABSL_NAMESPACE_END
+}  // namespace absl
+
+namespace util {
 
 // HasPayloadWithType()
 //
@@ -1401,7 +339,8 @@ inline bool HasPayload(const util::StatusBuilder& builder) {
 template <typename MessageSetExtension, typename ExtensionIdentifier>
 inline bool HasPayloadWithType(const util::StatusBuilder& builder,
                                const ExtensionIdentifier& id) {
-  auto* rep = status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
+  auto* rep =
+      absl::status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
   return rep != nullptr &&
          util::HasPayloadWithType<MessageSetExtension>(rep->status, id);
 }
@@ -1428,7 +367,8 @@ inline bool HasPayloadWithType(const util::StatusBuilder& builder) {
 template <typename MessageSetExtension, typename ExtensionIdentifier>
 inline MessageSetExtension GetPayload(const util::StatusBuilder& builder,
                                       const ExtensionIdentifier& id) {
-  auto* rep = status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
+  auto* rep =
+      absl::status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
   ABSL_INTERNAL_CHECK(
       rep != nullptr,
       "Call to GetPayload should be guarded by the HasPayloadWithType check");

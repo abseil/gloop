@@ -38,6 +38,7 @@
 #include "absl/log/log_sink.h"
 #include "absl/log/scoped_mock_log.h"
 #include "absl/status/status.h"
+#include "absl/status/status_builder.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/cord.h"
@@ -176,11 +177,14 @@ void CheckSourceLocation(
 class StatusBuilderTest : public ::testing::Test {
  protected:
   void TestRepCopyCtor() {
-    StatusBuilder::Rep r1(absl::OkStatus());
+    using Rep = std::decay_t<
+        decltype(*absl::status_internal::StatusBuilderPrivateAccessor::GetRep(
+            std::declval<StatusBuilder>()))>;
+    Rep r1(absl::OkStatus());
     EXPECT_FALSE(r1.stream.has_value());
     r1.InitStream();
     EXPECT_TRUE(r1.stream.has_value());
-    StatusBuilder::Rep r2(r1);
+    Rep r2(r1);
     EXPECT_TRUE(r2.stream.has_value());
   }
 };
@@ -193,11 +197,11 @@ TEST_F(StatusBuilderTest, Size) {
 }
 
 TEST_F(StatusBuilderTest, Ctors) {
-  EXPECT_EQ(ToStatus(StatusBuilder(kZomg) << "zomg"),
+  EXPECT_EQ(ToStatus(MakeStatusBuilder(kZomg) << "zomg"),
             ::util::MakeStatus(TestSpace::Get(), kZomg, "zomg"));
-  EXPECT_EQ(ToStatus(StatusBuilder(TestSpace::Get(), kZomg) << "zomg"),
+  EXPECT_EQ(ToStatus(MakeStatusBuilder(TestSpace::Get(), kZomg) << "zomg"),
             ::util::MakeStatus(TestSpace::Get(), kZomg, "zomg"));
-  EXPECT_EQ(ToStatus(StatusBuilder(PosixErrorSpace(), ENOSYS) << "nope"),
+  EXPECT_EQ(ToStatus(MakeStatusBuilder(PosixErrorSpace(), ENOSYS) << "nope"),
             PosixErrorToStatus(ENOSYS, "nope"));
 }
 
@@ -316,22 +320,14 @@ TEST_F(StatusBuilderTest, ErrorCode) {
   {
     const StatusBuilder builder(absl::OkStatus());
     EXPECT_TRUE(builder.ok());
-    EXPECT_THAT(builder.CanonicalCode(), Eq(error::OK));
-    EXPECT_TRUE(builder.Is(error::OK));
+    EXPECT_THAT(util::GetCanonicalCode(builder), Eq(error::OK));
     EXPECT_TRUE(util::HasErrorCode(builder, error::OK));
-    EXPECT_TRUE(builder.Is(absl::StatusCode::kOk));
     EXPECT_TRUE(util::HasErrorCode(builder, absl::StatusCode::kOk));
-    EXPECT_TRUE(builder.Is(kCustomOK));
     EXPECT_TRUE(util::HasErrorCode(builder, kCustomOK));
-    EXPECT_TRUE(builder.Is(PosixErrorSpace(), 0));
     EXPECT_TRUE(util::HasErrorCode(builder, PosixErrorSpace(), 0));
-    EXPECT_FALSE(builder.Is(kZomg));
     EXPECT_FALSE(util::HasErrorCode(builder, kZomg));
-    EXPECT_TRUE(builder.Is(CanonicalErrorSpace()));
     EXPECT_TRUE(util::HasErrorSpace(builder, CanonicalErrorSpace()));
-    EXPECT_FALSE(builder.Is(TestSpace::Get()));
     EXPECT_FALSE(util::HasErrorSpace(builder, TestSpace::Get()));
-    EXPECT_FALSE(builder.Is(PosixErrorSpace()));
     EXPECT_FALSE(util::HasErrorSpace(builder, PosixErrorSpace()));
   }
 
@@ -340,23 +336,15 @@ TEST_F(StatusBuilderTest, ErrorCode) {
   {
     const StatusBuilder builder = MakeStatusBuilder(kCustomOK);
     EXPECT_TRUE(builder.ok());
-    EXPECT_THAT(builder.CanonicalCode(), Eq(error::OK));
+    EXPECT_THAT(util::GetCanonicalCode(builder), Eq(error::OK));
     EXPECT_THAT(builder.code(), Eq(absl::StatusCode::kOk));
-    EXPECT_TRUE(builder.Is(error::OK));
     EXPECT_TRUE(util::HasErrorCode(builder, error::OK));
-    EXPECT_TRUE(builder.Is(absl::StatusCode::kOk));
     EXPECT_TRUE(util::HasErrorCode(builder, absl::StatusCode::kOk));
-    EXPECT_TRUE(builder.Is(kCustomOK));
     EXPECT_TRUE(util::HasErrorCode(builder, kCustomOK));
-    EXPECT_TRUE(builder.Is(PosixErrorSpace(), 0));
     EXPECT_TRUE(util::HasErrorCode(builder, PosixErrorSpace(), 0));
-    EXPECT_FALSE(builder.Is(kZomg));
     EXPECT_FALSE(util::HasErrorCode(builder, kZomg));
-    EXPECT_TRUE(builder.Is(CanonicalErrorSpace()));
     EXPECT_TRUE(util::HasErrorSpace(builder, CanonicalErrorSpace()));
-    EXPECT_FALSE(builder.Is(TestSpace::Get()));
     EXPECT_FALSE(util::HasErrorSpace(builder, TestSpace::Get()));
-    EXPECT_FALSE(builder.Is(PosixErrorSpace()));
     EXPECT_FALSE(util::HasErrorSpace(builder, PosixErrorSpace()));
   }
 
@@ -364,28 +352,18 @@ TEST_F(StatusBuilderTest, ErrorCode) {
   {
     const StatusBuilder builder = MakeStatusBuilder(error::INVALID_ARGUMENT);
     EXPECT_FALSE(builder.ok());
-    EXPECT_THAT(builder.CanonicalCode(), Eq(error::INVALID_ARGUMENT));
+    EXPECT_THAT(util::GetCanonicalCode(builder), Eq(error::INVALID_ARGUMENT));
     EXPECT_THAT(builder.code(), Eq(absl::StatusCode::kInvalidArgument));
-    EXPECT_TRUE(builder.Is(error::INVALID_ARGUMENT));
     EXPECT_TRUE(util::HasErrorCode(builder, error::INVALID_ARGUMENT));
-    EXPECT_TRUE(builder.Is(absl::StatusCode::kInvalidArgument));
     EXPECT_TRUE(
         util::HasErrorCode(builder, absl::StatusCode::kInvalidArgument));
-    EXPECT_FALSE(builder.Is(kCustomOK));
     EXPECT_FALSE(util::HasErrorCode(builder, kCustomOK));
-    EXPECT_FALSE(builder.Is(kZomg));
     EXPECT_FALSE(util::HasErrorCode(builder, kZomg));
-    EXPECT_FALSE(builder.Is(PosixErrorSpace(), 0));
     EXPECT_FALSE(util::HasErrorCode(builder, PosixErrorSpace(), 0));
-    EXPECT_FALSE(builder.Is(PosixErrorSpace(),
-                            static_cast<int>(error::INVALID_ARGUMENT)));
     EXPECT_FALSE(util::HasErrorCode(builder, PosixErrorSpace(),
                                     static_cast<int>(error::INVALID_ARGUMENT)));
-    EXPECT_TRUE(builder.Is(CanonicalErrorSpace()));
     EXPECT_TRUE(util::HasErrorSpace(builder, CanonicalErrorSpace()));
-    EXPECT_FALSE(builder.Is(TestSpace::Get()));
     EXPECT_FALSE(util::HasErrorSpace(builder, TestSpace::Get()));
-    EXPECT_FALSE(builder.Is(PosixErrorSpace()));
     EXPECT_FALSE(util::HasErrorSpace(builder, PosixErrorSpace()));
     // Is() is not allowed to be called on a canonical code, so we cannot do a
     // positive test for Is() here.
@@ -395,37 +373,24 @@ TEST_F(StatusBuilderTest, ErrorCode) {
   {
     const StatusBuilder builder = MakeStatusBuilder(kZomg);
     EXPECT_FALSE(builder.ok());
-    EXPECT_THAT(builder.CanonicalCode(), Eq(error::UNKNOWN));
-    EXPECT_FALSE(builder.Is(error::UNKNOWN));
+    EXPECT_THAT(util::GetCanonicalCode(builder), Eq(error::UNKNOWN));
     EXPECT_FALSE(util::HasErrorCode(builder, error::UNKNOWN));
-    EXPECT_FALSE(builder.Is(absl::StatusCode::kUnknown));
     EXPECT_FALSE(util::HasErrorCode(builder, absl::StatusCode::kUnknown));
-    EXPECT_FALSE(builder.Is(kCustomOK));
     EXPECT_FALSE(util::HasErrorCode(builder, kCustomOK));
-    EXPECT_TRUE(builder.Is(kZomg));
     EXPECT_TRUE(util::HasErrorCode(builder, kZomg));
-    EXPECT_FALSE(builder.Is(CanonicalErrorSpace()));
     EXPECT_FALSE(util::HasErrorSpace(builder, CanonicalErrorSpace()));
-    EXPECT_TRUE(builder.Is(TestSpace::Get()));
     EXPECT_TRUE(util::HasErrorSpace(builder, TestSpace::Get()));
-    EXPECT_FALSE(builder.Is(PosixErrorSpace()));
     EXPECT_FALSE(util::HasErrorSpace(builder, PosixErrorSpace()));
   }
   // Custom error space without ADL
   {
     const StatusBuilder builder = MakeStatusBuilder(PosixErrorSpace(), EINVAL);
     EXPECT_FALSE(builder.ok());
-    EXPECT_FALSE(builder.Is(kCustomOK));
     EXPECT_FALSE(util::HasErrorCode(builder, kCustomOK));
-    EXPECT_FALSE(builder.Is(kZomg));
     EXPECT_FALSE(util::HasErrorCode(builder, kZomg));
-    EXPECT_TRUE(builder.Is(PosixErrorSpace(), EINVAL));
     EXPECT_TRUE(util::HasErrorCode(builder, PosixErrorSpace(), EINVAL));
-    EXPECT_FALSE(builder.Is(CanonicalErrorSpace()));
     EXPECT_FALSE(util::HasErrorSpace(builder, CanonicalErrorSpace()));
-    EXPECT_FALSE(builder.Is(TestSpace::Get()));
     EXPECT_FALSE(util::HasErrorSpace(builder, TestSpace::Get()));
-    EXPECT_TRUE(builder.Is(PosixErrorSpace()));
     EXPECT_TRUE(util::HasErrorSpace(builder, PosixErrorSpace()));
   }
 }
@@ -436,15 +401,10 @@ TEST_F(StatusBuilderTest, StatusCode) {
     const StatusBuilder builder(absl::StatusCode::kOk);
     EXPECT_TRUE(builder.ok());
     EXPECT_THAT(builder.code(), Eq(absl::StatusCode::kOk));
-    EXPECT_TRUE(builder.Is(error::OK));
     EXPECT_TRUE(util::HasErrorCode(builder, error::OK));
-    EXPECT_TRUE(builder.Is(absl::StatusCode::kOk));
     EXPECT_TRUE(util::HasErrorCode(builder, absl::StatusCode::kOk));
-    EXPECT_TRUE(builder.Is(kCustomOK));
     EXPECT_TRUE(util::HasErrorCode(builder, kCustomOK));
-    EXPECT_TRUE(builder.Is(PosixErrorSpace(), 0));
     EXPECT_TRUE(util::HasErrorCode(builder, PosixErrorSpace(), 0));
-    EXPECT_FALSE(builder.Is(kZomg));
     EXPECT_FALSE(util::HasErrorCode(builder, kZomg));
   }
   // Non-OK code
@@ -452,19 +412,12 @@ TEST_F(StatusBuilderTest, StatusCode) {
     const StatusBuilder builder(absl::StatusCode::kInvalidArgument);
     EXPECT_FALSE(builder.ok());
     EXPECT_THAT(builder.code(), Eq(absl::StatusCode::kInvalidArgument));
-    EXPECT_TRUE(builder.Is(error::INVALID_ARGUMENT));
     EXPECT_TRUE(util::HasErrorCode(builder, error::INVALID_ARGUMENT));
-    EXPECT_TRUE(builder.Is(absl::StatusCode::kInvalidArgument));
     EXPECT_TRUE(
         util::HasErrorCode(builder, absl::StatusCode::kInvalidArgument));
-    EXPECT_FALSE(builder.Is(kCustomOK));
     EXPECT_FALSE(util::HasErrorCode(builder, kCustomOK));
-    EXPECT_FALSE(builder.Is(kZomg));
     EXPECT_FALSE(util::HasErrorCode(builder, kZomg));
-    EXPECT_FALSE(builder.Is(PosixErrorSpace(), 0));
     EXPECT_FALSE(util::HasErrorCode(builder, PosixErrorSpace(), 0));
-    EXPECT_FALSE(builder.Is(PosixErrorSpace(),
-                            static_cast<int>(error::INVALID_ARGUMENT)));
     EXPECT_FALSE(util::HasErrorCode(builder, PosixErrorSpace(),
                                     static_cast<int>(error::INVALID_ARGUMENT)));
   }
@@ -786,7 +739,7 @@ TEST_F(StatusBuilderTest, AttachPayloadRvalue) {
 TEST_F(StatusBuilderTest, AttachPayloadStandard) {
   auto mset = MakePayloadMessageSet("oops");
   StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
-  util::AttachPayload(&builder, MakePayloadProto("oops"));
+  builder.AttachPayload(MakePayloadProto("oops"));
   EXPECT_THAT(ToStatus(builder),
               Eq(::util::MakeStatus(CanonicalErrorSpace(), error::CANCELLED, "",
                                     &mset)));
@@ -815,27 +768,27 @@ TEST_F(StatusBuilderTest, MessageSetPayloadHelpers) {
 TEST_F(StatusBuilderTest, MessageSetPayloadMethods) {
   static const char* kPayloadMsg = "payload";
   StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
-  EXPECT_FALSE(builder.HasPayload());
+  EXPECT_FALSE(HasPayload(builder));
   builder.AttachPayload(MakePayloadProto(kPayloadMsg));
-  EXPECT_TRUE(builder.HasPayload());
-  EXPECT_TRUE(builder.HasPayloadWithType<util::StatusProto>());
-  EXPECT_TRUE(builder.HasPayloadWithType<util::StatusProto>(
-      util::StatusProto::message_set_extension));
-  EXPECT_THAT(builder.GetPayload<util::StatusProto>(),
+  EXPECT_TRUE(HasPayload(builder));
+  EXPECT_TRUE(HasPayloadWithType<StatusProto>(builder));
+  EXPECT_TRUE(HasPayloadWithType<StatusProto>(
+      builder, util::StatusProto::message_set_extension));
+  EXPECT_THAT(GetPayload<StatusProto>(builder),
               testing::EqualsProto(MakePayloadProto(kPayloadMsg)));
-  EXPECT_THAT(builder.GetPayload<util::StatusProto>(
-                  util::StatusProto::message_set_extension),
+  EXPECT_THAT(GetPayload<StatusProto>(builder,
+                                      util::StatusProto::message_set_extension),
               testing::EqualsProto(MakePayloadProto(kPayloadMsg)));
 }
 
 TEST_F(StatusBuilderTest, MessageSetPayloadMethodsOnOkStatus) {
   static const char* kPayloadMsg = "payload";
   StatusBuilder builder(absl::OkStatus(), absl::SourceLocation());
-  EXPECT_FALSE(builder.HasPayload());
-  EXPECT_FALSE(builder.HasPayloadWithType<util::StatusProto>());
+  EXPECT_FALSE(HasPayload(builder));
+  EXPECT_FALSE(HasPayloadWithType<StatusProto>(builder));
   builder.AttachPayload(MakePayloadProto(kPayloadMsg));
-  EXPECT_FALSE(builder.HasPayload());
-  EXPECT_FALSE(builder.HasPayloadWithType<util::StatusProto>());
+  EXPECT_FALSE(HasPayload(builder));
+  EXPECT_FALSE(HasPayloadWithType<StatusProto>(builder));
 }
 
 TEST_F(StatusBuilderTest, SetPayloadLvalue) {
@@ -995,7 +948,7 @@ TEST_F(StatusBuilderTest, ToStringWithPayloads) {
   absl::Status status =
       ::util::MakeStatus(CanonicalErrorSpace(), error::CANCELLED, "", &mset);
   StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
-  util::AttachPayload(&builder, MakePayloadProto("oops"));
+  builder.AttachPayload(MakePayloadProto("oops"));
   EXPECT_EQ(ToStringViaStream(status), builder.ToString());
 }
 
@@ -1015,7 +968,7 @@ TEST_F(StatusBuilderTest, ToStringDoesntHaveSideEffects) {
   }
 
   StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
-  util::AttachPayload(&builder, MakePayloadProto("oops"));
+  builder.AttachPayload(MakePayloadProto("oops"));
   builder << "hello world!";
   builder.LogError();
   builder.AlsoOutputToSink(&log_sink);
