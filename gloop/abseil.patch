@@ -239,16 +239,16 @@ index 56377ed1..c229570a 100644
 +    "@do_not_use_for_gloop_visibility_only//:__subpackages__",
  ]
 diff --git absl/strings/BUILD.bazel absl/strings/BUILD.bazel
-index 27150c23..ea56cfdb 100644
+index 79b66721..94448768 100644
 --- absl/strings/BUILD.bazel
 +++ absl/strings/BUILD.bazel
-@@ -434,3 +434,4 @@ cc_library(
+@@ -433,3 +433,4 @@ cc_library(
          "//visibility:private",
 -    ],
 +       "@do_not_use_for_gloop_visibility_only//:__subpackages__",
 +     ],
      deps = [
-@@ -1594,2 +1595,3 @@ cc_library(
+@@ -1593,2 +1594,3 @@ cc_library(
          "//absl:friends",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],

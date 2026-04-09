@@ -52,6 +52,7 @@ cc_library(
     name = "address_is_readable",
     hdrs = ["address_is_readable.h"],
     visibility = [
+        "//gloop/thread:__pkg__",
     ],
     deps = [
         "@abseil-cpp//absl/debugging:debugging_internal",
@@ -997,6 +998,7 @@ cc_library(
         "@abseil-cpp//absl/log/internal:globals",
         "@abseil-cpp//absl/strings:string_view",
         "@gloop//gloop:enforce_gloop_support",
+        "@gloop//gloop/base:signal-handler",
     ],
 )
 
@@ -1485,6 +1487,7 @@ cc_library(
     # Please use `absl::LogSink` instead of adding new uses of `base::Logger`.
     visibility = [
         "//gloop/base:__subpackages__",
+        "//gloop/thread:__pkg__",
     ],
     deps = [
         ":log_file_flags",

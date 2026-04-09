@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2010 Google Inc. All Rights Reserved.
-
 #include "gloop/base/examine_stack.h"
 
 #include <inttypes.h>  // PRIxPTR
@@ -57,6 +55,7 @@
 #include "gloop/base/proc_maps.h"
 
 #ifdef __linux__
+#include "gloop/base/signal-handler.h"
 #endif
 
 namespace {
@@ -503,13 +502,24 @@ void DumpAddressMap(DebugWriter* writer, void* writer_arg) {
   ProcMapsIterator::Buffer* maps_buffer;
   static const size_t kOutBufSize = PATH_MAX + 250;
 
-  {
+  if (InFailureSignalHandler()) {
+    // We're in a signal handler so we may not have much stack space,
+    // nor can we do dynamic allocation.
+    // Use statically reserved buffers, which is safe here because only one
+    // thread can be in the signal handler at once.
+    static ProcMapsIterator::Buffer static_proc_maps_buffer;
+    static char static_out_buffer[kOutBufSize];
+    maps_buffer = &static_proc_maps_buffer;
+    out_buffer = static_out_buffer;
+    static char dir_buffer[kOutBufSize];
+    dir = dir_buffer;
+  } else {
     // Dynamically allocate the output buffer; ProcMapsIterator will
     // allocate its own buffer
     alloced_out_buffer.reset(new char[kOutBufSize]);
     maps_buffer = nullptr;
     out_buffer = alloced_out_buffer.get();
-    alloced_dir_buffer.reset(new char[kOutBufSize]);
+    alloced_dir_buffer.reset(new char[kOutBufSize]());
     dir = alloced_dir_buffer.get();
   }
   ProcMapsIterator it(0, maps_buffer);

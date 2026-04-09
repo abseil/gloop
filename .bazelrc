@@ -11,6 +11,9 @@ build --copt=-funsigned-char
 # Enable hardware-specific optimizations.
 build --copt=-march=x86-64-v2
 
+# Disable frame pointer omission to aid debugging.
+build --copt=-fno-omit-frame-pointer
+
 # Disable warnings from dependencies.
 build --per_file_copt=-external/.*@-Wno-thread-safety-analysis,-Wno-character-conversion
 build --host_per_file_copt=-external/.*@-Wno-deprecated-declarations
@@ -30,7 +33,7 @@ test --test_output=errors
 build:dbg --compilation_mode=dbg
 build:opt --compilation_mode=opt
 
-build:san-common --config=dbg --strip=never --copt=-Og --copt=-fno-omit-frame-pointer
+build:san-common --config=dbg --strip=never --copt=-Og
 
 build:asan --config=san-common
 build:asan --//gloop:sanitizer=asan
