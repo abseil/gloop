@@ -27,6 +27,20 @@ package(
 )
 
 cc_library(
+    name = "arrival-order-scheduler",
+    srcs = ["arrival-order-scheduler.cc"],
+    hdrs = ["arrival-order-scheduler.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":scheduler_types",
+        "//gloop/base/scheduling",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/container:inlined_vector",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
     name = "per-domain-counters",
     hdrs = ["per-domain-counters.h"],
     visibility = [
@@ -58,6 +72,41 @@ cc_test(
         ":probabilistic_test_util",
         "@abseil-cpp//absl/log",
         "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "scheduler_types",
+    srcs = ["scheduler-types.cc"],
+    hdrs = ["scheduler-types.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop/base/scheduling",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/base:spinlock_wait",
+        "@abseil-cpp//absl/container:fixed_array",
+        "@gloop//gloop:enforce_gloop_support",
+        "@gloop//gloop/util/atomic_danger",
+    ],
+)
+
+cc_test(
+    name = "scheduler-types_test",
+    srcs = ["scheduler-types_test.cc"],
+    deps = [
+        ":scheduler_types",
+        "//gloop/thread",
+        "//gloop/util/functional:to_callback",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:gloop_test_main",
+        "@gloop//gloop/base:callback",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
