@@ -31,6 +31,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "gloop/base/callback.h"
+#include "gloop/base/context.h"
 #include "gloop/base/walltime.h"
 #include "gloop/thread/executor.h"
 #include "gloop/thread/timedcall.h"
@@ -110,6 +111,9 @@ CancellableClosure* AddAfterHelper::AddTaskForCompletion(
   }
 
   const int64_t sequence_num = ++next_sequence_number_;
+  // Note that ::util::functional::ToCallback captures the current context, so
+  // CompleteAndRemoveFromMap, as well as the actual task, will run in the
+  // context in which the task was originally scheduled.
   CancellableClosure* cancellable =
       CancellableClosure::New(::util::functional::ToCallback(
           absl::bind_front(&AddAfterHelper::CompleteAndRemoveFromMap, this,
@@ -130,16 +134,8 @@ void AddAfterHelper::ScheduleAddAfter(absl::Duration delay, Closure* task) {
   } else {
     callback = util::functional::FromCallbackWithOwnership(task);
   }
-  CancellableClosure* cancellable = AddTaskForCompletion(std::move(callback));
-
-  if (cancellable) {
-    // This AddAfter() call has to be after inserting cancellable into
-    // the map because CompleteAndRemoveFromMap tries to remove the
-    // entry from the map.
-    underlying_executor_->ScheduleAfterForMigration(
-        delay,
-        util::functional::FromCallbackWithOwnership<Closure>(cancellable));
-  }
+  ScheduleAddAfterAt(underlying_executor_->clock()->TimeNow() + delay,
+                     std::move(callback));
 }
 
 void AddAfterHelper::ScheduleAddAfterAt(
@@ -147,6 +143,15 @@ void AddAfterHelper::ScheduleAddAfterAt(
   CancellableClosure* cancellable = AddTaskForCompletion(std::move(callback));
 
   if (cancellable) {
+    // Switch to the background Context when enqueuing the cancellable callback.
+    // This way we won't capture the current Context in the triggering tasks
+    // enqueued on the underlying executor. These triggering tasks stay around
+    // until their time comes, even after AddAfterHelper is deleted and all
+    // pending tasks have been run.
+    // Note that the actual task (`callback`) will run in the current context
+    // (not the background context), as it is captured as part of the
+    // AddTaskForCompletion call above.
+    base::WithContext wc(base::BackgroundContext());
     // This ScheduleAt() call has to be after inserting cancellable into
     // the map because CompleteAndRemoveFromMap tries to remove the
     // entry from the map.
