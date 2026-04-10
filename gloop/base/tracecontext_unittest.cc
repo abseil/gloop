@@ -61,13 +61,13 @@
 #include "gloop/perftools/tracing/public/tracecontext_util.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
+#include "gloop/util/functional/to_callback.h"
 #include "gloop/util/gtl/unique_array.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "stats/census/public/census-interface.h"
 #include "stats/census/public/maybe_key_id.h"
 #include "stats/census/public/tagger.h"
-#include "util/functional/to_callback.h"
 
 namespace {
 using perftools::tracing::MockTraceEventListener;

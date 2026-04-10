@@ -198,7 +198,6 @@ TEST(ArrivalOrderSchedulerTest, GroupAdmissionLimitWorks) {
 }  // namespace thread
 
 int main(int argc, char** argv) {
-  absl::SetFlag(&FLAGS_logtostderr, true);
   InitGoogle(argv[0], &argc, &argv, true);
 
   return RUN_ALL_TESTS();

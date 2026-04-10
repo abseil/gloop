@@ -56,6 +56,35 @@ cc_test(
 )
 
 cc_library(
+    name = "distributions",
+    hdrs = ["distributions.h"],
+    deps = [
+        "//gloop/util/random/internal:skewed_low_distribution",
+        "//gloop/util/random/internal:yule_simon_distribution",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@abseil-cpp//absl/random/internal:distribution_caller",
+        "@abseil-cpp//absl/random/internal:traits",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "distributions_test",
+    srcs = ["distributions_test.cc"],
+    deps = [
+        ":distributions",
+        ":mock_distributions",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/random:mocking_bit_gen",
+        "@abseil-cpp//absl/random/internal:distribution_test_util",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "global_id",
     srcs = ["global_id.cc"],
     hdrs = ["global_id.h"],
@@ -84,6 +113,19 @@ cc_test(
         "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "mock_distributions",
+    testonly = 1,
+    hdrs = ["mock_distributions.h"],
+    deps = [
+        "//gloop/util/random/internal:skewed_low_distribution",
+        "//gloop/util/random/internal:yule_simon_distribution",
+        "@abseil-cpp//absl/random:mocking_bit_gen",
+        "@abseil-cpp//absl/random/internal:mock_overload_set",
+        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 

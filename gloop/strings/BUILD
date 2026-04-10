@@ -31,6 +31,43 @@ package(
 )
 
 cc_library(
+    name = "arena-string",
+    hdrs = ["arena-string.h"],
+    deps = [
+        "//gloop/base:arena",
+        "//gloop/util/endian",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "arena-string_test",
+    size = "small",
+    srcs = ["arena-string_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":arena-string",
+        "//gloop/base:arena",
+        "//gloop/base:init_google",
+        "//gloop/util/random:distributions",
+        "//gloop/util/random:mt_random",
+        "//gloop/util/random:random_base",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/container:fixed_array",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:flags",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "bytestream",
     hdrs = ["bytestream.h"],
     deps = [
@@ -191,6 +228,51 @@ cc_test(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/time",
         "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "interntable_benchmark",
+    testonly = 1,
+    srcs = ["interntable_benchmark.cc"],
+    hdrs = ["interntable_benchmark.h"],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "keyed_intern_table",
+    hdrs = ["keyed_intern_table.h"],
+    deps = [
+        ":arena-string",
+        "//gloop/base:arena",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "keyed_intern_table_test",
+    size = "small",
+    srcs = ["keyed_intern_table_test.cc"],
+    deps = [
+        ":interntable_benchmark",
+        ":keyed_intern_table",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:gloop_test_main",
+        "@gloop//gloop/util/gtl:stl_util",
+        "@gloop//gloop/util/intops",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

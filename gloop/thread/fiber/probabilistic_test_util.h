@@ -100,4 +100,5 @@ static bool LogWarningOnNotGt(T1 val1, T2 val2, std::string literal_val1,
 
 #define PROB_EXPECT_GT(val1, val2) \
   thread::probabilistic_test::LogWarningOnNotGt(val1, val2, #val1, #val2)
+
 #endif  // THIRD_PARTY_GLOOP_THREAD_FIBER_PROBABILISTIC_TEST_UTIL_H_

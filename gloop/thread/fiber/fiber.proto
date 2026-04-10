@@ -1,0 +1,15 @@
+edition = "2024";
+
+package thread.fiber;
+
+import option "google/protobuf/cpp_features.proto";
+
+enum FiberType {
+  option features.(pb.cpp).enum_name_uses_string_view = false;
+
+  FIBER_TYPE_UNKNOWN = 0;
+  FIBER_TYPE_NORMAL = 1;
+  FIBER_TYPE_DYNAMIC = 2;
+
+  reserved 3, 4, 5, 6, 7;
+}

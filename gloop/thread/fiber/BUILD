@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
 load(
     "@rules_cc//cc:cc_library.bzl",
     "cc_library",
@@ -37,6 +39,408 @@ cc_library(
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/container:inlined_vector",
         "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "arrival-order-scheduler_test",
+    srcs = ["arrival-order-scheduler_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":arrival-order-scheduler",
+        "//gloop/base:init_google",
+        "//gloop/base/scheduling",
+        "//gloop/util/random:shared_bit_gen",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log:flags",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/random:distributions",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop/thread/fiber",
+        "@gloop//gloop/thread/fiber:fiber-options",
+        "@gloop//gloop/thread/fiber:fifolifo-schedulers",
+        "@gloop//gloop/thread/fiber:select",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+proto_library(
+    name = "fiber_proto",
+    srcs = ["fiber.proto"],
+    option_deps = ["@protobuf//:cpp_features_proto"],
+    visibility = ["@gloop//gloop/thread/fiber:__pkg__"],
+)
+
+cc_proto_library(
+    name = "fiber_cc_proto",
+    visibility = ["@gloop//gloop/thread/fiber:__pkg__"],
+    deps = [":fiber_proto"],
+)
+
+cc_library(
+    name = "channel",
+    srcs = [
+        "channel.cc",
+        # TODO: Break this circular dep.
+        "fiber.h",
+    ],
+    hdrs = ["channel.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":channel-internal",
+        ":fiber-internal",
+        ":fiber-options",
+        ":fiber_cc_proto",
+        ":per-domain-counters",
+        ":select",
+        ":selectables",
+        "//gloop/base:context",
+        "//gloop/base/scheduling",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/time:clock_interface",
+        "@gloop//gloop:enforce_gloop_support",
+        "@gloop//gloop/util/gtl:intrusive_list",
+    ],
+)
+
+cc_library(
+    name = "channel-internal",
+    hdrs = ["channel-internal.h"],
+    visibility = [
+        "//gloop/thread/fiber:__subpackages__",
+    ],
+    deps = [
+        ":select",
+        ":select-internal",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:chunked_queue",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "channel_test",
+    srcs = ["channel_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":channel",
+        ":fiber",
+        ":fiber-internal",
+        ":fiber-options",
+        ":fifolifo-schedulers",
+        ":probabilistic_test_util",
+        ":select",
+        ":selectables",
+        "//gloop/base:context",
+        "//gloop/base:walltime",
+        "//gloop/base/scheduling",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/time:simulated_clock",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "fiber",
+    srcs = [
+        "bundle.cc",
+        "fiber.cc",
+        "init-domain.cc",
+        "pthread-domain.cc",
+        "sleep.cc",
+    ],
+    hdrs = [
+        "bundle.h",
+        "fiber.h",
+        "init-domain.h",
+        "pthread-domain.h",
+        "sleep.h",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":arrival-order-scheduler",
+        ":channel",
+        ":fiber-internal",
+        ":fiber-options",
+        ":fiber_cc_proto",
+        ":fifolifo-schedulers",
+        ":futex-domain",
+        ":per-domain-counters",
+        ":scheduler_types",
+        ":select",
+        ":selectables",
+        "//gloop/base:cancellation_coloring",
+        "//gloop/base:context",
+        "//gloop/base:googleinit",
+        "//gloop/base/scheduling",
+        "//gloop/thread",
+        "//gloop/thread:config",
+        "//gloop/thread:os_semaphore",
+        "//gloop/thread/fiber/internal:fiber_thread_pool",
+        "//gloop/util/functional:with_context",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/container:fixed_array",
+        "@abseil-cpp//absl/container:inlined_vector",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/memory",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/time:clock_interface",
+        "@gloop//gloop:enforce_gloop_support",
+        "@gloop//gloop/base:static_threadlocal",
+        "@gloop//gloop/base:sysinfo",
+        "@gloop//gloop/base:thread_identity",
+        "@gloop//gloop/base:walltime",
+        "@gloop//gloop/util/gtl:intrusive_list",
+    ],
+)
+
+cc_library(
+    name = "fiber-internal",
+    srcs = ["fiber-internal.cc"],
+    hdrs = ["fiber-internal.h"],
+    visibility = [
+        "//gloop/thread/fiber:__subpackages__",
+        "//gloop/thread/fiber/internal:__subpackages__",
+        "@gloop//gloop/thread/fiber/internal:__pkg__",
+    ],
+    deps = [
+        ":fiber-options",
+        ":fiber_cc_proto",
+        "//gloop/base:thread_identity",
+        "//gloop/base:walltime",
+        "//gloop/base/scheduling",
+        "//gloop/base/scheduling:low-level-support",
+        "//gloop/thread",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "fiber-once_test",
+    size = "small",
+    srcs = ["fiber-once_test.cc"],
+    deps = [
+        ":fiber",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "fiber-options",
+    srcs = ["fiber-options.cc"],
+    hdrs = ["fiber-options.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop/base:arena",
+        "//gloop/base:context",
+        "//gloop/concurrent/percpu:counting_mutex",
+        "//gloop/strings:arena-string",
+        "//gloop/thread",
+        "//gloop/thread/fiber/internal:fiber_thread_options",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "fiber-options_test",
+    srcs = ["fiber-options_test.cc"],
+    deps = [
+        ":fiber",
+        ":fiber-options",
+        "//gloop/thread/fiber/internal:fiber_thread_options",
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "fiber_test",
+    srcs = ["fiber_test.cc"],
+    linkstatic = 1,
+    visibility = [
+        "//devtools/crosstool/perflab/benchmarks:__pkg__",
+        "//waymo/os/bfc:__subpackages__",
+    ],
+    deps = [
+        ":channel",
+        ":fiber",
+        ":fiber-internal",
+        ":fiber-options",
+        ":fifolifo-schedulers",
+        ":select",
+        ":selectables",
+        "//gloop/base:cancellation_coloring",
+        "//gloop/base:time_support",
+        "//gloop/base/scheduling",
+        "//gloop/thread",
+        "//gloop/thread:config",
+        "//gloop/thread/fiber/internal:fiber_thread_options",
+        "//gloop/thread/fiber/internal:fiber_thread_pool",
+        "//gloop/util/functional:callable_once",
+        "//gloop/util/functional:from_callback",
+        "//gloop/util/functional:to_callback",
+        "//gloop/util/math:mathutil",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/debugging:leak_check",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/memory",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/time:clock_interface",
+        "@gloop//gloop:gloop_test_main",
+        "@gloop//gloop/base:sysinfo",
+        "@gloop//gloop/base:tracecontext",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ] + select({
+        "//conditions:default": [],
+    }),
+)
+
+cc_test(
+    name = "bundle_test",
+    srcs = ["bundle_test.cc"],
+    linkstatic = 1,
+    visibility = [
+        "//devtools/crosstool/perflab/benchmarks:__pkg__",
+        "//waymo/os/bfc:__subpackages__",
+    ],
+    deps = [
+        ":fiber",
+        ":select",
+        "//gloop/base:context",
+        "//gloop/thread",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "pthread-domain_test",
+    srcs = ["pthread-domain_test.cc"],
+    deps = [
+        ":fiber",
+        "//gloop/base/scheduling:domain-test",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "sleep_test",
+    srcs = ["sleep_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":fiber",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/time:simulated_clock",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "fifolifo-schedulers",
+    srcs = ["fifolifo-schedulers.cc"],
+    hdrs = ["fifolifo-schedulers.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":scheduler_types",
+        "//gloop/base:spinlock",
+        "//gloop/base/scheduling",
+        "//gloop/base/scheduling:scheduling_mode",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/container:inlined_vector",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "futex-domain",
+    srcs = ["futex-domain-disabled.cc"],
+    hdrs = ["futex-domain.h"],
+    visibility = [
+        "//gloop/thread/fiber:__subpackages__",
+        "//gloop/thread/fiber/internal:__subpackages__",
+        "@gloop//gloop/thread/fiber:__subpackages__",
+    ],
+    deps = [
+        "//gloop/base/scheduling",
+        "//gloop/thread",
+        "//gloop/thread/fiber/internal:fiber-domain-support",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "futex-domain_test",
+    srcs = ["futex-domain_test.cc"],
+    deps = [
+        ":futex-domain",
+        "//gloop/base:init_google",
+        "//gloop/base/scheduling:domain-test",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/log",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
     ],
 )
 

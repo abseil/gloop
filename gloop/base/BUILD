@@ -1686,3 +1686,32 @@ cc_test(
         "@googletest//:gtest",
     ],
 )
+
+cc_library(
+    name = "time_support",
+    srcs = ["time_support.cc"],
+    hdrs = ["time_support.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "time_support_unittest",
+    size = "medium",
+    srcs = ["time_support_unittest.cc"],
+    deps = [
+        ":time_support",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
