@@ -21,7 +21,9 @@
 #ifndef THIRD_PARTY_GLOOP_PERFTOOLS_TRACING_MOCK_TRACE_EVENT_LISTENER_H_
 #define THIRD_PARTY_GLOOP_PERFTOOLS_TRACING_MOCK_TRACE_EVENT_LISTENER_H_
 
+#include <cstddef>
 #include <utility>
+#include <vector>
 
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
@@ -42,8 +44,9 @@ class MockTraceEventListener : public TraceEventListener {
   MOCK_METHOD(void, ReleaseEventListener, ());
   MOCK_METHOD((std::pair<TraceEventListener*, bool>), Extract,
               (TraceEventListener*));
+  MOCK_METHOD(void, ExtractAll, (std::vector<TraceEventListener*>&));
   MOCK_METHOD(bool, Contains, (TraceEventListener*), (const));
-
+  MOCK_METHOD(size_t, Depth, (), (const));
   MOCK_METHOD(void, OnTraceSpawn, (SyncId sync_id, StringRef));
 
   MOCK_METHOD(void, OnTraceBeginSync, (SyncId sync_id, StringRef label));
@@ -86,7 +89,11 @@ inline MockTraceEventListener::MockTraceEventListener() {
       .WillByDefault(::testing::Invoke(
           [this](TraceEventListener* listener) { return listener == this; }));
 
-  EXPECT_CALL(*this, ReleaseEventListener).Times(::testing::AnyNumber());
+  EXPECT_CALL(*this, Depth())
+      .Times(::testing::AnyNumber())
+      .WillRepeatedly(::testing::Return(1));
+
+  EXPECT_CALL(*this, ReleaseEventListener()).Times(::testing::AnyNumber());
 }
 
 }  // namespace perftools::tracing

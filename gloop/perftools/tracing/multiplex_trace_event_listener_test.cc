@@ -165,12 +165,11 @@ TEST(MultiplexTraceEventListener, MultiplexNullptr) {
 }
 
 TEST(MultiplexTraceEventListener, GetEventListener) {
+  StrictMock<MockTraceEventListener> first1, second1, first2, second2;
   InSequence in_sequence;
-  StrictMock<MockTraceEventListener> first1, second1;
 
   auto* listener1 = MultiplexTraceEventListener(&first1, &second1);
 
-  StrictMock<MockTraceEventListener> first2, second2;
   EXPECT_CALL(first1, GetEventListener(SyncId{3})).WillOnce(Return(&first2));
   EXPECT_CALL(second1, GetEventListener(SyncId{3})).WillOnce(Return(&second2));
   auto* listener2 = listener1->GetEventListener(SyncId{3});
