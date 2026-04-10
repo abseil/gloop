@@ -164,7 +164,8 @@
 #define STATUS_MACROS_RETURN_IF_ERROR_IMPL_(return_keyword, expr) \
   STATUS_MACROS_IMPL_ELSE_BLOCKER_                                \
   if (auto status_macro_internal_adaptor =                        \
-          ::util::status_macro_internal::MacroAdaptor((expr))) {  \
+          ::util::status_macro_internal::MacroAdaptor(            \
+              (expr), ::absl::SourceLocation::current())) {       \
   } else /* NOLINT */                                             \
     return_keyword status_macro_internal_adaptor.Consume()
 
@@ -312,36 +313,30 @@ struct IsAllowedStatusOrMacroType<
 namespace util {
 namespace status_macro_internal {
 
-enum : bool {
-  kStatusAdaptor,
-  kReturnIfErrorAdaptor,
-};
-
-template <bool Mode>
-class MacroAdaptor;
-
-MacroAdaptor(StatusBuilder) -> MacroAdaptor<kStatusAdaptor>;
-MacroAdaptor(absl::Status) -> MacroAdaptor<kReturnIfErrorAdaptor>;
-
 // Provides a conversion to bool so that it can be used inside an if statement
 // that declares a variable.
-template <>
-class MacroAdaptor<kStatusAdaptor> {
+class StatusAdaptorForMacros {
  public:
-  MacroAdaptor(const absl::Status& status,
-               absl::SourceLocation loc = absl::SourceLocation::current())
+  StatusAdaptorForMacros(
+      const absl::Status& status,
+      absl::SourceLocation loc = absl::SourceLocation::current())
       : builder_(status, loc) {}
 
-  MacroAdaptor(absl::Status&& status,
-               absl::SourceLocation loc = absl::SourceLocation::current())
+  StatusAdaptorForMacros(
+      absl::Status&& status,
+      absl::SourceLocation loc = absl::SourceLocation::current())
       : builder_(std::move(status), loc) {}
 
-  MacroAdaptor(const StatusBuilder& builder) : builder_(builder) {}
+  StatusAdaptorForMacros(const StatusBuilder& builder,
+                         absl::SourceLocation = absl::SourceLocation())
+      : builder_(builder) {}
 
-  MacroAdaptor(StatusBuilder&& builder) : builder_(std::move(builder)) {}
+  StatusAdaptorForMacros(StatusBuilder&& builder,
+                         absl::SourceLocation = absl::SourceLocation())
+      : builder_(std::move(builder)) {}
 
-  MacroAdaptor(const MacroAdaptor&) = delete;
-  MacroAdaptor& operator=(const MacroAdaptor&) = delete;
+  StatusAdaptorForMacros(const StatusAdaptorForMacros&) = delete;
+  StatusAdaptorForMacros& operator=(const StatusAdaptorForMacros&) = delete;
 
   explicit operator bool() const { return ABSL_PREDICT_TRUE(builder_.ok()); }
 
@@ -351,24 +346,23 @@ class MacroAdaptor<kStatusAdaptor> {
   StatusBuilder builder_;
 };
 
-using StatusAdaptorForMacros = MacroAdaptor<kStatusAdaptor>;
-
 // Special adaptor for use by RETURN_IF_ERROR for absl::Status arguments.
 // This one avoids constructing a StatusBuilder on the fast path.
 //
 // REQUIRES: Only used by RETURN_IF_ERROR implementation.
-template <>
-class MacroAdaptor<kReturnIfErrorAdaptor> {
+class ReturnIfErrorAdaptor {
  public:
-  MacroAdaptor(const absl::Status& status,
-               absl::SourceLocation loc = absl::SourceLocation::current())
+  explicit ReturnIfErrorAdaptor(
+      const absl::Status& status,
+      absl::SourceLocation loc = absl::SourceLocation::current())
       : status_(status), loc_(loc) {}
 
-  MacroAdaptor(absl::Status&& status,
-               absl::SourceLocation loc = absl::SourceLocation::current())
+  explicit ReturnIfErrorAdaptor(
+      absl::Status&& status,
+      absl::SourceLocation loc = absl::SourceLocation::current())
       : status_(std::move(status)), loc_(loc) {}
 
-  ~MacroAdaptor() {
+  ~ReturnIfErrorAdaptor() {
     // WARNING! WARNING! WARNING!
     //
     // We play fast and loose here and avoid destroying status_. This should be
@@ -396,7 +390,27 @@ class MacroAdaptor<kReturnIfErrorAdaptor> {
   absl::SourceLocation loc_;
 };
 
-using ReturnIfErrorAdaptor = MacroAdaptor<kReturnIfErrorAdaptor>;
+// Overloads of MacroAdaptor that pick the right adaptor class
+// for each argument type.
+//
+// TODO: Replace these with deduction guides of template
+// specializations once the bug is fixed. (See prior file revision.)
+inline ReturnIfErrorAdaptor MacroAdaptor(const absl::Status& s,
+                                         absl::SourceLocation loc) {
+  return ReturnIfErrorAdaptor(s, loc);
+}
+inline ReturnIfErrorAdaptor MacroAdaptor(absl::Status&& s,
+                                         absl::SourceLocation loc) {
+  return ReturnIfErrorAdaptor(std::move(s), loc);
+}
+inline StatusAdaptorForMacros MacroAdaptor(const StatusBuilder& s,
+                                           absl::SourceLocation loc) {
+  return StatusAdaptorForMacros(s, loc);
+}
+inline StatusAdaptorForMacros MacroAdaptor(StatusBuilder&& s,
+                                           absl::SourceLocation loc) {
+  return StatusAdaptorForMacros(std::move(s), loc);
+}
 
 }  // namespace status_macro_internal
 }  // namespace util
