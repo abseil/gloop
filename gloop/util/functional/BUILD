@@ -22,6 +22,31 @@ package(
     features = ["header_modules"],
 )
 
+cc_library(
+    name = "auto_function_runner",
+    hdrs = ["auto_function_runner.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "auto_function_runner_test",
+    srcs = ["auto_function_runner_test.cc"],
+    deps = [
+        ":auto_function_runner",
+        ":to_callback",
+        "//gloop/base:callback",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 # For only util::functional::FromCallback and friends
 cc_library(
     name = "from_callback",
