@@ -35,7 +35,6 @@
 template <typename T>
 class ThreadWorkerQueue {
  public:
-  using CountType = int64_t;
   virtual ~ThreadWorkerQueue() {}
 
   virtual void Put(T elem) = 0;
@@ -43,8 +42,8 @@ class ThreadWorkerQueue {
   virtual bool TryPut(T elem) = 0;
   virtual bool PutIfReadyToRun(T elem) = 0;
   virtual T Get() = 0;
-  virtual CountType count() const = 0;
-  virtual CountType capacity() const = 0;
+  virtual int64_t count() const = 0;
+  virtual int64_t capacity() const = 0;
 };
 
 namespace thread {
@@ -57,13 +56,12 @@ namespace thread {
 template <typename T>
 class ProducerConsumerQueue : public ThreadWorkerQueue<T> {
  public:
-  using CountType = typename ThreadWorkerQueue<T>::CountType;
-  constexpr static CountType kUnbounded = std::numeric_limits<CountType>::max();
+  constexpr static int64_t kUnbounded = std::numeric_limits<int64_t>::max();
   // Creates a producer-consumer queue that has room for "capacity"
   // entries.  kUnbounded is a special case, producing a (slightly more
   // efficient) queue that is never considered to be full.
   // REQUIRES: capacity > 0
-  explicit ProducerConsumerQueue(CountType capacity);
+  explicit ProducerConsumerQueue(int64_t capacity);
 
   // This type is neither copyable nor movable.
   ProducerConsumerQueue(const ProducerConsumerQueue&) = delete;
@@ -120,12 +118,12 @@ class ProducerConsumerQueue : public ThreadWorkerQueue<T> {
   // for very long since other threads may be concurrently
   // adding/removing elements to/from the queue.  So use the return
   // value as just a hint about the size of the queue.
-  CountType count() const override ABSL_NO_THREAD_SAFETY_ANALYSIS {
+  int64_t count() const override ABSL_NO_THREAD_SAFETY_ANALYSIS {
     return count_.load(std::memory_order_relaxed);
   }
 
   // Maximum number of elements in the work queue.
-  CountType capacity() const override { return capacity_; }
+  int64_t capacity() const override { return capacity_; }
 
  private:
   void InternalPut(T elem) ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
@@ -146,14 +144,14 @@ class ProducerConsumerQueue : public ThreadWorkerQueue<T> {
   void PushWaiter(Waiter* waiter) ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   absl::Mutex mutex_;                        // The protecting lock
-  const CountType capacity_;                 // Capacity of "queue"
+  const int64_t capacity_;                   // Capacity of "queue"
   int num_waiters_ ABSL_GUARDED_BY(mutex_);  // the number of waiters
   Waiter waiters_
       ABSL_GUARDED_BY(mutex_);  // doubly-linked LIFO of threads waiting
   absl::CondVar wait_nonfull_
       ABSL_GUARDED_BY(mutex_);  // To wait until non-full
   Queue queue_;                 // Queue of elements
-  std::atomic<CountType> count_
+  std::atomic<int64_t> count_
       ABSL_GUARDED_BY(mutex_);  // Number of elements in queue
 
   T RemoveElement() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
@@ -223,7 +221,7 @@ T ProducerConsumerQueue<T>::RemoveElement() {
 }
 
 template <typename T>
-ProducerConsumerQueue<T>::ProducerConsumerQueue(CountType capacity)
+ProducerConsumerQueue<T>::ProducerConsumerQueue(int64_t capacity)
     : capacity_(capacity) {
   CHECK_GT(capacity, 0);
   waiters_.next = &waiters_;
