@@ -829,7 +829,6 @@ cc_library(
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/meta:type_traits",
         "@abseil-cpp//absl/synchronization",
         "@gloop//gloop:enforce_gloop_support",
     ],

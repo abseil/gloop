@@ -43,7 +43,6 @@
 #include "absl/base/thread_annotations.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/log/check.h"
-#include "absl/meta/type_traits.h"
 #include "absl/synchronization/mutex.h"
 #include "gloop/util/bits/bits.h"
 #include "gloop/util/gtl/compressed_tuple.h"
@@ -176,9 +175,9 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
    public:
     using iterator_category = std::forward_iterator_tag;
     using value_type = typename LockFreeHashTable::value_type;
-    using reference = absl::conditional_t<PolicyType::constant_iterators::value,
-                                          const value_type&, value_type&>;
-    using pointer = absl::remove_reference_t<reference>*;
+    using reference = std::conditional_t<PolicyType::constant_iterators::value,
+                                         const value_type&, value_type&>;
+    using pointer = std::remove_reference_t<reference>*;
     using difference_type = typename LockFreeHashTable::difference_type;
 
     friend class LockFreeHashTable;
