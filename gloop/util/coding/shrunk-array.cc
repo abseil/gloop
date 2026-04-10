@@ -684,7 +684,7 @@ inline uint64_t ReadUint64(const DataType* address);
 
 template <>
 inline uint64_t ReadUint64<uint64_t>(const uint64_t* address) {
-  return UNALIGNED_LOAD64(address);
+  return *address;
 }
 
 template <>
