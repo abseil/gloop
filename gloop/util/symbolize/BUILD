@@ -57,9 +57,9 @@ cc_test(
         "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
         "@re2",
     ],
 )
@@ -100,6 +100,7 @@ cc_test(
     deps = [
         ":elf_reader",
         ":symbolize",
+        "//gloop/base:init_google",
         "//gloop/base:proc_maps",
         "//gloop/base:strerror",
         "@abseil-cpp//absl/algorithm:container",
@@ -179,9 +180,9 @@ _ = [cc_test(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/memory",
         "@abseil-cpp//absl/strings",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
         "@tcmalloc//tcmalloc:malloc_extension",
     ],
 ) for t in [
@@ -195,6 +196,7 @@ cc_test(
     deps = [
         ":symbolize",
         "//gloop/base:examine_stack",
+        "//gloop/base:init_google",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/debugging:stacktrace",
         "@abseil-cpp//absl/debugging:symbolize",
@@ -236,9 +238,9 @@ cc_test(
         ":foobar_bbsections_all",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 

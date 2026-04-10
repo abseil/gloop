@@ -28,6 +28,7 @@
 
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
+#include "gloop/base/googleinit.h"
 #include "gloop/util/registration/registerer.h"
 
 // -vmodule=registerer_tracker=level controls the amount of logging.
@@ -70,5 +71,10 @@ void UnusedObjectReport() {
   }
 }
 }  // namespace internal
+
+namespace {
+void InitRegistryTracker() { atexit(internal::UnusedObjectReport); }
+REGISTER_MODULE_INITIALIZER(registry_tracker, InitRegistryTracker());
+}  // namespace
 
 }  // namespace util_registration

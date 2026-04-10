@@ -52,6 +52,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
+#include "gloop/base/init_google.h"
 #include "gloop/base/proc_maps.h"
 #include "gloop/base/strerror.h"
 #include "gloop/util/symbolize/symbolize-inl.h"
@@ -165,7 +166,7 @@ TEST(ElfReader, IgnoreVsyscall) {
 }  // namespace
 
 int main(int argc, char** argv) {
-  testing::InitGoogleTest(&argc, argv);
+  InitGoogle(argv[0], &argc, &argv, true);
 
   // Dumps symbols and exits if FLAGS_input is not empty.
   if (!absl::GetFlag(FLAGS_input).empty()) {

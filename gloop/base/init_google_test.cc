@@ -88,6 +88,23 @@ TEST(InitGoogleMlockTests, MlockStyles) {
 }
 #endif
 
+#if GTEST_HAS_DEATH_TEST
+// This test verifies that InitGoogle crashes if called multiple times,
+// instead of deadlocking as it used to do.
+TEST(InitGoogleTestDeathTest, DoubleInitializationCrashes) {
+  int argc = 1;
+  char* argv0 = const_cast<char*>("fake_argv0");
+  char** argv = &argv0;
+
+  // gunit already called InitGoogle once, so this is the second call; make
+  // sure it crashes.
+  ASSERT_DEATH(
+      { InitGoogle(argv[0], &argc, &argv, false); },
+      "Check failed: previous_init_google_state == BEFORE_INIT_GOOGLE "
+      "\\(2 vs. 0\\)");
+}
+#endif
+
 #ifdef __linux__
 TEST(InitGoogle, ParseKernelVersionString) {
   KernelVersion kv;

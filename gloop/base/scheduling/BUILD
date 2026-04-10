@@ -93,9 +93,9 @@ cc_test(
     srcs = ["scheduler_test.cc"],
     deps = [
         ":scheduling",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -115,6 +115,7 @@ cc_test(
     deps = [
         ":low-level-support",
         ":scheduling",
+        "//gloop/base:init_google",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/flags:flag",

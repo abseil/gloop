@@ -44,6 +44,7 @@
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/examine_stack.h"
+#include "gloop/base/init_google.h"
 #include "gloop/util/symbolize/symbolize.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -308,7 +309,7 @@ BENCHMARK(BM_UtilCurrentStackTrace);
 }  // namespace
 
 ABSL_ATTRIBUTE_NO_TAIL_CALL int main(int argc, char** argv) {
-  testing::InitGoogleTest(&argc, argv);
+  InitGoogle(argv[0], &argc, &argv, true);
 
   if (util::SymbolMap::GetCached().binary_is_stripped()) {
     LOG(INFO) << "We cannot run this test if stripped";

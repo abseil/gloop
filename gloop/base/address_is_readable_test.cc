@@ -28,6 +28,7 @@
 #include <unistd.h>
 
 #include "absl/log/check.h"
+#include "gloop/base/init_google.h"
 
 static void CheckOneAddr(const char* addr, bool expect, const char* test_case) {
   // Verify we don't touch errno.
@@ -109,5 +110,9 @@ int main(int argc, char* argv[]) {
   // and other file descriptors and mapppings cannot interfere.
   TestAddressIsReadable();
 
+  // InitGoogle is not necessary for the test case above, but asan leak
+  // detection won't work without it (b/12596175). (Note: unlike asan, the leak
+  // sanitizer feature will detect leaks without relying on InitGoogle.)
+  InitGoogle(argv[0], &argc, &argv, true);
   return (0);
 }

@@ -33,6 +33,7 @@
 #include "absl/log/log.h"
 #include "absl/strings/ascii.h"
 #include "benchmark/benchmark.h"
+#include "gloop/base/init_google.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -448,6 +449,8 @@ TEST(MemUtilTest, AllTests) {
 }  // namespace strings
 
 int main(int argc, char** argv) {
+  InitGoogle(argv[0], &argc, &argv, true);
+
   using strings::haystack;
   using strings::kHaystackSize;
   haystack = new char[kHaystackSize];

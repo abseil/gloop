@@ -30,10 +30,10 @@
 #include "absl/container/fixed_array.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
-#include "absl/log/flags.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_format.h"
 #include "benchmark/benchmark.h"
+#include "gloop/base/init_google.h"
 
 ABSL_FLAG(bool, print_output, false, "print CRC debug information");
 
@@ -474,6 +474,8 @@ static void TestScramble() {
 }
 
 int main(int argc, char* argv[]) {
+  InitGoogle(argv[0], &argc, &argv, true);
+
 #ifdef ABSL_HAVE_MEMORY_SANITIZER
   printf("PASS\n");
   return 0;

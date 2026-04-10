@@ -72,9 +72,9 @@ cc_test(
         ":trace_source_location",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:source_location",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -119,9 +119,9 @@ cc_test(
         ":tracing_base",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/flags:flag",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -147,9 +147,9 @@ cc_test(
         ":mock_trace_event_listener",
         ":trace_event_listener",
         ":tracing_base",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -180,9 +180,9 @@ cc_test(
         ":multiplex_trace_event_listener",
         ":trace_event_listener",
         ":tracing_base",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -195,6 +195,7 @@ cc_library(
         ":trace_event_listener",
         ":tracing_base",
         "@gloop//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
         "@googletest//:gtest_for_library",
     ],
 )
@@ -228,9 +229,9 @@ cc_test(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -252,9 +253,9 @@ cc_test(
     srcs = ["perftools_verify_test.cc"],
     deps = [
         ":perftools_verify",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -301,9 +302,9 @@ cc_test(
         ":format_to_buffer_sink",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -345,8 +346,8 @@ cc_test(
         ":tracing",
         ":tracing_base",
         "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )

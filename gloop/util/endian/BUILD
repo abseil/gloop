@@ -58,9 +58,9 @@ cc_test(
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random:distributions",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -70,8 +70,8 @@ cc_test(
     deps = [
         ":endian",
         "@abseil-cpp//absl/log:check",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )

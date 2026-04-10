@@ -1683,13 +1683,12 @@ BENCHMARK(BM_WithTraceContextTwoTracers);
 int main(int argc, char** argv) {
   absl::SetFlag(&FLAGS_logtostderr, true);
   InitGoogle(argv[0], &argc, &argv, true);
-  // Note: this cannot use
-  // benchmark::benchmark::RunSpecifiedBenchmarksThenExit() because it may be
-  // link with the external library.
+  // Note: this cannot use benchmark::RunSpecifiedBenchmarksThenExit() because
+  // it may be link with the external library.
   // TODO: Once the last step in the migration plan is
   // implemented, we should be able to use
-  // benchmark::benchmark::RunSpecifiedBenchmarksThenExit() directly and not
-  // duplicate the check here.
+  // benchmark::RunSpecifiedBenchmarksThenExit() directly and not duplicate the
+  // check here.
   if (!benchmark::GetBenchmarkFilter().empty()) {
     benchmark::RunSpecifiedBenchmarks();
     exit(0);

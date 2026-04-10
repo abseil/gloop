@@ -39,9 +39,9 @@ cc_test(
     srcs = ["atomic_danger_test.cc"],
     deps = [
         ":atomic_danger",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -62,8 +62,8 @@ cc_test(
     srcs = ["refcount_test.cc"],
     deps = [
         ":refcount",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )

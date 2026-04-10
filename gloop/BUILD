@@ -80,3 +80,18 @@ cc_library(
         "//conditions:default": ["@tcmalloc//tcmalloc"],
     }) + ["@gloop//gloop:enforce_gloop_support"],
 )
+
+cc_library(
+    name = "gloop_test_main",
+    testonly = True,
+    srcs = ["gloop_test_main.cc"],
+    visibility = [
+        "//gloop:__subpackages__",
+    ],
+    deps = [
+        "//gloop/base:init_google",
+        "@gloop//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest_for_library",
+    ],
+)

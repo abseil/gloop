@@ -43,9 +43,9 @@ cc_test(
         "@abseil-cpp//absl/hash",
         "@abseil-cpp//absl/hash:hash_testing",
         "@abseil-cpp//absl/meta:constexpr_testing",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -69,9 +69,9 @@ cc_test(
         "//gloop/util/gtl:requires",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/meta:constexpr_testing",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -98,9 +98,9 @@ cc_test(
         ":extend",
         ":ordering",
         "@abseil-cpp//absl/meta:constexpr_testing",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -122,9 +122,9 @@ cc_test(
         ":extend",
         ":tuple",
         "@abseil-cpp//absl/meta:constexpr_testing",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -172,9 +172,9 @@ cc_test(
         ":stringification_tests",
         "//gloop/util/gtl:generic_printer",
         "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -203,9 +203,9 @@ cc_test(
         ":stringification_tests",
         "//gloop/util/gtl:generic_printer",
         "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -218,9 +218,9 @@ cc_test(
         ":stringify",
         "//gloop/util/gtl:generic_printer",
         "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -240,6 +240,7 @@ cc_library(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
         "@gloop//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
         "@googletest//:gtest_for_library",
     ],
 )
@@ -254,8 +255,8 @@ cc_test(
         "//gloop/util/gtl/extend/internal:reflection",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )

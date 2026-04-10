@@ -40,6 +40,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "gloop/base/callback.h"
+#include "gloop/base/init_google.h"
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
 
@@ -95,6 +96,8 @@ static void TestRefUnref() {
 }
 
 int main(int argc, char* argv[]) {
+  InitGoogle(argv[0], &argc, &argv, true);
+
   TestSimpleRun();
   TestRefUnref();
 

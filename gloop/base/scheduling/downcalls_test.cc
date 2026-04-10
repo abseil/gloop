@@ -33,6 +33,7 @@
 #include "absl/synchronization/internal/create_thread_identity.h"
 #include "absl/synchronization/internal/kernel_timeout.h"
 #include "absl/time/time.h"
+#include "gloop/base/init_google.h"
 #include "gloop/base/scheduling/domain.h"
 #include "gloop/base/scheduling/low-level-support.h"
 #include "gloop/base/scheduling/scheduler.h"
@@ -185,6 +186,8 @@ TEST(Schedulable, FlagsWork) {
 }  // namespace base
 
 int main(int argc, char** argv) {
+  InitGoogle(argv[0], &argc, &argv, true);
+
   // Ensure that a ThreadIdentity is installed for all tests and benchmarks.
   CHECK(absl::synchronization_internal::GetOrCreateCurrentThreadIdentity() !=
         nullptr);

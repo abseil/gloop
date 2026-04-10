@@ -49,8 +49,8 @@ cc_test(
         ":io-priority",
         "//gloop/base:sysinfo",
         "@abseil-cpp//absl/log:check",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )

@@ -83,6 +83,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "benchmark/benchmark.h"
+#include "gloop/base/init_google.h"
 #include "gloop/base/proc_maps.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -930,7 +931,8 @@ int main(int argc, char** argv) {
   }
 
   SaveCommandLine(argc, argv);
-  base::internal::StartUpWallTimer();
+
+  InitGoogle(argv[0], &argc, &argv, true);
 
 #ifdef __linux__
   // Check that idle time close to beginning of program is close to 0.
@@ -939,9 +941,8 @@ int main(int argc, char** argv) {
   CHECK_LT(GetIdleTime(), max_idle_time);
 #endif
 
-  // Note: this cannot use
-  // benchmark::benchmark::RunSpecifiedBenchmarksThenExit() because it may be
-  // link with the external library.
+  // Note: this cannot use benchmark::RunSpecifiedBenchmarksThenExit() because
+  // it may be link with the external library.
   // FIXME(vyng): Fix this once we've moved the wrapper out of the internal
   // header.
   if (!benchmark::GetBenchmarkFilter().empty()) {

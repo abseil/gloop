@@ -35,9 +35,9 @@ cc_library(
     visibility = [":util-tuple"],
     deps = [
         "@gloop//gloop:enforce_gloop_support",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -120,9 +120,9 @@ cc_test(
         ":push_front",
         ":test_util",
         "@abseil-cpp//absl/strings",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -147,9 +147,9 @@ cc_test(
     srcs = ["int_pack_test.cc"],
     deps = [
         ":int_pack",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -176,9 +176,9 @@ cc_test(
     srcs = ["apply_test.cc"],
     deps = [
         ":apply",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -201,9 +201,9 @@ cc_test(
         ":array",
         ":generate",
         ":pair",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -224,9 +224,9 @@ cc_test(
     deps = [
         ":back",
         ":test_util",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -252,9 +252,9 @@ cc_test(
     deps = [
         ":slice",
         ":test_util",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -279,9 +279,9 @@ cc_test(
     deps = [
         ":filter",
         ":test_util",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -305,9 +305,9 @@ cc_test(
     deps = [
         ":erase",
         ":test_util",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -328,9 +328,9 @@ cc_test(
     deps = [
         ":pop_back",
         ":test_util",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -356,9 +356,9 @@ cc_test(
         ":cat",
         ":std_tuple",
         ":test_util",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -383,9 +383,9 @@ cc_test(
     deps = [
         ":insert",
         ":test_util",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -414,9 +414,9 @@ cc_test(
     deps = [
         ":push_front",
         ":test_util",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -441,9 +441,9 @@ cc_test(
         ":ref",
         ":std_tuple",
         ":test_util",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -470,9 +470,9 @@ cc_test(
         ":struct",
         ":test_util",
         ":zip",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -517,9 +517,9 @@ cc_test(
         "@abseil-cpp//absl/container:node_hash_set",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -542,9 +542,9 @@ cc_test(
     srcs = ["relational_test.cc"],
     deps = [
         ":relational",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -567,9 +567,9 @@ cc_test(
     srcs = ["swap_test.cc"],
     deps = [
         ":swap",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -596,9 +596,9 @@ cc_test(
         ":matchers",
         ":struct",
         "@abseil-cpp//absl/base",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -620,9 +620,9 @@ cc_test(
     srcs = ["is_tuple_test.cc"],
     deps = [
         ":is_tuple",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 

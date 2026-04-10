@@ -486,6 +486,32 @@ TEST_F(FailureSignalHandlers, CancelRunSignalSafeOnFailureCallback2) {
 // From process_state.cc
 extern void ImmediateAbortSignalHandlerForTesting(int signo);
 
+// Verify that "See <link>" is *not* emitted when we are
+// merely executing on alternate stack and don't have actual stack overflow.
+// See b/77328589.
+TEST(ProcessState, FailureSignalHandlerNoStackOverflowMessageOnAlternateStack) {
+  auto crash_on_alternate_stack = [] {
+    // gUnit suppresses failure output in DEATH tests by default.
+    // Re-enable it.
+    absl::SetFlag(&FLAGS_suppress_failure_output, false);
+
+    // Must not be on stack. Also need to be properly aligned.
+    // 16-byte stack alignment is required on x86_64. I assume 64-byte
+    // alignment is sufficient everywhere.
+    alignas(64) static char altstack[128 << 10];
+    ucontext_t main_ctx, crash_ctx;
+
+    getcontext(&crash_ctx);
+    crash_ctx.uc_stack.ss_sp = altstack;
+    crash_ctx.uc_stack.ss_size = sizeof(altstack);
+    crash_ctx.uc_link = &main_ctx;
+    makecontext(&crash_ctx, +[] { kill(getpid(), SIGSEGV); }, 0);
+    swapcontext(&main_ctx, &crash_ctx);
+    LOG(FATAL) << "Unreachable code reached.";
+  };
+  EXPECT_DEATH(crash_on_alternate_stack(), Not(HasSubstr("STACK OVERFLOW")));
+}
+
 TEST(ProcessState, ImmediateAbortSignalHandlerUnblocksSignal) {
   // Block `SIGABRT`.
   sigset_t sa_mask;
@@ -497,3 +523,65 @@ TEST(ProcessState, ImmediateAbortSignalHandlerUnblocksSignal) {
   EXPECT_DEATH(ImmediateAbortSignalHandlerForTesting(SIGABRT), "");
 }
 #endif  // Sanitizers
+
+namespace {
+
+// Tests of crash messages from FailureSignalHandler.
+
+void ABSL_ATTRIBUTE_NOINLINE Crash() {
+  volatile int* ip = nullptr;
+  LOG(INFO) << "Crash and burn!";
+  ip[1] = 42;  // Generate SIGSEGV.
+  LOG(FATAL) << "Unreachable code reached.";
+}
+
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
+static void FunctionWhichCausesStackOverflow() {
+  volatile int x = 0;
+  if (++x) {  // prevent the compiler from proving infinite recursion
+    FunctionWhichCausesStackOverflow();
+  }
+  ++x;  // prevent tail-call optimization
+}
+
+// Verify that a crash unwinds all the way to the test method.
+TEST(StackTrace, FromFailureSignalHandlerOnMainThread) {
+// TODO: Re-enable under TSAN once we can fix the test in OSS
+#ifdef ABSL_HAVE_THREAD_SANITIZER
+  GTEST_SKIP() << "Message from TSAN interferes with the test.";
+#endif
+  const char* regex =
+      "anonymous namespace.*::StackTrace_FromFailureSignalHandlerOnMainThread";
+  EXPECT_DEATH(Crash(), regex);
+}
+
+// Verify that a stack overflow shows the function involved.
+TEST(StackTrace, FromStackOverflowOnMainThread) {
+#ifdef ABSL_HAVE_THREAD_SANITIZER
+  // Tsan doesn't give a nice stack trace on stack overflow =(
+  const char* regex = "";
+#else
+  const char* regex = "FunctionWhichCausesStackOverflow";
+#endif
+  EXPECT_DEATH(FunctionWhichCausesStackOverflow(), regex);
+}
+
+// Verify that protection key violations result in appropriate message.
+TEST(StackTraceDeathTest, ProtectionKeyViolationDiagnosed) {
+  int pkey = pkey_alloc(0, PKEY_DISABLE_WRITE);
+  if (pkey == -1) GTEST_SKIP() << "Unable to allocate pkey";
+  const int pagesize = getpagesize();
+  void* mem = mmap(nullptr, pagesize, PROT_READ | PROT_WRITE,
+                   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  ASSERT_TRUE(mem != MAP_FAILED);
+
+  PCHECK(pkey_mprotect(mem, pagesize, PROT_READ, pkey) == 0);
+  EXPECT_DEATH(
+      { *(int*)mem = 42; },
+      "SIGSEGV \\(@0x[[:xdigit:]]+\\), pkey=[[:digit:]]+, see "
+      "<link>");
+
+  munmap(mem, pagesize);
+  pkey_free(pkey);
+}
+}  // namespace

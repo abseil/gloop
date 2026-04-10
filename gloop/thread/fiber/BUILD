@@ -45,9 +45,9 @@ cc_library(
     deps = [
         "@abseil-cpp//absl/log",
         "@gloop//gloop:enforce_gloop_support",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -57,8 +57,8 @@ cc_test(
     deps = [
         ":probabilistic_test_util",
         "@abseil-cpp//absl/log",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )

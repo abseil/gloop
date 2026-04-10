@@ -49,9 +49,9 @@ cc_test(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -80,9 +80,9 @@ cc_test(
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -111,9 +111,9 @@ cc_test(
         ":secure_random_testutils",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:btree",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -144,9 +144,9 @@ cc_test(
         ":test_random",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/numeric:bits",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
@@ -195,8 +195,8 @@ cc_test(
         ":shared_bit_gen",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random:distributions",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
