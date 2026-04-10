@@ -671,7 +671,7 @@ class DummyTracer : public base::Tracer {
   void EmitTraceEntrySources(base::TraceEntrySink* /*sink*/,
                              bool /*skip_unowned_sources*/) const override {}
   std::string name() const override { return "DummyTracer"; }
-  perftools::tracing::AnnotationMap* GetAnnotationMap() override {
+  perftools::tracing::TraceBuffer* GetAnnotationMap() override {
     return nullptr;
   }
   void AttachTraceConsumer(base::TraceConsumer* c) override {}
