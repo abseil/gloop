@@ -16,6 +16,10 @@ load(
     "@rules_cc//cc:cc_library.bzl",
     "cc_library",
 )
+load(
+    "@rules_cc//cc:cc_test.bzl",
+    "cc_test",
+)
 
 package(
     default_applicable_licenses = ["//gloop:license"],
@@ -29,4 +33,32 @@ cc_library(
         "//gloop/base/scheduling:__subpackages__",
     ],
     deps = ["@gloop//gloop:enforce_gloop_support"],
+)
+
+cc_library(
+    name = "probabilistic_test_util",
+    testonly = 1,
+    hdrs = ["probabilistic_test_util.h"],
+    visibility = [
+        "//gloop/thread/fiber:__subpackages__",
+    ],
+    deps = [
+        "@abseil-cpp//absl/log",
+        "@gloop//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "probabilistic_test_util_test",
+    srcs = ["probabilistic_test_util_test.cc"],
+    deps = [
+        ":probabilistic_test_util",
+        "@abseil-cpp//absl/log",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
 )
