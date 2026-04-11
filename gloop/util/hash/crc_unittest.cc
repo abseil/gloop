@@ -614,8 +614,6 @@ static void BM_Crc128Zeroes(benchmark::State& state) {
 BENCHMARK(BM_Crc32)->Range(2, 16 << 20);
 BENCHMARK(BM_Crc32c)->Range(2, 16 << 20);
 BENCHMARK(BM_Crc64)->Range(2, 16 << 20);
-// Find the size where SIMD begins to win
-BENCHMARK(BM_Crc64)->DenseRange(18, 40, 2);
 BENCHMARK(BM_Crc128)->Range(2, 16 << 20);
 BENCHMARK(BM_Crc32Zeroes)->Range(2, 16 << 20);
 BENCHMARK(BM_Crc32Zeroes)->Arg((1 << 16) - 1);

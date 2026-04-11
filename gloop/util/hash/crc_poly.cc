@@ -41,13 +41,7 @@
 // Sandybridge and Ivybridge are not significiant.  So we only
 // do this on POWER8 for now.  We may revisit this for Haswell.
 #include <cstdint>
-
-#include "absl/base/call_once.h"
-#include "absl/log/check.h"
-
-#if (defined(__powerpc__) && defined(__CRYPTO__)) || \
-    (defined(__x86_64__) && defined(__PCLMUL__)) ||  \
-    (defined(__aarch64__) && defined(__ARM_FEATURE_CRYPTO))
+#if defined(__powerpc__) && defined(__CRYPTO__)
 #define CAN_USE_FAST_POLY_MUL 1
 #endif
 
@@ -60,16 +54,6 @@
 
 #if defined(__powerpc__)
 #include "gloop/util/hash/crc_powerpc.h"
-// This is roughly the input size at which vectorized CRC
-// starts to beat generic C++ code on a 3GHz POWER8.
-#define FAST_POLY_WINNING_SIZE 6
-#elif defined(__x86_64__)
-#include "gloop/util/hash/crc_poly_x86.h"
-// This was measured on an AMD cloud machine.
-#define FAST_POLY_WINNING_SIZE 22
-#elif defined(__aarch64__)
-#include "gloop/util/hash/crc_poly_arm.h"
-#define FAST_POLY_WINNING_SIZE 32
 #else
 #error "Unsupported platform for fast poly mul"
 #endif
@@ -90,17 +74,8 @@ constexpr bool kAddressChecking = true;
 constexpr bool kAddressChecking = false;
 #endif
 
-#if defined(__x86_64__)
-struct alignas(16) TableChunk {
-  uint64_t low;
-  uint64_t high;
-};
-#else
-using TableChunk = Chunk;
-#endif
-
 // Mask to remove unused bytes in the first chunk.
-constexpr TableChunk kLoadLeftMaskTable[kChunkSize] = {
+constexpr Chunk kLoadLeftMaskTable[kChunkSize] = {
     {0xffffffffffffffffUL, 0xffffffffffffffffUL},
     {0xffffffffffffff00UL, 0xffffffffffffffffUL},
     {0xffffffffffff0000UL, 0xffffffffffffffffUL},
@@ -204,9 +179,10 @@ class CRCHWPolyMul : public Base {
  private:
   static constexpr size_t kCRCValueBitSize = sizeof(CRCValue) * CHAR_BIT;
 
-  // Input smaller than this is extended using base class.  Larger
-  // than this, carryless multiply instructions win.
-  static constexpr size_t kSmallInputSize = FAST_POLY_WINNING_SIZE;
+  // Input smaller than this is extended using base class.  This is roughly
+  // the input size at which vectorized CRC starts to beat generic C++ code
+  // on a 3GHz POWER8.
+  static constexpr size_t kSmallInputSize = 6;
 
   // Sizes of various zero extension tables.
   static constexpr size_t kLogSmallZeroTableSize = 8;
@@ -522,17 +498,8 @@ void CRCHWPolyMul<Base, CRCValue>::ExtendTail(uint64_t* lo, uint64_t* hi,
   if (length > 0) {
     // Since original input size is at least a Chunk, it is safe to do
     // an unaligned full-Chunk read that ends at the end of input.
-#if defined(__x86_64__)
-    const Chunk mask =
-        LoadAlignedChunk(reinterpret_cast<const uint8_t*>(
-                             &kLoadLeftMaskTable[kChunkSize - length]),
-                         0);
-    const Chunk tail =
-        _mm_and_si128(LoadUnalignedChunk(bytes + length - kChunkSize, 0), mask);
-#else
     const Chunk tail = (LoadUnalignedChunk(bytes + length - kChunkSize, 0) &
                         kLoadLeftMaskTable[kChunkSize - length]);
-#endif
     chunk =
         Z2MultiplyAndAdd(chunk, this->last_chunk_folding_table_[length]) ^ tail;
   }
