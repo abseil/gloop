@@ -143,6 +143,36 @@ cc_test(
 )
 
 cc_library(
+    name = "cancellation_coloring",
+    srcs = ["cancellation_coloring.cc"],
+    hdrs = ["cancellation_coloring.h"],
+    visibility = [
+        "//gloop/base:__subpackages__",
+        "//gloop/thread/fiber:__subpackages__",
+    ],
+    deps = [
+        "//gloop/base:sysinfo",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "cancellation_coloring_test",
+    size = "small",
+    srcs = ["cancellation_coloring_test.cc"],
+    deps = [
+        ":cancellation_coloring",
+        "//gloop/thread",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "censushandle",
     hdrs = ["censushandle.h"],
     visibility = ["//visibility:public"],

@@ -1,0 +1,91 @@
+// Copyright 2026 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Removing the following header is prohibited as it can introduce undefined
+// behavior.
+// clang-format off
+#include "gloop/enforce_gloop_support.h"
+// clang-format on
+
+#ifndef NDEBUG
+
+#include "gloop/base/cancellation_coloring.h"
+
+#include <ostream>
+
+#include "absl/base/attributes.h"
+#include "absl/log/check.h"
+#include "absl/strings/string_view.h"
+#include "gloop/base/sysinfo.h"
+
+namespace base::internal {
+
+ABSL_CONST_INIT static thread_local CancellationColor t_active_color_ =
+    CancellationColor::kUnknown;
+
+static absl::string_view GetCancellationColorName(
+    const CancellationColor color) {
+  switch (color) {
+    case CancellationColor::kUnknown:
+      return "kUnknown";
+
+    case CancellationColor::kUncolored:
+      return "kUncolored";
+
+    case CancellationColor::kCoroutine:
+      return "kCoroutine";
+
+    case CancellationColor::kRustFuture:
+      return "kRustFuture";
+
+    case CancellationColor::kAsyncTask:
+      return "kAsyncTask";
+
+    case CancellationColor::kFibers:
+      return "kFibers";
+
+    case CancellationColor::kFake:
+      return "kFake";
+  }
+
+  __builtin_unreachable();
+}
+
+std::ostream& operator<<(std::ostream& os, const CancellationColor color) {
+  return os << GetCancellationColorName(color);
+}
+
+CancellationColor GetActiveCancellationColor() { return t_active_color_; }
+
+WithCancellationColor::WithCancellationColor(const CancellationColor color)
+    : new_color_(color),
+      prev_color_(GetActiveCancellationColor()),
+      creating_thread_(GetCachedTID()) {
+  t_active_color_ = new_color_;
+}
+
+WithCancellationColor::~WithCancellationColor() {
+  // Paranoid check: the color shouldn't have changed since we set it.
+  DCHECK_EQ(GetActiveCancellationColor(), new_color_);
+
+  // It doesn't make sense to allow destruction on a different thread from
+  // creation: we would be restoring the previous value to the wrong variable.
+  DCHECK_EQ(GetCachedTID(), creating_thread_);
+
+  t_active_color_ = prev_color_;
+}
+
+}  // namespace base::internal
+
+#endif  // NDEBUG
