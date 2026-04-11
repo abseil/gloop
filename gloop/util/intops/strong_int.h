@@ -317,7 +317,7 @@ class StrongInt {
   // Explicitly cast the raw value only if the underlying value is convertible
   // to T.
   template <typename T,
-            typename = absl::enable_if_t<absl::conjunction<
+            typename = std::enable_if_t<std::conjunction<
                 std::bool_constant<std::numeric_limits<T>::is_integer>,
                 std::is_convertible<ValueType, T>>::value>>
   constexpr explicit operator T() const {
