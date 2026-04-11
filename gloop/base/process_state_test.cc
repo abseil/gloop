@@ -50,6 +50,8 @@
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "gloop/base/signal-handler.h"
+#include "gloop/thread/thread.h"
+#include "gloop/thread/thread_options.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 using testing::AllOf;
@@ -564,6 +566,69 @@ TEST(StackTrace, FromStackOverflowOnMainThread) {
   const char* regex = "FunctionWhichCausesStackOverflow";
 #endif
   EXPECT_DEATH(FunctionWhichCausesStackOverflow(), regex);
+}
+
+struct MyThread : public Thread {
+  void Run() override {
+    std::string s("Tail-call blocker: test case needs this frame.");
+    // Prevent the string from being optimized away by observing its data.
+    const char* volatile vdata = s.data();
+    CHECK(vdata) << "Unused variable blocker should never fail.";
+    Crash();
+  }
+};
+
+void CreateThreadAndCrash() {
+  MyThread t;
+  t.SetJoinable(true);
+  t.Start();
+  t.Join();
+  LOG(FATAL) << "Unreachable code reached.";
+}
+
+// Verify that a crash unwinds all the way to the test method.
+TEST(StackTrace, FromFailureSignalHandlerOnOtherThread) {
+// TODO: Re-enable under TSAN once we can fix the test in OSS
+#ifdef ABSL_HAVE_THREAD_SANITIZER
+  GTEST_SKIP() << "Message from TSAN interferes with the test.";
+#endif
+  const char* regex = "anonymous namespace.*::MyThread::Run";
+  EXPECT_DEATH(CreateThreadAndCrash(), regex);
+}
+
+struct OverFlowThread : public Thread {
+  OverFlowThread(const thread::Options& options, absl::string_view name_prefix)
+      : Thread(options, name_prefix) {}
+  void Run() override { FunctionWhichCausesStackOverflow(); }
+};
+
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL static void TrapLeaf() {
+// Clang defines a __has_builtin test macro, which we can use to test for
+// __builtin_trap.  Otherwise, define __has_builtin ourselves so the
+// preprocessor won't choke on it.
+#if ABSL_HAVE_BUILTIN(__builtin_trap) || \
+    (defined(__GNUC__) && !defined(__clang__))
+  __builtin_trap();
+#else
+  raise(SIGILL);
+#endif
+}
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL static void Trap2() {
+  TrapLeaf();
+}
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL static void Trap1() {
+  Trap2();
+}
+
+// re-enable once b/232749344 is fixed
+TEST(StackTraceDeathTest, GetStackTraceWithContext_FramelessLeafFunction) {
+  // If the compiler optimizes away the frame pointer in the leaf function (as
+  // we expect under Clang), the stack trace will always include TrapLeaf (which
+  // can be found using the saved instruction pointer) and Trap1 (which has a
+  // proper stack frame).
+  //
+  // TODO: Check for a Trap2 frame here.
+  EXPECT_DEATH(Trap1(), "TrapLeaf(.|\\n)*Trap1");
 }
 
 // Verify that protection key violations result in appropriate message.

@@ -53,6 +53,7 @@ cc_test(
         ":blocking_refcount",
         "//gloop/base:atomic_stats_counter",
         "//gloop/base:walltime",
+        "//gloop/thread",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/functional:bind_front",

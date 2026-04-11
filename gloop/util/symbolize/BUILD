@@ -54,6 +54,7 @@ cc_test(
     deps = [
         ":demangle",
         ":demangled_type_name",
+        "//gloop/thread",
         "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings",
@@ -123,11 +124,13 @@ cc_library(
     name = "symbolize",
     srcs = [
         "symbolize.cc",
+        "symbolized_stack_writer.cc",
         "symbolized_stacktrace.cc",
     ],
     hdrs = [
         "symbolize.h",
         "symbolize-inl.h",
+        "symbolized_stack_writer.h",
         "symbolized_stacktrace.h",
     ],
     copts = COPTS,
@@ -139,6 +142,7 @@ cc_library(
         "//gloop/base:arena",
         "//gloop/base:proc_maps",
         "//gloop/strings:util",
+        "//gloop/thread",
         "//gloop/util/coding:shrunk-array",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
@@ -191,6 +195,24 @@ _ = [cc_test(
 ]]
 
 cc_test(
+    name = "symbolized_stack_writer_unittest",
+    srcs = ["symbolized_stack_writer_unittest.cc"],
+    deps = [
+        ":demangle",
+        ":symbolize",
+        "//gloop/thread",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:scoped_mock_log",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
     name = "symbolized_stacktrace_unittest",
     srcs = ["symbolized_stacktrace_unittest.cc"],
     deps = [
@@ -241,6 +263,28 @@ cc_test(
         "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+    ],
+)
+
+# Note: this doesn't *have* to be a cc_test (could be a cc_binary
+# exercised by symbolize_manythreads_test_sh), but see b/118684285.
+cc_test(
+    name = "symbolize_manythreads_test",
+    testonly = 1,
+    srcs = ["symbolize_manythreads_test.cc"],
+    malloc = "//gloop:malloc",
+    deps = [
+        ":symbolize",
+        "//gloop/base:sysinfo",
+        "//gloop/thread",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@tcmalloc//tcmalloc:malloc_extension",
     ],
 )
 

@@ -35,6 +35,7 @@
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
+#include "gloop/thread/thread.h"
 namespace util {
 class SymbolMap;
 class SymbolizedStackWriterImpl;

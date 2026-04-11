@@ -31,6 +31,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "benchmark/benchmark.h"
+#include "gloop/thread/threadpool.h"
 #include "gloop/util/status/status.h"
 #include "gtest/gtest.h"
 
@@ -99,6 +100,68 @@ TEST(GetSpace, Adl) {
   EXPECT_EQ(s1::Space1::Get(), util::GetErrorSpaceForEnum(s1::kNotOk));
   EXPECT_TRUE(util::EnumHasErrorSpace<s1::Enum1>::value);
   EXPECT_FALSE(util::EnumHasErrorSpace<s2::Enum2>::value);
+}
+
+class DynamicSpace : public util::ErrorSpace {
+ public:
+  explicit DynamicSpace(absl::string_view name)
+      : util::ErrorSpace(&space_name, &code_to_string, &canonical_code),
+        name_(name) {}
+
+  static absl::string_view space_name(const ErrorSpace* space) {
+    auto* unknown_space = static_cast<const DynamicSpace*>(space);
+    return unknown_space->name_;
+  }
+
+  static std::string code_to_string(const ErrorSpace* space, int code) {
+    return absl::StrCat(code);
+  }
+
+  static absl::StatusCode canonical_code(const ErrorSpace* space, int code) {
+    return absl::StatusCode::kUnknown;
+  }
+
+  static const ErrorSpace* Global() {
+    static const auto* g = new DynamicSpace("dynamic_space_global");
+    return g;
+  }
+
+ private:
+  std::string name_;
+};
+
+TEST(ErrorSpace, FindMultiThreaded) {
+  absl::Notification done;
+
+  const int kNumThreads = 100;
+  ThreadPool pool(kNumThreads, ThreadPool::Options{.name_prefix = "hammer"});
+
+  for (int i = 0; i < kNumThreads; ++i) {
+    pool.Schedule([&, i]() {
+      DynamicSpace space(absl::StrCat("dynamic_space_", i));
+      absl::BitGen gen;
+      while (!done.HasBeenNotified()) {
+        switch (absl::Uniform(gen, 0, 4)) {
+          case 0:
+            util::ErrorSpaceTestPeer::Register(space.SpaceName(), &space);
+            break;
+          case 1:
+            util::ErrorSpaceTestPeer::Register(&DynamicSpace::Global);
+            break;
+          case 2:
+            util::ErrorSpace::Find(absl::StrCat(
+                "dynamic_space_", absl::Uniform(gen, 0, kNumThreads + 10)));
+            break;
+          case 3:
+            util::ErrorSpace::Find("dynamic_space_global");
+            break;
+        }
+      }
+    });
+  }
+
+  absl::SleepFor(absl::Seconds(5));
+  done.Notify();
 }
 
 static void BM_Code_IsValid(benchmark::State& state) {

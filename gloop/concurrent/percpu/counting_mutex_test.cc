@@ -49,6 +49,8 @@
 #include "absl/time/time.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/sysinfo.h"
+#include "gloop/thread/thread.h"
+#include "gloop/thread/thread_options.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -60,10 +62,7 @@ namespace {
 static_assert(ABSL_CACHELINE_SIZE <= 128, "Adjust kRegionSize");
 
 // Possible thread modes supported by the TestThread class
-enum class ThreadMode {
-  kDefault,
-  kThread,
-};
+enum class ThreadMode { kDefault, kThread, kLegacy };
 
 // Parses a ThreadMode from the command line flag value `text`.
 // Returns `true` and sets `*mode` on success.
@@ -74,6 +73,8 @@ bool AbslParseFlag(absl::string_view text, ThreadMode* mode,
     *mode = ThreadMode::kDefault;
   } else if (text == "thread") {
     *mode = ThreadMode::kThread;
+  } else if (text == "legacy") {
+    *mode = ThreadMode::kLegacy;
   } else {
     *error =
         "Use one of 'default', 'thread', 'fiber', 'root', 'one_cpu', "
@@ -90,13 +91,15 @@ std::string AbslUnparseFlag(ThreadMode mode) {
       return "default";
     case ThreadMode::kThread:
       return "thread";
+    case ThreadMode::kLegacy:
+      return "legacy";
   }
   return absl::StrCat(mode);
 }
 
 }  // namespace
 
-ABSL_FLAG(ThreadMode, thread_mode, ThreadMode::kThread, "Thread mode");
+ABSL_FLAG(ThreadMode, thread_mode, ThreadMode::kDefault, "Thread mode");
 ABSL_FLAG(int, threads, 4, "Thread count for test");
 ABSL_FLAG(int, wait_micros, 0, "Number of microseconds to wait");
 ABSL_FLAG(int, max_threads, -1, "Max thread count for benchmarks");
@@ -110,6 +113,8 @@ namespace {
 ThreadMode RandomThreadMode() {
   absl::BitGen gen;
   switch (absl::Uniform(gen, 1, 5)) {
+    case 1:
+      return ThreadMode::kLegacy;
     default:
       return ThreadMode::kThread;
   }
@@ -125,6 +130,12 @@ ThreadMode ThreadModeIfDefault(ThreadMode mode) {
 // `TestThread` runs a specified functor on a separate thread or fiber. The type
 // of thread or fiber is defined by the 'thread_mode` flag, and can be one of:
 //   - std::thread
+//   - thread::Fiber:
+//     - child fiber
+//     - root fiber
+//     - root fiber      (parallelism = 1)
+//     - detached fiber
+//   - Thread
 //
 // Detached threads are joined using a shared Notification instance.
 class TestThread {
@@ -146,6 +157,9 @@ class TestThread {
       case ThreadMode::kThread:
         impl_.emplace<std::thread>(std::forward<FN>(fn));
         break;
+      case ThreadMode::kLegacy:
+        impl_ = std::make_unique<LegacyThread>(std::forward<FN>(fn));
+        break;
     }
   }
 
@@ -154,14 +168,30 @@ class TestThread {
   void Join() {
     if (auto* thread = std::get_if<std::thread>(&impl_)) {
       thread->join();
+    } else if (auto* legacy_thread = std::get_if<LegacyThreadPtr>(&impl_)) {
+      (*legacy_thread)->Join();
+    } else if (auto* notification = std::get_if<NotificationPtr>(&impl_)) {
+      (*notification)->WaitForNotification();
     }
     impl_.emplace<std::monostate>();
   }
 
  private:
+  struct LegacyThread : public Thread {
+    explicit LegacyThread(std::function<void()> fn)
+        : Thread(thread::Options().set_joinable(true), "TestThread"),
+          fn(std::move(fn)) {
+      Start();
+    }
+    void Run() final { fn(); }
+    std::function<void()> fn;
+  };
+
+  using LegacyThreadPtr = std::unique_ptr<LegacyThread>;
   using NotificationPtr = std::shared_ptr<absl::Notification>;
 
-  std::variant<std::monostate, std::thread, NotificationPtr> impl_;
+  std::variant<std::monostate, std::thread, LegacyThreadPtr, NotificationPtr>
+      impl_;
 };
 
 TEST(CountingMutexTest, ConcurrentlyAllocFreeManyMutexes) {

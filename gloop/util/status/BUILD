@@ -236,6 +236,7 @@ cc_test(
         ":non_message_set_payload_cc_proto",
         ":status",
         ":test_payload_cc_proto",
+        "//gloop/thread",
         "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/flags:flag",

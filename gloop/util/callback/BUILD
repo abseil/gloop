@@ -51,6 +51,7 @@ cc_test(
         ":cancellable_closure",
         "//gloop/base:callback",
         "//gloop/base:init_google",
+        "//gloop/thread",
         "//gloop/util/functional:from_callback",
         "//gloop/util/functional:to_callback",
         "@abseil-cpp//absl/base:core_headers",

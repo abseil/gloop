@@ -18,9 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2006 Google Inc.
-// All rights reserved.
-
 #include "gloop/base/static_threadlocal.h"
 
 #include <stdio.h>
@@ -34,6 +31,7 @@
 #include "absl/random/random.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
+#include "gloop/util/random/shared_bit_gen.h"
 #include "gtest/gtest.h"
 
 #if GTEST_GOOGLE3_MODE_
@@ -105,7 +103,7 @@ TEST(StaticThreadLocal, NestedAccess) { RunThreads(1, NestedAccessThreadBody); }
 static void Test1ThreadBody(int val) {
   *value.pointer() = val;
   *value2.pointer() = val + 100;
-  absl::BitGen gen;
+  util_random::SharedBitGen gen;
   for (int i = 0; i < 10; ++i) {
     absl::SleepFor(absl::Milliseconds(absl::Uniform(gen, 0, 300)));
     EXPECT_EQ(value.get(), val);
@@ -136,7 +134,7 @@ TEST(StaticThreadLocal, Test1) {
 }
 
 static void LeakThreadBody() {
-  unsigned v = absl::Uniform<unsigned>(absl::BitGen());
+  unsigned v = absl::Uniform<unsigned>(util_random::SharedBitGen());
   *value.pointer() = v;
   *value2.pointer() = v;
   EXPECT_EQ(value.get(), v);

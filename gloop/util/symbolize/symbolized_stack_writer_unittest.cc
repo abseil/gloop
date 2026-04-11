@@ -32,6 +32,7 @@
 #include "absl/log/log.h"
 #include "absl/log/scoped_mock_log.h"
 #include "absl/strings/string_view.h"
+#include "gloop/thread/thread.h"
 #include "gloop/util/symbolize/demangle.h"
 #include "gloop/util/symbolize/symbolize.h"
 #include "gmock/gmock.h"
@@ -186,6 +187,46 @@ TEST_P(SymbolizedStackWriterTest, SymbolizeCreatorThread) {
   writer2.Write(symbolizing_creator_thread.input,
                 strlen(symbolizing_creator_thread.input));
   ASSERT_EQ(output2, symbolizing_creator_thread.output);
+}
+
+// Test that symbolizing a real stacktrace works. This test does
+// nothing if the unittest itself is stripped. We force this unittest
+// to link statically, so the having symbols is an all-or-nothing
+// decision. If the test were linked dynamically, it would be possible
+// that main() is stripped out of this executable, but the .so's
+// haven't been stripped. It's hard to detect that case and skip the
+// test gracefully, so we link statically.
+TEST_P(SymbolizedStackWriterTest, ExtractStack) {
+  auto symbol_map = SymbolMap::Create(/*copy_symbol_names=*/true,
+                                      /*compression_level=*/GetParam());
+  if (symbol_map->binary_is_stripped()) {
+    GTEST_SKIP() << "Stripped binary.";
+    return;
+  }
+  std::string output;
+  SymbolizedStackWriter writer(*symbol_map, &output);
+  Thread_ExtractStacks(&writer);
+  // We have to be somewhere in main(), so look for that in the stack trace.
+  ASSERT_NE(output.find(": main"), -1);
+}
+
+TEST_P(SymbolizedStackWriterTest, ExtractStackWithSeparateLogging) {
+  auto symbol_map = SymbolMap::Create(/*copy_symbol_names=*/true,
+                                      /*compression_level=*/GetParam());
+  if (symbol_map->binary_is_stripped()) {
+    GTEST_SKIP() << "Stripped binary.";
+    return;
+  }
+  // For this test we're going to need to capture the logs because
+  // the thread stacks will be written directly there by SymbolizedStackWriter.
+  absl::ScopedMockLog log;
+  EXPECT_CALL(log, Log).Times(AnyNumber());
+  // We have to be somewhere in main(), so look for that in the LOG().
+  EXPECT_CALL(log, Log(absl::LogSeverity::kInfo, _, HasSubstr(": main")));
+  log.StartCapturingLogs();
+  SymbolizedStackWriter logger(
+      [](const absl::string_view s) { LOG(INFO) << s; });
+  Thread_ExtractStacks(&logger);
 }
 
 INSTANTIATE_TEST_SUITE_P(SymbolizedStackWriterTestInstantiation,

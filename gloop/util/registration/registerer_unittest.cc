@@ -39,6 +39,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/notification.h"
 #include "benchmark/benchmark.h"
+#include "gloop/thread/executor.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -1479,6 +1480,34 @@ TEST_F(DynamicRegistererTest, RegisterStatusOr_1_Arg) {
   EXPECT_EQ(absl::CancelledError(), error.status());
 }
 }  // namespace One_Arg
+
+TEST(Registerer, ThreadSafety) {
+  struct Type {};
+
+  auto& reg = util_registration::internal::GetRegistry<Type>();
+  absl::Notification notify;
+  size_t sink = 0;
+  thread::Executor::DefaultExecutor()->Schedule([&] {
+    for (int i = 0; i < 1000; ++i) {
+      // Iterate over the registry and read all its contents in a loop to
+      // trigger TSan failures in case of unsynchronized access.
+      for (const auto& name : reg.GetNames()) {
+        const auto& obj = reg.Lookup(name);
+        sink += absl::Hash<void*>{}(obj.object) +
+                absl::Hash<std::string>{}(obj.filename);
+      }
+    }
+    notify.Notify();
+  });
+
+  int dummy = 0;
+  for (int i = 0; i < 1000; ++i) {
+    reg.Insert(absl::StrCat(i), &dummy, __FILE__);
+  }
+
+  notify.WaitForNotification();
+  EXPECT_THAT(sink, testing::AnyOf(testing::Eq(0), testing::Ne(0)));
+}
 
 // TODO: Add a basic test for 2, 3, and 4 args.
 

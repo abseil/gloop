@@ -25,6 +25,7 @@
 #include <optional>
 #include <vector>
 
+#include "absl/base/config.h"
 #include "absl/flags/flag.h"
 #include "absl/log/log.h"
 #include "absl/synchronization/barrier.h"
@@ -120,8 +121,8 @@ TEST(SymbolMap, ManyThreads) {
   LOG(INFO) << "RSS delta / SymbolMap bytes "
             << static_cast<double>(rss_delta) / symbol_map_bytes;
 
-#if defined(ADDRESS_SANITIZER) || defined(THREAD_SANITIZER) || \
-    defined(MEMORY_SANITIZER)
+#if defined(ABSL_HAVE_ADDRESS_SANITIZER) || \
+    defined(ABSL_HAVE_THREAD_SANITIZER) || defined(ABSL_HAVE_MEMORY_SANITIZER)
   // As of cr/156613953,
   // under ASan, the increase is ~7.2x.
   // under MSan, the increase is ~20x.

@@ -33,6 +33,8 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_split.h"
+#include "gloop/thread/thread_options.h"
+#include "gloop/thread/threadpool.h"
 #include "gloop/util/symbolize/demangled_type_name.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"

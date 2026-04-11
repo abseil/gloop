@@ -85,6 +85,7 @@
 #include "benchmark/benchmark.h"
 #include "gloop/base/init_google.h"
 #include "gloop/base/proc_maps.h"
+#include "gloop/thread/thread.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "tcmalloc/malloc_extension.h"
@@ -335,6 +336,95 @@ void TestProcessPageFaults() {
       break;
     }
   }
+}
+
+class TestThread : public Thread {
+ public:
+  int parent_pid;
+  int parent_tid;
+  int pid;
+  int tid;
+
+  absl::Notification child_notify;
+  absl::Notification parent_notify;
+
+ protected:
+  void Run() {
+    pid = getpid();
+    tid = GetTID();
+
+    CHECK_EQ(pid, ThreadGroup(0));
+    CHECK_NE(parent_tid, tid);
+    CHECK_EQ(parent_pid, ThreadGroup(parent_tid));
+
+    if (pid == parent_pid) {
+      // Our kernel/thread library shares pids between different threads
+      CHECK_NE(tid, pid);
+    } else {
+      // Our threads all have different pids
+      CHECK_EQ(tid, pid);
+    }
+
+    parent_notify.Notify();
+    child_notify.WaitForNotification();
+  }
+};
+
+void TestThreads() {
+  int pid;
+
+  LOG(INFO) << "Checking GetTID()";
+  CHECK_EQ(GetTID(), getpid());
+
+  LOG(INFO) << "Checking ThreadGroup(0)";
+  CHECK_EQ(ThreadGroup(0), getpid());
+
+  LOG(INFO) << "Checking ThreadGroup(child process)";
+
+  PCHECK((pid = fork()) != -1);
+  if (pid != 0) {
+    // Parent
+    CHECK_EQ(ThreadGroup(pid), pid);
+    waitpid(pid, nullptr, 0);
+  } else {
+    exit(0);
+  }
+
+  LOG(INFO) << "Checking ThreadGroup(child thread)";
+
+  TestThread t;
+  t.parent_pid = getpid();
+  t.parent_tid = GetTID();
+
+  t.SetJoinable(true);
+  t.Start();
+
+  // Wait for child to set up pid/tid
+  t.parent_notify.WaitForNotification();
+
+  CHECK_EQ(ThreadGroup(t.tid), t.pid);
+
+  t.child_notify.Notify();
+  t.Join();
+}
+
+void TestHasPosixThreads() {
+  LOG(INFO) << "Testing HasPosixThreads()";
+
+  //  Our litmus test for "is POSIX compliant" is that all threads in
+  //  a process have the same PID.  We test this directly here.
+  class GetPidThread : public Thread {
+   public:
+    GetPidThread() { SetJoinable(true); }
+    void Run() { pid_ = getpid(); }
+    pid_t pid_;
+  };
+  GetPidThread t;
+  t.Start();
+  t.Join();
+
+  LOG(INFO) << "HasPosixThreads() => " << HasPosixThreads();
+  CHECK_EQ((t.pid_ == getpid()), HasPosixThreads());
 }
 
 void ReadPipe(std::string str, const char* fmt, void* result) {
@@ -835,10 +925,13 @@ const std::string& GetCommandLine() { return *cmdline; }
 TEST_F(SysinfoUnittest, AntiquatedTests) {
   absl::SetVLogLevel("sysinfo", 3);
 
+  TestHasPosixThreads();
+
 #ifdef __linux__
   TestParseFunctions();
   TestMemoryUsage();
   TestProcessState();
+  TestThreads();
   TestSystemState();
   TestCommandLine(GetCommandLine());
   TestGetIdleTime();

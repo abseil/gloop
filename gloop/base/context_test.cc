@@ -46,6 +46,7 @@
 #include "gloop/base/tracecontext.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/string_label.h"
+#include "gloop/thread/threadpool.h"
 #include "gloop/util/refcount/reffed_ptr.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"

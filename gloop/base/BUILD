@@ -86,6 +86,7 @@ cc_test(
     srcs = ["atomic_sequence_num_test.cc"],
     deps = [
         ":atomic_sequence_num",
+        "//gloop/thread",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@gloop//gloop:gloop_test_main",
@@ -228,6 +229,7 @@ cc_test(
         ":tracecontext",
         "//gloop/perftools/tracing:mock_trace_event_listener",
         "//gloop/perftools/tracing:tracing_base",
+        "//gloop/thread",
         "//gloop/util/refcount:reffed_ptr",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/cleanup",
@@ -860,6 +862,7 @@ cc_test(
         ":proc_maps",
         ":sysinfo",
         "//gloop/base/auxiliary:parsed_process_stat",
+        "//gloop/thread",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
@@ -1090,16 +1093,15 @@ cc_test(
     linkstatic = 1,
     deps = [
         ":static_threadlocal",
+        "//gloop/thread",
+        "//gloop/util/random:shared_bit_gen",
         "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/meta:type_traits",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/time",
         "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-    ] + select({
-        "//conditions:default": [],
-    }),
+    ],
 )
 
 cc_test(
@@ -1189,6 +1191,21 @@ cc_library(
     deps = ["@gloop//gloop:enforce_gloop_support"],
 )
 
+cc_test(
+    name = "atomic_stats_counter_test",
+    size = "medium",
+    srcs = ["atomic_stats_counter_test.cc"],
+    deps = [
+        ":atomic_stats_counter",
+        "//gloop/thread",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 cc_library(
     name = "process_state",
     srcs = ["process_state.cc"],
@@ -1236,6 +1253,7 @@ cc_test(
     deps = [
         ":process_state",
         ":signal-handler",
+        "//gloop/thread",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/flags:flag",
@@ -1548,6 +1566,7 @@ cc_test(
     deps = [
         ":config",
         ":logging_extensions",
+        "//gloop/thread",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/container:flat_hash_map",

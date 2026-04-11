@@ -210,6 +210,7 @@ cc_test(
     malloc = "//gloop:malloc",
     deps = [
         ":shrunk-array",
+        "//gloop/thread",
         "//gloop/util/endian",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/types:span",

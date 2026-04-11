@@ -95,6 +95,7 @@ cc_test(
     deps = [
         ":counting_mutex",
         "//gloop/base:sysinfo",
+        "//gloop/thread",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/flags:flag",
@@ -133,6 +134,7 @@ cc_test(
         ":counting_mutex",
         "//gloop/base:percpu_disable_rseq",
         "//gloop/base:sysinfo",
+        "//gloop/thread",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/flags:flag",

@@ -77,6 +77,7 @@ cc_test(
     shard_count = 2,
     deps = [
         ":global_id",
+        "//gloop/thread",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",

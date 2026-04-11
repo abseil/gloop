@@ -64,6 +64,7 @@
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/config.h"
+#include "gloop/thread/threadpool.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -188,6 +189,28 @@ TEST_F(CopyToStringSinkTest, NonNull) {
   }
 }
 
+TEST_F(CopyToStringSinkTest, Concurrency) {
+  std::string str;
+  base_logging::CopyToStringSink sink(&str);
+
+  // TSAN can only detect concurrency problems when a test is multithreaded.
+  int threads = 2;
+  {
+    ThreadPool pool(threads);
+
+    pool.Schedule(
+        [&sink]() { LOG(INFO).ToSinkOnly(&sink) << "[from one callback]"; });
+    pool.Schedule([&sink]() {
+      LOG(INFO).ToSinkOnly(&sink) << "[from another callback]";
+    });
+  }  // ThreadPool destructor blocks until all jobs are done.
+
+  if (LoggingEnabledAt(absl::LogSeverity::kInfo)) {
+    EXPECT_THAT(
+        str, AnyOf(Eq("[from one callback]"), Eq("[from another callback]")));
+  }
+}
+
 using AppendToVectorSinkTest = LogSinkImplTest;
 
 TEST_F(AppendToVectorSinkTest, Null) {
@@ -210,6 +233,28 @@ TEST_F(AppendToVectorSinkTest, NonNull) {
   }
 }
 
+TEST_F(AppendToVectorSinkTest, Concurrency) {
+  std::vector<std::string> vec;
+  base_logging::AppendToVectorSink sink(&vec);
+
+  // TSAN can only detect concurrency problems when a test is multithreaded.
+  int threads = 2;
+  {
+    ThreadPool pool(threads);
+
+    pool.Schedule(
+        [&sink]() { LOG(INFO).ToSinkOnly(&sink) << "[from one callback]"; });
+    pool.Schedule([&sink]() {
+      LOG(INFO).ToSinkOnly(&sink) << "[from another callback]";
+    });
+  }  // ThreadPool destructor blocks until all jobs are done.
+
+  if (LoggingEnabledAt(absl::LogSeverity::kInfo)) {
+    EXPECT_THAT(vec, testing::UnorderedElementsAre("[from one callback]",
+                                                   "[from another callback]"));
+  }
+}
+
 using NullSafeSinkWrapperTest = LogSinkImplTest;
 
 TEST_F(NullSafeSinkWrapperTest, Null) {
@@ -227,6 +272,32 @@ TEST_F(NullSafeSinkWrapperTest, NonNull) {
                               "hello world")));
   }
   LOG(INFO).ToSinkOnly(&sink) << "hello world";
+}
+
+TEST_F(NullSafeSinkWrapperTest, Concurrency) {
+  std::string str;
+  base_logging::CopyToStringSink string_sink(&str);
+  base_logging::NullSafeSinkWrapper wrapper_sink(&string_sink);
+
+  // TSAN can only detect concurrency problems when a test is multithreaded.
+  int threads = 2;
+  {
+    ThreadPool pool(threads);
+
+    pool.Schedule([&wrapper_sink] {
+      LOG(INFO).ToSinkOnly(&wrapper_sink) << "[from one callback]";
+      wrapper_sink.Flush();
+    });
+    pool.Schedule([&wrapper_sink]() {
+      LOG(INFO).ToSinkOnly(&wrapper_sink) << "[from another callback]";
+      wrapper_sink.Flush();
+    });
+  }  // ThreadPool destructor blocks until all jobs are done.
+
+  if (LoggingEnabledAt(absl::LogSeverity::kInfo)) {
+    EXPECT_THAT(
+        str, AnyOf(Eq("[from one callback]"), Eq("[from another callback]")));
+  }
 }
 
 // Tests for exit-time hook execution.

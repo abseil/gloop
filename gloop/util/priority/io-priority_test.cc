@@ -26,6 +26,7 @@
 
 #include "absl/log/check.h"
 #include "gloop/base/sysinfo.h"
+#include "gloop/thread/threadpool.h"
 #include "gtest/gtest.h"
 
 namespace util {
@@ -89,6 +90,23 @@ static void SetAndCheckThreadPriority(int level) {
   EXPECT_TRUE(GetIOPriority(tid, &new_iop_class, &new_level));
   CHECK_EQ(new_iop_class, IOPRIO_CLASS_BE);
   CHECK_EQ(new_level, level);
+}
+
+TEST(IOPriorityTest, TestThreads) {
+  const int main_thread_level = 4;
+  SetAndCheckThreadPriority(main_thread_level);
+
+  {
+    // Fire up a thread and set & check a different priority level
+    ThreadPool p(1);
+
+    p.Schedule([] { SetAndCheckThreadPriority(5); });
+  }
+
+  // main thread's priority level is unaffected by thread setting
+  int new_level = -1;
+  EXPECT_TRUE(GetIOPriority(GetTID(), nullptr, &new_level));
+  EXPECT_EQ(new_level, main_thread_level);
 }
 
 TEST(IOPriorityTest, TestStdThreads) {

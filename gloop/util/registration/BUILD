@@ -117,6 +117,7 @@ cc_test(
     srcs = ["registerer_unittest.cc"],
     deps = [
         ":registerer",
+        "//gloop/thread",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/hash",
