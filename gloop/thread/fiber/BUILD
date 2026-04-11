@@ -111,3 +111,102 @@ cc_test(
         "@googletest//:gtest",
     ],
 )
+
+cc_library(
+    name = "select",
+    srcs = ["select.cc"],
+    hdrs = ["select.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":select-internal",
+        "//gloop/perftools/tracing",
+        "//gloop/perftools/tracing:tracing_base",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:fixed_array",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/time:clock_interface",
+        "@abseil-cpp//absl/types:source_location",
+        "@gloop//gloop:enforce_gloop_support",
+        "@gloop//gloop/base/scheduling",
+    ],
+)
+
+cc_library(
+    name = "select-internal",
+    srcs = ["select-internal.cc"],
+    hdrs = ["select-internal.h"],
+    visibility = [
+        "//gloop/thread/fiber:__subpackages__",
+    ],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:inlined_vector",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "selectables",
+    srcs = ["selectables.cc"],
+    hdrs = ["selectables.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":select",
+        ":select-internal",
+        "//gloop/base:cancellation_coloring",
+        "//gloop/base:spinlock",
+        "//gloop/perftools/tracing",
+        "//gloop/perftools/tracing:trace_source_location",
+        "//gloop/perftools/tracing:tracing_base",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "selectables_test_lib",
+    testonly = 1,
+    srcs = ["selectables_test.cc"],
+    visibility = ["@gloop//gloop/thread/fiber:__pkg__"],
+    deps = [
+        ":probabilistic_test_util",
+        ":select",
+        ":selectables",
+        "//gloop/base:cancellation_coloring",
+        "//gloop/base:context",
+        "//gloop/base:walltime",
+        "//gloop/perftools/tracing:mock_trace_event_listener",
+        "//gloop/perftools/tracing:tracing_base",
+        "//gloop/perftools/tracing:with_trace_event_listener",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/time:clock_interface",
+        "@abseil-cpp//absl/time:simulated_clock",
+        "@gloop//gloop:enforce_gloop_support",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+    alwayslink = 1,
+)
+
+cc_test(
+    name = "selectables_test",
+    linkstatic = 1,
+    deps = [
+        ":selectables_test_lib",
+    ],
+)
