@@ -40,9 +40,9 @@ cc_test(
     deps = [
         ":array2d",
         "//gloop/util/gtl:unique_array",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -65,9 +65,9 @@ cc_test(
     deps = [
         ":array3d",
         "//gloop/util/gtl:unique_array",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 

@@ -59,9 +59,9 @@ cc_test(
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -120,9 +120,9 @@ cc_test(
         ":counting_mutex",
         ":rseq_clobber_test.lds",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 

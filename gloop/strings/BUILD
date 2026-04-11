@@ -63,9 +63,9 @@ cc_test(
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -80,9 +80,9 @@ cc_test(
         ":case",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -124,9 +124,9 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:charset",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -154,9 +154,9 @@ cc_test(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -190,9 +190,9 @@ cc_test(
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -233,9 +233,9 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:cord_test_helpers",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -301,9 +301,9 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -323,9 +323,9 @@ cc_test(
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -343,9 +343,9 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":ostringstream",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -387,9 +387,9 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -404,9 +404,9 @@ cc_test(
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -435,9 +435,9 @@ cc_test(
         ":si_prefix",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:optional",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -465,9 +465,9 @@ cc_test(
     deps = [
         ":split",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -484,9 +484,9 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:charset",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -512,9 +512,9 @@ cc_test(
         ":strip",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -543,9 +543,9 @@ cc_test(
         "@abseil-cpp//absl/random:distributions",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
         "@re2",
     ],
 )
@@ -580,8 +580,8 @@ cc_test(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

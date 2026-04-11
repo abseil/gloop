@@ -39,3 +39,10 @@ git_override(
     patches = ["//gloop:tcmalloc.patch"],
     remote = "https://github.com/google/tcmalloc",
 )
+
+git_override(
+    module_name = "googletest",
+    commit = "d72f9c8aea6817cdf1ca0ac10887f328de7f3da2",
+    patches = ["//gloop:googletest.patch"],
+    remote = "https://github.com/google/googletest",
+)

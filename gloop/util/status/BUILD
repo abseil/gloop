@@ -44,9 +44,9 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -56,9 +56,9 @@ cc_test(
     deps = [
         ":status",
         "@abseil-cpp//absl/log",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -97,9 +97,9 @@ cc_test(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_matchers",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -128,9 +128,9 @@ cc_test(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/types:source_location",
         "@abseil-cpp//absl/types:span",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -171,9 +171,9 @@ cc_test(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -253,10 +253,10 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:gloop_test_main",
         "@gloop//gloop/util/status:status_cc_proto",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
         "@protobuf",
         "@protobuf//:any_cc_proto",
         "@protobuf//:wrappers_cc_proto",
@@ -318,11 +318,11 @@ cc_test(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:gloop_test_main",
         "@gloop//gloop/util/status:codes_cc_proto",
         "@gloop//gloop/util/status:status_cc_proto",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
         "@protobuf",
     ],
 )
@@ -348,9 +348,9 @@ cc_test(
         ":log",
         "@abseil-cpp//absl/log:scoped_mock_log",
         "@abseil-cpp//absl/status",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -383,10 +383,10 @@ cc_test(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:gloop_test_main",
         "@gloop//gloop/util/status:status_cc_proto",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -455,8 +455,8 @@ cc_test(
         ":return",
         ":status_macros",
         "@abseil-cpp//absl/status",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

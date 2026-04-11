@@ -104,9 +104,9 @@ cc_test(
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/log",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -215,9 +215,9 @@ cc_test(
         "@abseil-cpp//absl/strings:cord_test_helpers",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -229,9 +229,9 @@ cc_test(
         ":builtin_type_hash",
         ":legacy_hash",
         "//gloop/util/random:acmrandom",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -247,9 +247,9 @@ cc_test(
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:cord_test_helpers",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -274,9 +274,9 @@ cc_test(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -328,9 +328,9 @@ cc_library(
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:string_view",
         "@gloop//gloop:enforce_gloop_support",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
     alwayslink = True,
 )
@@ -371,9 +371,9 @@ cc_test(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -391,9 +391,9 @@ cc_test(
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -432,9 +432,9 @@ cc_test(
         ":crc",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -475,9 +475,9 @@ cc_test(
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/strings:str_format",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -502,8 +502,8 @@ cc_test(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

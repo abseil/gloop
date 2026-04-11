@@ -43,8 +43,8 @@ cc_test(
     srcs = ["bindings_test.cc"],
     deps = [
         ":bindings",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

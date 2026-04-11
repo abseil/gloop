@@ -1,0 +1,444 @@
+diff --git BUILD.bazel BUILD.bazel
+index 5ab4e114..78802ce8 100644
+--- BUILD.bazel
++++ BUILD.bazel
+@@ -155,2 +155,6 @@ cc_library(
+             "@abseil-cpp//absl/strings",
++            "@gloop//gloop/base:init_google",
++            "@gloop//gloop/base:process_state",
++            "@gloop//gloop/base:user_name",
++            "@gloop//gloop/thread",
+             "@re2",
+diff --git MODULE.bazel MODULE.bazel
+index 8f46b66b..5e406515 100644
+--- MODULE.bazel
++++ MODULE.bazel
+@@ -65,2 +65,12 @@ bazel_dep(
+ 
++bazel_dep(
++    name = "gloop",
++)
++#git_override(
++#    module_name = "gloop",
++#    remote = "https://github.com/abseil/gloop",
++#    commit = "8eead4aaf1eb3685921b09e4fc03a69a31e35d53",
++#)
++
++
+ # https://rules-python.readthedocs.io/en/stable/toolchains.html#library-modules-with-dev-only-python-usage
+diff --git googletest/include/gtest/internal/custom/gtest-port.h googletest/include/gtest/internal/custom/gtest-port.h
+index db02881c..ba9b29e1 100644
+--- googletest/include/gtest/internal/custom/gtest-port.h
++++ googletest/include/gtest/internal/custom/gtest-port.h
+@@ -36,2 +36,94 @@
+ 
++#define GTEST_DEFAULT_DEATH_TEST_STYLE "threadsafe"
++
++#define GTEST_GOOGLE3_MODE_ 1
++
++#if GTEST_GOOGLE3_MODE_
++
++#define GTEST_HAS_ABSL 1
++
++#define GTEST_INIT_GOOGLE_TEST_NAME_ "InitGoogle"
++
++// gloop/base/commandlineflags.h provides its own GetArgvs()
++#define GTEST_CUSTOM_GET_ARGVS_() ::GetArgvs()
++
++#include "gloop/thread/thread.h"
++
++/*
++// For flags.
++#include "gloop/base/commandlineflags.h"
++
++#define GTEST_GET_BOOL_FROM_ENV_(flag, default_val) \
++  ::BoolFromEnv(FlagToEnvVar(flag).c_str(), default_val)
++#define GTEST_GET_INT32_FROM_ENV_(flag, default_val) \
++  ::Int32FromEnv(FlagToEnvVar(flag).c_str(), default_val)
++#define GTEST_GET_STRING_FROM_ENV_(flag, default_val) \
++  ::StringFromEnv(FlagToEnvVar(flag).c_str(), default_val)
++*/
++
++// For logging.
++#include "absl/base/log_severity.h"
++#include "absl/log/check.h"
++#include "absl/log/log.h"
++#include "absl/log/globals.h"
++#include "absl/log/log_sink_registry.h"
++#define GTEST_LOG_(severity) LOG(severity)
++namespace testing {
++namespace internal {
++inline void LogToStderr() {
++  absl::SetStderrThreshold(absl::LogSeverityAtLeast::kInfo);
++}
++inline void FlushInfoLog() { absl::FlushLogSinks(); }
++}  // namespace internal
++}  // namespace testing
++
++#define GTEST_CHECK_(condition) CHECK(condition)
++
++#define GTEST_HAS_NOTIFICATION_ 1
++#include "absl/synchronization/notification.h"
++namespace testing {
++namespace internal {
++using ::absl::Notification;
++}  // namespace internal
++}  // namespace testing
++
++#define GTEST_HAS_MUTEX_AND_THREAD_LOCAL_ 1
++#include "gloop/thread/threadlocal.h"
++namespace testing {
++namespace internal {
++using ::ThreadLocal;
++using absl::Mutex;
++using absl::MutexLock;
++
++// Forward-declares a static mutex.
++#define GTEST_DECLARE_STATIC_MUTEX_(mutex) extern absl::Mutex mutex
++
++// Defines and statically initializes a static mutex.
++#define GTEST_DEFINE_STATIC_MUTEX_(mutex) absl::Mutex mutex(absl::kConstInit)
++}  // namespace internal
++}  // namespace testing
++
++// For thread annotations.
++#include "absl/base/thread_annotations.h"
++#define GTEST_EXCLUSIVE_LOCK_REQUIRED_(locks) \
++  ABSL_EXCLUSIVE_LOCKS_REQUIRED(locks)
++#define GTEST_LOCK_EXCLUDED_(locks) ABSL_LOCKS_EXCLUDED(locks)
++
++#endif  // GTEST_GOOGLE3_MODE_
++
++// Pre-r11 Android NDK releases for x86 and x86_64 do not have abi libraries.
++#if defined(GTEST_OS_LINUX_ANDROID) && \
++    (defined(__i386__) || defined(__x86_64__))
++#define GTEST_HAS_CXXABI_H_ 0
++#endif
++
++// Disable use of absl flags if GOOGLE_COMMANDLINEFLAGS_FULL_API=0.
++#if defined(GTEST_HAS_ABSL) && !defined(GTEST_NO_ABSL_FLAGS)
++#include "absl/flags/flag.h"
++#if !GOOGLE_COMMANDLINEFLAGS_FULL_API
++#define GTEST_NO_ABSL_FLAGS
++#endif
++#endif
++
++
+ #endif  // GOOGLETEST_INCLUDE_GTEST_INTERNAL_CUSTOM_GTEST_PORT_H_
+diff --git googletest/include/gtest/internal/custom/gtest-printers.h googletest/include/gtest/internal/custom/gtest-printers.h
+index b9495d83..92802ea2 100644
+--- googletest/include/gtest/internal/custom/gtest-printers.h
++++ googletest/include/gtest/internal/custom/gtest-printers.h
+@@ -41,2 +41,4 @@
+ 
++// TODO?
++
+ #endif  // GOOGLETEST_INCLUDE_GTEST_INTERNAL_CUSTOM_GTEST_PRINTERS_H_
+diff --git googletest/include/gtest/internal/custom/gtest.h googletest/include/gtest/internal/custom/gtest.h
+index afaaf17b..e0430396 100644
+--- googletest/include/gtest/internal/custom/gtest.h
++++ googletest/include/gtest/internal/custom/gtest.h
+@@ -36,2 +36,120 @@
+ 
++
++#include "gtest/gtest.h"
++#include "src/gtest-internal-inl.h"
++
++#if GTEST_GOOGLE3_MODE_
++
++#define GTEST_REMOVE_LEGACY_TEST_CASEAPI_ 1
++
++#include <string>
++#include <vector>
++
++namespace testing {
++namespace internal {
++
++// In google3 we use ::InitGoogle instead.
++#define GTEST_CUSTOM_INIT_GOOGLE_TEST_FUNCTION_ \
++   ::testing::internal::InitGoogleTestForGoogle3
++void InitGoogleTestForGoogle3(int* argc, char** argv);
++void InitGoogleTestForGoogle3(int* argc, wchar_t** argv);
++
++/* Not in scope for Gloop yet.
++#define GTEST_OS_STACK_TRACE_GETTER_ \
++  ::testing::internal::Google3OsStackTraceGetter
++
++// Google3 implementation of the stack trace getter.
++class [[nodiscard]] Google3OsStackTraceGetter
++    : public OsStackTraceGetterInterface {
++ public:
++  Google3OsStackTraceGetter() : caller_frame_(nullptr) {}
++
++  std::string CurrentStackTrace(int max_depth, int skip_count) override
++      GTEST_LOCK_EXCLUDED_(mutex_);
++
++  void UponLeavingGTest() override GTEST_LOCK_EXCLUDED_(mutex_);
++
++ private:
++  Mutex mutex_;  // protects all internal state
++
++  // We save the stack frame below the frame that calls user code.
++  // We do this because the address of the frame immediately below
++  // the user code changes between the call to UponLeavingGTest()
++  // and any calls to CurrentStackTrace() from within the user code.
++  void* caller_frame_;
++
++  Google3OsStackTraceGetter(const Google3OsStackTraceGetter&) = delete;
++  Google3OsStackTraceGetter& operator=(const Google3OsStackTraceGetter&) =
++      delete;
++};
++*/
++
++#define GTEST_CUSTOM_TEST_EVENT_LISTENER_ \
++  ::testing::internal::GoogleProcessStateListener
++
++// Report process state changes to Google3 base, after the unit test
++// has been initialized, and before it is torn down, as well as at
++// the start and end of each test case and test.
++class [[nodiscard]] GoogleProcessStateListener : public EmptyTestEventListener {
++ public:
++  GoogleProcessStateListener() = default;
++  ~GoogleProcessStateListener() override;
++
++  void OnEnvironmentsSetUpEnd(const UnitTest& unit_test) override;
++  void OnEnvironmentsTearDownStart(const UnitTest& unit_test) override;
++  void OnTestSuiteStart(const TestSuite& test_suite) override;
++  void OnTestSuiteEnd(const TestSuite& test_suite) override;
++  void OnTestStart(const TestInfo& test_info) override;
++  void OnTestEnd(const TestInfo& test_info) override;
++
++ private:
++  GoogleProcessStateListener(const GoogleProcessStateListener&) = delete;
++  GoogleProcessStateListener& operator=(const GoogleProcessStateListener&) =
++      delete;
++};  // class GoogleProcessStateListener
++
++/* Coverage-specific?
++// For KilledBySignal.
++bool KilledBySignalOverride(int signum, int exit_status, bool* result);
++
++#define GTEST_KILLED_BY_SIGNAL_OVERRIDE_ \
++  ::testing::internal::KilledBySignalOverride
++*/
++
++// Enable --logtostderr (and any other flags needed by the child).
++::std::vector<std::string> GetGoogle3DeathTestCommandLineArgs();
++
++#define GTEST_EXTRA_DEATH_TEST_COMMAND_LINE_ARGS_() \
++  ::testing::internal::GetGoogle3DeathTestCommandLineArgs()
++
++// For b/11021341, disable (slow) AddressToLineNumberDecorator.
++void Google3DeathTestChildSetup();
++
++#define GTEST_EXTRA_DEATH_TEST_CHILD_SETUP_() \
++  ::testing::internal::Google3DeathTestChildSetup()
++
++/* Not needed?
++// Google3 implementation of testing::TempDir().
++std::string GetGoogle3TestTempDir();
++
++// Direct the third_party source to use this implementation.
++#define GTEST_CUSTOM_TEMPDIR_FUNCTION_ \
++  ::testing::internal::GetGoogle3TestTempDir
++
++// Google3 implementation of testing::SrcDir().
++std::string GetGoogle3TestSrcDir();
++
++// Direct the third_party source to use this implementation.
++#define GTEST_CUSTOM_SRCDIR_FUNCTION_ ::testing::internal::GetGoogle3TestSrcDir
++*/
++
++}  // namespace internal
++
++}  // namespace testing
++
++// TODO: replace with base/commandlineflags
++::std::vector<std::string> GetArgvs();
++
++#endif  // GTEST_GOOGLE3_MODE_
++
+ #endif  // GOOGLETEST_INCLUDE_GTEST_INTERNAL_CUSTOM_GTEST_H_
+diff --git googletest/src/gtest.cc googletest/src/gtest.cc
+index ac90786a..f970eca9 100644
+--- googletest/src/gtest.cc
++++ googletest/src/gtest.cc
+@@ -7132 +7132,178 @@ ScopedTrace::~ScopedTrace() GTEST_LOCK_EXCLUDED_(&UnitTest::mutex_) {
+ }  // namespace testing
++
++
++#if GTEST_GOOGLE3_MODE_
++
++#include "gloop/base/init_google.h"
++// #include "gloop/base/logging.h"
++#include "gloop/base/process_state.h"
++#include "gloop/base/user_name.h"
++// #include "devtools/build/runtime/get_runfiles_dir.h"
++// #include "absl/base/builddata.h"
++#include "absl/debugging/stacktrace.h"
++#include "absl/debugging/symbolize.h"
++// #include "util/debuginfo/addr2line_stacktrace.h"
++
++namespace {
++  ::std::vector<std::string> g_argvs;
++}
++
++::std::vector<std::string> GetArgvs() {
++  return g_argvs;
++}
++
++namespace testing {
++namespace internal {
++
++void ParseGoogleTestFlagsOnly(int* argc, char** argv);
++void InitGoogleTestForGoogle3(int* argc, char** argv) {
++  for (int i = 0; i != *argc; i++) {
++    g_argvs.push_back(StreamableToString(argv[i]));
++  }
++  ParseGoogleTestFlagsOnly(argc, argv);
++
++  // InitGoogle moves our copy of argv to eat the flags, instead of
++  // modifying it in place. We have to shift them in place later.
++  // Otherwise, the caller to InitGoogleTest() will have an argv pointing to
++  // the wrong values.
++  char** argv_copy = argv;
++  ::InitGoogle(argv[0], argc, &argv, true);
++  // Fix the source argv:
++  std::copy(argv, argv + *argc, argv_copy);
++  internal::GetUnitTestImpl()->PostFlagParsingInit();
++}
++
++void InitGoogleTestForGoogle3(int* argc, wchar_t** argv) {
++  LOG(FATAL) << "InitGoogleTest(int*,wchar_t**) not supported in google3 mode.";
++}
++
++/*
++// Returns the current OS stack trace as an std::string.  Parameters:
++//
++//   max_depth  - the maximum number of stack frames to be included
++//                in the trace.
++//   skip_count - the number of top frames to be skipped; doesn't count
++//                against max_depth.
++//
++std::string Google3OsStackTraceGetter::CurrentStackTrace(int max_depth,
++                                                         int skip_count)
++    GTEST_LOCK_EXCLUDED_(mutex_) {
++  if (max_depth == 0) {
++    return "";
++  }
++
++  if (max_depth < 0 || max_depth > kMaxStackTraceDepth) {
++    max_depth = kMaxStackTraceDepth;
++  }
++
++  std::vector<std::string> stack;
++  // If debug info is present, dwarf2reader::GetAddr2LineStackTrace()
++  // gives us stack traces with file names and line numbers like this:
++  //
++  //   0x08059552: Bar() @ foo/bar/foo_test.cc:372
++  //   0x08059581: Foo() @ foo/bar/foo_test.cc:377
++  //
++  // If debug info is not present, the function gives us stack traces
++  // without file names and line numbers like this:
++  //
++  //   0x08059552: Bar() @ ??:??
++  //   0x08059581: Foo() @ ??:??
++  //
++  // Skips whatever number of frames the caller requested, plus this
++  // function and GetAddr2LineStackTrace() +
++  // GetAddressQueriesForStackTrace().
++  dwarf2reader::GetAddr2LineStackTrace(&stack, max_depth, skip_count + 3);
++
++  std::vector<void*> raw_stack(max_depth);
++  // Skips the frames requested by the caller, plus this function.
++  const int raw_stack_size =
++      absl::GetStackTrace(&raw_stack[0], max_depth, skip_count + 1);
++  void* caller_frame = nullptr;
++  {
++    MutexLock lock(mutex_);
++    caller_frame = caller_frame_;
++  }
++
++  std::string result;
++  for (int i = 0; i < stack.size() && i < raw_stack_size; i++) {
++    if (raw_stack[i] == caller_frame &&
++        !GTEST_FLAG_GET(show_internal_stack_frames)) {
++      // Add a marker to the trace and stop adding frames.
++      result += OsStackTraceGetter::kElidedFramesMarker;
++      result += "\n";
++      break;
++    }
++
++    result += stack[i] + "\n";
++  }
++
++  return result;
++}
++
++void Google3OsStackTraceGetter::UponLeavingGTest()
++    GTEST_LOCK_EXCLUDED_(mutex_) {
++  // Skips UponLeavingGTest, GetSymbolizedStackTrace, and the calling
++  // frame, since only the address below the caller stays constant.
++  void* caller_frame;
++  if (absl::GetStackTrace(&caller_frame, 1, 3) <= 0) caller_frame = nullptr;
++
++  MutexLock lock(mutex_);
++  caller_frame_ = caller_frame;
++}
++*/
++
++GoogleProcessStateListener::~GoogleProcessStateListener() = default;
++
++void GoogleProcessStateListener::OnEnvironmentsSetUpEnd(
++    const UnitTest& unit_test) {
++  base::process_state::ReportChange(base::process_state::kAppInitDone, nullptr);
++}
++
++void GoogleProcessStateListener::OnEnvironmentsTearDownStart(
++    const UnitTest& unit_test) {
++  base::process_state::ReportChange(base::process_state::kShutdownBegin,
++                                    nullptr);
++}
++
++void GoogleProcessStateListener::OnTestSuiteStart(const TestSuite& test_suite) {
++  base::process_state::ReportChange(base::process_state::kTestSuiteStart,
++                                    test_suite.name());
++}
++
++void GoogleProcessStateListener::OnTestSuiteEnd(const TestSuite& test_suite) {
++  base::process_state::ReportChange(base::process_state::kTestSuiteEnd,
++                                    test_suite.name());
++}
++
++void GoogleProcessStateListener::OnTestStart(const TestInfo& test_info) {
++  const std::string test_suite_name = test_info.test_suite_name();
++  const std::string qualified_test_name =
++      test_suite_name + "." + test_info.name();
++  base::process_state::ReportChange(base::process_state::kTestStart,
++                                    qualified_test_name.c_str());
++}
++
++void GoogleProcessStateListener::OnTestEnd(const TestInfo& test_info) {
++  const std::string test_suite_name = test_info.test_suite_name();
++  const std::string qualified_test_name =
++      test_suite_name + "." + test_info.name();
++  base::process_state::ReportChange(base::process_state::kTestEnd,
++                                    qualified_test_name.c_str());
++}
++
++::std::vector<std::string> GetGoogle3DeathTestCommandLineArgs() {
++  //return {"--logtostderr"};
++  return {};
++}
++
++// For b/11021341, disable (slow) AddressToLineNumberDecorator.
++void Google3DeathTestChildSetup() {
++  // For b/11021341, disable (slow) AddressToLineNumberDecorator.
++  absl::debugging_internal::SetSymbolDecoratorFactory(nullptr);
++  // Also suppress (very slow) printing stack traces for all threads.
++  absl::SetFlag(&FLAGS_suppress_failure_output, true);
++}
++
++}  // namespace internal
++}  // namespace testing
++#endif  // GTEST_GOOGLE3_MODE_

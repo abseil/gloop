@@ -1,5 +1,9 @@
 build --cxxopt=-std=c++20 --host_cxxopt=-std=c++20
 
+common --define=absl=1 # Tell gtest to use Abseil
+test  --test_sharding_strategy=disabled --cache_test_results=no --local_test_jobs=1 --local_resources=memory=HOST_RAM*.3 --local_resources=cpu=HOST_CPUS*.3
+test --test_arg=--gtest_death_test_style=threadsafe
+
 test --test_output=errors --keep_going
 
 # Gloop does not support exceptions.
@@ -17,6 +21,10 @@ build --copt=-fno-omit-frame-pointer
 # Disable warnings from dependencies.
 build --per_file_copt=-external/.*@-Wno-thread-safety-analysis,-Wno-character-conversion
 build --host_per_file_copt=-external/.*@-Wno-deprecated-declarations
+build --host_copt=-Wno-error
+build --host_copt=-Wno-deprecated-declarations
+build --host_copt=-Wno-nullability-completeness
+build --host_copt=-Wno-c++11-compat
 
 # Disable any warnings we don't support, and treat the rest as errors.
 build --copt=-Werror

@@ -59,9 +59,9 @@ cc_library(
     deps = [
         "@abseil-cpp//absl/log",
         "@gloop//gloop:enforce_gloop_support",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -71,9 +71,9 @@ cc_test(
     deps = [
         ":probabilistic_test_util",
         "@abseil-cpp//absl/log",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -105,10 +105,10 @@ cc_test(
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
-        "@gloop//gloop:gloop_test_main",
         "@gloop//gloop/base:callback",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -196,9 +196,9 @@ cc_library(
         "@abseil-cpp//absl/time:clock_interface",
         "@abseil-cpp//absl/time:simulated_clock",
         "@gloop//gloop:enforce_gloop_support",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
     alwayslink = 1,
 )

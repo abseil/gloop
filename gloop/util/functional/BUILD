@@ -41,9 +41,9 @@ cc_test(
         ":to_callback",
         "//gloop/base:callback",
         "@abseil-cpp//absl/functional:any_invocable",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -85,9 +85,9 @@ cc_test(
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/functional:bind_front",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -116,9 +116,9 @@ cc_test(
         ":to_callback",
         "//gloop/base:callback",
         "//gloop/base:context",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -133,9 +133,9 @@ cc_test(
         "//gloop/base:tracecontext",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -156,9 +156,9 @@ cc_test(
     srcs = ["to_shared_function_test.cc"],
     deps = [
         ":to_shared_function",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -200,9 +200,9 @@ cc_test(
         "//gloop/perftools/tracing:tracing_base",
         "//gloop/perftools/tracing:with_trace_event_listener",
         "@abseil-cpp//absl/functional:any_invocable",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -212,9 +212,9 @@ cc_test(
     deps = [
         ":with_context",
         "//gloop/base:context",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -227,8 +227,8 @@ cc_test(
         "//gloop/base:callback",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log:check",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

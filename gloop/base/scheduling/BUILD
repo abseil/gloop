@@ -93,9 +93,9 @@ cc_test(
     srcs = ["scheduler_test.cc"],
     deps = [
         ":scheduling",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 

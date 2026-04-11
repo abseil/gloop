@@ -38,6 +38,7 @@ jobs:
       credentials:
         username: _json_key
         password: ${{ secrets.GAR_SERVICE_ACCOUNT }}
+      options: --init
     strategy:
       fail-fast: false   # Don't cancel all jobs if one fails.
       matrix:
@@ -70,7 +71,18 @@ jobs:
           bazelrc: common --remote_cache=https://storage.googleapis.com/gloop-bazel-remote-cache
 
       - name: Run tests
-        run: bazel test ... --config=${{ matrix.config.value }}
+        run: |
+          # Background heartbeat to print Disk, RAM, and CPU usage numbers every 60s
+          (while true; do
+            echo "=== HEARTBEAT ==="
+            echo "Disk:" && df -h /
+            echo "RAM:" && (i=0; while read l && [ $i -lt 5 ]; do echo "$l"; i=$((i+1)); done < /proc/meminfo)
+            echo "CPU Load:" && cat /proc/loadavg
+            sleep 5
+          done) &
+          HEARTBEAT_PID=$!
+
+          bazel test ... --config=${{ matrix.config.value }}
 
   non_compilation:
     name: Check Non-compilation for ${{ matrix.config }}
@@ -82,6 +94,7 @@ jobs:
       credentials:
         username: _json_key
         password: ${{ secrets.GAR_SERVICE_ACCOUNT }}
+      options: --init
     strategy:
       fail-fast: false
       matrix:
