@@ -42,10 +42,8 @@
 #include "absl/base/macros.h"
 #include "absl/log/log.h"
 #include "absl/numeric/int128.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/math/mathlimits.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace {
 
@@ -434,12 +432,12 @@ TEST(MathUtil, RoundToInt8TooLarge) {
   GTEST_SKIP() << "Skipping test because it purposely invokes UB and ubsan "
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int8_t>(0x7F.9p0f),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int8_t>(0x7F.9p0),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int8_t>(0x7F.9p0l),
-                     R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int8_t>(0x7F.9p0f),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int8_t>(0x7F.9p0),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int8_t>(0x7F.9p0l),
+                           R"re(rounded < kExclusiveUpperBound)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -456,12 +454,12 @@ TEST(MathUtil, RoundToInt8TooSmall) {
   GTEST_SKIP() << "Skipping test because it purposely invokes UB and ubsan "
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int8_t>(-0x80.9p0f),
-                     R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int8_t>(-0x80.9p0),
-                     R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int8_t>(-0x80.9p0l),
-                     R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int8_t>(-0x80.9p0f),
+                           R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int8_t>(-0x80.9p0),
+                           R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int8_t>(-0x80.9p0l),
+                           R"re(kInclusiveLowerBound <= rounded)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -478,12 +476,12 @@ TEST(MathUtil, RoundToUInt8TooLarge) {
   GTEST_SKIP() << "Skipping test because it purposely invokes UB and ubsan "
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint8_t>(0xFF.9p0f),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint8_t>(0xFF.9p0),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint8_t>(0xFF.9p0l),
-                     R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint8_t>(0xFF.9p0f),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint8_t>(0xFF.9p0),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint8_t>(0xFF.9p0l),
+                           R"re(rounded < kExclusiveUpperBound)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -500,12 +498,12 @@ TEST(MathUtil, RoundToUInt8TooSmall) {
   GTEST_SKIP() << "Skipping test because it purposely invokes UB and ubsan "
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint8_t>(-0.6f),
-                     R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint8_t>(-0.6),
-                     R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint8_t>(-0.6l),
-                     R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint8_t>(-0.6f),
+                           R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint8_t>(-0.6),
+                           R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint8_t>(-0.6l),
+                           R"re(kInclusiveLowerBound <= rounded)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -522,12 +520,12 @@ TEST(MathUtil, RoundToInt16TooLarge) {
   GTEST_SKIP() << "Skipping test because it purposely invokes UB and ubsan "
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int16_t>(0x7FFF.9p0f),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int16_t>(0x7FFF.9p0),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int16_t>(0x7FFF.9p0l),
-                     R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int16_t>(0x7FFF.9p0f),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int16_t>(0x7FFF.9p0),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int16_t>(0x7FFF.9p0l),
+                           R"re(rounded < kExclusiveUpperBound)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -544,12 +542,12 @@ TEST(MathUtil, RoundToInt16TooSmall) {
   GTEST_SKIP() << "Skipping test because it purposely invokes UB and ubsan "
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int16_t>(-0x8000.9p0f),
-                     R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int16_t>(-0x8000.9p0),
-                     R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int16_t>(-0x8000.9p0l),
-                     R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int16_t>(-0x8000.9p0f),
+                           R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int16_t>(-0x8000.9p0),
+                           R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int16_t>(-0x8000.9p0l),
+                           R"re(kInclusiveLowerBound <= rounded)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -566,12 +564,12 @@ TEST(MathUtil, RoundToUInt16TooLarge) {
   GTEST_SKIP() << "Skipping test because it purposely invokes UB and ubsan "
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint16_t>(0xFFFF.9p0f),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint16_t>(0xFFFF.9p0),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint16_t>(0xFFFF.9p0l),
-                     R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint16_t>(0xFFFF.9p0f),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint16_t>(0xFFFF.9p0),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint16_t>(0xFFFF.9p0l),
+                           R"re(rounded < kExclusiveUpperBound)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -588,12 +586,12 @@ TEST(MathUtil, RoundToUInt16TooSmall) {
   GTEST_SKIP() << "Skipping test because it purposely invokes UB and ubsan "
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint16_t>(-0.6f),
-                     R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint16_t>(-0.6),
-                     R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint16_t>(-0.6l),
-                     R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint16_t>(-0.6f),
+                           R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint16_t>(-0.6),
+                           R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint16_t>(-0.6l),
+                           R"re(kInclusiveLowerBound <= rounded)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -613,12 +611,12 @@ TEST(MathUtil, RoundToInt32TooLarge) {
   GTEST_SKIP() << "Skipping test because it purposely invokes UB and ubsan "
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int32_t>(std::pow(2.0f, 31.0f)),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int32_t>(0x7FFF'FFFF.9p0),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int32_t>(0x7FFF'FFFF.9p0l),
-                     R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int32_t>(std::pow(2.0f, 31.0f)),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int32_t>(0x7FFF'FFFF.9p0),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int32_t>(0x7FFF'FFFF.9p0l),
+                           R"re(rounded < kExclusiveUpperBound)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -635,14 +633,14 @@ TEST(MathUtil, RoundToInt32TooSmall) {
   GTEST_SKIP() << "Skipping test because it purposely invokes UB and ubsan "
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(
       MathUtil::Round<int32_t>(std::nextafter(
           -std::pow(2.0f, 31.0f), -std::numeric_limits<float>::infinity())),
       R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int32_t>(-0x8000'0000.9p0),
-                     R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int32_t>(-0x8000'0000.9p0l),
-                     R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int32_t>(-0x8000'0000.9p0),
+                           R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int32_t>(-0x8000'0000.9p0l),
+                           R"re(kInclusiveLowerBound <= rounded)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -661,12 +659,12 @@ TEST(MathUtil, RoundToUInt32TooLarge) {
   GTEST_SKIP() << "Skipping test because it purposely invokes UB and ubsan "
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint32_t>(std::pow(2.0f, 32.0f)),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint32_t>(0xFFFF'FFFF.9p0),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint32_t>(0xFFFF'FFFF.9p0l),
-                     R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint32_t>(std::pow(2.0f, 32.0f)),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint32_t>(0xFFFF'FFFF.9p0),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint32_t>(0xFFFF'FFFF.9p0l),
+                           R"re(rounded < kExclusiveUpperBound)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -683,12 +681,12 @@ TEST(MathUtil, RoundToUInt32TooSmall) {
   GTEST_SKIP() << "Skipping test because it purposely invokes UB and ubsan "
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint32_t>(-0.6f),
-                     R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint32_t>(-0.6),
-                     R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint32_t>(-0.6l),
-                     R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint32_t>(-0.6f),
+                           R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint32_t>(-0.6),
+                           R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint32_t>(-0.6l),
+                           R"re(kInclusiveLowerBound <= rounded)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -709,12 +707,12 @@ TEST(MathUtil, RoundToInt64TooLarge) {
   GTEST_SKIP() << "Skipping test because it purposely invokes UB and ubsan "
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int64_t>(std::pow(2.0f, 63.0f)),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int64_t>(0x7FFF'FFFF'FFFF'FFFF.9p0),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int64_t>(0x7FFF'FFFF'FFFF'FFFF.9p0l),
-                     R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int64_t>(std::pow(2.0f, 63.0f)),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int64_t>(0x7FFF'FFFF'FFFF'FFFF.9p0),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int64_t>(0x7FFF'FFFF'FFFF'FFFF.9p0l),
+                           R"re(rounded < kExclusiveUpperBound)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -734,16 +732,17 @@ TEST(MathUtil, RoundToInt64TooSmall) {
   GTEST_SKIP() << "Skipping test because it purposely invokes UB and ubsan "
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(
       MathUtil::Round<int64_t>(std::nextafter(
           -std::pow(2.0f, 63.0f), -std::numeric_limits<float>::infinity())),
       R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(
       MathUtil::Round<int64_t>(std::nextafter(
           -std::pow(2.0, 63.0), -std::numeric_limits<double>::infinity())),
       R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int64_t>(-0x8000'0000'0000'0000.9p0l),
-                     R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(
+      MathUtil::Round<int64_t>(-0x8000'0000'0000'0000.9p0l),
+      R"re(kInclusiveLowerBound <= rounded)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -764,12 +763,13 @@ TEST(MathUtil, RoundToUInt64TooLarge) {
   GTEST_SKIP() << "Skipping test because it purposely invokes UB and ubsan "
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint64_t>(std::pow(2.0f, 64.0f)),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint64_t>(std::pow(2.0, 64.0)),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint64_t>(0xFFFF'FFFF'FFFF'FFFF.9p0l),
-                     R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint64_t>(std::pow(2.0f, 64.0f)),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint64_t>(std::pow(2.0, 64.0)),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(
+      MathUtil::Round<uint64_t>(0xFFFF'FFFF'FFFF'FFFF.9p0l),
+      R"re(rounded < kExclusiveUpperBound)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -786,12 +786,12 @@ TEST(MathUtil, RoundToUInt64TooSmall) {
   GTEST_SKIP() << "Skipping test because it purposely invokes UB and ubsan "
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint64_t>(-0.6f),
-                     R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint64_t>(-0.6),
-                     R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint64_t>(-0.6l),
-                     R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint64_t>(-0.6f),
+                           R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint64_t>(-0.6),
+                           R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint64_t>(-0.6l),
+                           R"re(kInclusiveLowerBound <= rounded)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -822,12 +822,12 @@ TEST(MathUtil, RoundToInt128TooLarge) {
   GTEST_SKIP() << "Skipping test because it purposely invokes UB and ubsan "
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int128_t>(std::pow(2.0f, 127.0f)),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int128_t>(std::pow(2.0, 127.0)),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int128_t>(std::pow(2.0l, 127.0l)),
-                     R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int128_t>(std::pow(2.0f, 127.0f)),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int128_t>(std::pow(2.0, 127.0)),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int128_t>(std::pow(2.0l, 127.0l)),
+                           R"re(rounded < kExclusiveUpperBound)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -847,18 +847,18 @@ TEST(MathUtil, RoundToInt128TooSmall) {
   GTEST_SKIP() << "Skipping test because it purposely invokes UB and ubsan "
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(
       MathUtil::Round<int128_t>(std::nextafter(
           -std::pow(2.0f, 127.0f), -std::numeric_limits<float>::infinity())),
       R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(
       MathUtil::Round<int128_t>(std::nextafter(
           -std::pow(2.0, 127.0), -std::numeric_limits<double>::infinity())),
       R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<int128_t>(std::nextafter(
-                         -std::pow(2.0l, 127.0l),
-                         -std::numeric_limits<long double>::infinity())),
-                     R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<int128_t>(std::nextafter(
+                               -std::pow(2.0l, 127.0l),
+                               -std::numeric_limits<long double>::infinity())),
+                           R"re(kInclusiveLowerBound <= rounded)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -890,10 +890,10 @@ TEST(MathUtil, RoundToUInt128TooLarge) {
 #elif GTEST_HAS_DEATH_TEST
   // There is no "too large" test for `float` -> `uint128_t`, since the
   // largest float fits.
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint128_t>(std::pow(2.0, 128.0)),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint128_t>(std::pow(2.0l, 128.0l)),
-                     R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint128_t>(std::pow(2.0, 128.0)),
+                           R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint128_t>(std::pow(2.0l, 128.0l)),
+                           R"re(rounded < kExclusiveUpperBound)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -911,12 +911,12 @@ TEST(MathUtil, RoundToUInt128TooSmall) {
                << "is enabled.";
 #elif GTEST_HAS_DEATH_TEST
   // `float` has a different error message.
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint128_t>(-0.6f),
-                     R"re(rounded >= FloatIn{0})re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint128_t>(-0.6),
-                     R"re(kInclusiveLowerBound <= rounded)re");
-  EXPECT_DEBUG_DEATH(MathUtil::Round<uint128_t>(-0.6l),
-                     R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint128_t>(-0.6f),
+                           R"re(rounded >= FloatIn{0})re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint128_t>(-0.6),
+                           R"re(kInclusiveLowerBound <= rounded)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::Round<uint128_t>(-0.6l),
+                           R"re(kInclusiveLowerBound <= rounded)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -939,9 +939,9 @@ TEST(MathUtil, FastInt64RoundDoubleMax) {
 #if GTEST_HAS_DEATH_TEST
   // `2^63 - 1` is not exactly representable as a double.  The nearest double
   // is larger, so it is not in-range and we will DCHECK-fail.
-  EXPECT_DEBUG_DEATH(MathUtil::FastInt64Round(static_cast<double>(
-                         std::numeric_limits<int64_t>::max())),
-                     R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::FastInt64Round(static_cast<double>(
+                               std::numeric_limits<int64_t>::max())),
+                           R"re(rounded < kExclusiveUpperBound)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -965,9 +965,9 @@ TEST(MathUtil, FastIntRoundFloatMax) {
 #if GTEST_HAS_DEATH_TEST
   // `2^32 - 1` is not exactly representable as a float.  As in
   // `FastInt64RoundDoubleMax` above, we will DCHECK-fail.
-  EXPECT_DEBUG_DEATH(MathUtil::FastIntRound(static_cast<float>(
-                         std::numeric_limits<int32_t>::max())),
-                     R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::FastIntRound(static_cast<float>(
+                               std::numeric_limits<int32_t>::max())),
+                           R"re(rounded < kExclusiveUpperBound)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -981,9 +981,9 @@ TEST(MathUtil, FastIntRoundFloatMin) {
 
 TEST(MathUtil, FastInt64RoundFloatMax) {
 #if GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::FastInt64Round(static_cast<float>(
-                         std::numeric_limits<int64_t>::max())),
-                     R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(MathUtil::FastInt64Round(static_cast<float>(
+                               std::numeric_limits<int64_t>::max())),
+                           R"re(rounded < kExclusiveUpperBound)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
 #endif  // GTEST_HAS_DEATH_TEST
@@ -1003,10 +1003,11 @@ TEST(MathUtil, FastInt64RoundFloatMin) {
 
 TEST(MathUtil, FastIntRoundDoubleOverflow) {
 #if GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::FastIntRound(static_cast<double>(
-                         int64_t{std::numeric_limits<int32_t>::max()} + 99999)),
-                     R"re(rounded < kExclusiveUpperBound)re");
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(
+      MathUtil::FastIntRound(static_cast<double>(
+          int64_t{std::numeric_limits<int32_t>::max()} + 99999)),
+      R"re(rounded < kExclusiveUpperBound)re");
+  GLOOP_EXPECT_DEBUG_DEATH(
       MathUtil::FastIntRound(static_cast<double>(
           int64_t{std::numeric_limits<int32_t>::lowest()} - 99999)),
       R"re(kInclusiveLowerBound <= rounded)re");
@@ -1031,12 +1032,12 @@ TEST(MathUtil, RoundDownTo) {
 
 #if GTEST_HAS_DEATH_TEST
 #ifndef NDEBUG
-  EXPECT_DEATH(MathUtil::RoundDownTo<int32_t>(10, 0),
-               "rounding_value > IntType\\(0\\)");
-  EXPECT_DEATH(MathUtil::RoundDownTo<int32_t>(10, -1),
-               "rounding_value > IntType\\(0\\)");
-  EXPECT_DEATH(MathUtil::RoundDownTo<int64_t>(-10, 10),
-               "input_value >= IntType\\(0\\)");
+  GLOOP_EXPECT_DEATH(MathUtil::RoundDownTo<int32_t>(10, 0),
+                     "rounding_value > IntType\\(0\\)");
+  GLOOP_EXPECT_DEATH(MathUtil::RoundDownTo<int32_t>(10, -1),
+                     "rounding_value > IntType\\(0\\)");
+  GLOOP_EXPECT_DEATH(MathUtil::RoundDownTo<int64_t>(-10, 10),
+                     "input_value >= IntType\\(0\\)");
 #endif  // NDEBUG
 #endif  // GTEST_HAS_DEATH_TEST
 }
@@ -1070,12 +1071,12 @@ TEST(MathUtil, RoundUpTo) {
 
 #if GTEST_HAS_DEATH_TEST
 #ifndef NDEBUG
-  EXPECT_DEATH(MathUtil::RoundUpTo<int32_t>(10, 0),
-               "rounding_value > IntType\\(0\\)");
-  EXPECT_DEATH(MathUtil::RoundUpTo<int32_t>(10, -1),
-               "rounding_value > IntType\\(0\\)");
-  EXPECT_DEATH(MathUtil::RoundUpTo<int64_t>(-10, 10),
-               "input_value >= IntType\\(0\\)");
+  GLOOP_EXPECT_DEATH(MathUtil::RoundUpTo<int32_t>(10, 0),
+                     "rounding_value > IntType\\(0\\)");
+  GLOOP_EXPECT_DEATH(MathUtil::RoundUpTo<int32_t>(10, -1),
+                     "rounding_value > IntType\\(0\\)");
+  GLOOP_EXPECT_DEATH(MathUtil::RoundUpTo<int64_t>(-10, 10),
+                     "input_value >= IntType\\(0\\)");
 #endif  // NDEBUG
 #endif  // GTEST_HAS_DEATH_TEST
 }

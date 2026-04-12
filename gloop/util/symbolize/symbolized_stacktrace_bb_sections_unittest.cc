@@ -23,9 +23,8 @@
 
 #include "absl/strings/str_split.h"
 #include "absl/types/span.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/symbolize/foobar.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace {
 using ::testing::ContainsRegex;

@@ -44,8 +44,6 @@ cc_test(
         "@abseil-cpp//absl/hash:hash_testing",
         "@abseil-cpp//absl/meta:constexpr_testing",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -70,8 +68,6 @@ cc_test(
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/meta:constexpr_testing",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -99,8 +95,6 @@ cc_test(
         ":ordering",
         "@abseil-cpp//absl/meta:constexpr_testing",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -123,8 +117,6 @@ cc_test(
         ":tuple",
         "@abseil-cpp//absl/meta:constexpr_testing",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -173,8 +165,6 @@ cc_test(
         "//gloop/util/gtl:generic_printer",
         "@abseil-cpp//absl/types:span",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -204,8 +194,6 @@ cc_test(
         "//gloop/util/gtl:generic_printer",
         "@abseil-cpp//absl/types:span",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -219,8 +207,6 @@ cc_test(
         "//gloop/util/gtl:generic_printer",
         "@abseil-cpp//absl/types:span",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -240,8 +226,7 @@ cc_library(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
         "@gloop//gloop:enforce_gloop_support",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest_for_library",
+        "@gloop//gloop:gloop_test",
     ],
 )
 
@@ -256,7 +241,5 @@ cc_test(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )

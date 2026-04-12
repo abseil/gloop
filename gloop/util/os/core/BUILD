@@ -42,7 +42,5 @@ cc_test(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )

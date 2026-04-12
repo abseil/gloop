@@ -42,10 +42,8 @@
 #include "absl/container/chunked_queue.h"
 #include "absl/container/node_hash_map.h"
 #include "absl/functional/any_invocable.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/unique_array.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace gtl {
 namespace {
@@ -645,7 +643,7 @@ TEST(STLSetDifferenceDeathTest, BadArgs) {
 #if NDEBUG
 #else
   std::set<int> a, b;
-  ASSERT_DEATH(STLSetDifference(a, b, &a), "");
+  GLOOP_ASSERT_DEATH(STLSetDifference(a, b, &a), "");
 #endif
 }
 
@@ -704,7 +702,7 @@ TEST(STLSetSymmetricDifferenceDeathTest, BadArgs) {
 #if NDEBUG
 #else
   std::set<int> a, b;
-  ASSERT_DEATH(STLSetSymmetricDifference(a, b, &a), "");
+  GLOOP_ASSERT_DEATH(STLSetSymmetricDifference(a, b, &a), "");
 #endif
 }
 
@@ -791,8 +789,8 @@ TEST(STLIncludesDeathTest, BadArgs) {
   std::vector<int> a, b;
   a.push_back(1);
   a.push_back(0);  // not sorted
-  ASSERT_DEATH(STLIncludes(a, b), "");
-  ASSERT_DEATH(STLIncludes(b, a), "");
+  GLOOP_ASSERT_DEATH(STLIncludes(a, b), "");
+  GLOOP_ASSERT_DEATH(STLIncludes(b, a), "");
 #endif
 }
 
@@ -1214,7 +1212,7 @@ TEST(SortedRangesHaveIntersectionDeathTest, UnsortedRangesDie) {
   v.push_back(4);
   v.push_back(5);
   v.push_back(3);
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(
       SortedRangesHaveIntersection(v.begin(), v.begin(), v.begin(), v.end()),
       "");
 }
@@ -1224,7 +1222,7 @@ TEST(SortedRangesHaveIntersectionDeathTest, UnsortedRangesDieCustomComparator) {
   v.push_back(4);
   v.push_back(5);
   v.push_back(3);
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(
       SortedRangesHaveIntersection(v.begin(), v.end(), v.begin(), v.begin(),
                                    std::greater<int>()),
       "");
@@ -1266,18 +1264,18 @@ TEST(SortedContainersHaveIntersection, WorksWithCustomComparator) {
 }
 
 TEST(SortedContainersHaveIntersectionDeathTest, UnsortedContainersDie) {
-  EXPECT_DEBUG_DEATH(SortedContainersHaveIntersection(std::vector<int>{1, 3, 2},
-                                                      std::vector<int>{1, 2, 3},
-                                                      std::greater<int>()),
-                     "");
+  GLOOP_EXPECT_DEBUG_DEATH(SortedContainersHaveIntersection(
+                               std::vector<int>{1, 3, 2},
+                               std::vector<int>{1, 2, 3}, std::greater<int>()),
+                           "");
 }
 
 TEST(SortedContainersHaveIntersectionDeathTest,
      UnsortedContainersDieCustomComparator) {
-  EXPECT_DEBUG_DEATH(SortedContainersHaveIntersection(std::vector<int>{3, 2, 1},
-                                                      std::vector<int>{3, 2, 3},
-                                                      std::greater<int>()),
-                     "");
+  GLOOP_EXPECT_DEBUG_DEATH(SortedContainersHaveIntersection(
+                               std::vector<int>{3, 2, 1},
+                               std::vector<int>{3, 2, 3}, std::greater<int>()),
+                           "");
 }
 
 TEST(ReleasePointer, Simple) {

@@ -43,12 +43,10 @@
 #include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/flat_map.h"
 #include "gloop/util/gtl/set_view.h"
-#include "gmock/gmock.h"
 #include "google/protobuf/map.h"
-#include "gtest/gtest.h"
 
 namespace gtl {
 namespace {
@@ -246,7 +244,8 @@ TEST(MapViewTest, InitializerList) {
   }({{1, 2}, {2, 3}});
 
   // Repeated keys should fail.
-  EXPECT_DEBUG_DEATH((MapView<int, int>({{1, 1}, {1, 1}})), "HasUniqueKeys");
+  GLOOP_EXPECT_DEBUG_DEATH((MapView<int, int>({{1, 1}, {1, 1}})),
+                           "HasUniqueKeys");
 }
 
 void Overloaded(const MapView<int, int>) {}
@@ -549,7 +548,8 @@ TEST(MapView, InitListWithDuplicatesRejected) {
   EXPECT_FALSE(HasConstexprEvaluation([] { return View(kDuplicatesList); }));
 #endif  // NDEBUG
 
-  EXPECT_DEBUG_DEATH(static_cast<void>(View(kDuplicatesList)), "HasUniqueKeys");
+  GLOOP_EXPECT_DEBUG_DEATH(static_cast<void>(View(kDuplicatesList)),
+                           "HasUniqueKeys");
 }
 
 TEST(MapView, InitListWithWrongType) {

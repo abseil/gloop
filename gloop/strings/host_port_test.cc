@@ -37,8 +37,7 @@
 #include "absl/log/check.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
-#include "benchmark/benchmark.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace strings {
 

@@ -34,9 +34,8 @@
 #include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
 #include "absl/types/optional_ref.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/extend/extend.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace generic_logging_test {
 struct NotStreamable {};

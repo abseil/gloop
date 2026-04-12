@@ -24,8 +24,7 @@
 #include <string>
 #include <tuple>
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace evil_user_ns {
 template <class... Args>

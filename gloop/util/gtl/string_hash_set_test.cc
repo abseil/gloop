@@ -30,8 +30,7 @@
 #include "absl/container/internal/unordered_set_lookup_test.h"
 #include "absl/container/internal/unordered_set_modifiers_test.h"
 #include "absl/strings/string_view.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 // Note that we are opening absl::container_internal namespace here
 // as a workaround because INSTANTIATE_TYPED_TEST_CASE_P assumes local

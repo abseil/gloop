@@ -32,10 +32,10 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/extend/equality.h"
 #include "gloop/util/gtl/extend/extend.h"
 #include "gloop/util/gtl/extend/internal/reflection.h"
-#include "gtest/gtest.h"
 
 namespace gtl {
 namespace internal_extend {

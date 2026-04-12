@@ -27,7 +27,7 @@
 #include "gloop/base/port.h"
 // clang-format on
 
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace port_test {
 

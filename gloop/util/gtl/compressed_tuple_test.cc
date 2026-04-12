@@ -20,7 +20,7 @@
 
 #include "gloop/util/gtl/compressed_tuple.h"
 
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace gtl {
 namespace {

@@ -29,9 +29,8 @@
 
 #include "absl/base/nullability.h"
 #include "absl/meta/internal/constexpr_testing.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/requires.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace test_extensions {
 template <typename T>

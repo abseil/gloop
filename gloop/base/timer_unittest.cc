@@ -48,10 +48,10 @@
 #include "absl/log/log.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 #if !PORTABLE_BASE  // TODO: Portable benchmark.h
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #endif
 
 // This function is templated so that hopefully the compiler will emit

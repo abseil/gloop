@@ -56,8 +56,6 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -81,7 +79,5 @@ cc_test(
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/strings:str_format",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )

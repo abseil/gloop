@@ -26,8 +26,8 @@
 
 #include "absl/log/check.h"
 #include "gloop/base/sysinfo.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/threadpool.h"
-#include "gtest/gtest.h"
 
 namespace util {
 

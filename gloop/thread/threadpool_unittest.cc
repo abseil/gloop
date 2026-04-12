@@ -42,11 +42,11 @@
 #include "absl/time/time.h"
 #include "gloop/base/atomic_stats_counter.h"
 #include "gloop/concurrent/barrier/barrier.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/executor.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
 #include "gloop/util/refcount/blocking_refcount.h"
-#include "gtest/gtest.h"
 #include "tcmalloc/malloc_extension.h"
 
 // Test the interaction of threadpools and closures.

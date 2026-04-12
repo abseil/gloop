@@ -1,3 +1,9 @@
+startup --host_jvm_args=-Xmx1g
+test --cache_test_results=no  --discard_analysis_cache --local_test_jobs=1 --local_resources=memory=HOST_RAM*.3 --local_resources=cpu=HOST_CPUS*.3
+# test --runs_per_test=3
+# test --test_arg=--gtest_death_test_style=threadsafe # Avoids deadlocks on death tests
+# common --define=absl=1 # Tell gtest to use Abseil
+
 build --cxxopt=-std=c++20 --host_cxxopt=-std=c++20
 
 test --test_output=errors --keep_going

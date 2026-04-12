@@ -78,10 +78,9 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/compare.h"
 #include "absl/types/source_location.h"
+#include "gloop/gloop_test.h"
 #include "gloop/strings/host_port.h"
 #include "gloop/util/endian/endian.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 #ifdef NDEBUG
 constexpr bool DEBUG_MODE = false;
@@ -91,7 +90,7 @@ constexpr bool DEBUG_MODE = true;
 
 // TODO benchmark not portable yet.
 #if !defined(GUNIT_NO_GOOGLE3)
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #endif
 
 #ifdef _WIN32
@@ -936,7 +935,7 @@ TEST(IPAddressTest, ChooseRandomAddress) {
 
 TEST(IPAddressTest, ChooseRandomAddressInvalid) {
   std::vector<IPAddress> vec;
-  EXPECT_DEBUG_DEATH(ChooseRandomIPAddress(vec), "empty list");
+  GLOOP_EXPECT_DEBUG_DEATH(ChooseRandomIPAddress(vec), "empty list");
   if (!DEBUG_MODE) {
     EXPECT_EQ(IPAddress(), ChooseRandomIPAddress(vec));
   }
@@ -946,7 +945,7 @@ TEST(IPAddressTest, ChooseRandomAddressInvalid) {
   ptrs[0] = nullptr;
   host.h_addrtype = AF_UNSPEC;
   host.h_addr_list = ptrs.data();
-  EXPECT_DEBUG_DEATH(ChooseRandomAddress(&host), "empty list");
+  GLOOP_EXPECT_DEBUG_DEATH(ChooseRandomAddress(&host), "empty list");
   if (!DEBUG_MODE) {
     EXPECT_EQ(IPAddress(), ChooseRandomAddress(&host));
   }
@@ -954,14 +953,15 @@ TEST(IPAddressTest, ChooseRandomAddressInvalid) {
   char dummy_ptr = '?';
   ptrs[0] = &dummy_ptr;
   ptrs[1] = nullptr;
-  EXPECT_DEBUG_DEATH(ChooseRandomAddress(&host), "Unknown address family 0");
+  GLOOP_EXPECT_DEBUG_DEATH(ChooseRandomAddress(&host),
+                           "Unknown address family 0");
   if (!DEBUG_MODE) {
     EXPECT_EQ(IPAddress(), ChooseRandomAddress(&host));
   }
 
   IPRange uninitialized_range;
-  EXPECT_DEBUG_DEATH(ChooseRandomIPAddress(uninitialized_range),
-                     "uninitialized range");
+  GLOOP_EXPECT_DEBUG_DEATH(ChooseRandomIPAddress(uninitialized_range),
+                           "uninitialized range");
   if (!DEBUG_MODE) {
     EXPECT_FALSE(
         IsInitializedAddress(ChooseRandomIPAddress(uninitialized_range)));
@@ -1625,7 +1625,7 @@ TEST(IPAddressDeathTest, IPAddressLength) {
   ASSERT_FALSE(IsInitializedAddress(ip));
 
   if (DEBUG_MODE) {
-    EXPECT_DEBUG_DEATH(bitlength = IPAddressLength(ip), "");
+    GLOOP_EXPECT_DEBUG_DEATH(bitlength = IPAddressLength(ip), "");
   } else {
     ScopedMockLogVerifier log(
         "IPAddressLength() of object with invalid address family");
@@ -1716,7 +1716,7 @@ TEST(IPAddressDeathTest, EmergencyCompatibility) {
   CHECK(StringToIPAddress(kIPv4Address, &addr));
 
   if (DEBUG_MODE) {
-    EXPECT_DEBUG_DEATH(addr6 = addr.ipv6_address(), "Check failed");
+    GLOOP_EXPECT_DEBUG_DEATH(addr6 = addr.ipv6_address(), "Check failed");
   } else {
     ScopedMockLogVerifier log("returning IPv6 mapped address");
     addr6 = addr.ipv6_address();
@@ -1728,7 +1728,7 @@ TEST(IPAddressDeathTest, EmergencyEmptyString) {
   IPAddress empty;
 
   if (DEBUG_MODE) {
-    EXPECT_DEBUG_DEATH(empty.ToString(), "empty IPAddress");
+    GLOOP_EXPECT_DEBUG_DEATH(empty.ToString(), "empty IPAddress");
   } else {
     ScopedMockLogVerifier log("empty IPAddress");
     EXPECT_EQ("", empty.ToString());
@@ -1739,7 +1739,7 @@ TEST(IPAddressDeathTest, EmergencyEmptyURIString) {
   IPAddress empty;
 
   if (DEBUG_MODE) {
-    EXPECT_DEBUG_DEATH(IPAddressToURIString(empty), "empty IPAddress");
+    GLOOP_EXPECT_DEBUG_DEATH(IPAddressToURIString(empty), "empty IPAddress");
   } else {
     ScopedMockLogVerifier log("empty IPAddress");
     EXPECT_EQ("", IPAddressToURIString(empty));
@@ -1750,7 +1750,7 @@ TEST(IPAddressDeathTest, EmergencyEmptyPTRString) {
   IPAddress empty;
 
   if (DEBUG_MODE) {
-    EXPECT_DEBUG_DEATH(IPAddressToPTRString(empty), "empty IPAddress");
+    GLOOP_EXPECT_DEBUG_DEATH(IPAddressToPTRString(empty), "empty IPAddress");
   } else {
     ScopedMockLogVerifier log("empty IPAddress");
     EXPECT_EQ("unspecified.arpa", IPAddressToPTRString(empty));
@@ -1761,8 +1761,8 @@ TEST(IPAddressDeathTest, EmergencyIsNotAnyOrLoopback) {
   IPAddress empty;
 
   if (DEBUG_MODE) {
-    EXPECT_DEBUG_DEATH(IsAnyIPAddress(empty), "empty IPAddress");
-    EXPECT_DEBUG_DEATH(IsLoopbackIPAddress(empty), "empty IPAddress");
+    GLOOP_EXPECT_DEBUG_DEATH(IsAnyIPAddress(empty), "empty IPAddress");
+    GLOOP_EXPECT_DEBUG_DEATH(IsLoopbackIPAddress(empty), "empty IPAddress");
   } else {
     {
       ScopedMockLogVerifier log("empty IPAddress");
@@ -1778,10 +1778,11 @@ TEST(IPAddressDeathTest, EmergencyIsNotAnyOrLoopback) {
 // Invalid conversion in *OrDie() functions.
 TEST(IPAddressDeathTest, InvalidStringConversion) {
   // Invalid conversion.
-  EXPECT_DEATH(StringToIPAddressOrDie("foo"), "Invalid IP foo");
-  EXPECT_DEATH(StringToIPAddressOrDie("172.1.1.300"), "Invalid IP");
-  EXPECT_DEATH(StringToIPAddressOrDie("::g"), "Invalid IP");
-  EXPECT_DEATH(StringToIPAddressOrDie(absl::string_view("::g")), "Invalid IP");
+  GLOOP_EXPECT_DEATH(StringToIPAddressOrDie("foo"), "Invalid IP foo");
+  GLOOP_EXPECT_DEATH(StringToIPAddressOrDie("172.1.1.300"), "Invalid IP");
+  GLOOP_EXPECT_DEATH(StringToIPAddressOrDie("::g"), "Invalid IP");
+  GLOOP_EXPECT_DEATH(StringToIPAddressOrDie(absl::string_view("::g")),
+                     "Invalid IP");
 
   // Valid conversion.
   EXPECT_EQ(StringToIPAddressOrDie("1.2.3.4").ToString(), "1.2.3.4");
@@ -1799,8 +1800,9 @@ TEST(IPAddressDeathTest, InvalidStringConversion) {
 
 TEST(IPAddressDeathTest, InvalidPackedStringConversion) {
   // Invalid conversion.
-  EXPECT_DEATH(PackedStringToIPAddressOrDie("foo", 3), "Invalid packed IP");
-  EXPECT_DEATH(PackedStringToIPAddressOrDie("bar"), "Invalid packed IP");
+  GLOOP_EXPECT_DEATH(PackedStringToIPAddressOrDie("foo", 3),
+                     "Invalid packed IP");
+  GLOOP_EXPECT_DEATH(PackedStringToIPAddressOrDie("bar"), "Invalid packed IP");
 
   // Valid conversion.
   const std::string packed = StringToIPAddressOrDie("1.2.3.4").ToPackedString();
@@ -1981,22 +1983,22 @@ TEST(SocketAddressTest, GenericInputInvalid) {
   // Zero-initialized structs have family AF_UNSPEC.
   EXPECT_EQ(SocketAddress(), SocketAddress(sa));
   EXPECT_EQ(SocketAddress(), SocketAddress(ss));
-  EXPECT_DEATH(SocketAddress foo(sin), "sin_family");
-  EXPECT_DEATH(SocketAddress foo(sin6), "sin6_family");
+  GLOOP_EXPECT_DEATH(SocketAddress foo(sin), "sin_family");
+  GLOOP_EXPECT_DEATH(SocketAddress foo(sin6), "sin6_family");
 
   // Test with an invalid family.
   sa.sa_family = 255;
   ss.ss_family = 255;
   sin.sin_family = 255;
   sin6.sin6_family = 255;
-  EXPECT_DEBUG_DEATH(SocketAddress foo(sa), "Unknown address family 255");
-  EXPECT_DEBUG_DEATH(SocketAddress foo(ss), "Unknown address family 255");
+  GLOOP_EXPECT_DEBUG_DEATH(SocketAddress foo(sa), "Unknown address family 255");
+  GLOOP_EXPECT_DEBUG_DEATH(SocketAddress foo(ss), "Unknown address family 255");
   if (!DEBUG_MODE) {
     EXPECT_EQ(SocketAddress(), SocketAddress(sa));
     EXPECT_EQ(SocketAddress(), SocketAddress(ss));
   }
-  EXPECT_DEATH(SocketAddress foo(sin), "sin_family");
-  EXPECT_DEATH(SocketAddress foo(sin6), "sin6_family");
+  GLOOP_EXPECT_DEATH(SocketAddress foo(sin), "sin_family");
+  GLOOP_EXPECT_DEATH(SocketAddress foo(sin6), "sin6_family");
 }
 
 TEST(SocketAddressTest, EmptySockaddr) {
@@ -2224,27 +2226,28 @@ TEST(SocketAddressTest, Equality) {
 
 // Invalid SocketAddress conversion in *OrDie functions.
 TEST(SocketAddressDeathTest, InvalidSocketAddressString) {
-  EXPECT_DEATH(StringToSocketAddressOrDie("foo"), "Invalid SocketAddress foo");
-  EXPECT_DEATH(StringToSocketAddressOrDie("172.1.1.100"),
-               "Invalid SocketAddress");
-  EXPECT_DEATH(StringToSocketAddressOrDie("172.1.1.100:-1"),
-               "Invalid SocketAddress");
-  EXPECT_DEATH(StringToSocketAddressOrDie("172.1.1.100:test"),
-               "Invalid SocketAddress");
-  EXPECT_DEATH(StringToSocketAddressOrDie("172.1.1.100:65536"),
-               "Invalid SocketAddress");
-  EXPECT_DEATH(StringToSocketAddressOrDie("2001:700:300:183::1:1"),
-               "Invalid SocketAddress");
-  EXPECT_DEATH(StringToSocketAddressOrDie("[2001:700:300:183::g]"),
-               "Invalid SocketAddress");
-  EXPECT_DEATH(StringToSocketAddressOrDie("[2001:700:300:183::1]:"),
-               "Invalid SocketAddress");
-  EXPECT_DEATH(StringToSocketAddressOrDie("[2001:700:300:183::1]:foo"),
-               "Invalid SocketAddress");
-  EXPECT_DEATH(StringToSocketAddressOrDie("[2001:700:300:183::1]:-1"),
-               "Invalid SocketAddress");
-  EXPECT_DEATH(StringToSocketAddressOrDie("[2001:700:300:183::1]:65536"),
-               "Invalid SocketAddress");
+  GLOOP_EXPECT_DEATH(StringToSocketAddressOrDie("foo"),
+                     "Invalid SocketAddress foo");
+  GLOOP_EXPECT_DEATH(StringToSocketAddressOrDie("172.1.1.100"),
+                     "Invalid SocketAddress");
+  GLOOP_EXPECT_DEATH(StringToSocketAddressOrDie("172.1.1.100:-1"),
+                     "Invalid SocketAddress");
+  GLOOP_EXPECT_DEATH(StringToSocketAddressOrDie("172.1.1.100:test"),
+                     "Invalid SocketAddress");
+  GLOOP_EXPECT_DEATH(StringToSocketAddressOrDie("172.1.1.100:65536"),
+                     "Invalid SocketAddress");
+  GLOOP_EXPECT_DEATH(StringToSocketAddressOrDie("2001:700:300:183::1:1"),
+                     "Invalid SocketAddress");
+  GLOOP_EXPECT_DEATH(StringToSocketAddressOrDie("[2001:700:300:183::g]"),
+                     "Invalid SocketAddress");
+  GLOOP_EXPECT_DEATH(StringToSocketAddressOrDie("[2001:700:300:183::1]:"),
+                     "Invalid SocketAddress");
+  GLOOP_EXPECT_DEATH(StringToSocketAddressOrDie("[2001:700:300:183::1]:foo"),
+                     "Invalid SocketAddress");
+  GLOOP_EXPECT_DEATH(StringToSocketAddressOrDie("[2001:700:300:183::1]:-1"),
+                     "Invalid SocketAddress");
+  GLOOP_EXPECT_DEATH(StringToSocketAddressOrDie("[2001:700:300:183::1]:65536"),
+                     "Invalid SocketAddress");
 
   EXPECT_EQ(StringToSocketAddressOrDie("1.2.3.4:5").ToString(), "1.2.3.4:5");
   EXPECT_EQ(StringToSocketAddressOrDie("[::1]:6").ToString(), "[::1]:6");
@@ -2817,7 +2820,7 @@ TEST(SocketAddressDeathTest, SocketAddressToFamilyError) {
 #endif
 
   // Make sure that we can't cast an error back to SocketAddress.
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(
       SocketAddress foo(kaddr),
       absl::StrCat("Unknown address family ",
                    std::numeric_limits<decltype(kaddr.ss_family)>::max()));
@@ -2825,15 +2828,16 @@ TEST(SocketAddressDeathTest, SocketAddressToFamilyError) {
 
 TEST(SocketAddressDeathTest, UninitializedGenericAddress) {
   const SocketAddress empty;
-  EXPECT_DEATH(empty.generic_address(),
-               "Called generic_address.. on <uninitialized SocketAddress>");
+  GLOOP_EXPECT_DEATH(
+      empty.generic_address(),
+      "Called generic_address.. on <uninitialized SocketAddress>");
 }
 
 TEST(SocketAddressDeathTest, EmergencyZeroPort) {
   SocketAddress empty;
 
   if (DEBUG_MODE) {
-    EXPECT_DEBUG_DEATH(empty.port(), "empty SocketAddress");
+    GLOOP_EXPECT_DEBUG_DEATH(empty.port(), "empty SocketAddress");
   } else {
     ScopedMockLogVerifier log("empty SocketAddress");
     EXPECT_EQ(0, empty.port());
@@ -2844,7 +2848,7 @@ TEST(SocketAddressDeathTest, EmergencyEmptyString) {
   SocketAddress empty;
 
   if (DEBUG_MODE) {
-    EXPECT_DEBUG_DEATH(empty.ToString(), "empty SocketAddress");
+    GLOOP_EXPECT_DEBUG_DEATH(empty.ToString(), "empty SocketAddress");
   } else {
     ScopedMockLogVerifier log("empty SocketAddress");
     EXPECT_EQ("", empty.ToString());
@@ -3418,9 +3422,10 @@ TEST(IPRangeTest, TruncateIPAddress) {
   EXPECT_EQ(999, length);
 
   // Negative lengths are prohibited in debug mode.
-  EXPECT_DEBUG_DEATH(TruncateIPAddress(StringToIPAddressOrDie("192.0.2.0"), -1),
-                     "Invalid truncation:");
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(
+      TruncateIPAddress(StringToIPAddressOrDie("192.0.2.0"), -1),
+      "Invalid truncation:");
+  GLOOP_EXPECT_DEBUG_DEATH(
       TruncateIPAddress(StringToIPAddressOrDie("2001:db8::"), -1),
       "Invalid truncation:");
   if (!DEBUG_MODE) {
@@ -3431,10 +3436,10 @@ TEST(IPRangeTest, TruncateIPAddress) {
   }
 
   // Empty addresses are prohibited in debug mode.
-  EXPECT_DEBUG_DEATH(TruncateIPAddress(IPAddress(), -1),
-                     "Can't truncate <uninitialized IPAddress>");
-  EXPECT_DEBUG_DEATH(TruncateIPAddress(IPAddress(), 24),
-                     "Can't truncate <uninitialized IPAddress>");
+  GLOOP_EXPECT_DEBUG_DEATH(TruncateIPAddress(IPAddress(), -1),
+                           "Can't truncate <uninitialized IPAddress>");
+  GLOOP_EXPECT_DEBUG_DEATH(TruncateIPAddress(IPAddress(), 24),
+                           "Can't truncate <uninitialized IPAddress>");
   if (!DEBUG_MODE) {
     EXPECT_EQ(IPAddress(), TruncateIPAddress(IPAddress(), -1));
     EXPECT_EQ(IPAddress(), TruncateIPAddress(IPAddress(), 24));
@@ -3552,7 +3557,7 @@ TEST(IPRangeTest, Truncation) {
 
 // IPRange tests for ToPackedString() and PackedStringToIPRange().
 TEST(IPRangeTest, PacksEmptyRange) {
-  EXPECT_DEBUG_DEATH(IPRange().ToPackedString(), "Uninitialized address");
+  GLOOP_EXPECT_DEBUG_DEATH(IPRange().ToPackedString(), "Uninitialized address");
   if (!DEBUG_MODE) {
     EXPECT_EQ("", IPRange().ToPackedString());
   }
@@ -3659,8 +3664,8 @@ TEST(IPRangeTest, InvalidPackedStringConversion) {
 
 TEST(IPRangeDeathTest, InvalidPackedStringConversion) {
   // Invalid conversion.
-  EXPECT_DEATH(PackedStringToIPRangeOrDie("something very bad"),
-               "Invalid packed IP range");
+  GLOOP_EXPECT_DEATH(PackedStringToIPRangeOrDie("something very bad"),
+                     "Invalid packed IP range");
 }
 
 TEST(IPRangeTest, IPv6LinkLocal) {
@@ -3882,8 +3887,9 @@ TEST(IPAddressPlusNTest, SubtractCrossesIPv6SpaceBoundary) {
 TEST(IPAddressPlusNDeathTest, InvalidAddressFamily) {
   IPAddress uninit_addr, result_addr;
   bool result = true;
-  EXPECT_DEBUG_DEATH(result = IPAddressPlusN(uninit_addr, 1, &result_addr),
-                     "Invalid address family");
+  GLOOP_EXPECT_DEBUG_DEATH(
+      result = IPAddressPlusN(uninit_addr, 1, &result_addr),
+      "Invalid address family");
   if constexpr (!DEBUG_MODE) {
     EXPECT_FALSE(IPAddressPlusN(uninit_addr, 1, &result_addr));
   } else {
@@ -4139,24 +4145,24 @@ TEST(IPRangeTest, UnsafeConstruct) {
   IPRange::UnsafeConstruct(StringToIPAddressOrDie("2001:db8::"), 32);
 
   // Invalid inputs fail only in debug mode.
-  EXPECT_DEBUG_DEATH(IPRange::UnsafeConstruct(IPAddress(), -2),
-                     "Length is inconsistent with address family");
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(IPRange::UnsafeConstruct(IPAddress(), -2),
+                           "Length is inconsistent with address family");
+  GLOOP_EXPECT_DEBUG_DEATH(
       IPRange::UnsafeConstruct(StringToIPAddressOrDie("192.0.2.1"), 33),
       "Length is inconsistent with address family");
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(
       IPRange::UnsafeConstruct(StringToIPAddressOrDie("2001:db8::1"), 129),
       "Length is inconsistent with address family");
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(
       IPRange::UnsafeConstruct(StringToIPAddressOrDie("192.0.2.1"), 24),
       "Host has bits set beyond the prefix length");
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(
       IPRange::UnsafeConstruct(StringToIPAddressOrDie("2001:db8::1"), 32),
       "Host has bits set beyond the prefix length");
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(
       IPRange::UnsafeConstruct(StringToIPAddressOrDie("192.0.2.0"), -1),
       "Invalid truncation");
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(
       IPRange::UnsafeConstruct(StringToIPAddressOrDie("2001:db8::"), -1),
       "Invalid truncation");
 }
@@ -4320,8 +4326,8 @@ TEST(IPRangeTest, NthAddressInRange) {
   IPRange range = StringToIPRangeOrDie("1.2.3.4/32");
   EXPECT_EQ(ip("1.2.3.4"), NthAddressInRange(range, 0));
 
-  EXPECT_DEBUG_DEATH(NthAddressInRange(range, 1),
-                     "1.2.3.4/32 does not contain index 1");
+  GLOOP_EXPECT_DEBUG_DEATH(NthAddressInRange(range, 1),
+                           "1.2.3.4/32 does not contain index 1");
   if (!DEBUG_MODE) {
     EXPECT_EQ(IPAddress(), NthAddressInRange(range, 1));
   }
@@ -4338,8 +4344,8 @@ TEST(IPRangeTest, NthAddressInRange) {
   range = StringToIPRangeOrDie("fedc:ba98:7654:3210:123:4567:89ab:cdef/128");
   EXPECT_EQ(ip("fedc:ba98:7654:3210:123:4567:89ab:cdef"),
             NthAddressInRange(range, 0));
-  EXPECT_DEBUG_DEATH(NthAddressInRange(range, 1),
-                     ":cdef/128 does not contain index 1");
+  GLOOP_EXPECT_DEBUG_DEATH(NthAddressInRange(range, 1),
+                           ":cdef/128 does not contain index 1");
   if (!DEBUG_MODE) {
     EXPECT_EQ(IPAddress(), NthAddressInRange(range, 1));
   }
@@ -4416,20 +4422,20 @@ TEST(IPAddress, IndexInRange) {
       16, IndexInRange(IPRange(StringToIPAddressOrDie("0:0:0:0:0:0:8:1"), 120),
                        StringToIPAddressOrDie("0:0:0:0:0:0:8:10")));
 
-  EXPECT_DEBUG_DEATH(IndexInRange(StringToIPRangeOrDie("1.1.1.0/24"),
-                                  StringToIPAddressOrDie("1.1.2.0")),
-                     "is not within");
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(IndexInRange(StringToIPRangeOrDie("1.1.1.0/24"),
+                                        StringToIPAddressOrDie("1.1.2.0")),
+                           "is not within");
+  GLOOP_EXPECT_DEBUG_DEATH(
       IndexInRange(
           StringToIPRangeOrDie("2001:718:1001:700:200:5efe:c0a8:0300/120"),
           StringToIPAddressOrDie("3001:718:1001:700:200:5efe:c0a8:0380")),
       "is not within");
 
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(
       IndexInRange(StringToIPRangeOrDie("0:0:0:0:0:0:c0a8:0/120"),
                    StringToIPAddressOrDie("192.168.0.10")),
       "is not within");
-  EXPECT_DEBUG_DEATH(
+  GLOOP_EXPECT_DEBUG_DEATH(
       IndexInRange(StringToIPRangeOrDie("192.168.0.0/24"),
                    StringToIPAddressOrDie("0:0:0:0:0:0:c0a8:000a")),
       "is not within");
@@ -4473,31 +4479,35 @@ TEST(IPRangeTest, IPRangeIsSingleIP) {
 
 TEST(IPRangeDeathTest, MiscUninitialized) {
   EXPECT_EQ(IPAddress(), IPRange().host());
-  EXPECT_DEBUG_DEATH(IPRange().network_address(), "Unknown address family");
-  EXPECT_DEBUG_DEATH(IPRange().broadcast_address(), "Unknown address family");
+  GLOOP_EXPECT_DEBUG_DEATH(IPRange().network_address(),
+                           "Unknown address family");
+  GLOOP_EXPECT_DEBUG_DEATH(IPRange().broadcast_address(),
+                           "Unknown address family");
 
   // This constructor is quite strange, but some callers use it.
   const IPRange bad_range(IPAddress(), 0);
-  EXPECT_DEBUG_DEATH(bad_range.network_address(), "Unknown address family");
+  GLOOP_EXPECT_DEBUG_DEATH(bad_range.network_address(),
+                           "Unknown address family");
 }
 
 // Invalid conversion in *OrDie() functions.
 TEST(IPRangeDeathTest, InvalidStringConversion) {
   // Invalid conversions.
-  EXPECT_DEATH(StringToIPRangeOrDie("foo/10"), "Invalid IP range foo/10");
-  EXPECT_DEATH(StringToIPRangeOrDie("128.59.16.20/16"), "Invalid IP range");
-  EXPECT_DEATH(StringToIPRangeOrDie("::g/42"), "Invalid IP range ::g/42");
-  EXPECT_DEATH(StringToIPRangeOrDie("2001:db8:1234::/32"),
-               "Invalid IP range 2001:db8:1234::/32");
+  GLOOP_EXPECT_DEATH(StringToIPRangeOrDie("foo/10"), "Invalid IP range foo/10");
+  GLOOP_EXPECT_DEATH(StringToIPRangeOrDie("128.59.16.20/16"),
+                     "Invalid IP range");
+  GLOOP_EXPECT_DEATH(StringToIPRangeOrDie("::g/42"), "Invalid IP range ::g/42");
+  GLOOP_EXPECT_DEATH(StringToIPRangeOrDie("2001:db8:1234::/32"),
+                     "Invalid IP range 2001:db8:1234::/32");
 
-  EXPECT_DEATH(StringToIPRangeAndTruncateOrDie("foo/10"),
-               "Invalid IP range foo/10");
-  EXPECT_DEATH(StringToIPRangeAndTruncateOrDie("128.59.16.320/16"),
-               "Invalid IP range 128.59.16.320/16");
-  EXPECT_DEATH(StringToIPRangeAndTruncateOrDie("::g/42"),
-               "Invalid IP range ::g/42");
-  EXPECT_DEATH(StringToIPRangeAndTruncateOrDie("2001:db8:1234::/132"),
-               "Invalid IP range 2001:db8:1234::/132");
+  GLOOP_EXPECT_DEATH(StringToIPRangeAndTruncateOrDie("foo/10"),
+                     "Invalid IP range foo/10");
+  GLOOP_EXPECT_DEATH(StringToIPRangeAndTruncateOrDie("128.59.16.320/16"),
+                     "Invalid IP range 128.59.16.320/16");
+  GLOOP_EXPECT_DEATH(StringToIPRangeAndTruncateOrDie("::g/42"),
+                     "Invalid IP range ::g/42");
+  GLOOP_EXPECT_DEATH(StringToIPRangeAndTruncateOrDie("2001:db8:1234::/132"),
+                     "Invalid IP range 2001:db8:1234::/132");
 
   // Valid conversions.
   EXPECT_EQ(StringToIPRangeOrDie("192.168.253.0/24").ToString(),

@@ -66,6 +66,7 @@
 #include "gloop/base/sysinfo.h"
 #include "gloop/base/timer.h"
 #include "gloop/base/tracecontext.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/config.h"
 #include "gloop/thread/thread-internal.h"
 #include "gloop/thread/thread_control.h"
@@ -73,8 +74,6 @@
 #include "gloop/thread/threadpool.h"
 #include "gloop/util/functional/to_callback.h"
 #include "gloop/util/gtl/container_logging.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 #include "re2/re2.h"
 
 #if !PORTABLE_BASE

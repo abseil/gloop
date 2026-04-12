@@ -23,8 +23,8 @@
 #include <cstdint>
 #include <utility>
 
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/unique_array.h"
-#include "gtest/gtest.h"
 
 template <typename T>
 void TestFillArray2D(int32_t h, int32_t w) {

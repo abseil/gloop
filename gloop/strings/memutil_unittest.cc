@@ -32,10 +32,8 @@
 #include "absl/log/flags.h"
 #include "absl/log/log.h"
 #include "absl/strings/ascii.h"
-#include "benchmark/benchmark.h"
 #include "gloop/base/init_google.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace strings {
 

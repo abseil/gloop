@@ -34,13 +34,11 @@
 #include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/strings/interntable_benchmark.h"
 #include "gloop/util/gtl/stl_util.h"
 #include "gloop/util/intops/safe_int.h"
 #include "gloop/util/intops/strong_int.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace strings {
 namespace {
@@ -147,18 +145,18 @@ TYPED_TEST_P(KeyedInternTableOverflowDeathTest, Overflow) {
     x.Insert(absl::StrCat(i));
   }
   EXPECT_THAT(x.size() - 1, Eq(std::numeric_limits<uint8_t>::max()));
-  EXPECT_DEATH(x.Insert("abc123"), "256");
+  GLOOP_EXPECT_DEATH(x.Insert("abc123"), "256");
 }
 
 TYPED_TEST_P(KeyedInternTableOverflowDeathTest, ReserveNegative) {
   KeyedInternTable<TypeParam> x;
-  EXPECT_DEATH(x.Reserve(-1), "Reserve()");
+  GLOOP_EXPECT_DEATH(x.Reserve(-1), "Reserve()");
 }
 
 TYPED_TEST_P(KeyedInternTableOverflowDeathTest, ReserveOverflow) {
   KeyedInternTable<TypeParam> x;
   size_t limit = std::numeric_limits<uint8_t>::max();
-  EXPECT_DEATH(x.Reserve(1 + limit), "Reserve()");
+  GLOOP_EXPECT_DEATH(x.Reserve(1 + limit), "Reserve()");
 }
 
 REGISTER_TYPED_TEST_SUITE_P(KeyedInternTableOverflowDeathTest, Overflow,
@@ -180,7 +178,7 @@ static std::string RandomString(RNG* rng) {
 }
 
 TEST(KeyedInternTableTest, StressTest) {
-  std::mt19937 rng(testing::GTEST_FLAG(random_seed));
+  std::mt19937 rng(GTEST_FLAG_GET(random_seed));
   std::vector<std::string> random_strings;
   const size_t kBufferLength = 4096;
   for (int i = 0; i < kBufferLength; ++i) {

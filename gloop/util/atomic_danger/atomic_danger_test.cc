@@ -23,7 +23,7 @@
 #include <atomic>
 #include <cstdint>
 
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace {
 

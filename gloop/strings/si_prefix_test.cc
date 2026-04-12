@@ -27,9 +27,7 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
-#include "benchmark/benchmark.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace strings {
 namespace si_prefix {

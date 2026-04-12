@@ -33,10 +33,9 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/strings/numbers.h"
 #include "gloop/strings/numbers_test_common.h"
-#include "gtest/gtest.h"
 
 namespace strings {
 namespace {

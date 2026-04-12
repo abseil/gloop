@@ -32,8 +32,8 @@
 #include "absl/base/casts.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/substitute.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/symbolize/demangle.h"
-#include "gtest/gtest.h"
 
 namespace util_intops {
 namespace {

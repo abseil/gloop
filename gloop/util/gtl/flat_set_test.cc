@@ -51,12 +51,10 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/comparator.h"
 #include "gloop/util/gtl/stl_util.h"
 #include "gloop/util/gtl/switch.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 ABSL_FLAG(uint64_t, benchmark_random_seed, absl::ToUnixMillis(absl::Now()),
           "Random seed.");
@@ -764,8 +762,8 @@ TEST(FlatSetTest, SortedUniqueContainerDeathTest) {
 
   flat_set<int> s1(sorted_unique_container, ordered);
   for (const auto& v : {reversed, repeated}) {
-    ASSERT_DEBUG_DEATH(flat_set<int>(sorted_unique_container, v),
-                       "check_invariants");
+    GLOOP_ASSERT_DEBUG_DEATH(flat_set<int>(sorted_unique_container, v),
+                             "check_invariants");
   }
 
   // Non-default comparator.
@@ -773,12 +771,13 @@ TEST(FlatSetTest, SortedUniqueContainerDeathTest) {
   flat_set<int, std::greater<int>> s3(sorted_unique_container,
                                       std::greater<int>(), reversed);
   for (const auto& v : {ordered, repeated}) {
-    ASSERT_DEBUG_DEATH(
+    GLOOP_ASSERT_DEBUG_DEATH(
         (flat_set<int, std::greater<int>>(sorted_unique_container, v)),
         "check_invariants");
-    ASSERT_DEBUG_DEATH((flat_set<int, std::greater<int>>(
-                           sorted_unique_container, std::greater<int>(), v)),
-                       "check_invariants");
+    GLOOP_ASSERT_DEBUG_DEATH(
+        (flat_set<int, std::greater<int>>(sorted_unique_container,
+                                          std::greater<int>(), v)),
+        "check_invariants");
   }
 }
 #endif
@@ -836,8 +835,9 @@ TEST(FlatSetTest, StdArrayRep) {
 #if GTEST_HAS_DEATH_TEST
 TEST(FlatSetTest, StdArrayRepTest) {
   // Do not allow default construction where it doesn't make sense.
-  ASSERT_DEBUG_DEATH((flat_set<int, std::less<int>, std::array<int, 7>>()),
-                     "check_invariants");
+  GLOOP_ASSERT_DEBUG_DEATH(
+      (flat_set<int, std::less<int>, std::array<int, 7>>()),
+      "check_invariants");
 }
 #endif
 

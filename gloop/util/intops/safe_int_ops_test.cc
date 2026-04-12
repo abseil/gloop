@@ -33,8 +33,8 @@
 #include "absl/flags/flag.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_format.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/random/mt_random.h"
-#include "gtest/gtest.h"
 
 ABSL_FLAG(int32_t, num_randoms, 50,
           "Number of random of values to add to the test "

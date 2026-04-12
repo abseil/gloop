@@ -30,11 +30,11 @@
 #include "absl/flags/flag.h"
 #include "absl/hash/hash_testing.h"
 #include "gloop/base/uword.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/intops/strong_array.h"
 #include "gloop/util/intops/strong_fixedarray.h"
 #include "gloop/util/intops/strong_int.h"
 #include "gloop/util/intops/strong_vector.h"
-#include "gtest/gtest.h"
 
 ABSL_FLAG(int32_t, bm_bitmap_size, 10000, "Size of bitmap for benchmarks");
 
@@ -652,8 +652,8 @@ TYPED_TEST_SUITE(OverflowStrongVectorTest, EasyToOverflowStrongIntTypes);
 TYPED_TEST(OverflowStrongVectorTest, Constructor) {
   typename TestFixture::VectorType v(TestFixture::kLimit);
   EXPECT_EQ(v.size(), TestFixture::kLimit) << "Works fine at the limit";
-  EXPECT_DEBUG_DEATH(typename TestFixture::VectorType(TestFixture::kLimit + 1),
-                     "Overflow")
+  GLOOP_EXPECT_DEBUG_DEATH(
+      typename TestFixture::VectorType(TestFixture::kLimit + 1), "Overflow")
       << "Dies outside the limit";
 }
 
@@ -661,14 +661,14 @@ TYPED_TEST(OverflowStrongVectorTest, Resize) {
   typename TestFixture::VectorType v;
   v.resize(TestFixture::kLimit);
   EXPECT_EQ(v.size(), TestFixture::kLimit) << "Works fine at the limit";
-  EXPECT_DEBUG_DEATH(v.resize(TestFixture::kLimit + 1), "Overflow")
+  GLOOP_EXPECT_DEBUG_DEATH(v.resize(TestFixture::kLimit + 1), "Overflow")
       << "Dies outside the limit";
 }
 
 TYPED_TEST(OverflowStrongVectorTest, Reserve) {
   typename TestFixture::VectorType v;
   v.reserve(TestFixture::kLimit);
-  EXPECT_DEBUG_DEATH(v.reserve(TestFixture::kLimit + 1), "Overflow")
+  GLOOP_EXPECT_DEBUG_DEATH(v.reserve(TestFixture::kLimit + 1), "Overflow")
       << "Dies outside the limit";
 }
 
@@ -676,7 +676,7 @@ TYPED_TEST(OverflowStrongVectorTest, Insert) {
   typename TestFixture::VectorType v;
   v.insert(v.cend(), TestFixture::kLimit, "ok");
   EXPECT_EQ(v.size(), TestFixture::kLimit) << "Works fine at the limit";
-  EXPECT_DEBUG_DEATH(v.insert(v.cend(), 1, "fatal"), "Overflow")
+  GLOOP_EXPECT_DEBUG_DEATH(v.insert(v.cend(), 1, "fatal"), "Overflow")
       << "Dies outside the limit";
 }
 

@@ -33,9 +33,9 @@
 
 #include "absl/log/check.h"
 #include "absl/numeric/bits.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/random/mt_random.h"
 #include "gloop/util/random/test_random-inl.h"
-#include "gtest/gtest.h"
 
 namespace {
 const std::vector<int64_t> common_seq = {78, 90, 54, 39, 84, 72, 108, 0};

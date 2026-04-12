@@ -24,8 +24,8 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/alloc/block-allocator.h"
-#include "gtest/gtest.h"
 
 namespace util {
 namespace alloc {

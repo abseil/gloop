@@ -41,8 +41,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
-#include "benchmark/benchmark.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 using RandomEngine = std::minstd_rand0;
 
@@ -1160,7 +1159,7 @@ TEST(stringtest, CountSubstring) {
   EXPECT_EQ(2, CountSubstring("abcb", "b"));
   const std::string text = "123444444456789444";
   EXPECT_EQ(6, CountSubstring(text, "444"));
-  ASSERT_DEATH(CountSubstring("abcd", ""), "");
+  GLOOP_ASSERT_DEATH(CountSubstring("abcd", ""), "");
 }
 
 TEST(stringtest, GetlineFromStdioFileOne) {

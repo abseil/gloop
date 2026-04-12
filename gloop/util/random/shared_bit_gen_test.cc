@@ -25,8 +25,7 @@
 
 #include "absl/random/distributions.h"
 #include "absl/random/random.h"
-#include "benchmark/benchmark.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace util_random {
 namespace {

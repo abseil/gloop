@@ -40,11 +40,9 @@
 #include "absl/flags/flag.h"
 #include "absl/hash/hash.h"
 #include "absl/types/span.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/random/acmrandom.h"
 #include "gloop/util/random/mt_random.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 ABSL_FLAG(int32_t, bm_bitmap_size, 10000, "Size of bitmap for benchmarks");
 
@@ -59,7 +57,7 @@ using util::bitmap::internal::BasicBitmap;
 template <typename W>
 std::pair<typename BasicBitmap<W>::size_type, int64_t> FillBitMap(
     int percent_filled, BasicBitmap<W>* bitmap) {
-  ACMRandom rnd(testing::GTEST_FLAG(random_seed));
+  ACMRandom rnd(GTEST_FLAG_GET(random_seed));
   std::pair<typename BasicBitmap<W>::size_type, int64_t> bitmap_info_pair(0, 0);
   for (size_t index = 0; index < bitmap->bits(); ++index) {
     if (rnd.Uniform(100) < percent_filled) {
@@ -1023,7 +1021,7 @@ TYPED_TEST_P(BitmapTest, IsEqual) {
 
 TYPED_TEST_P(BitmapTest, IsSubsetOf) {
   BasicBitmap<TypeParam> map1(1000);
-  MTRandom rnd(testing::GTEST_FLAG(random_seed));
+  MTRandom rnd(GTEST_FLAG_GET(random_seed));
   for (int i = 0; i < 1000; i++) {
     map1.Set(i, rnd.OneIn(3));
   }

@@ -25,7 +25,7 @@
 #include <limits>
 
 #include "absl/log/log.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 template <typename Type, typename TypeTwo, typename TypeThree>
 static void TestFPMathLimits() {

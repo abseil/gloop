@@ -33,9 +33,8 @@
 #include "absl/base/config.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/str_format.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/float128_matchers.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace gtl {
 namespace {

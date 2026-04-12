@@ -22,8 +22,8 @@
 #define THIRD_PARTY_GLOOP_UTIL_GTL_FLOAT128_MATCHERS_H_
 
 #include "absl/strings/str_cat.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/float128.h"
-#include "gmock/gmock.h"
 
 namespace gtl {
 

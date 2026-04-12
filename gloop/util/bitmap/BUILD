@@ -58,8 +58,6 @@ cc_test(
         "@abseil-cpp//absl/base:dynamic_annotations",
         "@abseil-cpp//absl/flags:flag",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -79,8 +77,6 @@ cc_test(
         "@abseil-cpp//absl/hash",
         "@abseil-cpp//absl/types:span",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -93,7 +89,5 @@ cc_test(
         "@abseil-cpp//absl/hash:hash_testing",
         "@abseil-cpp//absl/log",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )

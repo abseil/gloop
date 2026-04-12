@@ -22,7 +22,7 @@
 
 #include "absl/base/attributes.h"
 #include "gloop/base/percpu.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace base::subtle::percpu {
 namespace {

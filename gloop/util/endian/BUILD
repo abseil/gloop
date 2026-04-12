@@ -59,8 +59,6 @@ cc_test(
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random:distributions",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -71,7 +69,5 @@ cc_test(
         ":endian",
         "@abseil-cpp//absl/log:check",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )

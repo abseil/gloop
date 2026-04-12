@@ -33,18 +33,16 @@
 #include "absl/time/clock_interface.h"
 #include "absl/time/simulated_clock.h"
 #include "absl/time/time.h"
-#include "benchmark/benchmark.h"
 #include "gloop/base/cancellation_coloring.h"
 #include "gloop/base/context.h"
 #include "gloop/base/walltime.h"
+#include "gloop/gloop_test.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/tracing_base.h"
 #include "gloop/perftools/tracing/with_trace_event_listener.h"
 #include "gloop/thread/fiber/probabilistic_test_util.h"
 #include "gloop/thread/fiber/select.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace thread {
 
@@ -121,7 +119,7 @@ TEST_F(SelectablesTest, SelectWithSpecifiedClockAlreadyPastDeadline) {
 // TODO: It's probably time to refactor from this and channel_test to
 // create a select specific unit test.
 TEST(SelectDeathTest, EmptyCaseList) {
-  ASSERT_DEATH_IF_SUPPORTED(Select({}), "No cases provided");
+  GLOOP_ASSERT_DEATH_IF_SUPPORTED(Select({}), "No cases provided");
 }
 
 static void BM_SelectPerm(benchmark::State& state) {

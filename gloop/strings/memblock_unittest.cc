@@ -47,8 +47,7 @@
 #include "absl/strings/cord_test_helpers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "benchmark/benchmark.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 ABSL_FLAG(bool, mlock, false, "Try mlocking mode");
 ABSL_FLAG(bool, remote, false, "Test remote files");

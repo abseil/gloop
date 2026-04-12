@@ -20,7 +20,7 @@
 
 #include "gloop/perftools/tracing/perftools_verify.h"
 
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace {
 

@@ -44,11 +44,9 @@
 #include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/flat_set.h"
 #include "gloop/util/gtl/iterator_adaptors.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace gtl {
 namespace {

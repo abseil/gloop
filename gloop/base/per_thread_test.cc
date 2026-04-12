@@ -36,8 +36,7 @@
 #include "absl/base/macros.h"
 #include "absl/log/check.h"
 #include "absl/memory/memory.h"
-#include "benchmark/benchmark.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 static PerThread::Key per_thread[10];
 static int destructor_count;

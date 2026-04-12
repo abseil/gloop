@@ -29,10 +29,9 @@
 #include "absl/strings/cord_test_helpers.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/hash/hash.h"
 #include "gloop/util/hash/murmur.h"
-#include "gtest/gtest.h"
 
 namespace {
 

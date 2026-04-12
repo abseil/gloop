@@ -39,7 +39,7 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/str_format.h"
 #include "gloop/base/arena_allocator.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 ABSL_FLAG(int, numobjects, 500000, "Number of objects to allocate");
 ABSL_FLAG(int, iterations, 2, "Number of iterations to try");

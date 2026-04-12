@@ -26,9 +26,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/status_matchers.h"
-#include "benchmark/benchmark.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace {
 

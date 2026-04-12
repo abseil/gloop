@@ -25,7 +25,7 @@
 #endif
 #include <string>
 
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace {
 TEST(UserNameTest, MyUserName) {

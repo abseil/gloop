@@ -26,9 +26,9 @@
 #include <cstdint>
 #include <utility>
 
+#include "gloop/gloop_test.h"
 #include "gloop/util/tuple/array.h"
 #include "gloop/util/tuple/pair.h"
-#include "gtest/gtest.h"
 
 namespace util {
 namespace tuple {

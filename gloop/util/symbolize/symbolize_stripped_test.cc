@@ -18,8 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+#include "gloop/gloop_test.h"
 #include "gloop/util/symbolize/symbolize.h"
-#include "gtest/gtest.h"
 
 // This test verifies that SymbolMap correctly detects that this test's main
 // binary is stripped. (It needs to be in a different binary from the main

@@ -30,7 +30,7 @@
 
 #include "absl/time/time.h"
 #include "gloop/concurrent/percpu/counting_mutex.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace concurrent {
 namespace {

@@ -22,9 +22,9 @@
 
 #include "gloop/base/cancellation_coloring.h"
 
+#include "gloop/gloop_test.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
-#include "gtest/gtest.h"
 
 namespace base::internal {
 namespace {

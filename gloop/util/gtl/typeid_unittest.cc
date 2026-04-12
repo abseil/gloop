@@ -22,8 +22,7 @@
 
 #include <cstddef>
 
-#include "benchmark/benchmark.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace gtl {
 

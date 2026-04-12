@@ -21,8 +21,8 @@
 #include <memory>
 
 #include "absl/functional/bind_front.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/executor.h"
-#include "gtest/gtest.h"
 
 using thread::Executor;
 

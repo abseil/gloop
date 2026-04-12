@@ -62,11 +62,9 @@
 #include "absl/log/scoped_mock_log.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-#include "benchmark/benchmark.h"
 #include "gloop/base/config.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/threadpool.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 #ifdef _POSIX_VERSION
 #include "gloop/base/process_state.h"
@@ -312,7 +310,7 @@ TEST_F(NullSafeSinkWrapperTest, Concurrency) {
 // PORT_POSIX_SOURCES.
 #else
 TEST(HookDeathTest, QFatalDoesNotRunRunOnFailure) {
-  EXPECT_DEATH(
+  GLOOP_EXPECT_DEATH(
       {
         RunSignalSafeOnFailure([](FailureContext) {
           const absl::string_view msg = "running RunOnFailure hook\n";

@@ -25,7 +25,7 @@
 #include <limits>
 
 #include "absl/numeric/int128.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 static const float FLOAT_INT32_MIN = static_cast<float>(INT32_MIN);
 static const float FLOAT_INT32_MAX = static_cast<float>(INT32_MAX);

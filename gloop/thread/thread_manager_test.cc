@@ -46,9 +46,9 @@
 #include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "benchmark/benchmark.h"
 #include "gloop/base/callback.h"
 #include "gloop/base/per_thread.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/executor.h"
 #include "gloop/thread/thread_manager_policy.h"
 #include "gloop/thread/threadlocal.h"
@@ -56,8 +56,6 @@
 #include "gloop/thread/watchdog.h"
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 using testing::AllOf;
 using testing::ElementsAre;

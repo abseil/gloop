@@ -26,8 +26,8 @@
 
 #include "absl/log/check.h"
 #include "absl/synchronization/mutex.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/threadpool.h"
-#include "gtest/gtest.h"
 
 static const int kMaxRefCountThreads = 10;
 

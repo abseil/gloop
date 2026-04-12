@@ -26,14 +26,13 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "gloop/base/tracecontext.h"
+#include "gloop/gloop_test.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/tracing_base.h"
 #include "gloop/perftools/tracing/tracing_core.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace perftools::tracing::core {
 
@@ -756,8 +755,8 @@ TEST_F(SyncContextTest, BeforeSwapRestoreDeathTest) {
   StrictMock<MockTraceEventListener> mock;
   SyncContext root;
   root.AddListener(&mock);
-  EXPECT_DEBUG_DEATH(root.BeforeSwapCurrent(access(), {}), ".*");
-  EXPECT_DEBUG_DEATH(root.BeforeRestoreCurrent(access(), {}), ".*");
+  GLOOP_EXPECT_DEBUG_DEATH(root.BeforeSwapCurrent(access(), {}), ".*");
+  GLOOP_EXPECT_DEBUG_DEATH(root.BeforeRestoreCurrent(access(), {}), ".*");
 }
 
 TEST_F(SyncContextTest, SwapSuspendedContextWithDifferentSyncId) {
@@ -865,7 +864,7 @@ TEST_F(SyncContextTest, CornerCaseSwapRestoreAbandonNestedContext) {
   }
 
   // Swap back tc1 --> was nested, now abandoned
-  EXPECT_DEBUG_DEATH(Context::Swap(tc2), "");
+  GLOOP_EXPECT_DEBUG_DEATH(Context::Swap(tc2), "");
 
   // Restore
   Context::Restore(tc1);
@@ -893,7 +892,7 @@ TEST_F(SyncContextTest, SwapAbandonNestedTraceContext) {
 
   // Restore from tc2 (swapped out tc1) now discovers we abandoned
   // tc1 for synchronous tracing:
-  EXPECT_DEBUG_DEATH(Context::Restore(tc2), ".*");
+  GLOOP_EXPECT_DEBUG_DEATH(Context::Restore(tc2), ".*");
 }
 
 TEST_F(SyncContextTest, SwapNestedContextIntoDifferentSyncOfSameTrace) {

@@ -36,9 +36,8 @@
 #include "absl/synchronization/internal/kernel_timeout.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/thread.h"
-#include "gtest/gtest.h"
 
 using absl::Duration;
 using absl::synchronization_internal::KernelTimeout;

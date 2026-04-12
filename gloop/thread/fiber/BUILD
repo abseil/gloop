@@ -75,8 +75,6 @@ cc_test(
         "//gloop/thread/fiber/internal:fiber_thread_options",
         "@abseil-cpp//absl/strings",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -113,8 +111,6 @@ cc_library(
         "@abseil-cpp//absl/log",
         "@gloop//gloop:enforce_gloop_support",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -125,8 +121,6 @@ cc_test(
         ":probabilistic_test_util",
         "@abseil-cpp//absl/log",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -160,8 +154,6 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@gloop//gloop:gloop_test_main",
         "@gloop//gloop/base:callback",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -250,8 +242,6 @@ cc_library(
         "@abseil-cpp//absl/time:simulated_clock",
         "@gloop//gloop:enforce_gloop_support",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
     alwayslink = 1,
 )

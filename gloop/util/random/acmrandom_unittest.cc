@@ -36,9 +36,8 @@
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_format.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/math/mathutil.h"
-#include "gtest/gtest.h"
 
 ABSL_FLAG(int32_t, num_urns, 1000, "Number of urns for collision test");
 
@@ -134,7 +133,7 @@ TEST(ACMRandomTest, UnbiasedUniform64InfiniteLoop) {
 // Functionality tests
 TEST(ACMRandomTest, TestFunctionality) {
   absl::PrintF("Testing functionality...\n");
-  ACMRandom rnd(testing::GTEST_FLAG(random_seed));
+  ACMRandom rnd(GTEST_FLAG_GET(random_seed));
 
   // Check our initializer seed.
 
@@ -142,29 +141,29 @@ TEST(ACMRandomTest, TestFunctionality) {
   int32_t next = rnd.Next();
 
   // Test Uniform
-  rnd.Reset(testing::GTEST_FLAG(random_seed));
+  rnd.Reset(GTEST_FLAG_GET(random_seed));
   int32_t zero = rnd.Uniform(0);
   CHECK_EQ(zero, 0);
 
-  rnd.Reset(testing::GTEST_FLAG(random_seed));
+  rnd.Reset(GTEST_FLAG_GET(random_seed));
   int32_t uniform = rnd.Uniform(10000);
   // Uniform(n) returns next%n after Reset().
   CHECK_EQ(next % 10000, uniform)
       << " next: " << next << " uniform: " << uniform;
 
   // Test RndFloat
-  rnd.Reset(testing::GTEST_FLAG(random_seed));
+  rnd.Reset(GTEST_FLAG_GET(random_seed));
   float rnd_float = rnd.RndFloat();
   float rnd_cmp = static_cast<float>(next) / static_cast<float>(0x80000000);
   CHECK(MathUtil::AlmostEquals<float>(rnd_float, rnd_cmp));
 
   // Test OneIn.
   // Uniform(n) returns next%n after Reset().
-  rnd.Reset(testing::GTEST_FLAG(random_seed));
+  rnd.Reset(GTEST_FLAG_GET(random_seed));
   bool one_in_true = rnd.OneIn(next);
   CHECK(one_in_true) << " next: " << next;
 
-  rnd.Reset(testing::GTEST_FLAG(random_seed));
+  rnd.Reset(GTEST_FLAG_GET(random_seed));
   bool one_in_false = rnd.OneIn(next + 1);
   CHECK(!one_in_false) << " next: " << next;
 }
@@ -176,7 +175,7 @@ TEST(ACMRandomTest, TestFunctionality) {
 // computes the distribution at the end
 TEST(ACMRandomTest, TestCollisions) {
   absl::PrintF("Testing collisions...\n");
-  ACMRandom rnd(testing::GTEST_FLAG(random_seed));
+  ACMRandom rnd(GTEST_FLAG_GET(random_seed));
   int32_t num_urns = absl::GetFlag(FLAGS_num_urns);
   int32_t num_tests = absl::GetFlag(FLAGS_num_urns) * kSteadyStateReached;
 

@@ -35,11 +35,9 @@
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
-#include "benchmark/benchmark.h"
 #include "gloop/base/timer.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/math/mathutil.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 #if defined(NDEBUG) && !ADDRESS_SANITIZER && !MEMORY_SANITIZER &&              \
     !THREAD_SANITIZER && /* Speed tests are flaky on WASM, see b/200956356. */ \

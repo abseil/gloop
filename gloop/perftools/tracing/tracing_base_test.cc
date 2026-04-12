@@ -28,9 +28,8 @@
 #include "absl/base/casts.h"
 #include "absl/flags/declare.h"
 #include "absl/flags/flag.h"
+#include "gloop/gloop_test.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 using testing::Eq;
 using testing::Ne;

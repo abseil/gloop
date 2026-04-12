@@ -23,7 +23,7 @@
 #include <string>
 #include <tuple>
 
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace util {
 namespace tuple {

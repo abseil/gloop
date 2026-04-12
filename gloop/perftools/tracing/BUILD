@@ -80,8 +80,6 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:source_location",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -127,8 +125,6 @@ cc_test(
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/flags:flag",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -155,8 +151,6 @@ cc_test(
         ":trace_event_listener",
         ":tracing_base",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -188,8 +182,6 @@ cc_test(
         ":trace_event_listener",
         ":tracing_base",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -202,8 +194,7 @@ cc_library(
         ":trace_event_listener",
         ":tracing_base",
         "@gloop//gloop:enforce_gloop_support",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest_for_library",
+        "@gloop//gloop:gloop_test",
     ],
 )
 
@@ -240,8 +231,6 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -264,8 +253,6 @@ cc_test(
     deps = [
         ":perftools_verify",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -313,8 +300,6 @@ cc_test(
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/types:span",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -357,7 +342,5 @@ cc_test(
         ":tracing_base",
         "@abseil-cpp//absl/strings:string_view",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )

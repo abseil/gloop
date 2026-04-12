@@ -30,7 +30,7 @@
 #include <limits>
 #include <string>
 
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 DEFINE_SAFE_INT_TYPE(SafeInt8, int8_t, ::util_intops::LogFatalOnError);
 DEFINE_SAFE_INT_TYPE(SafeUInt8, uint8_t, ::util_intops::LogFatalOnError);
@@ -114,20 +114,20 @@ TYPED_TEST(SignNeutralSafeIntTest, TestCtorFailures) {
 
   {  // Test out-of-bounds construction.
     if (std::numeric_limits<V>::is_signed || sizeof(V) < sizeof(uint64_t)) {
-      EXPECT_DEATH((T(std::numeric_limits<uint64_t>::max())), "bounds");
+      GLOOP_EXPECT_DEATH((T(std::numeric_limits<uint64_t>::max())), "bounds");
     }
   }
   {  // Test out-of-bounds construction from float.
-    EXPECT_DEATH((T(std::numeric_limits<float>::max())), "bounds");
-    EXPECT_DEATH((T(-std::numeric_limits<float>::max())), "bounds");
+    GLOOP_EXPECT_DEATH((T(std::numeric_limits<float>::max())), "bounds");
+    GLOOP_EXPECT_DEATH((T(-std::numeric_limits<float>::max())), "bounds");
   }
   {  // Test out-of-bounds construction from double.
-    EXPECT_DEATH((T(std::numeric_limits<double>::max())), "bounds");
-    EXPECT_DEATH((T(-std::numeric_limits<double>::max())), "bounds");
+    GLOOP_EXPECT_DEATH((T(std::numeric_limits<double>::max())), "bounds");
+    GLOOP_EXPECT_DEATH((T(-std::numeric_limits<double>::max())), "bounds");
   }
   {  // Test out-of-bounds construction from long double.
-    EXPECT_DEATH((T(std::numeric_limits<long double>::max())), "bounds");
-    EXPECT_DEATH((T(-std::numeric_limits<long double>::max())), "bounds");
+    GLOOP_EXPECT_DEATH((T(std::numeric_limits<long double>::max())), "bounds");
+    GLOOP_EXPECT_DEATH((T(-std::numeric_limits<long double>::max())), "bounds");
   }
 }
 
@@ -156,14 +156,14 @@ TYPED_TEST(SignNeutralSafeIntTest, TestIncrementDecrementFailures) {
   {  // Test overflowing increment.
     T x(std::numeric_limits<V>::max() - 1);
     EXPECT_EQ(std::numeric_limits<V>::max(), (++x).value());
-    EXPECT_DEATH(x++, "overflow");
-    EXPECT_DEATH(++x, "overflow");
+    GLOOP_EXPECT_DEATH(x++, "overflow");
+    GLOOP_EXPECT_DEATH(++x, "overflow");
   }
   {  // Test underflowing decrement.
     T x(std::numeric_limits<V>::min() + 1);
     EXPECT_EQ(std::numeric_limits<V>::min(), (--x).value());
-    EXPECT_DEATH(x--, "underflow");
-    EXPECT_DEATH(--x, "underflow");
+    GLOOP_EXPECT_DEATH(x--, "underflow");
+    GLOOP_EXPECT_DEATH(--x, "underflow");
   }
 }
 
@@ -193,13 +193,13 @@ TYPED_TEST(SignNeutralSafeIntTest, TestAddFailures) {
 
   {  // Test overflowing addition.
     T x(std::numeric_limits<V>::max());
-    EXPECT_DEATH(x + T(1), "overflow");
-    EXPECT_DEATH(x += T(1), "overflow");
+    GLOOP_EXPECT_DEATH(x + T(1), "overflow");
+    GLOOP_EXPECT_DEATH(x += T(1), "overflow");
   }
   {  // Test overflowing addition.
     T x(std::numeric_limits<V>::max());
-    EXPECT_DEATH(x + T(std::numeric_limits<V>::max()), "overflow");
-    EXPECT_DEATH(x += T(std::numeric_limits<V>::max()), "overflow");
+    GLOOP_EXPECT_DEATH(x + T(std::numeric_limits<V>::max()), "overflow");
+    GLOOP_EXPECT_DEATH(x += T(std::numeric_limits<V>::max()), "overflow");
   }
 }
 
@@ -219,13 +219,13 @@ TYPED_TEST(SignNeutralSafeIntTest, TestSubtractFailures) {
 
   {  // Test underflowing subtraction.
     T x(std::numeric_limits<V>::min());
-    EXPECT_DEATH(x - T(1), "underflow");
-    EXPECT_DEATH(x -= T(1), "underflow");
+    GLOOP_EXPECT_DEATH(x - T(1), "underflow");
+    GLOOP_EXPECT_DEATH(x -= T(1), "underflow");
   }
   {  // Test underflowing subtraction.
     T x(std::numeric_limits<V>::min());
-    EXPECT_DEATH(x - T(std::numeric_limits<V>::max()), "underflow");
-    EXPECT_DEATH(x -= T(std::numeric_limits<V>::max()), "underflow");
+    GLOOP_EXPECT_DEATH(x - T(std::numeric_limits<V>::max()), "underflow");
+    GLOOP_EXPECT_DEATH(x -= T(std::numeric_limits<V>::max()), "underflow");
   }
 }
 
@@ -280,8 +280,8 @@ TYPED_TEST(SignNeutralSafeIntTest, TestMultiplyFailures) {
 
   {  // Test overflowing multiplication.
     T x(std::numeric_limits<V>::max());
-    EXPECT_DEATH(x * 2, "overflow");
-    EXPECT_DEATH(x *= 2, "overflow");
+    GLOOP_EXPECT_DEATH(x * 2, "overflow");
+    GLOOP_EXPECT_DEATH(x *= 2, "overflow");
   }
 }
 
@@ -307,8 +307,8 @@ TYPED_TEST(SignNeutralSafeIntTest, TestDivideFailures) {
 
   {  // Test divide by zero.
     T x(93);
-    EXPECT_DEATH(x / 0, "divide by zero");
-    EXPECT_DEATH(x /= 0, "divide by zero");
+    GLOOP_EXPECT_DEATH(x / 0, "divide by zero");
+    GLOOP_EXPECT_DEATH(x /= 0, "divide by zero");
   }
 }
 
@@ -330,8 +330,8 @@ TYPED_TEST(SignNeutralSafeIntTest, TestModuloFailures) {
 
   {  // Test modulo by zero.
     T x(93);
-    EXPECT_DEATH(x % 0, "divide by zero");
-    EXPECT_DEATH(x %= 0, "divide by zero");
+    GLOOP_EXPECT_DEATH(x % 0, "divide by zero");
+    GLOOP_EXPECT_DEATH(x %= 0, "divide by zero");
   }
 }
 
@@ -351,19 +351,19 @@ TYPED_TEST(SignNeutralSafeIntTest, TestLeftShiftFailures) {
 
   {  // Test shift by a negative.
     T x(9);
-    EXPECT_DEATH(x << -1, "shift by negative");
-    EXPECT_DEATH(x <<= -1, "shift by negative");
+    GLOOP_EXPECT_DEATH(x << -1, "shift by negative");
+    GLOOP_EXPECT_DEATH(x <<= -1, "shift by negative");
   }
   {  // Test shift by a too-large.
     T x(9);
-    EXPECT_DEATH(x << sizeof(T) * CHAR_BIT, "shift by large");
-    EXPECT_DEATH(x <<= sizeof(T) * CHAR_BIT, "shift by large");
-    EXPECT_DEATH(x <<= 0x100000001ULL, "shift by large");
+    GLOOP_EXPECT_DEATH(x << sizeof(T) * CHAR_BIT, "shift by large");
+    GLOOP_EXPECT_DEATH(x <<= sizeof(T) * CHAR_BIT, "shift by large");
+    GLOOP_EXPECT_DEATH(x <<= 0x100000001ULL, "shift by large");
   }
   {  // Test overflowing shift.
     T x(std::numeric_limits<V>::max());
-    EXPECT_DEATH(x << 1, "overflow");
-    EXPECT_DEATH(x <<= 1, "overflow");
+    GLOOP_EXPECT_DEATH(x << 1, "overflow");
+    GLOOP_EXPECT_DEATH(x <<= 1, "overflow");
   }
 }
 
@@ -382,13 +382,13 @@ TYPED_TEST(SignNeutralSafeIntTest, TestRightShiftFailures) {
 
   {  // Test shift by a negative.
     T x(9);
-    EXPECT_DEATH(x >> -1, "shift by negative");
-    EXPECT_DEATH(x >>= -1, "shift by negative");
+    GLOOP_EXPECT_DEATH(x >> -1, "shift by negative");
+    GLOOP_EXPECT_DEATH(x >>= -1, "shift by negative");
   }
   {  // Test shift by a too-large.
     T x(9);
-    EXPECT_DEATH(x >> sizeof(T) * CHAR_BIT, "shift by large");
-    EXPECT_DEATH(x >>= sizeof(T) * CHAR_BIT, "shift by large");
+    GLOOP_EXPECT_DEATH(x >> sizeof(T) * CHAR_BIT, "shift by large");
+    GLOOP_EXPECT_DEATH(x >>= sizeof(T) * CHAR_BIT, "shift by large");
   }
 }
 
@@ -562,7 +562,7 @@ TYPED_TEST(SignedSafeIntTest, TestUnaryOperatorsFailures) {
 
   {  // Test unary minus of negative values.
     T y(std::numeric_limits<V>::min());
-    EXPECT_DEATH(-y, "overflow");
+    GLOOP_EXPECT_DEATH(-y, "overflow");
   }
 }
 
@@ -584,8 +584,8 @@ TYPED_TEST(SignedSafeIntTest, TestAddFailures) {
 
   {  // Test underflow by addition of a negative.
     T x(std::numeric_limits<V>::min());
-    EXPECT_DEATH(x + T(-1), "underflow");
-    EXPECT_DEATH(x += T(-1), "underflow");
+    GLOOP_EXPECT_DEATH(x + T(-1), "underflow");
+    GLOOP_EXPECT_DEATH(x += T(-1), "underflow");
   }
 }
 
@@ -626,8 +626,8 @@ TYPED_TEST(SignedSafeIntTest, TestSubtractFailures) {
 
   {  // Test overflow by subtraction of a negative.
     T x(std::numeric_limits<V>::max());
-    EXPECT_DEATH(x - T(-1), "overflow");
-    EXPECT_DEATH(x -= T(-1), "overflow");
+    GLOOP_EXPECT_DEATH(x - T(-1), "overflow");
+    GLOOP_EXPECT_DEATH(x -= T(-1), "overflow");
   }
 }
 
@@ -672,28 +672,28 @@ TYPED_TEST(SignedSafeIntTest, TestMultiplyFailures) {
 
   {  // Test underflowing multiplication.
     T x(std::numeric_limits<V>::min());
-    EXPECT_DEATH(x * 2, "underflow");
-    EXPECT_DEATH(x *= 2, "underflow");
+    GLOOP_EXPECT_DEATH(x * 2, "underflow");
+    GLOOP_EXPECT_DEATH(x *= 2, "underflow");
   }
   {  // Test underflowing multiplication.
     T x(std::numeric_limits<V>::max());
-    EXPECT_DEATH(x * -2, "underflow");
-    EXPECT_DEATH(x *= -2, "underflow");
+    GLOOP_EXPECT_DEATH(x * -2, "underflow");
+    GLOOP_EXPECT_DEATH(x *= -2, "underflow");
   }
   {  // Test overflowing multiplication.
     T x(std::numeric_limits<V>::min());
-    EXPECT_DEATH(x * -2, "overflow");
-    EXPECT_DEATH(x *= -2, "overflow");
+    GLOOP_EXPECT_DEATH(x * -2, "overflow");
+    GLOOP_EXPECT_DEATH(x *= -2, "overflow");
   }
   {  // Test overflowing multiplication.
     T x(std::numeric_limits<V>::min());
-    EXPECT_DEATH(x * -1, "overflow");
-    EXPECT_DEATH(x *= -1, "overflow");
+    GLOOP_EXPECT_DEATH(x * -1, "overflow");
+    GLOOP_EXPECT_DEATH(x *= -1, "overflow");
   }
   {  // Test underflowing multiplication where rhs type is uint64.
     T x(-2);
-    EXPECT_DEATH(x * std::numeric_limits<uint64_t>::max(), "underflow");
-    EXPECT_DEATH(x *= std::numeric_limits<uint64_t>::max(), "underflow");
+    GLOOP_EXPECT_DEATH(x * std::numeric_limits<uint64_t>::max(), "underflow");
+    GLOOP_EXPECT_DEATH(x *= std::numeric_limits<uint64_t>::max(), "underflow");
   }
 }
 
@@ -730,8 +730,8 @@ TYPED_TEST(SignedSafeIntTest, TestDivideFailures) {
 
   {  // Test overflowing division.
     T x(std::numeric_limits<V>::min());
-    EXPECT_DEATH(x / -1, "overflow");
-    EXPECT_DEATH(x /= -1, "overflow");
+    GLOOP_EXPECT_DEATH(x / -1, "overflow");
+    GLOOP_EXPECT_DEATH(x /= -1, "overflow");
   }
 }
 
@@ -760,8 +760,8 @@ TYPED_TEST(SignedSafeIntTest, TestModuloFailures) {
 
   {  // Test overflowing modulo.
     T x(std::numeric_limits<V>::min());
-    EXPECT_DEATH(x % -1, "overflow");
-    EXPECT_DEATH(x %= -1, "overflow");
+    GLOOP_EXPECT_DEATH(x % -1, "overflow");
+    GLOOP_EXPECT_DEATH(x %= -1, "overflow");
   }
 }
 
@@ -770,8 +770,8 @@ TYPED_TEST(SignedSafeIntTest, TestLeftShiftFailures) {
 
   {  // Test shift of a negative.
     T x(-9);
-    EXPECT_DEATH(x << 1, "shift of negative");
-    EXPECT_DEATH(x <<= 1, "shift of negative");
+    GLOOP_EXPECT_DEATH(x << 1, "shift of negative");
+    GLOOP_EXPECT_DEATH(x <<= 1, "shift of negative");
   }
 }
 
@@ -780,8 +780,8 @@ TYPED_TEST(SignedSafeIntTest, TestRightShiftFailures) {
 
   {  // Test shift of a negative.
     T x(-9);
-    EXPECT_DEATH(x >> 1, "shift of negative");
-    EXPECT_DEATH(x >>= 1, "shift of negative");
+    GLOOP_EXPECT_DEATH(x >> 1, "shift of negative");
+    GLOOP_EXPECT_DEATH(x >>= 1, "shift of negative");
   }
 }
 
@@ -818,16 +818,16 @@ TYPED_TEST(UnsignedSafeIntTest, TestCtors) {
   typedef typename TestFixture::SafeIntTypeUnderTest T;
 
   {  // Test out-of-bounds construction.
-    EXPECT_DEATH(T(-1), "bounds");
+    GLOOP_EXPECT_DEATH(T(-1), "bounds");
   }
   {  // Test out-of-bounds construction from float.
-    EXPECT_DEATH((T(static_cast<float>(-1))), "bounds");
+    GLOOP_EXPECT_DEATH((T(static_cast<float>(-1))), "bounds");
   }
   {  // Test out-of-bounds construction from double.
-    EXPECT_DEATH((T(static_cast<double>(-1))), "bounds");
+    GLOOP_EXPECT_DEATH((T(static_cast<double>(-1))), "bounds");
   }
   {  // Test out-of-bounds construction from long double.
-    EXPECT_DEATH((T(static_cast<long double>(-1))), "bounds");
+    GLOOP_EXPECT_DEATH((T(static_cast<long double>(-1))), "bounds");
   }
 }
 
@@ -882,8 +882,8 @@ TYPED_TEST(UnsignedSafeIntTest, TestMultiply) {
 
   {  // Test multiplication by a negative.
     T x(93);
-    EXPECT_DEATH(x * -1, "negation");
-    EXPECT_DEATH(x *= -1, "negation");
+    GLOOP_EXPECT_DEATH(x * -1, "negation");
+    GLOOP_EXPECT_DEATH(x *= -1, "negation");
   }
 }
 
@@ -892,8 +892,8 @@ TYPED_TEST(UnsignedSafeIntTest, TestDivide) {
 
   {  // Test division by a negative.
     T x(93);
-    EXPECT_DEATH(x / -1, "negation");
-    EXPECT_DEATH(x /= -1, "negation");
+    GLOOP_EXPECT_DEATH(x / -1, "negation");
+    GLOOP_EXPECT_DEATH(x /= -1, "negation");
   }
 }
 
@@ -902,8 +902,8 @@ TYPED_TEST(UnsignedSafeIntTest, TestModulo) {
 
   {  // Test modulo by a negative.
     T x(93);
-    EXPECT_DEATH(x % -5, "negation");
-    EXPECT_DEATH(x %= -5, "negation");
+    GLOOP_EXPECT_DEATH(x % -5, "negation");
+    GLOOP_EXPECT_DEATH(x %= -5, "negation");
   }
 }
 

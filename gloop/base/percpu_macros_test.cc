@@ -33,8 +33,7 @@
 #include <vector>
 
 #include "absl/base/internal/sysinfo.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace {
 

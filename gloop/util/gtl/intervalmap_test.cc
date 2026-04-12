@@ -36,10 +36,8 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/random/acmrandom.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 using ::testing::IsEmpty;
 using ::testing::Pointee;

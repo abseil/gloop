@@ -24,9 +24,8 @@
 #include <string>
 
 #include "absl/status/status.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/status/status_macros.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace {
 

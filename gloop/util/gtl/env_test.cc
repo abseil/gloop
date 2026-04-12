@@ -25,8 +25,7 @@
 #include <string>
 
 #include "absl/strings/numbers.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace gtl {
 namespace {

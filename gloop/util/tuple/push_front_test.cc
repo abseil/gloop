@@ -22,8 +22,8 @@
 
 #include <tuple>
 
+#include "gloop/gloop_test.h"
 #include "gloop/util/tuple/test_util.h"
-#include "gtest/gtest.h"
 
 namespace util {
 namespace tuple {

@@ -32,9 +32,8 @@
 #include "gloop/base/callback.h"
 #include "gloop/base/context.h"
 #include "gloop/base/tracecontext.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/functional/from_callback.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 using std::placeholders::_1;
 

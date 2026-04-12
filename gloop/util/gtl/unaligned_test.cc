@@ -34,11 +34,10 @@
 #include "absl/hash/hash_testing.h"
 #include "absl/numeric/int128.h"
 #include "absl/types/span.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/endian/endian.h"
 #include "gloop/util/gtl/requires.h"
 #include "gloop/util/gtl/unaligned_internal.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace gtl {
 namespace {

@@ -36,8 +36,7 @@
 #include "absl/container/node_hash_map.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/log/log.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace {
 

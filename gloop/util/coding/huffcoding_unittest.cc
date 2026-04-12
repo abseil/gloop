@@ -29,13 +29,12 @@
 
 #include "absl/log/check.h"
 #include "absl/random/random.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/coding/bitcoding.h"
 #include "gloop/util/coding/tablecoding.h"
 #include "gloop/util/endian/endian.h"
 #include "gloop/util/gtl/unique_array.h"
 #include "gloop/util/random/acmrandom.h"
-#include "gtest/gtest.h"
 
 void Build(const char* label, int* count, int N, int max_length) {
   HuffmanCode* h = HuffmanCode::Create(count, N, max_length);

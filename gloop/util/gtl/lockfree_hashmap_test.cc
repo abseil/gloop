@@ -49,14 +49,12 @@
 #include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "benchmark/benchmark.h"
 #include "gloop/base/sysinfo.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/extend/equality.h"
 #include "gloop/util/gtl/extend/extend.h"
 #include "gloop/util/hash/transparent_hash.h"
 #include "gloop/util/random/acmrandom.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 using __gnu_cxx::hash;
 

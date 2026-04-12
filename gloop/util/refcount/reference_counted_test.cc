@@ -24,9 +24,8 @@
 
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/refcount/test_common.h"
-#include "gtest/gtest.h"
 
 static int constructed = 0;
 static int destroyed = 0;

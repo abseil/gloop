@@ -23,8 +23,8 @@
 #include <array>
 #include <type_traits>
 
+#include "gloop/gloop_test.h"
 #include "gloop/util/tuple/components/intrinsics.h"
-#include "gtest/gtest.h"
 
 namespace util {
 namespace tuple {

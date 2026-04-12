@@ -33,7 +33,7 @@
 #include "absl/strings/str_cat.h"
 #include "gloop/base/config.h"
 #include "gloop/base/internal/init_google.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 #ifdef BASE_HAVE_PROCESS_STATE
 
@@ -98,7 +98,7 @@ TEST(InitGoogleTestDeathTest, DoubleInitializationCrashes) {
 
   // gunit already called InitGoogle once, so this is the second call; make
   // sure it crashes.
-  ASSERT_DEATH(
+  GLOOP_ASSERT_DEATH(
       { InitGoogle(argv[0], &argc, &argv, false); },
       "Check failed: previous_init_google_state == BEFORE_INIT_GOOGLE "
       "\\(2 vs. 0\\)");

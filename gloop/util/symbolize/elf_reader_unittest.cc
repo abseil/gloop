@@ -55,10 +55,9 @@
 #include "gloop/base/init_google.h"
 #include "gloop/base/proc_maps.h"
 #include "gloop/base/strerror.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/symbolize/symbolize-inl.h"
 #include "gloop/util/symbolize/symbolize.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 using absl::ScopedMockLog;
 using testing::_;

@@ -29,9 +29,9 @@
 #include <string>
 #include <utility>
 
+#include "gloop/gloop_test.h"
 #include "gloop/util/hash/builtin_type_hash.h"
 #include "gloop/util/random/acmrandom.h"
-#include "gtest/gtest.h"
 
 using __gnu_cxx::hash;
 

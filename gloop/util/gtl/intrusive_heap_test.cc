@@ -31,9 +31,8 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/flags/flag.h"
 #include "absl/random/random.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/random/acmrandom.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace {
 
@@ -82,7 +81,7 @@ class IntrusiveHeapTest : public testing::Test {
   std::vector<Elem> elems_;     // Storage for items in the heap
   std::vector<Elem> expected_;  // Copy of the elements, for reference
 
-  IntrusiveHeapTest() : rnd_(testing::GTEST_FLAG(random_seed)) {}
+  IntrusiveHeapTest() : rnd_(GTEST_FLAG_GET(random_seed)) {}
 
   // Build a heap.
   void BuildHeap() {

@@ -42,9 +42,9 @@
 #include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "benchmark/benchmark.h"
 #include "gloop/base/context.h"
 #include "gloop/base/tracecontext.h"
+#include "gloop/gloop_test.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/with_trace_event_listener.h"
@@ -55,9 +55,7 @@
 #include "gloop/util/refcount/reference_counted.h"
 #include "gloop/util/status/error_space.h"
 #include "gloop/util/status/status.h"
-#include "gmock/gmock.h"
 #include "google/protobuf/arena.h"
-#include "gtest/gtest.h"
 
 ABSL_FLAG(int32_t, task_test_timeout, 100,
           "Timeouts in ms for util/task/task_test");
@@ -903,7 +901,7 @@ TYPED_TEST(TaskTest, WhenPreparedDone) {
   TypeParam s;
 
   s.task()->Return();
-  EXPECT_DEATH_IF_SUPPORTED({ s.task()->WhenPrepared([] {}); }, ".*");
+  GLOOP_EXPECT_DEATH_IF_SUPPORTED({ s.task()->WhenPrepared([] {}); }, ".*");
 }
 
 // --------------------------------------------------------------

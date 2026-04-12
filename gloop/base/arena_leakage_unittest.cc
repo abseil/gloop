@@ -19,7 +19,7 @@
 // clang-format on
 
 #include "gloop/base/arena.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 TEST(Arena, Leakage) {
   UnsafeArena arena(32);

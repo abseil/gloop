@@ -34,8 +34,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace gtl {
 namespace {
@@ -424,7 +423,7 @@ TEST(Interval, Split) {
 
 #ifndef NDEBUG
   // The assert that makes this crash only works in debug mode.
-  EXPECT_DEATH(
+  GLOOP_EXPECT_DEATH(
       { finite_i.Split([](const auto& s) { return s; }); },
       testing::HasSubstr("si_start < si_limit"));
 #endif

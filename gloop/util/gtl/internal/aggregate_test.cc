@@ -24,7 +24,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace gtl::internal_aggregate {
 namespace {

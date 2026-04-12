@@ -25,8 +25,8 @@
 
 #include "absl/functional/any_invocable.h"
 #include "gloop/base/callback.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/functional/to_callback.h"
-#include "gtest/gtest.h"
 
 namespace util::functional {
 

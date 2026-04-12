@@ -50,10 +50,9 @@
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "gloop/base/signal-handler.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 using testing::AllOf;
 using testing::ContainsRegex;
 using testing::HasSubstr;
@@ -511,7 +510,8 @@ TEST(ProcessState, FailureSignalHandlerNoStackOverflowMessageOnAlternateStack) {
     swapcontext(&main_ctx, &crash_ctx);
     LOG(FATAL) << "Unreachable code reached.";
   };
-  EXPECT_DEATH(crash_on_alternate_stack(), Not(HasSubstr("STACK OVERFLOW")));
+  GLOOP_EXPECT_DEATH(crash_on_alternate_stack(),
+                     Not(HasSubstr("STACK OVERFLOW")));
 }
 
 TEST(ProcessState, ImmediateAbortSignalHandlerUnblocksSignal) {
@@ -522,7 +522,7 @@ TEST(ProcessState, ImmediateAbortSignalHandlerUnblocksSignal) {
   pthread_sigmask(SIG_BLOCK, &sa_mask, nullptr);
   // Even though the signal is blocked, `SIGABRT` should still be raised to kill
   // the process within this last resort crash handler.
-  EXPECT_DEATH(ImmediateAbortSignalHandlerForTesting(SIGABRT), "");
+  GLOOP_EXPECT_DEATH(ImmediateAbortSignalHandlerForTesting(SIGABRT), "");
 }
 #endif  // Sanitizers
 
@@ -554,7 +554,7 @@ TEST(StackTrace, FromFailureSignalHandlerOnMainThread) {
 #endif
   const char* regex =
       "anonymous namespace.*::StackTrace_FromFailureSignalHandlerOnMainThread";
-  EXPECT_DEATH(Crash(), regex);
+  GLOOP_EXPECT_DEATH(Crash(), regex);
 }
 
 // Verify that a stack overflow shows the function involved.
@@ -565,7 +565,7 @@ TEST(StackTrace, FromStackOverflowOnMainThread) {
 #else
   const char* regex = "FunctionWhichCausesStackOverflow";
 #endif
-  EXPECT_DEATH(FunctionWhichCausesStackOverflow(), regex);
+  GLOOP_EXPECT_DEATH(FunctionWhichCausesStackOverflow(), regex);
 }
 
 struct MyThread : public Thread {
@@ -593,7 +593,7 @@ TEST(StackTrace, FromFailureSignalHandlerOnOtherThread) {
   GTEST_SKIP() << "Message from TSAN interferes with the test.";
 #endif
   const char* regex = "anonymous namespace.*::MyThread::Run";
-  EXPECT_DEATH(CreateThreadAndCrash(), regex);
+  GLOOP_EXPECT_DEATH(CreateThreadAndCrash(), regex);
 }
 
 struct OverFlowThread : public Thread {
@@ -628,7 +628,7 @@ TEST(StackTraceDeathTest, GetStackTraceWithContext_FramelessLeafFunction) {
   // proper stack frame).
   //
   // TODO: Check for a Trap2 frame here.
-  EXPECT_DEATH(Trap1(), "TrapLeaf(.|\\n)*Trap1");
+  GLOOP_EXPECT_DEATH(Trap1(), "TrapLeaf(.|\\n)*Trap1");
 }
 
 // Verify that protection key violations result in appropriate message.
@@ -641,7 +641,7 @@ TEST(StackTraceDeathTest, ProtectionKeyViolationDiagnosed) {
   ASSERT_TRUE(mem != MAP_FAILED);
 
   PCHECK(pkey_mprotect(mem, pagesize, PROT_READ, pkey) == 0);
-  EXPECT_DEATH(
+  GLOOP_EXPECT_DEATH(
       { *(int*)mem = 42; },
       "SIGSEGV \\(@0x[[:xdigit:]]+\\), pkey=[[:digit:]]+, see "
       "<link>");

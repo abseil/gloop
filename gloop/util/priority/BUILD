@@ -51,7 +51,5 @@ cc_test(
         "//gloop/thread",
         "@abseil-cpp//absl/log:check",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )

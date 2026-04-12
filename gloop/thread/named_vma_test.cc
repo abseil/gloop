@@ -25,10 +25,9 @@
 #include "absl/strings/str_cat.h"
 #include "gloop/base/proc_maps.h"
 #include "gloop/base/sysinfo.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace {
 

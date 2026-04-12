@@ -26,8 +26,7 @@
 #include <memory>
 #include <type_traits>
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace gtl {
 namespace {

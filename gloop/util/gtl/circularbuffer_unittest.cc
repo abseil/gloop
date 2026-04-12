@@ -34,9 +34,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/strings/str_cat.h"
-#include "benchmark/benchmark.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace gtl {
 namespace {

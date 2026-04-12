@@ -27,11 +27,10 @@
 
 #include "absl/log/check.h"
 #include "absl/types/span.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
 #include "gloop/util/endian/endian.h"
-#include "gtest/gtest.h"
 
 // GenericReader: This is a pure interface for adapter classes.  We want to
 // test both ShrunkArray::Reader and ShrunkArray::UnalignedLittleEndianReader

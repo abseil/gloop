@@ -43,11 +43,10 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/container/node_hash_map.h"
 #include "absl/strings/string_view.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/flat_map.h"
 #include "gloop/util/gtl/flat_set.h"
-#include "gmock/gmock.h"
 #include "google/protobuf/duration.pb.h"
-#include "gtest/gtest.h"
 
 namespace gtl {
 namespace {
@@ -1700,10 +1699,10 @@ TEST_F(IteratorAdaptorTest, ProjectionViewAtThrows) {
                              {.id = 2, .name = "page"}};
 
   auto view = gtl::projection_view(users, &User::name);
-  EXPECT_DEATH_IF_SUPPORTED(view.at(239), "failed bounds check");
+  GLOOP_EXPECT_DEATH_IF_SUPPORTED(view.at(239), "failed bounds check");
 
   const auto const_view = gtl::projection_view(users, &User::name);
-  EXPECT_DEATH_IF_SUPPORTED(const_view.at(239), "failed bounds check");
+  GLOOP_EXPECT_DEATH_IF_SUPPORTED(const_view.at(239), "failed bounds check");
 }
 
 TEST_F(IteratorAdaptorTest, StackedProjectionViewOperatorAt) {

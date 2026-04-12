@@ -38,6 +38,7 @@
 #include "absl/log/log.h"
 #include "gloop/base/address_is_readable.h"
 #include "gloop/base/init_google.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
 

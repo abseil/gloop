@@ -33,13 +33,12 @@
 #include "absl/container/node_hash_set.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/tuple/accumulate.h"
 #include "gloop/util/tuple/compile_string.h"
 #include "gloop/util/tuple/intrinsics.h"
 #include "gloop/util/tuple/matchers.h"
 #include "gloop/util/tuple/test_util.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace util {
 namespace tuple {

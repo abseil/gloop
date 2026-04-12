@@ -90,8 +90,6 @@ cc_test(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -137,8 +135,6 @@ cc_test(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -167,8 +163,6 @@ cc_test(
         ":cancellation_coloring",
         "//gloop/thread",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -190,8 +184,6 @@ cc_test(
         ":censushandle_test_entry",
         "@abseil-cpp//absl/base:no_destructor",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -272,8 +264,6 @@ cc_test(
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:span",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ] + select({
         "//conditions:default": [],
     }),
@@ -298,8 +288,6 @@ cc_test(
     deps = [
         ":context_origin",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -358,8 +346,6 @@ cc_test(
         ":global_symbol_compliance",
         "@abseil-cpp//absl/base:core_headers",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -385,8 +371,6 @@ cc_test(
         ":hostname",
         "@abseil-cpp//absl/strings",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -434,8 +418,7 @@ cc_test(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:flags",
         "@abseil-cpp//absl/time",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@gloop//gloop:gloop_test",
     ],
 )
 
@@ -463,8 +446,6 @@ cc_test(
     deps = [
         "//gloop/base/auxiliary:syscall_linux",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -531,8 +512,6 @@ cc_test(
         ":per-thread-sem",
         "@abseil-cpp//absl/synchronization:per_thread_sem_test_common",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -592,8 +571,6 @@ cc_test(
         ":percpu",
         "@abseil-cpp//absl/base",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
         "@tcmalloc//tcmalloc/internal:linux_syscall_support",
     ],
 )
@@ -606,8 +583,6 @@ cc_test(
         ":percpu",
         "@abseil-cpp//absl/base:core_headers",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -619,8 +594,6 @@ cc_test(
         ":percpu",
         "@abseil-cpp//absl/base:core_headers",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -632,8 +605,6 @@ cc_test(
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/log",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -660,8 +631,6 @@ cc_test(
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -691,8 +660,6 @@ cc_test(
         ":proc_maps",
         "@abseil-cpp//absl/strings:string_view",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -719,8 +686,6 @@ cc_test(
         ":raw_printer",
         "@abseil-cpp//absl/base:core_headers",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -780,8 +745,7 @@ cc_binary(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@gloop//gloop:enforce_gloop_support",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@gloop//gloop:gloop_test",
     ],
 )
 
@@ -797,8 +761,6 @@ cc_test(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -827,8 +789,6 @@ cc_test(
     deps = [
         ":strtoint",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -877,8 +837,6 @@ cc_test(
         ":sysinfo",
         "@abseil-cpp//absl/time",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -910,8 +868,7 @@ cc_test(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@gloop//gloop:gloop_test",
         "@tcmalloc//tcmalloc:malloc_extension",
     ],
 )
@@ -949,8 +906,6 @@ cc_test(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/time",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -978,8 +933,6 @@ cc_test(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/time",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -1039,8 +992,6 @@ cc_test(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/time",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -1104,8 +1055,6 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
         "@re2",
     ],
 )
@@ -1158,8 +1107,6 @@ cc_test(
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/time",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -1173,8 +1120,6 @@ cc_test(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/memory",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -1238,8 +1183,6 @@ cc_test(
         "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
         "@abseil-cpp//absl/time",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -1260,8 +1203,6 @@ cc_test(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -1322,8 +1263,6 @@ cc_test(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -1341,8 +1280,6 @@ cc_test(
     deps = [
         ":process_state",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -1391,8 +1328,6 @@ cc_test(
         "@abseil-cpp//absl/memory",
         "@abseil-cpp//absl/strings:str_format",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -1404,8 +1339,6 @@ cc_test(
     deps = [
         ":arena",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -1501,8 +1434,6 @@ cc_test(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ] + select({
         "//conditions:default": [":process_state"],
     }),
@@ -1534,8 +1465,6 @@ cc_test(
         ":nsscache",
         "@abseil-cpp//absl/time",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -1644,8 +1573,6 @@ cc_test(
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:str_format",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ] + select({
         "//conditions:default": [":process_state"],
     }),
@@ -1700,8 +1627,6 @@ cc_test(
         "@abseil-cpp//absl/log/internal:test_helpers",
         "@abseil-cpp//absl/time",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -1711,7 +1636,5 @@ cc_test(
     deps = [
         ":user_name",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )

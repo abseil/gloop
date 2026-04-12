@@ -26,7 +26,7 @@
 #include "absl/log/check.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/strings/case.h"
 
 static void BM_ToLower(benchmark::State& state) {

@@ -24,9 +24,8 @@
 #include <vector>
 
 #include "absl/base/no_destructor.h"
-#include "benchmark/benchmark.h"
 #include "gloop/base/censushandle_test_entry.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace {
 

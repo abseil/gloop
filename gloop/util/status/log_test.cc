@@ -22,8 +22,7 @@
 
 #include "absl/log/scoped_mock_log.h"
 #include "absl/status/status.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace {
 

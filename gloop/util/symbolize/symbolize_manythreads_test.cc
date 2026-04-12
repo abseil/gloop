@@ -30,10 +30,10 @@
 #include "absl/log/log.h"
 #include "absl/synchronization/barrier.h"
 #include "gloop/base/sysinfo.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
 #include "gloop/util/symbolize/symbolize.h"
-#include "gtest/gtest.h"
 #include "tcmalloc/malloc_extension.h"
 
 using util::SymbolMap;

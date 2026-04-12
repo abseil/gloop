@@ -31,10 +31,9 @@
 #include "absl/numeric/bits.h"
 #include "absl/random/distributions.h"
 #include "absl/strings/str_format.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/strings/numbers.h"
 #include "gloop/util/bits/bits.h"
-#include "gtest/gtest.h"
 
 namespace util {
 namespace math {

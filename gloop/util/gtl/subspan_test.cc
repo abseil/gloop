@@ -24,8 +24,7 @@
 
 #include "absl/base/macros.h"
 #include "absl/types/any_span.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace {
 
@@ -49,11 +48,12 @@ TEST(SubspanTest, Subspan) {
   EXPECT_THAT(gtl::Subspan(span, 1, AnyIntSpan::npos), ElementsAre(1, 2));
 #if GTEST_HAS_DEATH_TEST
   if (IsHardened()) {
-    EXPECT_DEATH(gtl::Subspan(span, 0, 4), "");
-    EXPECT_DEATH(gtl::Subspan(span, 3, 1), "");
-    EXPECT_DEATH(gtl::Subspan(span, 4, AnyIntSpan::npos), "");
-    EXPECT_DEATH(gtl::Subspan(span, AnyIntSpan::npos, 0), "");
-    EXPECT_DEATH(gtl::Subspan(span, AnyIntSpan::npos, AnyIntSpan::npos), "");
+    GLOOP_EXPECT_DEATH(gtl::Subspan(span, 0, 4), "");
+    GLOOP_EXPECT_DEATH(gtl::Subspan(span, 3, 1), "");
+    GLOOP_EXPECT_DEATH(gtl::Subspan(span, 4, AnyIntSpan::npos), "");
+    GLOOP_EXPECT_DEATH(gtl::Subspan(span, AnyIntSpan::npos, 0), "");
+    GLOOP_EXPECT_DEATH(gtl::Subspan(span, AnyIntSpan::npos, AnyIntSpan::npos),
+                       "");
   }
 #endif
 }
@@ -66,9 +66,9 @@ TEST(SubspanTest, SubspanOrTruncate) {
               ElementsAre(2));
 #if GTEST_HAS_DEATH_TEST
   if (IsHardened()) {
-    EXPECT_DEATH(gtl::SubspanOrTruncate(span, 4, AnyIntSpan::npos), "");
-    EXPECT_DEATH(gtl::SubspanOrTruncate(span, AnyIntSpan::npos, 0), "");
-    EXPECT_DEATH(
+    GLOOP_EXPECT_DEATH(gtl::SubspanOrTruncate(span, 4, AnyIntSpan::npos), "");
+    GLOOP_EXPECT_DEATH(gtl::SubspanOrTruncate(span, AnyIntSpan::npos, 0), "");
+    GLOOP_EXPECT_DEATH(
         gtl::SubspanOrTruncate(span, AnyIntSpan::npos, AnyIntSpan::npos), "");
   }
 #endif

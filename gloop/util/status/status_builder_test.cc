@@ -47,16 +47,14 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "absl/types/source_location.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/status/codes.pb.h"
 #include "gloop/util/status/posixerrorspace.h"
 #include "gloop/util/status/status.h"
 #include "gloop/util/status/status.pb.h"
 #include "gloop/util/status/status_macros.h"
-#include "gmock/gmock.h"
 #include "google/protobuf/bridge/message_set.pb.h"
 #include "google/protobuf/text_format.h"
-#include "gtest/gtest.h"
 
 namespace testing {
 MATCHER_P(EqualsProto, msg, "") {

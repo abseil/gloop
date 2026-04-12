@@ -25,10 +25,8 @@
 #include <cstddef>
 #include <vector>
 
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/refcount/reffed_ptr.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace refcount {
 

@@ -18,9 +18,9 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-#include "benchmark/benchmark.h"
 #include "gloop/base/callback.h"
 #include "gloop/base/context.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/functional/to_callback.h"
 
 namespace util::functional {

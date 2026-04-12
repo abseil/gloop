@@ -27,10 +27,10 @@
 #include "absl/log/log_streamer.h"
 #include "absl/random/random.h"
 #include "absl/strings/str_format.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/bits/bits.h"
 #include "gloop/util/hash/crc.h"
 #include "gloop/util/hash/crc_internal.h"
-#include "gtest/gtest.h"
 
 ABSL_FLAG(bool, crc32c_generate_powers, false,
           "If true print powers of crc32c polynomial");

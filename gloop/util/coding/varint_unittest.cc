@@ -35,10 +35,9 @@
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/random/random.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/unique_array.h"
 #include "gloop/util/random/acmrandom.h"
-#include "gtest/gtest.h"
 
 // A straightforward implementation of Length64 for testing and benchmarking
 inline int Varint_Length64Old(uint64_t v) {

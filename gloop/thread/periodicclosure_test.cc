@@ -29,10 +29,10 @@
 #include "absl/time/simulated_clock.h"
 #include "absl/time/time.h"
 #include "gloop/base/callback.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/callback/blocking_callback.h"
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
-#include "gtest/gtest.h"
 
 namespace thread {
 namespace {
@@ -291,19 +291,19 @@ TEST_F(PeriodicClosureWithSimulatedClockTest, RunSoon) {
 
 #if GTEST_HAS_DEATH_TEST
 TEST(PeriodicClosureDeathTest, BadInterval) {
-  EXPECT_DEATH(PeriodicClosure pc([] {}, absl::Milliseconds(-1)),
-               ".* should be >= 0");
+  GLOOP_EXPECT_DEATH(PeriodicClosure pc([] {}, absl::Milliseconds(-1)),
+                     ".* should be >= 0");
 
-  EXPECT_DEATH(PeriodicClosure pc([] {}, absl::Milliseconds(-1),
-                                  PeriodicClosureOptions()),
-               ".* should be >= 0");
+  GLOOP_EXPECT_DEATH(PeriodicClosure pc([] {}, absl::Milliseconds(-1),
+                                        PeriodicClosureOptions()),
+                     ".* should be >= 0");
 }
 
 TEST(PeriodicClosureDeathTest, NotStopped) {
   PeriodicClosure* pc = new PeriodicClosure([] {}, absl::Milliseconds(10));
 
   pc->Start();
-  ASSERT_DEATH(delete pc, ".* before destructed");
+  GLOOP_ASSERT_DEATH(delete pc, ".* before destructed");
 
   pc->Stop();
   delete pc;
@@ -313,7 +313,7 @@ TEST(PeriodicClosureDeathTest, DoubleStart) {
   PeriodicClosure pc([] {}, absl::Milliseconds(10));
 
   pc.Start();
-  ASSERT_DEATH(pc.Start(), ".* already running");
+  GLOOP_ASSERT_DEATH(pc.Start(), ".* already running");
 
   pc.Stop();
 }
@@ -324,7 +324,7 @@ TEST(PeriodicClosureDeathTest, DoubleStop) {
   pc.Start();
 
   pc.Stop();
-  ASSERT_DEATH(pc.Stop(), ".* not running");
+  GLOOP_ASSERT_DEATH(pc.Stop(), ".* not running");
 }
 #endif  // GTEST_HAS_DEATH_TEST
 

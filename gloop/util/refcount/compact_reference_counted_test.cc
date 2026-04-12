@@ -22,9 +22,8 @@
 
 #include <cstdint>
 
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/refcount/test_common.h"
-#include "gtest/gtest.h"
 
 namespace refcount {
 namespace {

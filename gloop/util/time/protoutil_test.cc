@@ -27,10 +27,9 @@
 #include "absl/status/status_matchers.h"
 #include "absl/time/civil_time.h"
 #include "absl/time/time.h"
-#include "gmock/gmock.h"
+#include "gloop/gloop_test.h"
 #include "google/protobuf/duration.pb.h"
 #include "google/protobuf/timestamp.pb.h"
-#include "gtest/gtest.h"
 
 namespace {
 

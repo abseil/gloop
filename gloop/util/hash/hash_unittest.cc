@@ -64,6 +64,7 @@
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/hash/builtin_type_hash.h"
 #include "gloop/util/hash/farmhash.h"
 #include "gloop/util/hash/hasher.h"
@@ -72,7 +73,6 @@
 #include "gloop/util/hash/legacy_hash.h"
 #include "gloop/util/hash/string_hash.h"
 #include "gloop/util/random/acmrandom.h"
-#include "gtest/gtest.h"
 
 using __gnu_cxx::hash;
 

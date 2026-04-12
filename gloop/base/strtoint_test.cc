@@ -26,7 +26,7 @@
 #include <limits>
 #include <string>
 
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace {
 

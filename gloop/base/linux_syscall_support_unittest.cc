@@ -56,7 +56,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "gloop/base/linux_syscall_support_unittest_helper.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 // Set by the signal handler to show that we received a signal
 static int signaled;

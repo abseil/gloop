@@ -22,7 +22,7 @@
 
 #include <cstdint>
 
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace {
 
@@ -52,7 +52,7 @@ TEST(RefCount, IncAfterLastDec) {
 
   // Calling Inc() in a debug build should crash, since Dec() has returned
   // true.
-  EXPECT_DEBUG_DEATH(rc.Inc(), "");
+  GLOOP_EXPECT_DEBUG_DEATH(rc.Inc(), "");
 }
 
 TEST(RefCount, IncIntWithLong) {

@@ -33,9 +33,8 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/log/check.h"
 #include "absl/strings/str_format.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/thread.h"
-#include "gtest/gtest.h"
 
 static void SampleThreadBody(int period, uint64_t* num_generated,
                              uint64_t* num_sampled) {

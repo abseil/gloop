@@ -40,10 +40,9 @@
 #include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/symbolize/demangle.h"
 #include "gloop/util/symbolize/symbolize-inl.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 #include "tcmalloc/malloc_extension.h"
 
 using util::SymbolMap;

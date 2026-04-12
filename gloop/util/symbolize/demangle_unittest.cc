@@ -33,11 +33,10 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_split.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/thread_options.h"
 #include "gloop/thread/threadpool.h"
 #include "gloop/util/symbolize/demangled_type_name.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 #include "re2/re2.h"
 
 // Define a simple struct which has only two possible demangled representations:

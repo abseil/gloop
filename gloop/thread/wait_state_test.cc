@@ -41,14 +41,13 @@
 #include "absl/time/time.h"
 #include "gloop/base/thread-identity.h"
 #include "gloop/base/walltime.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/periodicclosure.h"
 #include "gloop/thread/thread-internal.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
 #include "gloop/thread/threadpool.h"
 #include "gloop/thread/timedcall.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace thread {
 

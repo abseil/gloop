@@ -22,7 +22,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/strings/split.h"
 
 namespace strings {

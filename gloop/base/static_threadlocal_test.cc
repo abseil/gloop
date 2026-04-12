@@ -31,11 +31,11 @@
 #include "absl/random/random.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/random/shared_bit_gen.h"
-#include "gtest/gtest.h"
 
 #if GTEST_GOOGLE3_MODE_
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/threadlocal.h"
 #endif  // GTEST_GOOGLE3_MODE_
 

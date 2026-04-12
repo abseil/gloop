@@ -30,10 +30,9 @@
 #include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/threadpool.h"
 #include "gloop/util/status/status.h"
-#include "gtest/gtest.h"
 
 namespace util {
 

@@ -40,11 +40,10 @@
 #include "absl/random/distributions.h"
 #include "absl/random/random.h"
 #include "absl/types/span.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/coding/coder.h"
 #include "gloop/util/gtl/unique_array.h"
 #include "gloop/util/random/acmrandom.h"
-#include "gtest/gtest.h"
 
 ABSL_FLAG(int32_t, value_range, 256,
           "Maximum end of range of values for random tests");
@@ -1324,9 +1323,9 @@ TEST(SafeFixedBitWidthArrayTest, BoundsChecks) {
       gtl::MakeUniqueArray<char>(SafeFixedBitWidthArray::SizeInBytes(10, 22));
   SafeFixedBitWidthArray a(buf.data(), 22, 10);
   EXPECT_EQ(a.Get(11), 0);
-  EXPECT_DEATH(a.Set(11, 0), "");
+  GLOOP_EXPECT_DEATH(a.Set(11, 0), "");
   EXPECT_EQ(a.Get(-1), 0);
-  EXPECT_DEATH(a.Set(-1, 0), "");
+  GLOOP_EXPECT_DEATH(a.Set(-1, 0), "");
 }
 #endif
 

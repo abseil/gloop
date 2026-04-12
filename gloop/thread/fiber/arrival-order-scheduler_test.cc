@@ -35,13 +35,13 @@
 #include "gloop/base/scheduling/domain.h"
 #include "gloop/base/scheduling/downcalls.h"
 #include "gloop/base/scheduling/scheduler.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/fiber/fiber-options.h"
 #include "gloop/thread/fiber/fiber.h"
 #include "gloop/thread/fiber/fifolifo-schedulers.h"
 #include "gloop/thread/fiber/init-domain.h"
 #include "gloop/thread/fiber/select.h"
 #include "gloop/util/random/shared_bit_gen.h"
-#include "gtest/gtest.h"
 
 namespace thread {
 

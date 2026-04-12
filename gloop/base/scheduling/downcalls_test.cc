@@ -37,7 +37,7 @@
 #include "gloop/base/scheduling/domain.h"
 #include "gloop/base/scheduling/low-level-support.h"
 #include "gloop/base/scheduling/scheduler.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace base {
 namespace scheduling {

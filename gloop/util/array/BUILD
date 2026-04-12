@@ -41,8 +41,6 @@ cc_test(
         ":array2d",
         "//gloop/util/gtl:unique_array",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -66,8 +64,6 @@ cc_test(
         ":array3d",
         "//gloop/util/gtl:unique_array",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 

@@ -30,7 +30,7 @@
 #include "absl/log/log_streamer.h"
 #include "absl/random/random.h"
 #include "absl/strings/str_format.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 TEST(TestBitCopy, Test) {
   absl::BitGen random;

@@ -32,7 +32,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "gloop/base/walltime.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 ABSL_CONST_INIT absl::Mutex mutex(absl::kConstInit);
 

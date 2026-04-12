@@ -35,8 +35,8 @@
 #if can_use_sse41 || can_use_neon
 
 #include "absl/base/casts.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/random/acmrandom.h"
-#include "gtest/gtest.h"
 
 #define E64(expected0, expected1, expected2, n)                               \
   do {                                                                        \

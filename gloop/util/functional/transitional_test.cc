@@ -27,7 +27,7 @@
 #include "absl/synchronization/notification.h"
 #include "gloop/base/context.h"
 #include "gloop/base/tracecontext.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace util {
 namespace functional {

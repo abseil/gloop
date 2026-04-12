@@ -40,8 +40,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
 #include "gloop/base/uword.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace util_intops {
 namespace {
@@ -324,7 +323,8 @@ TYPED_TEST(StrongIntTest, TestAbslParseFlagInvalid) {
   T t;
   std::string error;
   if constexpr (std::numeric_limits<V>::is_signed) {
-    EXPECT_DEATH(absl::ParseFlag("-123", &t, &error), "PositiveValidator");
+    GLOOP_EXPECT_DEATH(absl::ParseFlag("-123", &t, &error),
+                       "PositiveValidator");
   } else {
     EXPECT_FALSE(absl::ParseFlag("-123", &t, &error));
     EXPECT_THAT(error, AllOf(HasSubstr("'-123'"), HasSubstr("CustomTag")));
@@ -337,7 +337,7 @@ TYPED_TEST(StrongIntTest, TestCtorDeath) {
   if constexpr (std::numeric_limits<V>::is_signed) {
     struct CustomTag {};
     using T = StrongInt<CustomTag, V, PositiveValidator>;
-    EXPECT_DEATH(T(static_cast<V>(-123)), "PositiveValidator");
+    GLOOP_EXPECT_DEATH(T(static_cast<V>(-123)), "PositiveValidator");
   }
 }
 

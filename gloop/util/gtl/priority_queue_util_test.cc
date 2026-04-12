@@ -31,10 +31,8 @@
 
 #include "absl/log/check.h"
 #include "absl/strings/str_format.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/comparator.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace gtl {
 namespace {

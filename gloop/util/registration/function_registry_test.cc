@@ -28,8 +28,7 @@
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace util_registration {
 namespace {
@@ -94,7 +93,7 @@ TEST(FunctionRegistryTest, RegisterFails) {
   EXPECT_FALSE(registry.Register(
       kKey, [] { return 2; }, absl::SourceLocation::current()));
 #if GTEST_HAS_DEATH_TEST
-  EXPECT_DEATH(
+  GLOOP_EXPECT_DEATH(
       RegisterOrDie(
           &registry, kKey, [] { return 2; }, absl::SourceLocation::current()),
       "Registration failed.*");
@@ -278,7 +277,7 @@ TEST(FunctionRegistryTest, ScopedRegistrationDuplicate) {
   FunctionRegistry<absl::string_view, int()> registry;
   registry.Register("foo", [] { return 1; });
   EXPECT_TRUE(registry.Get("foo"));
-  EXPECT_DEATH(
+  GLOOP_EXPECT_DEATH(
       ScopedRegistration registration(registry, "foo", [] { return 1; }),
       "Registration failed.*");
 }

@@ -20,7 +20,7 @@
 
 #include "absl/base/attributes.h"
 #include "gloop/base/global_symbol_compliance.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace base {
 namespace {

@@ -22,8 +22,7 @@
 
 #include <optional>
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace gtl::internal_aggregate {
 namespace {

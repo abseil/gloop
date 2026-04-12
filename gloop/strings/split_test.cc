@@ -42,9 +42,8 @@
 #include "absl/strings/charset.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
+#include "gloop/gloop_test.h"
 #include "gloop/strings/numbers.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace strings {
 
@@ -1386,17 +1385,17 @@ TEST(SplitStringWithEscapingToSet, SimpleCase) {
 TEST(SplitStringAndParseTest, Death) {
   std::string s = "1.0,2.0,3.0";
   std::vector<double> v;
-  EXPECT_DEATH_IF_SUPPORTED(
+  GLOOP_EXPECT_DEATH_IF_SUPPORTED(
       SplitStringAndParse<double>(s, ",", &safe_strtod, nullptr),
       "Output container must not be null.");
-  EXPECT_DEATH_IF_SUPPORTED(
+  GLOOP_EXPECT_DEATH_IF_SUPPORTED(
       SplitStringAndParse<double>(
           s, ",", (bool (*)(absl::string_view, double*)) nullptr, &v),
       "Parsing function must not be null.");
-  EXPECT_DEATH_IF_SUPPORTED(
+  GLOOP_EXPECT_DEATH_IF_SUPPORTED(
       SplitStringAndParse<double>(s, absl::string_view(), &safe_strtod, &v),
       "Delimiters must not be null.");
-  EXPECT_DEATH_IF_SUPPORTED(
+  GLOOP_EXPECT_DEATH_IF_SUPPORTED(
       SplitStringAndParse<double>(s, "", &safe_strtod, &v),
       "Delimiters must have non-zero length.");
 }
@@ -1509,17 +1508,19 @@ TEST(SplitStringAndParseTest, EmbeddedNulls) {
 TEST(SplitStringAndParseToContainerDeathTest, InvalidInputs) {
   std::string s = "1.0,2.0,3.0";
   std::set<double> v;
-  EXPECT_DEATH_IF_SUPPORTED(SplitStringAndParseToContainer<std::set<double>>(
-                                s, ",", &safe_strtod, nullptr),
-                            "Output container must not be null.");
-  EXPECT_DEATH_IF_SUPPORTED(
+  GLOOP_EXPECT_DEATH_IF_SUPPORTED(
+      SplitStringAndParseToContainer<std::set<double>>(s, ",", &safe_strtod,
+                                                       nullptr),
+      "Output container must not be null.");
+  GLOOP_EXPECT_DEATH_IF_SUPPORTED(
       SplitStringAndParseToContainer<std::set<double>>(
           s, ",", (bool (*)(absl::string_view, double*)) nullptr, &v),
       "Parsing function must not be null.");
-  EXPECT_DEATH_IF_SUPPORTED(SplitStringAndParseToContainer<std::set<double>>(
-                                s, absl::string_view(), &safe_strtod, &v),
-                            "Delimiters must not be null.");
-  EXPECT_DEATH_IF_SUPPORTED(
+  GLOOP_EXPECT_DEATH_IF_SUPPORTED(
+      SplitStringAndParseToContainer<std::set<double>>(s, absl::string_view(),
+                                                       &safe_strtod, &v),
+      "Delimiters must not be null.");
+  GLOOP_EXPECT_DEATH_IF_SUPPORTED(
       SplitStringAndParseToContainer<std::set<double>>(s, "", &safe_strtod, &v),
       "Delimiters must have non-zero length.");
 }

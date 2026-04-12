@@ -44,10 +44,8 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
 #include "absl/types/span.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/stl_util.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace gtl {
 namespace {
@@ -738,7 +736,7 @@ void TestAt() {
     EXPECT_STREQ(e.what(), "flat_map::at");
   }
 #else
-  EXPECT_DEATH(m.at(OnlyLT(2)), "flat_map::at");
+  GLOOP_EXPECT_DEATH(m.at(OnlyLT(2)), "flat_map::at");
 #endif
 }
 
@@ -1183,8 +1181,8 @@ TEST(FlatMapTest, SortedUniqueContainerDeathTest) {
 
   flat_map<int, int> m1(sorted_unique_container, ordered);
   for (const auto& v : {reversed, repeated}) {
-    ASSERT_DEBUG_DEATH((flat_map<int, int>(sorted_unique_container, v)),
-                       "check_invariants");
+    GLOOP_ASSERT_DEBUG_DEATH((flat_map<int, int>(sorted_unique_container, v)),
+                             "check_invariants");
   }
 
   // Non-default comparator.
@@ -1192,12 +1190,13 @@ TEST(FlatMapTest, SortedUniqueContainerDeathTest) {
   flat_map<int, int, std::greater<int>> m3(sorted_unique_container,
                                            std::greater<int>(), reversed);
   for (const auto& v : {ordered, repeated}) {
-    ASSERT_DEBUG_DEATH(
+    GLOOP_ASSERT_DEBUG_DEATH(
         (flat_map<int, int, std::greater<int>>(sorted_unique_container, v)),
         "check_invariants");
-    ASSERT_DEBUG_DEATH((flat_map<int, int, std::greater<int>>(
-                           sorted_unique_container, std::greater<int>(), v)),
-                       "check_invariants");
+    GLOOP_ASSERT_DEBUG_DEATH(
+        (flat_map<int, int, std::greater<int>>(sorted_unique_container,
+                                               std::greater<int>(), v)),
+        "check_invariants");
   }
 }
 #endif
@@ -1333,9 +1332,9 @@ TEST(FlatMapTest, ConstKeyRepContainerCtor) {
 #if GTEST_HAS_DEATH_TEST
 TEST(FlatMapTest, StdArrayRepTest) {
   // Do not allow default construction where it doesn't make sense.
-  ASSERT_DEBUG_DEATH((flat_map<int, int, std::less<int>,
-                               std::array<std::pair<int, int>, 7>>()),
-                     "check_invariants");
+  GLOOP_ASSERT_DEBUG_DEATH((flat_map<int, int, std::less<int>,
+                                     std::array<std::pair<int, int>, 7>>()),
+                           "check_invariants");
 }
 #endif
 

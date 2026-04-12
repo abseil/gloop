@@ -23,7 +23,7 @@
 #include <string>
 
 #include "absl/base/macros.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 TEST(RawPrinter, Empty) {
   char buffer[1];

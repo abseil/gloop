@@ -37,10 +37,9 @@
 #include "absl/numeric/int128.h"
 #include "absl/random/distributions.h"
 #include "absl/random/random.h"
-#include "benchmark/benchmark.h"
 #include "gloop/base/port.h"
 #include "gloop/base/uword.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 static constexpr uint64_t kInitialNumber = 0x0123456789abcdef;
 static constexpr uint64_t k64Value = kInitialNumber;

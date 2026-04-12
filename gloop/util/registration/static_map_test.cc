@@ -27,8 +27,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 using testing::ContainerEq;
 using testing::ElementsAre;
@@ -108,8 +107,8 @@ TEST(MapSingleton, GetKeys) {
 }
 
 TEST(MapSingleton, MultipleDefinitionsDeath) {
-  EXPECT_DEATH({ IntToStringMap::InsertValue(10, "10"); }, "");
-  EXPECT_DEATH({ IntToStringMap2::SetDefaultValue("10"); }, "");
+  GLOOP_EXPECT_DEATH({ IntToStringMap::InsertValue(10, "10"); }, "");
+  GLOOP_EXPECT_DEATH({ IntToStringMap2::SetDefaultValue("10"); }, "");
 }
 
 TEST(SetSingleton, ContainsKey) {
@@ -138,5 +137,5 @@ TEST(SetSingleton, GetKeys) {
 }
 
 TEST(SetSingleton, MultipleDefinitionsDeath) {
-  EXPECT_DEATH({ StringSet::InsertKey("foo"); }, "");
+  GLOOP_EXPECT_DEATH({ StringSet::InsertKey("foo"); }, "");
 }

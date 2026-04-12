@@ -35,13 +35,11 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/status/posixerrorspace.h"
 #include "gloop/util/status/status.h"
 #include "gloop/util/status/status.pb.h"
 #include "gloop/util/status/status_builder.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace {
 

@@ -27,9 +27,8 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/tuple/test_util.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace util {
 namespace tuple {

@@ -28,9 +28,8 @@
 #include "absl/random/internal/distribution_test_util.h"
 #include "absl/random/mocking_bit_gen.h"
 #include "absl/random/random.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/random/mock_distributions.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace {
 

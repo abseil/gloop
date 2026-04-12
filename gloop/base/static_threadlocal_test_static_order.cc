@@ -23,7 +23,7 @@
 #include "gloop/base/static_threadlocal.h"
 
 #if GTEST_GOOGLE3_MODE_
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #endif
 
 // See comments in static_threadlocal_test.cc

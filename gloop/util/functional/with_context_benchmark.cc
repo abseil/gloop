@@ -18,8 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-#include "benchmark/benchmark.h"
 #include "gloop/base/context.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/functional/with_context.h"
 
 namespace util::functional {

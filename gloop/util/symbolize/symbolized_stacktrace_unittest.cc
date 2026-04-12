@@ -42,12 +42,10 @@
 #include "absl/strings/str_join.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
-#include "benchmark/benchmark.h"
 #include "gloop/base/examine_stack.h"
 #include "gloop/base/init_google.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/symbolize/symbolize.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace {
 

@@ -29,11 +29,10 @@
 #include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
 #include "absl/synchronization/mutex.h"
-#include "benchmark/benchmark.h"
 #include "gloop/base/callback.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/threadpool.h"
 #include "gloop/util/functional/to_callback.h"
-#include "gtest/gtest.h"
 
 namespace {
 

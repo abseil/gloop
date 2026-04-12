@@ -30,12 +30,11 @@
 #include "absl/container/fixed_array.h"
 #include "absl/functional/bind_front.h"
 #include "absl/synchronization/notification.h"
-#include "benchmark/benchmark.h"
 #include "gloop/concurrent/barrier/barrier.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/thread_options.h"
 #include "gloop/thread/threadpool.h"
 #include "gloop/util/functional/to_callback.h"
-#include "gtest/gtest.h"
 
 static std::atomic<intptr_t> constructions;
 static std::atomic<intptr_t> destructions;

@@ -805,7 +805,7 @@ void __sanitizer_syscall_post_newfstatat(int res, int d, const char* f,
 #include <string.h>
 
 #include "gloop/base/linux_syscall_support.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 static int hook_res;
 static const char* hook_f;

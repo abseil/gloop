@@ -28,10 +28,10 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/status/codes.pb.h"
 #include "gloop/util/status/error_space.h"
 #include "gloop/util/status/status.h"
-#include "gtest/gtest.h"
 
 namespace util {
 namespace {

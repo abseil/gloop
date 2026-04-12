@@ -33,10 +33,9 @@
 #include "absl/log/scoped_mock_log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/tuple/components/streamable.h"
 #include "gloop/util/tuple/components/streamable_test.pb.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 using ::testing::ElementsAre;
 using ::testing::HasSubstr;

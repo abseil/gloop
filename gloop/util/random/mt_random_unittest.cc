@@ -25,8 +25,8 @@
 
 #include "absl/base/macros.h"
 #include "absl/container/btree_set.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/random/random_base_testutils.h"
-#include "gtest/gtest.h"
 
 namespace {
 

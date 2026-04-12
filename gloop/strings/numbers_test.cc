@@ -50,8 +50,8 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
+#include "gloop/gloop_test.h"
 #include "gloop/strings/numbers_test_common.h"
-#include "gtest/gtest.h"
 
 namespace strings {
 
@@ -2417,8 +2417,8 @@ TEST(stringtest, u64tostr_base36) {
   EXPECT_EQ(0, u64tostr_base36(36, sizeof(buf2), buf2));
 
   // Incorrect arguments
-  EXPECT_DEATH_IF_SUPPORTED(u64tostr_base36(1, 0, buf), "");
-  EXPECT_DEATH_IF_SUPPORTED(u64tostr_base36(1, sizeof(buf), nullptr), "");
+  GLOOP_EXPECT_DEATH_IF_SUPPORTED(u64tostr_base36(1, 0, buf), "");
+  GLOOP_EXPECT_DEATH_IF_SUPPORTED(u64tostr_base36(1, sizeof(buf), nullptr), "");
 }
 
 // feenableexcept() and fedisableexcept() are missing on Mac OS X, MSVC,
@@ -2489,7 +2489,7 @@ TEST(BooleanConversion, StringToBool) {
 
   // The only process failure should be if a nullptr is provided for the
   // output boolean.
-  EXPECT_DEATH_IF_SUPPORTED(safe_strtob("true", nullptr), "");
+  GLOOP_EXPECT_DEATH_IF_SUPPORTED(safe_strtob("true", nullptr), "");
 }
 
 TEST(BooleanConversion, StringToBoolAndBack) {

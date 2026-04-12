@@ -26,9 +26,9 @@
 #include "absl/log/log.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/hash/city.h"
 #include "gloop/util/random/acmrandom.h"
-#include "gtest/gtest.h"
 
 using util_hash::CityHash128;
 using util_hash::CityHash128WithSeed;

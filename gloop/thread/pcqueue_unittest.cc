@@ -29,10 +29,9 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/pcqueue.h"
 #include "gloop/thread/thread.h"
-#include "gtest/gtest.h"
 
 namespace thread {
 

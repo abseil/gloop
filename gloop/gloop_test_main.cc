@@ -21,9 +21,8 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "benchmark/benchmark.h"
 #include "gloop/base/init_google.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 GTEST_API_ int main(int argc, char** argv) {
   printf("Running main() from %s\n", __FILE__);

@@ -87,12 +87,11 @@
 #include <type_traits>
 
 #include "absl/strings/str_cat.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/tuple/bindings/bindings.h"
 #include "gloop/util/tuple/for_each.h"
 #include "gloop/util/tuple/intrinsics.h"
 #include "gloop/util/tuple/is_tuple.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace util {
 namespace tuple {

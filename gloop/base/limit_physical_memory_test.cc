@@ -21,7 +21,7 @@
 #include <cstdint>
 
 #include "gloop/base/process_state.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 // Upper bound for available virtual memory set by LimitPhysicalMemory() is
 // less than 2^31. This may break sanitizers, as they need at least 16T

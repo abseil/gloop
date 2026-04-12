@@ -28,8 +28,7 @@
 
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "benchmark/benchmark.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 TEST(SimpleUser, Root) {
   uid_t uid;

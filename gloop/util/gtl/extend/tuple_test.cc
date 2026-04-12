@@ -25,9 +25,8 @@
 #include <vector>
 
 #include "absl/meta/internal/constexpr_testing.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/extend/extend.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace {
 

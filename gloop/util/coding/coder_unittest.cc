@@ -36,11 +36,10 @@
 #include "absl/log/check.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/coding/varint.h"
 #include "gloop/util/gtl/unique_array.h"
 #include "gloop/util/random/acmrandom.h"
-#include "gtest/gtest.h"
 
 // Global data.
 static char encoding_buffer[1000];
@@ -300,31 +299,31 @@ TEST(CoderDeathTest, Hardening) {
 
   const std::string str = "abcdefghijklmnopqrstuvwxyz";
   Encoder e(encoding_buffer, 0);
-  EXPECT_DEATH(e.put8(0), "");
-  EXPECT_DEATH(e.put16(0), "");
-  EXPECT_DEATH(e.put32(0), "");
-  EXPECT_DEATH(e.put64(0), "");
-  EXPECT_DEATH(e.put128(0), "");
-  EXPECT_DEATH(e.putcn(str.data(), '\0', str.size()), "");
-  EXPECT_DEATH(e.putfloat(0.0), "");
-  EXPECT_DEATH(e.putdouble(0.0), "");
-  EXPECT_DEATH(e.put_varint32(0.0), "");
-  EXPECT_DEATH(e.put_varint32_inline(0.0), "");
-  EXPECT_DEATH(e.put_varint64(0.0), "");
-  EXPECT_DEATH(e.skip(1), "");
-  EXPECT_DEATH(e.skip(-1), "");
-  EXPECT_DEATH(e.RemoveLast(-1), "");
+  GLOOP_EXPECT_DEATH(e.put8(0), "");
+  GLOOP_EXPECT_DEATH(e.put16(0), "");
+  GLOOP_EXPECT_DEATH(e.put32(0), "");
+  GLOOP_EXPECT_DEATH(e.put64(0), "");
+  GLOOP_EXPECT_DEATH(e.put128(0), "");
+  GLOOP_EXPECT_DEATH(e.putcn(str.data(), '\0', str.size()), "");
+  GLOOP_EXPECT_DEATH(e.putfloat(0.0), "");
+  GLOOP_EXPECT_DEATH(e.putdouble(0.0), "");
+  GLOOP_EXPECT_DEATH(e.put_varint32(0.0), "");
+  GLOOP_EXPECT_DEATH(e.put_varint32_inline(0.0), "");
+  GLOOP_EXPECT_DEATH(e.put_varint64(0.0), "");
+  GLOOP_EXPECT_DEATH(e.skip(1), "");
+  GLOOP_EXPECT_DEATH(e.skip(-1), "");
+  GLOOP_EXPECT_DEATH(e.RemoveLast(-1), "");
 
   Decoder d(encoding_buffer, 0);
-  EXPECT_DEATH(d.get8(), "");
-  EXPECT_DEATH(d.get16(), "");
-  EXPECT_DEATH(d.get32(), "");
-  EXPECT_DEATH(d.get64(), "");
-  EXPECT_DEATH(d.get128(), "");
-  EXPECT_DEATH(d.getfloat(), "");
-  EXPECT_DEATH(d.getdouble(), "");
-  EXPECT_DEATH(d.skip(1), "");
-  EXPECT_DEATH(d.skip(-1), "");
+  GLOOP_EXPECT_DEATH(d.get8(), "");
+  GLOOP_EXPECT_DEATH(d.get16(), "");
+  GLOOP_EXPECT_DEATH(d.get32(), "");
+  GLOOP_EXPECT_DEATH(d.get64(), "");
+  GLOOP_EXPECT_DEATH(d.get128(), "");
+  GLOOP_EXPECT_DEATH(d.getfloat(), "");
+  GLOOP_EXPECT_DEATH(d.getdouble(), "");
+  GLOOP_EXPECT_DEATH(d.skip(1), "");
+  GLOOP_EXPECT_DEATH(d.skip(-1), "");
 }
 #endif  // GTEST_HAS_DEATH_TEST
 

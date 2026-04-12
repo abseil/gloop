@@ -28,9 +28,8 @@
 #include "absl/status/status.h"
 #include "absl/status/status_matchers.h"
 #include "absl/types/source_location.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/status/status.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace util {
 namespace {

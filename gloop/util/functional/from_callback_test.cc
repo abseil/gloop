@@ -29,8 +29,8 @@
 #include "absl/base/nullability.h"
 #include "absl/functional/bind_front.h"
 #include "gloop/base/callback.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/functional/to_callback.h"
-#include "gtest/gtest.h"
 
 using util::functional::FromCallback;
 using util::functional::FromCallbackWithOwnership;

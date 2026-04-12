@@ -38,10 +38,8 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/notification.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/executor.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace {
 

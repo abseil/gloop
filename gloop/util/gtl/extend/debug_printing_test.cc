@@ -26,11 +26,10 @@
 #include <vector>
 
 #include "absl/types/span.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/extend/extend.h"
 #include "gloop/util/gtl/extend/stringification_tests.h"
 #include "gloop/util/gtl/generic_printer.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace {
 

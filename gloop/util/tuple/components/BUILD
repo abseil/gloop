@@ -44,8 +44,6 @@ cc_test(
         ":intrinsics",
         "@abseil-cpp//absl/strings:string_view",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -66,8 +64,6 @@ cc_test(
         ":intrinsics",
         ":std_tuple",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -88,8 +84,6 @@ cc_test(
         ":intrinsics",
         ":pair",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -110,8 +104,6 @@ cc_test(
         ":array",
         ":intrinsics",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -147,8 +139,6 @@ cc_test(
         "//gloop/util/tuple:test_util",
         "@abseil-cpp//absl/strings",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -172,8 +162,6 @@ cc_test(
         ":for_each",
         "@abseil-cpp//absl/strings",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -225,8 +213,6 @@ cc_test(
         "@abseil-cpp//absl/strings:string_view",
         "@gloop//gloop:gloop_test_main",
         "@gloop//gloop/util/status:codes_cc_proto",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -259,8 +245,6 @@ cc_test(
     deps = [
         ":rank",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -277,8 +261,6 @@ cc_test(
     deps = [
         ":internal_preprocessor",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -311,7 +293,5 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )

@@ -22,7 +22,7 @@
 
 #include <stdint.h>
 
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace base {
 namespace scheduling {

@@ -44,7 +44,6 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
 #include "absl/types/span.h"
-#include "benchmark/benchmark.h"
 #include "gloop/base/callback.h"
 #include "gloop/base/context.h"
 #include "gloop/base/context_access.h"
@@ -54,6 +53,7 @@
 #include "gloop/base/reference_tracker.h"  // IWYU pragma: keep
 #include "gloop/base/tracer.h"
 #include "gloop/base/tracing_types.h"
+#include "gloop/gloop_test.h"
 #include "gloop/perftools/tracing/internal/skeletal_tracing_access.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/public/adopt_tracer_for_testing.h"
@@ -63,8 +63,6 @@
 #include "gloop/thread/thread_options.h"
 #include "gloop/util/functional/to_callback.h"
 #include "gloop/util/gtl/unique_array.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 #include "stats/census/public/census-interface.h"
 #include "stats/census/public/maybe_key_id.h"
 #include "stats/census/public/tagger.h"
@@ -1352,9 +1350,9 @@ TEST(TraceEventListenerTest, CopyContextWithTraceEventListener) {
 
 #if defined(GTEST_HAS_DEATH_TEST)
 TEST(TraceEventListenerTest, AssertAddTraceEventListenerNotCurrent) {
-  EXPECT_DEBUG_DEATH(const_cast<TraceContext*>(TraceContext::Current())
-                         ->AddTraceEventListener(nullptr),
-                     "CurrentTraceContextNoAlloc");
+  GLOOP_EXPECT_DEBUG_DEATH(const_cast<TraceContext*>(TraceContext::Current())
+                               ->AddTraceEventListener(nullptr),
+                           "CurrentTraceContextNoAlloc");
 }
 #endif  // GTEST_HAS_DEATH_TEST
 

@@ -27,8 +27,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "benchmark/benchmark.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace strings {
 namespace {

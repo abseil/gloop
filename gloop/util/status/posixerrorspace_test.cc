@@ -28,8 +28,8 @@
 #include "absl/status/status.h"
 #include "absl/types/source_location.h"
 #include "absl/types/span.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/status/status.h"
-#include "gtest/gtest.h"
 
 namespace util {
 

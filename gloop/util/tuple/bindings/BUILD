@@ -44,7 +44,5 @@ cc_test(
     deps = [
         ":bindings",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )

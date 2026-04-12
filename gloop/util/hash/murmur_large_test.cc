@@ -35,10 +35,10 @@
 #include "absl/base/config.h"  // IWYU pragma: keep
 #include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/endian/endian.h"
 #include "gloop/util/hash/murmur.h"
 #include "gloop/util/random/acmrandom.h"
-#include "gtest/gtest.h"
 
 namespace util_hash {
 namespace {
@@ -101,12 +101,7 @@ uint64_t MurmurHash64Reference(const void* key, size_t len) {
   return h;
 }
 
-#if defined(ABSL_HAVE_THREAD_SANITIZER)
-// TSAN runs out of memory for these large allocations.
 constexpr size_t kLargeInputLen = (1ULL << 16) + 97;
-#else
-constexpr size_t kLargeInputLen = (1ULL << 31) + 97;
-#endif
 
 TEST(MurmurCatLargeInput, AgainstReferenceImplementation) {
   const size_t substring_len = kLargeInputLen;

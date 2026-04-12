@@ -57,8 +57,6 @@ cc_test(
         "@abseil-cpp//absl/status:status_matchers",
         "@abseil-cpp//absl/time",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
         "@protobuf//:duration_cc_proto",
         "@protobuf//:timestamp_cc_proto",
     ],

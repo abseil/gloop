@@ -93,7 +93,5 @@ cc_test(
         "@abseil-cpp//absl/types:compare",
         "@abseil-cpp//absl/types:source_location",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )

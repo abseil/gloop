@@ -22,9 +22,9 @@
 
 #include <cstdint>
 
+#include "gloop/gloop_test.h"
 #include "gloop/util/alloc/block-allocator.h"
 #include "gloop/util/alloc/tested-allocator.h"
-#include "gtest/gtest.h"
 
 namespace util {
 namespace alloc {

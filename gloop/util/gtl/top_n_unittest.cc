@@ -36,10 +36,9 @@
 #include "absl/log/log.h"
 #include "absl/random/random.h"
 #include "absl/strings/str_cat.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/stl_util.h"
 #include "gloop/util/random/acmrandom.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace gtl {
 namespace {

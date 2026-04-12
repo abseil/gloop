@@ -48,7 +48,7 @@ extern "C" void* ExportableGetOrCreateCurrentThreadIdentity() {
 #else
 // When built as thread-identity_test_shared
 
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 static const char* so_relative_path =
     "/_main/gloop/base/libthreadidentitytest_shared_lib.so";

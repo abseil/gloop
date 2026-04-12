@@ -25,8 +25,8 @@
 
 #include "absl/log/log.h"
 #include "absl/strings/string_view.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/hash/crc.h"
-#include "gtest/gtest.h"
 
 namespace {
 

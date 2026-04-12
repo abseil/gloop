@@ -23,10 +23,9 @@
 #include <utility>
 #include <vector>
 
+#include "gloop/gloop_test.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/tracing_base.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace perftools::tracing {
 namespace {

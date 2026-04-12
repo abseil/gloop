@@ -19,8 +19,8 @@
 // clang-format on
 
 #include "absl/log/log.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/status/status.h"
-#include "gtest/gtest.h"
 
 namespace {
 

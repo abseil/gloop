@@ -24,8 +24,8 @@
 #include "absl/flags/flag.h"
 #include "absl/log/flags.h"
 #include "absl/log/initialize.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/thread.h"
-#include "gtest/gtest.h"
 
 const int kMaxRecursionDepth = 100;
 const int kOnStackSize = 256;
@@ -88,7 +88,7 @@ TEST(DefaultStackSizeTest, TooLittleStackDeathTest) {
   int32_t max_recursion_depth =
       (PTHREAD_STACK_MIN / sizeof(max_recursion_depth) * kOnStackSize) + 1;
   TestThread* test_thread = new TestThread(max_recursion_depth);
-  EXPECT_DEATH(RunThread(test_thread), "");
+  GLOOP_EXPECT_DEATH(RunThread(test_thread), "");
   delete test_thread;
 }
 

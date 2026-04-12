@@ -22,8 +22,7 @@
 
 #include "absl/strings/str_format.h"
 #include "absl/types/span.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace perftools::tracing {
 namespace {

@@ -25,8 +25,8 @@
 #include <iterator>
 
 #include "absl/log/check.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/endian/endian.h"
-#include "gtest/gtest.h"
 
 struct FloatTestValue {
   float f;     // The value as a host-order floating point.

@@ -59,8 +59,6 @@ cc_test(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
         "@re2",
     ],
 )
@@ -114,8 +112,7 @@ cc_test(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@gloop//gloop:gloop_test",
     ],
 )
 
@@ -185,8 +182,6 @@ _ = [cc_test(
         "@abseil-cpp//absl/memory",
         "@abseil-cpp//absl/strings",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
         "@tcmalloc//tcmalloc:malloc_extension",
     ],
 ) for t in [
@@ -206,9 +201,8 @@ cc_test(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:scoped_mock_log",
         "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:gloop_test",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -227,8 +221,7 @@ cc_test(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:flags",
         "@abseil-cpp//absl/strings",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@gloop//gloop:gloop_test",
     ],
 )
 
@@ -260,9 +253,8 @@ cc_test(
         ":foobar_bbsections_all",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:gloop_test",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -282,8 +274,6 @@ cc_test(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/synchronization",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
         "@tcmalloc//tcmalloc:malloc_extension",
     ],
 )

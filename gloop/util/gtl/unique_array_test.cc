@@ -32,8 +32,7 @@
 #include "absl/base/options.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace gtl {
 namespace {
@@ -124,7 +123,7 @@ TEST(UniqueArrayTest, CtorFromNullRawPointer) {
 
 TEST(UniqueArrayTest, CtorFromNullRawPointerFailsWithBadSize) {
   int* raw = nullptr;
-  EXPECT_DEATH(UniqueArray<int> buffer(raw, kArraySize), "");
+  GLOOP_EXPECT_DEATH(UniqueArray<int> buffer(raw, kArraySize), "");
 }
 
 TEST(UniqueArrayTest, CtorFromRawPointerWithZeroSize) {
@@ -137,7 +136,8 @@ TEST(UniqueArrayTest, CtorFromRawPointerWithZeroSize) {
 TEST(UniqueArrayTest, CtorFromRawPointerFailsWithBadSize) {
 #if !defined(NDEBUG) || ABSL_OPTION_HARDENED
   std::vector<int>* raw = new std::vector<int>[kArraySize];
-  EXPECT_DEATH(UniqueArray<std::vector<int>> buffer(raw, kArraySize + 1), "");
+  GLOOP_EXPECT_DEATH(UniqueArray<std::vector<int>> buffer(raw, kArraySize + 1),
+                     "");
   delete[] raw;
 #endif
 }
@@ -155,7 +155,8 @@ TEST(UniqueArrayTest,
   // than allowing ~UniqueArray to fire with the wrong size.
   std::optional<UniqueArray<int>> buffer;
 #if !defined(NDEBUG)
-  EXPECT_DEATH(buffer.emplace(ptr, kArraySize + 1), "size_le_than_cookie");
+  GLOOP_EXPECT_DEATH(buffer.emplace(ptr, kArraySize + 1),
+                     "size_le_than_cookie");
   delete[] ptr;
 #else
   buffer.emplace(ptr, kArraySize + 1);
@@ -163,7 +164,7 @@ TEST(UniqueArrayTest,
   EXPECT_THAT(*buffer, SizeIs(kArraySize + 1));
 
 #if !defined(NDEBUG) || ABSL_HAVE_ADDRESS_SANITIZER
-  EXPECT_DEATH(
+  GLOOP_EXPECT_DEATH(
       { buffer.reset(); }, "size check failed|new-delete-type-mismatch");
 #endif
 
@@ -174,8 +175,8 @@ TEST(UniqueArrayTest,
 #if !defined(NDEBUG)
 TEST(UniqueArrayTest, MallocExtensionsCanBeUsedWithVolatileType) {
   volatile int* ptr = new volatile int[kArraySize];
-  EXPECT_DEATH(UniqueArray<volatile int> buffer(ptr, kArraySize + 1),
-               "size_le_than_cookie");
+  GLOOP_EXPECT_DEATH(UniqueArray<volatile int> buffer(ptr, kArraySize + 1),
+                     "size_le_than_cookie");
   delete[] ptr;
 }
 #endif
@@ -189,7 +190,8 @@ TEST(UniqueArrayTest,
   // than allowing ~UniqueArray to fire with the wrong size.
   std::optional<UniqueArray<Overaligned>> buffer;
 #if !defined(NDEBUG)
-  EXPECT_DEATH(buffer.emplace(ptr, kArraySize + 1), "size_le_than_cookie");
+  GLOOP_EXPECT_DEATH(buffer.emplace(ptr, kArraySize + 1),
+                     "size_le_than_cookie");
   delete[] ptr;
 #else
   buffer.emplace(ptr, kArraySize + 1);
@@ -197,7 +199,7 @@ TEST(UniqueArrayTest,
   EXPECT_THAT(*buffer, SizeIs(kArraySize + 1));
 
 #if !defined(NDEBUG) || ABSL_HAVE_ADDRESS_SANITIZER
-  EXPECT_DEATH(
+  GLOOP_EXPECT_DEATH(
       { buffer.reset(); }, "size check failed|new-delete-type-mismatch");
 #endif
 
@@ -231,7 +233,7 @@ TEST(UniqueArrayTest, CtorFromNullUniquePtr) {
 TEST(UniqueArrayTest, CtorFromNullUniquePtrFailsWithBadSize) {
   auto ptr = std::unique_ptr<int[]>();
   EXPECT_THAT(ptr, IsNull());
-  EXPECT_DEATH(UniqueArray<int> buffer(std::move(ptr), kArraySize), "");
+  GLOOP_EXPECT_DEATH(UniqueArray<int> buffer(std::move(ptr), kArraySize), "");
 }
 
 TEST(UniqueArrayTest, CtorFromUniquePtrOveraligned) {
@@ -253,7 +255,7 @@ TEST(UniqueArrayTest, CtorFromUniquePtrFailsWithBadSize) {
 #if !defined(NDEBUG) || ABSL_OPTION_HARDENED
   auto ptr =
       std::unique_ptr<std::vector<int>[]>(new std::vector<int>[kArraySize]);
-  EXPECT_DEATH(
+  GLOOP_EXPECT_DEATH(
       UniqueArray<std::vector<int>> buffer(std::move(ptr), kArraySize + 1), "");
 #endif
 }
@@ -261,8 +263,8 @@ TEST(UniqueArrayTest, CtorFromUniquePtrFailsWithBadSize) {
 TEST(UniqueArrayTest, CtorFromUniquePtrFailsWithBadSizeOveraligned) {
 #if !defined(NDEBUG)
   auto ptr = std::unique_ptr<Overaligned[]>(new Overaligned[kArraySize]);
-  EXPECT_DEATH(UniqueArray<Overaligned> buffer(std::move(ptr), kArraySize + 1),
-               "");
+  GLOOP_EXPECT_DEATH(
+      UniqueArray<Overaligned> buffer(std::move(ptr), kArraySize + 1), "");
 #endif
 }
 
@@ -273,15 +275,15 @@ TEST(UniqueArrayTest,
   // than allowing ~UniqueArray to fire with the wrong size.
   std::optional<UniqueArray<int>> buffer;
 #if !defined(NDEBUG)
-  EXPECT_DEATH(buffer.emplace(std::move(ptr), kArraySize + 1),
-               "size_le_than_cookie");
+  GLOOP_EXPECT_DEATH(buffer.emplace(std::move(ptr), kArraySize + 1),
+                     "size_le_than_cookie");
 #else
   buffer.emplace(std::move(ptr), kArraySize + 1);
   EXPECT_THAT(*buffer, Not(IsNull()));
   EXPECT_THAT(*buffer, SizeIs(kArraySize + 1));
 
 #if !defined(NDEBUG) || ABSL_HAVE_ADDRESS_SANITIZER
-  EXPECT_DEATH(
+  GLOOP_EXPECT_DEATH(
       { buffer.reset(); }, "size check failed|new-delete-type-mismatch");
 #endif
 
@@ -360,7 +362,7 @@ TEST(UniqueArrayTest, AssignmentFromNullPointer) {
 TEST(UniqueArrayTest, HardenedIndexing) {
 #if !defined(NDEBUG) || ABSL_OPTION_HARDENED
   auto buffer = MakeUniqueArray<int>(kArraySize);
-  EXPECT_DEATH([[maybe_unused]] int result = buffer[kArraySize], "");
+  GLOOP_EXPECT_DEATH([[maybe_unused]] int result = buffer[kArraySize], "");
 #endif
 }
 
@@ -384,7 +386,7 @@ TEST(UniqueArrayTest, SupportsArrayWithKnownBoundAsElement) {
 
   // Test hardening
 #if !defined(NDEBUG) || ABSL_OPTION_HARDENED
-  EXPECT_DEATH([[maybe_unused]] int result = buffer[kArraySize][0], "");
+  GLOOP_EXPECT_DEATH([[maybe_unused]] int result = buffer[kArraySize][0], "");
 #endif
 }
 
@@ -443,7 +445,7 @@ TEST(UniqueArrayTest, ResetWithRawPointerFailsWithBadSize) {
   UniqueArray<std::vector<int>> buffer;
 #if !defined(NDEBUG) || ABSL_OPTION_HARDENED
   std::vector<int>* raw = new std::vector<int>[kArraySize];
-  EXPECT_DEATH(buffer.reset(raw, kArraySize + 1), "");
+  GLOOP_EXPECT_DEATH(buffer.reset(raw, kArraySize + 1), "");
   delete[] raw;
 #endif
 }
@@ -457,7 +459,8 @@ TEST(UniqueArrayTest,
   std::optional<UniqueArray<int>> buffer;
 #if !defined(NDEBUG)
   buffer.emplace(ptr, kArraySize);
-  EXPECT_DEATH(buffer->reset(ptr2, kArraySize + 1), "size_le_than_cookie");
+  GLOOP_EXPECT_DEATH(buffer->reset(ptr2, kArraySize + 1),
+                     "size_le_than_cookie");
   delete[] ptr2;
 #else
   buffer.emplace(ptr, kArraySize);
@@ -466,7 +469,7 @@ TEST(UniqueArrayTest,
   EXPECT_THAT(*buffer, SizeIs(kArraySize + 1));
 
 #if !defined(NDEBUG) || ABSL_HAVE_ADDRESS_SANITIZER
-  EXPECT_DEATH(
+  GLOOP_EXPECT_DEATH(
       { buffer.reset(); }, "size check failed|new-delete-type-mismatch");
 #endif
 

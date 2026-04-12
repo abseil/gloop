@@ -32,11 +32,10 @@
 #include "absl/log/log.h"
 #include "absl/log/scoped_mock_log.h"
 #include "absl/strings/string_view.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/thread.h"
 #include "gloop/util/symbolize/demangle.h"
 #include "gloop/util/symbolize/symbolize.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 using ::testing::_;
 using ::testing::AnyNumber;

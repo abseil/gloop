@@ -29,10 +29,8 @@
 
 #include "absl/base/optimization.h"
 #include "absl/log/check.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/iterator_adaptors.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace gtl {
 namespace {

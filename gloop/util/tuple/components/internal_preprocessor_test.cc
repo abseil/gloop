@@ -19,7 +19,7 @@
 
 #include "gloop/util/tuple/components/internal_preprocessor.h"
 
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace util {
 namespace tuple {

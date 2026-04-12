@@ -25,11 +25,11 @@
 #include <tuple>
 #include <utility>
 
+#include "gloop/gloop_test.h"
 #include "gloop/util/tuple/pair.h"
 #include "gloop/util/tuple/std_tuple.h"
 #include "gloop/util/tuple/struct.h"
 #include "gloop/util/tuple/test_util.h"
-#include "gtest/gtest.h"
 
 namespace util {
 namespace tuple {

@@ -40,16 +40,14 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
-#include "benchmark/benchmark.h"
 #include "gloop/base/censushandle.h"
 #include "gloop/base/context_access.h"
 #include "gloop/base/tracecontext.h"
+#include "gloop/gloop_test.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/thread/threadpool.h"
 #include "gloop/util/refcount/reffed_ptr.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 using perftools::tracing::MockTraceEventListener;
 using perftools::tracing::StringRef;
@@ -749,7 +747,7 @@ TEST_F(ContextTest, WithContextHardenedAgainstIllegalScope) {
 
   std::optional<WithContext> wc1(context1);
   WithContext wc2(context2);
-  EXPECT_DEATH_IF_SUPPORTED(wc1 = std::nullopt, ".*");
+  GLOOP_EXPECT_DEATH_IF_SUPPORTED(wc1 = std::nullopt, ".*");
 }
 
 TEST_F(ContextTest, WithContextHardeningDisableThroughFlag) {

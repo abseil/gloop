@@ -43,8 +43,7 @@
 #include "absl/random/random.h"
 #include "absl/strings/numbers.h"
 #include "absl/types/span.h"
-#include "benchmark/benchmark.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 ABSL_FLAG(int32_t, num_iterations, 10000, "Number of test iterations to run.");
 ABSL_FLAG(int32_t, max_bytes, 100, "Maximum number of bytes to use in tests.");

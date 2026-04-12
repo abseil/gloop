@@ -36,13 +36,12 @@
 #include "absl/log/log.h"
 #include "absl/random/random.h"
 #include "absl/strings/string_view.h"
-#include "benchmark/benchmark.h"
 #include "gloop/base/arena.h"
 #include "gloop/base/init_google.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/random/distributions.h"
 #include "gloop/util/random/mt_random.h"
 #include "gloop/util/random/random_base.h"
-#include "gtest/gtest.h"
 
 ABSL_FLAG(int32_t, test_size, 100, "Number of strings to test");
 ABSL_FLAG(int32_t, log_max_length, 16, "N, where maximum string length is 2^N");
@@ -66,7 +65,7 @@ TEST(ArenaStringTest, Simple) {
 // allocators.
 template <class A>
 void TestAssign(A a) {
-  MTRandom rng(testing::GTEST_FLAG(random_seed));
+  MTRandom rng(GTEST_FLAG_GET(random_seed));
   std::vector<std::string> data;
   std::vector<ArenaString> arena_str;
 
@@ -128,7 +127,7 @@ TEST(ArenaStringTest, AssignBaseArena) {
 
 // Test static encode and decode methods.
 TEST(ArenaStringTest, EncodeDecode) {
-  MTRandom rng(testing::GTEST_FLAG(random_seed));
+  MTRandom rng(GTEST_FLAG_GET(random_seed));
 
   // allocate a few extra characters so we can check for buffer overruns.
   int buf_extra = 16;
@@ -397,7 +396,7 @@ int main(int argc, char** argv) {
     exit(0);
   }
 
-  LOG(INFO) << "--test_random_seed=" << testing::GTEST_FLAG(random_seed);
+  LOG(INFO) << "--test_random_seed=" << GTEST_FLAG_GET(random_seed);
 
   return RUN_ALL_TESTS();
 }

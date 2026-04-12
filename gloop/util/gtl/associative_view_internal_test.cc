@@ -24,8 +24,8 @@
 #include <set>
 #include <string>
 
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/set_view.h"
-#include "gtest/gtest.h"
 
 namespace gtl {
 namespace internal_associative_view {

@@ -24,7 +24,7 @@
 #include <cstdint>
 #include <limits>
 
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 using util::floatops::kDownward;
 using util::floatops::kToNearest;

@@ -33,11 +33,10 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/random/random.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/comparator.h"
 #include "gloop/util/gtl/stl_util.h"
 #include "gloop/util/random/mt_random.h"
-#include "gtest/gtest.h"
 
 namespace gtl {
 namespace {

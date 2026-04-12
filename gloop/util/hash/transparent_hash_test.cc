@@ -29,9 +29,8 @@
 #include "absl/log/check.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/gtl/stl_util.h"
-#include "gtest/gtest.h"
 
 namespace {
 

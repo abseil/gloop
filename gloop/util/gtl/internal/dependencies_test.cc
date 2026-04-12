@@ -22,7 +22,7 @@
 
 #include <type_traits>
 
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace gtl::internal_dependencies {
 namespace {

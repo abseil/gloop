@@ -85,11 +85,28 @@ cc_library(
     name = "gloop_test_main",
     testonly = True,
     srcs = ["gloop_test_main.cc"],
+    hdrs = ["gloop_test.h"],
     visibility = [
         "//gloop:__subpackages__",
     ],
     deps = [
         "//gloop/base:init_google",
+        "@abseil-cpp//absl/base:config",
+        "@gloop//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest_for_library",
+    ],
+)
+
+cc_library(
+    name = "gloop_test",
+    testonly = True,
+    hdrs = ["gloop_test.h"],
+    visibility = [
+        "//gloop:__subpackages__",
+    ],
+    deps = [
+        "@abseil-cpp//absl/base:config",
         "@gloop//gloop:enforce_gloop_support",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest_for_library",

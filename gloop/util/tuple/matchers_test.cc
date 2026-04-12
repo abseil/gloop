@@ -29,10 +29,9 @@
 #include <vector>
 
 #include "absl/base/casts.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/tuple/intrinsics.h"
 #include "gloop/util/tuple/struct.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace util {
 namespace tuple {

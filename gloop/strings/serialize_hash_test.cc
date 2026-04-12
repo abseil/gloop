@@ -24,9 +24,8 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "gloop/gloop_test.h"
 #include "gloop/strings/serialize.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace strings {
 

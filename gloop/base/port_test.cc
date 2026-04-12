@@ -34,7 +34,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/casts.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace port_test {
 

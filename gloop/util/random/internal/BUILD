@@ -50,8 +50,6 @@ cc_test(
         "@abseil-cpp//absl/random/internal:sequence_urbg",
         "@abseil-cpp//absl/strings",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -78,7 +76,5 @@ cc_test(
         "@abseil-cpp//absl/random/internal:sequence_urbg",
         "@abseil-cpp//absl/strings",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )

@@ -24,7 +24,7 @@
 #include <tuple>
 #include <utility>
 
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace util::tuple::bindings {
 namespace {

@@ -25,9 +25,8 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/types/source_location.h"
+#include "gloop/gloop_test.h"
 #include "gloop/perftools/tracing/test_only_access.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace perftools::tracing {
 namespace {

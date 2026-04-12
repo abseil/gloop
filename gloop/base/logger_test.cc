@@ -42,8 +42,7 @@
 #include "absl/time/time.h"
 #include "gloop/base/log_file.h"
 #include "gloop/base/logging_extensions.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace {
 using ::absl::log_internal::LoggingEnabledAt;

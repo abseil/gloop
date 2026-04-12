@@ -24,7 +24,7 @@
 #include <memory>
 #include <utility>
 
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace util::functional {
 namespace {

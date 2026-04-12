@@ -31,10 +31,8 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/status/status_macros.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 namespace not_util {
 
@@ -492,7 +490,7 @@ TEST(StatusMacrosChecksTest, AbortOnFailure) {
   };
 
   EXPECT_THAT(func_bool(true, "IGNORED"), IsOk());
-  EXPECT_DEATH(
+  GLOOP_EXPECT_DEATH(
       { func_bool(false, "TRIGGERED").IgnoreError(); },
       "RET_CHECK.*condition.*TRIGGERED");
 
@@ -502,7 +500,7 @@ TEST(StatusMacrosChecksTest, AbortOnFailure) {
   };
 
   EXPECT_THAT(func_eq(2, 2, "IGNORED"), IsOk());
-  EXPECT_DEATH(
+  GLOOP_EXPECT_DEATH(
       { func_eq(1, 2, "TRIGGERED").IgnoreError(); },
       "RET_CHECK.*x == y.*TRIGGERED");
 }

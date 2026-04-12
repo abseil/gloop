@@ -41,18 +41,16 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/util/status/error_space.h"
 #include "gloop/util/status/non_message_set_payload.pb.h"
 #include "gloop/util/status/status.pb.h"
 #include "gloop/util/status/status_internal.h"
 #include "gloop/util/status/test_payload.pb.h"
-#include "gmock/gmock.h"
 #include "google/protobuf/any.pb.h"
 #include "google/protobuf/bridge/message_set.pb.h"
 #include "google/protobuf/text_format.h"
 #include "google/protobuf/wrappers.pb.h"
-#include "gtest/gtest.h"
 
 namespace {
 
@@ -392,28 +390,31 @@ TEST(StatusOr, CheckOK) {
 TEST(StatusDeathTest, CheckOK) {
   absl::Status status;
   status = absl::Status(absl::StatusCode::kCancelled, "Operation Cancelled");
-  ASSERT_DEATH_IF_SUPPORTED(CHECK_OK(status), "Check failed.*status");
-  ASSERT_DEATH_IF_SUPPORTED(CHECK_OK(status), "Source Location");
-  ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(status), "Check failed.*status");
-  ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(status), "Source Location");
-  ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(status) << "Foo1234", "Check failed");
-  ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(status) << "Foo1234", "Source Location");
-  ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(status) << "Foo1234", "Foo1234");
+  GLOOP_ASSERT_DEATH_IF_SUPPORTED(CHECK_OK(status), "Check failed.*status");
+  GLOOP_ASSERT_DEATH_IF_SUPPORTED(CHECK_OK(status), "Source Location");
+  GLOOP_ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(status), "Check failed.*status");
+  GLOOP_ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(status), "Source Location");
+  GLOOP_ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(status) << "Foo1234",
+                                  "Check failed");
+  GLOOP_ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(status) << "Foo1234",
+                                  "Source Location");
+  GLOOP_ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(status) << "Foo1234", "Foo1234");
 }
 
 TEST(StatusOrDeathTest, CheckOK) {
   absl::StatusOr<int> bad_i =
       absl::Status(absl::StatusCode::kCancelled, "Operation Cancelled");
-  ASSERT_DEATH_IF_SUPPORTED(CHECK_OK(bad_i),
-                            "Check failed.*Operation Cancelled");
-  ASSERT_DEATH_IF_SUPPORTED(CHECK_OK(bad_i), "Source Location");
-  ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(bad_i),
-                            "Check failed.*Operation Cancelled");
-  ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(bad_i), "Source Location");
-  ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(bad_i) << "Foo1234",
-                            "Check failed.*Operation Cancelled");
-  ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(bad_i) << "Foo1234", "Source Location");
-  ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(bad_i) << "Foo1234", "Foo1234");
+  GLOOP_ASSERT_DEATH_IF_SUPPORTED(CHECK_OK(bad_i),
+                                  "Check failed.*Operation Cancelled");
+  GLOOP_ASSERT_DEATH_IF_SUPPORTED(CHECK_OK(bad_i), "Source Location");
+  GLOOP_ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(bad_i),
+                                  "Check failed.*Operation Cancelled");
+  GLOOP_ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(bad_i), "Source Location");
+  GLOOP_ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(bad_i) << "Foo1234",
+                                  "Check failed.*Operation Cancelled");
+  GLOOP_ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(bad_i) << "Foo1234",
+                                  "Source Location");
+  GLOOP_ASSERT_DEATH_IF_SUPPORTED(QCHECK_OK(bad_i) << "Foo1234", "Foo1234");
 }
 
 TEST(Status, CreateStatusOkNullMessageSet) {

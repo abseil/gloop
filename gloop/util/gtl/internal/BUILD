@@ -40,8 +40,6 @@ cc_test(
     deps = [
         ":aggregate",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -61,8 +59,6 @@ cc_test(
     deps = [
         ":dependencies",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -84,8 +80,6 @@ cc_test(
     deps = [
         ":num_bases",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -107,7 +101,5 @@ cc_test(
     deps = [
         ":num_initializers",
         "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )

@@ -28,8 +28,7 @@
 #include "absl/random/bit_gen_ref.h"
 #include "absl/random/distributions.h"
 #include "absl/random/random.h"
-#include "benchmark/benchmark.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 ABSL_FLAG(int32_t, random_iterations, 100000,
           "Number of iterations for ConstantDivisorTest::RandomCases.");

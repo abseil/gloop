@@ -21,7 +21,7 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_TUPLE_TEST_UTIL_H_
 #define THIRD_PARTY_GLOOP_UTIL_TUPLE_TEST_UTIL_H_
 
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace util {
 namespace tuple {

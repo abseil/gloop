@@ -18,7 +18,7 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-#include "benchmark/benchmark.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/threadpool.h"
 

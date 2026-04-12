@@ -47,12 +47,10 @@
 #include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "benchmark/benchmark.h"
 #include "gloop/base/sysinfo.h"
+#include "gloop/gloop_test.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
 
 using ::testing::Eq;
 
@@ -1003,8 +1001,8 @@ TEST(CountingMutexTest, ReleasableCountingMutexLock) {
     mutex.AssertHeld();
     lock.Release();
     mutex.AssertNotHeld();
-    EXPECT_DEBUG_DEATH(mutex.AssertHeld(),
-                       "thread should hold an exclusive lock");
+    GLOOP_EXPECT_DEBUG_DEATH(mutex.AssertHeld(),
+                             "thread should hold an exclusive lock");
   }
 }
 

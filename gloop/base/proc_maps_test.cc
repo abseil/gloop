@@ -23,7 +23,7 @@
 #include <sys/sysmacros.h>
 
 #include "absl/strings/string_view.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace {
 

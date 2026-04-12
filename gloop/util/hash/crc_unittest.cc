@@ -32,8 +32,8 @@
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_format.h"
-#include "benchmark/benchmark.h"
 #include "gloop/base/init_google.h"
+#include "gloop/gloop_test.h"
 
 ABSL_FLAG(bool, print_output, false, "print CRC debug information");
 
@@ -435,8 +435,8 @@ static void TestScramble() {
             << "degree " << degree << " Unscramble()!=Scramble^-1()";
         if (s[i].lo == s[0].lo && s[i].hi == s[0].hi) {
           cycle_count++;
-          LOG(INFO) << std::hex << "Scramble^" << i << "(" << s[i].lo << ", "
-                    << s[i].hi << ") maps to argument";
+          VLOG(1) << std::hex << "Scramble^" << i << "(" << s[i].lo << ", "
+                  << s[i].hi << ") maps to argument";
         }
       }
     }

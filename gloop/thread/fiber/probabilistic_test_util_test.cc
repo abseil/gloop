@@ -21,7 +21,7 @@
 #include "gloop/thread/fiber/probabilistic_test_util.h"
 
 #include "absl/log/log.h"
-#include "gtest/gtest.h"
+#include "gloop/gloop_test.h"
 
 namespace {
 
