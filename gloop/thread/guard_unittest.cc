@@ -58,10 +58,7 @@ class GuardTestThread : public Thread {
     this->SetJoinable(true);
   }
 
-  virtual void Run() {
-    *ok_ = DoStackTest();
-    return;
-  }
+  virtual void Run() { *ok_ = DoStackTest(); }
 
  private:
   // Returns true if sizes are OK.
