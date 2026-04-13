@@ -44,6 +44,13 @@ package_group(
     ],
 )
 
+# Allow list including paths with explicit access to the core library
+package_group(
+    name = "core_visibility",
+    packages = [
+    ],
+)
+
 cc_library(
     name = "test_only_access",
     testonly = True,
@@ -160,7 +167,7 @@ cc_library(
     visibility = [
         ":base_visibility",
         ":internal_visibility",
-        "//assistant/boq/humboldt/modules/tempus:__subpackages__",
+        ":trace_event_listener_visibility",
     ],
     deps = [
         ":trace_event_listener",
@@ -204,7 +211,10 @@ cc_library(
     name = "tracing_core",
     srcs = ["tracing_core.cc"],
     hdrs = ["tracing_core.h"],
-    visibility = [":internal_visibility"],
+    visibility = [
+        ":core_visibility",
+        ":internal_visibility",
+    ],
     deps = [
         ":trace_event_listener",
         ":tracing_base",
