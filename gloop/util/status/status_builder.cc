@@ -93,9 +93,8 @@ StatusBuilder::Rep::Rep(const Rep& r)
 
 void StatusBuilder::Rep::InitStream() { stream.emplace(stream_message); }
 
-absl::Status StatusBuilder::JoinMessageToStatus(absl::Status s,
-                                                absl::string_view msg,
-                                                MessageJoinStyle style) {
+absl::Status JoinMessageToStatus(absl::Status s, absl::string_view msg,
+                                 MessageJoinStyle style) {
   if (msg.empty()) return s;
   if (style == MessageJoinStyle::kAnnotate) {
     return Annotate(std::move(s), msg);
@@ -236,7 +235,7 @@ void StatusBuilder::ConditionallyLog(const absl::Status& status,
 absl::Status StatusBuilder::CreateStatusAndConditionallyLog(
     absl::SourceLocation loc, std::unique_ptr<Rep> rep) {
   if (rep == nullptr) return absl::OkStatus();
-  absl::Status result = JoinMessageToStatus(
+  absl::Status result = util::JoinMessageToStatus(
       std::move(rep->status), rep->stream_message, rep->message_join_style);
   ConditionallyLog(result, loc, *rep);
   // Passing in the `loc` last to ensure the sequence of the source locations.

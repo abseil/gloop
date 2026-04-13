@@ -95,7 +95,66 @@ using Conversion =
                          !kResultMatches<Adaptor, Builder, absl::Status>,
                      std::invoke_result_t<Adaptor, Builder>>;
 
+class StatusBuilderPrivateAccessor;
+
 }  // namespace status_internal
+
+// Forward declarations for inlining. See definitions for documentation.
+
+template <typename MessageSetExtension, typename ExtensionIdentifier>
+StatusBuilder& AttachPayload(StatusBuilder*, const MessageSetExtension&,
+                             const ExtensionIdentifier&);
+
+template <typename MessageSetExtension>
+StatusBuilder& AttachPayload(StatusBuilder*, const MessageSetExtension&);
+
+template <typename MessageSetExtension, typename ExtensionIdentifier>
+bool HasPayloadWithType(const StatusBuilder&, const ExtensionIdentifier&);
+template <typename MessageSetExtension>
+bool HasPayloadWithType(const StatusBuilder&);
+
+template <typename MessageSetExtension, typename ExtensionIdentifier>
+MessageSetExtension GetPayload(const StatusBuilder&,
+                               const ExtensionIdentifier&);
+template <typename MessageSetExtension>
+MessageSetExtension GetPayload(const StatusBuilder&);
+
+template <typename Enum>
+decltype(std::conditional_t<false, Enum,
+                            status_internal::StatusBuilderPrivateAccessor>::
+             SetErrorCode(std::declval<StatusBuilder&>(),
+                          std::declval<const ErrorSpace*>(),
+                          std::declval<std::conditional_t<false, Enum, int>>()))
+SetErrorCode(StatusBuilder& builder ABSL_ATTRIBUTE_LIFETIME_BOUND, Enum);
+template <typename Enum>
+decltype(std::move(util::SetErrorCode(std::declval<StatusBuilder&>(),
+                                      std::declval<Enum>())))
+SetErrorCode(StatusBuilder&& builder, Enum code) {
+  return std::move(util::SetErrorCode(builder, code));
+}
+
+util::error::Code GetCanonicalCode(const StatusBuilder&);
+
+template <typename Enum>
+ABSL_MUST_USE_RESULT decltype(util::HasErrorCode(
+    std::declval<const absl::Status&>(), std::declval<Enum>()))
+HasErrorCode(const StatusBuilder&, Enum);
+bool HasErrorCode(const StatusBuilder&, util::error::Code);
+bool HasErrorCode(const StatusBuilder&, const ErrorSpace*, int);
+bool HasErrorSpace(const StatusBuilder&, const ErrorSpace*);
+
+// Specifies how to join the error message in the original status and any
+// additional message that has been streamed into the builder.
+enum class MessageJoinStyle {
+  kAnnotate,
+  kAppend,
+  kPrepend,
+};
+
+// Creates a new status based on an old one by joining the message from the
+// original to an additional message.
+absl::Status JoinMessageToStatus(absl::Status s, absl::string_view msg,
+                                 MessageJoinStyle style);
 
 template <typename Enum>
 std::enable_if_t<EnumHasErrorSpace<Enum>::value, StatusBuilder>
@@ -233,11 +292,10 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
       : StatusBuilder(::util::MakeStatusBuilder(space, code, location)) {}
 #endif
 
-  // Creates a `StatusBuilder` from a status code in
-  // `util::CanonicalErrorSpace()`  If logging is enabled, it will use
-  // `location` as the location from which the log message occurs.  A typical
-  // user will not specify `location`, allowing it to default to the current
-  // location.
+  // Creates a `StatusBuilder` from a status code.  If logging is enabled, it
+  // will use `location` as the location from which the log message occurs.  A
+  // typical user will not specify `location`, allowing it to default to the
+  // current location.
   explicit StatusBuilder(
       absl::StatusCode code,
       absl::SourceLocation location = absl::SourceLocation::current());
@@ -389,20 +447,28 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   //   builder.AttachPayload(rpc_status, google::rpc::error_details_ext);
   //
   template <typename MessageSetExtension, typename ExtensionIdentifier>
+  ABSL_DEPRECATE_AND_INLINE()
   StatusBuilder& AttachPayload(const MessageSetExtension& obj,
-                               const ExtensionIdentifier& id) &;
+                               const ExtensionIdentifier& id) & {
+    return ::util::AttachPayload(this, obj, id);
+  }
   template <typename MessageSetExtension, typename ExtensionIdentifier>
+  ABSL_DEPRECATE_AND_INLINE()
   ABSL_MUST_USE_RESULT StatusBuilder&& AttachPayload(
       const MessageSetExtension& obj, const ExtensionIdentifier& id) && {
-    return std::move(AttachPayload(obj, id));
+    return std::move(::util::AttachPayload(this, obj, id));
   }
 
   template <typename MessageSetExtension>
-  StatusBuilder& AttachPayload(const MessageSetExtension& obj) &;
+  ABSL_DEPRECATE_AND_INLINE()
+  StatusBuilder& AttachPayload(const MessageSetExtension& obj) & {
+    return ::util::AttachPayload(this, obj);
+  }
   template <typename MessageSetExtension>
-  ABSL_MUST_USE_RESULT StatusBuilder&& AttachPayload(
-      const MessageSetExtension& obj) && {
-    return std::move(AttachPayload(obj));
+  ABSL_DEPRECATE_AND_INLINE()
+  ABSL_MUST_USE_RESULT
+      StatusBuilder&& AttachPayload(const MessageSetExtension& obj) && {
+    return std::move(::util::AttachPayload(this, obj));
   }
 
   // HasPayload()
@@ -423,7 +489,10 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // argument. This function implicitly invokes `HasPayload()`, so you do not
   // need to call it alongside a `HasPayloadWithType()` call.
   template <typename MessageSetExtension, typename ExtensionIdentifier>
-  bool HasPayloadWithType(const ExtensionIdentifier& id) const;
+  ABSL_DEPRECATE_AND_INLINE()
+  bool HasPayloadWithType(const ExtensionIdentifier& id) const {
+    return ::util::HasPayloadWithType<MessageSetExtension>(*this, id);
+  }
 
   // Indicates whether the Status object that will be returned by the
   // StatusBuilder contains a payload with a type extending proto2's
@@ -432,7 +501,10 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // function implicitly invokes `HasPayload()`, so you do not need to call it
   // alongside a `HasPayloadWithType()` call.
   template <typename MessageSetExtension>
-  bool HasPayloadWithType() const;
+  ABSL_DEPRECATE_AND_INLINE()
+  bool HasPayloadWithType() const {
+    return ::util::HasPayloadWithType<MessageSetExtension>(*this);
+  }
 
   // GetPayload()
   //
@@ -442,7 +514,10 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // invoking HasPayloadWithType with the same arguments. Otherwise this call
   // will lead to crash in case if payload if absent.
   template <typename MessageSetExtension, typename ExtensionIdentifier>
-  MessageSetExtension GetPayload(const ExtensionIdentifier& id) const;
+  ABSL_DEPRECATE_AND_INLINE()
+  MessageSetExtension GetPayload(const ExtensionIdentifier& id) const {
+    return ::util::GetPayload<MessageSetExtension>(*this, id);
+  }
 
   // Returns a copy of a payload object with type MessageSetExtension. An
   // extension id is expected to be accessible as
@@ -453,14 +528,23 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // performing this check may lead to undefined behavior in cases where the
   // payload is absent.
   template <typename MessageSetExtension>
-  MessageSetExtension GetPayload() const;
+  ABSL_DEPRECATE_AND_INLINE()
+  MessageSetExtension GetPayload() const {
+    return ::util::GetPayload<MessageSetExtension>(*this);
+  }
 
   // Sets the error code for the status that will be returned by this
   // StatusBuilder.  Returns `*this` to allow method chaining.
   template <typename Enum>
-  StatusBuilder& SetErrorCode(Enum code) &;
+  ABSL_DEPRECATE_AND_INLINE()
+  StatusBuilder& SetErrorCode(Enum code) & {
+    return ::util::SetErrorCode(*this, code);
+  }
   template <typename Enum>
-  ABSL_MUST_USE_RESULT StatusBuilder&& SetErrorCode(Enum code) &&;
+  ABSL_DEPRECATE_AND_INLINE()
+  ABSL_MUST_USE_RESULT StatusBuilder&& SetErrorCode(Enum code) && {
+    return ::util::SetErrorCode(std::move(*this), code);
+  }
 
   // Sets the status code for the status that will be returned by this
   // StatusBuilder. Returns `*this` to allow method chaining.
@@ -614,7 +698,10 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // DEPRECATED: Use `code()`.
   // Returns the canonical code for the Status created by this builder.
   // Automatically converts to the canonical space if necessary.
-  ABSL_MUST_USE_RESULT ::util::error::Code CanonicalCode() const;
+  ABSL_DEPRECATE_AND_INLINE()
+  ABSL_MUST_USE_RESULT util::error::Code CanonicalCode() const {
+    return ::util::GetCanonicalCode(*this);
+  }
 
   // Returns the (canonical) error code for the Status created by this builder.
   absl::StatusCode code() const;
@@ -636,13 +723,18 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // REQUIRES: `code` is in an enum associated with an error space; see the
   // `ErrorSpace` class documentation for details. Also, `code` must not be a
   // `util::error::Code`.
-  template <typename Enum,
-            typename = typename std::enable_if<
-                EnumHasErrorSpace<Enum>::value ||
-                std::is_same<Enum, absl::StatusCode>::value>::type>
-  ABSL_MUST_USE_RESULT bool Is(Enum code) const;
+  template <typename Enum>
+  ABSL_DEPRECATE_AND_INLINE()
+  ABSL_MUST_USE_RESULT
+      decltype(util::HasErrorCode(std::declval<const StatusBuilder&>(),
+                                  std::declval<Enum>())) Is(Enum code) const {
+    return ::util::HasErrorCode(*this, code);
+  }
 
-  ABSL_MUST_USE_RESULT bool Is(::util::error::Code code) const;
+  ABSL_DEPRECATE_AND_INLINE()
+  ABSL_MUST_USE_RESULT bool Is(error::Code code) const {
+    return ::util::HasErrorCode(*this, code);
+  }
 
   // Returns true iff the status created by this builder will have an error code
   // equal to `code` and an error space equal to `space`.
@@ -650,11 +742,17 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // taking an enum. This overload is provided for error spaces such as
   // util::PosixErrorSpace() which cannot use that templace because they lack an
   // associated Enum type.
-  ABSL_MUST_USE_RESULT bool Is(const ErrorSpace* space, int code) const;
+  ABSL_DEPRECATE_AND_INLINE()
+  ABSL_MUST_USE_RESULT bool Is(const ErrorSpace* space, int code) const {
+    return ::util::HasErrorCode(*this, space, code);
+  }
 
   // Returns true iff the status created by this builder will have an error
   // space equal to `space`.
-  ABSL_MUST_USE_RESULT bool Is(const ErrorSpace* space) const;
+  ABSL_DEPRECATE_AND_INLINE()
+  ABSL_MUST_USE_RESULT bool Is(const ErrorSpace* space) const {
+    return ::util::HasErrorSpace(*this, space);
+  }
 
   // Implicit conversion to Status.
   //
@@ -693,13 +791,7 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   std::string ToString() const;
 
  private:
-  // Specifies how to join the error message in the original status and any
-  // additional message that has been streamed into the builder.
-  enum class MessageJoinStyle {
-    kAnnotate,
-    kAppend,
-    kPrepend,
-  };
+  friend class status_internal::StatusBuilderPrivateAccessor;
 
   // Returns true if the compiler can determine that the instance is empty. That
   // is, `rep_ == nullptr`.
@@ -723,10 +815,19 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
     if (rep_ != nullptr) ABSL_UNREACHABLE();
   }
 
-  // Creates a new status based on an old one by joining the message from the
-  // original to an additional message.
-  static absl::Status JoinMessageToStatus(absl::Status s, absl::string_view msg,
-                                          MessageJoinStyle style);
+  ABSL_DEPRECATE_AND_INLINE()
+  static absl::Status JoinMessageToStatus(absl::Status&& s,
+                                          absl::string_view msg,
+                                          MessageJoinStyle style) {
+    return ::util::JoinMessageToStatus(std::move(s), msg, style);
+  }
+
+  ABSL_DEPRECATE_AND_INLINE()
+  static absl::Status JoinMessageToStatus(const absl::Status& s,
+                                          absl::string_view msg,
+                                          MessageJoinStyle style) {
+    return ::util::JoinMessageToStatus(s, msg, style);
+  }
 
   struct Rep;
   // Destroy the `Rep` object. It is just calling the destructor of the
@@ -940,6 +1041,29 @@ class ExtraMessage {
   status_internal::Stream stream_;
 };
 
+class status_internal::StatusBuilderPrivateAccessor {
+ public:
+  static absl::SourceLocation GetLoc(const StatusBuilder& builder) {
+    return builder.loc_;
+  }
+
+  static StatusBuilder::Rep* GetRep(const StatusBuilder& builder) {
+    return builder.rep_.get();
+  }
+
+  static StatusBuilder& SetErrorCode(StatusBuilder& builder,
+                                     const ErrorSpace* space, int code_int) {
+    if (builder.rep_ == nullptr) {
+      builder.rep_ = std::make_unique<StatusBuilder::Rep>(
+          ::util::SetErrorSpaceAndCode(absl::Status(), space, code_int));
+    } else {
+      builder.rep_->status =
+          ::util::SetErrorSpaceAndCode(builder.rep_->status, space, code_int);
+    }
+    return builder;
+  }
+};
+
 template <typename Enum>
 inline std::enable_if_t<EnumHasErrorSpace<Enum>::value, StatusBuilder>
 MakeStatusBuilder(Enum code, absl::SourceLocation location) {
@@ -1134,25 +1258,18 @@ inline std::optional<absl::Cord> StatusBuilder::GetPayload(
 }
 
 template <typename Enum>
-StatusBuilder& StatusBuilder::SetErrorCode(Enum code) & {
-  const ErrorSpace* space = GetErrorSpaceForEnum(code);
-  if (rep_ == nullptr) {
-    absl::Status s;
-    s = ::util::SetErrorSpaceAndCode(s, space, static_cast<int>(code));
-    rep_ = std::make_unique<Rep>(std::move(s));
-  } else {
-    rep_->status = ::util::SetErrorSpaceAndCode(rep_->status, space,
-                                                static_cast<int>(code));
-  }
-  return *this;
-}
-template <typename Enum>
-StatusBuilder&& StatusBuilder::SetErrorCode(Enum code) && {
-  return std::move(SetErrorCode(code));
+decltype(std::conditional_t<false, Enum,
+                            status_internal::StatusBuilderPrivateAccessor>::
+             SetErrorCode(std::declval<StatusBuilder&>(),
+                          std::declval<const ErrorSpace*>(),
+                          std::declval<std::conditional_t<false, Enum, int>>()))
+SetErrorCode(StatusBuilder& builder ABSL_ATTRIBUTE_LIFETIME_BOUND, Enum code) {
+  return status_internal::StatusBuilderPrivateAccessor::SetErrorCode(
+      builder, GetErrorSpaceForEnum(code), static_cast<int>(code));
 }
 
 inline StatusBuilder& StatusBuilder::SetCode(absl::StatusCode code) & {
-  return SetErrorCode(static_cast<error::Code>(code));
+  return util::SetErrorCode(*this, static_cast<error::Code>(code));
 }
 inline StatusBuilder&& StatusBuilder::SetCode(absl::StatusCode code) && {
   return std::move(SetCode(code));
@@ -1162,31 +1279,65 @@ inline bool StatusBuilder::ok() const {
   return rep_ == nullptr ? true : rep_->status.ok();
 }
 
-inline ::util::error::Code StatusBuilder::CanonicalCode() const {
-  return static_cast<::util::error::Code>(
-      rep_ == nullptr ? absl::StatusCode::kOk : rep_->status.code());
+inline util::error::Code GetCanonicalCode(const StatusBuilder& builder) {
+  return static_cast<error::Code>(builder.code());
 }
 
 inline absl::StatusCode StatusBuilder::code() const {
   return rep_ == nullptr ? absl::StatusCode::kOk : rep_->status.code();
 }
 
-template <typename Enum, typename>
-bool StatusBuilder::Is(Enum code) const {
-  return ::util::HasErrorCode(rep_ == nullptr ? absl::OkStatus() : rep_->status,
+// Returns true iff the status created by the builder will have the code and
+// associated error space of `code`. Intended to be called with enumerators from
+// non-canonical error spaces. `StatusBuilder(Status(code, "")).Is(code)` is
+// always true. In particular, if the `code` is zero, returns true if
+// `status_builder.ok()`. Sample usage:
+//
+//   StatusBuilder TeamPolicy(StatusBuilder builder) {
+//     if (builder.Is(frobber::kNoMoreFrobs)) {
+//       builder.Log(base_logging::WARNING);
+//     }
+//     return std::move(builder);
+//   }
+//
+// REQUIRES: `code` is in an enum associated with an error space; see the
+// `ErrorSpace` class documentation for details. Also, `code` must not be a
+// `util::error::Code`.
+template <typename Enum>
+ABSL_MUST_USE_RESULT decltype(::util::HasErrorCode(
+    std::declval<const absl::Status&>(), std::declval<Enum>()))
+HasErrorCode(const StatusBuilder& builder, Enum code) {
+  auto* rep = status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
+  return ::util::HasErrorCode(rep == nullptr ? absl::OkStatus() : rep->status,
                               code);
 }
-inline bool StatusBuilder::Is(::util::error::Code code) const {
-  return ::util::HasErrorCode(rep_ == nullptr ? absl::OkStatus() : rep_->status,
+inline bool HasErrorCode(const StatusBuilder& builder,
+                         ::util::error::Code code) {
+  auto* rep = status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
+  return ::util::HasErrorCode(rep == nullptr ? absl::OkStatus() : rep->status,
                               static_cast<absl::StatusCode>(code));
 }
-inline bool StatusBuilder::Is(const ErrorSpace* space, int code) const {
-  return ::util::HasErrorCode(rep_ == nullptr ? absl::OkStatus() : rep_->status,
+
+// Returns true iff the status created by this builder will have an error code
+// equal to `code` and an error space equal to `space`.
+// NOTE: Most error spaces can and should use the one-arg `Is()` function taking
+// an enum. This overload is provided for error spaces such as
+// util::PosixErrorSpace() which cannot use that templace because they lack an
+// associated Enum type.
+inline bool HasErrorCode(const StatusBuilder& builder, const ErrorSpace* space,
+                         int code) {
+  auto* rep = status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
+  return ::util::HasErrorCode(rep == nullptr ? absl::OkStatus() : rep->status,
                               space, code);
 }
-inline bool StatusBuilder::Is(const ErrorSpace* space) const {
-  return ::util::RetrieveErrorSpace(rep_ == nullptr ? absl::OkStatus()
-                                                    : rep_->status) == space;
+
+// Returns true iff the status created by this builder will have an error
+// space equal to `space`.
+inline bool HasErrorSpace(const StatusBuilder& builder,
+                          const ErrorSpace* space) {
+  auto* rep = status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
+  return ::util::RetrieveErrorSpace(rep == nullptr ? absl::OkStatus()
+                                                   : rep->status) == space;
 }
 
 inline StatusBuilder::operator absl::Status() && {
@@ -1206,56 +1357,8 @@ inline absl::SourceLocation StatusBuilder::source_location() const {
   return loc_;
 }
 
-////////////////////////////////////////////////////////////////////////
-// Payload support
-////////////////////////////////////////////////////////////////////////
-
-template <typename MessageSetExtension, typename ExtensionIdentifier>
-inline StatusBuilder& StatusBuilder::AttachPayload(
-    const MessageSetExtension& obj, const ExtensionIdentifier& id) & {
-  if (rep_ != nullptr) {
-    ::util::AttachPayload(&rep_->status, obj, id);
-  }
-  return *this;
-}
-
-template <typename MessageSetExtension>
-inline StatusBuilder& StatusBuilder::AttachPayload(
-    const MessageSetExtension& obj) & {
-  return AttachPayload(obj, MessageSetExtension::message_set_extension);
-}
-
 inline bool StatusBuilder::HasPayload() const {
   return rep_ != nullptr && ::util::HasPayload(rep_->status);
-}
-
-template <typename MessageSetExtension, typename ExtensionIdentifier>
-inline bool StatusBuilder::HasPayloadWithType(
-    const ExtensionIdentifier& id) const {
-  return rep_ != nullptr &&
-         ::util::HasPayloadWithType<MessageSetExtension>(rep_->status, id);
-}
-
-template <typename MessageSetExtension>
-inline bool StatusBuilder::HasPayloadWithType() const {
-  return HasPayloadWithType<MessageSetExtension>(
-      MessageSetExtension::message_set_extension);
-}
-
-template <typename MessageSetExtension, typename ExtensionIdentifier>
-inline MessageSetExtension StatusBuilder::GetPayload(
-    const ExtensionIdentifier& id) const {
-  ABSL_INTERNAL_CHECK(
-      rep_ != nullptr,
-      "Call to GetPayload should be guarded by the HasPayloadWithType check");
-
-  return ::util::GetPayload<MessageSetExtension>(rep_->status, id);
-}
-
-template <typename MessageSetExtension>
-inline MessageSetExtension StatusBuilder::GetPayload() const {
-  return GetPayload<MessageSetExtension>(
-      MessageSetExtension::message_set_extension);
 }
 
 // AttachPayload()
@@ -1279,16 +1382,21 @@ inline MessageSetExtension StatusBuilder::GetPayload() const {
 //   rpc_status.set_message("message for external");
 //   util::AttachPayload(&builder, rpc_status, google::rpc::error_details_ext);
 template <typename MessageSetExtension, typename ExtensionIdentifier>
-inline void AttachPayload(util::StatusBuilder* builder,
-                          const MessageSetExtension& obj,
-                          const ExtensionIdentifier& id) {
-  builder->AttachPayload(obj, id);
+inline util::StatusBuilder& AttachPayload(util::StatusBuilder* builder,
+                                          const MessageSetExtension& obj,
+                                          const ExtensionIdentifier& id) {
+  auto* rep = status_internal::StatusBuilderPrivateAccessor::GetRep(*builder);
+  if (rep != nullptr) {
+    util::AttachPayload(&rep->status, obj, id);
+  }
+  return *builder;
 }
 
 template <typename MessageSetExtension>
-inline void AttachPayload(util::StatusBuilder* builder,
-                          const MessageSetExtension& obj) {
-  builder->AttachPayload(obj);
+inline util::StatusBuilder& AttachPayload(util::StatusBuilder* builder,
+                                          const MessageSetExtension& obj) {
+  return util::AttachPayload(builder, obj,
+                             MessageSetExtension::message_set_extension);
 }
 
 // HasPayload()
@@ -1313,7 +1421,9 @@ inline bool HasPayload(const util::StatusBuilder& builder) {
 template <typename MessageSetExtension, typename ExtensionIdentifier>
 inline bool HasPayloadWithType(const util::StatusBuilder& builder,
                                const ExtensionIdentifier& id) {
-  return builder.HasPayloadWithType<MessageSetExtension>(id);
+  auto* rep = status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
+  return rep != nullptr &&
+         util::HasPayloadWithType<MessageSetExtension>(rep->status, id);
 }
 
 // Indicates whether the Status object that will be returned by the
@@ -1324,7 +1434,8 @@ inline bool HasPayloadWithType(const util::StatusBuilder& builder,
 // `HasPayloadWithType()` call.
 template <typename MessageSetExtension>
 inline bool HasPayloadWithType(const util::StatusBuilder& builder) {
-  return builder.HasPayloadWithType<MessageSetExtension>();
+  return util::HasPayloadWithType<MessageSetExtension>(
+      builder, MessageSetExtension::message_set_extension);
 }
 
 // GetPayload()
@@ -1337,7 +1448,12 @@ inline bool HasPayloadWithType(const util::StatusBuilder& builder) {
 template <typename MessageSetExtension, typename ExtensionIdentifier>
 inline MessageSetExtension GetPayload(const util::StatusBuilder& builder,
                                       const ExtensionIdentifier& id) {
-  return builder.GetPayload<MessageSetExtension>(id);
+  auto* rep = status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
+  ABSL_INTERNAL_CHECK(
+      rep != nullptr,
+      "Call to GetPayload should be guarded by the HasPayloadWithType check");
+
+  return util::GetPayload<MessageSetExtension>(rep->status, id);
 }
 
 // Returns a copy of a payload object with type MessageSetExtension. An
@@ -1350,7 +1466,8 @@ inline MessageSetExtension GetPayload(const util::StatusBuilder& builder,
 // payload is absent.
 template <typename MessageSetExtension>
 inline MessageSetExtension GetPayload(const util::StatusBuilder& builder) {
-  return builder.GetPayload<MessageSetExtension>();
+  return util::GetPayload<MessageSetExtension>(
+      builder, MessageSetExtension::message_set_extension);
 }
 
 }  // namespace util
