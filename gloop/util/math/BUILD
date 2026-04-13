@@ -80,6 +80,33 @@ cc_test(
 )
 
 cc_library(
+    name = "fastmath",
+    srcs = ["fastmath.cc"],
+    hdrs = ["fastmath.h"],
+    deps = [
+        "@abseil-cpp//absl/base",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "fastmath_unittest",
+    srcs = ["fastmath_unittest.cc"],
+    deps = [
+        ":fastmath",
+        ":mathutil",
+        "//gloop/base:timer",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "constant_divisor",
     srcs = ["constant_divisor.cc"],
     hdrs = ["constant_divisor.h"],

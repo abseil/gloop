@@ -268,6 +268,35 @@ cc_test(
 )
 
 cc_library(
+    name = "numberformat",
+    srcs = ["numberformat.cc"],
+    hdrs = ["numberformat.h"],
+    deps = [
+        "//gloop/util/math:fastmath",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "numberformat_unittest",
+    size = "small",
+    srcs = ["numberformat_unittest.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":numberformat",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "numbers",
     srcs = ["numbers.cc"],
     hdrs = ["numbers.h"],
