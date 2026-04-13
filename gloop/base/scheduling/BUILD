@@ -32,6 +32,7 @@ cc_library(
     hdrs = ["domain_thread_assignment_callback_accessor.h"],
     visibility = [
         "//gloop/base/scheduling:__subpackages__",
+        "//search/astro/serving/voxel:__pkg__",
     ],
     deps = ["@gloop//gloop:enforce_gloop_support"],
 )
