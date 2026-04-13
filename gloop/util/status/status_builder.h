@@ -447,27 +447,23 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   //   builder.AttachPayload(rpc_status, google::rpc::error_details_ext);
   //
   template <typename MessageSetExtension, typename ExtensionIdentifier>
-  ABSL_DEPRECATE_AND_INLINE()
   StatusBuilder& AttachPayload(const MessageSetExtension& obj,
                                const ExtensionIdentifier& id) & {
     return ::util::AttachPayload(this, obj, id);
   }
   template <typename MessageSetExtension, typename ExtensionIdentifier>
-  ABSL_DEPRECATE_AND_INLINE()
   ABSL_MUST_USE_RESULT StatusBuilder&& AttachPayload(
       const MessageSetExtension& obj, const ExtensionIdentifier& id) && {
     return std::move(::util::AttachPayload(this, obj, id));
   }
 
   template <typename MessageSetExtension>
-  ABSL_DEPRECATE_AND_INLINE()
   StatusBuilder& AttachPayload(const MessageSetExtension& obj) & {
     return ::util::AttachPayload(this, obj);
   }
   template <typename MessageSetExtension>
-  ABSL_DEPRECATE_AND_INLINE()
-  ABSL_MUST_USE_RESULT
-      StatusBuilder&& AttachPayload(const MessageSetExtension& obj) && {
+  ABSL_MUST_USE_RESULT StatusBuilder&& AttachPayload(
+      const MessageSetExtension& obj) && {
     return std::move(::util::AttachPayload(this, obj));
   }
 
@@ -536,12 +532,10 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // Sets the error code for the status that will be returned by this
   // StatusBuilder.  Returns `*this` to allow method chaining.
   template <typename Enum>
-  ABSL_DEPRECATE_AND_INLINE()
   StatusBuilder& SetErrorCode(Enum code) & {
     return ::util::SetErrorCode(*this, code);
   }
   template <typename Enum>
-  ABSL_DEPRECATE_AND_INLINE()
   ABSL_MUST_USE_RESULT StatusBuilder&& SetErrorCode(Enum code) && {
     return ::util::SetErrorCode(std::move(*this), code);
   }
