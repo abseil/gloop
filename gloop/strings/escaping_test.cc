@@ -699,6 +699,81 @@ TEST(Base64, EscapeAndUnescape) {
   }
 }
 
+std::vector<epair> AppendEpairsOfInterestingLengths(std::vector<epair> vec) {
+  std::string tmpl = "1234567890abcdef";
+  constexpr int kMinNumBits = 3;
+  constexpr int kMaxNumBits = 8;
+  while (tmpl.size() < (1 << kMaxNumBits) + 1) {
+    // Double the length.
+    tmpl += tmpl;
+  }
+
+  for (int num_bits = kMinNumBits; num_bits <= kMaxNumBits; ++num_bits) {
+    for (int offset : {-1, 0, 1}) {
+      int len = (1 << num_bits) + offset;
+      std::string str = tmpl.substr(0, len);
+      vec.push_back({str, str});
+    }
+  }
+
+  return vec;
+}
+
+TEST(Unescape, BasicFunction) {
+  std::vector<epair> tests =
+      AppendEpairsOfInterestingLengths({{"\\u0030", "0"},
+                                        {"\\u00A3", "\xC2\xA3"},
+                                        {"\\u22FD", "\xE2\x8B\xBD"},
+                                        {"\\U00010000", "\xF0\x90\x80\x80"},
+                                        {"\\U0010FFFD", "\xF4\x8F\xBF\xBD"}});
+
+  for (const epair& val : tests) {
+    for (bool same_buffer : {false, true}) {
+      absl::ScopedMockLog mock_log;
+      std::string out;
+      if (same_buffer) out = val.escaped;
+      mock_log.StartCapturingLogs();
+      ptrdiff_t out_len =
+          UnescapeCEscapeString(same_buffer ? out : val.escaped, &out);
+      mock_log.StopCapturingLogs();
+      EXPECT_EQ(out_len, out.size());
+      // This is implicitly covered by the test after it, but it makes errors
+      // more apparent than attempting to visually diff strings that may be
+      // hundreds of bytes long and differ by one character added.
+      EXPECT_EQ(val.unescaped.size(), out.size());
+      EXPECT_EQ(out, val.unescaped);
+    }
+  }
+  epair bad[] = {{"\\u1", ""},         // too short
+                 {"\\U1", ""},         // too short
+                 {"\\Uffffff", ""},    // exceeds 0x10ffff (largest Unicode)
+                 {"\\U00110000", ""},  // exceeds 0x10ffff (largest Unicode)
+                 {"\\uD835", ""},      // surrogate character (D800-DFFF)
+                 {"\\U0000DD04", ""},  // surrogate character (D800-DFFF)
+                 {"\\777", ""},        // exceeds 0xff
+                 {"\\xABCD", ""},      // exceeds 0xff
+                 {"\\U41Z", "Z"}};     // contains non-hex
+  for (const epair& val : bad) {
+    for (bool same_buffer : {false, true}) {
+      absl::ScopedMockLog mock_log;
+      EXPECT_CALL(mock_log,
+                  Log(absl::LogSeverity::kError, EndsWith("/escaping.cc"), _));
+      std::string out;
+      if (same_buffer) out = val.escaped;
+      mock_log.StartCapturingLogs();
+      ptrdiff_t out_len =
+          UnescapeCEscapeString(same_buffer ? out : val.escaped, &out);
+      mock_log.StopCapturingLogs();
+      EXPECT_EQ(out_len, out.size());
+      // This is implicitly covered by the test after it, but it makes errors
+      // more apparent than attempting to visually diff strings that may be
+      // hundreds of bytes long and differ by one character added.
+      EXPECT_EQ(val.unescaped.size(), out.size());
+      EXPECT_EQ(out, val.unescaped) << val.escaped;
+    }
+  }
+}
+
 void BM_BackslashEscape(benchmark::State& state) {
   const int has_escapes = state.range(0);
   const int len = state.range(1);

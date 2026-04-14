@@ -257,6 +257,61 @@ inline std::string BackslashUnescape(absl::string_view src,
 // ----------------------------------------------------------------------
 void LegacyBase64EscapeWithoutPadding(absl::string_view src, std::string* dest);
 
+// ----------------------------------------------------------------------
+// UnescapeCEscapeSequences()
+//    Copies "source" to "dest", rewriting C-style escape sequences
+//    -- '\n', '\r', '\\', '\ooo', etc -- to their ASCII
+//    equivalents.  "dest" must be sufficiently large to hold all
+//    the characters in the rewritten string (i.e. at least as large
+//    as strlen(source) + 1 should be safe, since the replacements
+//    are always shorter than the original escaped sequences).  It's
+//    safe for source and dest to be the same.  RETURNS the length
+//    of dest.
+//
+//    It allows hex sequences \xhh, or generally \xhhhhh with an
+//    arbitrary number of hex digits, but all of them together must
+//    specify a value of a single byte (e.g. \x0045 is equivalent
+//    to \x45, and \x1234 is erroneous). If the value is too large,
+//    it is truncated to 8 bits and an error is set. This is also
+//    true of octal values that exceed 0xff.
+//
+//    It also allows escape sequences of the form \uhhhh (exactly four
+//    hex digits, upper or lower case) or \Uhhhhhhhh (exactly eight
+//    hex digits, upper or lower case) to specify a Unicode code
+//    point. The dest array will contain the UTF8-encoded version of
+//    that code-point (e.g., if source contains \u2019, then dest will
+//    contain the three bytes 0xE2, 0x80, and 0x99). For the inverse
+//    transformation, use UniLib::UTF8EscapeString
+//    (util/utf8/public/unilib.h), not CEscapeString.
+//
+//    Errors are reported with LOG(ERROR).  The effect on the dest array is not
+//    defined if an error occurs, but rest of the source will be processed.
+//
+//    *** DEPRECATED: Use absl::CUnescape() in new code ***
+//    ----------------------------------------------------------------------
+[[deprecated("Use absl::CUnescape()")]]
+ptrdiff_t UnescapeCEscapeSequences(const char* source, char* dest);
+
+// ----------------------------------------------------------------------
+// UnescapeCEscapeString()
+//    This does the same thing as UnescapeCEscapeSequences, but creates
+//    a new string. The caller does not need to worry about allocating
+//    a dest buffer. This should be used for non performance critical
+//    tasks such as printing debug messages. It is safe for src and dest
+//    to be the same.
+//
+//    Errors are reported with LOG(ERROR).
+//
+//    In the first call, the length of dest is returned. In the second call, the
+//    new string is returned.
+//
+//    *** DEPRECATED: Use absl::CUnescape() in new code ***
+// ----------------------------------------------------------------------
+[[deprecated("Use absl::CUnescape()")]]
+ptrdiff_t UnescapeCEscapeString(const std::string& src, std::string* dest);
+[[deprecated("Use absl::CUnescape()")]]
+std::string UnescapeCEscapeString(const std::string& src);
+
 }  // namespace strings
 
 #endif  // THIRD_PARTY_GLOOP_STRINGS_ESCAPING_H_
