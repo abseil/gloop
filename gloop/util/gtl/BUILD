@@ -248,6 +248,32 @@ cc_test(
 )
 
 cc_library(
+    name = "heapqueue",
+    hdrs = ["heapqueue.h"],
+    deps = [
+        ":priority_queue_util",
+        "@abseil-cpp//absl/log:check",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "heapqueue_unittest",
+    srcs = ["heapqueue_unittest.cc"],
+    deps = [
+        ":comparator",
+        ":heapqueue",
+        ":stl_util",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/random",
+        "@gloop//gloop:gloop_test_main",
+        "@gloop//gloop/util/random:mt_random",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "heterogeneous_lookup",
     hdrs = ["heterogeneous_lookup.h"],
     visibility = [
@@ -423,6 +449,28 @@ cc_test(
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@protobuf//:protobuf_lite",
+    ],
+)
+
+cc_library(
+    name = "priority_queue_util",
+    hdrs = ["priority_queue_util.h"],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
+)
+
+cc_test(
+    name = "priority_queue_util_test",
+    size = "small",
+    srcs = ["priority_queue_util_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":comparator",
+        ":priority_queue_util",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:str_format",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
     ],
 )
 
