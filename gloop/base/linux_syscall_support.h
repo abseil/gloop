@@ -639,6 +639,15 @@ struct kernel_io_event {
     return rc;                                                              \
   }
 
+#if defined(__arm__) && !defined(__NR_fstatat) && defined(__linux__) && \
+    !defined(__GLIBC__)
+#if defined(__NR_newfstatat)
+#define __NR_fstatat __NR_newfstatat
+#elif defined(__NR_fstatat64)
+#define __NR_fstatat __NR_fstatat64
+#endif
+#endif
+
 #if defined(__aarch64__)
 #include "gloop/base/auxiliary/syscall_linux_aarch64.inc"
 #elif defined(__x86_64__)
