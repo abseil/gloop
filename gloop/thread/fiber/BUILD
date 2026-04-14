@@ -41,6 +41,44 @@ cc_library(
 )
 
 cc_library(
+    name = "fiber-options",
+    srcs = ["fiber-options.cc"],
+    hdrs = ["fiber-options.h"],
+    local_defines = ["FIBER_OPTIONS_COUNTING_MUTEX"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop/base:arena",
+        "//gloop/base:context",
+        "//gloop/concurrent/percpu:counting_mutex",
+        "//gloop/strings:arena-string",
+        "//gloop/strings:keyed_intern_table",
+        "//gloop/thread",
+        "//gloop/thread/fiber/internal:fiber_thread_options",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "fiber-options_test",
+    srcs = ["fiber-options_test.cc"],
+    deps = [
+        ":fiber-options",
+        "//gloop/thread/fiber/internal:fiber_thread_options",
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "per-domain-counters",
     hdrs = ["per-domain-counters.h"],
     visibility = [
