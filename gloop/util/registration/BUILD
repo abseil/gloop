@@ -69,8 +69,13 @@ cc_library(
     ],
 )
 
-cc_library(
+alias(
     name = "registerer",
+    actual = "//gloop/util/registration",
+)
+
+cc_library(
+    name = "registration",
     srcs = ["registerer.cc"],
     hdrs = ["registerer.h"],
     deps = [
@@ -90,7 +95,7 @@ cc_library(
     srcs = ["registerer_tracker.cc"],
     hdrs = ["registerer_tracker.h"],
     deps = [
-        ":registerer",
+        ":registration",
         "//gloop/base:googleinit",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings",
@@ -116,7 +121,7 @@ cc_test(
     name = "registerer_unittest",
     srcs = ["registerer_unittest.cc"],
     deps = [
-        ":registerer",
+        ":registration",
         "//gloop/thread",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/functional:bind_front",
