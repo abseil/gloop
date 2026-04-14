@@ -154,10 +154,8 @@ cc_library(
     ],
     deps = [
         ":unchecked_tags",
-        "@abseil-cpp//absl/meta:type_traits",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:string_view",
-        "@abseil-cpp//absl/utility",
         "@gloop//gloop:enforce_gloop_support",
     ],
 )
@@ -184,7 +182,6 @@ cc_library(
         ":iterator_adaptors",
         ":unchecked_tags",
         "@abseil-cpp//absl/base:throw_delegate",
-        "@abseil-cpp//absl/meta:type_traits",
         "@gloop//gloop:enforce_gloop_support",
     ],
 )
@@ -219,7 +216,6 @@ cc_library(
         ":flat_internal",
         ":heterogeneous_lookup",
         ":unchecked_tags",
-        "@abseil-cpp//absl/meta:type_traits",
         "@gloop//gloop:enforce_gloop_support",
     ],
 )

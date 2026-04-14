@@ -38,10 +38,8 @@
 #include <utility>
 #include <vector>
 
-#include "absl/meta/type_traits.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
-#include "absl/utility/utility.h"
 #include "gloop/util/gtl/unchecked_tags.h"
 
 namespace gtl {
@@ -51,7 +49,7 @@ template <typename T, typename = void>
 struct HasReserve : std::false_type {};
 
 template <typename T>
-struct HasReserve<T, absl::void_t<decltype(std::declval<T&>().reserve(239))>>
+struct HasReserve<T, std::void_t<decltype(std::declval<T&>().reserve(239))>>
     : std::true_type {};
 
 template <typename T>
@@ -555,7 +553,7 @@ struct value_compare : public Compare {
 template <typename, typename = void>
 struct has_clear : std::false_type {};
 template <typename T>
-struct has_clear<T, absl::void_t<decltype(std::declval<T>().clear())>>
+struct has_clear<T, std::void_t<decltype(std::declval<T>().clear())>>
     : std::true_type {};
 
 template <typename T>
@@ -701,14 +699,14 @@ class FlatContainersMaybeExportData<
 
 template <typename K, typename V, std::size_t N, std::size_t... Idx>
 constexpr std::array<std::pair<const K, V>, N> MakeKeysConstInternal(
-    std::array<std::pair<K, V>, N> ts, absl::index_sequence<Idx...>) {
+    std::array<std::pair<K, V>, N> ts, std::index_sequence<Idx...>) {
   return {{std::move(ts[Idx])...}};
 }
 
 template <typename K, typename V, size_t N>
 constexpr std::array<std::pair<const K, V>, N> MakeKeysConst(
     std::array<std::pair<K, V>, N> a) {
-  return MakeKeysConstInternal(std::move(a), absl::make_index_sequence<N>{});
+  return MakeKeysConstInternal(std::move(a), std::make_index_sequence<N>{});
 }
 
 }  // namespace internal_flat

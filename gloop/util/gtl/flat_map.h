@@ -67,7 +67,6 @@
 #include <vector>
 
 #include "absl/base/throw_delegate.h"
-#include "absl/meta/type_traits.h"
 #include "gloop/util/gtl/flat_internal.h"
 #include "gloop/util/gtl/heterogeneous_lookup.h"
 #include "gloop/util/gtl/iterator_adaptors.h"
@@ -180,13 +179,13 @@ class flat_map : public internal_flat::FlatContainersMaybeExportData<
   // The constructed container MUST be strictly ordered and not contain any
   // duplicates. If not, the behavior is undefined (and the ordering is verified
   // with assert() in debug builds).
-  template <typename... Args, typename = absl::enable_if_t<
-                                  std::is_constructible<Rep, Args...>::value>>
+  template <typename... Args,
+            typename = std::enable_if_t<std::is_constructible_v<Rep, Args...>>>
   constexpr explicit flat_map(sorted_unique_container_t, Args&&... args)
       : impl_(sorted_container, value_compare(), std::forward<Args>(args)...) {}
 
-  template <typename... Args, typename = absl::enable_if_t<
-                                  std::is_constructible<Rep, Args...>::value>>
+  template <typename... Args,
+            typename = std::enable_if_t<std::is_constructible_v<Rep, Args...>>>
   constexpr flat_map(sorted_unique_container_t, const Compare& cmp,
                      Args&&... args)
       : impl_(sorted_container, value_compare(cmp),
