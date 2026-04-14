@@ -120,12 +120,55 @@ cc_library(
     testonly = 1,
     hdrs = ["test_common.h"],
     visibility = [
-        "//visibility:private",
+        "//gloop/util/refcount:__subpackages__",
     ],
     deps = [
         ":reffed_ptr",
         "@gloop//gloop:enforce_gloop_support",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest_for_library",
+    ],
+)
+
+cc_library(
+    name = "reference_counted",
+    srcs = ["reference_counted.cc"],
+    hdrs = ["reference_counted.h"],
+    deps = [
+        ":reftracker",
+        "@abseil-cpp//absl/base:dynamic_annotations",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:str_format",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "reftracker",
+    srcs = ["reftracker.cc"],
+    hdrs = ["reftracker.h"],
+    deps = [
+        "@abseil-cpp//absl/debugging:stacktrace",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:enforce_gloop_support",
+        "@gloop//gloop/base:examine_stack",
+    ],
+)
+
+cc_test(
+    name = "reference_counted_test",
+    size = "small",
+    srcs = ["reference_counted_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":reference_counted",
+        ":test_common",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
     ],
 )

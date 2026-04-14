@@ -232,3 +232,28 @@ cc_test(
         "@googletest//:gtest",
     ],
 )
+
+cc_library(
+    name = "transitional",
+    hdrs = ["transitional.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":with_context",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "transitional_test",
+    srcs = ["transitional_test.cc"],
+    deps = [
+        ":transitional",
+        "//gloop/base:context",
+        "//gloop/base:tracecontext",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
