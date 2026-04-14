@@ -129,5 +129,15 @@ TEST(TraceEventListener, InvokeAllEvents) {
                               ControlFlowId{3421}, ControlFlowSequence(1));
 }
 
+TEST(TraceEventListenerPtr, ConfirmValidUniquePtrImplementation) {
+  StrictMock<MockTraceEventListener> mock;
+  TraceEventListenerPtr ptr;
+  EXPECT_THAT(ptr, Eq(nullptr));
+  EXPECT_THAT(ptr.get(), Eq(nullptr));
+  ptr = TraceEventListenerPtr(&mock);
+  EXPECT_THAT(ptr.get(), Eq(&mock));
+  EXPECT_CALL(mock, ReleaseEventListener());
+}
+
 }  // namespace
 }  // namespace perftools::tracing

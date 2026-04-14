@@ -22,6 +22,7 @@
 #define THIRD_PARTY_GLOOP_PERFTOOLS_TRACING_TRACE_EVENT_LISTENER_H_
 
 #include <cstddef>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -468,7 +469,18 @@ class TraceEventListener {
   // implementations only. Applications should not override this method nor
   // invoke it without the explicit permission of the Dapper team.
   virtual void ExtractAll(std::vector<TraceEventListener*>& listeners);
+
+  // Releaser is a 'deleter' class type used as a deleter type for unique_ptr.
+  struct Releaser {
+    void operator()(TraceEventListener* listener) const {
+      if (listener != nullptr) listener->ReleaseEventListener();
+    }
+  };
 };
+
+// TraceEventListenerPtr is a smart pointer class managing explicit ownership.
+using TraceEventListenerPtr =
+    std::unique_ptr<TraceEventListener, TraceEventListener::Releaser>;
 
 inline std::pair<TraceEventListener*, bool>
 TraceEventListener::CascadingRelease(TraceEventListener* listener) {
