@@ -234,6 +234,51 @@ cc_test(
 )
 
 cc_library(
+    name = "interntable_benchmark",
+    testonly = 1,
+    srcs = ["interntable_benchmark.cc"],
+    hdrs = ["interntable_benchmark.h"],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "keyed_intern_table",
+    hdrs = ["keyed_intern_table.h"],
+    deps = [
+        ":arena-string",
+        "//gloop/base:arena",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "keyed_intern_table_test",
+    size = "small",
+    srcs = ["keyed_intern_table_test.cc"],
+    deps = [
+        ":interntable_benchmark",
+        ":keyed_intern_table",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:gloop_test_main",
+        "@gloop//gloop/util/gtl:stl_util",
+        "@gloop//gloop/util/intops",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "memblock",
     srcs = ["memblock.cc"],
     hdrs = ["memblock.h"],
