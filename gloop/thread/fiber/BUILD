@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
 load(
     "@rules_cc//cc:cc_library.bzl",
     "cc_library",
@@ -76,6 +78,19 @@ cc_test(
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
+)
+
+proto_library(
+    name = "fiber_proto",
+    srcs = ["fiber.proto"],
+    option_deps = ["@protobuf//:cpp_features_proto"],
+    visibility = ["@gloop//gloop/thread/fiber:__subpackages__"],
+)
+
+cc_proto_library(
+    name = "fiber_cc_proto",
+    visibility = ["@gloop//gloop/thread/fiber:__subpackages__"],
+    deps = [":fiber_proto"],
 )
 
 cc_library(
