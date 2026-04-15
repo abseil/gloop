@@ -739,3 +739,34 @@ cc_test(
         "@googletest//:gtest",
     ],
 )
+
+cc_library(
+    name = "simple_weighted_semaphore",
+    srcs = ["simple_weighted_semaphore.cc"],
+    hdrs = ["simple_weighted_semaphore.h"],
+    deps = [
+        "//gloop/base:timer",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:die_if_null",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "simple_weighted_semaphore_test",
+    srcs = ["simple_weighted_semaphore_test.cc"],
+    deps = [
+        ":simple_weighted_semaphore",
+        ":thread",
+        "//gloop/base:init_google",
+        "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/synchronization",
+    ],
+)
