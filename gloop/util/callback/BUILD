@@ -28,6 +28,40 @@ package(
 )
 
 cc_library(
+    name = "blocking_callback",
+    srcs = ["blocking_callback.cc"],
+    hdrs = ["blocking_callback.h"],
+    deps = [
+        "//gloop/base:callback",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "blocking_callback_unittest",
+    size = "small",
+    srcs = ["blocking_callback_unittest.cc"],
+    deps = [
+        ":blocking_callback",
+        "//gloop/base:callback",
+        "//gloop/thread",
+        "//gloop/util/functional:from_callback",
+        "//gloop/util/functional:to_callback",
+        "//gloop/util/gtl:stl_util",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "cancellable_closure",
     srcs = ["cancellable_closure.cc"],
     hdrs = ["cancellable_closure.h"],
