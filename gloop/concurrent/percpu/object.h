@@ -34,11 +34,9 @@
 #include <type_traits>
 #include <utility>
 
-#include "absl/base/internal/raw_logging.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "gloop/base/internal/percpu.inc"
-#include "gloop/base/percpu.h"
 #include "gloop/base/sysinfo.h"
 
 #ifndef PERCPU_USE_RSEQ_GOTO
@@ -296,8 +294,7 @@ class iterator : public std::iterator<std::random_access_iterator_tag, T> {
 
 template <typename T>
 template <typename... Args>
-PerCpu<T>::PerCpu(Args... args)
-    : lock_(), array_(base::subtle::percpu::NumCPUs()) {
+PerCpu<T>::PerCpu(Args... args) : lock_(), array_(NumCPUs()) {
   for (std::size_t i = 0; i != size(); ++i) {
     new (&array_[i]) T(args...);
   }
@@ -313,12 +310,6 @@ PerCpu<T>::~PerCpu() {
 template <typename T>
 typename PerCpu<T>::pointer PerCpu<T>::get() ABSL_NO_THREAD_SAFETY_ANALYSIS {
   const std::size_t cpu = lock_.Lock();
-  if (ABSL_PREDICT_FALSE(!(cpu < size()))) {
-    // TODO: debugging these unexpected failures
-    int num_online_cpus = NumCPUs();
-    ABSL_RAW_LOG(FATAL, "Cpu index out of bounds (%zu < %d/%zu).", cpu,
-                 num_online_cpus, size());
-  }
   return pointer(ptr(cpu), percpu_internal::Unlocker{&lock_, cpu});
 }
 
@@ -326,12 +317,6 @@ template <typename T>
 typename PerCpu<T>::const_pointer PerCpu<T>::get() const
     ABSL_NO_THREAD_SAFETY_ANALYSIS {
   const std::size_t cpu = lock_.Lock();
-  if (ABSL_PREDICT_FALSE(!(cpu < size()))) {
-    // TODO: debugging these unexpected failures
-    int num_online_cpus = NumCPUs();
-    ABSL_RAW_LOG(FATAL, "Cpu index out of bounds (%zu < %d/%zu).", cpu,
-                 num_online_cpus, size());
-  }
   return const_pointer(ptr(cpu), percpu_internal::Unlocker{&lock_, cpu});
 }
 

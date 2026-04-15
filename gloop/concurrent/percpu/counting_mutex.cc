@@ -43,6 +43,7 @@
 #include <deque>
 #include <type_traits>
 
+#include "absl/base/internal/sysinfo.h"
 #include "absl/base/internal/tsan_mutex_interface.h"
 #include "absl/base/no_destructor.h"
 #include "absl/base/thread_annotations.h"
@@ -289,8 +290,7 @@ bool CountingMutex::ThreadContext::HasReader(const CountingMutex* p) const {
 // exclusive locks has performance parity with `absl::Mutex`.
 
 CountingMutex::Handle CountingMutex::InitHandle(std::atomic<uint32_t>* ptr) {
-  const int num_cpus = base::subtle::percpu::NumCPUs();
-
+  const int num_cpus = absl::base_internal::NumCPUs();
   for (int i = 0; i < num_cpus + 2; ++i) {
     ptr[i * kPerRegion].store(0, std::memory_order_relaxed);
   }

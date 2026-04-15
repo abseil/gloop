@@ -42,7 +42,6 @@ cc_library(
         "//gloop/base/internal:percpu",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/container:fixed_array",
         "@gloop//gloop:enforce_gloop_support",
     ],
