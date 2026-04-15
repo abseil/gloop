@@ -1441,7 +1441,7 @@ SYS_syscall4(int, socketpair, int, d, int, t, int, p, int*, s);
 #endif
 
 #if defined(__i386__) || (defined(__PPC__) && !defined(__PPC64__)) || \
-    defined(__arm__)
+    defined(__arm__) && !defined(__MUSL__)
 SYS_syscall4(int, fstatat64, int, d, const char*, p, struct kernel_stat64*, b,
              int, f);
 #endif
