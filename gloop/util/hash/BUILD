@@ -307,6 +307,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":murmur",
+        "//gloop/strings:cord_bytestream",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:prefetch",
