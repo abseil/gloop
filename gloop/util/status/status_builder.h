@@ -809,20 +809,6 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
     if (rep_ != nullptr) ABSL_UNREACHABLE();
   }
 
-  ABSL_DEPRECATE_AND_INLINE()
-  static absl::Status JoinMessageToStatus(absl::Status&& s,
-                                          absl::string_view msg,
-                                          MessageJoinStyle style) {
-    return ::util::JoinMessageToStatus(std::move(s), msg, style);
-  }
-
-  ABSL_DEPRECATE_AND_INLINE()
-  static absl::Status JoinMessageToStatus(const absl::Status& s,
-                                          absl::string_view msg,
-                                          MessageJoinStyle style) {
-    return ::util::JoinMessageToStatus(s, msg, style);
-  }
-
   struct Rep;
   // Destroy the `Rep` object. It is just calling the destructor of the
   // `unique_ptr`, but out of line.

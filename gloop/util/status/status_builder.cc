@@ -248,10 +248,10 @@ std::string StatusBuilder::ToString() const {
     return ::util::StatusToString(absl::OkStatus());
   }
 
-  return util::StatusToString(JoinMessageToStatus(rep_->status,
-                                                  rep_->stream_message,
-                                                  rep_->message_join_style)
-                                  .WithSourceLocation(loc_));
+  return util::StatusToString(
+      util::JoinMessageToStatus(rep_->status, rep_->stream_message,
+                                rep_->message_join_style)
+          .WithSourceLocation(loc_));
 }
 
 std::ostream& operator<<(std::ostream& os, const StatusBuilder& builder) {
