@@ -41,6 +41,7 @@
 #include "absl/time/time.h"
 #include "gloop/base/thread-identity.h"
 #include "gloop/base/walltime.h"
+#include "gloop/thread/periodicclosure.h"
 #include "gloop/thread/thread-internal.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
