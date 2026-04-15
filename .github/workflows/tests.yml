@@ -70,7 +70,7 @@ jobs:
           bazelrc: common --remote_cache=https://storage.googleapis.com/gloop-bazel-remote-cache
 
       - name: Run tests
-        run: bazel test ... --config=${{ matrix.config.value }}
+        run: bazel test ... --config=${{ matrix.config.value }} --config=remote --cache_test_results=no
 
   non_compilation:
     name: Check Non-compilation for ${{ matrix.config }}
