@@ -255,47 +255,6 @@ cc_test(
 )
 
 cc_library(
-    name = "periodicclosure",
-    srcs = ["periodicclosure.cc"],
-    hdrs = ["periodicclosure.h"],
-    deps = [
-        ":thread",
-        ":wait_state",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/functional:any_invocable",
-        "@abseil-cpp//absl/functional:bind_front",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/synchronization",
-        "@abseil-cpp//absl/time",
-        "@abseil-cpp//absl/time:clock_interface",
-        "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:enforce_gloop_support",
-    ],
-)
-
-cc_test(
-    name = "periodicclosure_test",
-    size = "small",
-    srcs = ["periodicclosure_test.cc"],
-    deps = [
-        ":periodicclosure",
-        "//gloop/base:callback",
-        "//gloop/util/callback:blocking_callback",
-        "//gloop/util/functional:from_callback",
-        "//gloop/util/functional:to_callback",
-        "@abseil-cpp//absl/functional:bind_front",
-        "@abseil-cpp//absl/synchronization",
-        "@abseil-cpp//absl/time",
-        "@abseil-cpp//absl/time:simulated_clock",
-        "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
-    ],
-)
-
-cc_library(
     name = "prioritized_wait_queue",
     hdrs = ["prioritized_wait_queue.h"],
     deps = [
@@ -759,7 +718,6 @@ cc_test(
     srcs = ["wait_state_test.cc"],
     tags = ["notsan"],
     deps = [
-        ":periodicclosure",
         ":thread",
         ":thread-internal",
         ":wait_state",
