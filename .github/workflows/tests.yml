@@ -129,8 +129,12 @@ jobs:
     needs: [linux, non_compilation]
     runs-on: ubuntu-latest
     steps:
-      - name: Check test results
-        run: "${{ !contains(join(needs.*.result, ' '), 'failure') && !contains(join(needs.*.result, ' '), 'cancelled') }}"
+      - name: Check for cancellations
+        if: ${{ contains(join(needs.*.result, ' '), 'cancelled') }}
+        run: echo "One or more tests were cancelled.  If this was a presubmit job cancelled by a submit job, you can ignore this." && exit 1
+      - name: Check for failures
+        if: ${{ contains(join(needs.*.result, ' '), 'failure') }}
+        run: echo "One or more tests failed.  Please check the logs above and fix the issues." && exit 1
     # This workflow must run even if one or more of the dependent workflows
     # failed.
     if: always()
