@@ -812,3 +812,130 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
     ],
 )
+
+cc_library(
+    name = "thread_manager",
+    srcs = [
+        "thread_manager.cc",
+        "thread_manager_policy.cc",
+        "thread_manager_policy_default.cc",
+    ],
+    hdrs = [
+        "thread_manager.h",
+        "thread_manager_policy.h",
+    ],
+    deps = [
+        ":python_stack_size",
+        ":thread",
+        ":wait_state",
+        "//gloop/base:callback",
+        "//gloop/base:per-thread-sem",
+        "//gloop/base:sysinfo",
+        "//gloop/util/functional:from_callback",
+        "//gloop/util/functional:to_callback",
+        "//gloop/util/functional:with_context",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:enforce_gloop_support",
+        "@googletest//:gtest_prod",
+    ],
+)
+
+cc_test(
+    name = "thread_manager_test",
+    size = "medium",
+    srcs = ["thread_manager_test.cc"],
+    shard_count = 11,
+    deps = [
+        ":thread",
+        ":thread_manager",
+        "//gloop/base:callback",
+        "//gloop/base:per_thread",
+        "//gloop/util/functional:from_callback",
+        "//gloop/util/functional:to_callback",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:dynamic_annotations",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "thread_manager_policy_default_test",
+    size = "medium",
+    srcs = ["thread_manager_policy_default_test.cc"],
+    deps = [
+        ":thread_manager",
+        "//gloop/base:init_google",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:str_format",
+    ],
+)
+
+cc_test(
+    name = "thread_manager_regression_test",
+    size = "medium",
+    srcs = ["thread_manager_regression_test.cc"],
+    deps = [
+        ":thread_manager",
+        "//gloop/base:init_google",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+# TODO: remove when removing the --threadmanager_experimental_use_cpu_subcontainer flag
+cc_test(
+    name = "thread_manager_experimental_use_cpu_subcontainer_test",
+    size = "medium",
+    srcs = ["thread_manager_test.cc"],
+    args = [
+        "--threadmanager_experimental_use_cpu_subcontainer",
+        "--use_thread_subcontainers",
+    ],
+    shard_count = 11,
+    deps = [
+        ":thread",
+        ":thread_manager",
+        "//gloop/base:callback",
+        "//gloop/base:per_thread",
+        "//gloop/util/functional:from_callback",
+        "//gloop/util/functional:to_callback",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:dynamic_annotations",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
