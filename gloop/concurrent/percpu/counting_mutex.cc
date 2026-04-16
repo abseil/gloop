@@ -290,7 +290,7 @@ bool CountingMutex::ThreadContext::HasReader(const CountingMutex* p) const {
 // exclusive locks has performance parity with `absl::Mutex`.
 
 CountingMutex::Handle CountingMutex::InitHandle(std::atomic<uint32_t>* ptr) {
-  const int num_cpus = absl::base_internal::NumCPUs();
+  const int num_cpus = base::subtle::percpu::NumCPUs();
   for (int i = 0; i < num_cpus + 2; ++i) {
     ptr[i * kPerRegion].store(0, std::memory_order_relaxed);
   }
@@ -313,7 +313,7 @@ CountingMutex::Handle CountingMutex::AllocHandle() {
   // Allocate space for NumCPUs + 2. The 2 extra entries are to allow for
   // directly addressing rseq -1 and -2 values for `uninitialized` and
   // 'not registered' indexes. This allows a single branch fast path.
-  const int num_cpus = absl::base_internal::NumCPUs();
+  const int num_cpus = base::subtle::percpu::NumCPUs();
   const size_t n = kPerRegion * num_cpus + 2 * kPerRegion;
   auto* ptr = new std::atomic<uint32_t>[n];
   auto* const ptr_end = ptr + kPerRegion;
@@ -341,7 +341,7 @@ void CountingMutex::WaitReaderLocks() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mu_) {
   std::atomic<uint32_t>* ptr = handle_.ptr;
   percpu_data_.store(null_handle_.ptr, std::memory_order_release);
   if (ABSL_PREDICT_TRUE(IsFast())) {
-    for (int cpu = 0, n = absl::base_internal::NumCPUs(); cpu < n; ++cpu) {
+    for (int cpu = 0, n = base::subtle::percpu::NumCPUs(); cpu < n; ++cpu) {
       if ((ptr->load(std::memory_order_acquire) & 1) != 0) {
         // Make sure pending reader lock RSEQs are completed or restarted.
         // TODO: ideally upstream fences will at some point support
@@ -357,7 +357,7 @@ void CountingMutex::WaitReaderLocks() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mu_) {
       ptr += kPerRegion;
     }
   } else {
-    for (int cpu = 0, n = absl::base_internal::NumCPUs(); cpu < n; ++cpu) {
+    for (int cpu = 0, n = base::subtle::percpu::NumCPUs(); cpu < n; ++cpu) {
       if ((ptr->load(std::memory_order_acquire) & 1) != 0) {
         // Increase `pending`, removing the (always on) last bit.
         // Note that we must use exchange(), as ReaderUnlock() calls can execute
