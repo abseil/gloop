@@ -30,7 +30,6 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/charset.h"
 #include "absl/strings/escaping.h"
-#include "absl/strings/internal/escaping.h"
 #include "absl/strings/string_view.h"
 
 namespace strings {
@@ -393,9 +392,11 @@ std::string UnescapeCEscapeString(const std::string& src) {
 
 void LegacyBase64EscapeWithoutPadding(absl::string_view src,
                                       std::string* dest) {
-  absl::strings_internal::Base64EscapeInternal(
-      reinterpret_cast<const unsigned char*>(src.data()), src.size(), dest,
-      /*do_padding=*/false, absl::strings_internal::kBase64Chars);
+  *dest = absl::Base64Escape(src);
+  // Removes at most 2 '=' padding characters.
+  while (!dest->empty() && dest->back() == '=') {
+    dest->pop_back();
+  }
 }
 
 namespace strings_internal {
