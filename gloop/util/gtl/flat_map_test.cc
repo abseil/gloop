@@ -1647,7 +1647,7 @@ TEST(FlatMapTest, ConstexprEqualRange) {
 template <class, class = void>
 struct IsTransparent : std::false_type {};
 template <class T>
-struct IsTransparent<T, absl::void_t<typename T::is_transparent>>
+struct IsTransparent<T, std::void_t<typename T::is_transparent>>
     : std::true_type {};
 
 template <typename Cmp>
