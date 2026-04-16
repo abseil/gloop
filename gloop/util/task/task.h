@@ -286,6 +286,11 @@ class Task {
        google::protobuf::Arena* arena = nullptr,
        perftools::tracing::StringRef label =
            perftools::tracing::TraceSourceLocation::current());
+  Task(absl::AnyInvocable<void(Task*) &&> callback,
+       std::shared_ptr<thread::Executor> executor,
+       google::protobuf::Arena* arena = nullptr,
+       perftools::tracing::StringRef label =
+           perftools::tracing::TraceSourceLocation::current());
 #endif  // SWIG
 
   // REQUIRES: task is in the DONE state.
@@ -298,10 +303,15 @@ class Task {
   // Note: This method is not thread safe and should be called soon after the
   // task creation.
   void set_executor(thread::Executor* executor);
+  void set_executor(std::shared_ptr<thread::Executor> executor);
 
   // Returns the current executor in which the callbacks will
   // be executed.
-  thread::Executor* executor() const { return executor_; }
+  thread::Executor* executor() const { return executor_.get(); }
+
+  const std::shared_ptr<thread::Executor>& executor_shared() const {
+    return executor_;
+  }
 
   // Specify whether the done callback can be called inline when the task
   // becomes done, i.e. invoke it directly during a Return() or RemoveHold()
@@ -644,7 +654,7 @@ class Task {
   // Space for a single deleter inline.
   absl::InlinedVector<std::unique_ptr<const void, void (*)(const void*)>, 1>
       deleters_;
-  thread::Executor* executor_;
+  std::shared_ptr<thread::Executor> executor_;
   google::protobuf::Arena* const arena_;
 
   void AddDone();

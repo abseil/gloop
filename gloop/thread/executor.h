@@ -34,16 +34,19 @@
 #define THIRD_PARTY_GLOOP_THREAD_EXECUTOR_H_
 
 #include <cstdint>
+#include <memory>
 #include <utility>
 
 #include "absl/base/attributes.h"
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
+#include "absl/log/check.h"
 #include "absl/time/clock_interface.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
 #include "gloop/base/callback.h"
+#include "gloop/memory/memory.h"
 
 namespace util {
 class SleepUntilImpl;
@@ -56,7 +59,7 @@ class ExecutorInternal;  // Internal helper class.  Clients should ignore
 // REQUIRES: Implementations inheriting from "Executor" directly must override
 // the function taking "AnyInvocable".  Any calls made using "Closure*"
 // interfaces will be automatically converted using the default implementations.
-class Executor {
+class Executor : public gloop::MaybeShared<Executor> {
  public:
   virtual ~Executor();
 
@@ -112,7 +115,14 @@ class Executor {
   // The default executor is very likely to contain multiple threads
   // and therefore callers should not rely on single-threaded
   // execution of callbacks added to the default executor.
-  static Executor* DefaultExecutor();
+  static Executor* absl_nonnull DefaultExecutor();
+
+  // Same as `DefaultExecutor()`, but returns `std::shared_ptr` instead of a raw
+  // pointer.
+  [[nodiscard]]
+  static std::shared_ptr<Executor> absl_nonnull DefaultExecutorShared() {
+    return DefaultExecutor()->shared_from_this();
+  }
 
   // Change the default executor for this process to "executor".
 #ifndef SWIG
@@ -122,7 +132,7 @@ class Executor {
       "the process by allowing switching to an executor with properties some "
       "libraries are not expecting.")
 #endif
-  static void SetDefaultExecutor(Executor* executor);
+  static void SetDefaultExecutor(Executor* absl_nonnull executor);
 
   // Return a pointer to some Executor that is running the current thread, or
   // nullptr if this thread is not associated with an Executor.  The intent is
@@ -137,7 +147,14 @@ class Executor {
   // *x may use Executor *y internally, allowing CurrentExecutor() to return
   // either x or y.  When Executors are nested (via SelectServer::Loop()),
   // CurrentExecutor() will point to the most-recently-entered active Executor.
-  static Executor* CurrentExecutor();
+  static Executor* absl_nullable CurrentExecutor();
+
+  // Same as `CurrentExecutor()`, but returns `std::shared_ptr` instead of a raw
+  // pointer.
+  [[nodiscard]]
+  static std::shared_ptr<Executor> absl_nullable CurrentExecutorShared() {
+    return CurrentExecutor()->shared_from_this();
+  }
 
   // -----------------------------------------------------------------------
   // To be used only by implementations of Executor().
@@ -147,7 +164,7 @@ class Executor {
   //    *CurrentExecutorPointerInternal() = this_executor;
   // If the thread continues to run after ceasing to work for the current
   // executor, the previous value of the pointer should be restored.
-  static Executor** CurrentExecutorPointerInternal();
+  static Executor* absl_nullable* absl_nonnull CurrentExecutorPointerInternal();
 
   virtual absl::Clock* absl_nonnull clock() {
     return &absl::Clock::GetRealClock();
@@ -176,12 +193,13 @@ class Executor {
 //  executes the closure given to it.  It's useful as a mock, and in
 //  cases where an Executor is needed, but multi-threadedness is not.
 //  The returned object is owned by the caller.
-Executor* NewInlineExecutor();
+[[nodiscard]]
+Executor* absl_nonnull NewInlineExecutor();
 
 //  You most likely won't need more than one InlineExecutor.
 //  Note that this is not true for the synchronized version.
 //  The returned object is NOT owned by the caller.
-Executor* SingletonInlineExecutor();
+Executor* absl_nonnull SingletonInlineExecutor();
 
 //  A "synchronized" inline executor is exactly the same, except that
 //  it guarantees that two closures can't be executing at the same
@@ -189,7 +207,8 @@ Executor* SingletonInlineExecutor();
 //  serialization of a sequence of actions - without forcing them to
 //  execute in a single thread.
 //  The returned object is owned by the caller.
-Executor* NewSynchronizedInlineExecutor();
+[[nodiscard]]
+Executor* absl_nonnull NewSynchronizedInlineExecutor();
 
 // -------------------------
 // Cancellation support
@@ -248,22 +267,24 @@ class ExecutorHandle {
 // callback.
 //
 // REQUIRES: executor != nullptr && closure != nullptr && handle != nullptr
-void AddCancellable(Executor* executor, absl::Duration delay,
+void AddCancellable(Executor* absl_nonnull executor, absl::Duration delay,
                     absl::AnyInvocable<void() &&> callback,
-                    ExecutorHandle* handle);
+                    ExecutorHandle* absl_nonnull handle);
 
 // As above, except more efficient when the callback should be scheduled
 // immediately.
-void AddCancellable(Executor* executor, absl::AnyInvocable<void() &&> callback,
-                    ExecutorHandle* handle);
+void AddCancellable(Executor* absl_nonnull executor,
+                    absl::AnyInvocable<void() &&> callback,
+                    ExecutorHandle* absl_nonnull handle);
 
 #if ABSL_HAVE_ATTRIBUTE(enable_if)
 // Overload to automatically move statically-known zero-delay callbacks to the
 // above overload.
 ABSL_DEPRECATE_AND_INLINE()
-inline void AddCancellable(Executor* executor, absl::Duration delay,
+inline void AddCancellable(Executor* absl_nonnull executor,
+                           absl::Duration delay,
                            absl::AnyInvocable<void() &&> callback,
-                           ExecutorHandle* handle)
+                           ExecutorHandle* absl_nonnull handle)
     __attribute__((enable_if(delay == absl::ZeroDuration(), "zero-delay"))) {
   AddCancellable(executor, std::move(callback), handle);
 }
@@ -276,8 +297,9 @@ inline void AddCancellable(Executor* executor, absl::Duration delay,
 // REQUIRES: !cb->IsRepeatable() (i.e. cb is not a permanent callback)
 // REQUIRES: executor != nullptr && closure != nullptr && handle != nullptr
 ABSL_DEPRECATED("Use the AnyInvocable-accepting overload instead.")
-void AddCancellable(Executor* executor, absl::Duration delay, Closure* closure,
-                    ExecutorHandle* handle);
+void AddCancellable(Executor* absl_nonnull executor, absl::Duration delay,
+                    Closure* absl_nonnull closure,
+                    ExecutorHandle* absl_nonnull handle);
 
 #ifndef SWIG
 
@@ -292,9 +314,9 @@ void AddCancellable(Executor* executor, absl::Duration delay, Closure* closure,
 // callback.
 //
 // REQUIRES: executor != nullptr && closure != nullptr && handle != nullptr
-void AddCancellableAt(Executor* executor, absl::Time when,
+void AddCancellableAt(Executor* absl_nonnull executor, absl::Time when,
                       absl::AnyInvocable<void() &&> callback,
-                      ExecutorHandle* handle);
+                      ExecutorHandle* absl_nonnull handle);
 
 #endif
 
@@ -303,8 +325,9 @@ void AddCancellableAt(Executor* executor, absl::Time when,
 // REQUIRES: executor != nullptr && closure != nullptr && handle != nullptr
 // REQUIRES: !cb->IsRepeatable() (i.e. cb is not a permanent callback)
 ABSL_DEPRECATED("Use the AnyInvocable-accepting overload instead.")
-void AddCancellableAt(Executor* executor, absl::Time when, Closure* closure,
-                      ExecutorHandle* handle);
+void AddCancellableAt(Executor* absl_nonnull executor, absl::Time when,
+                      Closure* absl_nonnull closure,
+                      ExecutorHandle* absl_nonnull handle);
 
 // Attempt to cancel the closure associated with the handle.  If the
 // closure is currently running, waits up to timeout for it to finish.  You
@@ -324,7 +347,8 @@ void AddCancellableAt(Executor* executor, absl::Time when, Closure* closure,
 // previous Cancel(), or the handle may be invalid).
 //
 // REQUIRES: cb_ptr != nullptr
-bool Cancel(ExecutorHandle handle, absl::Duration timeout, Closure** cb_ptr);
+bool Cancel(ExecutorHandle handle, absl::Duration timeout,
+            Closure* absl_nullable* absl_nonnull cb_ptr);
 
 // As above, except deletes the closure instead of returning it when
 // successfully cancelled.
@@ -339,6 +363,51 @@ class InlineExecutorInternal {
  private:
   friend class util::SleepUntilImpl;
   static bool IsInlineExecutor(const Executor*);
+};
+
+class [[nodiscard]] WithExecutor {
+ public:
+  WithExecutor() = delete;
+  WithExecutor(const WithExecutor&) = delete;
+  WithExecutor& operator=(const WithExecutor&) = delete;
+  WithExecutor& operator=(WithExecutor&&) = delete;
+
+  explicit WithExecutor(Executor* absl_nullable executor)
+      : WithExecutor(executor != nullptr
+                         ? executor->shared_from_this()
+                         : std::shared_ptr<thread::Executor>(
+                               std::shared_ptr<thread::Executor>(), executor)) {
+  }
+
+  explicit WithExecutor(std::shared_ptr<Executor> absl_nullable executor)
+      : current_executor_(Executor::CurrentExecutorPointerInternal()),
+        next_executor_(std::move(executor)) {
+    DCHECK(current_executor_ != nullptr);
+    prev_executor_ = *current_executor_;
+    *current_executor_ = next_executor_.get();
+  }
+
+  WithExecutor(WithExecutor&& other) noexcept
+      : current_executor_(std::exchange(other.current_executor_, nullptr)),
+        prev_executor_(std::exchange(other.prev_executor_, nullptr)),
+        next_executor_(std::exchange(other.next_executor_, nullptr)) {}
+
+  ~WithExecutor() {
+    if (current_executor_ != nullptr) {
+      DCHECK(Executor::CurrentExecutorPointerInternal() == current_executor_)
+          << "thread::WithExecutor cannot be migrated across threads";
+      DCHECK_EQ(*current_executor_, next_executor_.get())
+          << "unexpected current executor, somebody down the call stack "
+             "changed the current executor without restoring the previous "
+             "executor";
+      *current_executor_ = prev_executor_;
+    }
+  }
+
+ private:
+  Executor* absl_nullable* absl_nullable current_executor_;
+  Executor* absl_nullable prev_executor_;
+  std::shared_ptr<Executor> absl_nullable next_executor_;
 };
 
 }  // namespace thread

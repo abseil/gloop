@@ -20,6 +20,7 @@
 
 #include "gloop/util/task/task.h"
 
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -34,6 +35,7 @@
 #include "gloop/base/callback.h"
 #include "gloop/base/context.h"
 #include "gloop/base/spinlock.h"
+#include "gloop/memory/memory.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/thread/executor.h"
 #include "gloop/util/functional/with_context.h"
@@ -62,10 +64,11 @@ struct Task::Child final {
   absl::AnyInvocable<void(Task*) &&> user_cb_;
   Task child_task_;
 
-  explicit inline Child(thread::Executor* executor, Task* parent)
+  explicit inline Child(std::shared_ptr<thread::Executor> executor,
+                        Task* parent)
       : parent_(parent),
-        child_task_([this](util::Task* task) { Run(task); }, executor,
-                    parent->arena()) {}
+        child_task_([this](util::Task* task) { Run(task); },
+                    std::move(executor), parent->arena()) {}
   void Ref() { ++refs_; }
   void Unref() {
     DCHECK_GT(refs_, 0);
@@ -133,6 +136,12 @@ Task::Task(absl::AnyInvocable<void(Task*) &&> callback,
 Task::Task(absl::AnyInvocable<void(Task*) &&> callback,
            thread::Executor* executor, google::protobuf::Arena* arena,
            perftools::tracing::StringRef label)
+    : Task(std::move(callback), gloop::SharedFromThat(executor), arena, label) {
+}
+
+Task::Task(absl::AnyInvocable<void(Task*) &&> callback,
+           std::shared_ptr<thread::Executor> executor,
+           google::protobuf::Arena* arena, perftools::tracing::StringRef label)
     : context_(base::Context::kThread, label),
       status_(),
       done_callback_(std::move(callback)),
@@ -144,7 +153,7 @@ Task::Task(absl::AnyInvocable<void(Task*) &&> callback,
       inline_done_callback_(false),
       holds_(0),
       children_(),
-      executor_(executor),
+      executor_(std::move(executor)),
       arena_(arena) {
   DCHECK(executor_ != nullptr);
   DCHECK(done_callback_ != nullptr);
@@ -200,7 +209,13 @@ const absl::Status& Task::status() const {
 void Task::set_executor(thread::Executor* executor) {
   // We assume the method is called early in the
   // life of a task, so we don't grab the lock.
-  executor_ = executor;
+  executor_ = gloop::SharedFromThat(executor);
+}
+
+void Task::set_executor(std::shared_ptr<thread::Executor> executor) {
+  // We assume the method is called early in the
+  // life of a task, so we don't grab the lock.
+  executor_ = std::move(executor);
 }
 
 void Task::set_inline_done_callback(bool inline_done_callback) {
@@ -449,8 +464,8 @@ void Task::CancelChildren() {
 
 Task* Task::AddChildWithExecutor(absl::AnyInvocable<void(Task*) &&> callback,
                                  thread::Executor* e) {
-  Child* child = google::protobuf::Arena::Create<Child>(
-      arena_, ((e != nullptr) ? e : executor_), this);
+  Child* child =
+      google::protobuf::Arena::Create<Child>(arena_, executor_, this);
 
   child->refs_ = 1;
 

@@ -34,6 +34,7 @@
 #include "absl/base/call_once.h"
 #include "absl/base/const_init.h"
 #include "absl/base/log_severity.h"
+#include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/container/flat_hash_map.h"
@@ -201,12 +202,12 @@ void Executor::ScheduleMany(
   }
 }
 
-Executor* Executor::DefaultExecutor() {
+Executor* absl_nonnull Executor::DefaultExecutor() {
   absl::call_once(module_init, InitModule);
   return default_executor.load(std::memory_order_acquire);
 }
 
-void Executor::SetDefaultExecutor(Executor* executor) {
+void Executor::SetDefaultExecutor(Executor* absl_nonnull executor) {
   absl::MutexLock l(set_lock);
   default_executor.store(executor, std::memory_order_release);
   // Leave original_executor alone so that it contains a pointer to
@@ -233,10 +234,13 @@ ABSL_CONST_INIT static thread_local Executor* cur_executor = nullptr;
 
 // Return a pointer to where an executor thread will save the
 // executor for which it is working.
-Executor** Executor::CurrentExecutorPointerInternal() { return &cur_executor; }
+Executor* absl_nullable* absl_nonnull
+Executor::CurrentExecutorPointerInternal() {
+  return &cur_executor;
+}
 
 // Return a pointer to the current thread's thread executor, or nullptr
-Executor* Executor::CurrentExecutor() {
+Executor* absl_nullable Executor::CurrentExecutor() {
   return *CurrentExecutorPointerInternal();
 }
 
@@ -256,19 +260,13 @@ class InlineExecutor : public Executor {
   void Schedule(absl::AnyInvocable<void() &&> callback) override {
     // Make sure that Executor::CurrentExecutor() returns this Executor
     // when it is executing the closure.
-    thread::Executor** current_executor =
-        thread::Executor::CurrentExecutorPointerInternal();
-    // Add() can be called from different threads and nest, so we must
-    // save and restore the current Executor pointer.
-    thread::Executor* saved_executor = *current_executor;
-    *current_executor = this;
+    WithExecutor with_executor(this->shared_from_this());
     if (synchronized_) {
       absl::MutexLock l(mu_);
       std::move(callback)();
     } else {
       std::move(callback)();
     }
-    *current_executor = saved_executor;
   }
 
   void ScheduleAt(absl::Time when,
@@ -290,9 +288,11 @@ class InlineExecutor : public Executor {
   const bool synchronized_;
 };
 
-Executor* NewInlineExecutor() { return new InlineExecutor(false); }
-Executor* NewSynchronizedInlineExecutor() { return new InlineExecutor(true); }
-Executor* SingletonInlineExecutor() {
+Executor* absl_nonnull NewInlineExecutor() { return new InlineExecutor(false); }
+Executor* absl_nonnull NewSynchronizedInlineExecutor() {
+  return new InlineExecutor(true);
+}
+Executor* absl_nonnull SingletonInlineExecutor() {
   static auto* const singleton = new InlineExecutor();
   return singleton;
 }
@@ -501,16 +501,17 @@ static auto MakeCancellableCallable(Closure* closure, ExecutorHandle* handle) {
   };
 }
 
-void AddCancellable(Executor* executor, absl::Duration delay,
+void AddCancellable(Executor* absl_nonnull executor, absl::Duration delay,
                     absl::AnyInvocable<void() &&> callback,
-                    ExecutorHandle* handle) {
+                    ExecutorHandle* absl_nonnull handle) {
   AddCancellable(executor, delay,
                  util::functional::ToCallback<Closure>(std::move(callback)),
                  handle);
 }
 
-void AddCancellable(Executor* executor, absl::Duration delay, Closure* closure,
-                    ExecutorHandle* handle) {
+void AddCancellable(Executor* absl_nonnull executor, absl::Duration delay,
+                    Closure* absl_nonnull closure,
+                    ExecutorHandle* absl_nonnull handle) {
   if (ABSL_PREDICT_FALSE(closure->IsRepeatable())) {
     CHECK(
         !absl::GetFlag(FLAGS_thread_executor_checkfail_on_permanent_callbacks))
@@ -522,22 +523,24 @@ void AddCancellable(Executor* executor, absl::Duration delay, Closure* closure,
                                       MakeCancellableCallable(closure, handle));
 }
 
-void AddCancellable(Executor* executor, absl::AnyInvocable<void() &&> callback,
-                    ExecutorHandle* handle) {
+void AddCancellable(Executor* absl_nonnull executor,
+                    absl::AnyInvocable<void() &&> callback,
+                    ExecutorHandle* absl_nonnull handle) {
   executor->Schedule(MakeCancellableCallable(
       util::functional::ToCallback(std::move(callback)), handle));
 }
 
-void AddCancellableAt(Executor* executor, absl::Time when,
+void AddCancellableAt(Executor* absl_nonnull executor, absl::Time when,
                       absl::AnyInvocable<void() &&> callback,
-                      ExecutorHandle* handle) {
+                      ExecutorHandle* absl_nonnull handle) {
   AddCancellableAt(executor, when,
                    util::functional::ToCallback<Closure>(std::move(callback)),
                    handle);
 }
 
-void AddCancellableAt(Executor* executor, absl::Time when, Closure* closure,
-                      ExecutorHandle* handle) {
+void AddCancellableAt(Executor* absl_nonnull executor, absl::Time when,
+                      Closure* absl_nonnull closure,
+                      ExecutorHandle* absl_nonnull handle) {
   if (ABSL_PREDICT_FALSE(closure->IsRepeatable())) {
     CHECK(
         !absl::GetFlag(FLAGS_thread_executor_checkfail_on_permanent_callbacks))
@@ -548,7 +551,8 @@ void AddCancellableAt(Executor* executor, absl::Time when, Closure* closure,
   executor->ScheduleAt(when, MakeCancellableCallable(closure, handle));
 }
 
-bool Cancel(ExecutorHandle handle, absl::Duration timeout, Closure** cb_ptr) {
+bool Cancel(ExecutorHandle handle, absl::Duration timeout,
+            Closure* absl_nullable* absl_nonnull cb_ptr) {
   *cb_ptr = nullptr;
   int s;
   uint64_t shard_key;

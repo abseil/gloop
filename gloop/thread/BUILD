@@ -181,6 +181,7 @@ cc_library(
         "//gloop/base:tracecontext",
         "//gloop/base:walltime",
         "//gloop/base/scheduling:scheduling_mode",
+        "//gloop/memory",
         "//gloop/strings:util",
         "//gloop/util/functional:from_callback",
         "//gloop/util/functional:to_callback",

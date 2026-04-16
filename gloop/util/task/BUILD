@@ -130,6 +130,7 @@ cc_library(
         "//gloop/base:callback",
         "//gloop/base:context",
         "//gloop/base:spinlock",
+        "//gloop/memory",
         "//gloop/perftools/tracing:trace_source_location",
         "//gloop/perftools/tracing:tracing_base",
         "//gloop/thread",
