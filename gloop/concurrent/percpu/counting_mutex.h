@@ -47,6 +47,7 @@ using ReleasableCountingMutexWriterLock = absl::ReleasableMutexLock;
 
 #include "absl/base/attributes.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/internal/sysinfo.h"
 #include "absl/base/internal/tsan_mutex_interface.h"
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
@@ -424,6 +425,13 @@ inline int CountingMutex::GetCurrentCpu() {
 }
 
 inline std::atomic<uint32_t>* CountingMutex::GetPtr(int cpu) {
+  int num_online_cpus = absl::base_internal::NumCPUs();
+  if (ABSL_PREDICT_FALSE(!(cpu >= 0 && cpu < num_online_cpus))) {
+    // TODO: debugging these unexpected failures
+    int num_possible_cpus = base::subtle::percpu::NumCPUs();
+    ABSL_RAW_LOG(FATAL, "Cpu index out of bounds (0 <= %d < %d/%d).", cpu,
+                 num_online_cpus, num_possible_cpus);
+  }
   return percpu_data_.load(std::memory_order_acquire) + cpu * kPerRegion;
 }
 
