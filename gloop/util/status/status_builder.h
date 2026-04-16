@@ -181,7 +181,7 @@ StatusBuilder MakeStatusBuilder(
 // It provides method chaining to simplify typical usage:
 //
 //   return StatusBuilder(original)
-//       .Log(base_logging::WARNING) << "oh no!";
+//       .Log(absl::LogSeverity::kWarning) << "oh no!";
 //
 // In more detail:
 // - When the original status is OK, all methods become no-ops and nothing will
@@ -336,17 +336,27 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // stack trace) when this builder is converted to a Status.  This overrides
   // the logging settings from earlier calls to any of the logging mutator
   // functions.  Returns `*this` to allow method chaining.
-  StatusBuilder& Log(base_logging::LogSeverity level) &;
-  ABSL_MUST_USE_RESULT StatusBuilder&& Log(base_logging::LogSeverity level) &&;
-  StatusBuilder& LogError() & { return Log(base_logging::ERROR); }
+  StatusBuilder& Log(absl::LogSeverity level) &;
+  ABSL_MUST_USE_RESULT StatusBuilder&& Log(absl::LogSeverity level) &&;
+
+  [[deprecated("Pass absl::LogSeverity instead")]]
+  StatusBuilder& Log(base_logging::LogSeverity level) & {
+    return Log(static_cast<absl::LogSeverity>(level));
+  }
+  [[deprecated("Pass absl::LogSeverity instead")]]
+  ABSL_MUST_USE_RESULT StatusBuilder&& Log(base_logging::LogSeverity level) && {
+    return std::move(*this).Log(static_cast<absl::LogSeverity>(level));
+  }
+
+  StatusBuilder& LogError() & { return Log(absl::LogSeverity::kError); }
   ABSL_MUST_USE_RESULT StatusBuilder&& LogError() && {
     return std::move(LogError());
   }
-  StatusBuilder& LogWarning() & { return Log(base_logging::WARNING); }
+  StatusBuilder& LogWarning() & { return Log(absl::LogSeverity::kWarning); }
   ABSL_MUST_USE_RESULT StatusBuilder&& LogWarning() && {
     return std::move(LogWarning());
   }
-  StatusBuilder& LogInfo() & { return Log(base_logging::INFO); }
+  StatusBuilder& LogInfo() & { return Log(absl::LogSeverity::kInfo); }
   ABSL_MUST_USE_RESULT StatusBuilder&& LogInfo() && {
     return std::move(LogInfo());
   }
@@ -355,9 +365,19 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // invocations (without a stack trace) when this builder is converted to a
   // Status.  This overrides the logging settings from earlier calls to any of
   // the logging mutator functions.  Returns `*this` to allow method chaining.
-  StatusBuilder& LogEveryN(base_logging::LogSeverity level, int n) &;
+  StatusBuilder& LogEveryN(absl::LogSeverity level, int n) &;
+  ABSL_MUST_USE_RESULT StatusBuilder&& LogEveryN(absl::LogSeverity level,
+                                                 int n) &&;
+
+  [[deprecated("Pass absl::LogSeverity instead")]]
+  StatusBuilder& LogEveryN(base_logging::LogSeverity level, int n) & {
+    return LogEveryN(static_cast<absl::LogSeverity>(level), n);
+  }
+  [[deprecated("Pass absl::LogSeverity instead")]]
   ABSL_MUST_USE_RESULT StatusBuilder&& LogEveryN(
-      base_logging::LogSeverity level, int n) &&;
+      base_logging::LogSeverity level, int n) && {
+    return std::move(LogEveryN(static_cast<absl::LogSeverity>(level), n));
+  }
 
   // Mutates the builder so that the result status will be logged once per
   // period (without a stack trace) when this builder is converted to a Status.
@@ -365,10 +385,20 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // logging mutator functions.  Returns `*this` to allow method chaining.
   // If period is absl::ZeroDuration() or less, then this is equivalent to
   // calling the Log() method.
-  StatusBuilder& LogEvery(base_logging::LogSeverity level,
-                          absl::Duration period) &;
-  ABSL_MUST_USE_RESULT StatusBuilder&& LogEvery(base_logging::LogSeverity level,
+  StatusBuilder& LogEvery(absl::LogSeverity level, absl::Duration period) &;
+  ABSL_MUST_USE_RESULT StatusBuilder&& LogEvery(absl::LogSeverity level,
                                                 absl::Duration period) &&;
+
+  [[deprecated("Pass absl::LogSeverity instead")]]
+  StatusBuilder& LogEvery(base_logging::LogSeverity level,
+                          absl::Duration period) & {
+    return LogEvery(static_cast<absl::LogSeverity>(level), period);
+  }
+  [[deprecated("Pass absl::LogSeverity instead")]]
+  ABSL_MUST_USE_RESULT StatusBuilder&& LogEvery(base_logging::LogSeverity level,
+                                                absl::Duration period) && {
+    return std::move(LogEvery(static_cast<absl::LogSeverity>(level), period));
+  }
 
   // Mutates the builder so that the result status will be VLOGged (without a
   // stack trace) when this builder is converted to a Status.  `verbose_level`
@@ -588,7 +618,7 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   //
   //   StatusBuilder TeamPolicy(StatusBuilder builder) {
   //     util::AttachPayload(&builder, ...);
-  //     return std::move(builder).Log(base_logging::WARNING);
+  //     return std::move(builder).Log(absl::LogSeverity::kWarning);
   //   }
   //
   //   RETURN_IF_ERROR(foo()).With(TeamPolicy);
@@ -709,7 +739,7 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   //
   //   StatusBuilder TeamPolicy(StatusBuilder builder) {
   //     if (builder.Is(frobber::kNoMoreFrobs)) {
-  //       builder.Log(base_logging::WARNING);
+  //       builder.Log(absl::LogSeverity::kWarning);
   //     }
   //     return std::move(builder);
   //   }
@@ -855,7 +885,7 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
 
     // The severity level at which the Status should be logged. Note that
     // `logging_mode == LoggingMode::kVLog` always logs at severity INFO.
-    base_logging::LogSeverity log_severity;
+    absl::LogSeverity log_severity;
 
     // The level at which the Status should be VLOGged.
     // Only used when `logging_mode == LoggingMode::kVLog`.
@@ -1128,17 +1158,17 @@ inline StatusBuilder&& StatusBuilder::SetNoLogging() && {
   return std::move(SetNoLogging());
 }
 
-inline StatusBuilder& StatusBuilder::Log(base_logging::LogSeverity level) & {
+inline StatusBuilder& StatusBuilder::Log(absl::LogSeverity level) & {
   if (rep_ == nullptr) return *this;
   rep_->logging_mode = Rep::LoggingMode::kLog;
   rep_->log_severity = level;
   return *this;
 }
-inline StatusBuilder&& StatusBuilder::Log(base_logging::LogSeverity level) && {
+inline StatusBuilder&& StatusBuilder::Log(absl::LogSeverity level) && {
   return std::move(Log(level));
 }
 
-inline StatusBuilder& StatusBuilder::LogEveryN(base_logging::LogSeverity level,
+inline StatusBuilder& StatusBuilder::LogEveryN(absl::LogSeverity level,
                                                int n) & {
   if (rep_ == nullptr) return *this;
   if (n < 1) return Log(level);
@@ -1147,12 +1177,12 @@ inline StatusBuilder& StatusBuilder::LogEveryN(base_logging::LogSeverity level,
   rep_->n = n;
   return *this;
 }
-inline StatusBuilder&& StatusBuilder::LogEveryN(base_logging::LogSeverity level,
+inline StatusBuilder&& StatusBuilder::LogEveryN(absl::LogSeverity level,
                                                 int n) && {
   return std::move(LogEveryN(level, n));
 }
 
-inline StatusBuilder& StatusBuilder::LogEvery(base_logging::LogSeverity level,
+inline StatusBuilder& StatusBuilder::LogEvery(absl::LogSeverity level,
                                               absl::Duration period) & {
   if (rep_ == nullptr) return *this;
   if (period <= absl::ZeroDuration()) return Log(level);
@@ -1161,7 +1191,7 @@ inline StatusBuilder& StatusBuilder::LogEvery(base_logging::LogSeverity level,
   rep_->period = period;
   return *this;
 }
-inline StatusBuilder&& StatusBuilder::LogEvery(base_logging::LogSeverity level,
+inline StatusBuilder&& StatusBuilder::LogEvery(absl::LogSeverity level,
                                                absl::Duration period) && {
   return std::move(LogEvery(level, period));
 }
@@ -1181,7 +1211,7 @@ inline StatusBuilder& StatusBuilder::EmitStackTrace() & {
   if (rep_->logging_mode == Rep::LoggingMode::kDisabled) {
     // Default to INFO logging, otherwise nothing would be emitted.
     rep_->logging_mode = Rep::LoggingMode::kLog;
-    rep_->log_severity = base_logging::INFO;
+    rep_->log_severity = absl::LogSeverity::kInfo;
   }
   rep_->should_log_stack_trace = true;
   return *this;
@@ -1275,7 +1305,7 @@ inline absl::StatusCode StatusBuilder::code() const {
 //
 //   StatusBuilder TeamPolicy(StatusBuilder builder) {
 //     if (builder.Is(frobber::kNoMoreFrobs)) {
-//       builder.Log(base_logging::WARNING);
+//       builder.Log(absl::LogSeverity::kWarning);
 //     }
 //     return std::move(builder);
 //   }

@@ -111,7 +111,7 @@ void StatusBuilder::ConditionallyLog(const absl::Status& status,
                                      absl::SourceLocation loc, const Rep& rep) {
   if (rep.logging_mode == Rep::LoggingMode::kDisabled) return;
 
-  base_logging::LogSeverity severity = rep.log_severity;
+  absl::LogSeverity severity = rep.log_severity;
   switch (rep.logging_mode) {
     case Rep::LoggingMode::kDisabled:
     case Rep::LoggingMode::kLog:
@@ -140,7 +140,7 @@ void StatusBuilder::ConditionallyLog(const absl::Status& status,
         return;
       }
 
-      severity = base_logging::INFO;
+      severity = absl::LogSeverity::kInfo;
       break;
     }
     case Rep::LoggingMode::kLogEveryN: {
