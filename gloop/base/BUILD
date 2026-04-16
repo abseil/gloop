@@ -1715,3 +1715,28 @@ cc_test(
         "@googletest//:gtest",
     ],
 )
+
+cc_library(
+    name = "varsetter",
+    hdrs = ["varsetter.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/flags:flag",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "varsetter_test",
+    size = "small",
+    srcs = ["varsetter_test.cc"],
+    deps = [
+        ":init_google",
+        ":varsetter",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)

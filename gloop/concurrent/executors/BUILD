@@ -11,3 +11,55 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+load(
+    "@rules_cc//cc:cc_library.bzl",
+    "cc_library",
+)
+load(
+    "@rules_cc//cc:cc_test.bzl",
+    "cc_test",
+)
+
+package(
+    default_applicable_licenses = ["//gloop:license"],
+    default_visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "loop_executor",
+    srcs = ["loop_executor.cc"],
+    hdrs = ["loop_executor.h"],
+    deps = [
+        "//gloop/base:callback",
+        "//gloop/base:varsetter",
+        "//gloop/thread",
+        "//gloop/util/functional:to_callback",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "loop_executor_test",
+    size = "medium",
+    srcs = ["loop_executor_test.cc"],
+    deps = [
+        ":loop_executor",
+        "//gloop/base:atomic_sequence_num",
+        "//gloop/base:callback",
+        "//gloop/thread",
+        "//gloop/util/functional:from_callback",
+        "//gloop/util/functional:to_callback",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
