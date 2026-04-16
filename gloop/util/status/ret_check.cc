@@ -48,8 +48,8 @@ namespace internal_status_macros_ret_check {
 StatusBuilder RetCheckFailSlowPath(absl::SourceLocation location) {
   return InternalErrorBuilder(location)
              .Log(absl::GetFlag(FLAGS_ret_check_abort_on_failure)
-                      ? base_logging::FATAL
-                      : base_logging::ERROR)
+                      ? absl::LogSeverity::kFatal
+                      : absl::LogSeverity::kError)
              .EmitStackTrace()
          << "RET_CHECK failure (" << location.file_name() << ":"
          << location.line() << ") ";

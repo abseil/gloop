@@ -54,7 +54,7 @@
 // For example:
 //   absl::Status MultiStepFunction() {
 //     RETURN_IF_ERROR(Function(args...)) << "in MultiStepFunction";
-//     RETURN_IF_ERROR(foo.Method(args...)).Log(base_logging::ERROR)
+//     RETURN_IF_ERROR(foo.Method(args...)).Log(absl::LogSeverity::kError)
 //         << "while processing query: " << query.DebugString();
 //     return absl::OkStatus();
 //   }
@@ -65,7 +65,7 @@
 // For example, teams can define local policies to use across their code:
 //
 //   StatusBuilder TeamPolicy(StatusBuilder builder) {
-//     return std::move(builder.Log(base_logging::WARNING).Attach(...));
+//     return std::move(builder.Log(absl::LogSeverity::kWarning).Attach(...));
 //   }
 //
 //   RETURN_IF_ERROR(foo()).With(TeamPolicy);
