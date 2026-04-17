@@ -31,6 +31,95 @@ config_setting(
 )
 
 cc_library(
+    name = "sleep",
+    srcs = ["sleep.cc"],
+    hdrs = ["sleep.h"],
+    copts = select({
+        "@gloop//gloop/util/task:cs_xbinaryfdo": ["-fno-auto-profile"],
+        "//conditions:default": [],
+    }),
+    deps = [
+        ":task",
+        "//gloop/base:walltime",
+        "//gloop/thread",
+        "//gloop/thread:thread_manager",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "sleep_test",
+    size = "medium",
+    srcs = ["sleep_test.cc"],
+    deps = [
+        ":sleep",
+        ":sync_task",
+        ":task",
+        "//gloop/util/status",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "sync_task",
+    srcs = ["sync_task.cc"],
+    hdrs = ["sync_task.h"],
+    copts = select({
+        "@gloop//gloop/util/task:cs_xbinaryfdo": ["-fno-auto-profile"],
+        "//conditions:default": [],
+    }),
+    deps = [
+        ":task",
+        "//gloop/base:context",
+        "//gloop/thread",
+        "//gloop/thread:config",
+        "//gloop/thread/fiber",
+        "//gloop/thread/fiber:select",
+        "//gloop/thread/fiber:selectables",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:enforce_gloop_support",
+        "@protobuf//:protobuf_lite",
+    ],
+)
+
+cc_test(
+    name = "sync_task_test",
+    size = "small",
+    srcs = ["sync_task_test.cc"],
+    deps = [
+        ":sleep",
+        ":sync_task",
+        ":task",
+        "//gloop/base:context",
+        "//gloop/base:timer",
+        "//gloop/thread",
+        "//gloop/thread:config",
+        "//gloop/thread/fiber",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@protobuf//:protobuf_lite",
+    ],
+)
+
+cc_library(
     name = "task",
     srcs = ["task.cc"],
     hdrs = ["task.h"],
