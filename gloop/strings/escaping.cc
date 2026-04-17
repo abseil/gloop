@@ -185,6 +185,24 @@ absl::string_view::size_type BackslashUnescapedFind(
       src, [&delims](unsigned char c) { return delims.contains(c); });
 }
 
+ptrdiff_t EscapeStrForCSV(const char* src, char* dest, ptrdiff_t dest_len) {
+  ptrdiff_t used = 0;
+
+  while (true) {
+    if (*src == '\0' && used < dest_len) {
+      dest[used] = '\0';
+      return used;
+    }
+
+    if (used + 1 >= dest_len)  // +1 because we might require two characters
+      return -1;
+
+    if (*src == '"') dest[used++] = '"';
+
+    dest[used++] = *src++;
+  }
+}
+
 static unsigned int HexDigitToInt(char c) {
   static_assert('0' == 0x30 && 'A' == 0x41 && 'a' == 0x61,
                 "Character set must be ASCII.");

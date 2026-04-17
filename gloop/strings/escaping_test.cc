@@ -381,6 +381,50 @@ TEST(BackslashEscape, SingleChar) {
   EXPECT_THAT(BackslashUnescape(after, ' '), Eq(start));
 }
 
+TEST(EscapeStrForCSV, BasicFunctions) {
+  char outbuf[128];
+
+  // No quotes test.
+  //                         0    0    1    1    2    2    3    3
+  //                         0    5    0    5    0    5    0    5
+  EXPECT_EQ(strings::EscapeStrForCSV("some quoteless string, just to test",
+                                     outbuf, 36),
+            35);
+  EXPECT_STREQ(outbuf, "some quoteless string, just to test");
+  // error case: off by one
+  EXPECT_EQ(strings::EscapeStrForCSV("some quoteless string, just to test",
+                                     outbuf, 35),
+            -1);
+
+  // Quotes tests.
+  EXPECT_EQ(strings::EscapeStrForCSV("some \"string\" to test", outbuf, 24),
+            23);
+  EXPECT_STREQ(outbuf, "some \"\"string\"\" to test");
+
+  // error case: off by one
+  EXPECT_EQ(strings::EscapeStrForCSV("some \"string\" to test", outbuf, 23),
+            -1);
+
+  // Shows pathological output length behavior (2*input size + 1)
+  EXPECT_EQ(strings::EscapeStrForCSV("\"\"\"\"\"", outbuf, 10), -1);
+  EXPECT_EQ(strings::EscapeStrForCSV("\"\"\"\"\"", outbuf, 11), 10);
+  EXPECT_STREQ(outbuf, "\"\"\"\"\"\"\"\"\"\"");
+
+  // error case: off by one
+  EXPECT_EQ(strings::EscapeStrForCSV("\"\"\"\"\"", outbuf, 10), -1);
+
+  // Quotes+Spaces tests
+  EXPECT_EQ(strings::EscapeStrForCSV("   \"   \"   \"   ", outbuf, 19), 18);
+  EXPECT_STREQ(outbuf, "   \"\"   \"\"   \"\"   ");
+
+  // error case: off by one
+  EXPECT_EQ(strings::EscapeStrForCSV("   \"   \"   \"   ", outbuf, 18), -1);
+
+  // error case: null destination, 0 dest_len.
+  char* null_dest = nullptr;
+  EXPECT_EQ(strings::EscapeStrForCSV("Something \" string", null_dest, 0), -1);
+}
+
 TEST(EncodeUTF8Char, BasicFunction) {
   std::pair<char32_t, std::string> tests[] = {{0x0030, "\u0030"},
                                               {0x00A3, "\u00A3"},
