@@ -458,7 +458,7 @@ struct RefCountStartsAtZero : public std::false_type {};
 
 template <typename T>
 struct RefCountStartsAtZero<T,
-                            absl::void_t<typename T::ref_count_starts_at_zero>>
+                            std::void_t<typename T::ref_count_starts_at_zero>>
     : public std::true_type {};
 
 // Creates a new object wrapped in a `reffed_ptr`.  This avoids issues caused
