@@ -23,6 +23,7 @@
 
 #include <atomic>
 #include <memory>
+#include <type_traits>
 #include <utility>
 
 #include "absl/functional/bind_front.h"
@@ -66,10 +67,10 @@ class SharedCallWrapperAtMostOnce {
   explicit SharedCallWrapperAtMostOnce(int dummy, Args&&... args)  // NOLINT
       : internal_(std::make_shared<State>(0, std::forward<Args>(args)...)) {}
 
-  // We use the absl::void_t and decltype(auto) to avoid having the
+  // We use the std::void_t and decltype(auto) to avoid having the
   // decltype() expression of the return type as part of the mangled name.
   template <class... Args,
-            typename = absl::void_t<
+            typename = std::void_t<
                 decltype(std::declval<Functor>()(std::declval<Args>()...))>>
   decltype(auto) operator()(Args&&... args) const {  // NOLINT
     const bool called =
