@@ -439,7 +439,7 @@ struct container_size {
   using type = size_t;
 };
 template <typename U>
-struct container_size<U, absl::void_t<typename U::size_type>> {
+struct container_size<U, std::void_t<typename U::size_type>> {
   using type = typename U::size_type;
 };
 
