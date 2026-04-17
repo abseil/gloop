@@ -1198,6 +1198,7 @@ cc_library(
     visibility = [
         "//gloop/base:__subpackages__",
         "//gloop/concurrent/percpu:__pkg__",
+        "//gloop/thread/fiber:__pkg__",
     ],
     deps = [
         ":inlined_syscall",

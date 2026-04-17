@@ -347,6 +347,7 @@ cc_library(
     name = "stack_reclaimer",
     hdrs = ["stack_reclaimer.h"],
     visibility = [
+        "//gloop/thread:__subpackages__",
         "@gloop//gloop/thread:__subpackages__",
     ],
     deps = [

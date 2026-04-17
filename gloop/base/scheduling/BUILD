@@ -32,6 +32,7 @@ cc_library(
     hdrs = ["domain_thread_assignment_callback_accessor.h"],
     visibility = [
         "//gloop/base/scheduling:__subpackages__",
+        "//gloop/thread/fiber/internal:__subpackages__",
     ],
     deps = ["@gloop//gloop:enforce_gloop_support"],
 )
@@ -128,4 +129,39 @@ cc_test(
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
+)
+
+cc_library(
+    name = "domain-test",
+    testonly = 1,
+    srcs = ["domain-test.cc"],
+    hdrs = ["domain-test.h"],
+    visibility = [
+        "//gloop/thread/fiber:__pkg__",
+        "@gloop//gloop/base/scheduling:__pkg__",
+        "@gloop//gloop/thread/fiber:__subpackages__",
+    ],
+    deps = [
+        ":low-level-support",
+        ":scheduling",
+        "//gloop/base:callback",
+        "//gloop/base:sysinfo",
+        "//gloop/thread/fiber",
+        "//gloop/thread/fiber:fiber-options",
+        "//gloop/thread/fiber:fifolifo-schedulers",
+        "//gloop/util/functional:to_callback",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/memory",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest_for_library",
+    ],
+    alwayslink = 1,
 )

@@ -24,10 +24,51 @@
 
 #include "absl/strings/str_cat.h"
 #include "benchmark/benchmark.h"
+#include "gloop/thread/fiber/fiber.h"
 #include "gloop/thread/fiber/internal/fiber-thread-options.h"
 #include "gtest/gtest.h"
 
 namespace {
+
+void validate_fiber_name(thread::FiberOptions opts) {
+  // Note: const char* pointers are compared below.
+  EXPECT_EQ(opts.name(), thread::Fiber::Current()->options().name());
+}
+
+TEST(FiberOptionsTest, Basic) {
+  using thread::FiberOptions;
+
+  FiberOptions optsFoo;
+  FiberOptions optsBar;
+  FiberOptions optsNil;
+
+  optsFoo.SetInternedName("foo");
+  optsBar.SetInternedName("bar");
+
+  auto root_fiber = [=](FiberOptions root_opts) {
+    thread::NewTree(thread::TreeOptions().set_fiber_options(root_opts), [=]() {
+      validate_fiber_name(root_opts);
+
+      auto child_fiber = [](FiberOptions child_opts) {
+        thread::Fiber fiber(child_opts,
+                            [=]() { validate_fiber_name(child_opts); });
+        fiber.Join();
+      };
+
+      child_fiber(optsFoo);
+      child_fiber(optsBar);
+      child_fiber(optsNil);
+
+      // Check that the name is inherited if options are not explicitly set.
+      thread::Fiber fiber([root_opts]() { validate_fiber_name(root_opts); });
+      fiber.Join();
+    })->Join();
+  };
+
+  root_fiber(optsFoo);
+  root_fiber(optsBar);
+  root_fiber(optsNil);
+}
 
 TEST(FiberOptionsTest, StackSize) {
   thread::FiberOptions opts;
