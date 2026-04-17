@@ -261,8 +261,8 @@ struct EnumHasErrorSpace : std::false_type {};
 
 template <typename E>
 struct EnumHasErrorSpace<
-    E, absl::void_t<decltype(GetErrorSpace(ErrorSpaceAdlTag<E>{})),
-                    typename std::enable_if<std::is_enum<E>::value>::type>>
+    E, std::void_t<decltype(GetErrorSpace(ErrorSpaceAdlTag<E>{})),
+                   typename std::enable_if<std::is_enum<E>::value>::type>>
     : std::true_type {};
 
 }  // namespace internal_status
