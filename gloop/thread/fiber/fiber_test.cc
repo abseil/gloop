@@ -843,6 +843,89 @@ TEST_F(FiberTest, TemporaryCallbackInheritsEnvironmentalDeadline) {
   c_late.Join();
 }
 
+TEST_F(FiberTest, ChildFiberDeadlineSoonerThanParent) {
+  absl::Time parent_deadline = absl::Now() + absl::Seconds(10);
+  base::WithDeadline wd_parent(parent_deadline);
+
+  absl::Notification child_cancelled;
+  Fiber parent([&]() {
+    absl::Time child_deadline = absl::Now() + absl::Milliseconds(100);
+    base::WithDeadline wd_child(child_deadline);
+    Fiber child([&]() {
+      WaitForCancel();
+      child_cancelled.Notify();
+    });
+    child.Join();
+  });
+
+  child_cancelled.WaitForNotification();
+  EXPECT_FALSE(parent.Cancelled());  // parent should not be cancelled yet
+  parent.Join();
+}
+
+TEST_F(FiberTest, ChildFiberDeadlineLaterThanParent) {
+  absl::Time parent_deadline = absl::Now() + absl::Milliseconds(100);
+  base::WithDeadline wd_parent(parent_deadline);
+
+  absl::Notification child_cancelled;
+  Fiber parent([&]() {
+    absl::Time child_deadline = absl::Now() + absl::Seconds(10);
+    base::WithDeadline wd_child(child_deadline);
+    Fiber child([&]() {
+      WaitForCancel();
+      child_cancelled.Notify();
+    });
+    child.Join();
+  });
+
+  child_cancelled.WaitForNotification();
+  parent.Join();
+  EXPECT_TRUE(parent.Cancelled());
+}
+
+TEST_F(FiberTest, ChildFiberDeadlineEqualToParent) {
+  absl::Time parent_deadline = absl::Now() + absl::Milliseconds(100);
+  base::WithDeadline wd_parent(parent_deadline);
+
+  absl::Notification child_cancelled;
+  Fiber parent([&]() {
+    base::WithDeadline wd_child(parent_deadline);
+    Fiber child([&]() {
+      WaitForCancel();
+      child_cancelled.Notify();
+    });
+    child.Join();
+  });
+
+  child_cancelled.WaitForNotification();
+  parent.Join();
+  EXPECT_TRUE(parent.Cancelled());
+}
+
+TEST_F(FiberTest, DynamicFiberDeadlineCoverageWithClosureThread) {
+  absl::Time parent_deadline = absl::Now() + absl::Seconds(10);
+  absl::Notification child_cancelled;
+
+  ClosureThread t([&] {
+    base::WithDeadline wd_parent(parent_deadline);
+    thread::Fiber::Current();  // Installs a dynamic fiber.
+
+    absl::Time child_deadline = absl::Now() + absl::Milliseconds(100);
+    base::WithDeadline wd_child(child_deadline);
+
+    // Create a Bundle which implicitly creates a dynamic child fiber!
+    thread::Bundle bundle;
+
+    absl::SleepFor(absl::Milliseconds(500));  // Allow alarm to fire
+    EXPECT_TRUE(bundle.Cancelled());
+
+    bundle.JoinAll();
+  });
+  t.SetJoinable(true);
+  t.Start();
+  t.Join();
+}
+
 // Tests above should not have affected environmental contexts.
 TEST_F(FiberTest, EnvironmentalDeadlinesUnpermuted) {
   EXPECT_EQ(absl::InfiniteFuture(), base::CurrentContext().deadline());
@@ -1131,6 +1214,30 @@ class DistinctFiberScopeTest : public DistinctFiberScope {
   explicit DistinctFiberScopeTest(const FiberOptions& options)
       : DistinctFiberScope(options) {}
 };
+
+TEST_F(FiberTest, DistinctFiberScopeInheritsContext) {
+  base::Context tc(MakeTestContext(absl::Now()));
+  base::WithContext wc(tc);
+
+  {
+    DistinctFiberScopeTest scope;
+    ContextEq(tc, base::CurrentContext());
+  }
+}
+
+TEST_F(FiberTest, ClosureThreadDynamicFiberInheritsContext) {
+  base::Context tc(MakeTestContext(absl::Now()));
+
+  ClosureThread t([&] {
+    base::WithContext wc(tc);
+    thread::Fiber::Current();  // Installs a dynamic fiber.
+
+    ContextEq(tc, base::CurrentContext());
+  });
+  t.SetJoinable(true);
+  t.Start();
+  t.Join();
+}
 
 TEST_F(FiberTest, DistinctFiberRun) {
   Fiber* outer = Fiber::Current();
