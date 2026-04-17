@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Linux (${{ matrix.config.name || matrix.config.value }})
     container:
-      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:e8964ea90c9d31b097ce639a99f82e36cdb6e4c6882fc169b11e9635b3a9f088
+      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:b14a23d65e32c053eaca6bd543bdb70802cb84b34973427f4d5b3cfa567634c3
       # Our images happen to be public today, but use our service account's credentials anyway in
       # case we decide to lock down access.
       credentials:
@@ -67,7 +67,7 @@ jobs:
           repository-cache: |
             - MODULE.bazel
           google-credentials: ${{ secrets.GAR_SERVICE_ACCOUNT }}
-          bazelrc: common --remote_cache=https://storage.googleapis.com/gloop-bazel-remote-cache
+          bazelrc: common --config=remote
 
       - name: Run tests
         run: bazel test ... --config=${{ matrix.config.value }}
@@ -76,7 +76,7 @@ jobs:
     name: Check Non-compilation for ${{ matrix.config }}
     runs-on: ubuntu-latest
     container:
-      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:e8964ea90c9d31b097ce639a99f82e36cdb6e4c6882fc169b11e9635b3a9f088
+      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:b14a23d65e32c053eaca6bd543bdb70802cb84b34973427f4d5b3cfa567634c3
       # Our images happen to be public today, but use our service account's credentials anyway in
       # case we decide to lock down access.
       credentials:

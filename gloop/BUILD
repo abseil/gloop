@@ -95,3 +95,17 @@ cc_library(
         "@googletest//:gtest_for_library",
     ],
 )
+
+platform(
+    name = "rbe",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    exec_properties = {
+        "container-image": "docker://gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:b14a23d65e32c053eaca6bd543bdb70802cb84b34973427f4d5b3cfa567634c3",
+        "Pool": "default",
+        "dockerRunAsRoot": "true",
+        "cache-silo-key": "default-04162026",
+    },
+)
