@@ -13,10 +13,6 @@
 # limitations under the License.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
-load(
-    "@rules_cc//cc:cc_test.bzl",
-    "cc_test",
-)
 
 package(
     default_applicable_licenses = ["//gloop:license"],
@@ -24,31 +20,15 @@ package(
 )
 
 cc_library(
-    name = "effective_user_id",
-    srcs = ["effective_user_id.cc"],
-    hdrs = ["effective_user_id.h"],
+    name = "percpu",
+    hdrs = ["percpu.inc"],
     visibility = [
-        "//gloop/base:__pkg__",
-        "@gloop//gloop/base:__pkg__",
-        "@gloop//gloop/base/internal:__pkg__",
+        "//gloop/base:__subpackages__",
+        "//gloop/concurrent/percpu:__subpackages__",
     ],
     deps = [
-        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/base:config",
         "@gloop//gloop:enforce_gloop_support",
-    ],
-)
-
-cc_test(
-    name = "effective_user_id_test",
-    size = "small",
-    srcs = ["effective_user_id_test.cc"],
-    visibility = ["//gloop/base:__pkg__"],
-    deps = [
-        ":effective_user_id",
-        "@abseil-cpp//absl/strings",
-        "@gloop//gloop:gloop_test_main",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
@@ -76,19 +56,6 @@ cc_library(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log/internal:config",
         "@abseil-cpp//absl/synchronization",
-        "@gloop//gloop:enforce_gloop_support",
-    ],
-)
-
-cc_library(
-    name = "percpu",
-    hdrs = ["percpu.inc"],
-    visibility = [
-        "//gloop/base:__subpackages__",
-        "//gloop/concurrent/percpu:__subpackages__",
-    ],
-    deps = [
-        "@abseil-cpp//absl/base:config",
         "@gloop//gloop:enforce_gloop_support",
     ],
 )
