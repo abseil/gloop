@@ -994,6 +994,8 @@ cc_library(
         ":context_origin",
         ":port",
         ":sysinfo",
+        ":tracer",
+        ":xray_tracing_annotations",
         "//gloop/perftools/tracing:sync_context",
         "//gloop/perftools/tracing:trace_event_listener",
         "//gloop/perftools/tracing:trace_source_location",
@@ -1809,4 +1811,174 @@ cc_test(
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
+)
+
+cc_library(
+    name = "mock_tracer",
+    testonly = True,
+    hdrs = ["mock_tracer.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":tracer",
+        ":tracing_types",
+        "//gloop/perftools/tracing:trace_source_location",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:source_location",
+        "@gloop//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest_for_library",
+    ],
+)
+
+cc_test(
+    name = "mock_tracer_test",
+    srcs = ["mock_tracer_test.cc"],
+    deps = [
+        ":mock_tracer",
+        ":tracecontext",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "reference_tracker",
+    srcs = ["reference_tracker.cc"],
+    hdrs = ["reference_tracker.h"],
+    visibility = [
+        "//stats/request:__pkg__",
+        "@gloop//gloop/base:__subpackages__",
+    ],
+    deps = [
+        ":spinlock",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/debugging:stacktrace",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "reference_tracker_test",
+    srcs = ["reference_tracker_test.cc"],
+    deps = [
+        ":reference_tracker",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/debugging:symbolize",
+        "@abseil-cpp//absl/log",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "tracer",
+    srcs = [
+        # TODO: Break the Tracer<->TraceContext circular dependency.
+        "tracecontext.h",
+        "tracer.cc",
+    ],
+    hdrs = ["tracer.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":censushandle",
+        ":context_access",
+        ":context_origin",
+        ":port",
+        ":reference_tracker",
+        ":sysinfo",
+        ":tracing_types",
+        ":walltime",
+        "//gloop/base:xray_tracing_annotations",
+        "//gloop/base/internal:effective_user_id",
+        "//gloop/base/time:time_unix_nanos",
+        "//gloop/perftools/tracing",
+        "//gloop/perftools/tracing:format_to_buffer_sink",
+        "//gloop/perftools/tracing:sync_context",
+        "//gloop/perftools/tracing:trace_event_listener",
+        "//gloop/perftools/tracing:trace_source_location",
+        "//gloop/perftools/tracing:tracing_base",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/memory",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:source_location",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "tracer_ffi",
+    hdrs = ["tracer_ffi.h"],
+    visibility = ["@gloop//gloop/base:__subpackages__"],
+    deps = [
+        ":tracecontext",
+        ":tracer",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "tracer_test",
+    size = "medium",
+    timeout = "long",
+    srcs = ["tracer_test.cc"],
+    deps = [
+        ":callback",
+        ":context",
+        ":context_access",
+        ":mock_tracer",
+        ":tracecontext",
+        ":tracer",
+        ":tracing_types",
+        ":walltime",
+        "//gloop/perftools/tracing:test_only_access",
+        "//gloop/perftools/tracing:trace_source_location",
+        "//gloop/util/functional:to_callback",
+        "//gloop/util/refcount:blocking_refcount",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/functional:function_ref",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/memory",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_matchers",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:source_location",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "tracing_types",
+    hdrs = ["tracing_types.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@abseil-cpp//absl/functional:function_ref",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+# Library for XRay RPC tracing
+cc_library(
+    name = "xray_tracing_annotations",
+    hdrs = ["xray/tracing_annotations.h"],
+    visibility = [
+        "@gloop//gloop/base:__pkg__",
+    ],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
 )
