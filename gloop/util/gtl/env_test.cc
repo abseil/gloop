@@ -25,6 +25,9 @@
 #include <string>
 
 #include "absl/strings/numbers.h"
+#include "gloop/thread/fiber/bundle.h"
+#include "gloop/thread/fiber/fiber-options.h"
+#include "gloop/thread/fiber/fiber.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -63,6 +66,26 @@ TEST(EnvTest, Environ) {
   ASSERT_TRUE(SetEnv("ENV_NAME", "SOME_VALUE"));
   EXPECT_GT(Environ().size(), 10);
   EXPECT_THAT(Environ(), Contains("ENV_NAME=SOME_VALUE"));
+}
+
+// Normal getenv that isn't thread-safe would fail this tsan test.
+TEST(EnvTest, ThreadSafeSetEnvTsan) {
+  SetEnv("COUNT", "0");
+
+  thread::TreeOptions options;
+  options.set_max_cpu_slots(10);
+  std::unique_ptr<thread::Fiber> tree = thread::NewTree(options, [&] {
+    thread::Bundle bundle;
+    for (int i = 0; i != 1000; ++i) {
+      bundle.Add([&] {
+        int val;
+        EXPECT_TRUE(absl::SimpleAtoi(GetEnv("COUNT").value_or(""), &val));
+        SetEnv("COUNT", std::to_string(val + 1));
+      });
+    }
+    bundle.JoinAll();
+  });
+  tree->Join();
 }
 
 }  // namespace

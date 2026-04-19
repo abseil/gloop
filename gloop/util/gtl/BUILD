@@ -139,6 +139,8 @@ cc_test(
     srcs = ["env_test.cc"],
     deps = [
         ":env",
+        "//gloop/thread/fiber",
+        "//gloop/thread/fiber:fiber-options",
         "@abseil-cpp//absl/strings",
         "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
