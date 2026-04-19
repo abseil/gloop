@@ -30,7 +30,7 @@
 #error PERCPU_USE_RSEQ cannot be directly set
 #endif
 #if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__)) && \
-    !defined(__ppc__)
+    !defined(__ppc__) && !defined(__ANDROID__)
 #define PERCPU_USE_RSEQ 1
 #else
 #define PERCPU_USE_RSEQ 0
