@@ -17,6 +17,7 @@
 #
 # Description: Code for symbolizing a stack trace of the current process.
 
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
@@ -26,15 +27,32 @@ package(
     features = ["header_modules"],
 )
 
+# Define a configurable build setting for optimization level.
+bool_flag(
+    name = "optimized",
+    build_setting_default = True,
+    visibility = ["//visibility:private"],
+)
+
+config_setting(
+    name = "optimize",
+    flag_values = {":optimized": "True"},
+    visibility = ["//visibility:private"],
+)
+
 # Explicitly force this library to be built with optimizations turned
 # on and debug checking off. This is often used within unit tests and
 # other code build without optimizations, but *this* library is not
 # the code under test or in need of debugging. We also turn off any
 # debug checking done by the STL or other libraries.
-COPTS = [
-    "-O3",
-    "-DNDEBUG",
-]
+COPTS = select({
+    ":optimize": [
+        "-O3",
+        "-DNDEBUG",
+    ],
+    # No optimization if explicitly turned off via "optimize" setting.
+    "//conditions:default": [],
+})
 
 cc_library(
     name = "demangle",
