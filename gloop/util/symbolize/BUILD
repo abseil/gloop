@@ -170,7 +170,7 @@ cc_library(
 # This exercises both implementation variants.
 # @unused
 _ = [cc_test(
-    name = "symbolize_unittest_" + str(t),
+    name = "symbolize_unittest_" + ("" if t else "No") + "CopyNames",
     srcs = ["symbolize_unittest.cc"],
     args = ["--symbol_map_copy_names=" + str(t)],
     malloc = "//gloop:malloc",  # b/179154437
