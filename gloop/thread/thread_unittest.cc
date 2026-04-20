@@ -67,6 +67,7 @@
 #include "gloop/base/timer.h"
 #include "gloop/base/tracecontext.h"
 #include "gloop/thread/config.h"
+#include "gloop/thread/fiber/fiber.h"
 #include "gloop/thread/thread-internal.h"
 #include "gloop/thread/thread_control.h"
 #include "gloop/thread/thread_options.h"
@@ -1879,6 +1880,36 @@ TEST(ThreadTest, DumpGilHolder) {
                   "--- Python GIL held by thread ffffffffffffffd6 ---\n"));
 
   PythonGilHolderLookupForTest::Register(nullptr);
+}
+
+TEST(ThreadTest, DebugNameNotInsideFiber) {
+  if (thread::Fiber::IsFiber()) {
+    GTEST_SKIP() << "Skipping test as precondition not met: test cannot "
+                    "execute inside fiber.";
+  }
+  const LiveThread* thread = Thread_GetMyLiveThread();
+  ASSERT_TRUE(thread != nullptr);
+
+  const char* thread_name = LiveThread_Name(thread);
+  ASSERT_TRUE(thread_name != nullptr);
+
+  EXPECT_THAT(thread::DebugName(), testing::HasSubstr(thread_name));
+}
+
+TEST(ThreadTest, DebugNameInsideFiber) {
+  const char* kFiberName = "test_fiber_name";
+  thread::Fiber f(
+      thread::FiberOptions().SetInternedName(kFiberName), [kFiberName] {
+        const LiveThread* thread = Thread_GetMyLiveThread();
+        ASSERT_TRUE(thread != nullptr);
+
+        const char* thread_name = LiveThread_Name(thread);
+        ASSERT_TRUE(thread_name != nullptr);
+
+        EXPECT_THAT(thread::DebugName(), testing::HasSubstr(thread_name));
+        EXPECT_THAT(thread::DebugName(), testing::HasSubstr(kFiberName));
+      });
+  f.Join();
 }
 
 void ListOneNote(void* arg, absl::string_view note) {

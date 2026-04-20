@@ -41,9 +41,14 @@
 #include "absl/time/time.h"
 #include "gloop/base/thread-identity.h"
 #include "gloop/base/walltime.h"
+#include "gloop/thread/fiber/channel.h"
+#include "gloop/thread/fiber/fiber-options.h"
+#include "gloop/thread/fiber/fiber.h"
+#include "gloop/thread/fiber/select.h"
 #include "gloop/thread/periodicclosure.h"
 #include "gloop/thread/thread-internal.h"
 #include "gloop/thread/thread.h"
+#include "gloop/thread/thread_manager.h"
 #include "gloop/thread/thread_options.h"
 #include "gloop/thread/threadpool.h"
 #include "gloop/thread/timedcall.h"
@@ -260,6 +265,14 @@ TEST_P(ActiveWorkerTest, OnlyWaitingThreadsSkipped) {
 // Various implementations of SpawnWorkerThread.
 namespace {
 
+std::string RunOnThreadManager(absl::AnyInvocable<void() &&> f) {
+  const std::string kName = "active-worker-test-threadmanager";
+  static absl::NoDestructor<ThreadManager> tm(kName, ManagerOptions());
+  auto queue = absl::WrapUnique(tm->NewQueue(kName, ManagedQueueOptions()));
+  queue->Schedule(std::move(f));
+  return kName;
+}
+
 std::string RunOnThreadPool(absl::AnyInvocable<void() &&> f) {
   const std::string kName = "active-worker-test-threadpool";
   static absl::NoDestructor<std::unique_ptr<ThreadPool>> pool([&]() {
@@ -272,6 +285,45 @@ std::string RunOnThreadPool(absl::AnyInvocable<void() &&> f) {
   return kName;
 }
 
+std::string RunOnPeriodicClosure(absl::AnyInvocable<void() &&> f) {
+  static constexpr absl::string_view kName =
+      "active-worker-test-periodic-closure";
+  // Make something that looks like an executor around a
+  // PeriodicClosure.
+  class PeriodicClosureExecutor {
+   public:
+    PeriodicClosureExecutor()
+        : channel_(1),
+          thread_(
+              [reader = channel_.reader()]() {
+                absl::AnyInvocable<void() &&> f;
+                bool ok;
+                // Try to run a work item if there is any.
+                if (TrySelect({reader->OnRead(&f, &ok)}) == 0) {
+                  std::move(f)();
+                }
+              },
+              /*interval=*/absl::InfiniteDuration(),
+              PeriodicClosureOptions().set_name_prefix(kName)) {
+      thread_.Start();
+    }
+
+    void Schedule(absl::AnyInvocable<void() &&> f) {
+      channel_.writer()->Write(std::move(f));
+      // Wake up the thread.
+      thread_.RunSoon();
+    }
+
+   private:
+    thread::Channel<absl::AnyInvocable<void() &&>> channel_;
+    PeriodicClosure thread_;
+  };
+
+  static absl::NoDestructor<PeriodicClosureExecutor> executor;
+  executor->Schedule(std::move(f));
+  return std::string(kName);
+}
+
 std::string RunOnTimedCall(absl::AnyInvocable<void() &&> f) {
   // Create a new TimedCall that will delete itself when done.
   auto tc = std::make_unique<TimedCall>();
@@ -280,9 +332,19 @@ std::string RunOnTimedCall(absl::AnyInvocable<void() &&> f) {
   // This is the name of the one thread that runs all TimedCalls.
   return "timedcall";
 }
+
+std::string RunOnFiber(absl::AnyInvocable<void() &&> f) {
+  const std::string kName = "active-worker-test-fiber";
+  thread::Detach(
+      TreeOptions().set_fiber_options(FiberOptions().SetInternedName(kName)),
+      std::move(f));
+  return kName;
+}
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(ExecutorImpls, ActiveWorkerTest,
-                         ::testing::Values(RunOnThreadPool, RunOnTimedCall));
+                         ::testing::Values(RunOnThreadManager,
+                                           RunOnPeriodicClosure, RunOnFiber,
+                                           RunOnThreadPool, RunOnTimedCall));
 
 }  // namespace thread
