@@ -93,6 +93,15 @@ StatusBuilder::Rep::Rep(const Rep& r)
 
 void StatusBuilder::Rep::InitStream() { stream.emplace(stream_message); }
 
+StatusBuilder& StatusBuilder::SetCode(absl::StatusCode code) & {
+  SetErrorCode(code);
+  return *this;
+}
+
+void AbslInternalSetErrorCode(StatusBuilder& builder, absl::StatusCode code) {
+  AbslInternalSetErrorCode(builder, static_cast<error::Code>(code));
+}
+
 absl::Status JoinMessageToStatus(absl::Status s, absl::string_view msg,
                                  MessageJoinStyle style) {
   if (msg.empty()) return s;

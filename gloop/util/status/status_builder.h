@@ -99,14 +99,7 @@ class StatusBuilderPrivateAccessor;
 
 }  // namespace status_internal
 
-// Forward declarations for inlining. See definitions for documentation.
-
-template <typename MessageSetExtension, typename ExtensionIdentifier>
-StatusBuilder& AttachPayload(StatusBuilder*, const MessageSetExtension&,
-                             const ExtensionIdentifier&);
-
-template <typename MessageSetExtension>
-StatusBuilder& AttachPayload(StatusBuilder*, const MessageSetExtension&);
+// Forward declarations. See definitions for documentation.
 
 template <typename MessageSetExtension, typename ExtensionIdentifier>
 bool HasPayloadWithType(const StatusBuilder&, const ExtensionIdentifier&);
@@ -119,20 +112,6 @@ MessageSetExtension GetPayload(const StatusBuilder&,
 template <typename MessageSetExtension>
 MessageSetExtension GetPayload(const StatusBuilder&);
 
-template <typename Enum>
-decltype(std::conditional_t<false, Enum,
-                            status_internal::StatusBuilderPrivateAccessor>::
-             SetErrorCode(std::declval<StatusBuilder&>(),
-                          std::declval<const ErrorSpace*>(),
-                          std::declval<std::conditional_t<false, Enum, int>>()))
-SetErrorCode(StatusBuilder& builder ABSL_ATTRIBUTE_LIFETIME_BOUND, Enum);
-template <typename Enum>
-decltype(std::move(util::SetErrorCode(std::declval<StatusBuilder&>(),
-                                      std::declval<Enum>())))
-SetErrorCode(StatusBuilder&& builder, Enum code) {
-  return std::move(util::SetErrorCode(builder, code));
-}
-
 util::error::Code GetCanonicalCode(const StatusBuilder&);
 
 template <typename Enum>
@@ -142,6 +121,22 @@ HasErrorCode(const StatusBuilder&, Enum);
 bool HasErrorCode(const StatusBuilder&, util::error::Code);
 bool HasErrorCode(const StatusBuilder&, const ErrorSpace*, int);
 bool HasErrorSpace(const StatusBuilder&, const ErrorSpace*);
+
+// Internal argument-dependent lookup extension point for StatusBuilder.
+// Necessary for allowing StatusBuilder to be open-sourced into Abseil without
+// introducing hard dependencies on non-canonical error spaces or protobuf.
+//
+// What we would have preferred here is to just leave
+// StatusBuilder::SetErrorCode() undeclared for OSS users, but defined for
+// internal users. However, C++ doesn't provide a great way to do that directly,
+// since merely omitting a definition still leaves it declared and thus
+// accessible.
+//
+// We therefore use this ADL extension point as the closest moral equivalent:
+// this allows use to define a simple shell for the method in OSS, but to
+// prevent its actual usage (via SFINAE) unless this extension point is also
+// defined, which is only the case in our internal libraries.
+void AbslInternalSetErrorCode(StatusBuilder&, absl::StatusCode);
 
 // Specifies how to join the error message in the original status and any
 // additional message that has been streamed into the builder.
@@ -477,24 +472,41 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   //   builder.AttachPayload(rpc_status, google::rpc::error_details_ext);
   //
   template <typename MessageSetExtension, typename ExtensionIdentifier>
-  StatusBuilder& AttachPayload(const MessageSetExtension& obj,
-                               const ExtensionIdentifier& id) & {
-    return ::util::AttachPayload(this, obj, id);
+  auto AttachPayload(const MessageSetExtension& obj,
+                     const ExtensionIdentifier& id) &  //
+      -> std::enable_if_t<
+          std::is_void_v<decltype(AbslInternalAttachPayload(*this, obj, id))>,
+          StatusBuilder&> {
+    AbslInternalAttachPayload(*this, obj, id);
+    return *this;
   }
+
+  // As above, but &&-qualified.
+  //
+  // Uses decltype() to propagate template constraints (SFINAE).
   template <typename MessageSetExtension, typename ExtensionIdentifier>
-  ABSL_MUST_USE_RESULT StatusBuilder&& AttachPayload(
-      const MessageSetExtension& obj, const ExtensionIdentifier& id) && {
-    return std::move(::util::AttachPayload(this, obj, id));
+  ABSL_MUST_USE_RESULT auto AttachPayload(const MessageSetExtension& obj,
+                                          const ExtensionIdentifier& id) &&  //
+      -> decltype(std::move(AttachPayload(obj, id))) {
+    return std::move(AttachPayload(obj, id));
   }
 
   template <typename MessageSetExtension>
-  StatusBuilder& AttachPayload(const MessageSetExtension& obj) & {
-    return ::util::AttachPayload(this, obj);
+  auto AttachPayload(const MessageSetExtension& obj) &  //
+      -> std::enable_if_t<
+          std::is_void_v<decltype(AbslInternalAttachPayload(*this, obj))>,
+          StatusBuilder&> {
+    AbslInternalAttachPayload(*this, obj);
+    return *this;
   }
+
+  // As above, but &&-qualified.
+  //
+  // Uses decltype() to propagate template constraints (SFINAE).
   template <typename MessageSetExtension>
-  ABSL_MUST_USE_RESULT StatusBuilder&& AttachPayload(
-      const MessageSetExtension& obj) && {
-    return std::move(::util::AttachPayload(this, obj));
+  ABSL_MUST_USE_RESULT auto AttachPayload(const MessageSetExtension& obj) &&  //
+      -> decltype(std::move(AttachPayload(obj))) {
+    return std::move(AttachPayload(obj));
   }
 
   // HasPayload()
@@ -562,18 +574,29 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // Sets the error code for the status that will be returned by this
   // StatusBuilder.  Returns `*this` to allow method chaining.
   template <typename Enum>
-  StatusBuilder& SetErrorCode(Enum code) & {
-    return ::util::SetErrorCode(*this, code);
+  auto SetErrorCode(Enum code) &  //
+      -> std::enable_if_t<
+          std::is_void_v<decltype(AbslInternalSetErrorCode(*this, code))>,
+          StatusBuilder&> {
+    AbslInternalSetErrorCode(*this, code);
+    return *this;
   }
+
+  // As above, but &&-qualified.
+  //
+  // Uses decltype() to propagate template constraints (SFINAE).
   template <typename Enum>
-  ABSL_MUST_USE_RESULT StatusBuilder&& SetErrorCode(Enum code) && {
-    return ::util::SetErrorCode(std::move(*this), code);
+  ABSL_MUST_USE_RESULT auto SetErrorCode(Enum code) &&  //
+      -> decltype(std::move(SetErrorCode(code))) {
+    return std::move(SetErrorCode(code));
   }
 
   // Sets the status code for the status that will be returned by this
   // StatusBuilder. Returns `*this` to allow method chaining.
   StatusBuilder& SetCode(absl::StatusCode code) &;
-  ABSL_MUST_USE_RESULT StatusBuilder&& SetCode(absl::StatusCode code) &&;
+  ABSL_MUST_USE_RESULT StatusBuilder&& SetCode(absl::StatusCode code) && {
+    return std::move(SetCode(code));
+  }
 
   ///////////////////////////////// Adaptors /////////////////////////////////
   //
@@ -1061,8 +1084,8 @@ class status_internal::StatusBuilderPrivateAccessor {
     return builder.rep_.get();
   }
 
-  static StatusBuilder& SetErrorCode(StatusBuilder& builder,
-                                     const ErrorSpace* space, int code_int) {
+  static void SetErrorCode(StatusBuilder& builder, const ErrorSpace* space,
+                           int code_int) {
     if (builder.rep_ == nullptr) {
       builder.rep_ = std::make_unique<StatusBuilder::Rep>(
           ::util::SetErrorSpaceAndCode(absl::Status(), space, code_int));
@@ -1070,7 +1093,6 @@ class status_internal::StatusBuilderPrivateAccessor {
       builder.rep_->status =
           ::util::SetErrorSpaceAndCode(builder.rep_->status, space, code_int);
     }
-    return builder;
   }
 };
 
@@ -1268,21 +1290,31 @@ inline std::optional<absl::Cord> StatusBuilder::GetPayload(
 }
 
 template <typename Enum>
-decltype(std::conditional_t<false, Enum,
-                            status_internal::StatusBuilderPrivateAccessor>::
-             SetErrorCode(std::declval<StatusBuilder&>(),
-                          std::declval<const ErrorSpace*>(),
-                          std::declval<std::conditional_t<false, Enum, int>>()))
-SetErrorCode(StatusBuilder& builder ABSL_ATTRIBUTE_LIFETIME_BOUND, Enum code) {
-  return status_internal::StatusBuilderPrivateAccessor::SetErrorCode(
-      builder, GetErrorSpaceForEnum(code), static_cast<int>(code));
+ABSL_DEPRECATE_AND_INLINE()
+auto SetErrorCode(StatusBuilder& builder ABSL_ATTRIBUTE_LIFETIME_BOUND,
+                  Enum code)  //
+    -> decltype(builder.SetErrorCode(code)) {
+  return builder.SetErrorCode(code);
 }
 
-inline StatusBuilder& StatusBuilder::SetCode(absl::StatusCode code) & {
-  return util::SetErrorCode(*this, static_cast<error::Code>(code));
+template <typename Enum>
+ABSL_DEPRECATE_AND_INLINE()
+auto SetErrorCode(StatusBuilder&& builder, Enum code)
+    -> decltype(std::move(builder).SetErrorCode(code)) {
+  return std::move(builder).SetErrorCode(code);
 }
-inline StatusBuilder&& StatusBuilder::SetCode(absl::StatusCode code) && {
-  return std::move(SetCode(code));
+
+// Argument-dependent lookup extension point for setting error codes from
+// non-canonical error spaces.
+template <typename Enum>
+auto AbslInternalSetErrorCode(
+    StatusBuilder& builder ABSL_ATTRIBUTE_LIFETIME_BOUND, Enum code)
+    -> decltype(std::conditional_t<
+                false, Enum, status_internal::StatusBuilderPrivateAccessor>::
+                    SetErrorCode(builder, std::declval<const ErrorSpace*>(),
+                                 static_cast<int>(code))) {
+  return status_internal::StatusBuilderPrivateAccessor::SetErrorCode(
+      builder, GetErrorSpaceForEnum(code), static_cast<int>(code));
 }
 
 inline bool StatusBuilder::ok() const {
@@ -1392,21 +1424,39 @@ inline bool StatusBuilder::HasPayload() const {
 //   rpc_status.set_message("message for external");
 //   util::AttachPayload(&builder, rpc_status, google::rpc::error_details_ext);
 template <typename MessageSetExtension, typename ExtensionIdentifier>
-inline util::StatusBuilder& AttachPayload(util::StatusBuilder* builder,
-                                          const MessageSetExtension& obj,
-                                          const ExtensionIdentifier& id) {
-  auto* rep = status_internal::StatusBuilderPrivateAccessor::GetRep(*builder);
-  if (rep != nullptr) {
-    util::AttachPayload(&rep->status, obj, id);
-  }
-  return *builder;
+ABSL_DEPRECATE_AND_INLINE()
+auto AttachPayload(util::StatusBuilder* builder, const MessageSetExtension& obj,
+                   const ExtensionIdentifier& id)
+    -> decltype(builder->AttachPayload(obj, id)) {
+  return builder->AttachPayload(obj, id);
 }
 
 template <typename MessageSetExtension>
-inline util::StatusBuilder& AttachPayload(util::StatusBuilder* builder,
-                                          const MessageSetExtension& obj) {
-  return util::AttachPayload(builder, obj,
-                             MessageSetExtension::message_set_extension);
+ABSL_DEPRECATE_AND_INLINE()
+auto AttachPayload(util::StatusBuilder* builder, const MessageSetExtension& obj)
+    -> decltype(builder->AttachPayload(obj)) {
+  return builder->AttachPayload(obj);
+}
+
+// Argument-dependent lookup extension point for attaching payloads (e.g.,
+// protocol buffers) to the builder.
+//
+// Exists for the same reason as AbslInternalSetErrorCode() (see documentation).
+template <typename MessageSetExtension, typename ExtensionIdentifier>
+void AbslInternalAttachPayload(util::StatusBuilder& builder,
+                               const MessageSetExtension& obj,
+                               const ExtensionIdentifier& id) {
+  auto* rep = status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
+  if (rep != nullptr) {
+    util::AttachPayload(&rep->status, obj, id);
+  }
+}
+
+template <typename MessageSetExtension>
+void AbslInternalAttachPayload(util::StatusBuilder& builder,
+                               const MessageSetExtension& obj) {
+  return AbslInternalAttachPayload(builder, obj,
+                                   MessageSetExtension::message_set_extension);
 }
 
 // HasPayload()
