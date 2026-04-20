@@ -184,13 +184,9 @@ cc_library(
     ],
 )
 
-# We run this test twice: with and without --symbol_map_copy_names.
-# This exercises both implementation variants.
-# @unused
-_ = [cc_test(
-    name = "symbolize_unittest_" + ("" if t else "No") + "CopyNames",
+cc_test(
+    name = "symbolize_unittest",
     srcs = ["symbolize_unittest.cc"],
-    args = ["--symbol_map_copy_names=" + str(t)],
     malloc = "//gloop:malloc",  # b/179154437
     deps = [
         ":demangle",
@@ -207,10 +203,7 @@ _ = [cc_test(
         "@googletest//:gtest",
         "@tcmalloc//tcmalloc:malloc_extension",
     ],
-) for t in [
-    True,
-    False,
-]]
+)
 
 cc_test(
     name = "symbolized_stack_writer_unittest",

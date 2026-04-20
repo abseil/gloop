@@ -75,8 +75,8 @@ static const int kNameArenaBlockSize = 64 << 10;  // 64K
 //
 // Note that changing this flag after the first call to SymbolMap::GetCached
 // has no effect.
-ABSL_FLAG(bool, symbol_map_copy_names, false,
-          "Copy symbol names into private arena.");
+ABSL_RETIRED_FLAG(bool, symbol_map_copy_names, false,
+                  "Copy symbol names into private arena.");
 
 // We use level 0 in tests because:
 // 1. Compressing symbol table in tests is generally a waste of CPU, and
@@ -138,11 +138,10 @@ void SymbolMap::AddGeneratedLibrary(std::string elf_name, uint64_t map_beg,
 void SymbolMap::OnceInit() {
   CHECK(!IsCacheInitialized());  // Paranoia.
   // Get the flag and map outside of any locks (b/36422185#comment21).
-  const bool copy_symbol_names = absl::GetFlag(FLAGS_symbol_map_copy_names);
   const int compression_level =
       absl::GetFlag(FLAGS_symbol_map_compression_level);
   auto symbol_map =
-      SymbolMap::CreateInternal(copy_symbol_names, compression_level);
+      SymbolMap::CreateInternal(/*copy_symbol_names=*/false, compression_level);
 
   // Install it.
   g_cached_symbol_map.store(symbol_map.release(), std::memory_order_release);
