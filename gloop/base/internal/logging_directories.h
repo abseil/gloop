@@ -26,6 +26,7 @@
 
 #include "absl/log/internal/config.h"
 #include "absl/log/log.h"
+#include "absl/types/span.h"
 
 namespace base_logging {
 namespace logging_internal {
@@ -44,10 +45,10 @@ void ClearLoggingDirectories();
 // specified value.
 void SetLoggingDirectories(std::vector<std::string> vec);
 
-// Returns a reference to the current (cached) list of logging directories.
+// Returns the current (cached) list of logging directories.
 // This is for signal handlers that can't safely take the underlying lock or
 // allocate to return-by-copy, so it's thread-hostile.
-const std::vector<std::string>& LoggingDirectoriesUnsafe();
+absl::Span<const std::string> LoggingDirectoriesUnsafe();
 
 }  // namespace logging_internal
 }  // namespace base_logging

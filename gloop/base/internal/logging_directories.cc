@@ -30,6 +30,7 @@
 #include "absl/flags/flag.h"
 #include "absl/log/log.h"
 #include "absl/synchronization/mutex.h"
+#include "absl/types/span.h"
 #include "gloop/base/internal/temp_directories.h"
 #include "gloop/base/log_file_flags.h"
 
@@ -70,8 +71,12 @@ void SetLoggingDirectories(std::vector<std::string> vec)
   ResetDirectories(new std::vector<std::string>(std::move(vec)));
 }
 
-const std::vector<std::string>& LoggingDirectoriesUnsafe() {
-  return *ABSL_TS_UNCHECKED_READ(directories);
+absl::Span<const std::string> LoggingDirectoriesUnsafe() {
+  auto* dirs = ABSL_TS_UNCHECKED_READ(directories);
+  if (dirs == nullptr) {
+    return {};
+  }
+  return *dirs;
 }
 
 std::vector<std::string> LoggingDirectories()
