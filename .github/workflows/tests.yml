@@ -72,6 +72,9 @@ jobs:
       - name: Run tests
         run: bazel test ... --config=${{ matrix.config.value }}
 
+      - name: Run example test
+        run: bazel test @examples//... --config=${{ matrix.config.value }}
+
   non_compilation:
     name: Check Non-compilation for ${{ matrix.config }}
     runs-on: ubuntu-latest
