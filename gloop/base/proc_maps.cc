@@ -20,6 +20,10 @@
 
 #include "gloop/base/proc_maps.h"
 
+#ifdef __linux__
+#include "gloop/base/dl_iterate_phdr_iterator.h"
+#endif
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
@@ -170,13 +174,17 @@ static bool NextExtMachHelper(const mach_header* hdr, int current_image,
 }
 #endif
 
-ProcMapsIterator::ProcMapsIterator(pid_t pid) { Init(pid, nullptr); }
-
-ProcMapsIterator::ProcMapsIterator(pid_t pid, Buffer* buffer) {
-  Init(pid, buffer);
+ProcMapsIterator::ProcMapsIterator(pid_t pid, bool use_dl_iterate_phdr) {
+  Init(pid, nullptr, use_dl_iterate_phdr);
 }
 
-void ProcMapsIterator::Init(pid_t pid, Buffer* buffer) {
+ProcMapsIterator::ProcMapsIterator(pid_t pid, Buffer* buffer,
+                                   bool use_dl_iterate_phdr) {
+  Init(pid, buffer, use_dl_iterate_phdr);
+}
+
+void ProcMapsIterator::Init(pid_t pid, Buffer* buffer,
+                            bool use_dl_iterate_phdr) {
   pid_ = pid;
   if (!buffer) {
     // If the user didn't pass in any buffer storage, allocate it
@@ -194,21 +202,27 @@ void ProcMapsIterator::Init(pid_t pid, Buffer* buffer) {
   nextline_ = ibuf_;
 
 #if defined(__linux__)
-  // /maps exists in two places: /proc/pid/ and /proc/pid/task/tid
-  // (for each thread in the process.)  The only difference between
-  // these is the "global" view (/proc/pid/maps) attempts to label
-  // each VMA which is the stack of a thread.  This is nice to have,
-  // but not critical, and scales quadratically.  Use the main thread's
-  // "local" view to ensure adequate performance.
-  // (Note that ConstructFilename gives the <pid> argument twice to snprintf,
-  // so it's fine that we have two %ds and only one source.)
-  proc_maps_internal::ConstructFilename("/proc/%d/task/%d/maps", pid, ibuf_,
-                                        Buffer::kBufSize);
+  dl_iter_ = nullptr;
+  if (use_dl_iterate_phdr && (pid == 0 || pid == getpid())) {
+    dl_iter_ = new gloop::DlIteratePhdrIterator();
+    fd_ = -1;
+  } else {
+    // /maps exists in two places: /proc/pid/ and /proc/pid/task/tid
+    // (for each thread in the process.)  The only difference between
+    // these is the "global" view (/proc/pid/maps) attempts to label
+    // each VMA which is the stack of a thread.  This is nice to have,
+    // but not critical, and scales quadratically.  Use the main thread's
+    // "local" view to ensure adequate performance.
+    // (Note that ConstructFilename gives the <pid> argument twice to snprintf,
+    // so it's fine that we have two %ds and only one source.)
+    proc_maps_internal::ConstructFilename("/proc/%d/task/%d/maps", pid, ibuf_,
+                                          Buffer::kBufSize);
 
-  // No error logging since this can be called from the crash dump
-  // handler at awkward moments. Users should call Valid() before
-  // using.
-  NO_INTR(fd_ = open(ibuf_, O_RDONLY));
+    // No error logging since this can be called from the crash dump
+    // handler at awkward moments. Users should call Valid() before
+    // using.
+    NO_INTR(fd_ = open(ibuf_, O_RDONLY));
+  }
 #elif defined(__APPLE__)
   current_load_cmd_ = -1;
   current_image_ = _dyld_image_count();  // count down from the top
@@ -232,6 +246,7 @@ ProcMapsIterator::~ProcMapsIterator() {
   // the manpage for close(2), this is widespread yet not fully portable, which
   // is unfortunate. POSIX explicitly leaves this behavior as unspecified.
   if (fd_ >= 0) close(fd_);
+  delete dl_iter_;
 #else
   if (fd_ >= 0) NO_INTR(close(fd_));
 #endif
@@ -244,6 +259,9 @@ bool ProcMapsIterator::Valid() const {
 #elif defined(__APPLE__)
   return 1;
 #else
+  if (dl_iter_ != nullptr) {
+    return dl_iter_->Valid();
+  }
   return fd_ != -1;
 #endif
 }
@@ -261,6 +279,9 @@ bool ProcMapsIterator::NextExt(uint64_t* start, uint64_t* end, char** flags,
                                uint64_t* offset, int64_t* inode,
                                char** filename, dev_t* dev) {
 #if defined __linux__
+  if (dl_iter_ != nullptr) {
+    return dl_iter_->NextExt(start, end, flags, offset, inode, filename, dev);
+  }
   do {
     // Advance to the start of the next line
     stext_ = nextline_;

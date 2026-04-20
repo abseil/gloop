@@ -20,6 +20,7 @@
 
 #include "gloop/util/symbolize/symbolize.h"
 
+#include <dlfcn.h>
 #include <elf.h>
 #include <sys/auxv.h>
 #include <unistd.h>
@@ -27,6 +28,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <ios>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <optional>
@@ -238,7 +240,7 @@ TEST_P(SymbolMapTest, IteratorWithPositionMiddle) {
   EXPECT_EQ(symbol_map->num_symbols(), 3);
 }
 
-TEST_P(SymbolMapTest, SelfSymbosArePresent) {
+TEST_P(SymbolMapTest, SelfSymbolsArePresent) {
   const SymbolMap& symbol_map = SymbolMap::GetCached();
   const auto p_foo = reinterpret_cast<uint64_t>(&Foo);
   EXPECT_TRUE(
@@ -246,6 +248,42 @@ TEST_P(SymbolMapTest, SelfSymbosArePresent) {
   const auto p_bar = reinterpret_cast<uint64_t>(&Bar);
   EXPECT_TRUE(
       absl::StartsWith(symbol_map.GetSymbolAtPosition(p_bar), "_ZL3Barv"));
+}
+
+TEST_P(SymbolMapTest, SharedLibrarySymbolsArePresent) {
+  const std::string path =
+      ::testing::SrcDir() +
+      "/_main/gloop/util/symbolize/libmock_lib_rosegment.so";
+  void* handle = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
+  ASSERT_NE(nullptr, handle) << "Failed to dlopen: " << dlerror();
+
+  void* sym = dlsym(handle, "ThisIsAMockFunction");
+  ASSERT_NE(nullptr, sym) << "Failed to dlsym: " << dlerror();
+
+  const auto p_mock = reinterpret_cast<uint64_t>(sym);
+
+  auto symbol_map = SymbolMap::Create();
+  const char* name = symbol_map->GetSymbolAtPosition(p_mock);
+  ASSERT_NE(nullptr, name)
+      << "Failed to symbolize address of ThisIsAMockFunction";
+  EXPECT_STREQ(name, "ThisIsAMockFunction");
+
+  dlclose(handle);
+}
+
+TEST_P(SymbolMapTest, LinkedSharedLibrarySymbolsArePresent) {
+  void* sym = dlsym(RTLD_DEFAULT, "ThisIsAMockFunction");
+  if (sym == nullptr) {
+    LOG(INFO) << "Symbol ThisIsAMockFunction not found in global scope. "
+                 "Skipping test.";
+    return;
+  }
+
+  const auto p_mock = reinterpret_cast<uint64_t>(sym);
+  auto symbol_map = SymbolMap::Create();
+  const char* name = symbol_map->GetSymbolAtPosition(p_mock);
+  ASSERT_NE(nullptr, name) << "Failed to symbolize address of Linked function";
+  EXPECT_STREQ(name, "ThisIsAMockFunction");
 }
 
 TEST_P(SymbolMapTest, NumberOfSymbols) {

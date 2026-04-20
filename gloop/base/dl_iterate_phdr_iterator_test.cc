@@ -18,35 +18,20 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-#include "gloop/base/proc_maps.h"
+#include "gloop/base/dl_iterate_phdr_iterator.h"
 
-#include <sys/sysmacros.h>
+#include <cstdint>
+#include <string>
+#include <vector>
 
-#include "absl/strings/string_view.h"
+#include "absl/strings/match.h"
 #include "gtest/gtest.h"
 
+namespace gloop {
 namespace {
 
-TEST(ProcMapsIteratorTest, FormatLineWithLargeMinorDeviceNumber) {
-  char line[ProcMapsIterator::Buffer::kBufSize];
-  int len = ProcMapsIterator::FormatLine(line, sizeof(line), 0x1000, 0x2000,
-                                         "r-xp", 0x100, 123456, "/bin/cat",
-                                         makedev(0xfc, 0x227));
-  EXPECT_EQ(absl::string_view(line, len),
-            "00001000-00002000 r-xp 00000100 fc:227 123456      /bin/cat\n");
-}
-
-TEST(ProcMapsIteratorTest, FormatLineWithSharedMapping) {
-  char line[ProcMapsIterator::Buffer::kBufSize];
-  int len = ProcMapsIterator::FormatLine(line, sizeof(line), 0x1000, 0x2000,
-                                         "rw-s", 0, 0, "", 0);
-  EXPECT_EQ(absl::string_view(line, len),
-            "00001000-00002000 rw-s 00000000 00:00 0           \n");
-}
-
-TEST(ProcMapsIteratorTest, DlIteratePhdrBackend) {
-#if defined(__linux__)
-  ProcMapsIterator it(0, /*use_dl_iterate_phdr=*/true);
+TEST(DlIteratePhdrIteratorTest, Basic) {
+  DlIteratePhdrIterator it;
   EXPECT_TRUE(it.Valid());
 
   uint64_t start, end, offset;
@@ -57,14 +42,13 @@ TEST(ProcMapsIteratorTest, DlIteratePhdrBackend) {
 
   bool found_self = false;
   while (it.NextExt(&start, &end, &flags, &offset, &inode, &filename, &dev)) {
-    if (absl::string_view(filename).find("proc_Umaps") !=
-        absl::string_view::npos) {
+    if (absl::StrContains(filename, "dl_Uiterate_Uphdr")) {
       found_self = true;
       EXPECT_EQ(flags[3], 'p');  // Private
     }
   }
   EXPECT_TRUE(found_self);
-#endif
 }
 
 }  // namespace
+}  // namespace gloop

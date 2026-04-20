@@ -812,6 +812,7 @@ cc_library(
     hdrs = ["proc_maps.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":dl_iterate_phdr_iterator",
         ":port",
         ":spinlock",
         "//gloop:enforce_gloop_support",
@@ -832,6 +833,26 @@ cc_test(
         ":proc_maps",
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "dl_iterate_phdr_iterator",
+    srcs = ["dl_iterate_phdr_iterator.cc"],
+    hdrs = ["dl_iterate_phdr_iterator.h"],
+    visibility = ["//visibility:public"],
+    deps = ["//gloop:enforce_gloop_support"],
+)
+
+cc_test(
+    name = "dl_iterate_phdr_iterator_test",
+    srcs = ["dl_iterate_phdr_iterator_test.cc"],
+    deps = [
+        ":dl_iterate_phdr_iterator",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

@@ -61,6 +61,10 @@ bool HasProcfsPrefix();
 // it iterates over *all* mapped memory regions, including anonymous
 // mmaps.  For other O/Ss, it is unlikely to work at all, and Valid()
 // will always return false.
+namespace gloop {
+class DlIteratePhdrIterator;
+}
+
 class ProcMapsIterator {
  public:
   struct Buffer {
@@ -69,12 +73,12 @@ class ProcMapsIterator {
   };
 
   // Create a new iterator for the specified pid.  pid can be 0 for "self".
-  explicit ProcMapsIterator(pid_t pid);
+  explicit ProcMapsIterator(pid_t pid, bool use_dl_iterate_phdr = false);
 
   // Create an iterator with specified storage (for use in signal
   // handler). "buffer" should point to a ProcMapsIterator::Buffer
   // buffer can be null in which case a buffer will be allocated.
-  ProcMapsIterator(pid_t pid, Buffer* buffer);
+  ProcMapsIterator(pid_t pid, Buffer* buffer, bool use_dl_iterate_phdr = false);
 
   // Returns true if the iterator successfully initialized;
   bool Valid() const;
@@ -133,7 +137,7 @@ class ProcMapsIterator {
   ~ProcMapsIterator();
 
  private:
-  void Init(pid_t pid, Buffer* buffer);
+  void Init(pid_t pid, Buffer* buffer, bool use_dl_iterate_phdr);
 
   char* ibuf_;      // input buffer
   char* stext_;     // start of text
@@ -155,6 +159,7 @@ class ProcMapsIterator {
   int current_load_cmd_;  // the segment of this dll we're examining
 #else
   int fd_;  // filehandle on /proc/*/maps
+  gloop::DlIteratePhdrIterator* dl_iter_;
 #endif
   pid_t pid_;
   char flags_[10];

@@ -162,7 +162,7 @@ std::unique_ptr<SymbolMap> SymbolMap::CreateInternal(bool copy_symbol_names,
   auto symbols =
       absl::WrapUnique(new SymbolMap(copy_symbol_names, compression_level));
   // Passing 0 to ProcMapsIterator tells it to use the current process.
-  ProcMapsIterator it(0);
+  ProcMapsIterator it(0, /*use_dl_iterate_phdr=*/true);
   PopulateSymbols(/*self*/ true, &it, symbols.get());
   return symbols;
 }

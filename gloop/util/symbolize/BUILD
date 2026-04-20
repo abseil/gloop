@@ -18,6 +18,7 @@
 # Description: Code for symbolizing a stack trace of the current process.
 
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
@@ -188,7 +189,95 @@ cc_library(
 cc_test(
     name = "symbolize_unittest",
     srcs = ["symbolize_unittest.cc"],
+    data = [":libmock_lib_rosegment.so"],
     malloc = "//gloop:malloc",  # b/179154437
+    deps = [
+        ":demangle",
+        ":symbolize",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:node_hash_set",
+        "@abseil-cpp//absl/debugging:debugging_internal",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/memory",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@tcmalloc//tcmalloc:malloc_extension",
+    ],
+)
+
+cc_binary(
+    name = "libmock_lib_rosegment.so",
+    testonly = True,
+    srcs = ["mock_lib.cc"],
+    linkopts = ["-Wl,--rosegment"],
+    linkshared = 1,
+    malloc = "//gloop:malloc",
+    deps = ["//gloop:enforce_gloop_support"],
+)
+
+cc_library(
+    name = "mock_lib_rosegment_linked",
+    testonly = True,
+    srcs = [":libmock_lib_rosegment.so"],
+    deps = ["//gloop:enforce_gloop_support"],
+    alwayslink = True,
+)
+
+cc_test(
+    name = "symbolize_unittest_rosegment_linked",
+    srcs = ["symbolize_unittest.cc"],
+    linkopts = ["-Wl,--rosegment"],
+    malloc = "//gloop:malloc",
+    deps = [
+        ":demangle",
+        ":mock_lib_rosegment_linked",
+        ":symbolize",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:node_hash_set",
+        "@abseil-cpp//absl/debugging:debugging_internal",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/memory",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@tcmalloc//tcmalloc:malloc_extension",
+    ],
+)
+
+cc_test(
+    name = "symbolize_unittest_rosegment",
+    srcs = ["symbolize_unittest.cc"],
+    data = [":libmock_lib_rosegment.so"],
+    linkopts = ["-Wl,--rosegment"],
+    malloc = "//gloop:malloc",
+    deps = [
+        ":demangle",
+        ":symbolize",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:node_hash_set",
+        "@abseil-cpp//absl/debugging:debugging_internal",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/memory",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@tcmalloc//tcmalloc:malloc_extension",
+    ],
+)
+
+cc_test(
+    name = "symbolize_unittest_rosegment_dynamic",
+    srcs = ["symbolize_unittest.cc"],
+    data = [":libmock_lib_rosegment.so"],
+    linkopts = ["-Wl,--rosegment"],
+    malloc = "//gloop:malloc",
     deps = [
         ":demangle",
         ":symbolize",
