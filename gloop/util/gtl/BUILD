@@ -702,6 +702,8 @@ cc_library(
     name = "iterator_range",
     hdrs = ["iterator_range.h"],
     deps = [
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:iterator_traits_internal",
         "@gloop//gloop:enforce_gloop_support",
     ],

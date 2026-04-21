@@ -30,9 +30,32 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/iterator_traits.h"
 
 namespace gtl {
+
+// Diagnostic macro that ensures the iterator is actually valid.
+// Otherwise, the contract does not guarantee that the iterator would work.
+//
+// We only use this macro during function template instantiation rather than
+// during class template instantiation, in order to avoid over-eager
+// instantiations from blocking compilations.
+#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+#if ABSL_HAVE_ATTRIBUTE(diagnose_if)
+#define GTL_INTERNAL_ITERATOR_RANGE_VALIDATE(iter)                  \
+  __attribute__((diagnose_if(                                       \
+      !std::input_or_output_iterator<iter>,                         \
+      "underlying iterator `Iter` is invalid and does not satisfy " \
+      "`static_assert(std::input_or_output_iterator<Iter>)`",       \
+      "warning")))
+#endif
+#endif
+
+#ifndef GTL_INTERNAL_ITERATOR_RANGE_VALIDATE
+#define GTL_INTERNAL_ITERATOR_RANGE_VALIDATE(iter)
+#endif
 
 // A range adaptor for a pair of iterators.
 //
@@ -47,6 +70,7 @@ class iterator_range {
 
   iterator_range() : begin_iterator_(), end_iterator_() {}
   iterator_range(IteratorT begin_iterator, IteratorT end_iterator)
+      GTL_INTERNAL_ITERATOR_RANGE_VALIDATE(IteratorT)
       : begin_iterator_(std::move(begin_iterator)),
         end_iterator_(std::move(end_iterator)) {}
 
@@ -79,16 +103,20 @@ class iterator_range {
 // This provides a bit of syntactic sugar to make using sub-ranges
 // in for loops a bit easier. Analogous to std::make_pair().
 template <typename T>
-iterator_range<T> make_range(T x, T y) {
+iterator_range<T> make_range(T x, T y) GTL_INTERNAL_ITERATOR_RANGE_VALIDATE(T) {
   return iterator_range<T>(std::move(x), std::move(y));
 }
 
 // Converts std::pair<Iter,Iter> to iterator_range<Iter>. E.g.:
 //   for (const auto& e : make_range(m.equal_range(k))) ...
 template <typename T>
-iterator_range<T> make_range(std::pair<T, T> p) {
+iterator_range<T> make_range(std::pair<T, T> p)
+    GTL_INTERNAL_ITERATOR_RANGE_VALIDATE(T) {
   return iterator_range<T>(std::move(p.first), std::move(p.second));
 }
+
+#undef GTL_INTERNAL_ITERATOR_RANGE_VALIDATE
+
 }  // namespace gtl
 
 #endif  // THIRD_PARTY_GLOOP_UTIL_GTL_ITERATOR_RANGE_H_
