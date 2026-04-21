@@ -168,6 +168,32 @@ cc_test(
 )
 
 cc_library(
+    name = "hex_ascii_dump",
+    srcs = ["hex_ascii_dump.cc"],
+    hdrs = ["hex_ascii_dump.h"],
+    deps = [
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "hex_ascii_dump_test",
+    size = "small",
+    srcs = ["hex_ascii_dump_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":hex_ascii_dump",
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "host_port",
     srcs = ["host_port.cc"],
     hdrs = ["host_port.h"],
