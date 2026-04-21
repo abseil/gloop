@@ -308,8 +308,8 @@ TEST(UniqueArrayTest, CtorFromList) {
 TEST(UniqueArrayTest, MoveCtor) {
   auto src = MakeUniqueArray<int>(kArraySize);
   UniqueArray<int> buffer(std::move(src));
-  EXPECT_THAT(src, IsNull());   // NOLINT: bugprone-use-after-move
-  EXPECT_THAT(src, SizeIs(0));  // NOLINT: bugprone-use-after-move
+  EXPECT_THAT(src, IsNull());
+  EXPECT_THAT(src, SizeIs(0));
   EXPECT_THAT(buffer, Not(IsNull()));
   EXPECT_THAT(buffer, SizeIs(kArraySize));
 }
@@ -317,8 +317,8 @@ TEST(UniqueArrayTest, MoveCtor) {
 TEST(UniqueArrayTest, ConvertingCtor) {
   auto src = MakeUniqueArray<int>(kArraySize);
   UniqueArray<const int> buffer(std::move(src));
-  EXPECT_THAT(src, IsNull());   // NOLINT: bugprone-use-after-move
-  EXPECT_THAT(src, SizeIs(0));  // NOLINT: bugprone-use-after-move
+  EXPECT_THAT(src, IsNull());
+  EXPECT_THAT(src, SizeIs(0));
   EXPECT_THAT(buffer, Not(IsNull()));
   EXPECT_THAT(buffer, SizeIs(kArraySize));
 }
@@ -327,8 +327,8 @@ TEST(UniqueArrayTest, MoveAssignment) {
   auto src = MakeUniqueArray<int>(kArraySize);
   UniqueArray<int> buffer;
   buffer = std::move(src);
-  EXPECT_THAT(src, IsNull());   // NOLINT: bugprone-use-after-move
-  EXPECT_THAT(src, SizeIs(0));  // NOLINT: bugprone-use-after-move
+  EXPECT_THAT(src, IsNull());
+  EXPECT_THAT(src, SizeIs(0));
   EXPECT_THAT(buffer, Not(IsNull()));
   EXPECT_THAT(buffer, SizeIs(kArraySize));
 }
@@ -344,8 +344,8 @@ TEST(UniqueArrayTest, ConvertingAssignment) {
   UniqueArray<int> src = MakeUniqueArray<int>(kArraySize);
   UniqueArray<const int> dest;
   dest = std::move(src);
-  EXPECT_THAT(src, IsNull());   // NOLINT: bugprone-use-after-move
-  EXPECT_THAT(src, SizeIs(0));  // NOLINT: bugprone-use-after-move
+  EXPECT_THAT(src, IsNull());
+  EXPECT_THAT(src, SizeIs(0));
   EXPECT_THAT(dest, Not(IsNull()));
   EXPECT_THAT(dest, SizeIs(kArraySize));
 }

@@ -74,7 +74,8 @@ namespace internal {
 // `UniqueArray` has a well-defined moved-from state, identical to the
 // default-constructed state.
 template <typename T, typename Deleter>
-class ABSL_ATTRIBUTE_TRIVIAL_ABI ABSL_NULLABILITY_COMPATIBLE UniqueArray {
+class ABSL_ATTRIBUTE_TRIVIAL_ABI
+    ABSL_NULLABILITY_COMPATIBLE ABSL_ATTRIBUTE_NULL_AFTER_MOVE UniqueArray {
  public:
   static_assert(!std::is_reference_v<T>,
                 "UniqueArray cannot hold reference types");
