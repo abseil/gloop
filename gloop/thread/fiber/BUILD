@@ -183,6 +183,7 @@ cc_library(
         "//gloop/thread/fiber/internal:fiber_thread_pool",
         "//gloop/util/functional:with_context",
         "//gloop/util/gtl:intrusive_list",
+        "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
