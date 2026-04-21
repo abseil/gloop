@@ -843,6 +843,90 @@ TEST_F(FiberTest, TemporaryCallbackInheritsEnvironmentalDeadline) {
   c_late.Join();
 }
 
+// Verify that a child fiber with a shorter deadline than its parent's can get
+// cancelled without its parent getting cancelled.
+TEST_F(FiberTest, ChildFiberDeadlineSoonerThanParent) {
+  base::WithDeadline wd_parent(absl::Now() + absl::Hours(1));
+
+  absl::Notification child_cancelled;
+  Fiber parent([&]() {
+    base::WithDeadline wd_child(absl::Now() + absl::Milliseconds(100));
+    Fiber child([&]() {
+      WaitForCancel();
+      child_cancelled.Notify();
+    });
+    child.Join();
+  });
+
+  child_cancelled.WaitForNotification();
+  EXPECT_FALSE(parent.Cancelled());  // parent should not be cancelled yet
+  parent.Join();
+}
+
+// Verify that a child fiber with a longer deadline than its parent's will
+// anyway get cancelled when its parent does.
+TEST_F(FiberTest, ChildFiberDeadlineLaterThanParent) {
+  base::WithDeadline wd_parent(absl::Now() + absl::Milliseconds(100));
+
+  absl::Notification child_cancelled;
+  Fiber parent([&]() {
+    base::WithDeadline wd_child(absl::Now() + absl::Hours(10));
+    Fiber child([&]() {
+      WaitForCancel();
+      child_cancelled.Notify();
+    });
+    child.Join();
+  });
+
+  child_cancelled.WaitForNotification();
+  parent.Join();
+  EXPECT_TRUE(parent.Cancelled());
+}
+
+// Verify that a child fiber with an equal deadline to its parent's will get
+// cancelled when its parent does. (This is similar to the above, but for the
+// equality edge case.)
+TEST_F(FiberTest, ChildFiberDeadlineEqualToParent) {
+  absl::Time parent_deadline = absl::Now() + absl::Milliseconds(100);
+  base::WithDeadline wd_parent(parent_deadline);
+
+  absl::Notification child_cancelled;
+  Fiber parent([&]() {
+    base::WithDeadline wd_child(parent_deadline);
+    Fiber child([&]() {
+      WaitForCancel();
+      child_cancelled.Notify();
+    });
+    child.Join();
+  });
+
+  child_cancelled.WaitForNotification();
+  parent.Join();
+  EXPECT_TRUE(parent.Cancelled());
+}
+
+TEST_F(FiberTest, DynamicFiberInClosureThreadInheritsDeadline) {
+  absl::Notification child_cancelled;
+
+  ClosureThread t([&] {
+    base::WithDeadline wd_parent(absl::Now() + absl::Hours(10));
+    thread::Fiber::Current();  // Installs a dynamic fiber.
+
+    base::WithDeadline wd_child(absl::Now() + absl::Milliseconds(100));
+
+    // Create a Bundle which implicitly creates a dynamic child fiber.
+    thread::Bundle bundle;
+
+    CancellableSleepFor(absl::Milliseconds(500));  // Allow deadline to expire.
+    EXPECT_TRUE(bundle.Cancelled());
+
+    bundle.JoinAll();
+  });
+  t.SetJoinable(true);
+  t.Start();
+  t.Join();
+}
+
 // Tests above should not have affected environmental contexts.
 TEST_F(FiberTest, EnvironmentalDeadlinesUnpermuted) {
   EXPECT_EQ(absl::InfiniteFuture(), base::CurrentContext().deadline());
