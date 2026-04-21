@@ -30,6 +30,37 @@ package(
 
 # Libraries:
 
+# Implements randomized exponential backoff.
+cc_library(
+    name = "backoff",
+    srcs = ["backoff.cc"],
+    hdrs = ["backoff.h"],
+    deps = [
+        "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "backoff_test",
+    size = "medium",
+    srcs = ["backoff_test.cc"],
+    deps = [
+        ":backoff",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 cc_library(
     name = "protoutil",
     srcs = ["protoutil.cc"],
