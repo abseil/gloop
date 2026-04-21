@@ -158,7 +158,7 @@ void SemaphoreTest::Run() {
 }
 
 void SemaphoreTest::StartTasks(int num) {
-  if (random_pool.get().get() == nullptr)
+  if (random_pool.get() == nullptr)
     random_pool.pointer()->reset(
         new ACMRandom(ACMRandom::HostnamePidTimeSeed()));
   ACMRandom* pool = random_pool.get().get();
@@ -223,7 +223,7 @@ void SemaphoreTest::WriteDone(int task_num, uint64_t cost, uint64_t msec) {
           << " limit " << throttle_->max_cost();
 
   // Every so often, do a stop and start on the throttle
-  if (random_pool.get().get() == nullptr) {
+  if (random_pool.get() == nullptr) {
     random_pool.pointer()->reset(
         new ACMRandom(ACMRandom::HostnamePidTimeSeed() + task_num));
   }
