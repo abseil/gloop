@@ -280,15 +280,6 @@ class ABSL_NULLABILITY_COMPATIBLE ResultCallbackFunctorImpl
       : Base(cb ? Impl(::util::functional::FromCallbackWithOwnership(cb))
                 : Impl()) {}
 
-  // Converting constructor from a callback unique_ptr (likely a derived
-  // callback implementation)
-  ABSL_DEPRECATE_AND_INLINE()
-  ResultCallbackFunctorImpl(  // NOLINT(google-explicit-constructor,
-                              // google3-runtime-inliner-validation)
-                              // b/411142993
-      std::unique_ptr<CallbackType> cb)
-      : ResultCallbackFunctorImpl(cb.release()) {}
-
   // NOLINTNEXTLINE(google-explicit-constructor)
   ResultCallbackFunctorImpl(nullptr_t) : Base() {}
   ResultCallbackFunctorImpl() : Base() {}
