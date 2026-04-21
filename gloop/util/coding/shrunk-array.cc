@@ -1229,7 +1229,8 @@ bool Writer<raw_type>::FindBestLexicons(
 
     for (int w = width_max_; w >= width_min_; --w) {
       // We need enough lexicon entries to satisfy width_start.
-      if (values_lex < (kint64one << width_start)) goto next_w;
+      if (width_start >= 63 || values_lex < (kint64one << width_start))
+        goto next_w;
 
       // Bits needed for positions containing lexicon indices:
       try_width_main = BitsNeededToDistinguish(values_lex);
@@ -1270,14 +1271,17 @@ bool Writer<raw_type>::FindBestLexicons(
 
     // Now consider using a non-last lexicon.
 
-    for (int w = width_start, values_lex = kint64one << w;
+    for (int64_t w = width_start,
+                 values_lex = (w >= 63 ? std::numeric_limits<int64_t>::max()
+                                       : kint64one << w);
          // Our self-imposed pruning constraints require a non-last
          // lexicon to contain only repeated values...
          values_lex <= values_repeated_uncovered &&
          // ...and to leave enough values that the last lexicon's main
          // width can be at least w.
          values_lex + (values_lex >> 1) < values_uncovered;
-         ++w, values_lex = kint64one << w) {
+         ++w, values_lex = (w >= 63 ? std::numeric_limits<int64_t>::max()
+                                    : kint64one << w)) {
       const ValueInfo* const next_vi = vi + values_lex;
       positions_lex = next_vi->positions_prior - positions_covered;
       const int64_t try_bits_main = positions_lex * w;
@@ -1847,13 +1851,13 @@ inline void ReaderImpl<Base>::Bind(const_uint64_ptr const shrunk_array,
   int wm, wl;
   width_main_[0] = wm = dk1 & 0x7F;
   width_lex_[0] = wl = (dk1 >> 7) & 0x7F;
-  offset_lex_[1] = offset -= (kuint64one << wm) * wl;
+  offset_lex_[1] = offset -= (wm >= 64 ? 0 : kuint64one << wm) * wl;
   width_main_[1] = wm = (dk1 >> 14) & 0x7F;
   width_lex_[1] = wl = (dk1 >> 21) & 0x7F;
-  offset_lex_[2] = offset -= (kuint64one << wm) * wl;
+  offset_lex_[2] = offset -= (wm >= 64 ? 0 : kuint64one << wm) * wl;
   width_main_[2] = wm = (dk1 >> 28) & 0x7F;
   width_lex_[2] = wl = (dk1 >> 35) & 0x7F;
-  offset_lex_[3] = offset -= (kuint64one << wm) * wl;
+  offset_lex_[3] = offset -= (wm >= 64 ? 0 : kuint64one << wm) * wl;
   width_lex_[3] = wl = (dk1 >> 42) & 0x7F;
   int sum;
   width_sum_lex_last_[0] = sum = wl;

@@ -911,6 +911,18 @@ TEST_P(ShrunkArrayTest, Complexity) {
   delete saved_reader;
 }
 
+TEST_P(ShrunkArrayTest, FuzzTestRegressionInvalidShift) {
+  uint64_t decode_key[2] = {0, 0};
+  // To trigger wm >= 64, we need:
+  // (dk1 >> 14) & 0x7F >= 64. Let's set wm = 64
+  decode_key[1] = 64ULL << 14;
+  // Then wl = 1
+  decode_key[1] |= 1ULL << 21;
+  // Set index_present to avoid the CHECK_EQ(dk1 << 22, 0)
+  decode_key[1] |= 1ULL << 63;
+  reader_->Bind(nullptr, decode_key);
+}
+
 INSTANTIATE_TEST_SUITE_P(PerReader, ShrunkArrayTest, ::testing::Bool());
 
 }  // namespace
