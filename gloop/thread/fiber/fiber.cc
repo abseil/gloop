@@ -251,17 +251,16 @@ Fiber::Fiber(Unstarted, const FiberOptions& options, Invocable invocable,
         // `kThread` and the assigned `name` for tracing purposes.
         // The `Context::kThread` constructor emits Dapper causality annotations
         // for the code execution scheduled in this context.
-        // For dynamic fibers, we use a plain copy of the current context.
         // Dynamic fibers have no executing code associated with it, so we just
-        // use the plain copy constructor which emits no causality events.
+        // use `base::BackgroundContext()` which emits no causality events.
         // See `ThreadInitType` constructor in `base::Context` for more info.
         return type_ == fiber::FIBER_TYPE_NORMAL
                    ? base::Context(base::Context::kThread, options.name())
-                   : base::CurrentContext();
+                   : base::BackgroundContext();
       }()),
       options_(options),
-      min_expiry_deadline_(
-          std::min(context_.deadline(), parent_->min_expiry_deadline_)),
+      min_expiry_deadline_(std::min(base::CurrentContext().deadline(),
+                                    parent_->min_expiry_deadline_)),
       expiry_(
           // Only set alarms that will fire before the parent's.
           min_expiry_deadline_ < parent_->min_expiry_deadline_
@@ -286,8 +285,12 @@ Fiber::Fiber(Unstarted, Invocable invocable, TreeOptions&& tree_options)
       parent_(nullptr),
       work_(std::move(invocable)),
       tree_scheduler_(*internal::InitTreeScheduler(tree_options)),
-      context_(tree_options.consume_context(this)),
+      context_(type_ == fiber::FIBER_TYPE_NORMAL
+                   ? tree_options.consume_context(this)
+                   : base::BackgroundContext()),
       options_(tree_options.fiber_options()),
+      // For dynamic fibers, this will be `InfiniteFuture` since
+      // `BackgroundContext` has no deadline.
       min_expiry_deadline_(context_.deadline()),
       expiry_(min_expiry_deadline_, [this] { HandleDeadlineExpiry(); }) {
   PerDomainCounters().fibers_created.fetch_add(1, std::memory_order_relaxed);
