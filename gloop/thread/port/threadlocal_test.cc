@@ -71,6 +71,7 @@ TEST(ThreadLocalTest, CopyConstructableUseWorks) {
     explicit Type(int n) : n(n) {}
     Type(const Type& t) : n(t.n) {}
     Type() = delete;
+    Type& operator=(const Type&) = default;
 
     int value() const { return n; }
     int n = 0;

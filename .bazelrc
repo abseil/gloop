@@ -1,6 +1,5 @@
+# Gloop requires C++20
 build --cxxopt=-std=c++20 --host_cxxopt=-std=c++20
-
-test --test_output=errors --keep_going
 
 # Gloop does not support exceptions.
 build --copt=-fno-exceptions
@@ -18,18 +17,29 @@ build --copt=-fno-omit-frame-pointer
 build --per_file_copt=-external/.*@-Wno-thread-safety-analysis,-Wno-character-conversion
 build --host_per_file_copt=-external/.*@-Wno-deprecated-declarations
 
-# Disable any warnings we don't support, and treat the rest as errors.
+# Enable all recommended warnings by default, and treat them as errors.
 build --copt=-Werror
+build --copt=-Wall --copt=-Wmost --copt=-Wextra
+build --copt=-Wthread-safety
+
+# Disable any warnings we don't support.
 build --copt=-Wno-unused-private-field # False positives that ignore [[maybe_unused]]
 build --copt=-Wno-deprecated-declarations # Gloop contains a lot of deprecated code
 build --copt=-Wno-nullability-completeness # Nullability annotations are not yet enforced
 build --copt=-Wno-uninitialized-const-pointer # Cheap ASLR randomization false-positives
 build --copt=-Wno-c++11-compat # We don't support C++11
+build --copt=-Wno-missing-field-initializers # We take advantage of default zero initialization
+
+# Noisy warnings that aren't enabled internally.
+build --copt=-Wno-sign-compare
+build --copt=-Wno-unused-parameter
 build --copt=-Wno-implicit-float-conversion
 build --copt=-Wno-unused-command-line-argument
 build --copt=-Wno-deprecated-volatile
 
-test --test_output=errors
+# CI configurations
+
+test --test_output=errors --keep_going
 
 build:dbg --compilation_mode=dbg
 build:opt --compilation_mode=opt

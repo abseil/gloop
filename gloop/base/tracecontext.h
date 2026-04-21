@@ -149,6 +149,8 @@ class TraceContext {
   explicit constexpr TraceContext(DefaultInitType) {}
   explicit TraceContext(ThreadInitType) {}
   TraceContext(const TraceContext&) = default;
+  TraceContext& operator=(const TraceContext&) = default;
+  TraceContext& operator=(TraceContext&&) = default;
   explicit TraceContext(const TraceContext*) {}
   void CopyTo(TraceContext*) const {}
   friend void swap(TraceContext&, TraceContext&) noexcept {}

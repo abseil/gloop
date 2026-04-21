@@ -84,7 +84,7 @@ class DomainTest
 
   bool ShouldTestBlockingRegions() { return std::get<1>(GetParam()); }
 
-  Domain* const domain() const { return domain_; }
+  Domain* domain() const { return domain_; }
 
  private:
   // Internal helper for WhenStarted()/WhenFinished().

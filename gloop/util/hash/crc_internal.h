@@ -141,7 +141,6 @@ class CrcUint128 {
   CrcUint128();
   CrcUint128(uint32_t bottom);
   CrcUint128(uint64_t bottom);
-  CrcUint128(const CrcUint128& val);
   explicit CrcUint128(absl::uint128 v) {
     *this = CrcUint128(absl::Uint128High64(v), absl::Uint128Low64(v));
   }
@@ -212,8 +211,6 @@ inline CrcUint128::CrcUint128(uint64_t bottom) {
 inline CrcUint128::CrcUint128(uint32_t bottom) {
   val_ = _mm_cvtsi64_si128(static_cast<uint64_t>(bottom));
 }
-
-inline CrcUint128::CrcUint128(const CrcUint128& val) : val_(val.val_) {}
 
 inline CrcUint128 CrcUint128::operator&(const CrcUint128& b) const {
   return CrcUint128(_mm_and_si128(val_, b.val_));

@@ -89,6 +89,7 @@ class IntervalMap {
       : absl::container_internal::CompressedTuple<Comparison> {
     EntryComparison() = default;
     EntryComparison(const EntryComparison& comp) = default;
+    EntryComparison& operator=(const EntryComparison& comp) = default;
     explicit EntryComparison(const Comparison& comp)
         : absl::container_internal::CompressedTuple<Comparison>(comp) {}
     // Comparison operator for two `K`s.

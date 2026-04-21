@@ -220,6 +220,7 @@ TEST_F(ChannelTest, BufferElementsAreClearedBehind) {
     std::shared_ptr<int> p = std::make_shared<int>();
 
     CopyOnlySharedPtr() = default;
+    CopyOnlySharedPtr(const CopyOnlySharedPtr& other) = default;
     CopyOnlySharedPtr& operator=(const CopyOnlySharedPtr& other) = default;
   };
 
@@ -703,8 +704,6 @@ TEST_F(ChannelTest, RequiredAlignment) {
       benchmark::DoNotOptimize(int_this);
       CHECK_EQ(0, int_this % 128);
     }
-
-    AlignedType(const AlignedType& rhs) : AlignedType(rhs.val) {}
 
     int val;
   };
