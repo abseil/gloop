@@ -28,6 +28,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/base/internal/thread_identity.h"
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
@@ -670,9 +671,24 @@ void DynamicFiber::Finish() {
 
 }  // namespace internal
 
+static Scheduler* GetCurrentScheduler() {
+  const auto* const identity =
+      absl::base_internal::CurrentThreadIdentityIfPresent();
+  if (!identity) {
+    return nullptr;
+  }
+  const auto* const schedulable =
+      base::scheduling::Schedulable::GetBoundSchedulable(identity);
+  if (!schedulable) {
+    return nullptr;
+  }
+  return schedulable->manager;
+}
+
 DistinctFiberScope::DistinctFiberScope(const FiberOptions& options)
     : outer_(*GetPerThreadFiberPtr()),
-      inner_(TreeOptions{}.set_fiber_options(options)) {
+      inner_(TreeOptions{}.set_fiber_options(options).set_scheduler(
+          GetCurrentScheduler())) {
   *GetPerThreadFiberPtr() = &inner_.GetFiber();
 }
 
