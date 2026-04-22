@@ -818,6 +818,23 @@ TYPED_TEST_P(BitmapTest, Intersection) {
     EXPECT_EQ(map.Get(i), ((i % 7) == 0) && ((i % 3) == 0));
 }
 
+TYPED_TEST_P(BitmapTest, HammingDistance) {
+  BasicBitmap<TypeParam> map(100);
+  BasicBitmap<TypeParam> map2(100);
+  for (int i = 0; i < 100; i++) map.Set(i, (i % 7) == 0);
+  for (int i = 0; i < 100; i++) map2.Set(i, (i % 3) == 0);
+
+  size_t expected_dist = 0;
+  for (int i = 0; i < 100; i++) {
+    if (map.Get(i) != map2.Get(i)) {
+      expected_dist++;
+    }
+  }
+
+  EXPECT_EQ(map.HammingDistance(map2), expected_dist);
+  EXPECT_EQ(map2.HammingDistance(map), expected_dist);
+}
+
 TYPED_TEST_P(BitmapTest, IntersectionDifferentSizeLargerTarget) {
   // Test intersection with different size maps, target of
   // intersection is larger
@@ -1632,7 +1649,7 @@ TYPED_TEST_P(BitmapTest, FromString) {
 }
 
 REGISTER_TYPED_TEST_SUITE_P(
-    BitmapTest, TestRange, RequiredArraySize, OverAllocate,
+    BitmapTest, TestRange, HammingDistance, RequiredArraySize, OverAllocate,
     HighOrderMapElementMask, FindNextSetBitBeforeLimit,
     FindNextSetBitBeforeLimitAligned, FindNextUnsetBit,
     FindNextUnsetBitBeforeLimit, FindNextUnsetBitBeforeLimit_Edges,

@@ -483,6 +483,11 @@ class BasicBitmap {
                    [](const W& a, const W& b) { return a ^ b; });
   }
 
+  // Returns the Hamming distance between "this" and "other". This is the number
+  // of positions at which the corresponding bits are different.
+  // REQUIRES: "bits() == other.bits()" (i.e. the bitmaps are the same size)
+  size_type HammingDistance(const BasicBitmap& other) const;
+
   // Return true if any bit between begin inclusive and end exclusive
   // is set.  0 <= begin <= end <= bits() is required.
   bool TestRange(size_type begin, size_type end) const;
@@ -1050,6 +1055,24 @@ typename BasicBitmap<W>::size_type BasicBitmap<W>::GetOnesCountInRange(
 
   return sum + absl::popcount(static_cast<Word>(
                    static_cast<ArithmeticWord>(*p) & endmask));
+}
+
+template <typename W>
+typename BasicBitmap<W>::size_type BasicBitmap<W>::HammingDistance(
+    const BasicBitmap<W>& other) const {
+  CHECK_EQ(bits(), other.bits());
+  size_type dist = 0;
+  const size_t n = array_size();
+  CHECK_GT(n, 0);  // Array size should always be greater than 0.
+  for (size_t i = 0; i < n - 1; ++i) {
+    dist += absl::popcount(
+        static_cast<Word>(static_cast<ArithmeticWord>(map_[i]) ^
+                          static_cast<ArithmeticWord>(other.map_[i])));
+  }
+  ArithmeticWord last_xor = (static_cast<ArithmeticWord>(map_[n - 1]) ^
+                             static_cast<ArithmeticWord>(other.map_[n - 1])) &
+                            HighOrderMapElementMask();
+  return dist + absl::popcount(static_cast<Word>(last_xor));
 }
 
 template <typename W>
