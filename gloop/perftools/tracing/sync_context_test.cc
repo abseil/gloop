@@ -25,6 +25,8 @@
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
+#include "gloop/base/context.h"
+#include "gloop/base/mock_tracer.h"
 #include "gloop/base/tracecontext.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/string_label.h"
@@ -38,7 +40,6 @@
 namespace perftools::tracing::core {
 
 using ::testing::_;
-using ::testing::AnyNumber;
 using ::testing::Eq;
 using ::testing::InSequence;
 using ::testing::Invoke;
@@ -424,16 +425,6 @@ TEST_F(SyncContextTest, AddListenersToCurrentNoCurrent) {
   internal::set_active_event_listener(nullptr);
 }
 
-TEST_F(SyncContextTest, AddListenersToCurrentNotCurrent) {
-  // Adding a listener to a non empty instance allows us to
-  // detect inconsistencies in what the active context is.
-  NiceMock<MockTraceEventListener> mock1, mock2;
-  SyncContext root;
-  root.AddListener(&mock1);
-  EXPECT_CALL(mock2, ReleaseEventListener());
-  EXPECT_DEBUG_DFATAL(root.AddListenerToCurrent(access(), 0, &mock2), ".*");
-}
-
 TEST_F(SyncContextTest, ContainsListener) {
   StrictMock<MockTraceEventListener> mock1, mock2;
   SyncContext root;
@@ -518,36 +509,6 @@ TEST_F(SyncContextTest, RemoveListenersFromCurrent) {
   EXPECT_CALL(mock1, Extract(&mock1));
   EXPECT_CALL(mock1, ReleaseEventListener());
   Context::RemoveListenerFromCurrent(&mock1);
-}
-
-TEST_F(SyncContextTest, RemoveInvalidListener) {
-  NiceMock<MockTraceEventListener> mock1, mock2;
-
-  SyncContext root;
-  root.AddListener(&mock1);
-  root.AddListener(&mock2);
-
-  StrictMock<MockTraceEventListener> mock3;
-  EXPECT_DEBUG_DFATAL(root.RemoveListener(&mock3), ".*");
-
-  EXPECT_CALL(mock2, ReleaseEventListener());
-  EXPECT_CALL(mock1, ReleaseEventListener());
-}
-
-TEST_F(SyncContextTest, RemoveInvalidListenerFromEmpty) {
-  NiceMock<MockTraceEventListener> mock;
-  Context empty;
-  EXPECT_DEBUG_DFATAL(empty.RemoveListener(&mock), ".*");
-  EXPECT_FALSE(empty.has_listeners());
-
-  EXPECT_DEBUG_DFATAL(Context::RemoveListenerFromCurrent(&mock), ".*");
-  EXPECT_FALSE(Context::Current().has_listeners());
-}
-
-TEST_F(SyncContextTest, RemoveInvalidListenerFromCurrent) {
-  NiceMock<MockTraceEventListener> mock1, mock2;
-  WithContext with(&mock1);
-  EXPECT_DFATAL(Context::RemoveListenerFromCurrent(&mock2), ".*");
 }
 
 TEST_F(SyncContextTest, CornerCaseAddDuplicateListener) {

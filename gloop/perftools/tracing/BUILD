@@ -290,6 +290,26 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "sync_context_test",
+    srcs = ["sync_context_test.cc"],
+    deps = [
+        ":mock_trace_event_listener",
+        ":sync_context",
+        ":tracing_base",
+        ":tracing_core",
+        "//gloop/base:context",
+        "//gloop/base:mock_tracer",
+        "//gloop/base:tracecontext",
+        "//gloop/thread",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 cc_library(
     name = "format_to_buffer_sink",
     hdrs = ["format_to_buffer_sink.h"],
