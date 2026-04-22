@@ -1893,7 +1893,7 @@ cc_library(
         ":sysinfo",
         ":tracing_types",
         ":walltime",
-        "//gloop/base:xray_tracing_annotations",
+        ":xray_tracing_annotations",
         "//gloop/base/internal:effective_user_id",
         "//gloop/base/time:time_unix_nanos",
         "//gloop/perftools/tracing",

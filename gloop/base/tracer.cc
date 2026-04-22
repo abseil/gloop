@@ -234,6 +234,20 @@ void Tracer::set_invalid_inherited_initiator_id() {
 }
 
 void Tracer::set_initiator_id() {
+  uint32_t mask = trace_mask_.load(std::memory_order_relaxed);
+  ABSL_RAW_LOG(ERROR, "Tracer::set_initiator_id mask: %x", mask);
+  bool is_only_skeletally_traced =
+      (mask & (TraceContext::kTraceMaskRPCTracingOn |
+               TraceContext::kTraceMaskSpeculativeCollectingOn |
+               TraceContext::kTraceMaskSkeletalTracingOn)) ==
+      TraceContext::kTraceMaskSkeletalTracingOn;
+
+  if (is_only_skeletally_traced) {
+    // 0x10 is the well-known value for skeletal tracing.
+    initiator_id_.store(0x10 | kTraceInitiatingSpan, std::memory_order_relaxed);
+    return;
+  }
+
   std::optional<uint64_t> effective_uid = internal::GetEffectiveUserId();
   uint64_t initiator_id =
       effective_uid.has_value()
