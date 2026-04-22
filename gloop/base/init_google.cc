@@ -645,11 +645,11 @@ void google_cxa_pure_virtual(FakeBaseClass* f) {
     }
     LOG(FATAL) << "C++ pure virtual method on class " << class_name
                << " invoked in constructor/destructor or after free; "
-               << "see <link>Nonconf/PureVirtualMethodInvoked";
+               << "see <link>";
   } else {
     LOG(FATAL) << "C++ pure virtual method invoked in constructor or"
                << "in constructor/destructor or after free; "
-               << "see <link>Nonconf/PureVirtualMethodInvoked";
+               << "see <link>";
   }
 }
 }

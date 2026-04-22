@@ -14,7 +14,7 @@
 
 # Libraries in this low-level package may not depend on libraries in packages
 # that are not low level.   For more information, including how to submit
-# changes to this file, see    <link>howto/build-monitors.html
+# changes to this file, see    <link>
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
@@ -39,6 +39,74 @@ cc_test(
     deps = [
         ":free_deleter",
         "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "memory_mapped_io",
+    srcs = [
+        "memory_mapped_io.cc",
+        "scoped_mmap.cc",
+    ],
+    hdrs = [
+        "memory_mapped_io.h",
+        "scoped_mmap.h",
+    ],
+    deps = [
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "memory_mapped_io_test_data",
+    srcs = ["memory_mapped_io_test_data.cc"],
+    hdrs = ["memory_mapped_io_test_data.h"],
+    visibility = [
+        "//gloop/util/memory:__subpackages__",
+    ],
+    deps = [
+        "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "memory_mapped_io_test",
+    size = "small",
+    srcs = ["memory_mapped_io_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":memory_mapped_io",
+        ":memory_mapped_io_test_data",
+        "//gloop/base:init_google",
+        "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:flags",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "memory_mapped_io_test_data_test",
+    size = "small",
+    srcs = ["memory_mapped_io_test_data_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":memory_mapped_io_test_data",
+        "//gloop/base:init_google",
+        "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:flags",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

@@ -111,7 +111,7 @@ class AbstractThreadPool : public thread::Executor {
 };
 
 // This is the basic concrete implementation of an AbstractThreadPool.
-// See also: <link>Main/GdhThreadpools
+// See also: <link>
 class ThreadPool : public AbstractThreadPool {
  public:
   struct Options {

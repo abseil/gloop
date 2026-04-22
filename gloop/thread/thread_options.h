@@ -111,7 +111,7 @@ class Options {
       is recommended to be at least as large as the largest possible
       stack frame or stack probe interval.  See also:
 
-      <link>Main/ManagingCppStacks
+      <link>
 
       The size of the stack guard is in addition to the size of the stack.
       A memory access into the stack guard region causes SIGSEGV;

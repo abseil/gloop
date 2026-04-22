@@ -153,7 +153,7 @@ class ThreadLocal {
   //
   // ForEachUnlocked() performs no locking on the underlying per-thread
   // objects. The client is responsible for making sure that the accesses are
-  // safe. (See // <link>Main/MultiCore101#The_backward_mutex for one
+  // safe. (See // <link> for one
   // possibility; or alternatively, the underlying objects could be
   // thread-safe.)
   //

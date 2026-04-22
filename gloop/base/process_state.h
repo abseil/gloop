@@ -226,7 +226,7 @@ int32_t GetRequiredAlternateSignalStackSize();
 // The invoker_name should be the name of the function which is calling
 // InvokeDebugger. Since that name is (potentially) passed to the shell,
 // it is best to avoid any shell metacharacters (including parenths) in it.
-// See <link>Main/InvokeDebugger.
+// See <link>
 extern "C" void InvokeDebugger(const char* invoker_name);
 
 // Invoke debugger with given command. See InvokeDebugger description above.

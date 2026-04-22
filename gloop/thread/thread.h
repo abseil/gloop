@@ -113,7 +113,7 @@ class Thread {
       Thread name prefixes may contain only the characters a-z, A-Z,
       0-9, -, and _, and may not start with a digit.  For more
       information about thread naming guidelines and the use of thread
-      names, see: <link>doc/threadnames.html.  The underlying
+      names, see: <link>  The underlying
       platform will receive the "name_prefix" as the thread name, and it
       may be silently truncated (typically to 15 [as in Linux] or more
       characters).
@@ -193,7 +193,7 @@ class Thread {
       _, and may not start with a digit.
 
       For more information about thread naming guidelines and the use
-      of thread names, see: <link>doc/threadnames.html
+      of thread names, see: <link>
       */
   void SetNamePrefix(absl::string_view name_prefix);
 

@@ -224,7 +224,7 @@ enum class LoopbackMode {
 
 bool IsLoopbackIPAddress(const IPAddress& ip, const LoopbackMode mode) {
   static const in6_addr ula_ipv6_loopback_range =
-      // <link>ipdb/drill-down/?id=RFC1918_GOOGLE.fd14%3A988a%3A50ee%3A1006%3A%3A%2F64
+      // <link>=RFC1918_GOOGLE.fd14%3A988a%3A50ee%3A1006%3A%3A%2F64
       StringToIPAddressOrDie("fd14:988a:50ee:1006::").ipv6_address();
   switch (ip.address_family()) {
     case AF_INET:

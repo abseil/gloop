@@ -47,7 +47,7 @@
 // ACMRandom.  Only use ACMRandom if memory is extremely tight AND you are
 // going to use a small number of samples.  (See the GDH entry on Pseudorandom
 // Number Generators, currently at
-// <link>Main/GdhPseudorandomNumberGenerators .)
+// <link> .)
 //
 // ACMRandom is a multiplicative generator and outputs A^k mod M,
 // where A = 16807, M = 2^31-1.  A is a generator for Z_M^*.  So, (0)
@@ -117,7 +117,7 @@ class ACMRandom : public RandomBase {
  public:
   // This class does not have a zero-argument constructor.
   // Do not add one.
-  // <link>Main/FixAcmRandom
+  // <link>
 
   // You must choose a seed.
   inline explicit ACMRandom(int32_t seed);

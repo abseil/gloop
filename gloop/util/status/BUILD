@@ -14,7 +14,7 @@
 
 # Libraries in this low-level package may not depend on libraries in packages
 # that are not low level. For more information, including how to submit
-# changes to this file, see <link>howto/build-monitors.html
+# changes to this file, see <link>
 
 load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
 load("@protobuf//bazel:proto_library.bzl", "proto_library")

@@ -14,7 +14,7 @@
 
 # Libraries in this low-level package may not depend on libraries in packages
 # that are not low level.   For more information, including how to submit
-# changes to this file, see    <link>howto/build-monitors.html
+# changes to this file, see    <link>
 
 # Description:
 #   A set of utilities for manipulating time.
