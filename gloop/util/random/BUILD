@@ -18,7 +18,7 @@ load("@rules_cc//cc:cc_test.bzl", "cc_test")
 package(
     default_applicable_licenses = ["//gloop:license"],
     default_hdrs_check = "strict",
-    default_visibility = ["//gloop:__subpackages__"],
+    default_visibility = ["//visibility:public"],
     features = ["header_modules"],
 )
 
