@@ -281,7 +281,7 @@ class ABSL_NULLABILITY_COMPATIBLE ResultCallbackFunctorImpl
                 : Impl()) {}
 
   // NOLINTNEXTLINE(google-explicit-constructor)
-  ResultCallbackFunctorImpl(nullptr_t) : Base() {}
+  ResultCallbackFunctorImpl(std::nullptr_t) : Base() {}
   ResultCallbackFunctorImpl() : Base() {}
 
   // Converting constructor from a call to ToCallback.
@@ -334,12 +334,12 @@ class ABSL_NULLABILITY_COMPATIBLE ResultCallbackFunctorImpl
 
   ABSL_DEPRECATE_AND_INLINE() bool IsRepeatable() const { return true; }
 
-  bool operator==(nullptr_t) const { return this->impl_ == nullptr; }
-  friend bool operator==(nullptr_t, const ResultCallbackFunctorImpl& f) {
+  bool operator==(std::nullptr_t) const { return this->impl_ == nullptr; }
+  friend bool operator==(std::nullptr_t, const ResultCallbackFunctorImpl& f) {
     return f == nullptr;
   }
-  bool operator!=(nullptr_t) const { return this->impl_ != nullptr; }
-  friend bool operator!=(nullptr_t, const ResultCallbackFunctorImpl& f) {
+  bool operator!=(std::nullptr_t) const { return this->impl_ != nullptr; }
+  friend bool operator!=(std::nullptr_t, const ResultCallbackFunctorImpl& f) {
     return f != nullptr;
   }
   explicit operator bool() const { return *this != nullptr; }
