@@ -18,6 +18,7 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_license//rules:license.bzl", "license")
+load("//configlang/ncl/build_defs:ncl.bzl", "ncl_convert_to_proto")
 
 package(
     default_applicable_licenses = [":license"],
@@ -108,4 +109,20 @@ platform(
         "dockerRunAsRoot": "true",
         "cache-silo-key": "default-04162026",
     },
+)
+
+ncl_convert_to_proto(
+    name = "gloop_blueprint_proto",
+    src = "gloop.blueprint",
+    out = "gloop_blueprint_proto.binpb",
+    message_type = "devtools_blueprint.BlueprintFile",
+    ncl_expr = "blueprint_file",
+    output = "binary",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":bluze.textproto",
+        "//devtools/blueprint:blueprint_file_proto",
+        "//devtools/blueprint/bluze/public:bluze_ncl",
+        "//devtools/blueprint/ncl:sanitizer",
+    ],
 )
