@@ -35,7 +35,6 @@ cc_library(
     srcs = ["sleep.cc"],
     hdrs = ["sleep.h"],
     copts = select({
-        "@gloop//gloop/util/task:cs_xbinaryfdo": ["-fno-auto-profile"],
         "//conditions:default": [],
     }),
     deps = [
@@ -74,7 +73,6 @@ cc_library(
     srcs = ["sync_task.cc"],
     hdrs = ["sync_task.h"],
     copts = select({
-        "@gloop//gloop/util/task:cs_xbinaryfdo": ["-fno-auto-profile"],
         "//conditions:default": [],
     }),
     deps = [

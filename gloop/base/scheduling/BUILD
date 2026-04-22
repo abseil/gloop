@@ -137,9 +137,7 @@ cc_library(
     srcs = ["domain-test.cc"],
     hdrs = ["domain-test.h"],
     visibility = [
-        "//gloop/thread/fiber:__pkg__",
-        "@gloop//gloop/base/scheduling:__pkg__",
-        "@gloop//gloop/thread/fiber:__subpackages__",
+        "//gloop/thread/fiber:__subpackages__",
     ],
     deps = [
         ":low-level-support",

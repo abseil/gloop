@@ -45,10 +45,10 @@
 #include <deque>
 #include <utility>
 
+#include "absl/log/check.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "gloop/base/logging.h"
 
 //
 // Elements of type T pass through the queue in three stages:

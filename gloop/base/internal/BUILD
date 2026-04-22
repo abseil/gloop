@@ -27,11 +27,6 @@ cc_library(
     name = "effective_user_id",
     srcs = ["effective_user_id.cc"],
     hdrs = ["effective_user_id.h"],
-    visibility = [
-        "//gloop/base:__pkg__",
-        "@gloop//gloop/base:__pkg__",
-        "@gloop//gloop/base/internal:__pkg__",
-    ],
     deps = [
         "@abseil-cpp//absl/strings",
         "@gloop//gloop:enforce_gloop_support",

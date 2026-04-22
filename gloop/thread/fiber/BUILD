@@ -48,6 +48,10 @@ cc_test(
     linkstatic = 1,
     deps = [
         ":arrival-order-scheduler",
+        ":fiber",
+        ":fiber-options",
+        ":fifolifo-schedulers",
+        ":select",
         "//gloop/base:init_google",
         "//gloop/base/scheduling",
         "//gloop/util/random:shared_bit_gen",
@@ -56,10 +60,6 @@ cc_test(
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random:distributions",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop/thread/fiber",
-        "@gloop//gloop/thread/fiber:fiber-options",
-        "@gloop//gloop/thread/fiber:fifolifo-schedulers",
-        "@gloop//gloop/thread/fiber:select",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -498,13 +498,13 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//gloop/base/scheduling",
+        "//gloop/util/atomic_danger",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/base:spinlock_wait",
         "@abseil-cpp//absl/container:fixed_array",
         "@gloop//gloop:enforce_gloop_support",
-        "@gloop//gloop/util/atomic_danger",
     ],
 )
 
@@ -513,6 +513,7 @@ cc_test(
     srcs = ["scheduler-types_test.cc"],
     deps = [
         ":scheduler_types",
+        "//gloop/base:callback",
         "//gloop/thread",
         "//gloop/util/functional:to_callback",
         "@abseil-cpp//absl/base",
@@ -520,7 +521,6 @@ cc_test(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@gloop//gloop:gloop_test_main",
-        "@gloop//gloop/base:callback",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -533,6 +533,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":select-internal",
+        "//gloop/base/scheduling",
         "//gloop/perftools/tracing",
         "//gloop/perftools/tracing:tracing_base",
         "@abseil-cpp//absl/base",
@@ -545,7 +546,6 @@ cc_library(
         "@abseil-cpp//absl/time:clock_interface",
         "@abseil-cpp//absl/types:source_location",
         "@gloop//gloop:enforce_gloop_support",
-        "@gloop//gloop/base/scheduling",
     ],
 )
 

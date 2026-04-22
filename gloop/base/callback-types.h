@@ -25,7 +25,6 @@
 #define THIRD_PARTY_GLOOP_BASE_CALLBACK_TYPES_H_
 
 #include "absl/base/attributes.h"
-#include "absl/base/macros.h"
 #include "gloop/base/context.h"
 #include "gloop/base/tracecontext.h"
 #include "gloop/perftools/tracing/string_label.h"

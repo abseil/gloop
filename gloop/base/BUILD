@@ -102,15 +102,14 @@ cc_library(
     visibility = [
         "//gloop/base:__subpackages__",
         "//gloop/util/functional:__subpackages__",
-        "@gloop//gloop/base:__subpackages__",
     ],
     deps = [
+        ":context",
         ":tracecontext",
         "//gloop/perftools/tracing:trace_source_location",
         "//gloop/perftools/tracing:tracing_base",
         "@abseil-cpp//absl/base:core_headers",
         "@gloop//gloop:enforce_gloop_support",
-        "@gloop//gloop/base:context",
     ],
 )
 
@@ -252,6 +251,7 @@ cc_test(
     size = "medium",
     srcs = ["context_test.cc"],
     deps = [
+        ":callback",
         ":censushandle",
         ":context",
         ":context_access",
@@ -260,7 +260,10 @@ cc_test(
         "//gloop/perftools/tracing:mock_trace_event_listener",
         "//gloop/perftools/tracing:tracing_base",
         "//gloop/thread",
+        "//gloop/util/functional:from_callback",
+        "//gloop/util/functional:to_callback",
         "//gloop/util/refcount:reffed_ptr",
+        "//gloop/util/status:status_macros",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/flags:flag",
@@ -477,6 +480,7 @@ cc_library(
     ],
     deps = [
         ":config",
+        ":context",
         ":examine_stack",
         ":signal-handler",
         ":tracecontext",
@@ -1053,6 +1057,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":proc_maps",
+        "//gloop/base:signal-handler",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/debugging:examine_stack",
@@ -1064,7 +1069,6 @@ cc_library(
         "@abseil-cpp//absl/log/internal:globals",
         "@abseil-cpp//absl/strings:string_view",
         "@gloop//gloop:enforce_gloop_support",
-        "@gloop//gloop/base:signal-handler",
     ],
 )
 
@@ -1847,10 +1851,6 @@ cc_library(
     name = "reference_tracker",
     srcs = ["reference_tracker.cc"],
     hdrs = ["reference_tracker.h"],
-    visibility = [
-        "//stats/request:__pkg__",
-        "@gloop//gloop/base:__subpackages__",
-    ],
     deps = [
         ":spinlock",
         "@abseil-cpp//absl/base:core_headers",
@@ -1921,7 +1921,6 @@ cc_library(
 cc_library(
     name = "tracer_ffi",
     hdrs = ["tracer_ffi.h"],
-    visibility = ["@gloop//gloop/base:__subpackages__"],
     deps = [
         ":tracecontext",
         ":tracer",
@@ -1977,8 +1976,5 @@ cc_library(
 cc_library(
     name = "xray_tracing_annotations",
     hdrs = ["xray/tracing_annotations.h"],
-    visibility = [
-        "@gloop//gloop/base:__pkg__",
-    ],
     deps = ["@gloop//gloop:enforce_gloop_support"],
 )

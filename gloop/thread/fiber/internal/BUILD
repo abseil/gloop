@@ -57,8 +57,6 @@ cc_library(
     hdrs = ["fiber-thread-options.h"],
     visibility = [
         "//gloop/thread/fiber:__subpackages__",
-        "@gloop//gloop/thread/fiber:__pkg__",
-        "@gloop//gloop/thread/fiber/internal:__subpackages__",
     ],
     deps = ["@gloop//gloop:enforce_gloop_support"],
 )

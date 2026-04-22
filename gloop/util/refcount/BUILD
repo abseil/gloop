@@ -148,12 +148,12 @@ cc_library(
     srcs = ["reftracker.cc"],
     hdrs = ["reftracker.h"],
     deps = [
+        "//gloop/base:examine_stack",
         "@abseil-cpp//absl/debugging:stacktrace",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
         "@gloop//gloop:enforce_gloop_support",
-        "@gloop//gloop/base:examine_stack",
     ],
 )
 

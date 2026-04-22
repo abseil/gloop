@@ -178,6 +178,7 @@ cc_library(
         "//gloop/base:static_threadlocal",
         "//gloop/base:sysinfo",
         "//gloop/base:thread_identity",
+        "//gloop/base:timer",
         "//gloop/base:tracecontext",
         "//gloop/base:walltime",
         "//gloop/base/scheduling:scheduling_mode",
@@ -216,7 +217,6 @@ cc_library(
         "@abseil-cpp//absl/time:clock_interface",
         "@abseil-cpp//absl/types:span",
         "@gloop//gloop:enforce_gloop_support",
-        "@gloop//gloop/base:timer",
         "@googletest//:gtest_prod",
         "@tcmalloc//tcmalloc:malloc_extension",
     ] + select({

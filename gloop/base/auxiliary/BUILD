@@ -66,9 +66,7 @@ cc_library(
         "syscall_linux_x86_64.inc",
     ],
     visibility = [
-        "//gloop/base:__subpackages__",
-        "@gloop//gloop/base:__pkg__",
-        "@gloop//gloop/base/auxiliary:__subpackages__",
+        "//gloop/base:__pkg__",
     ],
     deps = ["@gloop//gloop:enforce_gloop_support"],
 )
