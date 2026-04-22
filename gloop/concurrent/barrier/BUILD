@@ -56,3 +56,31 @@ cc_test(
         "@googletest//:gtest",
     ],
 )
+
+cc_library(
+    name = "incremental_barrier",
+    srcs = ["incremental_barrier.cc"],
+    hdrs = ["incremental_barrier.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop/perftools/tracing",
+        "//gloop/perftools/tracing:trace_source_location",
+        "//gloop/perftools/tracing:tracing_base",
+        "//gloop/util/atomic_danger:refcount",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "incremental_barrier_unittest",
+    srcs = ["incremental_barrier_unittest.cc"],
+    deps = [
+        ":incremental_barrier",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)

@@ -30,6 +30,46 @@ config_setting(
     values = {"features": "cs_xbinaryfdo"},
 )
 
+# Complete a parent task when all its child tasks complete.
+cc_library(
+    name = "child_task_barrier",
+    srcs = ["child_task_barrier.cc"],
+    hdrs = ["child_task_barrier.h"],
+    deps = [
+        ":task",
+        "//gloop/base:callback",
+        "//gloop/concurrent/barrier:incremental_barrier",
+        "//gloop/thread",
+        "//gloop/util/functional:to_callback",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "child_task_barrier_test",
+    size = "small",
+    srcs = ["child_task_barrier_test.cc"],
+    deps = [
+        ":child_task_barrier",
+        ":sync_task",
+        ":task",
+        "//gloop/thread",
+        "//gloop/util/status",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 cc_library(
     name = "sleep",
     srcs = ["sleep.cc"],
