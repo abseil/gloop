@@ -1672,10 +1672,13 @@ cc_library(
     hdrs = ["log_file_flags.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:marshalling",
         "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:globals",
         "@abseil-cpp//absl/log/internal:config",
         "@abseil-cpp//absl/strings",
         "@gloop//gloop:enforce_gloop_support",

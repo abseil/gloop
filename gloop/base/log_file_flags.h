@@ -48,4 +48,35 @@ ABSL_DECLARE_FLAG(bool, stop_logging_if_full_disk);
 // If specified, a symbolic link to each logfile is put in this directory.
 ABSL_DECLARE_FLAG(std::string, log_link);
 
+// If true, log messages go to stderr *instead* of `LogSink`s.  Defaults to
+// false unless the `GOOGLE_LOGTOSTDERR` environment variable is set.
+ABSL_DECLARE_FLAG(bool, logtostderr);
+
+// If true, log messages go to stderr in *addition* to `LogSink`s.  Defaults to
+// false unless the `GOOGLE_ALSOLOGTOSTDERR` environment variable is set.
+ABSL_DECLARE_FLAG(bool, alsologtostderr);
+
+// Log messages at or below this severity level are buffered.  Other messages
+// are flushed immediately.  Defaults to `INFO`.  See log_severity.h for numeric
+// values of severity levels.
+ABSL_DECLARE_FLAG(int, logbuflevel);
+
+// If true and //thread is linked into the binary (true for most google3
+// builds), low-severity log messages are written to disk lazily by a background
+// thread to avoid blocking.  The severity threshold is specified by
+// --logbuflevel. Defaults to true.
+ABSL_DECLARE_FLAG(bool, threaded_logging);
+
+// Internal flag-related functionality needed by Abseil in google3-only code.
+namespace base_logging {
+namespace internal {
+
+constexpr bool kDefaultLogtostderr = false;
+
+bool LogtostderrDefault();
+bool AlsologtostderrDefault();
+
+}  // namespace internal
+}  // namespace base_logging
+
 #endif  // THIRD_PARTY_GLOOP_BASE_LOG_FILE_FLAGS_H_

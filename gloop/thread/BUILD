@@ -223,6 +223,7 @@ cc_library(
         "//gloop/base:getpc",
         "//gloop/base:googleinit",
         "//gloop/base:init_google_flags",
+        "//gloop/base:log_file_flags",
         "//gloop/base:logger",
         "//gloop/base:port",
         "//gloop/base:raw_printer",

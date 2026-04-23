@@ -20,12 +20,16 @@
 
 #include "gloop/base/log_file_flags.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <string>
 
+#include "absl/base/attributes.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/log_severity.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/marshalling.h"
+#include "absl/log/globals.h"
 #include "absl/log/log.h"
 #include "absl/strings/string_view.h"
 
@@ -39,6 +43,29 @@ T GetFromEnv(const char* varname, T dflt) {
     ABSL_INTERNAL_CHECK(absl::ParseFlag(val, &dflt, &err), err.c_str());
   }
   return dflt;
+}
+
+// Deduces the value of stderr threshold, based on the value of flags
+// FLAGS_logtostderr
+// FLAGS_alsologtostderr
+// `turning_on_off` indicates that we are deducing the threshold, while turning
+// above flags on or off. The deduction logic differs in these cases, since
+// flags may start to contradict each other.
+void DeduceStderrThreshold(bool turning_on_off) {
+  // Turning on case
+  // set threshold to INFO
+  if (turning_on_off) {
+    absl::log_internal::RawSetStderrThreshold(absl::LogSeverityAtLeast::kInfo);
+    return;
+  }
+  // Turning off case
+  // if flags contradict each other, keep current threshold
+  // otherwise set threshold to at least ERROR.
+  if (!absl::GetFlag(FLAGS_logtostderr) &&
+      !absl::GetFlag(FLAGS_alsologtostderr)) {
+    absl::log_internal::RawSetStderrThreshold(
+        (std::max)(absl::LogSeverityAtLeast::kError, absl::StderrThreshold()));
+  }
 }
 
 const char* DefaultLogDir() {
@@ -59,6 +86,22 @@ const char* DefaultLogDir() {
 }
 }  // namespace
 
+namespace base_logging {
+namespace internal {
+
+bool LogtostderrDefault() {
+  static bool value = GetFromEnv("GOOGLE_LOGTOSTDERR", kDefaultLogtostderr);
+  return value;
+}
+
+bool AlsologtostderrDefault() {
+  static bool value = GetFromEnv("GOOGLE_ALSOLOGTOSTDERR", kDefaultLogtostderr);
+  return value;
+}
+
+}  // namespace internal
+}  // namespace base_logging
+
 ABSL_FLAG(std::string, log_dir, DefaultLogDir(),
           "If specified, logfiles are written into this directory instead of "
           "the default logging directory.");
@@ -77,3 +120,42 @@ ABSL_FLAG(bool, stop_logging_if_full_disk, false,
 ABSL_FLAG(std::string, log_link, "",
           "Put additional links to the log files in this directory. Has "
           "limited applicability on non-prod platforms.");
+
+// Define a weak reference to the function in log_file.h to avoid cyclic
+// dependencies.  If for whatever reason this code is linked in and that one
+// isn't, we simply won't update the underlying log files.
+namespace base_logging {
+extern ABSL_ATTRIBUTE_WEAK void EnableLogToFiles(bool on_off);
+}  // namespace base_logging
+
+ABSL_FLAG(bool, logtostderr, base_logging::internal::LogtostderrDefault(),
+          "log messages go to stderr instead of logfiles")
+    .OnUpdate([] {
+      bool turning_on_off = absl::GetFlag(FLAGS_logtostderr);
+      DeduceStderrThreshold(turning_on_off);
+      if (base_logging::EnableLogToFiles != nullptr) {
+        base_logging::EnableLogToFiles(!turning_on_off);
+      }
+    });
+
+ABSL_FLAG(bool, alsologtostderr,
+          base_logging::internal::AlsologtostderrDefault(),
+          "log messages go to stderr in addition to logfiles")
+    .OnUpdate([] {
+      bool turning_on_off = absl::GetFlag(FLAGS_alsologtostderr);
+      DeduceStderrThreshold(turning_on_off);
+    });
+
+ABSL_FLAG(int, logbuflevel, static_cast<int>(absl::LogSeverityAtLeast::kInfo),
+          "Buffer log messages logged at this level or lower (-1 means don't "
+          "buffer; 0 means buffer INFO only; ...). Has limited applicability "
+          "on non-prod platforms.")
+    .OnUpdate([] {});
+
+ABSL_FLAG(bool, threaded_logging, false,
+          "Move logging into separate thread so that application threads do "
+          "not get stuck on slow or busy disks. By default this does not "
+          "enable threaded logging for severities above WARNING level. The "
+          "flag -logbuflevel can be used to enable it for those levels as "
+          "well. Has no effect unless //thread has been linked into binary. "
+          "Has limited applicability on non-prod platforms.");

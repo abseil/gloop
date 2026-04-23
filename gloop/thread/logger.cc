@@ -43,6 +43,7 @@
 #include "absl/time/time.h"
 #include "gloop/base/googleinit.h"
 #include "gloop/base/init_google_flags.h"
+#include "gloop/base/log_file_flags.h"
 #include "gloop/base/logger.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
@@ -51,8 +52,6 @@
 ABSL_FLAG(bool, disable_threaded_logging, false,
           "If this flag is true, we will disable threaded logging feature "
           "regardless of the --threaded_logging flag value");
-
-ABSL_FLAG(bool, threaded_logging, false, "Whether to enable threaded logging");
 
 namespace threadlogger {
 
