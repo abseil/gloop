@@ -87,10 +87,62 @@ PORT_HEADERS = [
     "threadpool.h",
 ]
 
+cc_test(
+    name = "add_after_helper_test",
+    size = "small",
+    srcs = ["add_after_helper_test.cc"],
+    deps = [
+        ":mock_executor",
+        ":thread",
+        "//gloop/base:callback",
+        "//gloop/base:context",
+        "//gloop/base:mock_tracer",
+        "//gloop/base:tracecontext",
+        "//gloop/base:walltime",
+        "//gloop/util/functional:to_callback",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/time:clock_interface",
+        "@abseil-cpp//absl/time:simulated_clock",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 cc_library(
     name = "config",
     hdrs = ["config.h"],
     deps = ["@gloop//gloop:enforce_gloop_support"],
+)
+
+cc_test(
+    name = "executor_test",
+    size = "medium",
+    srcs = ["executor_test.cc"],
+    deps = [
+        ":sync_queue",
+        ":thread",
+        "//gloop/base:callback",
+        "//gloop/base:context",
+        "//gloop/util/functional:from_callback",
+        "//gloop/util/functional:to_callback",
+        "@abseil-cpp//absl/cleanup",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/memory",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:span",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
 )
 
 # Defines the exit_timeout_seconds flag.
@@ -431,6 +483,21 @@ cc_test(
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "mock_executor",
+    testonly = 1,
+    hdrs = ["mock_executor.h"],
+    deps = [
+        ":thread",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/time:clock_interface",
+        "@gloop//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest_for_library",
     ],
 )
 
