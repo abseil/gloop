@@ -1063,7 +1063,7 @@ typename BasicBitmap<W>::size_type BasicBitmap<W>::HammingDistance(
   CHECK_EQ(bits(), other.bits());
   size_type dist = 0;
   const size_t n = array_size();
-  CHECK_GT(n, 0);  // Array size should always be greater than 0.
+  CHECK_GT(n, 0UL);  // Array size should always be greater than 0.
   for (size_t i = 0; i < n - 1; ++i) {
     dist += absl::popcount(
         static_cast<Word>(static_cast<ArithmeticWord>(map_[i]) ^
