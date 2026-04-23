@@ -32,6 +32,7 @@
 #include <cstdlib>
 #include <string>
 
+#include "absl/base/config.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
 #include "absl/log/flags.h"
@@ -223,8 +224,10 @@ TEST_F(MemoryMappedIOTest, InvalidDevice) {
       "something_that_does_not_exist", MemoryMappedIO::OPEN_MODE_READ_WRITE));
 }
 
+#ifndef ABSL_HAVE_ADDRESS_SANITIZER
 // Ensure memory mapped io read or write fails with the mmap resource limit
-// set to 0.
+// set to 0.  Fails sporadically with the wrong error code due to earlier-than
+// expected sanitizer failure.
 TEST_F(MemoryMappedIOTest, MapFail) {
   const pid_t process_id = fork();
   ASSERT_GE(process_id, 0);
@@ -251,6 +254,7 @@ TEST_F(MemoryMappedIOTest, MapFail) {
     ASSERT_EQ(1, WEXITSTATUS(child_process_return_value));
   }
 }
+#endif  // ABSL_HAVE_ADDRESS_SANITIZER
 
 }  // namespace
 

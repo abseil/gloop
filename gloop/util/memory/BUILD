@@ -87,6 +87,7 @@ cc_test(
         ":memory_mapped_io_test_data",
         "//gloop/base:init_google",
         "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:flags",
