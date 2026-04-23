@@ -1416,6 +1416,14 @@ cc_test(
     ],
 )
 
+# For other projects that just need the file_toc.h header
+cc_library(
+    name = "file_toc",
+    hdrs = ["file_toc.h"],
+    visibility = ["//visibility:public"],
+    deps = ["@gloop//gloop:enforce_gloop_support"],
+)
+
 cc_library(
     name = "googleinit",
     srcs = ["googleinit.cc"],
