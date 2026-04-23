@@ -26,11 +26,4 @@
 // Please include this file if you want to use strings::CordByteSink or
 // strings::CordReader. The implementations are moving to this module.
 
-namespace strings {
-
-using CordByteSink = ::CordByteSink;
-using CordReader = ::CordReader;
-
-}  // namespace strings
-
 #endif  // THIRD_PARTY_GLOOP_STRINGS_CORD_BYTESTREAM_H_
