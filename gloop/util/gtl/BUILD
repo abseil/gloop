@@ -699,6 +699,33 @@ cc_test(
 )
 
 cc_library(
+    name = "value_or_die",
+    srcs = ["value_or_die.cc"],
+    hdrs = ["value_or_die.h"],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/types:source_location",
+        "@gloop//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "value_or_die_test",
+    srcs = ["value_or_die_test.cc"],
+    deps = [
+        ":value_or_die",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "iterator_range",
     hdrs = ["iterator_range.h"],
     deps = [
