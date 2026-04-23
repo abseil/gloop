@@ -475,9 +475,6 @@ Case OnCancel();
 // some user code as an independent fiber in a pre-existing thread,
 // but do not want the cancellation of the user code fiber to have any
 // affect on the pre-existing thread.
-//
-// Child fibers created within this distinct fiber scope will inherit the fiber
-// scheduler of the caller, analogously to what would happen with a child fiber.
 class DistinctFiberScope {
  public:
   explicit DistinctFiberScope(const FiberOptions& options);
