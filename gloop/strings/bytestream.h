@@ -21,8 +21,6 @@
 #ifndef THIRD_PARTY_GLOOP_STRINGS_BYTESTREAM_H_
 #define THIRD_PARTY_GLOOP_STRINGS_BYTESTREAM_H_
 
-#include "absl/strings/bytestream.h"  // IWYU pragma: export
-
 // Please include this file instead of
 // "absl/strings/bytestream.h".
 //

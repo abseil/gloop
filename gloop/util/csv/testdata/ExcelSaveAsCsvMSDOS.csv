@@ -1,0 +1,8 @@
+Google,Rocks
+Line,2
+Line,Three
+Negative,-2
+Float,3.141592654
+Negative Float,-3.141592654
+"Comma,string",Non-comma string
+Spaces after   ,   Spaces before
