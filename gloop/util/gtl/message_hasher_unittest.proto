@@ -1,0 +1,83 @@
+edition = "2024";
+
+package gtl;
+
+import option "google/protobuf/cpp_features.proto";
+
+option features.repeated_field_encoding = EXPANDED;
+option features.utf8_validation = NONE;
+
+message TestMessage {
+  int32 some_number = 1;
+  string name = 2 [features.(pb.cpp).string_type = STRING];
+
+  double weight = 3;
+  repeated bool flags = 4;
+}
+
+message ComplexTestMessage {
+  map<string, bool> map_field = 5;
+  repeated TestMessage message_field = 6;
+
+  extensions 100 to max
+  [verification = UNVERIFIED];
+}
+
+message BoolFieldBeforeStringField {
+  repeated bool flags = 1;
+  int32 some_number = 2;
+  string name = 3 [features.(pb.cpp).string_type = STRING];
+}
+
+message ExtensionMessage {
+  extend ComplexTestMessage {
+    ExtensionMessage extension_message = 100;
+  }
+
+  bool extended_bool = 1;
+  ComplexTestMessage inner_message = 2;
+}
+
+message OtherExtensionMessage {
+  extend ComplexTestMessage {
+    OtherExtensionMessage extension_message = 101;
+  }
+
+  bool extended_bool = 1;
+  ComplexTestMessage inner_message = 2;
+}
+
+message TestMessageWithAdditionalBool {
+  int32 some_number = 1;
+  string name = 2 [features.(pb.cpp).string_type = STRING];
+
+  double weight = 3;
+  repeated bool flags = 4;
+  bool other_bool = 5;
+}
+
+message ComplexTestMessageWithMoreFields {
+  bool prior_field = 1;
+  map<string, bool> map_field = 5;
+  repeated TestMessageWithAdditionalBool message_field = 6;
+  bool later_field = 7;
+
+  extensions 100 to max
+  [verification = UNVERIFIED];
+}
+
+message SimpleTestMessagePackedInt64 {
+  repeated int64 num = 1 [features.repeated_field_encoding = PACKED];
+}
+
+message UnknownExtension {
+  extend ComplexTestMessageWithMoreFields {
+    UnknownExtension unknown_extension = 102;
+  }
+
+  bool extended_bool = 1;
+}
+
+message WithCordField {
+  bytes cord = 1 [features.(pb.cpp).string_type = CORD];
+}

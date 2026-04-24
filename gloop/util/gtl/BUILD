@@ -1069,3 +1069,60 @@ cc_test(
         "@googletest//:gtest",
     ],
 )
+
+cc_library(
+    name = "message_hasher",
+    srcs = ["message_hasher.cc"],
+    hdrs = ["message_hasher.h"],
+    deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:fixed_array",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/container:linked_hash_map",
+        "@abseil-cpp//absl/container:linked_hash_set",
+        "@abseil-cpp//absl/container:node_hash_map",
+        "@abseil-cpp//absl/container:node_hash_set",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:resize_and_overwrite",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:enforce_gloop_support",
+        "@protobuf//:protobuf_lite",
+        "@protobuf//src/google/protobuf/io",
+    ],
+)
+
+cc_test(
+    name = "message_hasher_test",
+    srcs = ["message_hasher_test.cc"],
+    deps = [
+        ":message_hasher",
+        ":message_hasher_unittest_cc_proto",
+        ":stl_util",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:cord",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@protobuf",
+        "@protobuf//:differencer",
+        "@protobuf//src/google/protobuf/io",
+    ],
+)
+
+proto_library(
+    name = "message_hasher_unittest_proto",
+    srcs = ["message_hasher_unittest.proto"],
+    option_deps = ["@protobuf//:cpp_features_proto"],
+)
+
+cc_proto_library(
+    name = "message_hasher_unittest_cc_proto",
+    deps = [":message_hasher_unittest_proto"],
+)
