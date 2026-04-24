@@ -111,7 +111,10 @@ namespace percpu_internal {
 // By default this is based on the process's environment. The symbol is defined
 // as weak so that tests that need to turn off restartable sequences can do so
 // effectively at compile time by defining this symbol.
-ABSL_ATTRIBUTE_WEAK bool disable_rseq() { return true; }
+ABSL_ATTRIBUTE_WEAK bool disable_rseq() {
+  // TODO Enable this rseq support in new glibc.
+  return true;
+}
 
 }  // namespace percpu_internal
 

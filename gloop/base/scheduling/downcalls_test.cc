@@ -37,6 +37,9 @@
 #include "gloop/base/scheduling/domain.h"
 #include "gloop/base/scheduling/low-level-support.h"
 #include "gloop/base/scheduling/scheduler.h"
+#include "gloop/thread/fiber/fiber-options.h"
+#include "gloop/thread/fiber/fiber.h"
+#include "gloop/thread/fiber/init-domain.h"
 #include "gtest/gtest.h"
 
 namespace base {
@@ -77,6 +80,26 @@ TEST(Downcalls, ThreadDisableSchedulingWorks) {
   EXPECT_FALSE(SchedulingGuard::ReschedulingIsAllowed());
   DowncallsTestlets::EnableRescheduling(disable_result);
   EXPECT_FALSE(SchedulingGuard::ReschedulingIsAllowed());
+}
+
+#if defined(PORTABLE_BASE)
+TEST(Downcalls, DISABLED_FiberDisableSchedulingWorks)
+#else
+TEST(Downcalls, FiberDisableSchedulingWorks)
+#endif
+{
+  struct Helper {
+    static void TestFiber() {
+      EXPECT_TRUE(SchedulingGuard::ReschedulingIsAllowed());
+      bool disable_result = DowncallsTestlets::DisableRescheduling();
+      EXPECT_FALSE(SchedulingGuard::ReschedulingIsAllowed());
+      DowncallsTestlets::EnableRescheduling(disable_result);
+      EXPECT_TRUE(SchedulingGuard::ReschedulingIsAllowed());
+    }
+  };
+
+  thread::Fiber f(Helper::TestFiber);
+  f.Join();
 }
 
 class SelfWakingScheduler : public Scheduler {
@@ -135,6 +158,28 @@ class SelfWakingScheduler : public Scheduler {
 //         Queue a post against ourselves.
 // Step 4: Queued Downcalls::Post is delivered, self wake-up received.
 // Step 5: Locally, reschedule self (observed by WaitToBeWoken()).
+#if defined(PORTABLE_BASE)
+TEST(DowncallsTest, DISABLED_WakeSelfWorks)
+#else
+TEST(DowncallsTest, WakeSelfWorks)
+#endif
+{
+  struct Helper {
+    static void WaitToBeWoken() {
+      KernelTimeout deadline{absl::UnixEpoch()};
+      // The queued wake should be delivered immediately, before we have a
+      // chance to block in our domain.  This means even with an epoch deadline,
+      // we should never observe a timeout.
+      EXPECT_TRUE(DowncallsTestlets::Wait(deadline));
+    }
+  };
+  Scheduler* scheduler =
+      new SelfWakingScheduler(thread::DefaultDomain()->root_scheduler());
+  std::unique_ptr<thread::Fiber> test_fiber = thread::NewTree(
+      thread::TreeOptions().set_scheduler(scheduler), Helper::WaitToBeWoken);
+  scheduler->Orphan();
+  test_fiber->Join();
+}
 
 TEST(Schedulable, FlagsWork) {
   void* backing;

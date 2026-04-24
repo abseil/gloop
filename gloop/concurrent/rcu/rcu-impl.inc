@@ -81,7 +81,7 @@ inline void Token::DoUnlock() {
   if (ABSL_PREDICT_FALSE(h.rep == nullptr)) {
     return;
   }
-#ifdef THREAD_SANITIZER
+#ifdef ABSL_HAVE_THREAD_SANITIZER
   while (true) {
     namespace pc = ::base::subtle::percpu;
     int cpu = pc::GetCurrentCpu();

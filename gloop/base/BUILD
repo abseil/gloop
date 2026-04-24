@@ -603,6 +603,55 @@ cc_test(
 )
 
 cc_test(
+    name = "percpu_test",
+    size = "large",
+    srcs = ["percpu_test.cc"],
+    linkstatic = 1,
+    shard_count = 7,  # Run long-running tests in parallel.
+    tags = [
+        # numactl causes sanitizer false-positives from the numa_init constructor.
+        "nosan",
+    ],
+    visibility = [
+        ":base_implementation",
+        "@gloop//gloop/base:__subpackages__",
+    ],
+    deps = [
+        ":callback",
+        ":init_google",
+        ":percpu",
+        ":proc_maps",
+        ":signal_util_subtle",
+        ":static_threadlocal",
+        ":sysinfo",
+        "//gloop/base/scheduling",
+        "//gloop/thread/fiber",
+        "//gloop/thread/fiber:fiber-options",
+        "//gloop/thread/fiber:fifolifo-schedulers",
+        "//gloop/thread/fiber:select",
+        "//gloop/util/functional:to_callback",
+        "//gloop/util/gtl:unique_array",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:flags",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@numactl//:numa",
+        "@tcmalloc//tcmalloc/internal:linux_syscall_support",
+    ],
+)
+
+cc_test(
     name = "percpu_early_test",
     srcs = ["percpu_early_test.cc"],
     linkstatic = 1,
@@ -635,6 +684,60 @@ cc_test(
         ":percpu",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/log",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "percpu_dynamic_init_test_none",
+    srcs = ["percpu_dynamic_init_test.cc"],
+    args = ["--expected_vcpu_mode=0"],
+    env = {"PERCPU_VCPU_MODE": "none"},
+    linkstatic = 1,
+    deps = [
+        ":percpu",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "percpu_dynamic_init_test_default",
+    srcs = ["percpu_dynamic_init_test.cc"],
+    args = ["--expected_vcpu_mode=1"],
+    env = {"BORG_EXPERIMENTS": ""},
+    linkstatic = 1,
+    deps = [
+        ":percpu",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "percpu_dynamic_init_test_flat",
+    srcs = ["percpu_dynamic_init_test.cc"],
+    args = ["--expected_vcpu_mode=1"],
+    env = {
+        "BORG_EXPERIMENTS": "",
+        "PERCPU_VCPU_MODE": "flat",
+    },
+    linkstatic = 1,
+    deps = [
+        ":percpu",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/strings:string_view",
         "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -1474,6 +1577,7 @@ cc_library(
         ":spinlock",
         ":sysinfo",
         "//gloop/base/internal:init_google",
+        "//gloop/concurrent/rcu",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:base_internal",
         "@abseil-cpp//absl/base:core_headers",

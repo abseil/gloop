@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "absl/synchronization/notification.h"
+#include "gloop/thread/fiber/bundle.h"
 #include "gtest/gtest.h"
 
 namespace concurrent {
@@ -39,6 +40,15 @@ TEST(BarrierTest, SameThread) {
   barrier();
   EXPECT_FALSE(n.HasBeenNotified());
   barrier();
+  EXPECT_TRUE(n.HasBeenNotified());
+}
+
+TEST(BarrierTest, InFiber) {
+  absl::Notification n;
+  std::function<void()> barrier = NewBarrier(10, [&n]() { n.Notify(); });
+  thread::Bundle bundle;
+  for (int i = 0; i < 10; ++i) bundle.Add(barrier);
+  bundle.JoinAll();
   EXPECT_TRUE(n.HasBeenNotified());
 }
 

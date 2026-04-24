@@ -30,6 +30,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/config.h"  // IWYU pragma: keep
 #include "absl/base/const_init.h"
 #include "absl/base/thread_annotations.h"
 #include "gloop/base/percpu.h"

@@ -117,6 +117,8 @@ cc_test(
         ":low-level-support",
         ":scheduling",
         "//gloop/base:init_google",
+        "//gloop/thread/fiber",
+        "//gloop/thread/fiber:fiber-options",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/flags:flag",

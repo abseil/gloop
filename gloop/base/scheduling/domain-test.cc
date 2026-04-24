@@ -51,6 +51,7 @@
 namespace base {
 namespace scheduling {
 
+using ::absl::base_internal::SchedulingGuard;
 using ::absl::synchronization_internal::KernelTimeout;
 
 // Completions allow execution to be ordered between threads.
@@ -632,6 +633,92 @@ TEST_P(DomainTest, StressLoop) {
 
   // Let things run their course.
   WaitUntilAllFinished(done);
+}
+
+TEST_P(DomainTest, PotentiallyBlockingRegionIsConcurrent) {
+  if (!ShouldTestBlockingRegions()) return;
+  if (NumCPUs() < 4) return;
+  static const absl::Duration kDelayMs = absl::Milliseconds(1000);
+  static constexpr int kMinimumSpeedup = 10;
+
+  struct Helper {
+    static void SleepyBlockingRegion() {
+      struct timespec delay = absl::ToTimespec(kDelayMs);
+
+      // We sleep within a blocking region and assert (via timing) that the
+      // implementation successfully parallelized it.
+      Domain::StartPotentiallyBlockingRegion();
+      EXPECT_FALSE(SchedulingGuard::ReschedulingIsAllowed());
+      while (nanosleep(&delay, &delay) != 0) {
+      }
+      Domain::FinishPotentiallyBlockingRegion();
+      EXPECT_TRUE(SchedulingGuard::ReschedulingIsAllowed());
+    }
+  };
+
+  // Since this test actually schedules, we need a proper scheduler.
+  std::unique_ptr<Domain> test_domain =
+      absl::WrapUnique(GetNewDomainFunction()("potentially_blocking_dom", 4));
+  Scheduler* root_scheduler = thread::NewRootFIFOScheduler(test_domain.get());
+  std::vector<std::unique_ptr<thread::Fiber>> fibers;
+
+  thread::TreeOptions opts;
+  opts.set_parent_scheduler(root_scheduler);
+
+  const int kNumSleepers = 50;
+  absl::Time start = absl::Now();
+  fibers.reserve(kNumSleepers);
+  for (int i = 0; i < kNumSleepers; i++) {
+    fibers.emplace_back(thread::NewTree(opts, Helper::SleepyBlockingRegion));
+  }
+  for (auto& fiber : fibers) fiber->Join();
+  absl::Time finish = absl::Now();
+
+  // This is tolerant of slack, but not satisfiable if not executed in parallel.
+  EXPECT_GT((kNumSleepers / kMinimumSpeedup) * kDelayMs, finish - start);
+
+  root_scheduler->Orphan();
+}
+
+TEST_P(DomainTest, NestedPotentiallyBlockingRegion) {
+  if (!ShouldTestBlockingRegions()) return;
+  if (NumCPUs() < 4) return;
+
+  struct Helper {
+    static void NestedBlockingRegions(int depth) {
+      for (int i = 0; i < depth; i++) {
+        Domain::StartPotentiallyBlockingRegion();
+        EXPECT_FALSE(SchedulingGuard::ReschedulingIsAllowed());
+      }
+
+      for (int i = 0; i < depth - 1; i++) {
+        Domain::FinishPotentiallyBlockingRegion();
+        EXPECT_FALSE(SchedulingGuard::ReschedulingIsAllowed());
+      }
+
+      Domain::FinishPotentiallyBlockingRegion();
+      EXPECT_TRUE(SchedulingGuard::ReschedulingIsAllowed());
+    }
+  };
+
+  const int kMaxNestingTrial = 4;
+  // Since this test actually schedules, we need a proper scheduler.
+  std::unique_ptr<Domain> test_domain =
+      absl::WrapUnique(GetNewDomainFunction()("potentially_blocking_dom", 4));
+  Scheduler* root_scheduler = thread::NewRootFIFOScheduler(test_domain.get());
+  std::vector<std::unique_ptr<thread::Fiber>> fibers;
+
+  thread::TreeOptions opts;
+  opts.set_parent_scheduler(root_scheduler);
+
+  fibers.reserve(kMaxNestingTrial);
+  for (int i = 0; i < kMaxNestingTrial; i++) {
+    fibers.emplace_back(
+        thread::NewTree(opts, [i]() { Helper::NestedBlockingRegions(i + 1); }));
+  }
+
+  for (auto& fiber : fibers) fiber->Join();
+  root_scheduler->Orphan();
 }
 
 }  // namespace scheduling

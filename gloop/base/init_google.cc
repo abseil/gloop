@@ -26,6 +26,7 @@
 #include <cstdlib>
 #include <iostream>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/scheduling_mode.h"
 #include "absl/base/log_severity.h"
 #include "absl/base/macros.h"
@@ -106,6 +107,8 @@
 #if BASE_HAVE_PROCESS_STATE
 #include "gloop/base/process_state.h"
 #endif  // BASE_HAVE_PROCESS_STATE
+
+#include "gloop/concurrent/rcu/rcu.h"
 
 #if BASE_HAVE_THREAD_STACK
 #else
@@ -302,9 +305,9 @@ bool IsValidMlockStyle(absl::string_view style) {
 }  // namespace internal
 }  // namespace base
 
-#if defined(ADDRESS_SANITIZER) || defined(DATAFLOW_SANITIZER) || \
-    defined(HWADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
-    defined(THREAD_SANITIZER)
+#if defined(ABSL_HAVE_ADDRESS_SANITIZER) || defined(DATAFLOW_SANITIZER) || \
+    defined(HWADDRESS_SANITIZER) || defined(ABSL_HAVE_MEMORY_SANITIZER) || \
+    defined(ABSL_HAVE_THREAD_SANITIZER)
 
 // We need a weak definition because we want to override when linking in
 // testing/*san/allocator.cc.
@@ -486,6 +489,9 @@ static void RealInitGoogle(absl::string_view usage, int* argc, char*** argv,
   mallopt(M_MMAP_MAX, 16384);  // Enables access to more than 1 GB
 #endif
   absl::FlushLogSinks();  // so you can see command line early
+
+  // Initialize RCU domains.
+  base::rcu::DomainInit();
 
 #if BASE_HAVE_CPU_PROFILER
   // Initialize on demand CPU profiling, see comment to RegisterCpuProfiler.

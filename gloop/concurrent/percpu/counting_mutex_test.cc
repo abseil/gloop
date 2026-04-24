@@ -49,6 +49,8 @@
 #include "absl/time/time.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/sysinfo.h"
+#include "gloop/thread/fiber/fiber-options.h"
+#include "gloop/thread/fiber/fiber.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
 #include "gmock/gmock.h"
@@ -62,7 +64,15 @@ namespace {
 static_assert(ABSL_CACHELINE_SIZE <= 128, "Adjust kRegionSize");
 
 // Possible thread modes supported by the TestThread class
-enum class ThreadMode { kDefault, kThread, kLegacy };
+enum class ThreadMode {
+  kDefault,
+  kThread,
+  kRootFiber,
+  kOneCPUFiber,
+  kDetachedFiber,
+  kFiber,
+  kLegacy
+};
 
 // Parses a ThreadMode from the command line flag value `text`.
 // Returns `true` and sets `*mode` on success.
@@ -73,6 +83,14 @@ bool AbslParseFlag(absl::string_view text, ThreadMode* mode,
     *mode = ThreadMode::kDefault;
   } else if (text == "thread") {
     *mode = ThreadMode::kThread;
+  } else if (text == "fiber") {
+    *mode = ThreadMode::kFiber;
+  } else if (text == "root") {
+    *mode = ThreadMode::kRootFiber;
+  } else if (text == "one_cpu") {
+    *mode = ThreadMode::kOneCPUFiber;
+  } else if (text == "detached") {
+    *mode = ThreadMode::kDetachedFiber;
   } else if (text == "legacy") {
     *mode = ThreadMode::kLegacy;
   } else {
@@ -91,6 +109,14 @@ std::string AbslUnparseFlag(ThreadMode mode) {
       return "default";
     case ThreadMode::kThread:
       return "thread";
+    case ThreadMode::kFiber:
+      return "fiber";
+    case ThreadMode::kRootFiber:
+      return "root";
+    case ThreadMode::kOneCPUFiber:
+      return "one_cpu";
+    case ThreadMode::kDetachedFiber:
+      return "detached";
     case ThreadMode::kLegacy:
       return "legacy";
   }
@@ -115,6 +141,13 @@ ThreadMode RandomThreadMode() {
   switch (absl::Uniform(gen, 1, 5)) {
     case 1:
       return ThreadMode::kLegacy;
+    case 2:
+      return ThreadMode::kFiber;
+    case 3:
+      return ThreadMode::kRootFiber;
+    case 4:
+      return ThreadMode::kDetachedFiber;
+    case 5:
     default:
       return ThreadMode::kThread;
   }
@@ -157,6 +190,25 @@ class TestThread {
       case ThreadMode::kThread:
         impl_.emplace<std::thread>(std::forward<FN>(fn));
         break;
+      case ThreadMode::kFiber:
+        impl_ = std::make_unique<thread::Fiber>(std::forward<FN>(fn));
+        break;
+      case ThreadMode::kRootFiber:
+        impl_ = thread::NewTree({}, std::forward<FN>(fn));
+        break;
+      case ThreadMode::kOneCPUFiber: {
+        thread::TreeOptions options;
+        options.set_max_cpu_slots(1);
+        impl_ = thread::NewTree(options, std::forward<FN>(fn));
+      } break;
+      case ThreadMode::kDetachedFiber: {
+        auto notification = std::make_shared<absl::Notification>();
+        impl_ = notification;
+        thread::Detach({}, [notification, fn] {
+          fn();
+          notification->Notify();
+        });
+      } break;
       case ThreadMode::kLegacy:
         impl_ = std::make_unique<LegacyThread>(std::forward<FN>(fn));
         break;
@@ -166,13 +218,16 @@ class TestThread {
   ~TestThread() { Join(); }
 
   void Join() {
-    if (auto* thread = std::get_if<std::thread>(&impl_)) {
-      thread->join();
-    } else if (auto* legacy_thread = std::get_if<LegacyThreadPtr>(&impl_)) {
-      (*legacy_thread)->Join();
-    } else if (auto* notification = std::get_if<NotificationPtr>(&impl_)) {
-      (*notification)->WaitForNotification();
-    }
+    if (auto* fiber = std::get_if<FiberPtr>(&impl_)) {
+      (*fiber)->Join();
+    } else  // NOLINT(readability/braces)
+      if (auto* thread = std::get_if<std::thread>(&impl_)) {
+        thread->join();
+      } else if (auto* legacy_thread = std::get_if<LegacyThreadPtr>(&impl_)) {
+        (*legacy_thread)->Join();
+      } else if (auto* notification = std::get_if<NotificationPtr>(&impl_)) {
+        (*notification)->WaitForNotification();
+      }
     impl_.emplace<std::monostate>();
   }
 
@@ -187,10 +242,12 @@ class TestThread {
     std::function<void()> fn;
   };
 
+  using FiberPtr = std::unique_ptr<thread::Fiber>;
   using LegacyThreadPtr = std::unique_ptr<LegacyThread>;
   using NotificationPtr = std::shared_ptr<absl::Notification>;
 
-  std::variant<std::monostate, std::thread, LegacyThreadPtr, NotificationPtr>
+  std::variant<std::monostate, std::thread, LegacyThreadPtr, FiberPtr,
+               NotificationPtr>
       impl_;
 };
 
@@ -1006,6 +1063,32 @@ TEST(CountingMutexTest, ReleasableCountingMutexLock) {
     EXPECT_DEBUG_DEATH(mutex.AssertHeld(),
                        "thread should hold an exclusive lock");
   }
+}
+
+TEST(CountingMutexTest, PotentiallyBlockingRegion) {
+  // Test to verify any blocking region inside the writer using a direct Futex
+  // wait is annotated for cooperative scheduling: we create a single slot tree,
+  // have a child fiber surrender the slot with the shared lock held and obtain
+  // the exclusive lock. This may block indefinitely otherwise.
+  ThreadMode mode = ThreadModeIfDefault(ThreadMode::kOneCPUFiber);
+  TestThread thread(mode, [] {
+    CountingMutex mu;
+    absl::Notification locked;
+    ThreadMode mode = ThreadModeIfDefault(ThreadMode::kFiber);
+    TestThread reader(mode, [&] {
+      mu.lock_shared();
+      locked.Notify();
+      absl::SleepFor(absl::Seconds(1));
+      mu.unlock_shared();
+    });
+
+    locked.WaitForNotification();
+    mu.lock();
+    mu.unlock();
+
+    reader.Join();
+  });
+  thread.Join();
 }
 
 // `RunAtThreadExit` exercises the use case where a (global) CountingMutex is

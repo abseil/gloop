@@ -103,7 +103,7 @@ platform(
         "@platforms//cpu:x86_64",
     ],
     exec_properties = {
-        "container-image": "docker://gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:b14a23d65e32c053eaca6bd543bdb70802cb84b34973427f4d5b3cfa567634c3",
+        "container-image": "docker://gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:20fbe20b4acc2a8636da86b497eb29522cb33ecabc98a562cad8dcd881df13c0",
         "Pool": "default",
         "dockerRunAsRoot": "true",
         "cache-silo-key": "default-04162026",

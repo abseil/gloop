@@ -47,17 +47,16 @@
 #include "tcmalloc/internal/sysinfo.h"
 #include "tcmalloc/malloc_extension.h"
 
-ABSL_ATTRIBUTE_WEAK void Thread_RegisterExternalThread(
-    absl::string_view name_prefix) {
-  // So we'd like to make run_domain_callbacks_thread a google3 thread, but
-  // dependency layering makes it tricky, so we use a raw pthread.  Now, our
-  // thread library provides an API for registering external threads (with this
-  // name!) but the same dependency chain means we can't #include thread.h to
-  // find it and link it normally (and in principle we could be running in a
-  // binary that doesn't link it?)  So redefine it here as a weak, empty symbol.
-  // In any reasonable binary, this will get overridden by the real definition
-  // and we'll register our thread.
-}
+// So we'd like to make run_domain_callbacks_thread a google3 thread, but
+// dependency layering makes it tricky, so we use a raw pthread.  Now, our
+// thread library provides an API for registering external threads (with this
+// name!) but the same dependency chain means we can't #include thread.h to
+// find it and link it normally (and in principle we could be running in a
+// binary that doesn't link it?)  So declare it here as a weak extern symbol.
+// In any reasonable binary, this will get overridden by the real definition
+// and we'll be able to register our thread.
+extern ABSL_ATTRIBUTE_WEAK void Thread_RegisterExternalThread(
+    absl::string_view);
 
 namespace base {
 namespace rcu {
@@ -440,7 +439,9 @@ bool RunDomain(Domain* d) {
 }
 
 void* run_domain_callbacks_thread(void*) {
-  Thread_RegisterExternalThread("rcu_callback_thread");
+  if (Thread_RegisterExternalThread != nullptr) {
+    Thread_RegisterExternalThread("rcu_callback_thread");
+  }
   // Changes to std::vector may cause the heap leak checker to incorrectly
   // report that the two below vectors are leaking memory (b/382768893).
   absl::LeakCheckDisabler disabler;

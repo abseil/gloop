@@ -50,6 +50,7 @@ cc_test(
     srcs = ["barrier_test.cc"],
     deps = [
         ":barrier",
+        "//gloop/thread/fiber",
         "@abseil-cpp//absl/synchronization",
         "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",

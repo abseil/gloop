@@ -13,6 +13,7 @@
 # limitations under the License.
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 package(
     default_applicable_licenses = ["//gloop:license"],
@@ -102,6 +103,22 @@ cc_library(
     deps = ["@gloop//gloop:enforce_gloop_support"],
 )
 
+cc_test(
+    name = "view_test",
+    srcs = ["view_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":view",
+        "//gloop/base:sysinfo",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 cc_library(
     name = "llist",
     hdrs = ["llist.h"],
@@ -126,6 +143,7 @@ cc_library(
         "rcu.h",
     ],
     visibility = [
+        "//gloop/base:__pkg__",
         "//gloop/concurrent/rcu:__subpackages__",
     ],
     deps = [
@@ -136,6 +154,7 @@ cc_library(
         "//gloop/base:spinlock",
         "//gloop/base/scheduling:scheduling_mode",
         "//gloop/util/atomic_danger",
+        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:malloc_internal",
         "@abseil-cpp//absl/base:no_destructor",
@@ -147,5 +166,69 @@ cc_library(
         "@gloop//gloop:enforce_gloop_support",
         "@tcmalloc//tcmalloc:malloc_extension",
         "@tcmalloc//tcmalloc/internal:sysinfo",
+    ],
+)
+
+cc_test(
+    name = "rcu_test",
+    size = "medium",
+    srcs = ["rcu_test.cc"],
+    linkstatic = 1,
+    shard_count = 2,
+    deps = [
+        ":rcu",
+        "//gloop/base:googleinit",
+        "//gloop/base:signal_util_subtle",
+        "//gloop/base:sysinfo",
+        "//gloop/thread",
+        "//gloop/thread/fiber",
+        "//gloop/thread/fiber:fiber-options",
+        "//gloop/util/random:mt_random",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/random:distributions",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "rcu_slow_test",
+    size = "medium",
+    timeout = "long",
+    srcs = ["rcu_test.cc"],
+    linkstatic = 1,
+    shard_count = 2,
+    deps = [
+        ":rcu",
+        "//gloop/base:googleinit",
+        "//gloop/base:percpu_disable_rseq",
+        "//gloop/base:signal_util_subtle",
+        "//gloop/base:sysinfo",
+        "//gloop/thread",
+        "//gloop/thread/fiber",
+        "//gloop/thread/fiber:fiber-options",
+        "//gloop/util/random:mt_random",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/random:distributions",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@gloop//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
     ],
 )
