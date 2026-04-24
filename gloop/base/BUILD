@@ -1703,6 +1703,7 @@ cc_library(
     visibility = [
         "//gloop/base:__subpackages__",
         "//gloop/thread:__pkg__",
+        "//gloop/util/status:__pkg__",
     ],
     deps = [
         ":log_file_flags",

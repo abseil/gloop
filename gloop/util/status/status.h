@@ -50,9 +50,6 @@
 #include "google/protobuf/any.pb.h"
 #include "google/protobuf/bridge/message_set.pb.h"
 
-// Temporary shims for code that hasn't been released yet.
-#include "gloop/util/status/status_oss_shim.inc"
-
 ABSL_DECLARE_FLAG(bool, util_status_save_stack_trace);
 
 namespace util {

@@ -51,6 +51,7 @@ build:asan --//gloop:sanitizer=asan
 build:asan --copt=-fsanitize=address --linkopt=-fsanitize=address
 build:asan --copt=-O2 # TODO Workaround cord/status false positive
 test:asan --test_tag_filters=-nosan,-noasan
+test:asan --build_tag_filters=-nosan,-noasan
 
 build:ubsan --config=san-common
 build:ubsan --//gloop:sanitizer=ubsan
@@ -60,6 +61,7 @@ build:ubsan --copt=-D__SANITIZE_UNDEFINED__=1
 build:ubsan --copt=-O2
 test:ubsan --test_env=UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
 test:ubsan --test_tag_filters=-nosan,-noubsan
+test:ubsan --build_tag_filters=-nosan,-noubsan
 
 build:msan --config=san-common
 build:msan --//gloop:sanitizer=msan
@@ -69,12 +71,14 @@ build:msan --copt=-O2 # Avoids false positives from -Og
 build:msan --copt=-DLINUX_SYSCALL_ENABLE_HOOKS
 test:msan --test_env=MSAN_OPTIONS=symbolize=1:fast_unwind_on_malloc=0:poison_in_dtor=0
 test:msan --test_tag_filters=-nosan,-nomsan
+test:msan --build_tag_filters=-nosan,-nomsan
 
 build:tsan --config=san-common
 build:tsan --//gloop:sanitizer=tsan
 build:tsan --copt=-fsanitize=thread --linkopt=-fsanitize=thread
 build:tsan --copt=-DLINUX_SYSCALL_ENABLE_HOOKS
 test:tsan --test_tag_filters=-nosan,-notsan
+test:tsan --build_tag_filters=-nosan,-notsan
 
 # Remote build configuration for Gloop CI.
 build:remote --define=EXECUTOR=remote

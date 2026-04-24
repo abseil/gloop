@@ -41,6 +41,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "absl/types/source_location.h"
+#include "gloop/base/log_severity.h"
 #include "gloop/util/status/status.h"
 
 namespace util {

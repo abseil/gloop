@@ -193,7 +193,6 @@ cc_library(
         # by other targets. It is listed in textual_hdrs instead of srcs to
         # work around b/175618066.
         "status_internal.h",
-        "status_oss_shim.inc",
     ],
     deps = [
         ":non_message_set_payload_cc_proto",
@@ -270,6 +269,7 @@ cc_library(
     deps = [
         ":status",
         "//gloop/base:examine_stack",
+        "//gloop/base:logger",
         "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
