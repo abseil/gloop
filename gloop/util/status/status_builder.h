@@ -102,19 +102,6 @@ class StatusBuilderPrivateAccessor;
 
 // Forward declarations. See definitions for documentation.
 
-template <typename MessageSetExtension, typename ExtensionIdentifier>
-bool HasPayloadWithType(const StatusBuilder&, const ExtensionIdentifier&);
-template <typename MessageSetExtension>
-bool HasPayloadWithType(const StatusBuilder&);
-
-template <typename MessageSetExtension, typename ExtensionIdentifier>
-MessageSetExtension GetPayload(const StatusBuilder&,
-                               const ExtensionIdentifier&);
-template <typename MessageSetExtension>
-MessageSetExtension GetPayload(const StatusBuilder&);
-
-util::error::Code GetCanonicalCode(const StatusBuilder&);
-
 template <typename Enum>
 ABSL_MUST_USE_RESULT decltype(util::HasErrorCode(
     std::declval<const absl::Status&>(), std::declval<Enum>()))
@@ -520,58 +507,6 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // absence on one which extends `MessageSet`.
   bool HasPayload() const;
 
-  // HasPayloadWithType()
-  //
-  // Indicates whether the Status object that will be returned by the
-  // StatusBuilder contains a payload with a type extending proto2's MessageSet,
-  // returning `true` if so. The extension identifier is specified as the second
-  // argument. This function implicitly invokes `HasPayload()`, so you do not
-  // need to call it alongside a `HasPayloadWithType()` call.
-  template <typename MessageSetExtension, typename ExtensionIdentifier>
-  ABSL_DEPRECATE_AND_INLINE()
-  bool HasPayloadWithType(const ExtensionIdentifier& id) const {
-    return ::util::HasPayloadWithType<MessageSetExtension>(*this, id);
-  }
-
-  // Indicates whether the Status object that will be returned by the
-  // StatusBuilder contains a payload with a type extending proto2's
-  // `MessageSet`, returning `true` if so. The extension identifier is expected
-  // to be accessible as `MessageSetExtension::message_set_extension()`. This
-  // function implicitly invokes `HasPayload()`, so you do not need to call it
-  // alongside a `HasPayloadWithType()` call.
-  template <typename MessageSetExtension>
-  ABSL_DEPRECATE_AND_INLINE()
-  bool HasPayloadWithType() const {
-    return ::util::HasPayloadWithType<MessageSetExtension>(*this);
-  }
-
-  // GetPayload()
-  //
-  // Returns a copy of a payload object with type MessageSetExtension. The
-  // second argument specifies the ExtensionIdentifier. Before calling
-  // GetPayload, you should check the presence of the payload with this type by
-  // invoking HasPayloadWithType with the same arguments. Otherwise this call
-  // will lead to crash in case if payload if absent.
-  template <typename MessageSetExtension, typename ExtensionIdentifier>
-  ABSL_DEPRECATE_AND_INLINE()
-  MessageSetExtension GetPayload(const ExtensionIdentifier& id) const {
-    return ::util::GetPayload<MessageSetExtension>(*this, id);
-  }
-
-  // Returns a copy of a payload object with type MessageSetExtension. An
-  // extension id is expected to be accessible as
-  //   MessageSetExtension::message_set_extension.
-  //
-  // Note: before calling `GetPayload()`, you should check for the presence of a
-  // payload by invoking `HasPayloadWithType()` with the same arguments; not
-  // performing this check may lead to undefined behavior in cases where the
-  // payload is absent.
-  template <typename MessageSetExtension>
-  ABSL_DEPRECATE_AND_INLINE()
-  MessageSetExtension GetPayload() const {
-    return ::util::GetPayload<MessageSetExtension>(*this);
-  }
-
   // Sets the error code for the status that will be returned by this
   // StatusBuilder.  Returns `*this` to allow method chaining.
   template <typename Enum>
@@ -742,14 +677,6 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
 
   // Returns true if the Status created by this builder will be ok().
   ABSL_MUST_USE_RESULT bool ok() const;
-
-  // DEPRECATED: Use `code()`.
-  // Returns the canonical code for the Status created by this builder.
-  // Automatically converts to the canonical space if necessary.
-  ABSL_DEPRECATE_AND_INLINE()
-  ABSL_MUST_USE_RESULT util::error::Code CanonicalCode() const {
-    return ::util::GetCanonicalCode(*this);
-  }
 
   // Returns the (canonical) error code for the Status created by this builder.
   absl::StatusCode code() const;

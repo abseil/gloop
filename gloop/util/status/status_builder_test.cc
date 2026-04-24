@@ -316,7 +316,7 @@ TEST_F(StatusBuilderTest, ErrorCode) {
   {
     const StatusBuilder builder(absl::OkStatus());
     EXPECT_TRUE(builder.ok());
-    EXPECT_THAT(builder.CanonicalCode(), Eq(error::OK));
+    EXPECT_THAT(util::GetCanonicalCode(builder), Eq(error::OK));
     EXPECT_TRUE(builder.Is(error::OK));
     EXPECT_TRUE(util::HasErrorCode(builder, error::OK));
     EXPECT_TRUE(builder.Is(absl::StatusCode::kOk));
@@ -340,7 +340,7 @@ TEST_F(StatusBuilderTest, ErrorCode) {
   {
     const StatusBuilder builder = MakeStatusBuilder(kCustomOK);
     EXPECT_TRUE(builder.ok());
-    EXPECT_THAT(builder.CanonicalCode(), Eq(error::OK));
+    EXPECT_THAT(util::GetCanonicalCode(builder), Eq(error::OK));
     EXPECT_THAT(builder.code(), Eq(absl::StatusCode::kOk));
     EXPECT_TRUE(builder.Is(error::OK));
     EXPECT_TRUE(util::HasErrorCode(builder, error::OK));
@@ -364,7 +364,7 @@ TEST_F(StatusBuilderTest, ErrorCode) {
   {
     const StatusBuilder builder = MakeStatusBuilder(error::INVALID_ARGUMENT);
     EXPECT_FALSE(builder.ok());
-    EXPECT_THAT(builder.CanonicalCode(), Eq(error::INVALID_ARGUMENT));
+    EXPECT_THAT(util::GetCanonicalCode(builder), Eq(error::INVALID_ARGUMENT));
     EXPECT_THAT(builder.code(), Eq(absl::StatusCode::kInvalidArgument));
     EXPECT_TRUE(builder.Is(error::INVALID_ARGUMENT));
     EXPECT_TRUE(util::HasErrorCode(builder, error::INVALID_ARGUMENT));
@@ -395,7 +395,7 @@ TEST_F(StatusBuilderTest, ErrorCode) {
   {
     const StatusBuilder builder = MakeStatusBuilder(kZomg);
     EXPECT_FALSE(builder.ok());
-    EXPECT_THAT(builder.CanonicalCode(), Eq(error::UNKNOWN));
+    EXPECT_THAT(util::GetCanonicalCode(builder), Eq(error::UNKNOWN));
     EXPECT_FALSE(builder.Is(error::UNKNOWN));
     EXPECT_FALSE(util::HasErrorCode(builder, error::UNKNOWN));
     EXPECT_FALSE(builder.Is(absl::StatusCode::kUnknown));
@@ -818,13 +818,13 @@ TEST_F(StatusBuilderTest, MessageSetPayloadMethods) {
   EXPECT_FALSE(builder.HasPayload());
   builder.AttachPayload(MakePayloadProto(kPayloadMsg));
   EXPECT_TRUE(builder.HasPayload());
-  EXPECT_TRUE(builder.HasPayloadWithType<util::StatusProto>());
-  EXPECT_TRUE(builder.HasPayloadWithType<util::StatusProto>(
-      util::StatusProto::message_set_extension));
-  EXPECT_THAT(builder.GetPayload<util::StatusProto>(),
+  EXPECT_TRUE(util::HasPayloadWithType<util::StatusProto>(builder));
+  EXPECT_TRUE(util::HasPayloadWithType<util::StatusProto>(
+      builder, util::StatusProto::message_set_extension));
+  EXPECT_THAT(util::GetPayload<util::StatusProto>(builder),
               testing::EqualsProto(MakePayloadProto(kPayloadMsg)));
-  EXPECT_THAT(builder.GetPayload<util::StatusProto>(
-                  util::StatusProto::message_set_extension),
+  EXPECT_THAT(util::GetPayload<util::StatusProto>(
+                  builder, util::StatusProto::message_set_extension),
               testing::EqualsProto(MakePayloadProto(kPayloadMsg)));
 }
 
@@ -832,10 +832,10 @@ TEST_F(StatusBuilderTest, MessageSetPayloadMethodsOnOkStatus) {
   static const char* kPayloadMsg = "payload";
   StatusBuilder builder(absl::OkStatus(), absl::SourceLocation());
   EXPECT_FALSE(builder.HasPayload());
-  EXPECT_FALSE(builder.HasPayloadWithType<util::StatusProto>());
+  EXPECT_FALSE(util::HasPayloadWithType<util::StatusProto>(builder));
   builder.AttachPayload(MakePayloadProto(kPayloadMsg));
   EXPECT_FALSE(builder.HasPayload());
-  EXPECT_FALSE(builder.HasPayloadWithType<util::StatusProto>());
+  EXPECT_FALSE(util::HasPayloadWithType<util::StatusProto>(builder));
 }
 
 TEST_F(StatusBuilderTest, SetPayloadLvalue) {
