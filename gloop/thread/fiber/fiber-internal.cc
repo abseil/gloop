@@ -38,9 +38,9 @@ namespace thread {
 namespace internal {
 
 #ifdef FIBERS_UNOPTIMIZED_BUILD
-constexpr int32_t kDefaultFiberStackSize = 128 * 1024;
+constexpr int32_t kDefaultFiberStackSize = 256 * 1024;
 #else
-constexpr int32_t kDefaultFiberStackSize = 64 * 1024;
+constexpr int32_t kDefaultFiberStackSize = 128 * 1024;
 #endif
 
 // Weak definitions of OneShotAlarm in case eventmanager is not linked in.
