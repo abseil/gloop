@@ -444,7 +444,6 @@ cc_test(
     srcs = ["crc_unittest.cc"],
     deps = [
         ":crc",
-        "//gloop/base:init_google",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/flags:flag",
@@ -452,6 +451,7 @@ cc_test(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:flags",
         "@abseil-cpp//absl/strings:str_format",
+        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

@@ -42,171 +42,162 @@
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 using RandomEngine = std::minstd_rand0;
-
-// check (a_ == b_).  If not, log an error
-// NOTE: #a_ output the actual variable name used for a_
-#define TEST_EQ(a_, b_, error_)                                   \
-  if (a_ != b_) {                                                 \
-    LOG(ERROR) << #a_ << "=" << a_ << " != " << #b_ << "=" << b_; \
-    ++(error_);                                                   \
-  }
-
-// Compare bytes 0..len-1 of x and y.  If not equal, abort with verbose error
-// message showing position and numeric value that differed.
-// Handles embedded nulls just like any other byte.
-// Only added because std::string.compare() in gcc-3.3.3 seems to misbehave with
-// embedded nulls.
-// TODO: switch back to std::string::compare() if/when gcc is fixed
-#define CHECK_EQ_ARRAY(len, x, y, msg)                                      \
-  for (int j = 0; j < len; ++j) {                                           \
-    if (x[j] != y[j]) {                                                     \
-      LOG(FATAL) << "" #x << " != " #y << " byte " << j << " msg: " << msg; \
-    }                                                                       \
-  }
+using ::testing::ElementsAre;
+using ::testing::ElementsAreArray;
+using ::testing::Eq;
+using ::testing::IsEmpty;
 
 TEST(Util, GetPrintableString) {
-  LOG(INFO) << "Testing GetPrintableString";
-
-  int num_errors = 0;
   const char* p1 = nullptr;
   const char* p2 = "Hello world";
-  TEST_EQ(strcmp(GetPrintableString(p1), "(null)"), 0, num_errors);
-  TEST_EQ(GetPrintableString(p2), p2, num_errors);
-  ASSERT_EQ(0, num_errors);
+  EXPECT_STREQ(GetPrintableString(p1), "(null)");
+  EXPECT_STREQ(GetPrintableString(p2), p2);
 }
 
-TEST(Util, strnchr) {
-  LOG(INFO) << "Testing strnchr";
+struct StrnchrTestCase {
+  char search;
+  int cutoff;
+};
+
+class StrnchrTest : public testing::TestWithParam<StrnchrTestCase> {};
+
+TEST_P(StrnchrTest, Matches) {
   const char* input = "1234567890";
-  struct TestCases {
-    char search;
-    int cutoff;
-  } testcases[] = {{'5', 20}, {'1', 0}, {'9', 8}, {'8', 8}};
-
-  int num_errors = 0;
-  for (const TestCases& testcase : testcases) {
-    const char* test_result = strnchr(input, testcase.search, testcase.cutoff);
-    const char* golden_result = strchr(input, testcase.search);
-    if ((golden_result - input) >= testcase.cutoff) golden_result = nullptr;
-
-    if (golden_result != test_result) {
-      LOG(ERROR) << "strnchr(" << input << ", " << testcase.search << ", "
-                 << testcase.cutoff << ") = " << test_result
-                 << ".  Expect=" << golden_result;
-      ++num_errors;
-    }
-  }
-  ASSERT_EQ(0, num_errors);
+  const auto& testcase = GetParam();
+  const char* test_result = strnchr(input, testcase.search, testcase.cutoff);
+  const char* golden_result = strchr(input, testcase.search);
+  if ((golden_result - input) >= testcase.cutoff) golden_result = nullptr;
+  EXPECT_EQ(golden_result, test_result);
 }
 
-TEST(Util, strnstr) {
-  LOG(INFO) << "Testing strnstr";
+INSTANTIATE_TEST_SUITE_P(Util, StrnchrTest,
+                         testing::ValuesIn<StrnchrTestCase>(
+                             {{'5', 20}, {'1', 0}, {'9', 8}, {'8', 8}}));
+
+struct StrnstrTestCase {
+  const char* search;
+  int cutoff;
+};
+
+class StrnstrTest : public testing::TestWithParam<StrnstrTestCase> {};
+
+TEST_P(StrnstrTest, Matches) {
   const char* input = "1234567890";
-  const struct TestCases {
-    const char* search;
-    int cutoff;
-  } testcases[] = {
-      {"5", 20},  {"1", 0},   {"9", 8},    {"8", 8}, {"456", 5},
-      {"456", 6}, {"456", 7}, {"e", 9999}, {"", 9},
-  };
-
-  int num_errors = 0;
-  for (const TestCases& testcase : testcases) {
-    const char* test_result = strnstr(input, testcase.search, testcase.cutoff);
-    const char* golden_result = strstr(input, testcase.search);
-    if (golden_result &&
-        (golden_result + strlen(testcase.search) - input) > testcase.cutoff)
-      golden_result = nullptr;
-
-    if (golden_result != test_result) {
-      LOG(ERROR) << "strnstr(" << input << ", " << testcase.search << ", "
-                 << testcase.cutoff << ") = " << test_result
-                 << ".  Expect=" << golden_result;
-      ++num_errors;
-    }
+  const auto& testcase = GetParam();
+  const char* test_result = strnstr(input, testcase.search, testcase.cutoff);
+  const char* golden_result = strstr(input, testcase.search);
+  if (golden_result &&
+      (golden_result + strlen(testcase.search) - input) > testcase.cutoff) {
+    golden_result = nullptr;
   }
-  ASSERT_EQ(0, num_errors);
+  EXPECT_EQ(golden_result, test_result);
 }
+
+INSTANTIATE_TEST_SUITE_P(Util, StrnstrTest,
+                         testing::ValuesIn<StrnstrTestCase>({
+                             {"5", 20},
+                             {"1", 0},
+                             {"9", 8},
+                             {"8", 8},
+                             {"456", 5},
+                             {"456", 6},
+                             {"456", 7},
+                             {"e", 9999},
+                             {"", 9},
+                         }));
 
 TEST(Util, strprefix_family) {
-  LOG(INFO) << "Testing strprefix family";
   const char* const foobar = "foobar";
   const char* const FOOBAR = "FOOBAR";
   const char* const empty = "";
   const char* const null = nullptr;
 
-  CHECK_EQ(strprefix(foobar, "foo"), foobar + 3);
-  CHECK_EQ(strprefix(foobar, ""), foobar);
-  CHECK_EQ(strprefix(foobar, "foobar"), foobar + 6);
-  CHECK_EQ(strprefix(foobar, "bar"), null);
-  CHECK_EQ(strprefix(foobar, "foobarr"), null);
-  CHECK_EQ(strprefix(empty, ""), empty);
+  EXPECT_EQ(strprefix(foobar, "foo"), foobar + 3);
+  EXPECT_EQ(strprefix(foobar, ""), foobar);
+  EXPECT_EQ(strprefix(foobar, "foobar"), foobar + 6);
+  EXPECT_EQ(strprefix(foobar, "bar"), null);
+  EXPECT_EQ(strprefix(foobar, "foobarr"), null);
+  EXPECT_EQ(strprefix(empty, ""), empty);
 
-  CHECK_EQ(strcaseprefix(foobar, "FOO"), foobar + 3);
-  CHECK_EQ(strcaseprefix(FOOBAR, "foo"), FOOBAR + 3);
+  EXPECT_EQ(strcaseprefix(foobar, "FOO"), foobar + 3);
+  EXPECT_EQ(strcaseprefix(FOOBAR, "foo"), FOOBAR + 3);
 
-  CHECK_EQ(strnprefix(foobar, 6, "foo", 3), foobar + 3);
-  CHECK_EQ(strnprefix(foobar, 6, "", 0), foobar);
-  CHECK_EQ(strnprefix(foobar, 6, "foobar", 6), foobar + 6);
-  CHECK_EQ(strnprefix(foobar, 6, "bar", 3), null);
-  CHECK_EQ(strnprefix(foobar, 6, "foobarr", 7), null);
-  CHECK_EQ(strnprefix(empty, 0, "", 0), empty);
+  EXPECT_EQ(strnprefix(foobar, 6, "foo", 3), foobar + 3);
+  EXPECT_EQ(strnprefix(foobar, 6, "", 0), foobar);
+  EXPECT_EQ(strnprefix(foobar, 6, "foobar", 6), foobar + 6);
+  EXPECT_EQ(strnprefix(foobar, 6, "bar", 3), null);
+  EXPECT_EQ(strnprefix(foobar, 6, "foobarr", 7), null);
+  EXPECT_EQ(strnprefix(empty, 0, "", 0), empty);
 }
 
-static void TestOne_gstrncasestr_split(const char* haystack, const char* prefix,
-                                       char non_alpa, const char* suffix,
-                                       int pos, int subtract = 0) {
-  const char* where = gstrncasestr_split(haystack, prefix, non_alpa, suffix,
-                                         strlen(haystack) - subtract);
-  if (pos == -1) {
-    CHECK(where == nullptr);
-    return;
-  }
-  CHECK(pos == where - haystack);
-}
+struct GstrncasestrSplitTestCase {
+  const char* haystack;
+  const char* prefix;
+  char non_alpha;
+  const char* suffix;
+  int pos;
+  int subtract = 0;
+};
 
-TEST(Util, gstrncasestr_split) {
-  TestOne_gstrncasestr_split("abc.def", "abc", '.', "def", 0);
-  TestOne_gstrncasestr_split("abc.def", "abc", '.', "defg", -1);
-  TestOne_gstrncasestr_split("bc.def", "abc", '.', "def", -1);
-  TestOne_gstrncasestr_split("abc.de.abc.def", "abc", '.', "def", 7);
-  TestOne_gstrncasestr_split("abc.de.abc.de", "abc", '.', "def", -1);
-  TestOne_gstrncasestr_split("abc.de.abc.def", "abc", '.', "def", -1, 1);
+class GstrncasestrSplitTest
+    : public testing::TestWithParam<GstrncasestrSplitTestCase> {};
 
-  TestOne_gstrncasestr_split("Abc.Def", "abc", '.', "def", 0);
-  TestOne_gstrncasestr_split("abc.def", "aBc", '.', "dEf", 0);
-}
-
-TEST(Util, ScanForFirstWord) {
-  struct testcase {
-    int casenum;
-    const char* word;
-    int startpos, len;
-  } testcases[] = {
-      {1, "       hello    ", 7, 5},
-      {2, "     h    ", 5, 1},
-      {3, "\t\v\n\t xx", 5, 2},
-      {4, "hello\t    ", 0, 5},
-      {5, "  \t\t\t   ", -1, 0},
-      {0, nullptr, 0, 0}  // sentinel: casenum = 0
-  };
-
-  LOG(INFO) << "Testing ScanForFirstWord";
-
-  for (struct testcase* i = testcases; i->casenum; ++i) {
-    // check const case
-    absl::string_view result = strings::ScanForFirstWord(i->word);
-    if (i->startpos == -1) {
-      CHECK(result.empty());
-    } else {
-      CHECK(i->word + i->startpos == result.data()) << i->casenum;
-      CHECK(result.length() == i->len) << i->casenum;
-    }
+TEST_P(GstrncasestrSplitTest, Matches) {
+  const auto& testcase = GetParam();
+  const char* where = gstrncasestr_split(
+      testcase.haystack, testcase.prefix, testcase.non_alpha, testcase.suffix,
+      strlen(testcase.haystack) - testcase.subtract);
+  if (testcase.pos == -1) {
+    EXPECT_EQ(where, nullptr);
+  } else {
+    EXPECT_EQ(testcase.pos, where - testcase.haystack);
   }
 }
+
+INSTANTIATE_TEST_SUITE_P(Util, GstrncasestrSplitTest,
+                         testing::ValuesIn<GstrncasestrSplitTestCase>({
+                             {"abc.def", "abc", '.', "def", 0},
+                             {"abc.def", "abc", '.', "defg", -1},
+                             {"bc.def", "abc", '.', "def", -1},
+                             {"abc.de.abc.def", "abc", '.', "def", 7},
+                             {"abc.de.abc.de", "abc", '.', "def", -1},
+                             {"abc.de.abc.def", "abc", '.', "def", -1, 1},
+                             {"Abc.Def", "abc", '.', "def", 0},
+                             {"abc.def", "aBc", '.', "dEf", 0},
+                         }));
+
+struct ScanForFirstWordTestCase {
+  int casenum;
+  const char* word;
+  int startpos, len;
+};
+
+class ScanForFirstWordTest
+    : public testing::TestWithParam<ScanForFirstWordTestCase> {};
+
+TEST_P(ScanForFirstWordTest, Matches) {
+  const auto& testcase = GetParam();
+  absl::string_view result = strings::ScanForFirstWord(testcase.word);
+  if (testcase.startpos == -1) {
+    EXPECT_THAT(result, IsEmpty());
+  } else {
+    EXPECT_EQ(testcase.word + testcase.startpos, result.data());
+    EXPECT_EQ(result.length(), testcase.len);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(Util, ScanForFirstWordTest,
+                         testing::ValuesIn<ScanForFirstWordTestCase>({
+                             {1, "       hello    ", 7, 5},
+                             {2, "     h    ", 5, 1},
+                             {3, "\t\v\n\t xx", 5, 2},
+                             {4, "hello\t    ", 0, 5},
+                             {5, "  \t\t\t   ", -1, 0},
+                         }));
 
 TEST(ScanForFirstWord, EmptyInput) {
   absl::string_view sp;
@@ -274,46 +265,47 @@ TEST(ScanForFirstWord, MultiWord) {
 }
 
 TEST(Util, safestrncpy) {
-  LOG(INFO) << "Testing safestrncpy";
   static const char src[] = "abcdefg";
   char dst[12];
 
-  // Each test fills dst with 'x' so that errors in copying
-  // and padding may be detected
   memset(dst, 'x', sizeof(dst));
-  CHECK_EQ(safestrncpy(dst, src, 0), dst);
-  CHECK_EQ_ARRAY(sizeof(dst), dst, "xxxxxxxxxxxx", "n = 0");
+  EXPECT_EQ(safestrncpy(dst, src, 0), dst);
+  EXPECT_THAT(absl::string_view(dst, sizeof(dst)), Eq("xxxxxxxxxxxx"));
 
   memset(dst, 'x', sizeof(dst));
-  CHECK_EQ(safestrncpy(dst, src, 1), dst);
-  CHECK_EQ_ARRAY(sizeof(dst), dst, "\0xxxxxxxxxxx", "n = 1");
+  EXPECT_EQ(safestrncpy(dst, src, 1), dst);
+  EXPECT_THAT(absl::string_view(dst, sizeof(dst)),
+              Eq(absl::string_view("\0xxxxxxxxxxx", 12)));
 
   memset(dst, 'x', sizeof(dst));
-  CHECK_EQ(safestrncpy(dst, src, 2), dst);
-  CHECK_EQ_ARRAY(sizeof(dst), dst, "a\0xxxxxxxxxx", "n = 2");
+  EXPECT_EQ(safestrncpy(dst, src, 2), dst);
+  EXPECT_THAT(absl::string_view(dst, sizeof(dst)),
+              Eq(absl::string_view("a\0xxxxxxxxxx", 12)));
 
   memset(dst, 'x', sizeof(dst));
-  CHECK_EQ(safestrncpy(dst, src, 7), dst);
-  CHECK_EQ_ARRAY(sizeof(dst), dst, "abcdef\0xxxxx", "n = 7");
+  EXPECT_EQ(safestrncpy(dst, src, 7), dst);
+  EXPECT_THAT(absl::string_view(dst, sizeof(dst)),
+              Eq(absl::string_view("abcdef\0xxxxx", 12)));
 
   memset(dst, 'x', sizeof(dst));
-  CHECK_EQ(safestrncpy(dst, src, 8), dst);
-  CHECK_EQ_ARRAY(sizeof(dst), dst, "abcdefg\0xxxx", "n = 8");
+  EXPECT_EQ(safestrncpy(dst, src, 8), dst);
+  EXPECT_THAT(absl::string_view(dst, sizeof(dst)),
+              Eq(absl::string_view("abcdefg\0xxxx", 12)));
 
   memset(dst, 'x', sizeof(dst));
-  CHECK_EQ(safestrncpy(dst, src, 9), dst);
-  CHECK_EQ_ARRAY(sizeof(dst), dst, "abcdefg\0xxxx", "n = 9");
+  EXPECT_EQ(safestrncpy(dst, src, 9), dst);
+  EXPECT_THAT(absl::string_view(dst, sizeof(dst)),
+              Eq(absl::string_view("abcdefg\0xxxx", 12)));
 }
 
 TEST(Util, PrefixSuccessor) {
-  LOG(INFO) << "Testing PrefixSuccessor";
-  CHECK_EQ(PrefixSuccessor("a"), "b");
-  CHECK_EQ(PrefixSuccessor("aaAA"), "aaAB");
-  CHECK_EQ(PrefixSuccessor("aaa\xff"), "aab");
-  CHECK_EQ(PrefixSuccessor(std::string("\x00", 1)), "\x01");
-  CHECK_EQ(PrefixSuccessor("az\xe0"), "az\xe1");
-  CHECK_EQ(PrefixSuccessor("\xff\xff\xff"), "");
-  CHECK_EQ(PrefixSuccessor(""), "");
+  EXPECT_EQ(PrefixSuccessor("a"), "b");
+  EXPECT_EQ(PrefixSuccessor("aaAA"), "aaAB");
+  EXPECT_EQ(PrefixSuccessor("aaa\xff"), "aab");
+  EXPECT_EQ(PrefixSuccessor(std::string("\x00", 1)), "\x01");
+  EXPECT_EQ(PrefixSuccessor("az\xe0"), "az\xe1");
+  EXPECT_EQ(PrefixSuccessor("\xff\xff\xff"), "");
+  EXPECT_EQ(PrefixSuccessor(""), "");
 }
 
 TEST(Util, PrefixSuccessor_InPlace) {
@@ -348,9 +340,8 @@ TEST(Util, PrefixSuccessor_InPlace) {
 }
 
 TEST(Util, ImmediateSuccessor) {
-  LOG(INFO) << "Testing ImmediateSuccessor";
-  CHECK_EQ(ImmediateSuccessor("hello"), absl::string_view("hello\0", 6));
-  CHECK_EQ(ImmediateSuccessor(""), absl::string_view("\0", 1));
+  EXPECT_EQ(ImmediateSuccessor("hello"), absl::string_view("hello\0", 6));
+  EXPECT_EQ(ImmediateSuccessor(""), absl::string_view("\0", 1));
 }
 
 static std::string ShortSeparator(absl::string_view a, absl::string_view b) {
@@ -448,20 +439,19 @@ static void BM_ImmediateSuccessor(benchmark::State& state) {
 BENCHMARK(BM_ImmediateSuccessor)->Range(0, 1 << 20);
 
 TEST(Util, strcasestr_alnum) {
-  LOG(INFO) << "Testing strcasestr_alnum";
-  CHECK(strcasestr_alnum("", "") != nullptr);
-  CHECK(strcasestr_alnum("test", " TeSt! ") != nullptr);
-  CHECK(strcasestr_alnum(" TeSt! ", "test") != nullptr);
-  CHECK(strcasestr_alnum("#$%^", "^&*(") != nullptr);
-  CHECK(strcasestr_alnum("#$%^", "^&*(a") == nullptr);
-  CHECK(strcasestr_alnum("This is a longer test string", "ISALONGER") !=
-        nullptr);
-  CHECK(strcasestr_alnum("This is a longer test string", "ISALONGEL") ==
-        nullptr);
-  CHECK(strcasestr_alnum("This is a longer test string", "IS-A-LONGER") !=
-        nullptr);
-  CHECK(strcasestr_alnum("This is a longer test string", "IS-A-LONGEL") ==
-        nullptr);
+  EXPECT_NE(strcasestr_alnum("", ""), nullptr);
+  EXPECT_NE(strcasestr_alnum("test", " TeSt! "), nullptr);
+  EXPECT_NE(strcasestr_alnum(" TeSt! ", "test"), nullptr);
+  EXPECT_NE(strcasestr_alnum("#$%^", "^&*("), nullptr);
+  EXPECT_EQ(strcasestr_alnum("#$%^", "^&*(a"), nullptr);
+  EXPECT_NE(strcasestr_alnum("This is a longer test string", "ISALONGER"),
+            nullptr);
+  EXPECT_EQ(strcasestr_alnum("This is a longer test string", "ISALONGEL"),
+            nullptr);
+  EXPECT_NE(strcasestr_alnum("This is a longer test string", "IS-A-LONGER"),
+            nullptr);
+  EXPECT_EQ(strcasestr_alnum("This is a longer test string", "IS-A-LONGEL"),
+            nullptr);
 }
 
 TEST(Util, UniformInsertString) {
@@ -520,7 +510,7 @@ TEST(Util, UniformInsertString) {
   for (const TestCase& test : tests) {
     std::string s = test.orig;
     UniformInsertString(&s, test.interval, test.seperator);
-    CHECK_STREQ(s.c_str(), test.expected);
+    EXPECT_STREQ(s.c_str(), test.expected);
   }
 }
 
@@ -557,128 +547,121 @@ TEST(Util, IsIdentifier) {
 }
 
 TEST(Util, AdvanceIdentifierDeprecated) {
-  LOG(INFO) << "Testing AdvanceIdentifier and IsIdentifier";
-
   const char* id = "A9__b*";
-  CHECK_EQ(AdvanceIdentifier(id), id + 5);
-  CHECK(AdvanceIdentifier(id + 1) == nullptr);
-  CHECK_EQ(AdvanceIdentifier(id + 2), id + 5);
-  CHECK(!IsIdentifier(id));
+  EXPECT_EQ(AdvanceIdentifier(id), id + 5);
+  EXPECT_EQ(AdvanceIdentifier(id + 1), nullptr);
+  EXPECT_EQ(AdvanceIdentifier(id + 2), id + 5);
+  EXPECT_FALSE(IsIdentifier(id));
   id = "String";
-  CHECK_EQ(AdvanceIdentifier(id), id + 6);
-  CHECK(AdvanceIdentifier("") == nullptr);
-  CHECK(!IsIdentifier(""));
-  CHECK(IsIdentifier("gOOgle"));
-  CHECK(!IsIdentifier("space "));
-  CHECK(!IsIdentifier("42"));
+  EXPECT_EQ(AdvanceIdentifier(id), id + 6);
+  EXPECT_EQ(AdvanceIdentifier(""), nullptr);
+  EXPECT_FALSE(IsIdentifier(""));
+  EXPECT_TRUE(IsIdentifier("gOOgle"));
+  EXPECT_FALSE(IsIdentifier("space "));
+  EXPECT_FALSE(IsIdentifier("42"));
 }
 
 TEST(Util, FindNth) {
-  LOG(INFO) << "Testing FindNth";
   const std::string helloworld("hello, world");
-  CHECK_EQ(FindNth(helloworld, 'l', 1), 2);
-  CHECK_EQ(FindNth(helloworld, 'l', 2), 3);
-  CHECK_EQ(FindNth(helloworld, 'l', 3), 10);
-  CHECK_EQ(FindNth(helloworld, 'x', 1), std::string::npos);
-  CHECK_EQ(FindNth(helloworld, 'l', 4), std::string::npos);
-  CHECK_EQ(FindNth(helloworld, 'l', 0), std::string::npos);
-  CHECK_EQ(FindNth(helloworld, 'l', -2), std::string::npos);
-  CHECK_EQ(FindNth(helloworld, 'd', 0), std::string::npos);
-  CHECK_EQ(FindNth(helloworld, 'd', 1), 11);
-  CHECK_EQ(FindNth(helloworld, 'd', 2), std::string::npos);
-  CHECK_EQ(FindNth(helloworld, 'h', 0), std::string::npos);
-  CHECK_EQ(FindNth(helloworld, 'h', 1), 0);
-  CHECK_EQ(FindNth(helloworld, 'h', 2), std::string::npos);
+  EXPECT_EQ(FindNth(helloworld, 'l', 1), 2);
+  EXPECT_EQ(FindNth(helloworld, 'l', 2), 3);
+  EXPECT_EQ(FindNth(helloworld, 'l', 3), 10);
+  EXPECT_EQ(FindNth(helloworld, 'x', 1), std::string::npos);
+  EXPECT_EQ(FindNth(helloworld, 'l', 4), std::string::npos);
+  EXPECT_EQ(FindNth(helloworld, 'l', 0), std::string::npos);
+  EXPECT_EQ(FindNth(helloworld, 'l', -2), std::string::npos);
+  EXPECT_EQ(FindNth(helloworld, 'd', 0), std::string::npos);
+  EXPECT_EQ(FindNth(helloworld, 'd', 1), 11);
+  EXPECT_EQ(FindNth(helloworld, 'd', 2), std::string::npos);
+  EXPECT_EQ(FindNth(helloworld, 'h', 0), std::string::npos);
+  EXPECT_EQ(FindNth(helloworld, 'h', 1), 0);
+  EXPECT_EQ(FindNth(helloworld, 'h', 2), std::string::npos);
 
-  CHECK_EQ(FindNth("", 'd', 0), std::string::npos);
-  CHECK_EQ(FindNth("", 'd', 1), std::string::npos);
+  EXPECT_EQ(FindNth("", 'd', 0), std::string::npos);
+  EXPECT_EQ(FindNth("", 'd', 1), std::string::npos);
 
-  CHECK_EQ(FindNth("d", 'd', 0), std::string::npos);
-  CHECK_EQ(FindNth("d", 'd', 1), 0);
-  CHECK_EQ(FindNth("d", 'd', 2), std::string::npos);
-  CHECK_EQ(FindNth("d", 'e', 1), std::string::npos);
+  EXPECT_EQ(FindNth("d", 'd', 0), std::string::npos);
+  EXPECT_EQ(FindNth("d", 'd', 1), 0);
+  EXPECT_EQ(FindNth("d", 'd', 2), std::string::npos);
+  EXPECT_EQ(FindNth("d", 'e', 1), std::string::npos);
 
-  CHECK_EQ(FindNth("dd", 'd', 0), std::string::npos);
-  CHECK_EQ(FindNth("dd", 'd', 1), 0);
-  CHECK_EQ(FindNth("dd", 'd', 2), 1);
-  CHECK_EQ(FindNth("dd", 'd', 3), std::string::npos);
-  CHECK_EQ(FindNth("dd", 'e', 1), std::string::npos);
+  EXPECT_EQ(FindNth("dd", 'd', 0), std::string::npos);
+  EXPECT_EQ(FindNth("dd", 'd', 1), 0);
+  EXPECT_EQ(FindNth("dd", 'd', 2), 1);
+  EXPECT_EQ(FindNth("dd", 'd', 3), std::string::npos);
+  EXPECT_EQ(FindNth("dd", 'e', 1), std::string::npos);
 }
 
 TEST(Util, ReverseFindNth) {
-  LOG(INFO) << "Testing ReverseFindNth";
   const std::string helloworld("hello, world");
-  CHECK_EQ(ReverseFindNth(helloworld, 'l', 1), 10);
-  CHECK_EQ(ReverseFindNth(helloworld, 'l', 2), 3);
-  CHECK_EQ(ReverseFindNth(helloworld, 'l', 3), 2);
-  CHECK_EQ(ReverseFindNth(helloworld, 'x', 1), std::string::npos);
-  CHECK_EQ(ReverseFindNth(helloworld, 'l', 4), std::string::npos);
-  CHECK_EQ(ReverseFindNth(helloworld, 'l', 0), std::string::npos);
-  CHECK_EQ(ReverseFindNth(helloworld, 'l', -2), std::string::npos);
-  CHECK_EQ(ReverseFindNth(helloworld, 'h', 0), std::string::npos);
-  CHECK_EQ(ReverseFindNth(helloworld, 'h', 1), 0);
-  CHECK_EQ(ReverseFindNth(helloworld, 'h', 2), std::string::npos);
-  CHECK_EQ(ReverseFindNth(helloworld, 'h', 3), std::string::npos);
-  CHECK_EQ(ReverseFindNth(helloworld, 'e', 0), std::string::npos);
-  CHECK_EQ(ReverseFindNth(helloworld, 'e', 1), 1);
-  CHECK_EQ(ReverseFindNth(helloworld, 'e', 2), std::string::npos);
-  CHECK_EQ(ReverseFindNth(helloworld, 'e', 3), std::string::npos);
-  CHECK_EQ(ReverseFindNth(helloworld, 'd', 0), std::string::npos);
-  CHECK_EQ(ReverseFindNth(helloworld, 'd', 1), 11);
-  CHECK_EQ(ReverseFindNth(helloworld, 'd', 2), std::string::npos);
-  CHECK_EQ(ReverseFindNth(helloworld, 'd', 3), std::string::npos);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'l', 1), 10);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'l', 2), 3);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'l', 3), 2);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'x', 1), std::string::npos);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'l', 4), std::string::npos);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'l', 0), std::string::npos);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'l', -2), std::string::npos);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'h', 0), std::string::npos);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'h', 1), 0);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'h', 2), std::string::npos);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'h', 3), std::string::npos);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'e', 0), std::string::npos);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'e', 1), 1);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'e', 2), std::string::npos);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'e', 3), std::string::npos);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'd', 0), std::string::npos);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'd', 1), 11);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'd', 2), std::string::npos);
+  EXPECT_EQ(ReverseFindNth(helloworld, 'd', 3), std::string::npos);
 
-  CHECK_EQ(ReverseFindNth("", 'd', 0), std::string::npos);
-  CHECK_EQ(ReverseFindNth("", 'd', 1), std::string::npos);
+  EXPECT_EQ(ReverseFindNth("", 'd', 0), std::string::npos);
+  EXPECT_EQ(ReverseFindNth("", 'd', 1), std::string::npos);
 
-  CHECK_EQ(ReverseFindNth("d", 'd', 0), std::string::npos);
-  CHECK_EQ(ReverseFindNth("d", 'd', 1), 0);
-  CHECK_EQ(ReverseFindNth("d", 'd', 2), std::string::npos);
-  CHECK_EQ(ReverseFindNth("d", 'e', 1), std::string::npos);
+  EXPECT_EQ(ReverseFindNth("d", 'd', 0), std::string::npos);
+  EXPECT_EQ(ReverseFindNth("d", 'd', 1), 0);
+  EXPECT_EQ(ReverseFindNth("d", 'd', 2), std::string::npos);
+  EXPECT_EQ(ReverseFindNth("d", 'e', 1), std::string::npos);
 
-  CHECK_EQ(ReverseFindNth("dd", 'd', 0), std::string::npos);
-  CHECK_EQ(ReverseFindNth("dd", 'd', 1), 1);
-  CHECK_EQ(ReverseFindNth("dd", 'd', 2), 0);
-  CHECK_EQ(ReverseFindNth("dd", 'd', 3), std::string::npos);
-  CHECK_EQ(ReverseFindNth("dd", 'e', 1), std::string::npos);
+  EXPECT_EQ(ReverseFindNth("dd", 'd', 0), std::string::npos);
+  EXPECT_EQ(ReverseFindNth("dd", 'd', 1), 1);
+  EXPECT_EQ(ReverseFindNth("dd", 'd', 2), 0);
+  EXPECT_EQ(ReverseFindNth("dd", 'd', 3), std::string::npos);
+  EXPECT_EQ(ReverseFindNth("dd", 'e', 1), std::string::npos);
 }
 
 TEST(Util, OnlyWhitespace) {
-  LOG(INFO) << "Testing OnlyWhitespace";
-  CHECK_EQ(OnlyWhitespace("tt"), false);
-  CHECK_EQ(OnlyWhitespace("tt\f \n  "), false);
-  CHECK_EQ(OnlyWhitespace("\t \r  tt"), false);
-  CHECK_EQ(OnlyWhitespace("\t\v  \n "), true);
-  CHECK_EQ(OnlyWhitespace("  "), true);
-  CHECK_EQ(OnlyWhitespace(" "), true);
-  CHECK_EQ(OnlyWhitespace(""), true);
+  EXPECT_EQ(OnlyWhitespace("tt"), false);
+  EXPECT_EQ(OnlyWhitespace("tt\f \n  "), false);
+  EXPECT_EQ(OnlyWhitespace("\t \r  tt"), false);
+  EXPECT_EQ(OnlyWhitespace("\t\v  \n "), true);
+  EXPECT_EQ(OnlyWhitespace("  "), true);
+  EXPECT_EQ(OnlyWhitespace(" "), true);
+  EXPECT_EQ(OnlyWhitespace(""), true);
 }
 
 TEST(Util, ContainsWhitespace) {
-  LOG(INFO) << "Testing ContainsWhitespace";
-  CHECK_EQ(strings::ContainsWhitespace("tt"), false);
-  CHECK_EQ(strings::ContainsWhitespace("tt\f \n  "), true);
-  CHECK_EQ(strings::ContainsWhitespace("\t \r  tt"), true);
-  CHECK_EQ(strings::ContainsWhitespace("\t\v  \n "), true);
-  CHECK_EQ(strings::ContainsWhitespace("  "), true);
-  CHECK_EQ(strings::ContainsWhitespace(" "), true);
-  CHECK_EQ(strings::ContainsWhitespace(""), false);
+  EXPECT_EQ(strings::ContainsWhitespace("tt"), false);
+  EXPECT_EQ(strings::ContainsWhitespace("tt\f \n  "), true);
+  EXPECT_EQ(strings::ContainsWhitespace("\t \r  tt"), true);
+  EXPECT_EQ(strings::ContainsWhitespace("\t\v  \n "), true);
+  EXPECT_EQ(strings::ContainsWhitespace("  "), true);
+  EXPECT_EQ(strings::ContainsWhitespace(" "), true);
+  EXPECT_EQ(strings::ContainsWhitespace(""), false);
 }
 
 TEST(Util, StringSuffix) {
-  LOG(INFO) << "Testing strsuffix";
   const std::string with_suffix("string with a suffix");
   const std::string without_suffix("not in this string");
   const std::string suffix("suffix");
   const char* first_check = strsuffix(with_suffix.c_str(), suffix.c_str());
-  CHECK(first_check != nullptr);
-  CHECK_EQ(strcmp(first_check, suffix.c_str()), 0);
+  EXPECT_NE(first_check, nullptr);
+  EXPECT_EQ(strcmp(first_check, suffix.c_str()), 0);
   const char* second_check = strsuffix(without_suffix.c_str(), suffix.c_str());
-  CHECK(second_check == nullptr);
+  EXPECT_EQ(second_check, nullptr);
   const char* third_check = strnsuffix(with_suffix.c_str(), with_suffix.size(),
                                        suffix.c_str(), suffix.size());
-  CHECK(third_check != nullptr);
-  CHECK_EQ(strcmp(third_check, suffix.c_str()), 0);
+  EXPECT_NE(third_check, nullptr);
+  EXPECT_EQ(strcmp(third_check, suffix.c_str()), 0);
 
   struct SuffixTestCase {
     // Test inputs...
@@ -712,94 +695,92 @@ TEST(Util, StringSuffix) {
     const char* ncasesuffix = strncasesuffix(t.haystack, strlen(t.haystack),
                                              t.needle, strlen(t.needle));
     if (t.case_sensitive_matches) {
-      CHECK_STREQ(suffix, t.needle);
-      CHECK_STREQ(nsuffix, t.needle);
+      EXPECT_STREQ(suffix, t.needle);
+      EXPECT_STREQ(nsuffix, t.needle);
     } else {
-      CHECK(!suffix);
-      CHECK(!nsuffix);
+      EXPECT_EQ(suffix, nullptr);
+      EXPECT_EQ(nsuffix, nullptr);
     }
     if (t.case_insensitive_matches) {
-      CHECK_STRCASEEQ(casesuffix, t.needle);
-      CHECK_STRCASEEQ(ncasesuffix, t.needle);
+      EXPECT_STRCASEEQ(casesuffix, t.needle);
+      EXPECT_STRCASEEQ(ncasesuffix, t.needle);
     } else {
-      CHECK(!casesuffix);
-      CHECK(!ncasesuffix);
+      EXPECT_EQ(casesuffix, nullptr);
+      EXPECT_EQ(ncasesuffix, nullptr);
     }
   }
 }
 
 TEST(Util, StrStrDelimited) {
-  LOG(INFO) << "Testing strstr_delimited()";
-
   const char* haystack = "foo";
-  CHECK_EQ(strstr_delimited(haystack, haystack, 'z'), haystack);
-  CHECK(strstr_delimited(haystack, "fo", 'z') == nullptr);
-  CHECK_EQ(strstr_delimited(haystack, "foo", ','), haystack);
+  EXPECT_EQ(strstr_delimited(haystack, haystack, 'z'), haystack);
+  EXPECT_EQ(strstr_delimited(haystack, "fo", 'z'), nullptr);
+  EXPECT_EQ(strstr_delimited(haystack, "foo", ','), haystack);
 
   haystack = "foo,bar";
-  CHECK_EQ(strstr_delimited(haystack, "foo", ','), haystack);
-  CHECK_EQ(strstr_delimited(haystack, "bar", ','), haystack + 4);
+  EXPECT_EQ(strstr_delimited(haystack, "foo", ','), haystack);
+  EXPECT_EQ(strstr_delimited(haystack, "bar", ','), haystack + 4);
 
   // If needle is empty, should always return haystack.
-  CHECK_EQ(strstr_delimited(haystack, "", ','), haystack);
+  EXPECT_EQ(strstr_delimited(haystack, "", ','), haystack);
 
   // Substring contains a delimiter, but isn't delimited on both sides.
-  CHECK(strstr_delimited(haystack, "oo,b", ',') == nullptr);
+  EXPECT_EQ(strstr_delimited(haystack, "oo,b", ','), nullptr);
 
   haystack = "foo,bar,foofoo";
-  CHECK_EQ(strstr_delimited(haystack, "foo", ','), haystack);
-  CHECK_EQ(strstr_delimited(haystack, "bar", ','), haystack + 4);
-  CHECK_EQ(strstr_delimited(haystack, "foofoo", ','), haystack + 8);
+  EXPECT_EQ(strstr_delimited(haystack, "foo", ','), haystack);
+  EXPECT_EQ(strstr_delimited(haystack, "bar", ','), haystack + 4);
+  EXPECT_EQ(strstr_delimited(haystack, "foofoo", ','), haystack + 8);
 
   // A haystack always contains itself, even if needle contains delimiters.
-  CHECK_EQ(strstr_delimited(haystack, haystack, ','), haystack);
+  EXPECT_EQ(strstr_delimited(haystack, haystack, ','), haystack);
 
   // Substring contains a delimiter, and is delimited on both sides.
-  CHECK_EQ(strstr_delimited(haystack, "foo,bar", ','), haystack);
-  CHECK_EQ(strstr_delimited(haystack, "bar,foofoo", ','), haystack + 4);
+  EXPECT_EQ(strstr_delimited(haystack, "foo,bar", ','), haystack);
+  EXPECT_EQ(strstr_delimited(haystack, "bar,foofoo", ','), haystack + 4);
 
   // strstr() would return true on substrings of items, but we shouldn't.
-  CHECK(strstr_delimited(haystack, "foof", ',') == nullptr);
+  EXPECT_EQ(strstr_delimited(haystack, "foof", ','), nullptr);
 
   // Substring contains a delimiter, but isn't delimited on both sides.
-  CHECK(strstr_delimited(haystack, "o,bar,f", ',') == nullptr);
+  EXPECT_EQ(strstr_delimited(haystack, "o,bar,f", ','), nullptr);
 
   // Courtesy of turnidge.
   haystack = "aaaa,a,a,b";
-  CHECK_EQ(strstr_delimited(haystack, "a,a", ','), haystack + 5);
+  EXPECT_EQ(strstr_delimited(haystack, "a,a", ','), haystack + 5);
 
   // Should return the first match
   haystack = "foo,bar,foo";
-  CHECK_EQ(strstr_delimited(haystack, "foo", ','), haystack);
+  EXPECT_EQ(strstr_delimited(haystack, "foo", ','), haystack);
   haystack = "baz,foo,bar,foo";
-  CHECK_EQ(strstr_delimited(haystack, "foo", ','), haystack + 4);
+  EXPECT_EQ(strstr_delimited(haystack, "foo", ','), haystack + 4);
   haystack = "foo,bar,foo,baz";
-  CHECK_EQ(strstr_delimited(haystack, "foo", ','), haystack);
+  EXPECT_EQ(strstr_delimited(haystack, "foo", ','), haystack);
   haystack = "baz,foo,bar,foo,baz";
-  CHECK_EQ(strstr_delimited(haystack, "foo", ','), haystack + 4);
+  EXPECT_EQ(strstr_delimited(haystack, "foo", ','), haystack + 4);
 
   haystack = "";
   // An empty haystack only contains an empty needle, nothing else.
-  CHECK(strstr_delimited(haystack, "foo", '!') == nullptr);
-  CHECK_EQ(strstr_delimited(haystack, "", '!'), haystack);
+  EXPECT_EQ(strstr_delimited(haystack, "foo", '!'), nullptr);
+  EXPECT_EQ(strstr_delimited(haystack, "", '!'), haystack);
 
   // Consecutive delimiters shouldn't throw us off.
   haystack = ",,,,foo";
-  CHECK_EQ(strstr_delimited(haystack, "foo", ','), haystack + 4);
+  EXPECT_EQ(strstr_delimited(haystack, "foo", ','), haystack + 4);
   haystack = "foo,,,,";
-  CHECK_EQ(strstr_delimited(haystack, "foo", ','), haystack);
+  EXPECT_EQ(strstr_delimited(haystack, "foo", ','), haystack);
 
   // If either needle/haystack is nullptr, should return nullptr.
-  CHECK(strstr_delimited(nullptr, nullptr, ',') == nullptr);
-  CHECK(strstr_delimited("", nullptr, ',') == nullptr);
-  CHECK(strstr_delimited(nullptr, "", ',') == nullptr);
+  EXPECT_EQ(strstr_delimited(nullptr, nullptr, ','), nullptr);
+  EXPECT_EQ(strstr_delimited("", nullptr, ','), nullptr);
+  EXPECT_EQ(strstr_delimited(nullptr, "", ','), nullptr);
 
   // needles beginning or ending with delimiters are tricky. We
   // currently return nullptr in these cases, which seems fine enough.
   haystack = "a,,,b,c";
-  CHECK(strstr_delimited(haystack, ",,,b", ',') == nullptr);
-  CHECK(strstr_delimited(haystack, "b,", ',') == nullptr);
-  CHECK(strstr_delimited(haystack, ",,b,", ',') == nullptr);
+  EXPECT_EQ(strstr_delimited(haystack, ",,,b", ','), nullptr);
+  EXPECT_EQ(strstr_delimited(haystack, "b,", ','), nullptr);
+  EXPECT_EQ(strstr_delimited(haystack, ",,b,", ','), nullptr);
 }
 
 void BM_StrStrDelimited(benchmark::State& state) {
@@ -870,29 +851,27 @@ BENCHMARK(BM_StrStrDelimited)
     ->ArgPair(1024 * 1024, 256);
 
 TEST(Util, GStrNCaseStr) {
-  LOG(INFO) << "Testing gstrncasestr()";
-
   char haystack[] = "abCDEfGhIj";
   const int hay_len = strlen(haystack);
-  CHECK_EQ(gstrncasestr(haystack, haystack, hay_len), haystack);
-  CHECK(gstrncasestr(haystack, "jk", hay_len) == nullptr);
-  CHECK(gstrncasestr(haystack, "ij", hay_len) == haystack + 8);
-  CHECK(gstrncasestr(haystack, "ij", hay_len - 2) == nullptr);
-  CHECK(gstrncasestr(haystack, "ij", hay_len - 1) == nullptr);
-  CHECK(gstrncasestr(haystack, "Ij", hay_len - 1) == nullptr);
+  EXPECT_EQ(gstrncasestr(haystack, haystack, hay_len), haystack);
+  EXPECT_EQ(gstrncasestr(haystack, "jk", hay_len), nullptr);
+  EXPECT_EQ(gstrncasestr(haystack, "ij", hay_len), haystack + 8);
+  EXPECT_EQ(gstrncasestr(haystack, "ij", hay_len - 2), nullptr);
+  EXPECT_EQ(gstrncasestr(haystack, "ij", hay_len - 1), nullptr);
+  EXPECT_EQ(gstrncasestr(haystack, "Ij", hay_len - 1), nullptr);
   // If needle is empty, should always return haystack.
-  CHECK_EQ(gstrncasestr(haystack, "", hay_len), haystack);
+  EXPECT_EQ(gstrncasestr(haystack, "", hay_len), haystack);
 
   // should not be checking beyond the '\0'
   haystack[3] = '\0';
-  CHECK(gstrncasestr(haystack, "ij", hay_len) == nullptr);
-  CHECK(gstrncasestr(haystack, "Ij", hay_len) == nullptr);
-  CHECK(gstrncasestr(haystack, "I", 0) == nullptr);
+  EXPECT_EQ(gstrncasestr(haystack, "ij", hay_len), nullptr);
+  EXPECT_EQ(gstrncasestr(haystack, "Ij", hay_len), nullptr);
+  EXPECT_EQ(gstrncasestr(haystack, "I", 0), nullptr);
   char* null_ptr = nullptr;
-  CHECK(gstrncasestr(null_ptr, "I", 0) == nullptr);
-  CHECK(gstrncasestr(haystack, "", 5) == haystack);
-  CHECK(gstrncasestr(haystack, "", 0) == haystack);
-  CHECK(gstrncasestr(null_ptr, "", 0) == nullptr);
+  EXPECT_EQ(gstrncasestr(null_ptr, "I", 0), nullptr);
+  EXPECT_EQ(gstrncasestr(haystack, "", 5), haystack);
+  EXPECT_EQ(gstrncasestr(haystack, "", 0), haystack);
+  EXPECT_EQ(gstrncasestr(null_ptr, "", 0), nullptr);
 }
 
 static int StringByReferenceRoutine(absl::string_view s) {
@@ -1094,14 +1073,14 @@ BENCHMARK(BM_return_string_out_param_noalloc)->Range(0, 1 << 20);
 
 TEST(stringtest, strcount) {
   const std::string buf("/i/married/an/aardvark/by/accident/");
-  ASSERT_EQ(strcount(buf, '/'), 7);
-  ASSERT_EQ(strcount(buf.c_str(), '/'), 7);
-  ASSERT_EQ(strcount(buf.c_str(), buf.size(), '/'), 7);
-  ASSERT_EQ(strcount(buf.c_str(), buf.c_str() + buf.size(), '/'), 7);
+  EXPECT_EQ(strcount(buf, '/'), 7);
+  EXPECT_EQ(strcount(buf.c_str(), '/'), 7);
+  EXPECT_EQ(strcount(buf.c_str(), buf.size(), '/'), 7);
+  EXPECT_EQ(strcount(buf.c_str(), buf.c_str() + buf.size(), '/'), 7);
 
-  ASSERT_EQ(strcount(buf.c_str(), 5, '/'),
+  EXPECT_EQ(strcount(buf.c_str(), 5, '/'),
             2);  // stops after 5 chars.
-  ASSERT_EQ(strcount(buf + std::string(1, '\0') + "/mr/khawaja/", '/'),
+  EXPECT_EQ(strcount(buf + std::string(1, '\0') + "/mr/khawaja/", '/'),
             10);  // goes past null char.
 }
 
@@ -1167,7 +1146,7 @@ TEST(stringtest, GetlineFromStdioFileOne) {
   std::string fname =
       ::testing::SrcDir() + "/_main/gloop/strings/testdata/getline-1.txt";
   FILE* fp = fopen(fname.c_str(), "r");
-  CHECK(fp != nullptr) << fname;
+  ASSERT_NE(fp, nullptr) << fname;
 
   std::string str;
   EXPECT_TRUE(GetlineFromStdioFile(fp, &str, '\n'));
@@ -1177,7 +1156,7 @@ TEST(stringtest, GetlineFromStdioFileOne) {
   EXPECT_TRUE(GetlineFromStdioFile(fp, &str, '\n'));
   EXPECT_EQ("beta gamma", str);
   EXPECT_FALSE(GetlineFromStdioFile(fp, &str, '\n'));
-  CHECK_EQ(fclose(fp), 0) << fname;
+  EXPECT_EQ(fclose(fp), 0) << fname;
 }
 
 TEST(stringtest, TestIsPrintSingleChar) {
@@ -1209,7 +1188,7 @@ TEST(stringtest, GetlineFromStdioFileTwo) {
   std::string fname =
       ::testing::SrcDir() + "/_main/gloop/strings/testdata/getline-2.txt";
   FILE* fp = fopen(fname.c_str(), "r");
-  CHECK(fp != nullptr) << fname;
+  ASSERT_NE(fp, nullptr) << fname;
 
   std::string str;
   EXPECT_TRUE(GetlineFromStdioFile(fp, &str, '.'));
@@ -1218,7 +1197,7 @@ TEST(stringtest, GetlineFromStdioFileTwo) {
   EXPECT_EQ("two", str);
   EXPECT_FALSE(GetlineFromStdioFile(fp, &str, '.'));
   EXPECT_EQ("three", str.substr(0, 5));
-  CHECK_EQ(fclose(fp), 0) << fname;
+  EXPECT_EQ(fclose(fp), 0) << fname;
 }
 
 class PutTwoDigitsTest : public ::testing::TestWithParam<int> {};

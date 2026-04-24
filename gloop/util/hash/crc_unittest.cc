@@ -25,6 +25,8 @@
 
 #include <cstdint>
 #include <ios>
+#include <tuple>
+#include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/container/fixed_array.h"
@@ -33,7 +35,8 @@
 #include "absl/log/log.h"
 #include "absl/strings/str_format.h"
 #include "benchmark/benchmark.h"
-#include "gloop/base/init_google.h"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 ABSL_FLAG(bool, print_output, false, "print CRC debug information");
 
@@ -118,8 +121,8 @@ static void TestCRC(CRC* crc, int r) {
     if (absl::GetFlag(FLAGS_print_output)) {
       absl::PrintF("bybyte %016x%016x\n", mhi, mlo);
     }
-    CHECK_EQ(mlo, lo);
-    CHECK_EQ(mhi, hi);
+    EXPECT_EQ(mlo, lo);
+    EXPECT_EQ(mhi, hi);
 
     uint64_t blo;
     uint64_t bhi;
@@ -128,30 +131,30 @@ static void TestCRC(CRC* crc, int r) {
     if (absl::GetFlag(FLAGS_print_output)) {
       absl::PrintF("by_bit %016x%016x\n", bhi, blo);
     }
-    CHECK_EQ(blo, lo);
-    CHECK_EQ(bhi, hi);
+    EXPECT_EQ(blo, lo);
+    EXPECT_EQ(bhi, hi);
 
     int z = random() & 0xffff;
     crc->ExtendByZeroes(&lo, &hi, z);
     for (int k = 0; k != z; k++) {
       MyExtend(crc, &mlo, &mhi, "\0", 1);
     }
-    CHECK_EQ(mlo, lo);
-    CHECK_EQ(mhi, hi);
+    EXPECT_EQ(mlo, lo);
+    EXPECT_EQ(mhi, hi);
 
     if (strings[j].len > r) {
       crc->Empty(&lo, &hi);
       crc->Extend(&lo, &hi, strings[j].str, r);
       crc->Empty(&mlo, &mhi);
       MyExtend(crc, &mlo, &mhi, strings[j].str, r);
-      CHECK_EQ(mlo, lo);
-      CHECK_EQ(mhi, hi);
+      EXPECT_EQ(mlo, lo);
+      EXPECT_EQ(mhi, hi);
       for (int k = r; k != strings[j].len; k++) {
         crc->Roll(&lo, &hi, strings[j].str[k - r], strings[j].str[k]);
         crc->Empty(&mlo, &mhi);
         MyExtend(crc, &mlo, &mhi, &strings[j].str[k - r + 1], r);
-        CHECK_EQ(mlo, lo);
-        CHECK_EQ(mhi, hi);
+        EXPECT_EQ(mlo, lo);
+        EXPECT_EQ(mhi, hi);
       }
     }
     if (absl::GetFlag(FLAGS_print_output)) {
@@ -160,15 +163,15 @@ static void TestCRC(CRC* crc, int r) {
   }
 }
 
-static void TestLargeExtendByZeroes() {
+TEST(CRCTest, LargeExtendByZeroes) {
   uint64_t hi = 0x5766cc56f872daafLL;
   uint64_t lo = 0x42a470899c3c1cabLL;
   uint64_t size = 115455819776LL;
   uint64_t zero = 0;
   CRC* crc_gen = CRC::Default(128, 0);
   crc_gen->ExtendByZeroes(&hi, &lo, size - zero);
-  CHECK_EQ(lo, uint64_t{0xaf9e0b922a11b8bbu});
-  CHECK_EQ(hi, uint64_t{0xf2b9427e289f3091u});
+  EXPECT_EQ(lo, uint64_t{0xaf9e0b922a11b8bbu});
+  EXPECT_EQ(hi, uint64_t{0xf2b9427e289f3091u});
 }
 
 // Return a 64-bit random number
@@ -386,12 +389,12 @@ static const struct {
      0x2f77e5dU, 0x6dc8029aU},
 };
 
-static void TestScramble() {
+TEST(CRCTest, Scramble) {
   struct LoHi {
     uint64_t lo;
     uint64_t hi;
   };
-  CHECK_EQ(ABSL_ARRAYSIZE(scramble_test_patterns), 121);
+  EXPECT_EQ(ABSL_ARRAYSIZE(scramble_test_patterns), 121);
   for (int degree = 8; degree <= 128; degree++) {
     CRC* crc = CRC::Default(degree, 0);
 
@@ -418,20 +421,20 @@ static void TestScramble() {
       LoHi s[kCycleAttempts + 1];
       s[0].lo = Random64() & mask.lo;
       s[0].hi = Random64() & mask.hi;
-      CHECK_EQ((s[0].lo & ~mask.lo), 0);
-      CHECK_EQ((s[0].hi & ~mask.hi), 0);
+      EXPECT_EQ((s[0].lo & ~mask.lo), 0);
+      EXPECT_EQ((s[0].hi & ~mask.hi), 0);
       for (int i = 1; i != kCycleAttempts + 1; i++) {
         s[i] = s[i - 1];
         crc->Scramble(&s[i].lo, &s[i].hi);
-        CHECK_EQ((s[i].lo & ~mask.lo), 0)
+        EXPECT_EQ((s[i].lo & ~mask.lo), 0)
             << "degree " << degree << " Scramble() left low bits out of range "
             << std::hex << s[i].lo;
-        CHECK_EQ((s[i].hi & ~mask.hi), 0)
+        EXPECT_EQ((s[i].hi & ~mask.hi), 0)
             << "degree " << degree << " Scramble() left high bits out of range "
             << std::hex << s[i].hi;
         LoHi tmp = s[i];
         crc->Unscramble(&tmp.lo, &tmp.hi);
-        CHECK(tmp.lo == s[i - 1].lo || tmp.hi != s[i - 1].hi)
+        EXPECT_TRUE(tmp.lo == s[i - 1].lo || tmp.hi != s[i - 1].hi)
             << "degree " << degree << " Unscramble()!=Scramble^-1()";
         if (s[i].lo == s[0].lo && s[i].hi == s[0].hi) {
           cycle_count++;
@@ -449,7 +452,7 @@ static void TestScramble() {
     if (degree < 20) {
       limit = (10 * tries * kCycleAttempts) >> (degree / 2);
     }
-    CHECK_LT(cycle_count, limit)
+    EXPECT_LT(cycle_count, limit)
         << "degree " << degree << " Scramble^N() cycled too quickly too often; "
         << cycle_count << " out of " << tries * kCycleAttempts << "  limit is "
         << limit;
@@ -468,74 +471,87 @@ static void TestScramble() {
     post.hi = scramble_test_patterns[i].post_127_96;
     post.hi = (post.hi << 32) | scramble_test_patterns[i].post_95_64;
     crc->Scramble(&pre.lo, &pre.hi);
-    CHECK_EQ(pre.lo, post.lo);
-    CHECK_EQ(pre.hi, post.hi);
+    EXPECT_EQ(pre.lo, post.lo);
+    EXPECT_EQ(pre.hi, post.hi);
   }
 }
 
-int main(int argc, char* argv[]) {
-  InitGoogle(argv[0], &argc, &argv, true);
+struct CRCParam {
+  int poly;
+  int r;
+};
 
-#ifdef ABSL_HAVE_MEMORY_SANITIZER
-  printf("PASS\n");
-  return 0;
-#endif  // ABSL_HAVE_MEMORY_SANITIZER
+class CRCPolyTest : public testing::TestWithParam<CRCParam> {};
 
-  TestLargeExtendByZeroes();
+TEST_P(CRCPolyTest, StandardPolys) {
+  auto param = GetParam();
+  TestCRC(CRC::Standard(static_cast<CRC::CRCName>(param.poly), param.r),
+          param.r);
+}
 
-  for (int i = 0; i <= CRC::CRC_64_ECMA; i++) {  // all standard polys
-    for (int r = 1; r < 16; r += 13) {           // try various roll lengths
-      TestCRC(CRC::Standard(static_cast<CRC::CRCName>(i), r), r);
-    }
-  }
-  for (int i = 0; i != CRC::N_POLYS; i++) {  // all polynomials in default table
-    for (int r = 1; r < 16; r += 13) {       // try various roll lengths
-      CRC* crc =
-          CRC::New(CRC::POLYS[i].lo, CRC::POLYS[i].hi, CRC::POLYS[i].degree, r);
-      TestCRC(crc, r);
-      delete crc;
-    }
-  }
+INSTANTIATE_TEST_SUITE_P(CRCTest, CRCPolyTest, testing::ValuesIn([]() {
+                           std::vector<CRCParam> params;
+                           for (int i = 0; i <= CRC::CRC_64_ECMA; i++) {
+                             for (int r = 1; r < 16; r += 13) {
+                               params.push_back({i, r});
+                             }
+                           }
+                           return params;
+                         }()));
 
-  // Check that standard polynomials return the same result when asked for
-  // repeatedly.
-  CHECK_EQ(CRC::Standard(CRC::CRC_32, 0), CRC::Standard(CRC::CRC_32, 0));
+class CRCDefaultTableTest : public testing::TestWithParam<CRCParam> {};
 
-  // Check that CRC32 gets a known-good answer.
-  // When used in Ethernet, CRC32 is used with an initial value of all ones,
-  // and xored with all ones at the end.
+TEST_P(CRCDefaultTableTest, DefaultTablePolys) {
+  auto param = GetParam();
+  CRC* crc = CRC::New(CRC::POLYS[param.poly].lo, CRC::POLYS[param.poly].hi,
+                      CRC::POLYS[param.poly].degree, param.r);
+  TestCRC(crc, param.r);
+  delete crc;
+}
+
+INSTANTIATE_TEST_SUITE_P(CRCTest, CRCDefaultTableTest, testing::ValuesIn([]() {
+                           std::vector<CRCParam> params;
+                           for (int i = 0; i != CRC::N_POLYS; i++) {
+                             for (int r = 1; r < 16; r += 13) {
+                               params.push_back({i, r});
+                             }
+                           }
+                           return params;
+                         }()));
+
+TEST(CRCTest, StandardRepeatable) {
+  EXPECT_EQ(CRC::Standard(CRC::CRC_32, 0), CRC::Standard(CRC::CRC_32, 0));
+}
+
+TEST(CRCTest, CRC32KnownAnswer) {
   uint64_t lo = 0xffffffffUL;
   uint64_t hi = 0;
   CRC::Standard(CRC::CRC_32, 0)->Extend(&lo, &hi, "hello", 5);
-  CHECK_EQ(lo ^ 0xffffffffUL, 0x3610a686);
+  EXPECT_EQ(lo ^ 0xffffffffUL, 0x3610a686);
+}
 
-  // Check that the default polynomials work
+TEST(CRCTest, DefaultPolynomials) {
   CRC* crc13_8_1 = CRC::Default(13, 8);
   CRC* crc13_8_2 = CRC::Default(13, 8);
   CRC* crc13_9_1 = CRC::Default(13, 9);
   CRC* crc13_9_2 = CRC::Default(13, 9);
-  CHECK_EQ(crc13_8_1, crc13_8_2);
-  CHECK_EQ(crc13_9_1, crc13_9_2);
-  CHECK_NE(crc13_8_1, crc13_9_1);
+  EXPECT_EQ(crc13_8_1, crc13_8_2);
+  EXPECT_EQ(crc13_9_1, crc13_9_2);
+  EXPECT_NE(crc13_8_1, crc13_9_1);
   uint64_t lo0;
   uint64_t hi0;
   crc13_8_1->Empty(&lo0, &hi0);
   crc13_8_1->Extend(&lo0, &hi0, "hello", 5);
   CRC* crc =
       CRC::New(CRC::POLYS[13].lo, CRC::POLYS[13].hi, CRC::POLYS[13].degree, 8);
-  CHECK_NE(crc13_8_1, crc);
+  EXPECT_NE(crc13_8_1, crc);
   uint64_t lo1;
   uint64_t hi1;
   crc->Empty(&lo1, &hi1);
   crc->Extend(&lo1, &hi1, "hello", 5);
   delete crc;
-  CHECK_EQ(lo0, lo1);
-  CHECK_EQ(hi0, hi1);
-
-  TestScramble();
-
-  printf("PASS\n");
-  return 0;
+  EXPECT_EQ(lo0, lo1);
+  EXPECT_EQ(hi0, hi1);
 }
 
 // Run a benchmark of *crc on an array of 'n' bytes for 'iters' iterations
