@@ -27,9 +27,9 @@ cc_library(
         "//gloop/util/gtl/extend:__subpackages__",
     ],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/util/gtl/extend:extension",
         "//gloop/util/gtl/internal:aggregate",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -40,8 +40,8 @@ cc_library(
         "//gloop/util/gtl/extend:__subpackages__",
     ],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/hash",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -53,8 +53,8 @@ cc_library(
     ],
     deps = [
         ":reflection",
+        "//gloop:enforce_gloop_support",
         "//gloop/util/gtl/extend:reflection_extension",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -66,10 +66,10 @@ cc_library(
         "//gloop/util/gtl/extend:__subpackages__",
     ],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )

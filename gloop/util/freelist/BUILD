@@ -29,6 +29,7 @@ cc_library(
     name = "fixed_size_object_pool",
     hdrs = ["fixed_size_object_pool.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/util/gtl:stl_util",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/functional:any_invocable",
@@ -37,7 +38,6 @@ cc_library(
         "@abseil-cpp//absl/memory",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -46,13 +46,13 @@ cc_test(
     srcs = ["fixed_size_object_pool_unittest.cc"],
     deps = [
         ":fixed_size_object_pool",
+        "//gloop:gloop_test_main",
         "//gloop/base:timer",
         "//gloop/thread",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/memory",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

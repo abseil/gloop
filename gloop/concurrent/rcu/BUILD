@@ -36,7 +36,7 @@ cc_library(
         ":policy",
         ":rcu",
         ":snapshot",
-        "@gloop//gloop:enforce_gloop_support",
+        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -46,7 +46,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":snapshot_rcu_deleter",
-        "@gloop//gloop:enforce_gloop_support",
+        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -59,8 +59,8 @@ cc_library(
     deps = [
         ":global_domain",
         ":rcu",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -72,8 +72,8 @@ cc_library(
     ],
     deps = [
         ":rcu",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -89,8 +89,8 @@ cc_library(
         ":rcu",
         ":snapshot",
         ":snapshot_rcu_deleter",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -100,7 +100,7 @@ cc_library(
     visibility = [
         "//gloop/concurrent/rcu:__subpackages__",
     ],
-    deps = ["@gloop//gloop:enforce_gloop_support"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -109,11 +109,11 @@ cc_test(
     linkstatic = 1,
     deps = [
         ":view",
+        "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -126,8 +126,8 @@ cc_library(
         "//gloop/concurrent/rcu:__subpackages__",
     ],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/util/atomic_danger",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -148,6 +148,7 @@ cc_library(
     ],
     deps = [
         ":llist",
+        "//gloop:enforce_gloop_support",
         "//gloop/base:percpu",
         "//gloop/base:scoped_sigmask",
         "//gloop/base:signal_util_subtle",
@@ -163,7 +164,6 @@ cc_library(
         "@abseil-cpp//absl/numeric:bits",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:enforce_gloop_support",
         "@tcmalloc//tcmalloc:malloc_extension",
         "@tcmalloc//tcmalloc/internal:sysinfo",
     ],
@@ -177,6 +177,7 @@ cc_test(
     shard_count = 2,
     deps = [
         ":rcu",
+        "//gloop:gloop_test_main",
         "//gloop/base:googleinit",
         "//gloop/base:signal_util_subtle",
         "//gloop/base:sysinfo",
@@ -194,7 +195,6 @@ cc_test(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -209,6 +209,7 @@ cc_test(
     shard_count = 2,
     deps = [
         ":rcu",
+        "//gloop:gloop_test_main",
         "//gloop/base:googleinit",
         "//gloop/base:percpu_disable_rseq",
         "//gloop/base:signal_util_subtle",
@@ -227,7 +228,6 @@ cc_test(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

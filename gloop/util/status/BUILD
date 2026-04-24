@@ -39,12 +39,12 @@ cc_test(
     srcs = ["canonical_errors_test.cc"],
     deps = [
         ":status",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -55,8 +55,8 @@ cc_test(
     srcs = ["canonical_error_space_find_test.cc"],
     deps = [
         ":status",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -80,11 +80,11 @@ cc_library(
     deps = [
         ":status",
         ":status_builder",
+        "//gloop:enforce_gloop_support",
         "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -94,10 +94,10 @@ cc_test(
     deps = [
         ":errno_mapping",
         ":status",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_matchers",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -110,12 +110,12 @@ cc_library(
     deps = [
         ":errno_mapping",
         ":status",
+        "//gloop:enforce_gloop_support",
         "//gloop/base:strerror",
         "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -125,10 +125,10 @@ cc_test(
     deps = [
         ":posixerrorspace",
         ":status",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/types:source_location",
         "@abseil-cpp//absl/types:span",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -142,6 +142,7 @@ cc_library(
         ":status",
         ":status_builder",
         ":status_macros",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/flags:flag",
@@ -152,7 +153,6 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:has_ostream_operator",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -163,6 +163,7 @@ cc_test(
     deps = [
         ":ret_check",
         ":status_macros",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log:scoped_mock_log",
@@ -171,7 +172,6 @@ cc_test(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -196,6 +196,7 @@ cc_library(
     ],
     deps = [
         ":non_message_set_payload_cc_proto",
+        "//gloop:enforce_gloop_support",
         "//gloop/util/coding",
         "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/base:core_headers",
@@ -216,7 +217,6 @@ cc_library(
         "@abseil-cpp//absl/types:optional",
         "@abseil-cpp//absl/types:source_location",
         "@abseil-cpp//absl/types:span",
-        "@gloop//gloop:enforce_gloop_support",
         "@gloop//gloop/util/status:codes_cc_proto",
         "@gloop//gloop/util/status:status_cc_proto",
         "@protobuf",
@@ -235,6 +235,7 @@ cc_test(
         ":non_message_set_payload_cc_proto",
         ":status",
         ":test_payload_cc_proto",
+        "//gloop:gloop_test_main",
         "//gloop/thread",
         "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/base:core_headers",
@@ -252,7 +253,6 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:gloop_test_main",
         "@gloop//gloop/util/status:status_cc_proto",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -268,6 +268,7 @@ cc_library(
     hdrs = ["status_builder.h"],
     deps = [
         ":status",
+        "//gloop:enforce_gloop_support",
         "//gloop/base:examine_stack",
         "//gloop/base:logger",
         "//gloop/util/status:message_set_cc_proto",
@@ -288,7 +289,6 @@ cc_library(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -300,6 +300,7 @@ cc_test(
         ":status",
         ":status_builder",
         ":status_macros",
+        "//gloop:gloop_test_main",
         "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
@@ -318,7 +319,6 @@ cc_test(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:gloop_test_main",
         "@gloop//gloop/util/status:codes_cc_proto",
         "@gloop//gloop/util/status:status_cc_proto",
         "@google_benchmark//:benchmark",
@@ -333,10 +333,10 @@ cc_library(
     deps = [
         ":status_builder",
         ":status_macros",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -346,9 +346,9 @@ cc_test(
     srcs = ["log_test.cc"],
     deps = [
         ":log",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log:scoped_mock_log",
         "@abseil-cpp//absl/status",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -360,12 +360,12 @@ cc_library(
     deps = [
         ":status",
         ":status_builder",
+        "//gloop:enforce_gloop_support",
         "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -378,12 +378,12 @@ cc_test(
         ":status",
         ":status_builder",
         ":status_macros",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:gloop_test_main",
         "@gloop//gloop/util/status:status_cc_proto",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -442,9 +442,9 @@ cc_library(
     name = "return",
     hdrs = ["return.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/meta:type_traits",
         "@abseil-cpp//absl/status",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -454,8 +454,8 @@ cc_test(
     deps = [
         ":return",
         ":status_macros",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/status",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

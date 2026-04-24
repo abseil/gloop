@@ -29,6 +29,7 @@ cc_library(
     name = "bits",
     hdrs = ["bits.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
@@ -36,7 +37,6 @@ cc_library(
         "@abseil-cpp//absl/meta:type_traits",
         "@abseil-cpp//absl/numeric:bits",
         "@abseil-cpp//absl/numeric:int128",
-        "@gloop//gloop:enforce_gloop_support",
         "@googletest//:gtest_prod",
     ],
 )
@@ -47,6 +47,7 @@ cc_test(
     srcs = ["bits_unittest.cc"],
     deps = [
         ":bits",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:log_streamer",
@@ -55,7 +56,6 @@ cc_test(
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -66,8 +66,8 @@ cc_library(
     srcs = ["bit-copy.cc"],
     hdrs = ["bit-copy.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:nullability",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -77,10 +77,10 @@ cc_test(
     copts = ["$(STACK_FRAME_UNLIMITED)"],  # bit-copy_unittest.cc
     deps = [
         ":bit-copy",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log:log_streamer",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/strings:str_format",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

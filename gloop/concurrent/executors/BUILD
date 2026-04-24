@@ -31,6 +31,7 @@ cc_library(
     srcs = ["loop_executor.cc"],
     hdrs = ["loop_executor.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/base:callback",
         "//gloop/base:varsetter",
         "//gloop/thread",
@@ -41,7 +42,6 @@ cc_library(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -51,6 +51,7 @@ cc_test(
     srcs = ["loop_executor_test.cc"],
     deps = [
         ":loop_executor",
+        "//gloop:gloop_test_main",
         "//gloop/base:atomic_sequence_num",
         "//gloop/base:callback",
         "//gloop/thread",
@@ -58,7 +59,6 @@ cc_test(
         "//gloop/util/functional:to_callback",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

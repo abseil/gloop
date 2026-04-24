@@ -39,6 +39,7 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/util/floatops:castops",
         "//gloop/util/symbolize:demangle",
         "@abseil-cpp//absl/base:core_headers",
@@ -50,7 +51,6 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -60,9 +60,9 @@ cc_test(
     srcs = ["lossless_convert_test.cc"],
     deps = [
         ":intops",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_matchers",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -73,7 +73,7 @@ cc_test(
     srcs = ["saturated_test.cc"],
     deps = [
         ":intops",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -85,11 +85,11 @@ cc_test(
     srcs = ["saturated_cast_test.cc"],
     deps = [
         ":intops",
+        "//gloop:gloop_test_main",
         "//gloop/util/symbolize:demangle",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -107,9 +107,9 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":intops",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/log:check",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -123,7 +123,7 @@ cc_binary(
     deps = [
         ":intops",
         ":strong_containers",
-        "@gloop//gloop:enforce_gloop_support",
+        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -135,10 +135,10 @@ cc_test(
     deps = [
         ":intops",
         ":strong_containers",
+        "//gloop:gloop_test_main",
         "//gloop/base:uword",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/hash:hash_testing",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -152,6 +152,7 @@ cc_test(
     shard_count = 15,
     deps = [
         ":intops",
+        "//gloop:gloop_test_main",
         "//gloop/base:uword",
         "@abseil-cpp//absl/container:node_hash_map",
         "@abseil-cpp//absl/flags:marshalling",
@@ -161,7 +162,6 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -175,7 +175,7 @@ cc_test(
     shard_count = 16,
     deps = [
         ":intops",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -188,11 +188,11 @@ cc_test(
     shard_count = 20,
     deps = [
         ":intops",
+        "//gloop:gloop_test_main",
         "//gloop/util/random:mt_random",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings:str_format",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

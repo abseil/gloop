@@ -30,7 +30,7 @@ cc_library(
     deps = [
         ":num_bases",
         ":num_initializers",
-        "@gloop//gloop:enforce_gloop_support",
+        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -39,7 +39,7 @@ cc_test(
     srcs = ["aggregate_test.cc"],
     deps = [
         ":aggregate",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -52,7 +52,7 @@ cc_library(
         "//gloop/util/gtl/extend:__subpackages__",
         "//gloop/util/gtl/internal:__subpackages__",
     ],
-    deps = ["@gloop//gloop:enforce_gloop_support"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -60,7 +60,7 @@ cc_test(
     srcs = ["dependencies_test.cc"],
     deps = [
         ":dependencies",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -74,7 +74,7 @@ cc_library(
     ],
     deps = [
         ":num_initializers",
-        "@gloop//gloop:enforce_gloop_support",
+        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -83,7 +83,7 @@ cc_test(
     srcs = ["num_bases_test.cc"],
     deps = [
         ":num_bases",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -96,8 +96,8 @@ cc_library(
         "//gloop/util/gtl/internal:__subpackages__",
     ],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -106,7 +106,7 @@ cc_test(
     srcs = ["num_initializers_test.cc"],
     deps = [
         ":num_initializers",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

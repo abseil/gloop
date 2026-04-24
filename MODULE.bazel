@@ -22,6 +22,7 @@ use_repo(cc_configure, "local_config_cc")
 bazel_dep(name = "re2", version = "2025-11-05.bcr.1", dev_dependency = True)
 bazel_dep(name = "google_benchmark", version = "1.9.5", dev_dependency = True)
 bazel_dep(name = "numactl", version = "2.0.19.bcr.1", dev_dependency = True)
+bazel_dep(name = "gloop_examples", version = "0.1", dev_dependency = True, repo_name = "examples")
 
 # Override our visibility settings in with patches.  Once Gloop is public and in BCR, we can
 # upstream these changes and declare a noop dependency in these repos for enabling visibility.
@@ -39,4 +40,9 @@ git_override(
     commit = "29bae22bff6cd2adcb32972f1cb4928f34dfa213",
     patches = ["//gloop:tcmalloc.patch"],
     remote = "https://github.com/google/tcmalloc",
+)
+
+local_path_override(
+    module_name = "gloop_examples",
+    path = "gloop/examples",
 )

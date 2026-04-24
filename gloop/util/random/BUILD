@@ -30,9 +30,9 @@ cc_library(
     visibility = ["//gloop:__subpackages__"],
     deps = [
         ":random_base",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -42,6 +42,7 @@ cc_test(
     srcs = ["acmrandom_unittest.cc"],
     deps = [
         ":acmrandom",
+        "//gloop:gloop_test_main",
         "//gloop/util/math:mathutil",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:fixed_array",
@@ -49,7 +50,6 @@ cc_test(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -61,12 +61,12 @@ cc_library(
     # This library is only needed by Gloop externally.
     visibility = ["//gloop:__subpackages__"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/util/random/internal:skewed_low_distribution",
         "//gloop/util/random/internal:yule_simon_distribution",
         "@abseil-cpp//absl/meta:type_traits",
         "@abseil-cpp//absl/random/internal:distribution_caller",
         "@abseil-cpp//absl/random/internal:traits",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -76,11 +76,11 @@ cc_test(
     deps = [
         ":distributions",
         ":mock_distributions",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random:mocking_bit_gen",
         "@abseil-cpp//absl/random/internal:distribution_test_util",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -91,13 +91,13 @@ cc_library(
     srcs = ["global_id.cc"],
     hdrs = ["global_id.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -108,11 +108,11 @@ cc_test(
     shard_count = 2,
     deps = [
         ":global_id",
+        "//gloop:gloop_test_main",
         "//gloop/thread",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -125,11 +125,11 @@ cc_library(
     # This library is only needed by Gloop externally.
     visibility = ["//gloop:__subpackages__"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/util/random/internal:skewed_low_distribution",
         "//gloop/util/random/internal:yule_simon_distribution",
         "@abseil-cpp//absl/random:mocking_bit_gen",
         "@abseil-cpp//absl/random/internal:mock_overload_set",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -141,11 +141,11 @@ cc_library(
     visibility = ["//gloop:__subpackages__"],
     deps = [
         ":random_base",
+        "//gloop:enforce_gloop_support",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -156,9 +156,9 @@ cc_test(
     deps = [
         ":mt_random",
         ":secure_random_testutils",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:btree",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -171,13 +171,13 @@ cc_library(
     # This library is highly deprecated and should not be marked public for wider use.
     visibility = ["//gloop:__subpackages__"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/base:atomic_sequence_num",
         "//gloop/base:port",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -189,9 +189,9 @@ cc_test(
         ":mt_random",
         ":random_base",
         ":test_random",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/numeric:bits",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -204,12 +204,12 @@ cc_library(
     hdrs = ["random_base_testutils.h"],
     deps = [
         ":random_base",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -218,9 +218,9 @@ cc_library(
     hdrs = ["test_random-inl.h"],
     deps = [
         ":random_base",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -228,10 +228,10 @@ cc_library(
     name = "shared_bit_gen",
     hdrs = ["shared_bit_gen.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/concurrent/percpu:object",
         "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/random",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -240,9 +240,9 @@ cc_test(
     srcs = ["shared_bit_gen_test.cc"],
     deps = [
         ":shared_bit_gen",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random:distributions",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

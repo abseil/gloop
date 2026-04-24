@@ -37,11 +37,11 @@ cc_library(
     hdrs = ["blocking_refcount.h"],
     hdrs_check = "strict",
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -51,6 +51,7 @@ cc_test(
     srcs = ["blocking_refcount_test.cc"],
     deps = [
         ":blocking_refcount",
+        "//gloop:gloop_test_main",
         "//gloop/base:atomic_stats_counter",
         "//gloop/base:walltime",
         "//gloop/thread",
@@ -59,7 +60,6 @@ cc_test(
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -70,7 +70,7 @@ cc_library(
     hdrs = ["compact_reference_counted.h"],
     deps = [
         ":reffed_ptr",
-        "@gloop//gloop:enforce_gloop_support",
+        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -80,7 +80,7 @@ cc_test(
     deps = [
         ":compact_reference_counted",
         ":test_common",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -90,10 +90,10 @@ cc_library(
     name = "reffed_ptr",
     hdrs = ["reffed_ptr.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/meta:type_traits",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -104,12 +104,12 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":reffed_ptr",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/container:node_hash_map",
         "@abseil-cpp//absl/hash:hash_testing",
         "@abseil-cpp//absl/log",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -124,7 +124,7 @@ cc_library(
     ],
     deps = [
         ":reffed_ptr",
-        "@gloop//gloop:enforce_gloop_support",
+        "//gloop:enforce_gloop_support",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest_for_library",
     ],
@@ -136,10 +136,10 @@ cc_library(
     hdrs = ["reference_counted.h"],
     deps = [
         ":reftracker",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:dynamic_annotations",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -148,12 +148,12 @@ cc_library(
     srcs = ["reftracker.cc"],
     hdrs = ["reftracker.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/base:examine_stack",
         "@abseil-cpp//absl/debugging:stacktrace",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -165,9 +165,9 @@ cc_test(
     deps = [
         ":reference_counted",
         ":test_common",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

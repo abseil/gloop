@@ -30,7 +30,7 @@ package(
 cc_library(
     name = "free_deleter",
     hdrs = ["free_deleter.h"],
-    deps = ["@gloop//gloop:enforce_gloop_support"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -38,7 +38,7 @@ cc_test(
     srcs = ["free_deleter_test.cc"],
     deps = [
         ":free_deleter",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -55,10 +55,10 @@ cc_library(
         "scoped_mmap.h",
     ],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -70,10 +70,10 @@ cc_library(
         "//gloop/util/memory:__subpackages__",
     ],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 

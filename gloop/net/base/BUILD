@@ -33,6 +33,7 @@ cc_library(
         "//conditions:default": [],
     }),
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/base:port",
         "//gloop/strings:host_port",
         "//gloop/strings:numbers",
@@ -57,7 +58,6 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:compare",
         "@abseil-cpp//absl/types:span",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -70,6 +70,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":ipaddress",
+        "//gloop:gloop_test_main",
         "//gloop/strings:host_port",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base:core_headers",
@@ -92,7 +93,6 @@ cc_test(
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/types:compare",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

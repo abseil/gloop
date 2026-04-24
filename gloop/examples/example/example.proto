@@ -1,0 +1,11 @@
+edition = "2024";
+
+package gloop.examples;
+
+import "gloop/util/status/codes.proto";
+import "gloop/util/status/status.proto";
+
+message Example {
+  util.StatusProto status = 1;
+  util.error.Code code = 2;
+}

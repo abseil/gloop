@@ -36,6 +36,7 @@ cc_library(
     srcs = ["backoff.cc"],
     hdrs = ["backoff.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/flags:flag",
@@ -43,7 +44,6 @@ cc_library(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -53,9 +53,9 @@ cc_test(
     srcs = ["backoff_test.cc"],
     deps = [
         ":backoff",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -66,12 +66,12 @@ cc_library(
     srcs = ["protoutil.cc"],
     hdrs = ["protoutil.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:enforce_gloop_support",
         "@protobuf//:duration_cc_proto",
         "@protobuf//:timestamp_cc_proto",
     ],
@@ -84,10 +84,10 @@ cc_test(
     srcs = ["protoutil_test.cc"],
     deps = [
         ":protoutil",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_matchers",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@protobuf//:duration_cc_proto",

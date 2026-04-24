@@ -26,9 +26,9 @@ cc_library(
     srcs = ["syscalls.cc"],
     hdrs = ["syscalls.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/base/scheduling",
         "@abseil-cpp//absl/strings",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -37,11 +37,11 @@ cc_test(
     srcs = ["syscalls_test.cc"],
     deps = [
         ":syscalls",
+        "//gloop:gloop_test_main",
         "//gloop/util/status:errno_mapping",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

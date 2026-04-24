@@ -35,10 +35,10 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":scheduler_types",
+        "//gloop:enforce_gloop_support",
         "//gloop/base/scheduling",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/container:inlined_vector",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -82,6 +82,7 @@ cc_library(
         ":per-domain-counters",
         ":select",
         ":selectables",
+        "//gloop:enforce_gloop_support",
         "//gloop/base:context",
         "//gloop/base/scheduling",
         "//gloop/util/gtl:intrusive_list",
@@ -91,7 +92,6 @@ cc_library(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/time:clock_interface",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -104,12 +104,12 @@ cc_library(
     deps = [
         ":select",
         ":select-internal",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:chunked_queue",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -126,6 +126,7 @@ cc_test(
         ":probabilistic_test_util",
         ":select",
         ":selectables",
+        "//gloop:gloop_test_main",
         "//gloop/base:context",
         "//gloop/base:walltime",
         "//gloop/base/scheduling",
@@ -134,7 +135,6 @@ cc_test(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/time:simulated_clock",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -169,6 +169,7 @@ cc_library(
         ":scheduler_types",
         ":select",
         ":selectables",
+        "//gloop:enforce_gloop_support",
         "//gloop/base:cancellation_coloring",
         "//gloop/base:context",
         "//gloop/base:googleinit",
@@ -200,7 +201,6 @@ cc_library(
         "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/time:clock_interface",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -211,11 +211,12 @@ cc_library(
     visibility = [
         "//gloop/thread/fiber:__subpackages__",
         "//gloop/thread/fiber/internal:__subpackages__",
-        "@gloop//gloop/thread/fiber/internal:__pkg__",
+        "//thread/fiber/internal:__pkg__",
     ],
     deps = [
         ":fiber-options",
         ":fiber_cc_proto",
+        "//gloop:enforce_gloop_support",
         "//gloop/base:thread_identity",
         "//gloop/base:walltime",
         "//gloop/base/scheduling",
@@ -225,7 +226,6 @@ cc_library(
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -235,9 +235,9 @@ cc_test(
     srcs = ["fiber-once_test.cc"],
     deps = [
         ":fiber",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -259,6 +259,7 @@ cc_test(
         ":fifolifo-schedulers",
         ":select",
         ":selectables",
+        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/base:cancellation_coloring",
         "//gloop/base:context",
@@ -287,7 +288,6 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/time:clock_interface",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ] + select({
@@ -306,12 +306,12 @@ cc_test(
     deps = [
         ":fiber",
         ":select",
+        "//gloop:gloop_test_main",
         "//gloop/base:context",
         "//gloop/thread",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -322,8 +322,8 @@ cc_test(
     srcs = ["pthread-domain_test.cc"],
     deps = [
         ":fiber",
+        "//gloop:gloop_test_main",
         "//gloop/base/scheduling:domain-test",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -335,10 +335,10 @@ cc_test(
     linkstatic = 1,
     deps = [
         ":fiber",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/time:simulated_clock",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -351,13 +351,13 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":scheduler_types",
+        "//gloop:enforce_gloop_support",
         "//gloop/base:spinlock",
         "//gloop/base/scheduling",
         "//gloop/base/scheduling:scheduling_mode",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/container:inlined_vector",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -368,6 +368,7 @@ cc_library(
     local_defines = ["FIBER_OPTIONS_COUNTING_MUTEX"],
     visibility = ["//visibility:public"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/base:arena",
         "//gloop/base:context",
         "//gloop/concurrent/percpu:counting_mutex",
@@ -382,7 +383,6 @@ cc_library(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -392,9 +392,9 @@ cc_test(
     deps = [
         ":fiber",
         ":fiber-options",
+        "//gloop:gloop_test_main",
         "//gloop/thread/fiber/internal:fiber_thread_options",
         "@abseil-cpp//absl/strings",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -404,12 +404,12 @@ proto_library(
     name = "fiber_proto",
     srcs = ["fiber.proto"],
     option_deps = ["@protobuf//:cpp_features_proto"],
-    visibility = ["@gloop//gloop/thread/fiber:__subpackages__"],
+    visibility = ["//thread/fiber:__subpackages__"],
 )
 
 cc_proto_library(
     name = "fiber_cc_proto",
-    visibility = ["@gloop//gloop/thread/fiber:__subpackages__"],
+    visibility = ["//thread/fiber:__subpackages__"],
     deps = [":fiber_proto"],
 )
 
@@ -420,9 +420,10 @@ cc_library(
     visibility = [
         "//gloop/thread/fiber:__subpackages__",
         "//gloop/thread/fiber/internal:__subpackages__",
-        "@gloop//gloop/thread/fiber:__subpackages__",
+        "//thread/fiber:__subpackages__",
     ],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/base:futex",
         "//gloop/base/scheduling",
         "//gloop/thread",
@@ -435,7 +436,6 @@ cc_library(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -459,7 +459,7 @@ cc_library(
     visibility = [
         "//gloop/base/scheduling:__subpackages__",
     ],
-    deps = ["@gloop//gloop:enforce_gloop_support"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_library(
@@ -470,9 +470,9 @@ cc_library(
         "//gloop/thread/fiber:__subpackages__",
     ],
     deps = [
+        "//gloop:enforce_gloop_support",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
-        "@gloop//gloop:enforce_gloop_support",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -483,8 +483,8 @@ cc_test(
     srcs = ["probabilistic_test_util_test.cc"],
     deps = [
         ":probabilistic_test_util",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -496,6 +496,7 @@ cc_library(
     hdrs = ["scheduler-types.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/base/scheduling",
         "//gloop/util/atomic_danger",
         "@abseil-cpp//absl/base",
@@ -503,7 +504,6 @@ cc_library(
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/base:spinlock_wait",
         "@abseil-cpp//absl/container:fixed_array",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -512,6 +512,7 @@ cc_test(
     srcs = ["scheduler-types_test.cc"],
     deps = [
         ":scheduler_types",
+        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/thread",
         "//gloop/util/functional:to_callback",
@@ -519,7 +520,6 @@ cc_test(
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -532,6 +532,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":select-internal",
+        "//gloop:enforce_gloop_support",
         "//gloop/base/scheduling",
         "//gloop/perftools/tracing",
         "//gloop/perftools/tracing:tracing_base",
@@ -544,7 +545,6 @@ cc_library(
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/time:clock_interface",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -556,11 +556,11 @@ cc_library(
         "//gloop/thread/fiber:__subpackages__",
     ],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:inlined_vector",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -572,6 +572,7 @@ cc_library(
     deps = [
         ":select",
         ":select-internal",
+        "//gloop:enforce_gloop_support",
         "//gloop/base:cancellation_coloring",
         "//gloop/base:spinlock",
         "//gloop/perftools/tracing",
@@ -582,7 +583,6 @@ cc_library(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -590,11 +590,13 @@ cc_library(
     name = "selectables_test_lib",
     testonly = 1,
     srcs = ["selectables_test.cc"],
-    visibility = ["@gloop//gloop/thread/fiber:__pkg__"],
+    visibility = ["//thread/fiber:__pkg__"],
     deps = [
         ":probabilistic_test_util",
         ":select",
         ":selectables",
+        "//gloop:enforce_gloop_support",
+        "//gloop:gloop_test_main",
         "//gloop/base:cancellation_coloring",
         "//gloop/base:context",
         "//gloop/base:walltime",
@@ -611,8 +613,6 @@ cc_library(
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/time:clock_interface",
         "@abseil-cpp//absl/time:simulated_clock",
-        "@gloop//gloop:enforce_gloop_support",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

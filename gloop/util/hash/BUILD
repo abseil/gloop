@@ -51,6 +51,7 @@ cc_library(
         ":hash128to64",
         ":jenkins",
         ":string_hash",
+        "//gloop:enforce_gloop_support",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:config",
@@ -59,7 +60,6 @@ cc_library(
         "@abseil-cpp//absl/log:absl_check",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -74,7 +74,7 @@ cc_library(
     hdrs = ["seeds.h"],
     visibility = ["//visibility:private"],
     deps = [
-        "@gloop//gloop:enforce_gloop_support",
+        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -87,10 +87,10 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/util/endian",
         "@abseil-cpp//absl/numeric:bits",
         "@abseil-cpp//absl/numeric:int128",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -101,10 +101,10 @@ cc_test(
     srcs = ["farmhashte_test.cc"],
     deps = [
         ":farmhash",
+        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/log",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -116,8 +116,8 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":jenkins",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -129,9 +129,9 @@ cc_library(
     ],
     deps = [
         ":city",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -143,8 +143,8 @@ cc_library(
         ":builtin_type_hash",
         ":hash",
         ":jenkins",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -157,9 +157,9 @@ cc_library(
         ":hash",
         ":jenkins",
         ":seeds",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -175,13 +175,13 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/base:port",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:prefetch",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -203,6 +203,7 @@ cc_test(
         ":jenkins",
         ":legacy_hash",
         ":string_hash",
+        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
@@ -215,7 +216,6 @@ cc_test(
         "@abseil-cpp//absl/strings:cord_test_helpers",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -228,8 +228,8 @@ cc_test(
     deps = [
         ":builtin_type_hash",
         ":legacy_hash",
+        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -243,11 +243,11 @@ cc_test(
         ":hash",
         ":legacy_hash_cord",
         ":murmur",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:cord_test_helpers",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -258,8 +258,8 @@ cc_library(
     textual_hdrs = ["hash128to64.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/numeric:int128",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -269,12 +269,12 @@ cc_test(
     srcs = ["cityhash128_test.cc"],
     deps = [
         ":city",
+        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -291,11 +291,11 @@ cc_library(
         ":builtin_type_hash",
         ":farmhash",
         ":hash128to64",
+        "//gloop:enforce_gloop_support",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -307,12 +307,12 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":murmur",
+        "//gloop:enforce_gloop_support",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:prefetch",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -322,13 +322,13 @@ cc_library(
     srcs = ["fingerprint2011_test.cc"],
     deps = [
         ":fingerprint2011",
+        "//gloop:enforce_gloop_support",
+        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:enforce_gloop_support",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -349,6 +349,7 @@ cc_library(
     hdrs = ["murmur.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
@@ -356,7 +357,6 @@ cc_library(
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -367,11 +367,11 @@ cc_test(
     srcs = ["murmur_test.cc"],
     deps = [
         ":murmur",
+        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -385,13 +385,13 @@ cc_test(
     shard_count = 4,
     deps = [
         ":murmur",
+        "//gloop:gloop_test_main",
         "//gloop/util/endian",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -409,6 +409,7 @@ cc_library(
     hdrs = ["crc.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
@@ -420,7 +421,6 @@ cc_library(
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -430,9 +430,9 @@ cc_test(
     srcs = ["crc_concat_test.cc"],
     deps = [
         ":crc",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -466,6 +466,7 @@ cc_test(
     ],
     deps = [
         ":crc",
+        "//gloop:gloop_test_main",
         "//gloop/util/bits",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
@@ -475,7 +476,6 @@ cc_test(
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/strings:str_format",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -487,8 +487,8 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":string_hash",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -498,11 +498,11 @@ cc_test(
     visibility = ["//visibility:public"],
     deps = [
         ":transparent_hash",
+        "//gloop:gloop_test_main",
         "//gloop/util/gtl:stl_util",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

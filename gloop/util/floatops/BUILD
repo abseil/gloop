@@ -29,7 +29,7 @@ cc_library(
     name = "castops",
     hdrs = ["castops.h"],
     visibility = ["//visibility:public"],
-    deps = ["@gloop//gloop:enforce_gloop_support"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -40,8 +40,8 @@ cc_test(
     ],
     deps = [
         ":castops",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/numeric:int128",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -52,8 +52,8 @@ cc_library(
     hdrs = ["roundedops.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:config",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -62,7 +62,7 @@ cc_test(
     srcs = ["roundedops_test.cc"],
     deps = [
         ":roundedops",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

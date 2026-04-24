@@ -28,8 +28,8 @@ cc_library(
     srcs = ["effective_user_id.cc"],
     hdrs = ["effective_user_id.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -40,8 +40,8 @@ cc_test(
     visibility = ["//gloop/base:__pkg__"],
     deps = [
         ":effective_user_id",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -54,8 +54,8 @@ cc_library(
         "//gloop/base:__pkg__",
     ],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -65,6 +65,7 @@ cc_library(
     hdrs = ["logging_directories.h"],
     deps = [
         ":temp_directories",
+        "//gloop:enforce_gloop_support",
         "//gloop/base:log_file_flags",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/flags:flag",
@@ -72,7 +73,6 @@ cc_library(
         "@abseil-cpp//absl/log/internal:config",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/types:span",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -84,8 +84,8 @@ cc_library(
         "//gloop/concurrent/percpu:__subpackages__",
     ],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:config",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -94,7 +94,7 @@ cc_library(
     srcs = ["temp_directories.cc"],
     hdrs = ["temp_directories.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/algorithm:container",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )

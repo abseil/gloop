@@ -28,9 +28,9 @@ cc_library(
         "//:__subpackages__",
     ],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/meta:type_traits",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -39,7 +39,7 @@ cc_test(
     srcs = ["atomic_danger_test.cc"],
     deps = [
         ":atomic_danger",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -51,9 +51,9 @@ cc_library(
     # TODO: Consider restricting this once <link> is done.
     visibility = ["//visibility:public"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/strings",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -62,7 +62,7 @@ cc_test(
     srcs = ["refcount_test.cc"],
     deps = [
         ":refcount",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

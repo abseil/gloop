@@ -27,6 +27,7 @@ cc_library(
     name = "function_registry",
     hdrs = ["function_registry.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/log",
@@ -35,7 +36,6 @@ cc_library(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/types:optional",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -44,10 +44,10 @@ cc_test(
     srcs = ["function_registry_test.cc"],
     deps = [
         ":function_registry",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -58,6 +58,7 @@ cc_library(
     name = "static_map",
     hdrs = ["static_map.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/container:flat_hash_map",
@@ -65,7 +66,6 @@ cc_library(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -79,6 +79,7 @@ cc_library(
     srcs = ["registerer.cc"],
     hdrs = ["registerer.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/util/gtl:lockfree_hashmap",
         "//gloop/util/hash",
         "//gloop/util/hash:transparent_hash",
@@ -86,7 +87,6 @@ cc_library(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -96,10 +96,10 @@ cc_library(
     hdrs = ["registerer_tracker.h"],
     deps = [
         ":registration",
+        "//gloop:enforce_gloop_support",
         "//gloop/base:googleinit",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings",
-        "@gloop//gloop:enforce_gloop_support",
     ],
     alwayslink = 1,
 )
@@ -110,8 +110,8 @@ cc_test(
     srcs = ["static_map_test.cc"],
     deps = [
         ":static_map",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -122,6 +122,7 @@ cc_test(
     srcs = ["registerer_unittest.cc"],
     deps = [
         ":registration",
+        "//gloop:gloop_test_main",
         "//gloop/thread",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/functional:bind_front",
@@ -134,7 +135,6 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

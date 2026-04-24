@@ -32,13 +32,13 @@ cc_library(
     srcs = ["blocking_callback.cc"],
     hdrs = ["blocking_callback.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/base:callback",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -48,6 +48,7 @@ cc_test(
     srcs = ["blocking_callback_unittest.cc"],
     deps = [
         ":blocking_callback",
+        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/thread",
         "//gloop/util/functional:from_callback",
@@ -55,7 +56,6 @@ cc_test(
         "//gloop/util/gtl:stl_util",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -66,13 +66,13 @@ cc_library(
     srcs = ["cancellable_closure.cc"],
     hdrs = ["cancellable_closure.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/base:callback",
         "//gloop/base:context",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 

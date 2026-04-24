@@ -34,7 +34,7 @@ cc_library(
         "//gloop/base/scheduling:__subpackages__",
         "//gloop/thread/fiber/internal:__subpackages__",
     ],
-    deps = ["@gloop//gloop:enforce_gloop_support"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_library(
@@ -42,8 +42,8 @@ cc_library(
     hdrs = ["low-level-support.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -65,6 +65,7 @@ cc_library(
     deps = [
         ":domain_thread_assignment_callback_accessor",
         ":low-level-support",
+        "//gloop:enforce_gloop_support",
         "//gloop/base:examine_stack",
         "//gloop/base:spinlock",
         "//gloop/base:static_threadlocal",
@@ -84,7 +85,6 @@ cc_library(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
-        "@gloop//gloop:enforce_gloop_support",
     ],
     alwayslink = 1,
 )
@@ -94,7 +94,7 @@ cc_test(
     srcs = ["scheduler_test.cc"],
     deps = [
         ":scheduling",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -105,8 +105,8 @@ cc_library(
     hdrs = ["scheduling_mode.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:base_internal",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -144,6 +144,7 @@ cc_library(
     deps = [
         ":low-level-support",
         ":scheduling",
+        "//gloop:enforce_gloop_support",
         "//gloop/base:callback",
         "//gloop/base:sysinfo",
         "//gloop/thread/fiber",
@@ -159,7 +160,6 @@ cc_library(
         "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:span",
-        "@gloop//gloop:enforce_gloop_support",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest_for_library",
     ],

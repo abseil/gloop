@@ -32,8 +32,8 @@ cc_library(
         "//gloop/util/process:__subpackages__",
     ],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -60,6 +60,7 @@ cc_library(
             }),
     deps = [
         ":nul_terminated_buf_appender",
+        "//gloop:enforce_gloop_support",
         "//gloop/base:callback",
         "//gloop/base:commandlineflags",
         "//gloop/base:file_toc",
@@ -95,7 +96,6 @@ cc_library(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:optional",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -107,7 +107,7 @@ cc_test(
     srcs = ["nul_terminated_buf_appender_test.cc"],
     deps = [
         ":nul_terminated_buf_appender",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -119,10 +119,10 @@ cc_binary(
     srcs = ["subprocess_unittest_helper.cc"],
     deps = [
         ":process",
+        "//gloop:enforce_gloop_support",
         "//gloop/base:init_google",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log:check",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -138,6 +138,7 @@ cc_binary(
     tags = ["notsan"],
     deps = [
         ":process",
+        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/base:file_toc",
         "//gloop/base:linux_syscall_support",
@@ -165,7 +166,6 @@ cc_binary(
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -188,6 +188,7 @@ cc_binary(
     tags = ["nosan"],
     deps = [
         ":process",
+        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/base:file_toc",
         "//gloop/base:linux_syscall_support",
@@ -215,7 +216,6 @@ cc_binary(
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -230,8 +230,8 @@ cc_test(
     srcs = ["subprocess_signal_test.cc"],
     deps = [
         ":process",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log:check",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

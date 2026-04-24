@@ -36,6 +36,7 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/base:percpu",
         "//gloop/base:spinlock",
         "//gloop/base:sysinfo",
@@ -43,7 +44,6 @@ cc_library(
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:fixed_array",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -55,11 +55,11 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":object",
+        "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -71,6 +71,7 @@ cc_library(
     hdrs = ["counting_mutex.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/base:futex",
         "//gloop/base:percpu",
         "//gloop/base/scheduling",
@@ -84,7 +85,6 @@ cc_library(
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -121,8 +121,8 @@ cc_test(
     deps = [
         ":counting_mutex",
         ":rseq_clobber_test.lds",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

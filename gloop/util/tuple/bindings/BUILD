@@ -32,9 +32,9 @@ cc_library(
     hdrs = ["bindings.h"],
     visibility = [":util-tuple"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/meta:type_traits",
         "@abseil-cpp//absl/utility",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -43,7 +43,7 @@ cc_test(
     srcs = ["bindings_test.cc"],
     deps = [
         ":bindings",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

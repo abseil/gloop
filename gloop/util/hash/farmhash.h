@@ -24,7 +24,7 @@
 //  .  NAMESPACE_FOR_HASH_FUNCTIONS defaults to farmhash (instead of util)
 //  .  Moved farmhash::Fingerprint* from here to farmhash_fingerprint.{h,cc}
 //  .  Removed #include "farmhash.h".
-//  .  Added #include "gloop/base/port.h"; #define FARMHASH_LITTLE_ENDIAN or
+//  .  Added #include "base/port.h"; #define FARMHASH_LITTLE_ENDIAN or
 //     FARMHASH_BIG_ENDIAN.
 //  .  Include guards are changed to this Google's style
 //  .  Removed "using namespace std"
@@ -36,8 +36,7 @@
 //     defined in header files.  This prevents ODR violations.
 //     (Functions to mark were found by
 //       egrep -nH -e '^uint.*[y ]Hash|^size_t Hash|^uint.* Fing' farmhash.h.)
-//  .  Added #include "gloop/base/int128.h"; added ToGoogleU128() to convert
-//  "our"
+//  .  Added #include "base/int128.h"; added ToGoogleU128() to convert "our"
 //     128-bit integer type to Abseil's; added ToFarmHashU128() to convert
 //     Abseil's 128-bit integer type to ours.
 //  .  Do not warn about possible data loss on conversion from 'size_t' to

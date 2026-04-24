@@ -29,13 +29,13 @@ cc_library(
         "intervaltree-inl.h",
     ],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/base:arena",
         "//gloop/base:arena_allocator",
         "//gloop/base:init_google",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:die_if_null",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 

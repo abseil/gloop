@@ -31,9 +31,9 @@ cc_library(
     deps = [
         ":block-allocator",
         ":size-based-allocator",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
-        "@gloop//gloop:enforce_gloop_support",
     ],
     alwayslink = 1,
 )
@@ -46,7 +46,7 @@ cc_test(
         ":best-fit-allocator",
         ":block-allocator",
         ":tested-allocator",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -56,8 +56,8 @@ cc_library(
     name = "block-allocator",
     hdrs = ["block-allocator.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "//gloop/util/registration",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -67,13 +67,13 @@ cc_library(
     hdrs = ["size-based-allocator.h"],
     deps = [
         ":block-allocator",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -85,8 +85,8 @@ cc_test(
         ":block-allocator",
         ":size-based-allocator",
         ":tested-allocator",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -99,8 +99,8 @@ cc_library(
     hdrs = ["tested-allocator.h"],
     deps = [
         ":block-allocator",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings",
-        "@gloop//gloop:enforce_gloop_support",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest_for_library",
     ],

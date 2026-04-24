@@ -602,7 +602,7 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
   // For the simple case of returning a constant (e.g. zero, false, nullptr) on
   // error, consider `status_macros::Return` or `status_macros::ReturnVoid`:
   //
-  //   #include "gloop/util/status/return.h"
+  //   #include "util/task/contrib/status_macros/return.h"
   //
   //   bool DoMyThing() {
   //     RETURN_IF_ERROR(foo()).LogWarning().With(status_macros::Return(false));

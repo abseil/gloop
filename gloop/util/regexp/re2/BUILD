@@ -26,9 +26,9 @@ cc_library(
     name = "regexp_flag",
     hdrs = ["regexp_flag.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
-        "@gloop//gloop:enforce_gloop_support",
         "@re2",
     ],
 )
@@ -38,11 +38,11 @@ cc_test(
     srcs = ["regexp_flag_test.cc"],
     deps = [
         ":regexp_flag",
+        "//gloop:gloop_test_main",
         "//gloop/base:commandlineflags",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:reflection",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@re2",

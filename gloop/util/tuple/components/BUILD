@@ -27,13 +27,13 @@ package(
 cc_library(
     name = "ignore_index",
     hdrs = ["ignore_index.h"],
-    deps = ["@gloop//gloop:enforce_gloop_support"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_library(
     name = "intrinsics",
     hdrs = ["intrinsics.h"],
-    deps = ["@gloop//gloop:enforce_gloop_support"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -42,8 +42,8 @@ cc_test(
     srcs = ["intrinsics_test.cc"],
     deps = [
         ":intrinsics",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -54,7 +54,7 @@ cc_library(
     hdrs = ["std_tuple.h"],
     deps = [
         ":intrinsics",
-        "@gloop//gloop:enforce_gloop_support",
+        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -65,7 +65,7 @@ cc_test(
     deps = [
         ":intrinsics",
         ":std_tuple",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -76,7 +76,7 @@ cc_library(
     hdrs = ["pair.h"],
     deps = [
         ":intrinsics",
-        "@gloop//gloop:enforce_gloop_support",
+        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -87,7 +87,7 @@ cc_test(
     deps = [
         ":intrinsics",
         ":pair",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -98,7 +98,7 @@ cc_library(
     hdrs = ["array.h"],
     deps = [
         ":intrinsics",
-        "@gloop//gloop:enforce_gloop_support",
+        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -109,7 +109,7 @@ cc_test(
     deps = [
         ":array",
         ":intrinsics",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -123,7 +123,7 @@ cc_library(
         ":intrinsics",
         ":pair",
         ":std_tuple",
-        "@gloop//gloop:enforce_gloop_support",
+        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -134,7 +134,7 @@ cc_library(
     deps = [
         ":ignore_index",
         ":internal_iterate",
-        "@gloop//gloop:enforce_gloop_support",
+        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -144,9 +144,9 @@ cc_test(
     srcs = ["iterate_test.cc"],
     deps = [
         ":iterate",
+        "//gloop:gloop_test_main",
         "//gloop/util/tuple:test_util",
         "@abseil-cpp//absl/strings",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -160,7 +160,7 @@ cc_library(
         ":ignore_index",
         ":intrinsics",
         ":iterate",
-        "@gloop//gloop:enforce_gloop_support",
+        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -170,8 +170,8 @@ cc_test(
     srcs = ["for_each_test.cc"],
     deps = [
         ":for_each",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -189,6 +189,7 @@ cc_library(
         ":for_each",
         ":intrinsics",
         ":rank",
+        "//gloop:enforce_gloop_support",
         "//gloop/strings:ostringstream",
         "//gloop/util/gtl:typeid",
         "//gloop/util/symbolize:demangle",
@@ -201,7 +202,6 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:enforce_gloop_support",
         "@protobuf",
         "@protobuf//:protobuf_lite",
     ],
@@ -214,6 +214,7 @@ cc_test(
     deps = [
         ":streamable",
         ":streamable_test_cc_proto",
+        "//gloop:gloop_test_main",
         "//gloop/util/gtl/extend",
         "//gloop/util/tuple:struct",
         "@abseil-cpp//absl/base",
@@ -223,7 +224,6 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@gloop//gloop/util/status:codes_cc_proto",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -249,7 +249,7 @@ cc_library(
     srcs = ["rank.cc"],
     hdrs = ["rank.h"],
     visibility = ["//visibility:public"],
-    deps = ["@gloop//gloop:enforce_gloop_support"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -258,7 +258,7 @@ cc_test(
     srcs = ["rank_test.cc"],
     deps = [
         ":rank",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -267,7 +267,7 @@ cc_test(
 cc_library(
     name = "internal_preprocessor",
     hdrs = ["internal_preprocessor.h"],
-    deps = ["@gloop//gloop:enforce_gloop_support"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -276,7 +276,7 @@ cc_test(
     srcs = ["internal_preprocessor_test.cc"],
     deps = [
         ":internal_preprocessor",
-        "@gloop//gloop:gloop_test_main",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -289,10 +289,10 @@ cc_library(
     deps = [
         ":internal_preprocessor",
         ":streamable",
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:structured",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -304,13 +304,13 @@ cc_test(
         ":dump_vars",
         ":streamable",
         ":streamable_test_cc_proto",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:log_entry",
         "@abseil-cpp//absl/log:scoped_mock_log",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

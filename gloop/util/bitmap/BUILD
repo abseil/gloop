@@ -35,6 +35,7 @@ cc_library(
         "inlined_bitvector.h",
     ],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:prefetch",
         "@abseil-cpp//absl/hash",
@@ -42,7 +43,6 @@ cc_library(
         "@abseil-cpp//absl/numeric:bits",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -54,10 +54,10 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":bitmap",
+        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base:dynamic_annotations",
         "@abseil-cpp//absl/flags:flag",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -71,6 +71,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":bitmap",
+        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "//gloop/util/random:mt_random",
         "@abseil-cpp//absl/base:config",
@@ -78,7 +79,6 @@ cc_test(
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/hash",
         "@abseil-cpp//absl/types:span",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -90,9 +90,9 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":bitmap",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/hash:hash_testing",
         "@abseil-cpp//absl/log",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

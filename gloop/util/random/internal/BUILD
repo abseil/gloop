@@ -30,10 +30,10 @@ cc_library(
     name = "skewed_low_distribution",
     hdrs = ["skewed_low_distribution.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/random:distributions",
         "@abseil-cpp//absl/random/internal:iostream_state_saver",
         "@abseil-cpp//absl/random/internal:traits",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -42,6 +42,7 @@ cc_test(
     srcs = ["skewed_low_distribution_test.cc"],
     deps = [
         ":skewed_low_distribution",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/random",
@@ -49,7 +50,6 @@ cc_test(
         "@abseil-cpp//absl/random/internal:pcg_engine",
         "@abseil-cpp//absl/random/internal:sequence_urbg",
         "@abseil-cpp//absl/strings",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -59,10 +59,10 @@ cc_library(
     name = "yule_simon_distribution",
     hdrs = ["yule_simon_distribution.h"],
     deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/random:distributions",
         "@abseil-cpp//absl/random/internal:iostream_state_saver",
         "@abseil-cpp//absl/random/internal:traits",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -71,13 +71,13 @@ cc_test(
     srcs = ["yule_simon_distribution_test.cc"],
     deps = [
         ":yule_simon_distribution",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random/internal:distribution_test_util",
         "@abseil-cpp//absl/random/internal:pcg_engine",
         "@abseil-cpp//absl/random/internal:sequence_urbg",
         "@abseil-cpp//absl/strings",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

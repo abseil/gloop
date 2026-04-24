@@ -27,12 +27,13 @@ cc_library(
     hdrs = ["fiber-domain-support.h"],
     visibility = [
         "//gloop/thread/fiber:__subpackages__",
-        "@gloop//gloop/thread/fiber:__pkg__",
-        "@gloop//gloop/thread/fiber/internal:__subpackages__",
+        "//thread/fiber:__pkg__",
+        "//thread/fiber/internal:__subpackages__",
     ],
     deps = [
         ":fiber_thread_options",
         ":fiber_thread_pool",
+        "//gloop:enforce_gloop_support",
         "//gloop/base:static_threadlocal",
         "//gloop/base/scheduling",
         "//gloop/base/scheduling:domain_thread_assignment_callback_accessor",
@@ -48,7 +49,6 @@ cc_library(
         "@abseil-cpp//absl/numeric:bits",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -58,7 +58,7 @@ cc_library(
     visibility = [
         "//gloop/thread/fiber:__subpackages__",
     ],
-    deps = ["@gloop//gloop:enforce_gloop_support"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_library(
@@ -68,11 +68,12 @@ cc_library(
     visibility = [
         "//gloop/thread/fiber:__subpackages__",
         "//gloop/thread/fiber/internal:__subpackages__",
-        "@gloop//gloop/thread/fiber:__pkg__",
-        "@gloop//gloop/thread/fiber/internal:__subpackages__",
+        "//thread/fiber:__pkg__",
+        "//thread/fiber/internal:__subpackages__",
     ],
     deps = [
         ":fiber_thread_options",
+        "//gloop:enforce_gloop_support",
         "//gloop/base:spinlock",
         "//gloop/base/scheduling",
         "//gloop/base/scheduling:scheduling_mode",
@@ -87,7 +88,6 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:enforce_gloop_support",
     ],
 )
 
@@ -104,6 +104,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":fiber_thread_pool",
+        "//gloop:gloop_test_main",
         "//gloop/base/scheduling",
         "//gloop/thread/fiber",
         "//gloop/thread/fiber:fiber-options",
@@ -113,7 +114,6 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@gloop//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
