@@ -818,6 +818,22 @@ TEST(Unescape, BasicFunction) {
   }
 }
 
+TEST(QuotedPrintable, Unescape) {
+  const char* str = "ABC_DEF =3D=20=3d =\r\n";
+  const char* expected = "ABC_DEF = = ";
+  const char* str2 = "ABC=\nD =\r\nE";
+  const char* expected2 = "ABCD E";
+
+  EXPECT_EQ(expected, strings::QuotedPrintableUnescape(str));
+  EXPECT_EQ(expected2, strings::QuotedPrintableUnescape(str2));
+}
+
+TEST(QEncoding, Unescape) {
+  const char* str = "ABC_DEF =3D=20=3d =\r\n";
+  const char* expected = "ABC DEF = = ";
+  EXPECT_EQ(expected, strings::QEncodingUnescape(str));
+}
+
 void BM_BackslashEscape(benchmark::State& state) {
   const int has_escapes = state.range(0);
   const int len = state.range(1);

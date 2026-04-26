@@ -30,6 +30,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/charset.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/resize_and_overwrite.h"
 #include "absl/strings/string_view.h"
 
 namespace strings {
@@ -448,5 +449,118 @@ size_t EncodeUTF8Char(char* buffer, char32_t utf8_char) {
 }
 
 }  // namespace strings_internal
+
+// ----------------------------------------------------------------------
+// QuotedPrintableUnescapeInternal()
+//
+// Check out https://datatracker.ietf.org/doc/html/rfc2045 for more details,
+// only briefly implemented. But from the web... Quoted-printable is an encoding
+// method defined in the MIME standard. It is used primarily to encode 8-bit
+// text (such as text that includes foreign characters) into 7-bit US ASCII,
+// creating a document that is mostly readable by humans, even in its encoded
+// form. All MIME compliant applications can decode quoted-printable
+// text, though they may not necessarily be able to properly display the
+// document as it was originally intended. As quoted-printable encoding
+// is implemented most commonly, printable ASCII characters (values 33
+// through 126, excluding 61), tabs and spaces that do not appear at the
+// end of lines, and end-of-line characters are not encoded. Other
+// characters are represented by an equal sign (=) immediately followed
+// by that character's hexadecimal value. Lines that are longer than 76
+// characters are shortened by line breaks, with the equal sign marking
+// where the breaks occurred.
+//
+// Note that QuotedPrintableUnescape is different from 'Q'-encoding as
+// defined in RFC 2047. In particular, This does not treat '_'s as spaces.
+// See QEncodingUnescape().
+// ----------------------------------------------------------------------
+static size_t QuotedPrintableUnescapeInternal(const char* source, size_t slen,
+                                              char* dest, size_t szdest) {
+  char* d = dest;
+  const char* p = source;
+
+  while (p < source + slen && *p != '\0' && d < dest + szdest) {
+    switch (*p) {
+      case '=':
+        // If it's valid, convert to hex and insert or remove line-wrap.
+        // In the case of line-wrap removal, we allow LF as well as CRLF.
+        if (p < source + slen - 1) {
+          if (p[1] == '\n') {
+            p++;
+          } else if (p < source + slen - 2) {
+            if (absl::ascii_isxdigit(p[1]) && absl::ascii_isxdigit(p[2])) {
+              *d++ = HexDigitToInt(p[1]) * 16 + HexDigitToInt(p[2]);
+              p += 2;
+            } else if (p[1] == '\r' && p[2] == '\n') {
+              p += 2;
+            }
+          }
+        }
+        p++;
+        break;
+      default:
+        *d++ = *p++;
+        break;
+    }
+  }
+  return (d - dest);
+}
+
+std::string QuotedPrintableUnescape(absl::string_view src) {
+  std::string dest;
+  absl::StringResizeAndOverwrite(dest, src.size(),
+                                 [src](char* buf, size_t buf_size) {
+                                   return QuotedPrintableUnescapeInternal(
+                                       src.data(), src.size(), buf, buf_size);
+                                 });
+  return dest;
+}
+
+// ----------------------------------------------------------------------
+// QEncodingUnescapeInternal()
+//
+// This is very similar to QuotedPrintableUnescape except that we convert
+// '_'s into spaces. (See RFC 2047)
+// ----------------------------------------------------------------------
+static size_t QEncodingUnescapeInternal(const char* source, size_t slen,
+                                        char* dest, size_t szdest) {
+  char* d = dest;
+  const char* p = source;
+
+  while (p < source + slen && *p != '\0' && d < dest + szdest) {
+    switch (*p) {
+      case '=':
+        // If it's valid, convert to hex and insert or remove line-wrap.
+        // In the case of line-wrap removal, the assumption is that this
+        // is an RFC-compliant message with lines terminated by CRLF.
+        if (p < source + slen - 2) {
+          if (absl::ascii_isxdigit(p[1]) && absl::ascii_isxdigit(p[2])) {
+            *d++ = HexDigitToInt(p[1]) * 16 + HexDigitToInt(p[2]);
+            p += 2;
+          } else if (p[1] == '\r' && p[2] == '\n') {
+            p += 2;
+          }
+        }
+        p++;
+        break;
+      case '_':  // According to RFC 2047, _'s are to be treated as spaces
+        *d++ = ' ';
+        p++;
+        break;
+      default:
+        *d++ = *p++;
+        break;
+    }
+  }
+  return (d - dest);
+}
+
+std::string QEncodingUnescape(absl::string_view src) {
+  std::string dest;
+  absl::StringResizeAndOverwrite(
+      dest, src.size(), [src](char* buf, size_t buf_size) {
+        return QEncodingUnescapeInternal(src.data(), src.size(), buf, buf_size);
+      });
+  return dest;
+}
 
 }  // namespace strings
