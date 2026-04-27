@@ -37,6 +37,7 @@ TEST(UserNameTest, MyUserName) {
   const std::string expected = UserName(geteuid());
 #endif
   EXPECT_FALSE(expected.empty());
+  EXPECT_EQ(MyUserName(), expected);
 }
 
 #ifndef _WIN32

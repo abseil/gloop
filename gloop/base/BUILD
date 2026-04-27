@@ -28,6 +28,7 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 # Dependencies of //gloop/base that rely on POSIX support.
 POSIX_DEPS = [
+    ":nsscache",
     ":per-thread-sem",
     ":process_state",
     ":signal-handler",
@@ -1569,12 +1570,14 @@ cc_library(
     hdrs = ["init_google.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":commandlineflags",
         ":config",
         ":examine_stack",
         ":googleinit",
         ":init_google_flags",
         ":spinlock",
         ":sysinfo",
+        ":user_name",
         "//gloop:enforce_gloop_support",
         "//gloop/base/internal:init_google",
         "//gloop/concurrent/rcu",
@@ -1594,6 +1597,7 @@ cc_library(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:initialize",
         "@abseil-cpp//absl/log:log_sink_registry",
+        "@abseil-cpp//absl/log:vlog_is_on",
         "@abseil-cpp//absl/log/internal:globals",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
@@ -1795,6 +1799,7 @@ cc_library(
     hdrs = ["user_name.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":nsscache",
         ":port",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",

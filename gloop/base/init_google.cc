@@ -35,6 +35,7 @@
 #include "absl/flags/internal/program_name.h"
 #include "absl/flags/parse.h"
 #include "absl/log/initialize.h"
+#include "absl/log/vlog_is_on.h"
 #include "gloop/base/config.h"
 
 // TODO: Migrate this to either base/config.h or
@@ -84,12 +85,14 @@
 #include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
+#include "gloop/base/commandlineflags.h"
 #include "gloop/base/examine_stack.h"
 #include "gloop/base/googleinit.h"
 #include "gloop/base/init_google_flags.h"
 #include "gloop/base/internal/init_google.h"
 #include "gloop/base/spinlock.h"
 #include "gloop/base/sysinfo.h"
+#include "gloop/base/user_name.h"
 #include "tcmalloc/malloc_extension.h"
 
 #ifdef ABSL_HAVE_MMAP
@@ -122,14 +125,13 @@ inline void GoogleInitMainStackLimits() {}
 #endif  // BASE_HAVE_CPU_PROFILER
 
 #if !defined(_WIN32) && !defined(__myriad2__)
+#include "gloop/base/nsscache.h"
 #endif  // !_WIN32 && !__myriad2__
 
 // Controls the default of the --uid flag.
 #ifdef BASE_CONFIG_DEFAULT_UID_FLAG
 #error BASE_CONFIG_DEFAULT_UID_FLAG cannot be directly set
 #elif defined(__linux__) && !defined(__ANDROID__)
-#define BASE_CONFIG_DEFAULT_UID_FLAG "nobody"
-#else
 #define BASE_CONFIG_DEFAULT_UID_FLAG ""  // Means 'do not change uid'
 #endif
 
@@ -193,6 +195,181 @@ absl::Notification* InitGoogleDoneNotification() {
 
 }  // namespace
 
+#if GOOGLE_ENABLE_CHROOT
+static bool IsChrootUser() {
+  std::string username = MyUserName();
+  if (username == "root") {
+    return true;
+  }
+  return false;
+}
+#endif  // GOOGLE_ENABLE_CHROOT
+
+#if GOOGLE_ENABLE_SETUID
+static bool IsSetuidUser(absl::string_view new_username) {
+  std::string username = MyUserName();
+
+  if (username == "root") return true;
+
+  return false;
+}
+#endif
+
+// setgid privileges are highly restricted for security
+// reasons. Currently, only root can do it.
+#if defined(GOOGLE_ENABLE_SETGID)
+static bool IsSetgidUser() {
+  const uid_t uid = getuid();
+  if (uid == 0) return true;  // root can do it
+
+  return false;
+}
+#endif  // GOOGLE_ENABLE_SETGID
+
+// If running as a setuid-capable user, this routine switches the user
+// id to the specified "username".  If the current uid does not have
+// enough capabilities, request is ignored.  Various logging messages
+// are generated, and if information about username cannot be obtained,
+// the program will abort with a fatal error.
+static void SwitchUser(const std::string& username) {
+#if GOOGLE_ENABLE_SETUID
+  uid_t new_uid;
+  CHECK(LookupUIDByName(username, &new_uid))
+      << " User " << username << " not found";
+
+  if (!absl::GetFlag(FLAGS_silent_init)) {
+    VLOG(1) << "Attempt to change userid from " << MyUserName() << ":"
+            << getuid() << " to: " << username << ":" << new_uid;
+  }
+  if (IsSetuidUser(username)) {  // Enough capabilities to switch UIDs?
+#ifdef GOOGLE_HAVE_PRCTL
+    // Per prctl(2) operations such as dropping privileges reset process
+    // dumpable value (default 1) to the value of suid_dumpable (default 0).
+    // This is a good feature in general to avoid binaries started as root and
+    // using setuid to be dumpable, as they may hold secrets or have shared
+    // memory that we do not want the target user to access.
+    // However in ChangeRootAndUser/SwitchUser/SwitchGroup case we assume that:
+    //  - the root process does not hold anything sensitive
+    //  - other processes running as the target uid are not a threat
+    // This is not necessarily true for other operations, such as subprocesses.
+    // Therefore, we ensure to keep dumpable if it was set before.
+    const int dumpable_before = prctl(PR_GET_DUMPABLE, 0);
+#endif
+
+    PCHECK(setuid(new_uid) != -1) << ": Failed to setuid to " << new_uid;
+
+#ifdef GOOGLE_HAVE_PRCTL
+    if (dumpable_before) prctl(PR_SET_DUMPABLE, 1);
+#endif
+
+    if (!absl::GetFlag(FLAGS_silent_init)) {
+      VLOG(1) << "Changed to user " << username;
+    }
+    if ("nobody" == username) {
+      LOG(ERROR) << "Switching to user nobody, LOAS will not work"
+                 << " (consider using --uid=)";
+    }
+  } else {
+    if (!absl::GetFlag(FLAGS_silent_init)) {
+      VLOG(1) << "UID " << getuid() << " does not have enough capabilities "
+              << "for setuid() call to user " << username << ". Skipping";
+    }
+  }
+#else   // GOOGLE_ENABLE_SETUID
+  if (!absl::GetFlag(FLAGS_silent_init)) {
+    VLOG(1) << "Running on " << kOsName << ".  No attempt to setuid to user "
+            << username;
+  }
+#endif  // !GOOGLE_ENABLE_SETUID
+}
+
+// If running as a setgid-capable user, this routine switches the
+// group id to the specified "group". If uid is not empty, also
+// adds the user's supplementary groups from /etc/group to the access list. If
+// the current uid does not have enough capabilities, request is ignored.
+// Various logging messages are generated, and if information about username
+// cannot be obtained, the program will abort with a fatal error.
+static void SwitchGroup(const std::string& groupname, const std::string& uid) {
+#if defined(GOOGLE_ENABLE_SETGID)
+  // Worst case number of failures we observed on grhat was 6 so let's use
+  // 2x that. Sadly, that's not enough with goobuntu or in SQE, so let's use
+  // another factor of 4.
+  const int kMaxTries = 48;
+
+  gid_t new_gid;
+  CHECK(LookupGIDByGroupName(groupname, &new_gid))
+      << " Group " << groupname << " not found";
+
+  if (!absl::GetFlag(FLAGS_silent_init) && VLOG_IS_ON(1)) {
+    std::string group;
+    int i = 0;
+    while (true) {
+      if (LookupGroupNameByGID(getgid(), &group)) break;
+
+      if (++i >= kMaxTries) {
+        LOG(ERROR) << "Could not successfully call getgrgid after " << kMaxTries
+                   << " attempts.";
+        break;
+      }
+
+      VLOG(1) << "getgrgid failed on try " << i
+              << " - sleeping for 200ms and retrying";
+
+      // We're going to sleep for a while because we don't want to suck
+      // up all the processor.  We did notice that sleeping doesn't necessarily
+      // help getgrgid() succeed any faster.  It would generally fail for
+      // the same number of times before succeeding whether we were sleeping
+      // for 1 second or not at all.
+      timespec ts;
+      ts.tv_sec = 0;
+      ts.tv_nsec = 200000000;  // 200 ms
+      nanosleep(&ts, nullptr);
+    }
+
+    std::string old_group = (i < kMaxTries) ? group : "\"unknown\"";
+    VLOG(1) << "Attempt to change groupid from " << old_group << ":" << getgid()
+            << " to " << groupname << ":" << new_gid;
+  }
+
+  if (IsSetgidUser()) {  // Enough capabilities to switch groups?
+#ifdef GOOGLE_HAVE_PRCTL
+    const int dumpable_before = prctl(PR_GET_DUMPABLE, 0);  // cf. SwitchUser
+#endif                                                      // GOOGLE_HAVE_PRCTL
+
+    if (!uid.empty()) {
+      // initgroups gives access to user's supplementary groups.
+      PCHECK(initgroups(uid.c_str(), new_gid) == 0)
+          << "initgroups(" << uid << ", " << new_gid << ") failed";
+    } else {
+      // Restrict access to just the specified group.
+      gid_t group_list[] = {new_gid};
+      int group_count = ABSL_ARRAYSIZE(group_list);
+      PCHECK(setgroups(group_count, group_list) == 0)
+          << "setgroups(" << group_count << ", {" << new_gid << "}) failed";
+    }
+    PCHECK(setgid(new_gid) == 0) << "setgid(" << new_gid << ") failed";
+
+#ifdef GOOGLE_HAVE_PRCTL
+    if (dumpable_before) prctl(PR_SET_DUMPABLE, 1);
+#endif  // GOOGLE_HAVE_PRCTL
+
+    if (!absl::GetFlag(FLAGS_silent_init)) {
+      VLOG(1) << "Changed to group " << groupname;
+    }
+  } else {
+    if (!absl::GetFlag(FLAGS_silent_init)) {
+      VLOG(1) << "UID " << getuid() << " does not have enough capabilities "
+              << "for setgid() call. NOT changing to group " << groupname;
+    }
+  }
+#else  // GOOGLE_ENABLE_SETGID
+  if (!absl::GetFlag(FLAGS_silent_init)) {
+    VLOG(1) << "Running on " << kOsName << ".  No attempt to change to group "
+            << groupname;
+  }
+#endif
+}
+
 // If running as root, change our root directory to the given
 // directory. Return true if and only if we changed the root
 // directory. Don't log anything in this function if we're successful,
@@ -200,6 +377,36 @@ absl::Notification* InitGoogleDoneNotification() {
 // our chroot jail.
 static bool ChangeRoot(const char* root_dir) {
 #if GOOGLE_ENABLE_CHROOT
+  if (!absl::GetFlag(FLAGS_silent_init)) {
+    VLOG(1) << "Attempt to chroot with uid:" << getuid() << MyUserName();
+  }
+  bool erase = false;
+  if (!strcmp("env", root_dir)) {
+    // use environment variable $CHROOT instead, and erase it
+    erase = true;
+    root_dir = getenv("CHROOT");
+    CHECK(root_dir) << ": --chroot=env, but no $CHROOT variable";
+  }
+
+  if (IsChrootUser()) {
+    // The chroot() will fail if root_dir is not an accessible directory.
+    PCHECK(chroot(root_dir) == 0) << "Failed to chroot to " << root_dir;
+    // We have to chdir, or else "." will be outside the new root.
+    PCHECK(chdir("/") == 0) << "Failed to chdir to /";
+
+    if (erase) {
+      // Mangle the environment variable so there is no record in our
+      // process's memory of where we chrooted to
+      memset(const_cast<char*>(root_dir), 0, strlen(root_dir));
+    }
+
+    return true;
+  } else {
+    if (!absl::GetFlag(FLAGS_silent_init)) {
+      VLOG(1) << "Not running with correct permissions. uid:" << getuid()
+              << " No attempt to change root directory to " << root_dir;
+    }
+  }
 #else
   if (!absl::GetFlag(FLAGS_silent_init)) {
     VLOG(1) << "Running on " << kOsName << ".  No attempt to chroot to "
@@ -218,6 +425,21 @@ void ChangeRootAndUser() {
   if (!chroot_flag.empty()) {
     changed_root = ChangeRoot(chroot_flag.c_str());
   }
+
+  // Make sure we keep the SwitchUser/Group() calls right after the
+  // ChangeRoot() call. We don't want to put anything root-ish inside
+  // our chroot jail.
+  if (absl::GetFlag(FLAGS_gid) == "=uid") {
+    absl::SetFlag(&FLAGS_gid, absl::GetFlag(FLAGS_uid));
+    if (!absl::GetFlag(FLAGS_gid).empty()) {
+      SwitchGroup(absl::GetFlag(FLAGS_gid), absl::GetFlag(FLAGS_uid));
+    }
+  } else if (!absl::GetFlag(FLAGS_gid).empty()) {
+    SwitchGroup(absl::GetFlag(FLAGS_gid), "");
+  }
+
+  // We are ready to drop our privileges now
+  if (!absl::GetFlag(FLAGS_uid).empty()) SwitchUser(absl::GetFlag(FLAGS_uid));
 
   // If we were to log this message inside ChangeRoot, we'd create a
   // log file and symlink to it that were owned by root.
@@ -391,11 +613,18 @@ static void RealInitGoogle(absl::string_view usage, int* argc, char*** argv,
   atexit(CleanupWinsock);
 #endif
 
+  // Set up testing environment vars
+  absl::string_view test_tmpdir =
+      absl::NullSafeStringView(getenv("TEST_TMPDIR"));
+  if (!test_tmpdir.empty()) {
+    SetCommandLineOption("datadir", test_tmpdir);
+  }
+
   doing_command_line_flags_parsing = true;
   REQUIRE_MODULE_INITIALIZED(command_line_flags_parsing);
   doing_command_line_flags_parsing = false;
 
-  absl::ParseCommandLine(*argc, *argv);
+  ParseCommandLineNonHelpFlags(argc, argv, remove_flags);
 
   absl::InitializeLog();
 
@@ -469,8 +698,8 @@ static void RealInitGoogle(absl::string_view usage, int* argc, char*** argv,
     LOG(WARNING) << "DEBUG BINARY -- Performance may suffer";
 #endif
 
-    const auto argvs = *argv;
-    const size_t argvs_size = *argc;
+    const std::vector<std::string>& argvs = base::GetArgvs();
+    const size_t argvs_size = argvs.size();
     LOG(INFO) << "Command line arguments:";
     for (size_t i = 0; i < argvs_size; ++i) {
       LOG(INFO) << "argv[" << i << "]: '" << argvs[i] << "'";

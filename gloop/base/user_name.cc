@@ -30,6 +30,10 @@
 
 #include <string>
 
+#if defined(__linux__) || defined(__APPLE__)
+#include "gloop/base/nsscache.h"
+#endif
+
 #include "absl/base/attributes.h"
 #include "absl/base/const_init.h"
 #include "absl/base/thread_annotations.h"
@@ -65,7 +69,12 @@ static UserNameCacheEntry* effective_user_name
 
 static std::string UserName_UnCached(const uid_t uid) {
 #if defined(__linux__) || (defined(__APPLE__))
-  return std::string();
+  std::string username;
+  if (LookupNameByUID(uid, &username)) {
+    return username;
+  } else {
+    return std::string();
+  }
 #else
   // Maybe there are ways to do the same on other OS's, but let's worry
   // about that when we really care.
