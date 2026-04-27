@@ -898,12 +898,14 @@ TEST(FlatMapTest, VectorExtensions) {
   m.reserve(1000);
   EXPECT_GE(m.capacity(), 1000);
 
+#ifndef GLOOP_UNSUPPORTED_LIBSTDCXX  // shrink_to_fit differences
   // shrink_to_fit is non-binding, but - given that one motivation for flat_map
   // is memory optimization - we would really like it to work. If we have a
   // standard library which does not honour shrink_to_fit, we should reimplement
   // it ourselves in flat_map.
   m.shrink_to_fit();
   EXPECT_EQ(m.capacity(), 5);
+#endif  // GLOOP_UNSUPPORTED_LIBSTDCXX
 }
 
 // Tests for transparent comparator (a.k.a. heterogeneous lookup).

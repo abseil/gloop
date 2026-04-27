@@ -73,6 +73,7 @@ TEST(util, NoDemangling) {
   EXPECT_THAT(trace, HasSubstr("_ZN7testing"));
 }
 
+#ifndef GLOOP_UNSUPPORTED_LIBSTDCXX  // Extra characters inserted in libstdc++
 ABSL_ATTRIBUTE_NOINLINE std::string StackTraceCaller(int skip_count) {
   // Helps to keep frame in the stack trace.
   VLOG(1) << "@@frame\n" << __builtin_frame_address(0);
@@ -140,6 +141,7 @@ TEST(util, SymbolizeStackTraceAsString) {
   // At least it should contain "main";
   EXPECT_NE(strstr(trace.c_str(), "main"), nullptr);
 }
+#endif  // GLOOP_UNSUPPORTED_LIBSTDCXX
 
 TEST(util, SymbolizeStackTrace) {
   std::vector<std::string> stack;
@@ -153,6 +155,8 @@ TEST(util, SymbolizeStackTrace) {
   EXPECT_TRUE(false) << "Did not find 'main' in stack:\n  "
                      << absl::StrJoin(stack, "\n  ");
 }
+
+#ifndef GLOOP_UNSUPPORTED_LIBSTDCXX  // Extra characters inserted in libstdc++
 
 // The two global variables are used in NoReturnFunctionTest().
 static std::string* g_stacktrace;
@@ -185,6 +189,7 @@ TEST(util, NoReturnFunctionTest) {
     delete g_stacktrace;
   }
 }
+#endif  // GLOOP_UNSUPPORTED_LIBSTDCXX
 
 // The purpose of this class is to confirm that the non-mutating methods
 // SymbolizeStackTraceAsString and SymbolizeStackTrace take a 'stack' arg with
@@ -217,6 +222,7 @@ TEST(util, CheckSymbolizedStackTraceConstCorrectness) {
   capturer.GetSymbolizedStackTrace(&dummy);
 }
 
+#ifndef GLOOP_UNSUPPORTED_LIBSTDCXX  // Extra characters inserted in libstdc++
 TEST(util, CurrentStackTraceWorks) {
   // ::CurrentStackTrace decorates symbols with file/line info in debug builds.
   absl::debugging_internal::SetSymbolDecoratorFactory(nullptr);
@@ -270,6 +276,7 @@ TEST(util, CurrentStackTraceWorks) {
     }
   }
 }
+#endif  // GLOOP_UNSUPPORTED_LIBSTDCXX
 
 TEST(util, CurrentStackTraceWithUrlWorks) {
   const auto str1 = util::CurrentStackTrace(false);

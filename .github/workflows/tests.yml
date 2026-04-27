@@ -48,6 +48,8 @@ jobs:
           - value: ubsan
           - value: msan
           - value: tsan
+          - name: Unsupported libstdc++
+            value: libstdc++
           - name: Bazel 8
             value: asan
             env: USE_BAZEL_VERSION=8.x
@@ -92,6 +94,15 @@ jobs:
           - config: C++ less than C++20
             flags: --cxxopt=-std=c++17
             expected_error: Gloop requires C++20 or later
+          - config: Build with libstdc++
+            flags: --config=libstdc++-base
+            expected_error: Gloop does not support libstdc++
+          - config: Build with exceptions
+            flags: --copt=-fexceptions
+            expected_error: Gloop does not support exceptions
+          - config: Build with signed char
+            flags: --copt=-fsigned-char
+            expected_error: Gloop does not support signed chars
           - config: Bazel less than 8.0
             env: USE_BAZEL_VERSION=7.7.1
             expected_error: Bazel compatibility check failed

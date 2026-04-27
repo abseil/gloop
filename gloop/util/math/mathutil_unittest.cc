@@ -1729,11 +1729,13 @@ TEST(MathUtil, SafeCast) {
   SafeCastTester<double, int32_t>::Run();
   SafeCastTester<float, int64_t>::Run();
   SafeCastTester<double, int64_t>::Run();
+#ifndef GLOOP_UNSUPPORTED_LIBSTDCXX  // std::isnan<int128> is ambiguous
   // As of 2024-06, `absl::int128` / `absl::uint128` cannot be used here due
   // to missing `std::isnan` overload, lack of implicit conversions, and
   // possibly more problems.
   SafeCastTester<float, int128_t>::Run();
   SafeCastTester<double, int128_t>::Run();
+#endif  // GLOOP_UNSUPPORTED_LIBSTDCXX
 
   SafeCastTester<float, uint8_t>::Run();
   SafeCastTester<double, uint8_t>::Run();
@@ -1743,8 +1745,10 @@ TEST(MathUtil, SafeCast) {
   SafeCastTester<double, uint32_t>::Run();
   SafeCastTester<float, uint64_t>::Run();
   SafeCastTester<double, uint64_t>::Run();
+#ifndef GLOOP_UNSUPPORTED_LIBSTDCXX  // std::isnan<int128> is ambiguous
   SafeCastTester<float, uint128_t>::Run();
   SafeCastTester<double, uint128_t>::Run();
+#endif  // GLOOP_UNSUPPORTED_LIBSTDCXX
 
   // Spot-check SafeCast<int>
   EXPECT_EQ(MathUtil::SafeCast<int>(static_cast<float>(12345.678)), 12345);
@@ -2018,8 +2022,10 @@ TEST(MathUtil, SafeRound) {
   SafeRoundTester<double, int32_t>::Run();
   SafeRoundTester<float, int64_t>::Run();
   SafeRoundTester<double, int64_t>::Run();
+#ifndef GLOOP_UNSUPPORTED_LIBSTDCXX  // std::isnan<int128> is ambiguous
   SafeRoundTester<float, int128_t>::Run();
   SafeRoundTester<double, int128_t>::Run();
+#endif  // GLOOP_UNSUPPORTED_LIBSTDCXX
 
   SafeRoundTester<float, uint8_t>::Run();
   SafeRoundTester<double, uint8_t>::Run();
@@ -2029,8 +2035,10 @@ TEST(MathUtil, SafeRound) {
   SafeRoundTester<double, uint32_t>::Run();
   SafeRoundTester<float, uint64_t>::Run();
   SafeRoundTester<double, uint64_t>::Run();
+#ifndef GLOOP_UNSUPPORTED_LIBSTDCXX  // std::isnan<int128> is ambiguous
   SafeRoundTester<float, uint128_t>::Run();
   SafeRoundTester<double, uint128_t>::Run();
+#endif  // GLOOP_UNSUPPORTED_LIBSTDCXX
 
   // Spot-check SafeRound<int>
   EXPECT_EQ(MathUtil::SafeRound<int>(static_cast<float>(12345.678)), 12346);
@@ -3128,7 +3136,7 @@ TEST(MathUtil, CeilOfRatio) {
   TestThatCeilOfRatioDenomMinusOneIsIncorrect();
 }
 
-TEST(MathUtil, NaN) { EXPECT_TRUE(isnan(MathUtil::NaN())); }
+TEST(MathUtil, NaN) { EXPECT_TRUE(std::isnan(MathUtil::NaN())); }
 
 struct NormalizeRangeParams {
   double input_value;

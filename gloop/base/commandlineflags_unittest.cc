@@ -93,7 +93,6 @@ ABSL_FLAG(uint64_t, test_uint64, 2, "");
 ABSL_FLAG(double, test_double, -1.0, "");
 ABSL_FLAG(std::string, test_string, "initial", "");
 ABSL_FLAG(int32_t, r, 0, "For reordering test");
-ABSL_FLAG(bool, flag_with_invalid_help, false, 0);
 
 //
 // The below ugliness gets some additional code coverage in the -helpxml

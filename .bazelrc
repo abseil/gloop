@@ -84,6 +84,11 @@ build:tsan --copt=-DLINUX_SYSCALL_ENABLE_HOOKS
 test:tsan --test_tag_filters=-nosan,-notsan
 test:tsan --build_tag_filters=-nosan,-notsan
 
+build:libstdc++-base --repo_env=BAZEL_CXXOPTS= --repo_env=BAZEL_LINKOPTS= --repo_env=CPLUS_INCLUDE_PATH=
+build:libstdc++-base --action_env=BAZEL_CXXOPTS= --action_env=BAZEL_LINKOPTS= --action_env=CPLUS_INCLUDE_PATH=
+build:libstdc++-base --host_action_env=BAZEL_CXXOPTS= --host_action_env=BAZEL_LINKOPTS= --host_action_env=CPLUS_INCLUDE_PATH=
+build:libstdc++ --config=libstdc++-base --config=asan --copt=-DGLOOP_I_ACKNOWLEDGE_THAT_GLOOP_DOES_NOT_SUPPORT_LIBSTDCXX=1
+
 # Remote build configuration for Gloop CI.
 build:remote --define=EXECUTOR=remote
 build:remote --remote_cache=grpcs://us-west1-remotebuildexecution.googleapis.com

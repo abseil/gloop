@@ -106,6 +106,6 @@ platform(
         "container-image": "docker://gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:763336890942c7bcd17382945a8f9fa46d14a0509c9666566dae79edf4b7c2c5",
         "Pool": "default",
         "dockerRunAsRoot": "true",
-        "cache-silo-key": "default-04162026",
+        "cache-silo-key": "default-04302026",
     },
 )
