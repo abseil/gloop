@@ -25,6 +25,7 @@
 #include <string>
 
 #include "absl/base/macros.h"
+#include "absl/base/nullability.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/strings/ascii.h"
@@ -43,7 +44,7 @@ namespace {
 
 template <typename Functor>
 void BackslashEscape(absl::string_view src, Functor&& delimiter_check,
-                     std::string* dest) {
+                     std::string* absl_nonnull dest) {
   typedef absl::string_view::const_iterator Iter;
   Iter first = src.begin();
   Iter last = src.end();
@@ -66,7 +67,7 @@ void BackslashEscape(absl::string_view src, Functor&& delimiter_check,
 
 template <typename Functor>
 void BackslashUnescape(absl::string_view src, Functor&& delimiter_check,
-                       std::string* dest) {
+                       std::string* absl_nonnull dest) {
   typedef absl::string_view::const_iterator Iter;
   Iter first = src.begin();
   Iter last = src.end();
@@ -156,21 +157,21 @@ absl::string_view::size_type BackslashUnescapedFind(absl::string_view src,
 }  // namespace
 
 void BackslashEscape(absl::string_view src, unsigned char delim,
-                     std::string* dest) {
+                     std::string* absl_nonnull dest) {
   BackslashEscape(src, [delim](unsigned char c) { return c == delim; }, dest);
 }
 void BackslashEscape(absl::string_view src, const absl::CharSet& delims,
-                     std::string* dest) {
+                     std::string* absl_nonnull dest) {
   BackslashEscape(
       src, [&delims](unsigned char c) { return delims.contains(c); }, dest);
 }
 
 void BackslashUnescape(absl::string_view src, unsigned char delim,
-                       std::string* dest) {
+                       std::string* absl_nonnull dest) {
   BackslashUnescape(src, [delim](unsigned char c) { return c == delim; }, dest);
 }
 void BackslashUnescape(absl::string_view src, const absl::CharSet& delims,
-                       std::string* dest) {
+                       std::string* absl_nonnull dest) {
   BackslashUnescape(
       src, [&delims](unsigned char c) { return delims.contains(c); }, dest);
 }
@@ -186,7 +187,8 @@ absl::string_view::size_type BackslashUnescapedFind(
       src, [&delims](unsigned char c) { return delims.contains(c); });
 }
 
-ptrdiff_t EscapeStrForCSV(const char* src, char* dest, ptrdiff_t dest_len) {
+ptrdiff_t EscapeStrForCSV(const char* absl_nonnull src, char* absl_nonnull dest,
+                          ptrdiff_t dest_len) {
   ptrdiff_t used = 0;
 
   while (true) {
@@ -230,7 +232,8 @@ static inline bool IsSurrogate(char32_t c, absl::string_view src) {
 
 #define IS_OCTAL_DIGIT(c) (((c) >= '0') && ((c) <= '7'))
 
-ptrdiff_t UnescapeCEscapeSequences(const char* source, char* dest) {
+ptrdiff_t UnescapeCEscapeSequences(const char* absl_nonnull source,
+                                   char* absl_nonnull dest) {
   char* d = dest;
 
   const char* p = source;
@@ -393,7 +396,8 @@ ptrdiff_t UnescapeCEscapeSequences(const char* source, char* dest) {
   return d - dest;
 }
 
-ptrdiff_t UnescapeCEscapeString(const std::string& src, std::string* dest) {
+ptrdiff_t UnescapeCEscapeString(const std::string& src,
+                                std::string* absl_nonnull dest) {
   CHECK(dest);
   dest->resize(src.size() + 1);
   ptrdiff_t len = UnescapeCEscapeSequences(src.c_str(), &(*dest)[0]);
@@ -410,7 +414,7 @@ std::string UnescapeCEscapeString(const std::string& src) {
 }
 
 void LegacyBase64EscapeWithoutPadding(absl::string_view src,
-                                      std::string* dest) {
+                                      std::string* absl_nonnull dest) {
   *dest = absl::Base64Escape(src);
   // Removes at most 2 '=' padding characters.
   while (!dest->empty() && dest->back() == '=') {
@@ -420,7 +424,7 @@ void LegacyBase64EscapeWithoutPadding(absl::string_view src,
 
 namespace strings_internal {
 
-size_t EncodeUTF8Char(char* buffer, char32_t utf8_char) {
+size_t EncodeUTF8Char(char* absl_nonnull buffer, char32_t utf8_char) {
   if (utf8_char <= 0x7F) {
     *buffer = static_cast<char>(utf8_char);
     return 1;
@@ -458,7 +462,7 @@ static std::string QUnescapeImpl(const QUnescapeMode mode,
                                  absl::string_view src) {
   std::string dest;
   absl::StringResizeAndOverwrite(
-      dest, src.size(), [mode, src](char* buf, size_t) {
+      dest, src.size(), [mode, src](char* absl_nonnull buf, size_t) {
         size_t in = 0;
         size_t out = 0;
         while (in < src.size()) {

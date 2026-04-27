@@ -25,6 +25,7 @@
 
 #include <string>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/charset.h"
 #include "absl/strings/escaping.h"  // IWYU pragma: keep
 #include "absl/strings/string_view.h"
@@ -52,7 +53,7 @@ namespace strings_internal {
 // characters into buffer, however never will more than kMaxEncodedUTF8Size
 // bytes be written, regardless of the value of utf8_char.
 enum { kMaxEncodedUTF8Size = 4 };
-size_t EncodeUTF8Char(char* buffer, char32_t utf8_char);
+size_t EncodeUTF8Char(char* absl_nonnull buffer, char32_t utf8_char);
 
 }  // namespace strings_internal
 
@@ -205,14 +206,14 @@ size_t EncodeUTF8Char(char* buffer, char32_t utf8_char);
 //      }
 //
 void BackslashEscape(absl::string_view src, unsigned char delim,
-                     std::string* dest);
+                     std::string* absl_nonnull dest);
 void BackslashEscape(absl::string_view src, const absl::CharSet& delims,
-                     std::string* dest);
+                     std::string* absl_nonnull dest);
 
 void BackslashUnescape(absl::string_view src, unsigned char delim,
-                       std::string* dest);
+                       std::string* absl_nonnull dest);
 void BackslashUnescape(absl::string_view src, const absl::CharSet& delims,
-                       std::string* dest);
+                       std::string* absl_nonnull dest);
 
 absl::string_view::size_type BackslashUnescapedFind(absl::string_view src,
                                                     unsigned char delim);
@@ -258,7 +259,8 @@ inline std::string BackslashUnescape(absl::string_view src,
 //
 //   [some "string" to test] --> [some ""string"" to test]
 // ----------------------------------------------------------------------
-ptrdiff_t EscapeStrForCSV(const char* src, char* dest, ptrdiff_t dest_len);
+ptrdiff_t EscapeStrForCSV(const char* absl_nonnull src, char* absl_nonnull dest,
+                          ptrdiff_t dest_len);
 
 // ----------------------------------------------------------------------
 // LegacyBase64EscapeWithoutPadding()
@@ -269,7 +271,8 @@ ptrdiff_t EscapeStrForCSV(const char* src, char* dest, ptrdiff_t dest_len);
 //    handful of callers that want base64-encoding without padding. See
 //    b/114449174 for more context.
 // ----------------------------------------------------------------------
-void LegacyBase64EscapeWithoutPadding(absl::string_view src, std::string* dest);
+void LegacyBase64EscapeWithoutPadding(absl::string_view src,
+                                      std::string* absl_nonnull dest);
 
 // ----------------------------------------------------------------------
 // UnescapeCEscapeSequences()
@@ -304,7 +307,8 @@ void LegacyBase64EscapeWithoutPadding(absl::string_view src, std::string* dest);
 //    *** DEPRECATED: Use absl::CUnescape() in new code ***
 //    ----------------------------------------------------------------------
 [[deprecated("Use absl::CUnescape()")]]
-ptrdiff_t UnescapeCEscapeSequences(const char* source, char* dest);
+ptrdiff_t UnescapeCEscapeSequences(const char* absl_nonnull source,
+                                   char* absl_nonnull dest);
 
 // ----------------------------------------------------------------------
 // UnescapeCEscapeString()
@@ -322,7 +326,8 @@ ptrdiff_t UnescapeCEscapeSequences(const char* source, char* dest);
 //    *** DEPRECATED: Use absl::CUnescape() in new code ***
 // ----------------------------------------------------------------------
 [[deprecated("Use absl::CUnescape()")]]
-ptrdiff_t UnescapeCEscapeString(const std::string& src, std::string* dest);
+ptrdiff_t UnescapeCEscapeString(const std::string& src,
+                                std::string* absl_nonnull dest);
 [[deprecated("Use absl::CUnescape()")]]
 std::string UnescapeCEscapeString(const std::string& src);
 

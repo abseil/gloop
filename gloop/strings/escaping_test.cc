@@ -419,10 +419,6 @@ TEST(EscapeStrForCSV, BasicFunctions) {
 
   // error case: off by one
   EXPECT_EQ(strings::EscapeStrForCSV("   \"   \"   \"   ", outbuf, 18), -1);
-
-  // error case: null destination, 0 dest_len.
-  char* null_dest = nullptr;
-  EXPECT_EQ(strings::EscapeStrForCSV("Something \" string", null_dest, 0), -1);
 }
 
 TEST(EncodeUTF8Char, BasicFunction) {
