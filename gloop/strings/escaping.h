@@ -329,44 +329,27 @@ std::string UnescapeCEscapeString(const std::string& src);
 // ----------------------------------------------------------------------
 // QuotedPrintableUnescape()
 //
-// Rewrites quoted printable escape sequences =XX in src to their single-byte
-// equivalents and returns the rewritten string.
+// Decodes a Quoted-Printable encoded string as defined in RFC 2045.
 //
-// Check out http://tools.ietf.org/html/rfc2045 for more details, only briefly
-// implemented. But from the web...
+// Quoted-Printable is a MIME encoding used to represent 8-bit data in 7-bit
+// environments. Non-ASCII characters are represented by an '=' followed by
+// two hexadecimal digits. Line wraps (soft line breaks) are indicated by an
+// '=' at the end of a line and are removed during decoding.
 //
-// Quoted-printable is an encoding method defined in the MIME standard. It is
-// used primarily to encode 8-bit text (such as text that includes foreign
-// characters) into 7-bit US ASCII, creating a document that is mostly readable
-// by humans, even in its encoded form. All MIME compliant applications can
-// decode quoted-printable text, though they may not necessarily be able to
-// properly display the document as it was originally intended. As
-// quoted-printable encoding is implemented most commonly, printable ASCII
-// characters (values 33 through 126, excluding 61), tabs and spaces that do not
-// appear at the end of lines, and end-of-line characters are not encoded. Other
-// characters are represented by an equal sign (=) immediately followed by that
-// character's hexadecimal value. Lines that are longer than 76 characters are
-// shortened by line breaks, with the equal sign marking where the breaks
-// occurred. If "src" contains any embedded null characters, processing will
-// stop when the null character is encountered.
-//
-// Note that QuotedPrintableUnescape is different from 'Q'-encoding as defined
-// in rfc2047. In particular, This does not treat '_'s as spaces.
-//
-// See QEncodingUnescape().
+// Note: This function implements RFC 2045 and does not treat underscores ('_')
+// as spaces. For RFC 2047 header encoding, use QEncodingUnescape().
 // ----------------------------------------------------------------------
 std::string QuotedPrintableUnescape(absl::string_view src);
 
 // ----------------------------------------------------------------------
 // QEncodingUnescape()
 //
-// This is very similar to QuotedPrintableUnescape except that we convert '_'s
-// into spaces. See http://tools.ietf.org/html/rfc2047
+// Decodes a "Q"-encoded string as defined in RFC 2047.
 //
-// Rewrites q-encoding escape sequences =XX in src to their single-byte
-// equivalents and returns the rewritten string. If "src" contains any
-// embedded null characters, processing will stop when the null character
-// is encountered.
+// "Q" encoding is used for non-ASCII text in MIME message headers. It is
+// similar to Quoted-Printable (RFC 2045) but is specialized for headers;
+// notably, underscores ('_') are used to represent spaces to improve
+// readability of the encoded text.
 // ----------------------------------------------------------------------
 std::string QEncodingUnescape(absl::string_view src);
 
