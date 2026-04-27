@@ -33,7 +33,6 @@
 #include "absl/log/log.h"
 #include "absl/strings/str_format.h"
 #include "benchmark/benchmark.h"
-#include "gloop/base/init_google.h"
 
 ABSL_FLAG(bool, print_output, false, "print CRC debug information");
 
@@ -71,6 +70,61 @@ void MyExtend(CRC* crc, uint64_t* lo, uint64_t* hi, const char* str,
   }
 }
 
+static void OneTest(CRC* crc, const char* str, int len, uint64_t* plo,
+                    uint64_t* phi, uint64_t* pmlo, uint64_t* pmhi, bool print) {
+  uint64_t lo, mlo;
+  uint64_t hi, mhi;
+
+  if (print && absl::GetFlag(FLAGS_print_output)) {
+    printf("string %s %d\n", str, len);
+  }
+  crc->Empty(&lo, &hi);
+  if (print && absl::GetFlag(FLAGS_print_output)) {
+    absl::PrintF("poly   %016x%016x\n", hi, lo);
+  }
+  crc->Extend(&lo, &hi, str, len);
+  if (print && absl::GetFlag(FLAGS_print_output)) {
+    absl::PrintF("Extend %016x%016x\n", hi, lo);
+  }
+
+  crc->Empty(&mlo, &mhi);
+  MyExtend(crc, &mlo, &mhi, str, len);
+  if (print && absl::GetFlag(FLAGS_print_output)) {
+    absl::PrintF("bybyte %016x%016x\n", mhi, mlo);
+  }
+  CHECK_EQ(mlo, lo);
+  CHECK_EQ(mhi, hi);
+
+  uint64_t blo;
+  uint64_t bhi;
+  crc->Empty(&blo, &bhi);
+  MyExtendBasic(blo, bhi, &blo, &bhi, str, len);
+  if (print && absl::GetFlag(FLAGS_print_output)) {
+    absl::PrintF("by_bit %016x%016x\n", bhi, blo);
+  }
+  CHECK_EQ(blo, lo);
+  CHECK_EQ(bhi, hi);
+
+  *plo = lo;
+  *phi = hi;
+  *pmlo = mlo;
+  *pmhi = mhi;
+}
+
+uint32_t CalculateCrc32(const char* data, int len) {
+  CRC* crc = CRC::Standard(CRC::CRC_32, 0);
+  uint64_t lo = ~0;  // note that this is 64 bits of 1, not 32.
+  crc->Extend(&lo, nullptr, data, len);
+  return ~lo;
+}
+
+uint32_t MyCalculateCrc32(const char* data, int len) {
+  CRC* crc = CRC::Standard(CRC::CRC_32, 0);
+  uint64_t lo = ~0;  // 64 bits of 1, not 32 bits of 1.
+  MyExtend(crc, &lo, nullptr, data, len);
+  return ~lo;
+}
+
 #define STRING_AND_LEN(_s) {_s, sizeof(_s) - 1}
 
 // For a given crc, for roll length r, for all test strings,
@@ -96,40 +150,24 @@ static void TestCRC(CRC* crc, int r) {
 
   // Try all test strings
   for (int j = 0; j != sizeof(strings) / sizeof(strings[0]); j++) {
-    uint64_t lo;
-    uint64_t hi;
+    uint64_t lo, hi, mlo, mhi;
 
-    if (absl::GetFlag(FLAGS_print_output)) {
-      printf("string %s %d\n", strings[j].str, strings[j].len);
-    }
-    crc->Empty(&lo, &hi);
-    if (absl::GetFlag(FLAGS_print_output)) {
-      absl::PrintF("poly   %016x%016x\n", hi, lo);
-    }
-    crc->Extend(&lo, &hi, strings[j].str, strings[j].len);
-    if (absl::GetFlag(FLAGS_print_output)) {
-      absl::PrintF("Extend %016x%016x\n", hi, lo);
-    }
+    OneTest(crc, strings[j].str, strings[j].len, &lo, &hi, &mlo, &mhi, true);
 
-    uint64_t mlo;
-    uint64_t mhi;
-    crc->Empty(&mlo, &mhi);
-    MyExtend(crc, &mlo, &mhi, strings[j].str, strings[j].len);
-    if (absl::GetFlag(FLAGS_print_output)) {
-      absl::PrintF("bybyte %016x%016x\n", mhi, mlo);
-    }
-    CHECK_EQ(mlo, lo);
-    CHECK_EQ(mhi, hi);
+    // Because the SIMD-accelerated CRC attempts to align loads on
+    // some platforms, sweep through starting offsets and sizes in case that
+    // provokes any bugs.
+    if (strings[j].len > 64) {
+      int l = strings[j].len;
+      const char* s = strings[j].str;
 
-    uint64_t blo;
-    uint64_t bhi;
-    crc->Empty(&blo, &bhi);
-    MyExtendBasic(blo, bhi, &blo, &bhi, strings[j].str, strings[j].len);
-    if (absl::GetFlag(FLAGS_print_output)) {
-      absl::PrintF("by_bit %016x%016x\n", bhi, blo);
+      for (int m = 1; m <= 64; m++) {
+        for (int k = 1; k < l - m; k++) {
+          uint64_t dummy;
+          OneTest(crc, s + k, m, &dummy, &dummy, &dummy, &dummy, false);
+        }
+      }
     }
-    CHECK_EQ(blo, lo);
-    CHECK_EQ(bhi, hi);
 
     int z = random() & 0xffff;
     crc->ExtendByZeroes(&lo, &hi, z);
@@ -473,13 +511,33 @@ static void TestScramble() {
   }
 }
 
-int main(int argc, char* argv[]) {
-  InitGoogle(argv[0], &argc, &argv, true);
+static void TestRegression() {
+  const char* regression =
+      "\000\000\022\253\000\000\000\000\003\001\000\006\332$QG\000\000\000"
+      "\000\220/P\t\000\000\000\000\000\000\024\000\000\000\000\000\000\000"
+      "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000"
+      "\000\000\000\000\000\000\000\000\000x";  // 65 characters
 
+  uint64_t dummy;
+
+  OneTest(CRC::Standard(CRC::CRC_32, 0), regression, 64, &dummy, &dummy, &dummy,
+          &dummy, false);
+
+  for (int i = 0; i < 64; i++) {
+    uint32_t got = CalculateCrc32(regression, i);
+    uint32_t want = MyCalculateCrc32(regression, i);
+    CHECK_EQ(want, got) << "i=" << i << std::hex << ", want=" << want
+                        << ", got=" << got;
+  }
+}
+
+int main(int argc, char* argv[]) {
 #ifdef ABSL_HAVE_MEMORY_SANITIZER
   printf("PASS\n");
   return 0;
 #endif  // ABSL_HAVE_MEMORY_SANITIZER
+
+  TestRegression();
 
   TestLargeExtendByZeroes();
 
@@ -614,6 +672,8 @@ static void BM_Crc128Zeroes(benchmark::State& state) {
 BENCHMARK(BM_Crc32)->Range(2, 16 << 20);
 BENCHMARK(BM_Crc32c)->Range(2, 16 << 20);
 BENCHMARK(BM_Crc64)->Range(2, 16 << 20);
+// Find the size where SIMD begins to win
+BENCHMARK(BM_Crc64)->DenseRange(16, 40, 4);
 BENCHMARK(BM_Crc128)->Range(2, 16 << 20);
 BENCHMARK(BM_Crc32Zeroes)->Range(2, 16 << 20);
 BENCHMARK(BM_Crc32Zeroes)->Arg((1 << 16) - 1);
