@@ -162,11 +162,12 @@ class IntervalMap {
   // Set [start,limit) to "value".  Coalesce with adjoining
   // ranges that have the same value.
   // REQUIRES: start < limit
-  // REQUIRES: V::operator==() is present
+  // REQUIRES: V::operator==() is present or value_eq is provided.
   template <class K2 = const K&, class V2 = const V&,
+            typename ValueEq = std::equal_to<V>,
             class = std::enable_if_t<std::is_convertible_v<K2&&, K>>,
             class = std::enable_if_t<std::is_convertible_v<V2&&, V>>>
-  void SetAndCoalesce(K start, K2&& limit, V2&& value);
+  void SetAndCoalesce(K start, K2&& limit, V2&& value, ValueEq value_eq = {});
 
   // Sets [start,limit) to "value".  This is a faster version
   // of Set when the client can guarantee that [start,limit) does
@@ -211,8 +212,9 @@ class IntervalMap {
   void Clear() { table_.clear(); }
 
   // Combine all adjacent ranges in the map which have the same value.
-  // REQUIRES: V::operator==() is present
-  void Coalesce();
+  // REQUIRES: V::operator==() is present or value_eq is provided.
+  template <typename ValueEq = std::equal_to<V>>
+  void Coalesce(ValueEq value_eq = {});
 
   // Iteration support using an STL-like iterator.
   //
@@ -493,10 +495,9 @@ IntervalMap<K, V, Comparison, Allocator>::Set(K1&& start, K2&& limit,
 //     need to merge both together,
 //     need to create a new Entry.
 template <class K, class V, class Comparison, class Allocator>
-template <class K2, class V2, class, class>
-void IntervalMap<K, V, Comparison, Allocator>::SetAndCoalesce(K start,
-                                                              K2&& limit,
-                                                              V2&& value) {
+template <class K2, class V2, typename ValueEq, class, class>
+void IntervalMap<K, V, Comparison, Allocator>::SetAndCoalesce(
+    K start, K2&& limit, V2&& value, ValueEq value_eq) {
   DCHECK(comp(start, limit));
   auto right = Erase(start, limit);
   auto left = right;
@@ -508,7 +509,7 @@ void IntervalMap<K, V, Comparison, Allocator>::SetAndCoalesce(K start,
 
   // Supersede entry to left if present, has same value, and is adjoining.
   if (left != table_.end() && !comp(left->limit, start)  // ==, since it's not >
-      && left->value == value) {
+      && value_eq(left->value, value)) {
     // We could extend left->limit instead, but mutating the sort key
     // could confuse some set implementations.
     DCHECK(left != right);
@@ -518,7 +519,7 @@ void IntervalMap<K, V, Comparison, Allocator>::SetAndCoalesce(K start,
 
   // Extend right entry leftward if possible.
   if (right != table_.end() && !comp(limit, right->start) &&
-      right->value == value) {
+      value_eq(right->value, value)) {
     // Mutating start seems safer than mutating the sort key.  It would
     // only be unsafe under a set implementation whose iterator references
     // copies of the data.
@@ -558,14 +559,15 @@ V* IntervalMap<K, V, Comparison, Allocator>::MutableValue(iterator it) {
 }
 
 template <class K, class V, class Comparison, class Allocator>
-void IntervalMap<K, V, Comparison, Allocator>::Coalesce() {
+template <typename ValueEq>
+void IntervalMap<K, V, Comparison, Allocator>::Coalesce(ValueEq value_eq) {
   if (table_.empty()) return;
   auto p = table_.begin();
   while (true) {
     auto prev = p;
     if (++p == table_.end()) break;
     DCHECK(comp(prev->start, p->start));
-    if (p->start <= prev->limit && p->value == prev->value) {
+    if (p->start <= prev->limit && value_eq(p->value, prev->value)) {
       // Absorb prev into p.
       this->MutateStart(p, std::move(prev->start));
       table_.erase(prev);

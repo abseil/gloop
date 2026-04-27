@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <random>
 #include <string>
 #include <utility>
@@ -1588,6 +1589,84 @@ TYPED_TEST(IntervalMapTest, EqualsWithDifferentTwoIntervalsMaps) {
 }
 
 }  // namespace test_int_int
+
+namespace test_int_optional {
+// This class is intentionally missing the == operator to test methods that
+// allow clients to specify an equality function.
+class MyValue {
+ public:
+  explicit MyValue(std::string s) : s_(std::move(s)) {}
+
+  const std::string& val() const { return s_; }
+
+ private:
+  std::string s_;
+};
+
+TEST(IntervalMapOptionalValue, SetAndCoalesceNoEq) {
+  gtl::IntervalMap<uint64_t, std::optional<MyValue>> map;
+  map.Set(0, 10, MyValue("foo"));
+  map.Set(15, 20, std::nullopt);
+  map.Set(20, 25, MyValue("bar"));
+  map.SetAndCoalesce(
+      5, 15, std::nullopt,
+      [](const std::optional<MyValue>& a, const std::optional<MyValue>& b) {
+        return a == std::nullopt && b == std::nullopt;
+      });
+  {
+    auto it = map.find(15);
+    ASSERT_NE(it, map.end());
+    EXPECT_EQ(it->start, 5);
+    EXPECT_EQ(it->limit, 20);
+    EXPECT_EQ(it->value, std::nullopt);
+  }
+  {
+    auto it = map.find(3);
+    ASSERT_NE(it, map.end());
+    EXPECT_EQ(it->start, 0);
+    EXPECT_EQ(it->limit, 5);
+    ASSERT_NE(it->value, std::nullopt);
+    EXPECT_EQ(it->value->val(), "foo");
+  }
+}
+
+TEST(IntervalMapOptionalValue, CoalesceNoEq) {
+  gtl::IntervalMap<uint64_t, std::optional<MyValue>> map;
+  map.Set(0, 10, MyValue("foo"));
+  map.Set(10, 20, std::nullopt);
+  map.Set(20, 25, std::nullopt);
+  map.Set(25, 30, MyValue("foo"));
+  map.Set(30, 35, MyValue("foo"));
+  map.Coalesce(
+      [](const std::optional<MyValue>& a, const std::optional<MyValue>& b) {
+        return a == std::nullopt && b == std::nullopt;
+      });
+  EXPECT_EQ(map.size(), 4);
+  {
+    auto it = map.find(15);
+    ASSERT_NE(it, map.end());
+    EXPECT_EQ(it->start, 10);
+    EXPECT_EQ(it->limit, 25);
+    EXPECT_EQ(it->value, std::nullopt);
+  }
+  {
+    auto it = map.find(29);
+    ASSERT_NE(it, map.end());
+    EXPECT_EQ(it->start, 25);
+    EXPECT_EQ(it->limit, 30);
+    ASSERT_NE(it->value, std::nullopt);
+    EXPECT_EQ(it->value->val(), "foo");
+  }
+  {
+    auto it = map.find(31);
+    ASSERT_NE(it, map.end());
+    EXPECT_EQ(it->start, 30);
+    EXPECT_EQ(it->limit, 35);
+    ASSERT_NE(it->value, std::nullopt);
+    EXPECT_EQ(it->value->val(), "foo");
+  }
+}
+}  // namespace test_int_optional
 
 TEST(IntervalMapArgumentForwarding, SetWithMoveableValue) {
   struct ConstructorCounter {
