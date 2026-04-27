@@ -102,14 +102,6 @@ class StatusBuilderPrivateAccessor;
 
 // Forward declarations. See definitions for documentation.
 
-template <typename Enum>
-ABSL_MUST_USE_RESULT decltype(util::HasErrorCode(
-    std::declval<const absl::Status&>(), std::declval<Enum>()))
-HasErrorCode(const StatusBuilder&, Enum);
-bool HasErrorCode(const StatusBuilder&, util::error::Code);
-bool HasErrorCode(const StatusBuilder&, const ErrorSpace*, int);
-bool HasErrorSpace(const StatusBuilder&, const ErrorSpace*);
-
 // Internal argument-dependent lookup extension point for StatusBuilder.
 // Necessary for allowing StatusBuilder to be open-sourced into Abseil without
 // introducing hard dependencies on non-canonical error spaces or protobuf.
@@ -680,54 +672,6 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
 
   // Returns the (canonical) error code for the Status created by this builder.
   absl::StatusCode code() const;
-
-  // Returns true iff the status created by this builder will have the code and
-  // associated error space of `code`. Intended to be called with enumerators
-  // from non-canonical error spaces.
-  // `StatusBuilder(Status(code, "")).Is(code)` is always true. In particular,
-  // if the `code` is zero, returns true if `status_builder.ok()`.
-  // Sample usage:
-  //
-  //   StatusBuilder TeamPolicy(StatusBuilder builder) {
-  //     if (builder.Is(frobber::kNoMoreFrobs)) {
-  //       builder.Log(absl::LogSeverity::kWarning);
-  //     }
-  //     return std::move(builder);
-  //   }
-  //
-  // REQUIRES: `code` is in an enum associated with an error space; see the
-  // `ErrorSpace` class documentation for details. Also, `code` must not be a
-  // `util::error::Code`.
-  template <typename Enum>
-  ABSL_DEPRECATE_AND_INLINE()
-  ABSL_MUST_USE_RESULT
-      decltype(util::HasErrorCode(std::declval<const StatusBuilder&>(),
-                                  std::declval<Enum>())) Is(Enum code) const {
-    return ::util::HasErrorCode(*this, code);
-  }
-
-  ABSL_DEPRECATE_AND_INLINE()
-  ABSL_MUST_USE_RESULT bool Is(error::Code code) const {
-    return ::util::HasErrorCode(*this, code);
-  }
-
-  // Returns true iff the status created by this builder will have an error code
-  // equal to `code` and an error space equal to `space`.
-  // NOTE: Most error spaces can and should use the one-arg `Is()` function
-  // taking an enum. This overload is provided for error spaces such as
-  // util::PosixErrorSpace() which cannot use that templace because they lack an
-  // associated Enum type.
-  ABSL_DEPRECATE_AND_INLINE()
-  ABSL_MUST_USE_RESULT bool Is(const ErrorSpace* space, int code) const {
-    return ::util::HasErrorCode(*this, space, code);
-  }
-
-  // Returns true iff the status created by this builder will have an error
-  // space equal to `space`.
-  ABSL_DEPRECATE_AND_INLINE()
-  ABSL_MUST_USE_RESULT bool Is(const ErrorSpace* space) const {
-    return ::util::HasErrorSpace(*this, space);
-  }
 
   // Implicit conversion to Status.
   //
