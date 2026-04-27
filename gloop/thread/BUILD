@@ -614,6 +614,7 @@ cc_library(
     deps = [
         ":config",
         "//gloop:enforce_gloop_support",
+        "//gloop/base:commandlineflags",
         "@abseil-cpp//absl/log",
     ],
 )

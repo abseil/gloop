@@ -152,7 +152,7 @@ ABSL_FLAG(int, logbuflevel, static_cast<int>(absl::LogSeverityAtLeast::kInfo),
           "on non-prod platforms.")
     .OnUpdate([] {});
 
-ABSL_FLAG(bool, threaded_logging, false,
+ABSL_FLAG(bool, threaded_logging, true,
           "Move logging into separate thread so that application threads do "
           "not get stuck on slow or busy disks. By default this does not "
           "enable threaded logging for severities above WARNING level. The "

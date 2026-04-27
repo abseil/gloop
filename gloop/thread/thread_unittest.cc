@@ -82,6 +82,13 @@
 #define AVOID_TRACECONTEXT 1
 #endif
 
+#if THREAD_HAVE_THREAD_CONTROL
+constexpr int kBaselineThreads = 1;
+#else
+// This is coming from main, ExitTimeoutWatcher, and ThreadLivenessWatcher.
+constexpr int kBaselineThreads = 3;
+#endif
+
 ABSL_FLAG(bool, crashme, false, "Crash so you can see stack trace output");
 
 // friend that is allowed to use thread::DeprecatedThreadControl.
@@ -750,11 +757,6 @@ TEST(ThreadTest, CheckForEach) {
   for_each_collector.Reset();
   thread_foreach(&for_each_collector.FalseAdd, &for_each_collector, nullptr,
                  nullptr, kPerThreadTimeoutMs);
-#if THREAD_HAVE_THREAD_CONTROL
-  const int kBaselineThreads = 1;
-#else
-  const int kBaselineThreads = 3;
-#endif
   CHECK_EQ(kBaselineThreads, for_each_collector.Count());
   CHECK(for_each_collector.ContainsThread(
       ThreadCollector::ThreadTids(GetTID(), pthread_self())));
@@ -888,12 +890,7 @@ TEST(ThreadTest, CheckInEachWhileExiting) {
   CHECK_EQ(1, num_fails);
 
   // Verify that only non-exiting threads were collected.
-#if THREAD_HAVE_THREAD_CONTROL
-  const int kExpectedThreads = 1;
-#else
-  const int kExpectedThreads = 3;
-#endif
-  CHECK_EQ(kExpectedThreads, collector.Count());
+  CHECK_EQ(kBaselineThreads, collector.Count());
   CHECK(collector.ContainsThread(
       ThreadCollector::ThreadTids(GetTID(), pthread_self())));
 
@@ -926,11 +923,6 @@ TEST(ThreadTest, CheckRegisterExternalThread) {
   for_each_collector.Reset();
   Thread_ForEach(&for_each_collector.FalseAdd, &for_each_collector, nullptr,
                  nullptr, kPerThreadTimeoutMs);
-#if THREAD_HAVE_THREAD_CONTROL
-  const int kBaselineThreads = 1;
-#else
-  const int kBaselineThreads = 3;
-#endif
   CHECK_EQ(kBaselineThreads, for_each_collector.Count());
   CHECK(for_each_collector.ContainsThread(
       ThreadCollector::ThreadTids(GetTID(), pthread_self())));
@@ -1024,11 +1016,6 @@ static void CheckSingleThreadActive(CheckProcessStackTracesData* data) {
     return Thread_ProcessStackTraces(arg);
   });
 
-#if THREAD_HAVE_THREAD_CONTROL
-  const int kBaselineThreads = 1;
-#else
-  const int kBaselineThreads = 3;
-#endif
   EXPECT_EQ(kBaselineThreads, data->filter_collector->Count());
   EXPECT_THAT(data->filter_collector->ThreadIds(),
               testing::Contains(*data->self));
@@ -1053,12 +1040,7 @@ static void CheckFilterDropsAll(CheckProcessStackTracesData* data) {
 
   EXPECT_EQ(0, data->process_trace_collector->Count());
   EXPECT_EQ(0, data->process_thread_collector->Count());
-#if THREAD_HAVE_THREAD_CONTROL
-  const int kExpectedThreads = 4;
-#else
-  const int kExpectedThreads = 6;
-#endif
-  EXPECT_EQ(kExpectedThreads, data->filter_collector->Count());
+  EXPECT_EQ(kBaselineThreads + 3, data->filter_collector->Count());
   EXPECT_THAT(
       data->filter_collector->ThreadIds(),
       testing::IsSupersetOf({*data->self, data->t1->ThreadId(),
@@ -1084,11 +1066,7 @@ static void CheckAllProcessStackTracesExecute(
     return Thread_ProcessStackTraces(arg);
   });
 
-#if THREAD_HAVE_THREAD_CONTROL
-  const int kExpectedThreads = 4;
-#else
-  const int kExpectedThreads = 6;
-#endif
+  constexpr int kExpectedThreads = kBaselineThreads + 3;
   EXPECT_EQ(kExpectedThreads, data->process_trace_collector->Count());
   EXPECT_EQ(kExpectedThreads, data->process_thread_collector->Count());
   EXPECT_EQ(kExpectedThreads, data->filter_collector->Count());
@@ -1121,11 +1099,7 @@ void CheckNoFilterProcessStackTracesExecute(CheckProcessStackTracesData* data) {
     return Thread_ProcessStackTraces(arg);
   });
 
-#if THREAD_HAVE_THREAD_CONTROL
-  const int kExpectedThreads = 4;
-#else
-  const int kExpectedThreads = 6;
-#endif
+  const int kExpectedThreads = kBaselineThreads + 3;
   EXPECT_EQ(kExpectedThreads, data->process_trace_collector->Count());
   EXPECT_EQ(kExpectedThreads, data->process_thread_collector->Count());
   EXPECT_EQ(0, data->filter_collector->Count());
@@ -1359,11 +1333,7 @@ TEST(ThreadTest, CheckThreadNameUnnamed) {
   arg.per_thread_timeout_ms = kPerThreadTimeoutMs;
   Thread_ProcessStackTraces(arg);
 
-#if THREAD_HAVE_THREAD_CONTROL
-  const int kExpectedThreads = 2;
-#else
-  const int kExpectedThreads = 4;
-#endif
+  constexpr int kExpectedThreads = kBaselineThreads + 1;
   CHECK_EQ(kExpectedThreads, collector.Count());
   CHECK(collector.ContainsNamePrefix("main"));
   CHECK(collector.ContainsNamedThread(
@@ -1406,11 +1376,7 @@ TEST(ThreadTest, CheckThreadNameNamed) {
   arg.filter_arg = &collector;
   arg.per_thread_timeout_ms = kPerThreadTimeoutMs;
   Thread_ProcessStackTraces(arg);
-#if THREAD_HAVE_THREAD_CONTROL
-  const int kExpectedThreads = 2;
-#else
-  const int kExpectedThreads = 4;
-#endif
+  constexpr int kExpectedThreads = kBaselineThreads + 1;
   CHECK_EQ(kExpectedThreads, collector.Count());
   CHECK(collector.ContainsNamePrefix("main"));
   CHECK(collector.ContainsNamedThread(

@@ -42,7 +42,6 @@
 
 #include "absl/base/config.h"
 #include "absl/base/macros.h"
-#include "absl/log/flags.h"
 #include "absl/log/globals.h"
 #include "absl/status/status.h"
 #include "absl/status/status_matchers.h"
@@ -50,6 +49,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/strings/strip.h"
 #include "gloop/base/auxiliary/parsed_process_stat.h"
+#include "gloop/base/log_file_flags.h"
 
 // getpid() is deprecated on MSVC, use _getpid() instead.
 // Reference: https://msdn.microsoft.com/en-us/library/ms235372.aspx
@@ -1024,6 +1024,9 @@ int main(int argc, char** argv) {
   }
 
   SaveCommandLine(argc, argv);
+  // Some of the tests above fork() so we don't want to launch threads in
+  // InitGoogle.
+  absl::SetFlag(&FLAGS_threaded_logging, false);
 
   InitGoogle(argv[0], &argc, &argv, true);
 

@@ -35,8 +35,8 @@
 #include "absl/base/config.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
-#include "absl/log/flags.h"
 #include "gloop/base/init_google.h"
+#include "gloop/base/log_file_flags.h"
 #include "gloop/util/memory/memory_mapped_io_test_data.h"
 #include "gloop/util/memory/scoped_mmap.h"
 #include "gloop/util/random/acmrandom.h"
@@ -259,6 +259,10 @@ TEST_F(MemoryMappedIOTest, MapFail) {
 }  // namespace
 
 int main(int argc, char* argv[]) {
+  // NOTE: cl/8223485 hooks exit() using atexit() to flush the logs which
+  // causes a hang on exit() in any child process forked from a test case.
+  // Disabling threaded logging works around the issue.
+  absl::SetFlag(&FLAGS_threaded_logging, false);
   InitGoogle("", &argc, &argv, true);
   return RUN_ALL_TESTS();
 }

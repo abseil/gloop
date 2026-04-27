@@ -996,6 +996,7 @@ cc_test(
     malloc = "//gloop:malloc",
     deps = [
         ":init_google",
+        ":log_file_flags",
         ":proc_maps",
         ":sysinfo",
         "//gloop/base/auxiliary:parsed_process_stat",

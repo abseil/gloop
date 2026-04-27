@@ -86,6 +86,7 @@ cc_test(
         ":memory_mapped_io",
         ":memory_mapped_io_test_data",
         "//gloop/base:init_google",
+        "//gloop/base:log_file_flags",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/flags:flag",
@@ -101,6 +102,10 @@ cc_test(
     size = "small",
     srcs = ["memory_mapped_io_test_data_test.cc"],
     args = [
+        # NOTE: cl/8223485 hooks exit() using atexit() to flush the logs which
+        # causes a hang on exit() in any child process forked from a test case.
+        # Disabling threaded logging works around the issue.
+        "--threaded_logging=false",
     ],
     visibility = ["//visibility:private"],
     deps = [
