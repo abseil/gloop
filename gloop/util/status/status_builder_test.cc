@@ -38,6 +38,7 @@
 #include "absl/log/log_sink.h"
 #include "absl/log/scoped_mock_log.h"
 #include "absl/status/status.h"
+#include "absl/status/status_builder.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/cord.h"
@@ -176,11 +177,14 @@ void CheckSourceLocation(
 class StatusBuilderTest : public ::testing::Test {
  protected:
   void TestRepCopyCtor() {
-    StatusBuilder::Rep r1(absl::OkStatus());
+    using Rep = std::decay_t<
+        decltype(*absl::status_internal::StatusBuilderPrivateAccessor::GetRep(
+            std::declval<StatusBuilder>()))>;
+    Rep r1(absl::OkStatus());
     EXPECT_FALSE(r1.stream.has_value());
     r1.InitStream();
     EXPECT_TRUE(r1.stream.has_value());
-    StatusBuilder::Rep r2(r1);
+    Rep r2(r1);
     EXPECT_TRUE(r2.stream.has_value());
   }
 };
@@ -193,11 +197,11 @@ TEST_F(StatusBuilderTest, Size) {
 }
 
 TEST_F(StatusBuilderTest, Ctors) {
-  EXPECT_EQ(ToStatus(StatusBuilder(kZomg) << "zomg"),
+  EXPECT_EQ(ToStatus(MakeStatusBuilder(kZomg) << "zomg"),
             ::util::MakeStatus(TestSpace::Get(), kZomg, "zomg"));
-  EXPECT_EQ(ToStatus(StatusBuilder(TestSpace::Get(), kZomg) << "zomg"),
+  EXPECT_EQ(ToStatus(MakeStatusBuilder(TestSpace::Get(), kZomg) << "zomg"),
             ::util::MakeStatus(TestSpace::Get(), kZomg, "zomg"));
-  EXPECT_EQ(ToStatus(StatusBuilder(PosixErrorSpace(), ENOSYS) << "nope"),
+  EXPECT_EQ(ToStatus(MakeStatusBuilder(PosixErrorSpace(), ENOSYS) << "nope"),
             PosixErrorToStatus(ENOSYS, "nope"));
 }
 
@@ -735,7 +739,7 @@ TEST_F(StatusBuilderTest, AttachPayloadRvalue) {
 TEST_F(StatusBuilderTest, AttachPayloadStandard) {
   auto mset = MakePayloadMessageSet("oops");
   StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
-  util::AttachPayload(&builder, MakePayloadProto("oops"));
+  builder.AttachPayload(MakePayloadProto("oops"));
   EXPECT_THAT(ToStatus(builder),
               Eq(::util::MakeStatus(CanonicalErrorSpace(), error::CANCELLED, "",
                                     &mset)));
@@ -944,7 +948,7 @@ TEST_F(StatusBuilderTest, ToStringWithPayloads) {
   absl::Status status =
       ::util::MakeStatus(CanonicalErrorSpace(), error::CANCELLED, "", &mset);
   StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
-  util::AttachPayload(&builder, MakePayloadProto("oops"));
+  builder.AttachPayload(MakePayloadProto("oops"));
   EXPECT_EQ(ToStringViaStream(status), builder.ToString());
 }
 
@@ -964,7 +968,7 @@ TEST_F(StatusBuilderTest, ToStringDoesntHaveSideEffects) {
   }
 
   StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
-  util::AttachPayload(&builder, MakePayloadProto("oops"));
+  builder.AttachPayload(MakePayloadProto("oops"));
   builder << "hello world!";
   builder.LogError();
   builder.AlsoOutputToSink(&log_sink);
