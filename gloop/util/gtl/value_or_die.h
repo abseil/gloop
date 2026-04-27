@@ -53,12 +53,21 @@ Trait<T> IsStatusOrOf(const absl::StatusOr<T>&);
 
 }  // namespace internal_value_or_die
 
+// For internal migration purposes. Causes this overload to be preferred over
+// similar overloads declared elsewhere. Remove once no longer needed.
+#if ABSL_HAVE_ATTRIBUTE(enable_if)
+#define GTL_INTERNAL_PREFERRED_OVERLOAD __attribute__((enable_if(true, "")))
+#else
+#define GTL_INTERNAL_PREFERRED_OVERLOAD
+#endif
+
 template <int&... kDoNotSpecify, typename T>
 std::enable_if_t<decltype(internal_value_or_die::IsStatusOrOf<std::is_object>(
                      std::declval<T>()))::value,
                  decltype(*std::declval<T>())>
 ValueOrDie(T&& value ABSL_ATTRIBUTE_LIFETIME_BOUND,
-           absl::SourceLocation loc = absl::SourceLocation::current()) {
+           absl::SourceLocation loc = absl::SourceLocation::current())
+    GTL_INTERNAL_PREFERRED_OVERLOAD {
   if (ABSL_PREDICT_FALSE(!value.ok())) {
     internal_value_or_die::DieBecauseEmptyValue(loc, &value.status());
   }
@@ -71,12 +80,15 @@ std::enable_if_t<decltype(internal_value_or_die::IsStatusOrOf<
                           std::is_reference>(std::declval<T>()))::value,
                  decltype(*std::declval<T>())>
 ValueOrDie(T&& value,
-           absl::SourceLocation loc = absl::SourceLocation::current()) {
+           absl::SourceLocation loc = absl::SourceLocation::current())
+    GTL_INTERNAL_PREFERRED_OVERLOAD {
   if (ABSL_PREDICT_FALSE(!value.ok())) {
     internal_value_or_die::DieBecauseEmptyValue(loc, &value.status());
   }
   return *std::forward<T>(value);
 }
+
+#undef GTL_INTERNAL_PREFERRED_OVERLOAD
 
 template <int&... kDoNotSpecify, typename T>
 std::enable_if_t<
