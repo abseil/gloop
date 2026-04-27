@@ -116,6 +116,10 @@ namespace base {
 class Tracer;
 }  // namespace base
 
+namespace dapper {
+struct InitiatorIdBitsAccess;
+}  // namespace dapper
+
 namespace google {
 namespace protobuf {
 class Message;
@@ -1159,6 +1163,8 @@ class Tracer {
   // Allow utils access initiator ID bits definition.
   friend class perftools::tracing::InitiatorIdBitsAccess;
   friend class perftools::tracing::TracerPredicates;
+  // Allow Dapper OTLP converter to access initiator ID bits.
+  friend struct dapper::InitiatorIdBitsAccess;
   friend class perftools::tracing::HTTPTraceInfo;
   // Allows tracing cookie code to set initiator bits correctly.
   friend class perftools::tracing::ClientRootedTracingCookie;
