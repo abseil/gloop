@@ -31,6 +31,7 @@
 #include "absl/random/random.h"
 #include "absl/strings/str_cat.h"
 #include "benchmark/benchmark.h"
+#include "gloop/util/random/distributions.h"
 #include "gtest/gtest.h"
 
 namespace util {
@@ -164,6 +165,8 @@ TEST(TwoValueVarint, Encoding32Test) {
   }
   absl::BitGen gen;
   for (int i = 0; i < 10000; i++) {
+    TestPair<uint32_t>(util_random::SkewedLow<uint32_t>(gen, 0, 1 << 12),
+                       util_random::SkewedLow<uint32_t>(gen, 0, 1 << 12));
     TestPair<uint32_t>(absl::Uniform<uint32_t>(gen, 0, 1 << 30),
                        absl::Uniform<uint32_t>(gen, 0, 1 << 30));
   }
@@ -184,6 +187,11 @@ TEST(TwoValueVarint, Encoding64Teset) {
   std::seed_seq seed_seq({1, 2, 3});
   absl::BitGen gen(seed_seq);
   for (uint64_t i = 0; i < 10000; i++) {
+    TestPair<uint64_t>(
+        util_random::SkewedLow<uint64_t>(gen, (uint64_t{1} << 33) - 1,
+                                         std::numeric_limits<uint64_t>::max()),
+        util_random::SkewedLow<uint64_t>(gen, (uint64_t{1} << 33) - 1,
+                                         std::numeric_limits<uint64_t>::max()));
     TestPair<uint64_t>(
         absl::Uniform<uint64_t>(gen, 0, std::numeric_limits<uint64_t>::max()),
         absl::Uniform<uint64_t>(gen, 0, std::numeric_limits<uint64_t>::max()));

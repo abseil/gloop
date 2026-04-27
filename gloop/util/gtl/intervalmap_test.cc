@@ -39,6 +39,7 @@
 #include "absl/types/span.h"
 #include "benchmark/benchmark.h"
 #include "gloop/util/random/acmrandom.h"
+#include "gloop/util/random/distributions.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -648,6 +649,50 @@ TYPED_TEST(IntervalMapTest, MergeThatClears) {
   CheckMissingRange(m, 10, 15);
   CheckPresentRange(m, 15, 20, 102);
   CheckMissingRange(m, 20, 100);
+}
+
+TYPED_TEST(IntervalMapTest, MergeValueRandomized) {
+  auto m = TestFixture::ConstructMap();
+  absl::flat_hash_map<int, int> expected;
+  ACMRandom rnd(301);
+  const int kMaxKey = 1000;
+  for (int i = 0; i < kMaxKey; i++) {
+    expected[i] = -1;  // -1 signifies missing
+  }
+  for (int iter = 0; iter < 1000; iter++) {
+    int start = rnd.Uniform(kMaxKey - 1);
+    int end = std::min(kMaxKey - 1, start + 1 + rnd.Uniform(kMaxKey));
+    int val = util_random::SkewedLow<int32_t>(rnd, 0, (1 << 10) - 1);
+    for (int i = start; i < end; i++) {
+      expected[i] = std::max(expected[i], val);
+    }
+    m.MergeValue(start, end, max_func, &val);
+  }
+
+  // Verify that the IMap has the same entries as our expected state
+  for (auto& p : expected) {
+    int k = p.first;
+    int expected_v = p.second;
+    if (expected_v == -1) {
+      EXPECT_TRUE(m.IsEmptyInterval(k, k + 1));
+    } else {
+      typename TestFixture::IMap::key_type start, limit;
+      typename TestFixture::IMap::mapped_type value = 0xabcd0123;
+      start = k;
+      EXPECT_TRUE(m.FindInterval(start, &start, &limit, &value));
+      EXPECT_EQ(value, expected_v);
+    }
+  }
+
+  // Verify the entries in the IMap look valid
+  typename TestFixture::IMap::key_type start = 0, limit;
+  typename TestFixture::IMap::mapped_type value;
+  while (m.FindInterval(start, &start, &limit, &value)) {
+    EXPECT_LT(static_cast<int>(start), static_cast<int>(limit));
+    for (int i = start; i < limit; i++) {
+      EXPECT_EQ(value, expected[i]);
+    }
+  }
 }
 
 TYPED_TEST(IntervalMapTest, MergeValueMultipleRanges) {

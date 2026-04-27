@@ -842,6 +842,7 @@ cc_test(
         ":intervalmap",
         "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
+        "//gloop/util/random:distributions",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",

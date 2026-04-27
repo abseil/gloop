@@ -91,6 +91,7 @@ cc_test(
     deps = [
         ":bitmap",
         "//gloop:gloop_test_main",
+        "//gloop/util/random:shared_bit_gen",
         "@abseil-cpp//absl/hash:hash_testing",
         "@abseil-cpp//absl/log",
         "@google_benchmark//:benchmark",

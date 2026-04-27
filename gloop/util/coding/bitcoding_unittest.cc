@@ -44,6 +44,7 @@
 #include "gloop/util/coding/coder.h"
 #include "gloop/util/gtl/unique_array.h"
 #include "gloop/util/random/acmrandom.h"
+#include "gloop/util/random/distributions.h"
 #include "gtest/gtest.h"
 
 ABSL_FLAG(int32_t, value_range, 256,
@@ -70,6 +71,57 @@ static const int N = 16384;  // Number of random values for BitsRequired.*
 // changes in cost.  However, as is standard with benchmarks, beware of noise.
 // You may need to run multiple trials to get statistically reliable deltas.
 static const int kOpsPerIter = 1000;
+
+static void BM_BitsRequiredRandom(benchmark::State& state) {
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+  std::vector<uint32_t> numbers;
+  for (int i = 0; i < N; ++i) {
+    numbers.push_back(util_random::SkewedLow<uint32_t>(rnd, 0, (1u << 31) - 1));
+  }
+
+  while (state.KeepRunning()) {
+    for (int i = 0; i < kOpsPerIter; ++i) {
+      ::benchmark::DoNotOptimize(
+          BitEncoder::BitsRequired(numbers[i & (N - 1)]));
+    }
+  }
+  state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) *
+                          kOpsPerIter * sizeof(uint32_t));
+}
+
+static void BM_BitsRequiredRandom64(benchmark::State& state) {
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+  std::vector<uint64_t> numbers;
+  for (int i = 0; i < N; ++i) {
+    numbers.push_back(
+        util_random::SkewedLow<uint64_t>(rnd, 0, (uint64_t{1} << 63) - 1));
+  }
+
+  while (state.KeepRunning()) {
+    for (int i = 0; i < kOpsPerIter; ++i) {
+      ::benchmark::DoNotOptimize(
+          BitEncoder::BitsRequired(numbers[i & (N - 1)]));
+    }
+  }
+  state.SetBytesProcessed(static_cast<int64_t>(state.iterations()) *
+                          kOpsPerIter * sizeof(uint64_t));
+}
+
+static void BM_BitsRequiredTableDrivenRandom(benchmark::State& state) {
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+  std::vector<uint32_t> numbers;
+  for (int i = 0; i < N; ++i) {
+    numbers.push_back(util_random::SkewedLow<uint32_t>(rnd, 0, (1u << 31) - 1));
+  }
+  uint32_t sum = 0;
+  for (auto _ : state) {
+    for (int i = 0; i < kOpsPerIter; ++i) {
+      sum += BitEncoder::BitsRequiredTableDriven(numbers[i & (N - 1)]);
+    }
+  }
+
+  global_value += sum;  // Prevent optimizing away everything
+}
 
 static void BM_BitsRequiredSameValue(benchmark::State& state) {
   std::vector<uint32_t> numbers;
@@ -118,6 +170,27 @@ static void BM_BitsRequiredWithRiceSameValue(benchmark::State& state) {
   global_value += sum;  // Prevent optimizing away everything
 }
 
+static void BM_BitsRequiredWithRiceRandom(benchmark::State& state) {
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+  std::vector<uint32_t> numbers;
+  numbers.reserve(N);
+  for (int i = 0; i < N; ++i) {
+    numbers.push_back(BitEncoder::FloorLogBase2(
+        util_random::SkewedLow<uint32_t>(rnd, 0, (1u << 31) - 1)));
+  }
+  uint32_t sum = 0;
+  for (auto _ : state) {
+    for (int i = 0; i < kOpsPerIter; ++i) {
+      sum += BitEncoder::BitsRequiredWithRice(numbers[i & (N - 1)], i);
+    }
+  }
+  global_value += sum;  // Prevent optimizing away everything
+}
+
+BENCHMARK(BM_BitsRequiredRandom);
+BENCHMARK(BM_BitsRequiredRandom64);
+BENCHMARK(BM_BitsRequiredTableDrivenRandom);
+BENCHMARK(BM_BitsRequiredWithRiceRandom);
 BENCHMARK(BM_BitsRequiredSameValue)->Arg(0xffffff);
 BENCHMARK(BM_BitsRequiredTableDrivenSameValue)->Arg(0xffffff);
 BENCHMARK(BM_BitsRequiredWithRiceSameValue)->Arg(0xffffff);
@@ -1181,6 +1254,111 @@ static void BM_GetBits10(benchmark::State& state) {
 }
 BENCHMARK(BM_GetBits10)->Arg(0)->Arg(1);
 
+// These templated benchmarks behave similarly to the macro-defined benchmarks
+// (e.g. DEFINE_PUT_BENCHMARK), but implemented with templates. The values are
+// chosen to be the same as the benchmarks for Put...() functions.
+template <class DecodeType, int max_value_bits, int reserved_encoding_bits,
+          void (BitEncoder::*encode_method)(DecodeType, int),
+          bool (BitDecoder::*method)(int, DecodeType*)>
+static void BM_GetBits(benchmark::State& state) {
+  BitEncoder e;
+  e.EnsureBits(reserved_encoding_bits * kOpsPerIter);
+  std::vector<int> bit_counts;
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+  for (int i = 0; i < kOpsPerIter; i++) {
+    int num_bits =
+        util_random::SkewedLow<int>(rnd, 0, (1 << max_value_bits) - 1);
+    (e.*encode_method)(i, num_bits);  // Values don't matter
+    bit_counts.push_back(num_bits);
+  }
+  e.Flush(0);
+  DecodeType a = 0;
+  for (auto _ : state) {
+    BitDecoder d(e.base(), e.Bits() / 8);
+    for (const auto i : bit_counts) {
+      (d.*method)(i, &a);
+      ::benchmark::DoNotOptimize(a);
+    }
+  }
+  state.SetItemsProcessed(static_cast<int64_t>(kOpsPerIter) *
+                          state.iterations());
+}
+
+BENCHMARK_TEMPLATE(BM_GetBits, uint32_t, 5, 8, &BitEncoder::PutBits,
+                   &BitDecoder::GetBits);
+BENCHMARK_TEMPLATE(BM_GetBits, uint64_t, 6, 16, &BitEncoder::PutBits64,
+                   &BitDecoder::GetBits64);
+
+template <int max_value_bits, int reserved_encoding_bits,
+          void (BitEncoder::*encode_method)(uint32_t),
+          bool (BitDecoder::*method)(uint32_t*)>
+static void BM_GetBitsUnary(benchmark::State& state) {
+  BitEncoder e;
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+  e.EnsureBits(reserved_encoding_bits * kOpsPerIter);
+  for (int i = 0; i < kOpsPerIter; i++) {
+    int unary_val = util_random::SkewedLow<int>(rnd, 1, 1 << max_value_bits);
+    (e.*encode_method)(unary_val);
+  }
+  e.Flush(0);
+  uint32_t a = 0;
+  for (auto _ : state) {
+    BitDecoder d(e.base(), e.Bits() / 8);
+    for (int i = 0; i < kOpsPerIter; ++i) {
+      (d.*method)(&a);
+      ::benchmark::DoNotOptimize(a);
+    }
+  }
+  state.SetItemsProcessed(static_cast<int64_t>(kOpsPerIter) *
+                          state.iterations());
+}
+
+BENCHMARK_TEMPLATE(BM_GetBitsUnary, 6, 16, &BitEncoder::PutUnary,
+                   &BitDecoder::GetUnary);
+BENCHMARK_TEMPLATE(BM_GetBitsUnary, 6, 16, &BitEncoder::PutInvertedUnary,
+                   &BitDecoder::GetInvertedUnary);
+BENCHMARK_TEMPLATE(BM_GetBitsUnary, 6, 16, &BitEncoder::PutGamma,
+                   &BitDecoder::GetGamma);
+
+template <class DecodeType, int max_value_bits, int reserved_encoding_bits,
+          int log_base, void (BitEncoder::*encode_method)(int, DecodeType),
+          bool (BitDecoder::*method)(int, DecodeType*)>
+static void BM_GetBitsLogbase(benchmark::State& state) {
+  const DecodeType upper_bound =
+      max_value_bits < std::numeric_limits<DecodeType>::digits
+          ? (1ull << (max_value_bits - 1)) |
+                ((1ull << (max_value_bits - 1)) - 1)
+          : std::numeric_limits<DecodeType>::max();
+
+  BitEncoder e;
+  e.EnsureBits(reserved_encoding_bits * kOpsPerIter);
+  ACMRandom rnd(ACMRandom::DeterministicSeed());
+  for (int i = 0; i < kOpsPerIter; i++) {
+    DecodeType value = util_random::SkewedLow<DecodeType>(rnd, 0, upper_bound);
+    (e.*encode_method)(log_base, value);
+  }
+  e.Flush(0);
+  DecodeType a = 0;
+  for (auto _ : state) {
+    BitDecoder d(e.base(), e.Bits() / 8);
+    for (int i = 0; i < kOpsPerIter; ++i) {
+      (d.*method)(log_base, &a);
+      ::benchmark::DoNotOptimize(a);
+    }
+  }
+  state.SetItemsProcessed(static_cast<int64_t>(kOpsPerIter) *
+                          state.iterations());
+}
+
+BENCHMARK_TEMPLATE(BM_GetBitsLogbase, uint32_t, 32, 32, 8,
+                   &BitEncoder::PutVarInt, &BitDecoder::GetVarInt);
+BENCHMARK_TEMPLATE(BM_GetBitsLogbase, uint64_t, 64, 64, 8,
+                   &BitEncoder::PutVarInt64, &BitDecoder::GetVarInt64);
+BENCHMARK_TEMPLATE(BM_GetBitsLogbase, uint32_t, 22, 32, 16,
+                   &BitEncoder::PutRice, &BitDecoder::GetRice);
+BENCHMARK_TEMPLATE(BM_GetBitsLogbase, uint64_t, 38, 64, 32,
+                   &BitEncoder::PutRice64, &BitDecoder::GetRice64);
+
 static void BM_ReverseBits(benchmark::State& state) {
   uint32_t x = 0xaaaaaaaa;
   for (auto _ : state) {
@@ -1262,6 +1440,120 @@ TEST(InvertedUnary, LargeValueSpanningPartialWord) {
   }
   ASSERT_FALSE(bitdec.GetInvertedUnary(&val));
 }
+
+#define DEFINE_PUT_BENCHMARK(method, value_type, max_value_bits,          \
+                             reserved_encoding_bits)                      \
+  static void BM_##method(benchmark::State& state) {                      \
+    ACMRandom rnd(ACMRandom::DeterministicSeed());                        \
+    std::vector<uint32_t> num_bits;                                       \
+    for (int n = 0; n < kOpsPerIter; ++n) {                               \
+      num_bits.push_back(                                                 \
+          util_random::SkewedLow<uint32_t>(rnd, 1, 1 << max_value_bits)); \
+    }                                                                     \
+    const value_type val = static_cast<value_type>(0x12b9b0a112b9b0a1UL); \
+    BitEncoder bitenc;                                                    \
+    bitenc.EnsureBits(reserved_encoding_bits * kOpsPerIter);              \
+    for (auto _ : state) {                                                \
+      for (int n = 0; n < kOpsPerIter; ++n) {                             \
+        bitenc.method(val, num_bits[n]);                                  \
+      }                                                                   \
+      bitenc.Flush(0);                                                    \
+      global_value += bitenc.Bits();                                      \
+      bitenc.Clear();                                                     \
+    }                                                                     \
+  }                                                                       \
+  BENCHMARK(BM_##method);
+
+#define DEFINE_PUT_UNARY_BENCHMARK(method, max_value_bits,                \
+                                   reserved_encoding_bits)                \
+  static void BM_##method(benchmark::State& state) {                      \
+    ACMRandom rnd(ACMRandom::DeterministicSeed());                        \
+    std::vector<uint32_t> unary_val;                                      \
+    for (int i = 0; i < kOpsPerIter; ++i) {                               \
+      unary_val.push_back(                                                \
+          util_random::SkewedLow<uint32_t>(rnd, 1, 1 << max_value_bits)); \
+    }                                                                     \
+    BitEncoder bitenc;                                                    \
+    bitenc.EnsureBits(reserved_encoding_bits * kOpsPerIter);              \
+    for (auto _ : state) {                                                \
+      for (int n = 0; n < kOpsPerIter; ++n) {                             \
+        bitenc.method(unary_val[n]);                                      \
+      }                                                                   \
+      bitenc.Flush(0);                                                    \
+      global_value += bitenc.Bits();                                      \
+      bitenc.Clear();                                                     \
+    }                                                                     \
+  }                                                                       \
+  BENCHMARK(BM_##method);
+
+#define DEFINE_PUT_LOGBASE_BENCHMARK(method, value_type, log_base,           \
+                                     max_value_bits, reserved_encoding_bits) \
+  static void BM_##method(benchmark::State& state) {                         \
+    constexpr value_type upper_bound =                                       \
+        max_value_bits < std::numeric_limits<value_type>::digits             \
+            ? ((1ull << (max_value_bits - 1)) |                              \
+               ((1ull << (max_value_bits - 2)) - 1)) +                       \
+                  1                                                          \
+            : std::numeric_limits<value_type>::max();                        \
+    ACMRandom rnd(ACMRandom::DeterministicSeed());                           \
+    std::vector<value_type> unary_val;                                       \
+    for (int i = 0; i < kOpsPerIter; ++i) {                                  \
+      unary_val.push_back(                                                   \
+          util_random::SkewedLow<value_type>(rnd, 1, upper_bound));          \
+    }                                                                        \
+    BitEncoder bitenc;                                                       \
+    bitenc.EnsureBits(reserved_encoding_bits * kOpsPerIter);                 \
+    for (auto _ : state) {                                                   \
+      for (int n = 0; n < kOpsPerIter; ++n) {                                \
+        bitenc.method(log_base, unary_val[n]);                               \
+      }                                                                      \
+      bitenc.Flush(0);                                                       \
+      global_value += bitenc.Bits();                                         \
+      bitenc.Clear();                                                        \
+    }                                                                        \
+  }                                                                          \
+  BENCHMARK(BM_##method);
+
+DEFINE_PUT_BENCHMARK(PutBits, uint32_t, 5, 8);
+DEFINE_PUT_BENCHMARK(PutBits64, uint64_t, 6, 16);
+DEFINE_PUT_UNARY_BENCHMARK(PutUnary, 6, 16);
+DEFINE_PUT_UNARY_BENCHMARK(PutInvertedUnary, 6, 16);
+DEFINE_PUT_UNARY_BENCHMARK(PutGamma, 16, 16);
+DEFINE_PUT_LOGBASE_BENCHMARK(PutVarInt, uint32_t, 8, 32, 32);
+DEFINE_PUT_LOGBASE_BENCHMARK(PutVarInt64, uint64_t, 8, 64, 64);
+DEFINE_PUT_LOGBASE_BENCHMARK(PutRice, uint32_t, 16, 22, 32);
+DEFINE_PUT_LOGBASE_BENCHMARK(PutRice64, uint64_t, 32, 38, 64);
+
+#define DEFINE_PUT_LOGBASE3_BENCHMARK(method, value_type, log_base, param_2, \
+                                      param_3, max_value_bits,               \
+                                      reserved_encoding_bits)                \
+  static void BM_##method(benchmark::State& state) {                         \
+    ACMRandom rnd(ACMRandom::DeterministicSeed());                           \
+    std::vector<value_type> unary_val;                                       \
+    for (int i = 0; i < kOpsPerIter; ++i) {                                  \
+      constexpr value_type upper_bound =                                     \
+          max_value_bits < std::numeric_limits<value_type>::digits           \
+              ? 1ull << max_value_bits                                       \
+              : std::numeric_limits<value_type>::max();                      \
+      unary_val.push_back(                                                   \
+          util_random::SkewedLow<value_type>(rnd, 1, upper_bound));          \
+    }                                                                        \
+    BitEncoder bitenc;                                                       \
+    bitenc.EnsureBits(reserved_encoding_bits * kOpsPerIter);                 \
+    for (auto _ : state) {                                                   \
+      for (int n = 0; n < kOpsPerIter; ++n) {                                \
+        bitenc.method(log_base, param_2, param_3, unary_val[n]);             \
+      }                                                                      \
+      bitenc.Flush(0);                                                       \
+      global_value += bitenc.Bits();                                         \
+      bitenc.Clear();                                                        \
+    }                                                                        \
+  }                                                                          \
+  BENCHMARK(BM_##method);
+
+DEFINE_PUT_LOGBASE3_BENCHMARK(PutProgressiveRice, uint32_t, 16, 12, 4, 22, 32);
+DEFINE_PUT_LOGBASE3_BENCHMARK(PutProgressiveRice64, uint64_t, 32, 12, 4, 38,
+                              64);
 
 template <class ArrayClass>
 class FixedBitWidthArrayTest : public testing::Test {

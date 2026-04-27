@@ -28,6 +28,7 @@
 #include "absl/hash/hash_testing.h"
 #include "absl/log/log.h"
 #include "benchmark/benchmark.h"
+#include "gloop/util/random/shared_bit_gen.h"
 #include "gtest/gtest.h"
 
 namespace util::bitmap {

@@ -40,6 +40,7 @@
 #include "gloop/util/coding/varint.h"
 #include "gloop/util/gtl/unique_array.h"
 #include "gloop/util/random/acmrandom.h"
+#include "gloop/util/random/distributions.h"
 #include "gtest/gtest.h"
 
 // Global data.
@@ -397,6 +398,25 @@ static void BM_putvarfromdecoder(benchmark::State& state) {
 }
 BENCHMARK(BM_putvarfromdecoder)->DenseRange(0, 9);
 
+static void BM_putvarfromdecoderSkewed(benchmark::State& state) {
+  ACMRandom random(42);
+  Encoder e(encoding_buffer, sizeof(encoding_buffer));
+  for (uint64_t i = 0; i < 100; ++i) {
+    e.put_varint64(util_random::SkewedLow<uint64_t>(
+        random, 0, std::numeric_limits<uint64_t>::max()));
+  }
+
+  while (state.KeepRunningBatch(100)) {
+    Decoder d(encoding_buffer, sizeof(encoding_buffer));
+    e.reset(encoding_buffer2, sizeof(encoding_buffer2));
+    for (int j = 0; j < 100; ++j) {
+      e.put_varint64_from_decoder(&d);
+    }
+    CHECK_EQ(e.avail(), d.avail());
+  }
+}
+BENCHMARK(BM_putvarfromdecoderSkewed);
+
 /* Similar to BM_putvarfromdecoder, but use get8/put8 instead of
  * put_varint64_from_decoder.
  * We use this benchmark to measure the alternative implmentation of
@@ -574,6 +594,57 @@ static void BM_getvarint32slow(benchmark::State& state) {
 }
 BENCHMARK(BM_getvarint32slow)->DenseRange(0, 4);
 
+static void BM_getvarint32SkewedFast(benchmark::State& state) {
+  ACMRandom random(42);
+  Encoder e(encoding_buffer, sizeof(encoding_buffer));
+  uint32_t sum = 0;
+  for (uint64_t i = 0; i < 100; ++i) {
+    uint32_t val = util_random::SkewedLow<uint32_t>(random, 0, 1u << 31);
+    sum += val;
+    e.put_varint32(val);
+  }
+
+  for (auto _ : state) {
+    Decoder d(encoding_buffer, sizeof(encoding_buffer));
+    uint32_t v, sum2 = 0;
+    for (int j = 0; j < 100; ++j) {
+      d.get_varint32(&v);
+      sum2 += v;
+    }
+    CHECK_EQ(e.avail(), d.avail());
+    CHECK_EQ(sum, sum2);
+  }
+}
+BENCHMARK(BM_getvarint32SkewedFast);
+
+static void BM_getvarint32SkewedSlow(benchmark::State& state) {
+  ACMRandom random(42);
+  char* ptr[100];
+  uint32_t len[100];
+  char* buf = encoding_buffer;
+  uint32_t sum = 0;
+  for (int i = 0; i < 100; ++i) {
+    ptr[i] = buf;
+    uint32_t val = util_random::SkewedLow<uint32_t>(random, 0, 1u << 31);
+    sum += val;
+    buf = Varint::Encode32(buf, val);
+    len[i] = buf - ptr[i];
+  }
+
+  Decoder d;
+  for (auto _ : state) {
+    uint32_t v, sum2 = 0;
+    for (int j = 0; j < 100; ++j) {
+      d.reset(ptr[j], len[j]);
+      d.get_varint32(&v);
+      sum2 += v;
+      CHECK_EQ(d.avail(), 0);
+    }
+    CHECK_EQ(sum, sum2);
+  }
+}
+BENCHMARK(BM_getvarint32SkewedSlow);
+
 static void BM_length(benchmark::State& state) {
   Encoder e(encoding_buffer, ABSL_ARRAYSIZE(encoding_buffer));
   for (auto _ : state) {
@@ -589,3 +660,14 @@ static void BM_avail(benchmark::State& state) {
   }
 }
 BENCHMARK(BM_avail);
+
+TEST(CoderUnitTest, BenchmarkTest) {
+  // Cannot use the convenience benchmark::RunSpecifiedBenchmarksThenExit()
+  // here because this code could link with both internal and external
+  // benchmarks.
+  // So we just inline the logic here.
+  if (!benchmark::GetBenchmarkFilter().empty()) {
+    benchmark::RunSpecifiedBenchmarks();
+    std::cout << "PASS" << std::endl;
+  }
+}

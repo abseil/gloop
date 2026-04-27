@@ -38,6 +38,7 @@
 #include "benchmark/benchmark.h"
 #include "gloop/util/gtl/unique_array.h"
 #include "gloop/util/random/acmrandom.h"
+#include "gloop/util/random/distributions.h"
 #include "gtest/gtest.h"
 
 // A straightforward implementation of Length64 for testing and benchmarking
@@ -636,6 +637,17 @@ class VarintBMHelper {
     }
   }
 
+  // Helper routine to initialize a char buffer with a repeatable
+  // random sequence of size 2^(0 to 31)
+  void InitFlat32Varints() {
+    ACMRandom r(GTEST_FLAG_GET(random_seed));
+    char* bptr = buf_;
+    for (int i = 0; i < kCount; i++) {
+      uint32_t val = util_random::SkewedLow<uint32_t>(r, 0, uint32_t{1} << 31);
+      bptr = Varint::Encode32(bptr, val);
+    }
+  }
+
   void RunParser(benchmark::State& state) {
     uint32_t val;
     const char* bptr = nullptr;
@@ -675,12 +687,26 @@ static void BM_Parse32(benchmark::State& state) {
 }
 BENCHMARK(BM_Parse32)->Arg(0)->Arg(8)->Arg(16)->Arg(24);
 
+static void BM_Parse32Flat(benchmark::State& state) {
+  VarintBMHelper helper;
+  helper.InitFlat32Varints();
+  helper.RunParser(state);
+}
+BENCHMARK(BM_Parse32Flat);
+
 static void BM_Parse32Inline(benchmark::State& state) {
   VarintBMHelper helper;
   helper.InitVarints(state.range(0));
   helper.RunInlineParser(state);
 }
 BENCHMARK(BM_Parse32Inline)->Arg(0)->Arg(8)->Arg(16)->Arg(24);
+
+static void BM_Parse32InlineFlat(benchmark::State& state) {
+  VarintBMHelper helper;
+  helper.InitFlat32Varints();
+  helper.RunInlineParser(state);
+}
+BENCHMARK(BM_Parse32InlineFlat);
 
 static void BM_Length32(benchmark::State& state) {
   // Smaller than L1 cache, and still performs a 32 bit load
