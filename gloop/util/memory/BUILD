@@ -100,14 +100,14 @@ cc_test(
     name = "memory_mapped_io_test_data_test",
     size = "small",
     srcs = ["memory_mapped_io_test_data_test.cc"],
+    args = [
+    ],
     visibility = ["//visibility:private"],
     deps = [
         ":memory_mapped_io_test_data",
-        "//gloop/base:init_google",
+        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
-        "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/log:flags",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

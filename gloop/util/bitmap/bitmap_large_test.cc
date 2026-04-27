@@ -39,7 +39,7 @@ using util::bitmap::internal::BasicBitmap;
 template <typename W>
 std::pair<typename BasicBitmap<W>::size_type, int64_t> FillBitMap(
     int percent_filled, BasicBitmap<W>* bitmap) {
-  ACMRandom rnd(testing::GTEST_FLAG(random_seed));
+  ACMRandom rnd(GTEST_FLAG_GET(random_seed));
   std::pair<typename BasicBitmap<W>::size_type, int64_t> bitmap_info_pair(0, 0);
   for (size_t index = 0; index < bitmap->bits(); ++index) {
     if (rnd.Uniform(100) < percent_filled) {

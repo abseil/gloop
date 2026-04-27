@@ -82,7 +82,7 @@ class IntrusiveHeapTest : public testing::Test {
   std::vector<Elem> elems_;     // Storage for items in the heap
   std::vector<Elem> expected_;  // Copy of the elements, for reference
 
-  IntrusiveHeapTest() : rnd_(testing::GTEST_FLAG(random_seed)) {}
+  IntrusiveHeapTest() : rnd_(GTEST_FLAG_GET(random_seed)) {}
 
   // Build a heap.
   void BuildHeap() {

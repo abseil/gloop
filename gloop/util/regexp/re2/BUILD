@@ -41,7 +41,6 @@ cc_test(
         "//gloop:gloop_test_main",
         "//gloop/base:commandlineflags",
         "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/flags:reflection",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

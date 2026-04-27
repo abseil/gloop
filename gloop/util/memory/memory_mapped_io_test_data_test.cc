@@ -33,10 +33,7 @@
 #include <cstdint>
 #include <string>
 
-#include "absl/flags/flag.h"
 #include "absl/log/check.h"
-#include "absl/log/flags.h"
-#include "gloop/base/init_google.h"
 #include "gloop/util/random/acmrandom.h"
 #include "gtest/gtest.h"
 
@@ -203,8 +200,3 @@ TEST_F(MemoryMappedIOTestDataTest, WriteFailOpenSucceed) {
 }
 
 }  // namespace
-
-int main(int argc, char* argv[]) {
-  InitGoogle("", &argc, &argv, true);
-  return RUN_ALL_TESTS();
-}

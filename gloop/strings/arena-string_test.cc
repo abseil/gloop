@@ -66,7 +66,7 @@ TEST(ArenaStringTest, Simple) {
 // allocators.
 template <class A>
 void TestAssign(A a) {
-  MTRandom rng(testing::GTEST_FLAG(random_seed));
+  MTRandom rng(GTEST_FLAG_GET(random_seed));
   std::vector<std::string> data;
   std::vector<ArenaString> arena_str;
 
@@ -128,7 +128,7 @@ TEST(ArenaStringTest, AssignBaseArena) {
 
 // Test static encode and decode methods.
 TEST(ArenaStringTest, EncodeDecode) {
-  MTRandom rng(testing::GTEST_FLAG(random_seed));
+  MTRandom rng(GTEST_FLAG_GET(random_seed));
 
   // allocate a few extra characters so we can check for buffer overruns.
   int buf_extra = 16;
@@ -397,7 +397,7 @@ int main(int argc, char** argv) {
     exit(0);
   }
 
-  LOG(INFO) << "--test_random_seed=" << testing::GTEST_FLAG(random_seed);
+  LOG(INFO) << "--test_random_seed=" << GTEST_FLAG_GET(random_seed);
 
   return RUN_ALL_TESTS();
 }

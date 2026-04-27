@@ -24,7 +24,6 @@
 #include <string>
 
 #include "absl/flags/flag.h"
-#include "absl/flags/reflection.h"
 #include "absl/strings/string_view.h"
 #include "gloop/base/commandlineflags.h"
 #include "gmock/gmock.h"
@@ -78,15 +77,11 @@ TEST(RegexpFlagTest, OrDie_InvalidRegexp) {
 }
 
 TEST(RegexpFlagTest, ParseFlag_ValidRegexp) {
-  // TODO - Remove explicit flagsaver.
-  absl::FlagSaver saved_flags;
   EXPECT_NE("", SetCommandLineOption("nonempty_flag", "b+"));
   EXPECT_THAT(absl::GetFlag(FLAGS_nonempty_flag), HasPattern("b+"));
 }
 
 TEST(RegexpFlagTest, ParseFlag_InvalidRegexp) {
-  // TODO - Remove explicit flagsaver.
-  absl::FlagSaver saved_flags;
   EXPECT_EQ("", SetCommandLineOption("nonempty_flag", "(b+"));
   EXPECT_THAT(absl::GetFlag(FLAGS_nonempty_flag), HasPattern("a+"));
 }
@@ -115,32 +110,24 @@ TEST(RegexpListFlagTest, OrDie_InvalidRegexp) {
 }
 
 TEST(RegexpListFlagTest, ParseFlag_Empty) {
-  // TODO - Remove explicit flagsaver.
-  absl::FlagSaver saved_flags;
   EXPECT_NE("", SetCommandLineOption("list_flag", "a+,b+"));
   EXPECT_THAT(absl::GetFlag(FLAGS_list_flag),
               ElementsAre(HasPattern("a+"), HasPattern("b+")));
 }
 
 TEST(RegexpListFlagTest, ParseFlag_Comma) {
-  // TODO - Remove explicit flagsaver.
-  absl::FlagSaver saved_flags;
   EXPECT_NE("", SetCommandLineOption("list_flag", "a+,b+"));
   EXPECT_THAT(absl::GetFlag(FLAGS_list_flag),
               ElementsAre(HasPattern("a+"), HasPattern("b+")));
 }
 
 TEST(RegexpListFlagTest, ParseFlag_EscapedComma) {
-  // TODO - Remove explicit flagsaver.
-  absl::FlagSaver saved_flags;
   EXPECT_NE("", SetCommandLineOption("list_flag", "a+\\x2cb+"));
   EXPECT_THAT(absl::GetFlag(FLAGS_list_flag),
               ElementsAre(HasPattern("a+\\x2cb+")));
 }
 
 TEST(RegexpListFlagTest, ParseFlag_InvalidRegexp) {
-  // TODO - Remove explicit flagsaver.
-  absl::FlagSaver saved_flags;
   EXPECT_EQ("", SetCommandLineOption("list_flag", "a+,(b+,c+"));
   EXPECT_THAT(absl::GetFlag(FLAGS_list_flag),
               ElementsAre(HasPattern("a+"), HasPattern("b+")));

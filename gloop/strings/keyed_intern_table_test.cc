@@ -180,7 +180,7 @@ static std::string RandomString(RNG* rng) {
 }
 
 TEST(KeyedInternTableTest, StressTest) {
-  std::mt19937 rng(testing::GTEST_FLAG(random_seed));
+  std::mt19937 rng(GTEST_FLAG_GET(random_seed));
   std::vector<std::string> random_strings;
   const size_t kBufferLength = 4096;
   for (int i = 0; i < kBufferLength; ++i) {

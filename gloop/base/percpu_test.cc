@@ -576,7 +576,7 @@ void CASConcurrentTest(Handle heads, std::vector<int64_t>* ptrs, int n,
 void SpinlockCrossCpuTest(PerCpuSpinLock* locks, std::vector<int>* counters,
                           int n) {
   absl::BitGen rand(absl::SeedSeq(
-      {testing::GTEST_FLAG(random_seed) + PerCpuTest::TestThreadIndex()}));
+      {GTEST_FLAG_GET(random_seed) + PerCpuTest::TestThreadIndex()}));
   int ncpus = NumCPUs();
   struct Helper {
     static void Local(PerCpuSpinLock* locks,

@@ -222,9 +222,6 @@ class FlagDeathTest : public ::testing::Test {
   }
 
  private:
-#if !FLAG_VALUES_RESTORED_AUTOMATICALLY
-  absl::FlagSaver flag_saver_;
-#endif
   static const std::vector<std::string>* original_argv_;
 };
 
