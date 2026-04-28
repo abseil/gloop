@@ -43,6 +43,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+using ::testing::ElementsAre;
 using ::testing::IsEmpty;
 using ::testing::Pointee;
 using ::testing::SizeIs;
@@ -215,6 +216,14 @@ template <class Iter>
 static std::string Unparse(const Iter& iter) {
   return absl::StrFormat("[%d,%d]=>%d", static_cast<int>(iter->start),
                          static_cast<int>(iter->limit), iter->value);
+}
+
+template <typename K, typename V>
+static auto FieldsAre(K start, K limit, V value) {
+  return testing::AllOf(
+      testing::Field("start", &gtl::IntervalMap<K, V>::Entry::start, start),
+      testing::Field("limit", &gtl::IntervalMap<K, V>::Entry::limit, limit),
+      testing::Field("value", &gtl::IntervalMap<K, V>::Entry::value, value));
 }
 
 TYPED_TEST(IntervalMapTest, EmptyMap) {
@@ -1633,6 +1642,130 @@ TYPED_TEST(IntervalMapTest, EqualsWithDifferentTwoIntervalsMaps) {
   EXPECT_TRUE(m4 != m1);
 }
 
+// IntervalMapDanglingReferencesTests are designed to catch potential issues
+// with dangling references when modifying an IntervalMap by using keys that are
+// references stored in the map itself (which can get invalidated by map
+// modifications). These tests were introduced to make sure that using
+// `absl::btree_set` (instead of `std::set`) would not cause dangling reference
+// issues.
+TEST(IntervalMapDanglingReferencesTest, Erase) {
+  gtl::IntervalMap<int, int> map;
+  map.Set(0, 10, 1);
+  map.Set(11, 15, 2);
+  map.Set(16, 19, 3);
+  map.Set(20, 23, 4);
+  map.Set(24, 29, 5);
+  map.Set(30, 33, 6);
+  map.Set(35, 36, 7);
+
+  auto it = map.find(18);
+  CHECK(it != map.end());
+  EXPECT_EQ(it->start, 16);
+  EXPECT_EQ(it->limit, 19);
+  EXPECT_EQ(map.begin()->limit, 10);
+  // This should erase [10,19).
+  map.Erase(map.begin()->limit, it->limit);
+  EXPECT_THAT(map, ElementsAre(FieldsAre(0, 10, 1), FieldsAre(20, 23, 4),
+                               FieldsAre(24, 29, 5), FieldsAre(30, 33, 6),
+                               FieldsAre(35, 36, 7)));
+}
+
+TEST(IntervalMapDanglingReferencesTest, Set) {
+  gtl::IntervalMap<int, int> map;
+  map.Set(0, 10, 1);
+  map.Set(11, 12, 2);
+  map.Set(16, 19, 3);
+  map.Set(20, 23, 4);
+
+  auto it = map.find(11);
+  EXPECT_EQ(it->start, 11);
+  EXPECT_EQ(it->limit, 12);
+  // This should set the interval [11,22).
+  map.Set(it->start, it->limit + 10, 5);
+  EXPECT_THAT(map, ElementsAre(FieldsAre(0, 10, 1), FieldsAre(11, 22, 5),
+                               FieldsAre(22, 23, 4)));
+}
+
+TEST(IntervalMapDanglingReferencesTest, SetAndCoalesce) {
+  gtl::IntervalMap<int, int> map;
+  map.Set(0, 10, 1);
+  map.Set(11, 12, 2);
+  map.Set(16, 19, 3);
+  map.Set(20, 23, 4);
+
+  auto it = map.find(11);
+  EXPECT_EQ(it->start, 11);
+  EXPECT_EQ(it->limit, 12);
+  // This should set the interval [3,12).
+  map.SetAndCoalesce(3, it->limit, 5);
+  EXPECT_THAT(map, ElementsAre(FieldsAre(0, 3, 1), FieldsAre(3, 12, 5),
+                               FieldsAre(16, 19, 3), FieldsAre(20, 23, 4)));
+}
+
+TEST(IntervalMapDanglingReferencesTest, SetNoOverlap) {
+  gtl::IntervalMap<int, int> map;
+  map.Set(0, 10, 1);
+  map.Set(11, 12, 2);
+  map.Set(20, 23, 3);
+
+  auto it1 = map.find(11);
+  EXPECT_EQ(it1->start, 11);
+  EXPECT_EQ(it1->limit, 12);
+  auto it2 = map.find(22);
+  EXPECT_EQ(it2->start, 20);
+  EXPECT_EQ(it2->limit, 23);
+  // This should set the interval [12,20).
+  map.SetNoOverlap(it1->limit, it2->start, 4);
+  EXPECT_THAT(map, ElementsAre(FieldsAre(0, 10, 1), FieldsAre(11, 12, 2),
+                               FieldsAre(12, 20, 4), FieldsAre(20, 23, 3)));
+}
+
+TEST(IntervalMapDanglingReferencesTest, SplitAt) {
+  gtl::IntervalMap<int, int> map;
+  map.Set(0, 10, 1);
+  map.Set(11, 40, 2);
+
+  auto it1 = map.find(20);
+  EXPECT_EQ(it1->start, 11);
+  EXPECT_EQ(it1->limit, 40);
+  map.SplitAt(it1->start);
+  EXPECT_THAT(map, ElementsAre(FieldsAre(0, 10, 1), FieldsAre(11, 40, 2)));
+}
+
+TEST(IntervalMapDanglingReferencesTest, MergeValue) {
+  gtl::IntervalMap<int, int> map;
+  map.Set(0, 10, 1);
+  map.Set(11, 15, 2);
+  map.Set(16, 19, 3);
+  map.Set(20, 23, 4);
+  map.Set(24, 29, 5);
+  map.Set(30, 33, 6);
+  map.Set(35, 36, 7);
+
+  auto it = map.find(32);
+  CHECK(it != map.end());
+  EXPECT_EQ(it->start, 30);
+  EXPECT_EQ(it->limit, 33);
+  EXPECT_EQ(map.begin()->limit, 10);
+  // This should merge [10,33).
+  map.MergeValue(map.begin()->limit, it->limit,
+                 [](const int start, const int limit, int* existing_value,
+                    int* new_value) {
+                   if (existing_value != nullptr) {
+                     *new_value += *existing_value;
+                   } else {
+                     *new_value = 42;
+                   }
+                   return new_value;
+                 });
+  EXPECT_THAT(map, ElementsAre(FieldsAre(0, 10, 1), FieldsAre(10, 11, 42),
+                               FieldsAre(11, 15, 44), FieldsAre(15, 16, 42),
+                               FieldsAre(16, 19, 45), FieldsAre(19, 20, 42),
+                               FieldsAre(20, 23, 46), FieldsAre(23, 24, 42),
+                               FieldsAre(24, 29, 47), FieldsAre(29, 30, 42),
+                               FieldsAre(30, 33, 48), FieldsAre(35, 36, 7)));
+}
+
 }  // namespace test_int_int
 
 namespace test_int_optional {
@@ -2376,30 +2509,6 @@ TEST(IntervalMapLookupTest, Bounds) {
   EXPECT_THAT(m.LookupPtr(50), Pointee(3));
   EXPECT_THAT(m.LookupPtr(59), Pointee(3));
   EXPECT_EQ(m.LookupPtr(60), nullptr);
-}
-
-TEST(IntervalMapLookupTest, LimitedPointerStability) {
-  gtl::IntervalMap<int, int> m;
-  m.Set(100, 101, 42);
-  const int* pv100 = m.LookupPtr(100);
-  ASSERT_THAT(pv100, Pointee(42));
-
-  // The pointer remains valid after non-coalescing insertions around the value.
-  for (int i = 0; i < 100; ++i) {
-    m.Set(i, i + 1, 42);
-    EXPECT_EQ(m.LookupPtr(100), pv100);
-  }
-  for (int i = 101; i < 200; ++i) {
-    m.Set(i, i + 1, 42);
-    EXPECT_EQ(m.LookupPtr(100), pv100);
-  }
-  const int* pv101 = m.LookupPtr(101);
-  ASSERT_THAT(pv101, Pointee(42));
-  ASSERT_NE(pv101, pv100);
-
-  // All pointers but one become invalid after coalescing.
-  m.Coalesce();
-  ASSERT_TRUE(m.LookupPtr(100) != pv100 || m.LookupPtr(101) != pv101);
 }
 
 TEST(IntervalMapLookupTest, HeterogeneousLookup) {
