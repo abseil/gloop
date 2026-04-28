@@ -225,7 +225,7 @@ class IntervalMap {
   // references when calling this method with any argument that is a reference
   // to an object already stored in the map.
   iterator Erase(K start, K limit) {
-    return EraseInternal(std::move(start), std::move(limit));
+    return EraseInternal(start, std::move(limit));
   }
 
   // Same as above, but erases the exact iterator provided with no chance of
