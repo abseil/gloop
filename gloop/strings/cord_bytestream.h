@@ -21,6 +21,10 @@
 #ifndef THIRD_PARTY_GLOOP_STRINGS_CORD_BYTESTREAM_H_
 #define THIRD_PARTY_GLOOP_STRINGS_CORD_BYTESTREAM_H_
 
+// TODO: b/491805634 - This header currently contains no symbols.
+// Remove the following pragma once the code is migrated to this file.
+// IWYU pragma: always_keep
+
 #include "absl/strings/cord.h"
 
 // Please include this file if you want to use strings::CordByteSink or

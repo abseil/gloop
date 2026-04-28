@@ -21,6 +21,10 @@
 #ifndef THIRD_PARTY_GLOOP_STRINGS_BYTESTREAM_H_
 #define THIRD_PARTY_GLOOP_STRINGS_BYTESTREAM_H_
 
+// TODO: b/491807183 - This header currently contains no symbols.
+// Remove the following pragma once the code is migrated to this file.
+// IWYU pragma: always_keep
+
 // Please include this file instead of
 // "absl/strings/bytestream.h".
 //
