@@ -764,9 +764,9 @@ TEST_F(StatusBuilderTest, MessageSetPayloadHelpers) {
 TEST_F(StatusBuilderTest, MessageSetPayloadMethods) {
   static const char* kPayloadMsg = "payload";
   StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
-  EXPECT_FALSE(builder.HasPayload());
+  EXPECT_FALSE(util::HasPayload(builder));
   builder.AttachPayload(MakePayloadProto(kPayloadMsg));
-  EXPECT_TRUE(builder.HasPayload());
+  EXPECT_TRUE(util::HasPayload(builder));
   EXPECT_TRUE(util::HasPayloadWithType<util::StatusProto>(builder));
   EXPECT_TRUE(util::HasPayloadWithType<util::StatusProto>(
       builder, util::StatusProto::message_set_extension));
@@ -780,10 +780,10 @@ TEST_F(StatusBuilderTest, MessageSetPayloadMethods) {
 TEST_F(StatusBuilderTest, MessageSetPayloadMethodsOnOkStatus) {
   static const char* kPayloadMsg = "payload";
   StatusBuilder builder(absl::OkStatus(), absl::SourceLocation());
-  EXPECT_FALSE(builder.HasPayload());
+  EXPECT_FALSE(util::HasPayload(builder));
   EXPECT_FALSE(util::HasPayloadWithType<util::StatusProto>(builder));
   builder.AttachPayload(MakePayloadProto(kPayloadMsg));
-  EXPECT_FALSE(builder.HasPayload());
+  EXPECT_FALSE(util::HasPayload(builder));
   EXPECT_FALSE(util::HasPayloadWithType<util::StatusProto>(builder));
 }
 

@@ -489,16 +489,6 @@ class ABSL_MUST_USE_RESULT StatusBuilder {
     return std::move(AttachPayload(obj));
   }
 
-  // HasPayload()
-  //
-  // Indicates whether the Status object that will be returned by the
-  // StatusBuilder contains any payloads with a type extending proto2's
-  // `MessageSet`, returning `true` if so. Having a payload does not guarantee
-  // the presence of a payload with a specific type. Note that returning `false`
-  // does not necessarily indicate the absence of a payload, but only the
-  // absence on one which extends `MessageSet`.
-  bool HasPayload() const;
-
   // Sets the error code for the status that will be returned by this
   // StatusBuilder.  Returns `*this` to allow method chaining.
   template <typename Enum>
@@ -1271,10 +1261,6 @@ inline absl::SourceLocation StatusBuilder::source_location() const {
   return loc_;
 }
 
-inline bool StatusBuilder::HasPayload() const {
-  return rep_ != nullptr && ::util::HasPayload(rep_->status);
-}
-
 // AttachPayload()
 //
 // If `builder->ok()`, does nothing. Else sets message `obj` as the payload for
@@ -1337,10 +1323,11 @@ void AbslInternalAttachPayload(util::StatusBuilder& builder,
 // StatusBuilder contains any payloads with a type extending proto2's
 // `MessageSet`, returning `true` if so. Having a payload does not guarantee the
 // presence of a payload with a specific type. Note that returning `false` does
-// not necessarily indicate the absense of a payload, but only the absence on
+// not necessarily indicate the absence of a payload, but only the absence on
 // one which extends `MessageSet`.
 inline bool HasPayload(const util::StatusBuilder& builder) {
-  return builder.HasPayload();
+  auto* rep = status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
+  return rep != nullptr && ::util::HasPayload(rep->status);
 }
 
 // HasPayloadWithType()
