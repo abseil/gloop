@@ -22,16 +22,17 @@
 
 #include <unistd.h>
 
-#include <algorithm>
-#include <atomic>
-#include <climits>
-#include <cstddef>
-#include <cstdint>
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-W#warnings"
 #include <ext/__hash>
 #include <ext/hash_map>
 #pragma clang diagnostic pop
+
+#include <algorithm>
+#include <atomic>
+#include <climits>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <tuple>
 #include <type_traits>
@@ -50,7 +51,9 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "benchmark/benchmark.h"
+#include "gloop/base/atomic_stats_counter.h"
 #include "gloop/base/sysinfo.h"
+#include "gloop/thread/thread_manager.h"
 #include "gloop/util/gtl/extend/equality.h"
 #include "gloop/util/gtl/extend/extend.h"
 #include "gloop/util/hash/transparent_hash.h"
@@ -459,69 +462,67 @@ TEST(LockFreeHashTest, IteratorHasNonConstValue) {
                 "Value must be modifiable");
 }
 
-struct BenchmarkContext {
-  HashMap h ABSL_CACHELINE_ALIGNED;
-};
-BenchmarkContext* g_bm_context = nullptr;
+void RunRandomSequentialTest(ACMRandom* rand) {
+  HashMap h;
+  const HashMap& ch = h;
+  absl::flat_hash_map<int, int> model;
+  for (int i = 0; i < 10000; ++i) {
+    const int key = absl::Uniform<int32_t>(*rand, 0, 5000);
+    const int value = absl::Uniform<int32_t>(*rand, 0, 10000);
 
-void BenchmarkSetup(const benchmark::State&) {
-  g_bm_context = new BenchmarkContext();
-}
-void BenchmarkTeardown(const benchmark::State&) {
-  delete g_bm_context;
-  g_bm_context = nullptr;
-}
-
-// Do random insertions of values up to max_key.
-void BM_ConcurrentInsertions(benchmark::State& state) {
-  const int max_key = state.range(0);
-
-  absl::InsecureBitGen arand;
-  HashMap* h = &g_bm_context->h;
-  CHECK(h->empty());
-  for (auto s : state) {
-    const int key = absl::Uniform<int32_t>(arand, 0, max_key);
-    h->insert(std::make_pair(key, 1));
-  }
-}
-BENCHMARK(BM_ConcurrentInsertions)
-    ->Setup(BenchmarkSetup)
-    ->Teardown(BenchmarkTeardown)
-    ->ThreadRange(1, NumCPUs())
-    ->Range(1, 1024);
-
-// Insert max_key / 10 values in the range [0..max_values), then do random
-// lookups of values in that range.
-void BM_ConcurrentLookups(benchmark::State& state) {
-  const int max_key = state.range(0);
-
-  absl::InsecureBitGen arand;
-  HashMap* h = &g_bm_context->h;
-
-  // Only initialize the map from a single thread. Otherwise, higher thread
-  // counts running this benchmark would result in a higher fill rate, instead
-  // of the intended ~10%.
-  if (state.thread_index() == 0) {
-    CHECK(h->empty());
-    const int intended_count = std::max(1, max_key / 10);
-    while (h->size() < intended_count) {
-      const int key = absl::Uniform<int32_t>(arand, 0, max_key);
-      h->insert(std::make_pair(key, 1));
+    int op = absl::Uniform<int32_t>(*rand, 0, 4);
+    if (op == 0) {
+      // delete
+      absl::flat_hash_map<int, int>::iterator iter1 = model.find(key);
+      HashMap::iterator iter2 = h.find(key);
+      HashMap::const_iterator iter3 = ch.find(key);
+      ASSERT_EQ(iter1 == model.end(), iter2 == h.end());
+      ASSERT_EQ(iter1 == model.end(), iter3 == ch.end());
+      if (iter1 != model.end()) {
+        model.erase(iter1);
+        h.erase(iter2);
+      }
+      ASSERT_EQ(h.size(), model.size());
+    } else {
+      // insert
+      bool ok = model.insert(std::make_pair(key, value)).second;
+      bool ok2 = h.insert(std::make_pair(key, value)).second;
+      ASSERT_EQ(ok, ok2);
+      ASSERT_EQ(h.size(), model.size());
     }
-  }
-  for (auto s : state) {
-    const int key = absl::Uniform<int32_t>(arand, 0, max_key);
-    auto it = h->find(key);
-    if (it != h->end()) {
-      benchmark::DoNotOptimize(it->second);
+
+    h.RunGC();
+
+    if (i % 1000 == 999) {
+      int n = 0;
+      absl::flat_hash_set<int> keys_found;
+      for (HashMap::iterator iter = h.begin(); iter != h.end(); ++iter) {
+        ASSERT_TRUE(keys_found.insert(iter->first).second);
+        ASSERT_EQ(iter->second, model[iter->first]);
+        ++n;
+      }
+      ASSERT_EQ(n, h.size());
+
+      n = 0;
+      keys_found.clear();
+      for (HashMap::const_iterator iter = h.begin(); iter != h.end(); ++iter) {
+        ASSERT_TRUE(keys_found.insert(iter->first).second);
+        ASSERT_EQ(iter->second, model[iter->first]);
+        ++n;
+      }
+      ASSERT_EQ(n, h.size());
     }
   }
 }
-BENCHMARK(BM_ConcurrentLookups)
-    ->Setup(BenchmarkSetup)
-    ->Teardown(BenchmarkTeardown)
-    ->ThreadRange(1, NumCPUs())
-    ->Range(1, 1024);
+
+TEST(LockFreeHashTest, RandomSequential) {
+  int n_iter = 50;
+  for (int i = 0; i < n_iter; ++i) {
+    ACMRandom arand(i);
+    RunRandomSequentialTest(&arand);
+    (void)write(1, ".", 1);
+  }
+}
 
 }  // namespace
 }  // namespace gtl

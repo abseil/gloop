@@ -56,6 +56,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "gloop/base/linux_syscall_support_unittest_helper.h"
+#include "gloop/thread/thread_control.h"
 #include "gtest/gtest.h"
 
 // Set by the signal handler to show that we received a signal
@@ -1282,6 +1283,14 @@ TEST(LinuxSyscallSupport, execveat) {
 }
 
 int main(int argc, char* argv[]) {
+  // This test case (specifically: Sigaction) will intermittently fail if
+  // there are any threads other than the main one.
+  //
+  // TODO: The real fix here is to stop using gUnit, and
+  // to avoid the call to InitGoogle entirely.  See
+  // <link>.
+  ::thread::DeprecatedThreadControl::AvoidBackgroundThreads();
+
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

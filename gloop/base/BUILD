@@ -433,6 +433,7 @@ cc_test(
     deps = [
         ":linux_syscall_support",
         ":linux_syscall_support_unittest_helper",
+        "//gloop/thread:thread_control",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
@@ -625,6 +626,7 @@ cc_test(
         ":static_threadlocal",
         ":sysinfo",
         "//gloop/base/scheduling",
+        "//gloop/thread",
         "//gloop/thread/fiber",
         "//gloop/thread/fiber:fiber-options",
         "//gloop/thread/fiber:fifolifo-schedulers",

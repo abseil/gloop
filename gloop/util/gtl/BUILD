@@ -916,7 +916,9 @@ cc_test(
     deps = [
         ":lockfree_hashmap",
         "//gloop:gloop_test_main",
+        "//gloop/base:atomic_stats_counter",
         "//gloop/base:sysinfo",
+        "//gloop/thread:thread_manager",
         "//gloop/util/gtl/extend",
         "//gloop/util/gtl/extend:equality",
         "//gloop/util/hash:transparent_hash",
