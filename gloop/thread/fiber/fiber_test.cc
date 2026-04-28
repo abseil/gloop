@@ -1919,4 +1919,45 @@ void BM_FiberMutexJoin(benchmark::State& state) {
 }
 BENCHMARK(BM_FiberMutexJoin)->Range(1024, 4096 * 4);
 
+TEST(MutexYield, IsCooperative) {
+  // Sets up extreme high contention among 100 highly active fibers spread over
+  // 2 kernel threads to explicitly enable absl::Mutex "Aggressive" spinning
+  // limits (~5,000 iterations). When the fiber yield hook is uncooperative
+  // (falling back to sched_yield), the physical threads constantly thrash OS
+  // context, starving waiting fibers and triggering a timeout.
+  static constexpr int kNumFibers = 100;
+  static constexpr int kNumIterations = 50000;
+
+  absl::Mutex mutex;
+  int shared_counter = 0;
+
+  base::scheduling::Scheduler* parent =
+      thread::DefaultDomain()->root_scheduler();
+
+  // Force 2 parallel kernel threads so GetMutexGlobals() enables the 5,000-spin
+  // loop! (If 1 thread, it might bypass the deep spin).
+  base::scheduling::Scheduler* scheduler =
+      thread::NewChildLIFOScheduler(parent, 2);
+
+  auto tree =
+      thread::NewTree(thread::TreeOptions().set_scheduler(scheduler), [&] {
+        thread::Bundle bundle;
+        for (int idx = 0; idx < kNumFibers; ++idx) {
+          bundle.Add([&]() {
+            for (int i = 0; i < kNumIterations; ++i) {
+              absl::MutexLock lock(&mutex);
+              ++shared_counter;
+            }
+          });
+        }
+        bundle.JoinAll();
+      });
+
+  tree->Join();
+  EXPECT_EQ(shared_counter, kNumFibers * kNumIterations);
+
+  // Clean up the scheduler.
+  scheduler->Orphan();
+}
+
 }  // namespace thread

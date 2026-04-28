@@ -202,6 +202,24 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "once_test",
+    srcs = ["once_test.cc"],
+    deps = [
+        "//gloop:gloop_test_main",
+        "//gloop/base/scheduling",
+        "//gloop/base/scheduling:low-level-support",
+        "//gloop/thread/fiber",
+        "//gloop/thread/fiber:fiber-options",
+        "//gloop/thread/fiber:fifolifo-schedulers",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/synchronization",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 cc_library(
     name = "thread-internal",
     hdrs = ["thread-internal.h"],

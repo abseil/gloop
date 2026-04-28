@@ -876,6 +876,51 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "spinlock_unittest",
+    size = "medium",
+    srcs = ["spinlock_unittest.cc"],
+    deps = [
+        ":commandlineflags",
+        ":init_google",
+        ":spinlock",
+        ":sysinfo",
+        "//gloop/base:per-thread-sem",
+        "//gloop/base/scheduling",
+        "//gloop/base/scheduling:low-level-support",
+        "//gloop/base/scheduling:scheduling_mode",
+        "//gloop/thread/fiber",
+        "//gloop/thread/fiber:fiber-options",
+        "//gloop/thread/fiber:fifolifo-schedulers",
+        "//gloop/util/hash:legacy_hash",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+# This version of spinlock_test links in //gloop/base, therefore
+# picking up the Gloop-specific symbol overrides for AbslInternalSpinLockDelay
+# and AbslInternalSpinLockWake.
+cc_test(
+    name = "spinlock_test",
+    size = "medium",
+    deps = [
+        ":spinlock",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:spinlock_test_common",
+        "@abseil-cpp//absl/synchronization",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 cc_binary(
     name = "libthreadidentitytest_shared_lib.so",
     testonly = 1,
@@ -1297,6 +1342,28 @@ cc_test(
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/memory",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "signal_util_subtle_test",
+    size = "medium",
+    srcs = ["signal_util_subtle_test.cc"],
+    features = ["-use_header_modules"],
+    deps = [
+        ":commandlineflags",
+        ":percpu",
+        ":signal_util_subtle",
+        ":time_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
