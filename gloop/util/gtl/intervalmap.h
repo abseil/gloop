@@ -695,12 +695,8 @@ IntervalMap<K, V, Comparison, Allocator>::Erase(const K& start,
                                                 const K& limit) {
   DCHECK(comp(start, limit));
   auto i = SplitAt(start);
-  if (i != table_.end() && !comp(limit, i->limit)) {
-    // Upper bound returns exactly what we need since the range `erase` takes
-    // is [first, last).
-    auto limit_it = table_.upper_bound(limit);
-    // The first iterator to erase is the one returned by SplitAt.
-    i = table_.erase(i, limit_it);
+  while (i != table_.end() && !comp(limit, i->limit)) {
+    i = table_.erase(i);
   }
   if (i != table_.end() && comp(i->start, limit)) {
     // The last interval was an overlap so truncate it.
