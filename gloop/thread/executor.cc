@@ -49,6 +49,7 @@
 #include "absl/time/time.h"
 #include "absl/types/span.h"
 #include "gloop/base/callback.h"
+#include "gloop/base/context.h"
 #include "gloop/base/static_threadlocal.h"
 #include "gloop/base/sysinfo.h"
 #include "gloop/base/walltime.h"
@@ -336,6 +337,7 @@ struct Cancelled {};
 // A closure that hasn't yet been cancelled or started running.
 struct Unstarted {
   Closure* closure;
+  base::Context context;
 };
 
 // A closure that has already started running.
@@ -449,9 +451,11 @@ void CancelWrapper::operator()() && {
   // Prepare to run the closure after releasing the lock and update its state to
   // reflect that.
   Closure* closure = us->closure;
+  base::Context context = us->context;
   closure_state_ = Started{};
   shard_->mu.unlock();
 
+  base::WithContext with_context(context);
   closure->Run();
 }
 
@@ -491,7 +495,8 @@ bool IsActiveExecutorHandle(ExecutorHandle handle) {
 }  // namespace internal
 
 // Returns a cancellation-aware callable that calls the supplied closure when
-// called.
+// called. Captures the current context, and restores it around the body of
+// `closure` when it is called.
 static auto MakeCancellableCallable(Closure* closure, ExecutorHandle* handle) {
   return [cw = std::make_unique<CancelWrapper>(closure, handle)]() mutable {
     // Transfer the responsibility for destroying the wrapper from the
@@ -518,8 +523,16 @@ void AddCancellable(Executor* executor, absl::Duration delay, Closure* closure,
            "http://b/494604538 for a workaround and leave a comment.";
   }
 
-  executor->ScheduleAfterForMigration(delay,
-                                      MakeCancellableCallable(closure, handle));
+  auto cancellable_callable = MakeCancellableCallable(closure, handle);
+
+  // Switch to the background Context, so that we don't capture the current
+  // thread's Context when enqueuing the cancellable closure. We want to make
+  // sure that the current thread's Context does not stay pinned/referenced if
+  // the closure is cancelled.
+  // Note that MakeCancellableCallable above captures the current Context, so
+  // the supplied `closure` will run in the correct Context.
+  base::WithContext wc(base::BackgroundContext());
+  executor->ScheduleAfterForMigration(delay, std::move(cancellable_callable));
 }
 
 void AddCancellable(Executor* executor, absl::AnyInvocable<void() &&> callback,
@@ -545,7 +558,16 @@ void AddCancellableAt(Executor* executor, absl::Time when, Closure* closure,
            "http://b/494604538 for a workaround and leave a comment.";
   }
 
-  executor->ScheduleAt(when, MakeCancellableCallable(closure, handle));
+  auto cancellable_callable = MakeCancellableCallable(closure, handle);
+
+  // Switch to the background Context, so that we don't capture the current
+  // thread's Context when enqueuing the cancellable closure. We want to make
+  // sure that the current thread's Context does not stay pinned/referenced if
+  // the closure is cancelled.
+  // Note that MakeCancellableCallable above captures the current Context, so
+  // the supplied `closure` will run in the correct Context.
+  base::WithContext wc(base::BackgroundContext());
+  executor->ScheduleAt(when, std::move(cancellable_callable));
 }
 
 bool Cancel(ExecutorHandle handle, absl::Duration timeout, Closure** cb_ptr) {

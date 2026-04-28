@@ -21,6 +21,8 @@
 #include "gloop/thread/executor.h"
 
 #include <memory>
+#include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -32,6 +34,7 @@
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/memory/memory.h"
+#include "absl/strings/str_cat.h"
 #include "absl/synchronization/blocking_counter.h"
 #include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
@@ -40,11 +43,14 @@
 #include "benchmark/benchmark.h"
 #include "gloop/base/callback.h"
 #include "gloop/base/context.h"
+#include "gloop/base/mock_tracer.h"
+#include "gloop/base/tracecontext.h"
 #include "gloop/thread/sync_queue.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/threadpool.h"
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 ABSL_DECLARE_FLAG(bool, thread_executor_checkfail_on_permanent_callbacks);
@@ -55,7 +61,13 @@ thread::Executor* DefaultThreadPoolExecutor();
 
 namespace thread {
 
-class AddCancellableTest : public ::testing::TestWithParam<bool> {
+struct AddCancellableTestCase {
+  bool use_absolute_time = false;
+  bool use_legacy_callback = false;
+};
+
+class AddCancellableTest
+    : public ::testing::TestWithParam<AddCancellableTestCase> {
  public:
   static void SetUpTestSuite() {
     dummy_closure_ = util::functional::ToPermanentCallback([] {});
@@ -64,21 +76,46 @@ class AddCancellableTest : public ::testing::TestWithParam<bool> {
 
  protected:
   void AddCancellableHelper(Executor* const executor,
-                            const absl::Duration delay, Closure* const closure,
+                            const absl::Duration delay,
+                            absl::AnyInvocable<void() &&> callback,
                             ExecutorHandle* const h) {
-    if (use_absolute_time_) {
-      return AddCancellableAt(executor, absl::Now() + delay, closure, h);
+    if (GetParam().use_absolute_time) {
+      if (GetParam().use_legacy_callback) {
+        AddCancellableAt(executor, absl::Now() + delay,
+                         util::functional::ToCallback(std::move(callback)), h);
+      } else {
+        AddCancellableAt(executor, absl::Now() + delay, std::move(callback), h);
+      }
+    } else {
+      if (GetParam().use_legacy_callback) {
+        AddCancellable(executor, delay,
+                       util::functional::ToCallback(std::move(callback)), h);
+      } else {
+        AddCancellable(executor, delay, std::move(callback), h);
+      }
     }
+  }
 
-    return AddCancellable(executor, delay, closure, h);
+  void AddCancellableHelperWithRepeatableCallback(Executor* const executor,
+                                                  const absl::Duration delay,
+                                                  Closure* const closure,
+                                                  ExecutorHandle* const h) {
+    CHECK(closure->IsRepeatable())
+        << "AddCancellableHelperWithRepeatableCallback only accepts "
+           "repeatable callbacks.";
+    CHECK(GetParam().use_legacy_callback)
+        << "AddCancellableHelperWithRepeatableCallback does not support "
+           "AnyInvocable";
+    if (GetParam().use_absolute_time) {
+      AddCancellableAt(executor, absl::Now() + delay, closure, h);
+    } else {
+      AddCancellable(executor, delay, closure, h);
+    }
   }
 
  protected:
   static ThreadPool* executor_;
   static Closure* dummy_closure_;
-
- private:
-  const bool use_absolute_time_ = GetParam();
 };
 
 ThreadPool* AddCancellableTest::executor_ = nullptr;
@@ -87,9 +124,8 @@ Closure* AddCancellableTest::dummy_closure_ = nullptr;
 TEST_P(AddCancellableTest, NoCancellationNoDelay) {
   ExecutorHandle h;
   absl::Notification n;
-  AddCancellableHelper(executor_, absl::ZeroDuration(),
-                       ::util::functional::ToCallback([&n] { n.Notify(); }),
-                       &h);
+  AddCancellableHelper(
+      executor_, absl::ZeroDuration(), [&n] { n.Notify(); }, &h);
   n.WaitForNotification();
 }
 
@@ -97,9 +133,8 @@ TEST_P(AddCancellableTest, NoCancellationWithDelay) {
   ExecutorHandle h;
   absl::Notification n;
   absl::Time before = absl::Now();
-  AddCancellableHelper(executor_, absl::Milliseconds(20),
-                       ::util::functional::ToCallback([&n] { n.Notify(); }),
-                       &h);
+  AddCancellableHelper(
+      executor_, absl::Milliseconds(20), [&n] { n.Notify(); }, &h);
   n.WaitForNotification();
   absl::Time after = absl::Now();
   EXPECT_GE(after - before, absl::Milliseconds(20));
@@ -109,15 +144,31 @@ TEST_P(AddCancellableTest, CancelledDuringDelay) {
   ExecutorHandle h;
   absl::Notification n;
   // 3 minutes so the unit test times out before this call.
-  AddCancellableHelper(executor_, absl::Minutes(3),
-                       ::util::functional::ToCallback([&n] { n.Notify(); }),
-                       &h);
+  AddCancellableHelper(executor_, absl::Minutes(3), [&n] { n.Notify(); }, &h);
   Closure* cb = nullptr;
   bool cancelled = Cancel(h, absl::ZeroDuration(), &cb);
   EXPECT_TRUE(cancelled);
   EXPECT_NE(cb, nullptr);
   EXPECT_FALSE(n.HasBeenNotified());
   delete cb;
+}
+
+TEST_P(AddCancellableTest, PropagatesContextToTask) {
+  ExecutorHandle h;
+  absl::Notification n;
+  std::string task_thread_status = "uninitialized";
+  {
+    base::WithThreadStatus ts("expected_task_thread_status");
+    AddCancellableHelper(
+        executor_, absl::Milliseconds(20),
+        [&n, &task_thread_status] {
+          task_thread_status = base::CurrentThreadStatus();
+          n.Notify();
+        },
+        &h);
+  }
+  n.WaitForNotification();
+  EXPECT_EQ(task_thread_status, "expected_task_thread_status");
 }
 
 namespace {
@@ -141,8 +192,7 @@ TEST_P(AddCancellableTest, CancelWillTimeout) {
     ExecutorHandle h;
     Notifications n;
     AddCancellableHelper(
-        executor_, absl::ZeroDuration(),
-        ::util::functional::ToCallback([&n] { StartWaitFinish(&n); }), &h);
+        executor_, absl::ZeroDuration(), [&n] { StartWaitFinish(&n); }, &h);
     n.start.WaitForNotification();
 
     Closure* cb = dummy_closure_;
@@ -159,8 +209,7 @@ TEST_P(AddCancellableTest, CancelWaitsForFinish) {
     ExecutorHandle h;
     Notifications n;
     AddCancellableHelper(
-        executor_, absl::ZeroDuration(),
-        ::util::functional::ToCallback([&n] { StartWaitFinish(&n); }), &h);
+        executor_, absl::ZeroDuration(), [&n] { StartWaitFinish(&n); }, &h);
     n.start.WaitForNotification();
 
     // We are not guaranteed to get the interleaving we want (cancel before the
@@ -184,9 +233,8 @@ TEST_P(AddCancellableTest, CancelAfterFinish) {
   for (int i = 0; i < 20; ++i) {
     ExecutorHandle h;
     absl::Notification n;
-    AddCancellableHelper(executor_, absl::ZeroDuration(),
-                         ::util::functional::ToCallback([&n] { n.Notify(); }),
-                         &h);
+    AddCancellableHelper(
+        executor_, absl::ZeroDuration(), [&n] { n.Notify(); }, &h);
     n.WaitForNotification();
 
     // Sleep a tiny bit to make it more likely we get the interleave we want.
@@ -206,9 +254,7 @@ TEST_P(AddCancellableTest, MultipleCancellations) {
   // Multiple cancellations with same handle
   ExecutorHandle h;
   absl::Notification n;
-  AddCancellableHelper(executor_, absl::Minutes(3),
-                       ::util::functional::ToCallback([&n] { n.Notify(); }),
-                       &h);
+  AddCancellableHelper(executor_, absl::Minutes(3), [&n] { n.Notify(); }, &h);
 
   Closure* cb;
   EXPECT_TRUE(Cancel(h, absl::ZeroDuration(), &cb));
@@ -368,9 +414,9 @@ TEST_P(AddCancellableTest, EmptyHandle) {
   ExecutorHandle handle;  // an invalid/default handle
   EXPECT_TRUE(handle.empty());
 
-  Closure* cb1 = util::functional::ToCallback([] {});
-  AddCancellableHelper(executor_, absl::Milliseconds(100), cb1, &handle);
+  AddCancellableHelper(executor_, absl::Milliseconds(100), [] {}, &handle);
   EXPECT_FALSE(handle.empty());
+  Closure* cb1;
   EXPECT_TRUE(Cancel(handle, absl::InfiniteDuration(), &cb1));
   EXPECT_FALSE(handle.empty());
   delete cb1;
@@ -378,10 +424,11 @@ TEST_P(AddCancellableTest, EmptyHandle) {
   handle = ExecutorHandle();
   EXPECT_TRUE(handle.empty());
   absl::Notification n;
-  Closure* cb2 = util::functional::ToCallback([&n] { n.Notify(); });
-  AddCancellableHelper(executor_, absl::Milliseconds(100), cb2, &handle);
+  AddCancellableHelper(
+      executor_, absl::Milliseconds(100), [&n] { n.Notify(); }, &handle);
   EXPECT_FALSE(handle.empty());
   n.WaitForNotification();
+  Closure* cb2;
   EXPECT_TRUE(Cancel(handle, absl::InfiniteDuration(), &cb2));
   EXPECT_EQ(cb2, nullptr);
   EXPECT_FALSE(handle.empty());
@@ -406,8 +453,7 @@ TEST_P(AddCancellableTest, AddCancellableWithFullQueue) {
   // Test that AddCancellable() doesn't wait for the slow callback to finish,
   // despite the full queue.
   ExecutorHandle handle;
-  AddCancellableHelper(&pool, absl::ZeroDuration(),
-                       util::functional::ToCallback([] {}), &handle);
+  AddCancellableHelper(&pool, absl::ZeroDuration(), [] {}, &handle);
 
   EXPECT_FALSE(n.finish.HasBeenNotified());
   n.wait.Notify();
@@ -530,15 +576,23 @@ TEST(Executor,
 
 TEST_P(AddCancellableTest, CallbackIsDeletedIfExecutorDropsScheduledInvocable) {
   DoNothingExecutor executor;
-  bool destructor_called;
   ExecutorHandle handle;
-  AddCancellableHelper(&executor, absl::ZeroDuration(),
-                       new TestClosure(&destructor_called, false), &handle);
+  bool destructor_called;
+  AddCancellableHelper(
+      &executor, absl::ZeroDuration(),
+      [c = absl::MakeCleanup(
+           [&destructor_called] { destructor_called = true; })] {},
+      &handle);
   EXPECT_TRUE(destructor_called);
 }
 
 TEST_P(AddCancellableTest,
        PermanentCallbackIsNotDeletedIfExecutorDropsScheduledInvocable) {
+  if (!GetParam().use_legacy_callback) {
+    GTEST_SKIP()
+        << "Repeatable callback tests don't make sense with AnyInvocable";
+    return;
+  }
   // TODO: replace the permanent callback in this test with a
   // non-permanent one or delete this once we remove the flag
   absl::SetFlag(&FLAGS_thread_executor_checkfail_on_permanent_callbacks, false);
@@ -547,36 +601,26 @@ TEST_P(AddCancellableTest,
   bool destructor_called;
   auto callback = std::make_unique<TestClosure>(&destructor_called, true);
   ExecutorHandle handle;
-  AddCancellableHelper(&executor, absl::ZeroDuration(), callback.get(),
-                       &handle);
+  AddCancellableHelperWithRepeatableCallback(&executor, absl::ZeroDuration(),
+                                             callback.get(), &handle);
   EXPECT_FALSE(destructor_called);
 }
 
 TEST_P(AddCancellableTest, ExecutorDeletesWithoutRunning) {
-  // TODO: replace the permanent callback in this test with a
-  // non-permanent one or delete this once we remove the flag
-  absl::SetFlag(&FLAGS_thread_executor_checkfail_on_permanent_callbacks, false);
-
   // This test uses an executor that captures callbacks but doesn't execute
-  // them. It adds cancellable, permanent callbacks to the executor and then
-  // tests from the main thread that you can delete the permanent callbacks
-  // after cancelling them. The executor is destroyed on a different thread half
-  // way through the cancellations, to verify in tsan that no references to the
-  // permanent callbacks are kept and any accesses are thread safe.
+  // them. It adds cancellable callbacks to the executor and then/ tests from
+  // the main thread that you can cancel the callbacks. The executor is
+  // destroyed on a different thread half way through the cancellations, to
+  // verify in tsan that no references to the callbacks are kept and
+  // any accesses are thread safe.
   auto executor = std::make_unique<NonExecutingExecutor>();
 
   static constexpr int kNumCallbacks = 1000;
   std::vector<std::unique_ptr<bool>> destructors_called;
-  std::vector<std::unique_ptr<TestClosure>> callbacks;
-  for (int i = 0; i < kNumCallbacks; ++i) {
-    destructors_called.emplace_back(std::make_unique<bool>(false));
-    callbacks.emplace_back(
-        std::make_unique<TestClosure>(destructors_called[i].get(), true));
-  }
   std::vector<ExecutorHandle> handles(kNumCallbacks);
   for (int i = 0; i < kNumCallbacks; ++i) {
-    AddCancellableHelper(executor.get(), absl::ZeroDuration(),
-                         callbacks[i].get(), &handles[i]);
+    AddCancellableHelper(
+        executor.get(), absl::ZeroDuration(), [] {}, &handles[i]);
   }
 
   absl::Notification cancelled_half;
@@ -594,9 +638,7 @@ TEST_P(AddCancellableTest, ExecutorDeletesWithoutRunning) {
     if (i == kNumCallbacks / 2) {
       cancelled_half.Notify();
     }
-    Closure* cb = nullptr;
-    thread::Cancel(handles[i], absl::InfiniteDuration(), &cb);
-    callbacks[i].reset();
+    thread::Cancel(handles[i], absl::InfiniteDuration());
   }
 
   executor_deleted.WaitForNotification();
@@ -639,55 +681,21 @@ TEST(Executor, ScheduleAtAnyInvocable) {
   notify.WaitForNotification();
 }
 
-// Tests that a closure passed to AddCancellable will execute in the Context
-// captured at its creation.
-//
-// There are three threads: the test's main thread, and two threads in the
-// ThreadPool. The main thread does set up and verification: it builds a
-// context, sets a deadline, creates a closure, passes the closure to
-// AddCancellable, then waits for it to execute. The closure executes on the
-// ThreadPool, and saves the deadline of its Context. The main thread then
-// verifies that the saved deadline and the deadline from the set-up phase are
-// the same.
-TEST_P(AddCancellableTest, ContextPropagation) {
-  ThreadPool e(2);
-
-  const absl::Time deadline = absl::Now() + absl::Seconds(2);
-  absl::Time saved_deadline = absl::InfiniteFuture();
-
-  absl::Notification notification;
-  // This closure will be created with a context whose deadline is set to
-  // "deadline". When it executes, it should run in the same context as that of
-  // its creation.
-  Closure* closure;
-  {
-    std::unique_ptr<base::Context> target_context(
-        new base::Context(base::ContextBuilder(base::BackgroundContext())
-                              .set_deadline(deadline)
-                              .BuildValue()));
-    base::WithContext with(*target_context);
-    closure = util::functional::ToCallback(
-        [&notification, &saved_deadline]() mutable {
-          saved_deadline = base::CurrentContext().deadline();
-          notification.Notify();
-        });
-  }
-
-  EXPECT_NE(deadline, base::CurrentContext().deadline());
-  EXPECT_EQ(deadline, closure->context_ptr()->deadline());
-  EXPECT_EQ(absl::InfiniteFuture(), saved_deadline);
-
-  ExecutorHandle handle;
-  AddCancellableHelper(&e, absl::ZeroDuration(), closure, &handle);
-
-  // Wait for closure to execute and delete itself.
-  CHECK(notification.WaitForNotificationWithTimeout(absl::Seconds(5)));
-
-  EXPECT_EQ(deadline, saved_deadline);
-}
-
-INSTANTIATE_TEST_SUITE_P(AddCancellableTest, AddCancellableTest,
-                         ::testing::Bool());
+INSTANTIATE_TEST_SUITE_P(
+    AddCancellableTest, AddCancellableTest,
+    testing::ConvertGenerator(testing::Combine(testing::Bool(),
+                                               testing::Bool()),
+                              [](const std::tuple<bool, bool>& t) {
+                                AddCancellableTestCase tc;
+                                tc.use_absolute_time = std::get<0>(t);
+                                tc.use_legacy_callback = std::get<1>(t);
+                                return tc;
+                              }),
+    [](const testing::TestParamInfo<AddCancellableTest::ParamType>& info) {
+      return absl::StrCat(
+          info.param.use_absolute_time ? "AbsoluteTime_" : "RelativeTime_",
+          info.param.use_legacy_callback ? "LegacyCallback" : "AnyInvocable");
+    });
 
 class ManyTest : public ::testing::Test {
  public:
