@@ -1586,8 +1586,6 @@ TEST(ChildFiberScopedTest, MultipleNested) {
 }
 
 TEST(PthreadExit, Works) {
-  // TODO: this test is flaky with SWG domains. Fix it.
-  if (absl::GetFlag(FLAGS_fibers_experimental_use_swg_domain)) return;
 #if defined(ABSL_HAVE_THREAD_SANITIZER) || defined(ABSL_HAVE_MEMORY_SANITIZER)
   // Sanitizers complain about some stack/memory dumping code in thread.cc.
   // Also heap checker is not compatible with some non-prod systems.

@@ -38,8 +38,6 @@
 #include "gloop/base/scheduling/domain.h"
 #include "gloop/base/scheduling/scheduler.h"
 
-ABSL_DECLARE_FLAG(bool, fibers_experimental_use_swg_domain);
-
 namespace thread {
 
 // Returns the default execution domain.  Should host most program execution.

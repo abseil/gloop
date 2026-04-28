@@ -60,27 +60,10 @@ ABSL_FLAG(bool, fibers_use_pthread_compatibility_mode, false,
 ABSL_FLAG(bool, fibers_increase_thread_rlimit, true,
           "Automatically attempt to increase thread rlimit where permitted.");
 
-// Note: this flag is not ready for production.
-ABSL_FLAG(bool, fibers_experimental_use_swg_domain, false,
-          "Use an SWG Domain as the default domain. "
-          "This is an experimental/test flag. Not for prod.");
-
 ABSL_FLAG(bool, fibers_use_futex_domain, false,
           "Use futex domain as the default fiber domain.");
 
 namespace thread {
-
-// Weakly define UMCG Domain symbols until UMCG is ready for prod rollout.
-// The functions are "strongly" defined in fiber/internal/umcg-domain.cc.
-ABSL_ATTRIBUTE_WEAK bool UseUmcgDomain() { return false; }
-
-// Weakly define UMCG Domain symbols until UMCG is ready for prod rollout.
-// The functions are "strongly" defined in fiber/internal/umcg-domain.cc.
-ABSL_ATTRIBUTE_WEAK base::scheduling::Domain* NewUmcgDomain(
-    absl::string_view name_prefix, int max_concurrency) {
-  ABSL_RAW_LOG(FATAL, "UMCG domain unavailable.");
-  return nullptr;
-}
 
 namespace {
 
@@ -188,18 +171,11 @@ std::unique_ptr<base::scheduling::Domain> CreateCustomDomain(
   if (absl::GetFlag(FLAGS_fibers_use_futex_domain)) {
     flags_set += 1;
   }
-  if (absl::GetFlag(FLAGS_fibers_experimental_use_swg_domain)) {
-    flags_set += 1;
-  }
   if (absl::GetFlag(FLAGS_fibers_use_pthread_compatibility_mode)) {
     flags_set += 1;
   }
   if (flags_set > 1) {
     ABSL_RAW_LOG(ERROR, "More than one fiber domain flag set.");
-  }
-
-  if (UseUmcgDomain()) {
-    return DoCreateDomain(name, max_concurrency, "umcg", &NewUmcgDomain);
   }
 
   if (FutexDomainAvailable() && absl::GetFlag(FLAGS_fibers_use_futex_domain)) {
