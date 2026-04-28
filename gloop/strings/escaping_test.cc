@@ -22,6 +22,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <random>
 #include <string>
 #include <utility>
 #include <vector>
@@ -830,6 +831,80 @@ TEST(QEncoding, Unescape) {
   EXPECT_EQ(expected, strings::QEncodingUnescape(str));
 }
 
+#define TEST_CSLE(src_, expected_, aell)               \
+  do {                                                 \
+    std::string dst;                                   \
+    strings::CleanStringLineEndings(src_, &dst, aell); \
+    ASSERT_EQ(dst, expected_);                         \
+    std::string str(src_);                             \
+    strings::CleanStringLineEndings(&str, aell);       \
+    ASSERT_EQ(str, expected_);                         \
+  } while (0)
+
+TEST(Escaping, CleanStringLineEndings) {
+  const std::string empty;
+
+  const std::string single_no_last = "line1";
+
+  const std::string single_unix = "line1\n";
+  const std::string single_dos = "line1\r\n";
+  const std::string single_mac = "line1\r";
+
+  const std::string multi_unix = "line1\n\n\nline2\nline3\n";
+  const std::string multi_dos = "line1\r\n\r\n\r\nline2\r\nline3\r\n";
+  const std::string multi_mac = "line1\r\r\rline2\rline3\r";
+  const std::string multi_garbled = "line1\r\r\rline2\r\nline3\n";
+
+  const std::string multi_unix_no_last = "line1\n\n\nline2\nline3";
+  const std::string multi_dos_no_last = "line1\r\n\r\n\r\nline2\r\nline3";
+  const std::string multi_mac_no_last = "line1\r\r\rline2\rline3";
+  const std::string multi_garbled_no_last = "line1\n\r\rline2\r\nline3";
+
+  const std::string should_remain_unchanged =
+      "<html><body><table><tr><td>foo</td></tr></table></body></html>";
+
+  // auto-terminate last line
+
+  TEST_CSLE(empty, empty, true);
+
+  TEST_CSLE(single_no_last, single_unix, true);
+
+  TEST_CSLE(single_unix, single_unix, true);
+  TEST_CSLE(single_dos, single_unix, true);
+  TEST_CSLE(single_mac, single_unix, true);
+
+  TEST_CSLE(multi_unix, multi_unix, true);
+  TEST_CSLE(multi_dos, multi_unix, true);
+  TEST_CSLE(multi_mac, multi_unix, true);
+  TEST_CSLE(multi_garbled, multi_unix, true);
+
+  TEST_CSLE(multi_unix_no_last, multi_unix, true);
+  TEST_CSLE(multi_dos_no_last, multi_unix, true);
+  TEST_CSLE(multi_mac_no_last, multi_unix, true);
+  TEST_CSLE(multi_garbled_no_last, multi_unix, true);
+
+  // don't auto-terminate last line
+
+  TEST_CSLE(empty, empty, false);
+
+  TEST_CSLE(single_no_last, single_no_last, false);
+
+  TEST_CSLE(single_unix, single_unix, false);
+  TEST_CSLE(single_dos, single_unix, false);
+  TEST_CSLE(single_mac, single_unix, false);
+
+  TEST_CSLE(multi_unix, multi_unix, false);
+  TEST_CSLE(multi_dos, multi_unix, false);
+  TEST_CSLE(multi_mac, multi_unix, false);
+  TEST_CSLE(multi_garbled, multi_unix, false);
+
+  TEST_CSLE(multi_unix_no_last, multi_unix_no_last, false);
+  TEST_CSLE(multi_dos_no_last, multi_unix_no_last, false);
+  TEST_CSLE(multi_mac_no_last, multi_unix_no_last, false);
+  TEST_CSLE(multi_garbled_no_last, multi_unix_no_last, false);
+  TEST_CSLE(should_remain_unchanged, should_remain_unchanged, false);
+}
+
 void BM_BackslashEscape(benchmark::State& state) {
   const int has_escapes = state.range(0);
   const int len = state.range(1);
@@ -856,6 +931,41 @@ BENCHMARK(BM_BackslashEscape)
     ->ArgPair(1, 0)
     ->ArgPair(1, 10)
     ->ArgPair(1, 100);
+
+void BM_CleanStringLineEndings(benchmark::State& state) {
+  const int size = state.range(0);
+  const int line_len = state.range(1);
+  const int32_t kDeterministicSeed = 301;
+
+  std::string teststring(size, ' ');
+  std::minstd_rand0 rng(kDeterministicSeed);
+  std::uniform_int_distribution<int> random_to_3(0, 2);
+  for (int i = 0; i < teststring.size(); i++) {
+    std::bernoulli_distribution one_in_line_len(1.0 / line_len);
+    if (one_in_line_len(rng)) {
+      int r = random_to_3(rng);
+      if (r == 0) {
+        teststring[i] = '\r';
+      } else if (r == 1) {
+        teststring[i] = '\n';
+      } else {
+        teststring[i] = '\r';
+        if (i + 1 < teststring.size()) {
+          teststring[i + 1] = '\n';
+        }
+      }
+    }
+  }
+
+  for (auto _ : state) {
+    std::string dst;
+    benchmark::DoNotOptimize(teststring);
+    strings::CleanStringLineEndings(teststring, &dst,
+                                    /*auto_end_last_line=*/true);
+    benchmark::DoNotOptimize(dst);
+  }
+}
+BENCHMARK(BM_CleanStringLineEndings)->RangePair(1, 1 << 20, 16, 128);
 
 }  // namespace
 }  // namespace strings
