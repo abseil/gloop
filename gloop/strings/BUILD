@@ -273,6 +273,38 @@ cc_library(
 )
 
 cc_library(
+    name = "join",
+    srcs = ["join.cc"],
+    hdrs = ["join.h"],
+    deps = [
+        ":escaping",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:span",
+    ],
+)
+
+cc_test(
+    name = "join_test",
+    size = "small",
+    srcs = ["join_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":join",
+        ":util",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "keyed_intern_table",
     hdrs = ["keyed_intern_table.h"],
     deps = [
