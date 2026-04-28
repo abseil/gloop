@@ -41,27 +41,18 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_GTL_INTERVALMAP_H_
 #define THIRD_PARTY_GLOOP_UTIL_GTL_INTERVALMAP_H_
 
-#include <cstddef>
 #include <functional>
 #include <memory>
-#ifdef GTL_INTERNAL_INTERVAL_MAP_BTREE_OPTOUT
 #include <set>
-#endif
 #include <type_traits>
 #include <utility>
 
 #include "absl/base/nullability.h"
-#ifndef GTL_INTERNAL_INTERVAL_MAP_BTREE_OPTOUT
-#include "absl/container/btree_set.h"
-#endif
 #include "absl/container/internal/compressed_tuple.h"
 #include "absl/log/check.h"
 #include "gloop/util/gtl/heterogeneous_lookup.h"
 
 namespace gtl {
-namespace internal_interval_map {
-struct UtilMemoryAccess;
-}  // namespace internal_interval_map
 
 // The type `K` must satisfy the C++ Compare concept under `Comparison`.
 // `K`, `V`, and `Comparison` must be copy-assignable (see:
@@ -70,8 +61,8 @@ template <class K, class V, class Comparison = std::less<K>,
           class Allocator = std::allocator<std::pair<const K, V>>>
 class IntervalMap {
  public:
-  // We keep a set that contains all of the intervals. The intervals are
-  // non-overlapping, and ordered by the ending key.
+  // We keep a set<> that contains all of the intervals.  The intervals
+  // are non-overlapping, and ordered by the ending key.
   //
   // TODO: make Entry private after callers are updated.
   struct Entry {
@@ -124,15 +115,9 @@ class IntervalMap {
     using is_transparent = void;
   };
 
-#ifdef GTL_INTERNAL_INTERVAL_MAP_BTREE_OPTOUT
   using Table = std::set<
       Entry, EntryComparison,
       typename std::allocator_traits<Allocator>::template rebind_alloc<Entry>>;
-#else
-  using Table = absl::btree_set<
-      Entry, EntryComparison,
-      typename std::allocator_traits<Allocator>::template rebind_alloc<Entry>>;
-#endif
 
   // TODO: Match the behavior of btree_set. In particular, support
   // heterogeneous lookup for string-like objects by default.
@@ -168,24 +153,21 @@ class IntervalMap {
   // ensure that there is no overlap in the resulting set.
   // Returns the iterator referencing entry that holds [start, limit) interval.
   // REQUIRES: start < limit
-  //
-  // Note that `start`, `limit` and `value` are passed by value to avoid
-  // dangling references when calling this method with any argument that is a
-  // reference to an object already stored in the map.
-  iterator Set(K start, K limit, V value) {
-    return SetInternal(std::move(start), std::move(limit), std::move(value));
-  }
+  template <class K1 = const K&, class K2 = const K&, class V2 = const V&,
+            class = std::enable_if_t<std::is_convertible_v<K1&&, K>>,
+            class = std::enable_if_t<std::is_convertible_v<K2&&, K>>,
+            class = std::enable_if_t<std::is_convertible_v<V2&&, V>>>
+  iterator Set(K1&& start, K2&& limit, V2&& value);
 
   // Set [start,limit) to "value".  Coalesce with adjoining
   // ranges that have the same value.
   // REQUIRES: start < limit
   // REQUIRES: V::operator==() is present or value_eq is provided.
-  //
-  // Note that `start`, `limit` and `value` are passed by value to avoid
-  // dangling references when calling this method with any argument that is a
-  // reference to an object already stored in the map.
-  template <typename ValueEq = std::equal_to<V>>
-  void SetAndCoalesce(K start, K limit, V value, ValueEq value_eq = {});
+  template <class K2 = const K&, class V2 = const V&,
+            typename ValueEq = std::equal_to<V>,
+            class = std::enable_if_t<std::is_convertible_v<K2&&, K>>,
+            class = std::enable_if_t<std::is_convertible_v<V2&&, V>>>
+  void SetAndCoalesce(K start, K2&& limit, V2&& value, ValueEq value_eq = {});
 
   // Sets [start,limit) to "value".  This is a faster version
   // of Set when the client can guarantee that [start,limit) does
@@ -220,13 +202,7 @@ class IntervalMap {
   // piece is removed.
   // Returns the first position with start >= "limit", or table_.end().
   // REQUIRES: start < limit
-  //
-  // Note that `start` and `limit` are passed by value to avoid dangling
-  // references when calling this method with any argument that is a reference
-  // to an object already stored in the map.
-  iterator Erase(K start, K limit) {
-    return EraseInternal(std::move(start), std::move(limit));
-  }
+  iterator Erase(const K& start, const K& limit);
 
   // Same as above, but erases the exact iterator provided with no chance of
   // any overlapping ranges.
@@ -402,12 +378,8 @@ class IntervalMap {
   //  - return a pointer to any object, as long as it remains live while
   //    MergeValue is running. "merge_function" is called sequentially,
   //    so it can return the same pointer for multiple invocations.
-  //
-  // Note that `start` and `limit` are passed by value to avoid dangling
-  // references when calling this method with any argument that is a reference
-  // to an object already stored in the map.
   template <typename F>
-  void MergeValue(K start, K limit, F merge_function);
+  void MergeValue(const K& start, const K& limit, F merge_function);
 
   typedef const V* (*MergeFunction)(void* arg, const K& start, const K& limit,
                                     V* existing_value, V* scratch);
@@ -444,12 +416,6 @@ class IntervalMap {
   }
 
  private:
-  // Same as `Erase` but does not copy `start` and `limit`.
-  iterator EraseInternal(const K& start, const K& limit);
-  // Same as `Set` but does not copy `start` and `limit`.
-  template <class K1, class K2, class V2>
-  iterator SetInternal(K1&& start, K2&& limit, V2&& value);
-
   // Iterator version of Lookup() and FindInterval(): returns an iterator
   // starting at the interval that contains "key", end() if none.
   // Private until they can replace the misleading, historical find() methods.
@@ -474,16 +440,12 @@ class IntervalMap {
   // following two conditions must hold:
   // (1) insert_before==table_.end() or insert_before->start >= limit
   // (2) (insert_before-1)==table_.begin() or (insert_before-1)->limit <= start
-  //
-  // Note that `start` and `limit` are passed by value to avoid dangling
-  // references when calling this method with any argument that is a reference
-  // to an object already stored in the map.
   template <class K1, class K2, class V2>
   iterator InsertEntryWithHint(typename Table::const_iterator insert_before,
-                               K1 start, K2 limit, V2&& value);
+                               K1&& start, K2&& limit, V2&& value);
 
   template <class K1 = const K&>
-  void MutateStart(typename Table::const_iterator it, K1&& new_start);
+  void MutateStart(typename Table::iterator it, K1&& new_start);
 
   // Private helper that uses `table_`'s comparator to compare keys.
   template <typename K1, typename K2>
@@ -497,8 +459,6 @@ class IntervalMap {
   }
 
   Table table_;
-
-  friend struct internal_interval_map::UtilMemoryAccess;
 };
 
 // -------------------------------------------------------------------
@@ -519,12 +479,12 @@ IntervalMap<K, V, Comparison, Allocator>::SplitAt(const K& k) {
 }
 
 template <class K, class V, class Comparison, class Allocator>
-template <class K1, class K2, class V2>
+template <class K1, class K2, class V2, class, class, class>
 typename IntervalMap<K, V, Comparison, Allocator>::iterator
-IntervalMap<K, V, Comparison, Allocator>::SetInternal(K1&& start, K2&& limit,
-                                                      V2&& value) {
+IntervalMap<K, V, Comparison, Allocator>::Set(K1&& start, K2&& limit,
+                                              V2&& value) {
   DCHECK(comp(K(start), limit));
-  auto it = EraseInternal(start, limit);  // Ensure no overlap
+  auto it = Erase(start, limit);  // Ensure no overlap
   return InsertEntryWithHint(it, std::forward<K1>(start),
                              std::forward<K2>(limit), std::forward<V2>(value));
 }
@@ -535,11 +495,11 @@ IntervalMap<K, V, Comparison, Allocator>::SetInternal(K1&& start, K2&& limit,
 //     need to merge both together,
 //     need to create a new Entry.
 template <class K, class V, class Comparison, class Allocator>
-template <typename ValueEq>
+template <class K2, class V2, typename ValueEq, class, class>
 void IntervalMap<K, V, Comparison, Allocator>::SetAndCoalesce(
-    K start, K limit, V value, ValueEq value_eq) {
+    K start, K2&& limit, V2&& value, ValueEq value_eq) {
   DCHECK(comp(start, limit));
-  auto right = EraseInternal(start, limit);
+  auto right = Erase(start, limit);
   auto left = right;
   if (left == table_.begin()) {
     left = table_.end();  // sentinel for no entry to left
@@ -554,11 +514,7 @@ void IntervalMap<K, V, Comparison, Allocator>::SetAndCoalesce(
     // could confuse some set implementations.
     DCHECK(left != right);
     start = std::move(left->start);
-#ifdef GTL_INTERNAL_INTERVAL_MAP_BTREE_OPTOUT
     table_.erase(left);
-#else
-    right = table_.erase(left);
-#endif
   }
 
   // Extend right entry leftward if possible.
@@ -570,8 +526,8 @@ void IntervalMap<K, V, Comparison, Allocator>::SetAndCoalesce(
     this->MutateStart(right, std::move(start));
   } else {
     // Create a new entry.
-    table_.emplace(std::forward<K>(limit), std::move(start),
-                   std::forward<V>(value));
+    table_.emplace(std::forward<K2>(limit), std::move(start),
+                   std::forward<V2>(value));
   }
 }
 
@@ -614,11 +570,7 @@ void IntervalMap<K, V, Comparison, Allocator>::Coalesce(ValueEq value_eq) {
     if (p->start <= prev->limit && value_eq(p->value, prev->value)) {
       // Absorb prev into p.
       this->MutateStart(p, std::move(prev->start));
-#ifdef GTL_INTERNAL_INTERVAL_MAP_BTREE_OPTOUT
       table_.erase(prev);
-#else
-      p = table_.erase(prev);
-#endif
     }
   }
 }
@@ -640,7 +592,7 @@ template <class K, class V, class Comparison, class Allocator>
 template <class K1, class K2, class V2>
 typename IntervalMap<K, V, Comparison, Allocator>::iterator
 IntervalMap<K, V, Comparison, Allocator>::InsertEntryWithHint(
-    typename Table::const_iterator insert_before, K1 start, K2 limit,
+    typename Table::const_iterator insert_before, K1&& start, K2&& limit,
     V2&& value) {
 #ifndef NDEBUG
   CHECK(comp(K(start), limit));
@@ -671,27 +623,24 @@ void IntervalMap<K, V, Comparison, Allocator>::MergeValue(
 
 template <class K, class V, class Comparison, class Allocator>
 template <typename F>
-void IntervalMap<K, V, Comparison, Allocator>::MergeValue(K start, K limit,
+void IntervalMap<K, V, Comparison, Allocator>::MergeValue(const K& start,
+                                                          const K& limit,
                                                           F merge_function) {
   DCHECK(comp(start, limit));
   auto i = SplitAt(start);
   V scratch;
+  K handled = start;
   while (i != table_.end()) {
     const bool overlaps_limit = comp(limit, i->limit);
     if (overlaps_limit && !comp(i->start, limit)) {
       // The current entry, i, doesn't overlap with the merge range.
       break;
     }
-    if (comp(start, i->start)) {
-      // Invoke merge function for non-existing range [start..i->start)
-      const V* new_value = merge_function(start, i->start, nullptr, &scratch);
+    if (comp(handled, i->start)) {
+      // Invoke merge function for non-existing range [handled..i->start)
+      const V* new_value = merge_function(handled, i->start, nullptr, &scratch);
       if (new_value != nullptr) {
-#ifdef GTL_INTERNAL_INTERVAL_MAP_BTREE_OPTOUT
-        InsertEntryWithHint(i, start, i->start, *new_value);
-#else
-        i = InsertEntryWithHint(i, start, i->start, *new_value);
-        ++i;
-#endif
+        InsertEntryWithHint(i, handled, i->start, *new_value);
       }
     }
     if (overlaps_limit) {
@@ -702,11 +651,11 @@ void IntervalMap<K, V, Comparison, Allocator>::MergeValue(K start, K limit,
       i = table_.emplace_hint(i, limit, std::move(old_start), i->value);
     }
     // Invoke merge function for range [i->start, i->limit)
-    DCHECK(!comp(i->start, start));  // I.e. handled <= i->start
+    DCHECK(!comp(i->start, handled));  // I.e. handled <= i->start
     DCHECK(!comp(limit, i->limit));
     const V* new_value = merge_function(
         i->start, i->limit, &const_cast<Entry*>(&*i)->value, &scratch);
-    start = i->limit;
+    handled = i->limit;
     if (new_value == nullptr) {
       i = table_.erase(i);
     } else {
@@ -716,11 +665,11 @@ void IntervalMap<K, V, Comparison, Allocator>::MergeValue(K start, K limit,
       ++i;
     }
   }
-  if (comp(start, limit)) {
+  if (comp(handled, limit)) {
     // Invoke merge function for non-existing range [handled..limit)
-    const V* new_value = merge_function(start, limit, nullptr, &scratch);
+    const V* new_value = merge_function(handled, limit, nullptr, &scratch);
     if (new_value != nullptr) {
-      InsertEntryWithHint(i, start, limit, *new_value);
+      InsertEntryWithHint(i, std::move(handled), limit, *new_value);
     }
   }
 }
@@ -742,23 +691,13 @@ void IntervalMap<K, V, Comparison, Allocator>::MergeValue(const K& start,
 
 template <class K, class V, class Comparison, class Allocator>
 inline typename IntervalMap<K, V, Comparison, Allocator>::iterator
-IntervalMap<K, V, Comparison, Allocator>::EraseInternal(const K& start,
-                                                        const K& limit) {
+IntervalMap<K, V, Comparison, Allocator>::Erase(const K& start,
+                                                const K& limit) {
   DCHECK(comp(start, limit));
   auto i = SplitAt(start);
-#ifdef GTL_INTERNAL_INTERVAL_MAP_BTREE_OPTOUT
   while (i != table_.end() && !comp(limit, i->limit)) {
     i = table_.erase(i);
   }
-#else
-  if (i != table_.end() && !comp(limit, i->limit)) {
-    // Upper bound returns exactly what we need since the range `erase` takes
-    // is [first, last).
-    auto limit_it = table_.upper_bound(limit);
-    // The first iterator to erase is the one returned by SplitAt.
-    i = table_.erase(i, limit_it);
-  }
-#endif
   if (i != table_.end() && comp(i->start, limit)) {
     // The last interval was an overlap so truncate it.
     this->MutateStart(i, limit);
@@ -917,7 +856,7 @@ void IntervalMap<K, V, Comparison, Allocator>::MergeSubRangeFrom(
       const K* l =
           comp(limit, src_iter->limit) ? &limit : &src_iter->limit;  // min
       if (comp(*s, *l)) {
-        this->SetInternal(*s, *l, src_iter->value);
+        this->Set(*s, *l, src_iter->value);
       } else {
         break;
       }
@@ -934,7 +873,7 @@ void IntervalMap<K, V, Comparison, Allocator>::MergeFrom(
     table_ = src.table_;
   } else {
     for (auto iter = src.table_.begin(); iter != src.table_.end(); ++iter) {
-      this->SetInternal(iter->start, iter->limit, iter->value);
+      this->Set(iter->start, iter->limit, iter->value);
     }
   }
 }
@@ -942,23 +881,13 @@ void IntervalMap<K, V, Comparison, Allocator>::MergeFrom(
 template <class K, class V, class Comparison, class Allocator>
 template <class K1>
 void IntervalMap<K, V, Comparison, Allocator>::MutateStart(
-    typename Table::const_iterator it, K1&& new_start) {
+    typename Table::iterator it, K1&& new_start) {
   const_cast<Entry&>(*it).start = std::forward<K1>(new_start);
 }
 
 // TODO: remove this alias
 template <class K, class V, class Comparison = std::less<K>>
 using IntervalMapEntry = typename IntervalMap<K, V, Comparison>::value_type;
-
-namespace internal_interval_map {
-// For use in mem-usage-util.h only.
-struct UtilMemoryAccess {
-  template <typename IntervalMap>
-  static size_t BytesUsed(const IntervalMap& obj) {
-    return sizeof(obj) + obj.table_.bytes_used() - sizeof(obj.table_);
-  }
-};
-}  // namespace internal_interval_map
 
 }  // namespace gtl
 

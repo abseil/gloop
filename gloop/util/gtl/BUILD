@@ -829,7 +829,6 @@ cc_library(
         ":heterogeneous_lookup",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:nullability",
-        "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/container:compressed_tuple",
         "@abseil-cpp//absl/log:check",
     ],
