@@ -23,6 +23,62 @@ package(
     features = ["header_modules"],
 )
 
+cc_test(
+    name = "contentionz_test",
+    size = "large",
+    timeout = "moderate",
+    srcs = ["contentionz_test.cc"],
+    flaky = 1,
+    deps = [
+        ":synchronization_profiling",
+        ":synchronization_profiling_test_util",
+        ":synchronization_tags",
+        "//gloop:gloop_test_main",
+        "//gloop/base:profile",
+        "//gloop/strings:strip",
+        "//gloop/thread",
+        "//gloop/thread/fiber",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:dynamic_annotations",
+        "@abseil-cpp//absl/debugging:symbolize",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "deltacontentionz_test",
+    size = "large",
+    timeout = "moderate",
+    srcs = ["deltacontentionz_test.cc"],
+    flaky = 1,
+    shard_count = 15,
+    deps = [
+        ":synchronization_profile",
+        ":synchronization_profiling",
+        ":synchronization_profiling_test_util",
+        "//gloop:gloop_test_main",
+        "//gloop/strings:strip",
+        "//gloop/thread",
+        "//gloop/thread/fiber",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/debugging:symbolize",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 cc_library(
     name = "parsed_process_stat",
     srcs = ["parsed_process_stat.cc"],
@@ -53,6 +109,74 @@ cc_test(
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
+)
+
+cc_library(
+    name = "synchronization_profiling",
+    srcs = ["synchronization_profiling.cc"],
+    hdrs = ["synchronization_profiling.h"],
+    visibility = [
+        "//gloop/thread/fiber:__subpackages__",
+        "//thread/fiber:__pkg__",
+    ],
+    deps = [
+        ":synchronization_profile",
+        ":synchronization_tags",
+        "//gloop:enforce_gloop_support",
+        "//gloop/base:examine_stack",
+        "//gloop/base:profile",
+        "//gloop/base:spinlock",
+        "//gloop/base/scheduling:scheduling_mode",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/debugging:stacktrace",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/functional:function_ref",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:span",
+    ],
+)
+
+cc_library(
+    name = "synchronization_profiling_test_util",
+    testonly = 1,
+    srcs = ["synchronization_profiling_test_util.cc"],
+    hdrs = ["synchronization_profiling_test_util.h"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "//gloop/base:spinlock",
+        "//gloop/base:sysinfo",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+    ],
+)
+
+cc_library(
+    name = "synchronization_profile",
+    hdrs = ["synchronization_profile.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "//gloop/base:profile",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/functional:function_ref",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:span",
+    ],
+)
+
+cc_library(
+    name = "synchronization_tags",
+    hdrs = ["synchronization_tags.h"],
+    visibility = ["//visibility:public"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_library(

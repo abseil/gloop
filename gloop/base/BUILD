@@ -805,6 +805,17 @@ cc_test(
     ],
 )
 
+cc_library(
+    name = "profile",
+    srcs = ["profile.cc"],
+    hdrs = ["profile.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+    ],
+)
+
 # As with heap-checker, this is always optimized.
 cc_library(
     name = "raw_printer",
