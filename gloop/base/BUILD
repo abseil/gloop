@@ -530,6 +530,7 @@ cc_library(
 cc_test(
     name = "per-thread-sem_test",
     size = "medium",
+    malloc = ":system_malloc",
     tags = [
         "noubsan",  # TODO Times out on UBSAN+ARM
     ],
@@ -1024,6 +1025,17 @@ cc_test(
         "@googletest//:gtest",
         "@tcmalloc//tcmalloc:malloc_extension",
     ],
+)
+
+# Empty rule to force the use of the system malloc library.
+# When used in the 'malloc' attribute of a cc_binary rule, it prevents the
+# binary from being linked into any custom malloc library, and thus ensures the
+# system malloc is used.
+cc_library(
+    name = "system_malloc",
+    linkstatic = 1,
+    visibility = ["//gloop:__subpackages__"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_library(
