@@ -244,9 +244,18 @@ TEST(MapViewTest, InitializerList) {
     EXPECT_TRUE(mv.contains(2));
     EXPECT_THAT(mv, UnorderedElementsAre(Pair(1, 2), Pair(2, 3)));
   }({{1, 2}, {2, 3}});
+}
 
+TEST(MapViewDeathTest, InitializerListRepeatedKeys) {
   // Repeated keys should fail.
   EXPECT_DEBUG_DEATH((MapView<int, int>({{1, 1}, {1, 1}})), "HasUniqueKeys");
+}
+
+TEST(MapViewDeathTest, AtThrows) {
+  std::map<int, int> m;
+  auto mv = MakeMapView(m);
+  ABSL_BASE_INTERNAL_EXPECT_FAIL(mv.at(1), std::out_of_range,
+                                 "failed bounds check");
 }
 
 void Overloaded(const MapView<int, int>) {}
@@ -369,14 +378,6 @@ TYPED_TEST(MapViewTest, At) {
   }
 }
 
-TYPED_TEST(MapViewTest, AtThrows) {
-  auto m = FilledContainerFactory<TypeParam>().make();
-  auto mv = MakeMapView(m);
-  auto key = MakeKey<typename ViewType<TypeParam>::key_type>(-1);
-  ABSL_BASE_INTERNAL_EXPECT_FAIL(mv.at(key), std::out_of_range,
-                                 "failed bounds check");
-}
-
 // Extra "BaseTest" layer is needed to support std::initializer_list (it cannot
 // be stored as a member variable).
 template <typename Map, typename KeyType = typename Map::key_type,
@@ -397,11 +398,6 @@ class MapViewStringLookupBaseTest : public ::testing::Test {
   void ExpectAt(View view, const LookupKey& k, ValueMatcher&& matcher) {
     ASSERT_TRUE(view.contains(k));
     EXPECT_THAT(view.at(k), std::forward<ValueMatcher>(matcher));
-  }
-  template <typename LookupKey>
-  void ExpectAtThrows(View view, const LookupKey& k) {
-    ABSL_BASE_INTERNAL_EXPECT_FAIL(view.at(k), std::out_of_range,
-                                   "failed bounds check");
   }
 };
 
@@ -426,10 +422,6 @@ class MapViewStringLookupTest : public MapViewStringLookupBaseTest<Map> {
   void TestAt(const LookupKey& k, ValueMatcher&& matcher) {
     this->ExpectAt(map_, k, std::forward<ValueMatcher>(matcher));
   }
-  template <typename LookupKey>
-  void TestAtThrows(const LookupKey& k) {
-    this->ExpectAtThrows(map_, k);
-  }
 
  protected:
   Map map_;
@@ -452,10 +444,6 @@ class MapViewStringLookupTest<std::initializer_list<std::pair<const K, V>>>
   void TestAt(const LookupKey& k, ValueMatcher&& matcher) {
     this->ExpectAt({{K("a"), 1}, {K("b"), 2}, {K("c"), 3}}, k,
                    std::forward<ValueMatcher>(matcher));
-  }
-  template <typename LookupKey>
-  void TestAtThrows(const LookupKey& k) {
-    this->ExpectAtThrows({{K("a"), 1}, {K("b"), 2}, {K("c"), 3}}, k);
   }
 };
 
@@ -481,7 +469,6 @@ TYPED_TEST(MapViewStringLookupTest, LiteralString) {
   this->TestFind("b");
   this->TestContains("b");
   this->TestAt("b", Eq(2));
-  this->TestAtThrows("w");
 }
 
 TYPED_TEST(MapViewStringLookupTest, CString) {
@@ -490,22 +477,18 @@ TYPED_TEST(MapViewStringLookupTest, CString) {
   this->TestFind(raw);
   this->TestContains(raw);
   this->TestAt(raw, Eq(2));
-  buff[0] = 'w';
-  this->TestAtThrows(raw);
 }
 
 TYPED_TEST(MapViewStringLookupTest, String) {
   this->TestFind(std::string("b"));
   this->TestContains(std::string("b"));
   this->TestAt(std::string("b"), Eq(2));
-  this->TestAtThrows(std::string("w"));
 }
 
 TYPED_TEST(MapViewStringLookupTest, StringView) {
   this->TestFind(absl::string_view("b"));
   this->TestContains(absl::string_view("b"));
   this->TestAt(absl::string_view("b"), Eq(2));
-  this->TestAtThrows(absl::string_view("w"));
 }
 
 TEST(ConstexprMapView, Constructors) {
@@ -531,9 +514,6 @@ TEST(MapView, InitListWithDuplicatesRejected) {
   static constexpr std::initializer_list<
       std::pair<const int, absl::string_view>>
       kUniqueList = {{0, "zero"}, {1, "one"}, {2, "two"}};
-  static constexpr std::initializer_list<
-      std::pair<const int, absl::string_view>>
-      kDuplicatesList = {{0, "zero"}, {0, "zero"}, {0, "zero"}};
 
   EXPECT_TRUE(HasConstexprEvaluation([] { return View(kEmptyList); }));
   EXPECT_TRUE(HasConstexprEvaluation([] { return View(kUniqueList); }));
@@ -545,9 +525,19 @@ TEST(MapView, InitListWithDuplicatesRejected) {
   //   (b) crash in the debug mode
 
 #ifndef NDEBUG
+  static constexpr std::initializer_list<
+      std::pair<const int, absl::string_view>>
+      kDuplicatesList = {{0, "zero"}, {0, "zero"}, {0, "zero"}};
   // `assert()` is disabled in some builds such as "-c opt".
   EXPECT_FALSE(HasConstexprEvaluation([] { return View(kDuplicatesList); }));
 #endif  // NDEBUG
+}
+
+TEST(MapViewDeathTest, InitListWithDuplicatesRejected) {
+  using View = gtl::MapView<int, absl::string_view>;
+  static constexpr std::initializer_list<
+      std::pair<const int, absl::string_view>>
+      kDuplicatesList = {{0, "zero"}, {0, "zero"}, {0, "zero"}};
 
   EXPECT_DEBUG_DEATH(static_cast<void>(View(kDuplicatesList)), "HasUniqueKeys");
 }
