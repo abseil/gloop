@@ -193,11 +193,11 @@ TEST_F(StatusBuilderTest, Size) {
 }
 
 TEST_F(StatusBuilderTest, Ctors) {
-  EXPECT_EQ(ToStatus(StatusBuilder(kZomg) << "zomg"),
+  EXPECT_EQ(ToStatus(MakeStatusBuilder(kZomg) << "zomg"),
             ::util::MakeStatus(TestSpace::Get(), kZomg, "zomg"));
-  EXPECT_EQ(ToStatus(StatusBuilder(TestSpace::Get(), kZomg) << "zomg"),
+  EXPECT_EQ(ToStatus(MakeStatusBuilder(TestSpace::Get(), kZomg) << "zomg"),
             ::util::MakeStatus(TestSpace::Get(), kZomg, "zomg"));
-  EXPECT_EQ(ToStatus(StatusBuilder(PosixErrorSpace(), ENOSYS) << "nope"),
+  EXPECT_EQ(ToStatus(MakeStatusBuilder(PosixErrorSpace(), ENOSYS) << "nope"),
             PosixErrorToStatus(ENOSYS, "nope"));
 }
 
