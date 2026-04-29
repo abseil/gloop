@@ -12,18 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
+#ifndef THIRD_PARTY_GLOOP_UTIL_HASH_CRC_ARM64_H_
+#define THIRD_PARTY_GLOOP_UTIL_HASH_CRC_ARM64_H_
 
-#ifndef THIRD_PARTY_GLOOP_UTIL_HASH_CRC64_X86_H_
-#define THIRD_PARTY_GLOOP_UTIL_HASH_CRC64_X86_H_
+#if defined(__aarch64__) && defined(__ARM_FEATURE_CRYPTO)
 
-#if defined(__x86_64__) && defined(__PCLMUL__)
-
-#include <x86intrin.h>
+#include <arm_neon.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -32,35 +26,44 @@
 
 namespace crc_internal {
 
-typedef __m128i Chunk;
+typedef uint64x2_t Chunk;
 
 inline Chunk LoadUnalignedChunk(const uint8_t* address, size_t offset) {
-  return _mm_loadu_si128(reinterpret_cast<const __m128i*>(address + offset));
+  return vld1q_u64(reinterpret_cast<const uint64_t*>(address + offset));
 }
 
 inline Chunk LoadAlignedChunk(const uint8_t* address, size_t offset) {
-  return _mm_load_si128(reinterpret_cast<const __m128i*>(address + offset));
+  return vld1q_u64(reinterpret_cast<const uint64_t*>(address + offset));
 }
 
 inline Chunk Z2MultiplyAndAdd(Chunk c1, Chunk c2) {
-  __m128i low = _mm_clmulepi64_si128(c1, c2, 0x00);
-  __m128i high = _mm_clmulepi64_si128(c1, c2, 0x11);
-  return _mm_xor_si128(low, high);
-}
-
-inline Chunk ChunkUnpackFirstHalf(Chunk chunk) {
-  return _mm_unpacklo_epi32(_mm_setzero_si128(), chunk);
+  poly64_t a_lo = (poly64_t)vgetq_lane_u64(c1, 0);
+  poly64_t b_lo = (poly64_t)vgetq_lane_u64(c2, 0);
+  poly64_t a_hi = (poly64_t)vgetq_lane_u64(c1, 1);
+  poly64_t b_hi = (poly64_t)vgetq_lane_u64(c2, 1);
+  poly128_t p_lo = vmull_p64(a_lo, b_lo);
+  poly128_t p_hi = vmull_p64(a_hi, b_hi);
+  return veorq_u64(vreinterpretq_u64_p128(p_lo), vreinterpretq_u64_p128(p_hi));
 }
 
 inline Chunk ChunkFromUint64s(uint64_t high, uint64_t low) {
-  return _mm_set_epi64x(high, low);
+  uint64x2_t res = vdupq_n_u64(0);
+  res = vsetq_lane_u64(low, res, 0);
+  res = vsetq_lane_u64(high, res, 1);
+  return res;
 }
 
-inline Chunk ChunkFromUint64(uint64_t u) { return _mm_set_epi64x(0, u); }
+inline Chunk ChunkUnpackFirstHalf(Chunk chunk) {
+  uint32x4_t c = vreinterpretq_u32_u64(chunk);
+  uint32x4_t zero = vdupq_n_u32(0);
+  return vreinterpretq_u64_u32(vzip1q_u32(zero, c));
+}
 
-inline uint64_t ChunkLow64(Chunk c) { return _mm_extract_epi64(c, 0); }
+inline Chunk ChunkFromUint64(uint64_t u) { return ChunkFromUint64s(0, u); }
 
-inline uint64_t ChunkHigh64(Chunk c) { return _mm_extract_epi64(c, 1); }
+inline uint64_t ChunkLow64(Chunk c) { return vgetq_lane_u64(c, 0); }
+
+inline uint64_t ChunkHigh64(Chunk c) { return vgetq_lane_u64(c, 1); }
 
 inline absl::uint128 Uint128FromChunk(Chunk c) {
   return absl::MakeUint128(ChunkHigh64(c), ChunkLow64(c));
@@ -74,9 +77,6 @@ inline Chunk PrepareVariableShift(int shift_bits) {
   return ChunkFromUint64(shift_bits);
 }
 
-// LeftShiftChunk implements "shift bits across lanes" for 128-bit
-// SIMD values.  Intel's SSE and AVX lack such a variable-distance
-// shift operation across lanes.  Therefore, do it in scalar registers.
 inline Chunk LeftShiftChunk(Chunk c, Chunk shift) {
   uint64_t shift_bits = ChunkLow64(shift);
   uint64_t l = ChunkLow64(c);
@@ -96,12 +96,9 @@ inline Chunk LeftShiftChunk(Chunk c, Chunk shift) {
     nl = 0;
     nh = 0;
   }
-  return _mm_set_epi64x(nh, nl);
+  return ChunkFromUint64s(nh, nl);
 }
 
-// RightShiftChunk implements "shift bits across lanes" for 128-bit
-// SIMD values.  Intel's SSE and AVX lack such a variable-distance
-// shift operation across lanes.  Therefore, do it in scalar registers.
 inline Chunk RightShiftChunk(Chunk c, Chunk shift) {
   uint64_t shift_bits = ChunkLow64(shift);
   uint64_t l = ChunkLow64(c);
@@ -121,7 +118,7 @@ inline Chunk RightShiftChunk(Chunk c, Chunk shift) {
     nl = 0;
     nh = 0;
   }
-  return _mm_set_epi64x(nh, nl);
+  return ChunkFromUint64s(nh, nl);
 }
 
 inline Chunk LeftByteShiftChunk(Chunk c, Chunk shift) {
@@ -136,6 +133,6 @@ inline void CheckFastPolyMulBody(bool* result) { *result = 1; }
 
 }  // namespace crc_internal
 
-#endif  // __x86_64__
+#endif  // __aarch64__
 
-#endif  // THIRD_PARTY_GLOOP_UTIL_HASH_CRC64_X86_H_
+#endif  // THIRD_PARTY_GLOOP_UTIL_HASH_CRC_ARM64_H_

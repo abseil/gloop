@@ -64,11 +64,11 @@
 // starts to beat generic C++ code on a 3GHz POWER8.
 #define FAST_POLY_WINNING_SIZE 6
 #elif defined(__x86_64__)
-#include "gloop/util/hash/crc_poly_x86.h"
+#include "gloop/util/hash/crc_poly_x86.inc"
 // This was measured on an AMD cloud machine.
 #define FAST_POLY_WINNING_SIZE 24
 #elif defined(__aarch64__)
-#include "gloop/util/hash/crc_poly_arm.h"
+#include "gloop/util/hash/crc_poly_arm.inc"
 #define FAST_POLY_WINNING_SIZE 32
 #else
 #error "Unsupported platform for fast poly mul"
