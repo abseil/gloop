@@ -160,6 +160,7 @@ cc_test(
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:scoped_mock_log",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:charset",

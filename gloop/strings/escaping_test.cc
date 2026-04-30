@@ -22,6 +22,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <random>
 #include <string>
 #include <utility>
@@ -29,6 +30,7 @@
 
 #include "absl/base/log_severity.h"
 #include "absl/base/macros.h"
+#include "absl/log/check.h"
 #include "absl/log/scoped_mock_log.h"
 #include "absl/strings/charset.h"
 #include "absl/strings/str_cat.h"
@@ -738,6 +740,191 @@ TEST(Base64, EscapeAndUnescape) {
     LegacyBase64EscapeWithoutPadding(tc.plaintext, &encoded);
     EXPECT_EQ(encoded, tc.cyphertext);
   }
+}
+
+class Base32 : public testing::Test {
+ protected:
+  const char* Escape(const char* in, size_t szin, size_t szout) {
+    length_ = strings::Base32Escape(reinterpret_cast<const unsigned char*>(in),
+                                    szin, buf_, szout);
+    buf_[length_] = '\0';
+    return buf_;
+  }
+
+  bool EscapeFromString(const std::string& in_str) {
+    return strings::Base32Escape(in_str, &escaped_string_);
+  }
+
+  const char* Escape(const char* in) { return Escape(in, strlen(in), 100); }
+
+  const char* Unescape(const char* in, size_t szin, size_t szout) {
+    length_ = strings::Base32Unescape(in, szin, buf_, szout);
+    if (length_ >= 0) {
+      buf_[length_] = '\0';
+    }
+    return buf_;
+  }
+
+  const char* Unescape(const char* in) { return Unescape(in, strlen(in), 100); }
+
+  bool UnescapeToString(const char* in) {
+    return strings::Base32Unescape(in, strlen(in), &unescaped_string_);
+  }
+
+  int length_;
+  char buf_[101];
+  std::string escaped_string_;
+  std::string unescaped_string_;
+};
+
+TEST_F(Base32, EmptyString) {
+  EXPECT_STREQ("", Escape(""));
+  EXPECT_EQ(0, length_);
+  EXPECT_TRUE(EscapeFromString(""));
+  EXPECT_EQ("", escaped_string_);
+  EXPECT_STREQ("", Unescape(""));
+  EXPECT_EQ(0, length_);
+  EXPECT_TRUE(UnescapeToString(""));
+  EXPECT_EQ("", unescaped_string_);
+}
+
+TEST_F(Base32, SingleByte) {
+  EXPECT_STREQ("GE======", Escape("1"));
+  EXPECT_EQ(8, length_);
+  EXPECT_TRUE(EscapeFromString("1"));
+  EXPECT_EQ("GE======", escaped_string_);
+  EXPECT_STREQ("1", Unescape("GE======"));
+  EXPECT_EQ(1, length_);
+  EXPECT_STREQ("1", Unescape("GE"));
+  EXPECT_EQ(1, length_);
+  EXPECT_TRUE(UnescapeToString("GE"));
+  EXPECT_EQ("1", unescaped_string_);
+}
+
+TEST_F(Base32, TwoBytes) {
+  EXPECT_STREQ("GFQQ====", Escape("1a"));
+  EXPECT_EQ(8, length_);
+  EXPECT_TRUE(EscapeFromString("1a"));
+  EXPECT_EQ("GFQQ====", escaped_string_);
+  EXPECT_STREQ("1a", Unescape("GFQQ===="));
+  EXPECT_EQ(2, length_);
+  EXPECT_STREQ("1a", Unescape("GFQQ"));
+  EXPECT_EQ(2, length_);
+  EXPECT_TRUE(UnescapeToString("GFQQ"));
+  EXPECT_EQ("1a", unescaped_string_);
+}
+
+TEST_F(Base32, FiveBytes) {
+  EXPECT_STREQ("GEZDGNBV", Escape("12345"));
+  EXPECT_EQ(8, length_);
+  EXPECT_TRUE(EscapeFromString("12345"));
+  EXPECT_EQ("GEZDGNBV", escaped_string_);
+  EXPECT_STREQ("12345", Unescape("GEZDGNBV"));
+  EXPECT_EQ(5, length_);
+  EXPECT_TRUE(UnescapeToString("GEZDGNBV"));
+  EXPECT_EQ("12345", unescaped_string_);
+}
+
+TEST_F(Base32, SixBytes) {
+  EXPECT_STREQ("GEZDGNBVGY======", Escape("123456"));
+  EXPECT_EQ(16, length_);
+  EXPECT_TRUE(EscapeFromString("123456"));
+  EXPECT_EQ("GEZDGNBVGY======", escaped_string_);
+  EXPECT_STREQ("123456", Unescape("GEZDGNBVGY======"));
+  EXPECT_EQ(6, length_);
+  EXPECT_STREQ("123456", Unescape("GEZDGNBVGY"));
+  EXPECT_EQ(6, length_);
+  EXPECT_TRUE(UnescapeToString("GEZDGNBVGY"));
+  EXPECT_EQ("123456", unescaped_string_);
+}
+
+TEST_F(Base32, SixteenBytes) {
+  EXPECT_STREQ("GEZDGNBVGY3TQOJQGEZDGNBVGY======", Escape("1234567890123456"));
+  EXPECT_EQ(32, length_);
+  EXPECT_TRUE(EscapeFromString("1234567890123456"));
+  EXPECT_EQ("GEZDGNBVGY3TQOJQGEZDGNBVGY======", escaped_string_);
+  EXPECT_STREQ("1234567890123456",
+               Unescape("GEZDGNBVGY3TQOJQGEZDGNBVGY======"));
+  EXPECT_EQ(16, length_);
+  EXPECT_STREQ("1234567890123456", Unescape("GEZDGNBVGY3TQOJQGEZDGNBVGY"));
+  EXPECT_EQ(16, length_);
+  EXPECT_STREQ("1234567890123456", Unescape("gezdgnbvgy3tqojqgezdgnbvgy"));
+  EXPECT_EQ(16, length_);
+  EXPECT_TRUE(UnescapeToString("GEZDGNBVGY3TQOJQGEZDGNBVGY"));
+  EXPECT_EQ("1234567890123456", unescaped_string_);
+}
+
+TEST_F(Base32, UnescapesNullBytes) {
+  Unescape("AAAAAAAA");
+  EXPECT_EQ(std::string("\0\0\0\0\0", 5), std::string(buf_, length_));
+}
+
+TEST_F(Base32, InvalidByte) {
+  Unescape("GE0");
+  EXPECT_EQ(-1, length_);
+  EXPECT_FALSE(UnescapeToString("GE0"));
+}
+
+TEST_F(Base32, TooSmallSzDest) {
+  Escape("1", 1, 1);
+  EXPECT_EQ(0, length_);
+  Unescape("GEZDGNBV", 8, 4);
+  EXPECT_EQ(-1, length_);
+}
+
+TEST_F(Base32, TooSmallSzDestWholeChunks) {
+  Escape("1234567890", 10, 8);
+  EXPECT_EQ(0, length_);
+}
+
+static std::string B32Hex(const std::string& from) {
+  std::string to;
+  strings::Base32HexEscape(from, &to);
+  return to;
+}
+
+// Because Base32Hex and Base32 share an underlying implementation,
+// just check the encoding is correct.
+TEST(Base32Hex, RFC4648TestVectors) {
+  EXPECT_EQ(B32Hex(""), "");
+  EXPECT_EQ(B32Hex("f"), "CO======");
+  EXPECT_EQ(B32Hex("fo"), "CPNG====");
+  EXPECT_EQ(B32Hex("foo"), "CPNMU===");
+  EXPECT_EQ(B32Hex("foob"), "CPNMUOG=");
+  EXPECT_EQ(B32Hex("fooba"), "CPNMUOJ1");
+  EXPECT_EQ(B32Hex("foobar"), "CPNMUOJ1E8======");
+}
+
+static std::string Base32HexUnescapeOrDie(const std::string& from) {
+  std::string to;
+  CHECK(strings::Base32HexUnescape(from, &to));
+  return to;
+}
+
+TEST(Base32Hex, UnescapesRFC46468TestVectors) {
+  EXPECT_EQ(Base32HexUnescapeOrDie(""), "");
+  EXPECT_EQ(Base32HexUnescapeOrDie("CO======"), "f");
+  EXPECT_EQ(Base32HexUnescapeOrDie("CPNG===="), "fo");
+  EXPECT_EQ(Base32HexUnescapeOrDie("CPNMU==="), "foo");
+  EXPECT_EQ(Base32HexUnescapeOrDie("CPNMUOG="), "foob");
+  EXPECT_EQ(Base32HexUnescapeOrDie("CPNMUOJ1"), "fooba");
+  EXPECT_EQ(Base32HexUnescapeOrDie("CPNMUOJ1E8======"), "foobar");
+}
+
+TEST(Base32Hex, UnescapeRejectsInvalidInput) {
+  std::string destination;
+  EXPECT_FALSE(strings::Base32HexUnescape("CW", &destination));
+  EXPECT_FALSE(strings::Base32HexUnescape("C%", &destination));
+}
+
+TEST(CalculateBase32EscapedLen, CommonNumbers) {
+  EXPECT_EQ(0, strings::CalculateBase32EscapedLen(0));
+  EXPECT_EQ(8, strings::CalculateBase32EscapedLen(1));
+  EXPECT_EQ(8, strings::CalculateBase32EscapedLen(2));
+  EXPECT_EQ(8, strings::CalculateBase32EscapedLen(3));
+  EXPECT_EQ(8, strings::CalculateBase32EscapedLen(4));
+  EXPECT_EQ(8, strings::CalculateBase32EscapedLen(5));
+  EXPECT_EQ(1600, strings::CalculateBase32EscapedLen(1000));
 }
 
 std::vector<epair> AppendEpairsOfInterestingLengths(std::vector<epair> vec) {

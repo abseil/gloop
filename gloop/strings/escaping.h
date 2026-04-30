@@ -275,6 +275,82 @@ void LegacyBase64EscapeWithoutPadding(absl::string_view src,
                                       std::string* absl_nonnull dest);
 
 // ----------------------------------------------------------------------
+// Base32Unescape()
+//
+// Copies "src" to "dest", where src is in base32 and is written to its binary
+// equivalents. src is not NUL-terminated, instead specify len. RETURNS the
+// length of dest, or -1 if src contains invalid chars.
+// ----------------------------------------------------------------------
+ptrdiff_t Base32Unescape(const char* absl_nullable src, ptrdiff_t slen,
+                         char* absl_nonnull dest, ptrdiff_t szdest);
+bool Base32Unescape(const char* absl_nullable src, ptrdiff_t slen,
+                    std::string* absl_nonnull dest);
+inline bool Base32Unescape(const std::string& src,
+                           std::string* absl_nonnull dest) {
+  return Base32Unescape(src.data(), static_cast<int>(src.size()), dest);
+}
+
+// ----------------------------------------------------------------------
+// Base32HexUnescape()
+//
+// Copies "src" to "dest", where src is in base32hex and is written to its
+// binary equivalents. Returns true on success, or false if the conversion
+// fails.
+// ----------------------------------------------------------------------
+bool Base32HexUnescape(const std::string& src, std::string* absl_nonnull dest);
+
+// ----------------------------------------------------------------------
+// Base32Escape()
+//
+// Encodes "src" to "dest" using base32 encoding. src is not NUL-terminated,
+// instead specify len. 'dest' should have at least CalculateBase32EscapedLen()
+// length. RETURNS the length of dest. RETURNS 0 if szsrc is zero, or szdest is
+// too small to fit the fully encoded result.  'dest' is padded with '='.
+//
+// Note that this is "Base 32 Encoding" from RFC 4648 section 6.
+// ----------------------------------------------------------------------
+ptrdiff_t Base32Escape(const unsigned char* absl_nullable src, size_t szsrc,
+                       char* absl_nonnull dest, size_t szdest);
+bool Base32Escape(const std::string& src, std::string* absl_nonnull dest);
+
+// ----------------------------------------------------------------------
+// Base32HexEscape()
+//
+// Encodes "src" to "dest" using base32hex encoding. src is not NUL-terminated,
+// instead specify len. 'dest' should have at least CalculateBase32EscapedLen()
+// length. RETURNS the length of dest. RETURNS 0 if szsrc is zero, or szdest is
+// too small to fit the fully encoded result.  'dest' is padded with '='.
+//
+// Note that this is "Base 32 Encoding with Extended Hex Alphabet" from RFC 4648
+// section 7.
+// ----------------------------------------------------------------------
+ptrdiff_t Base32HexEscape(const unsigned char* absl_nullable src, size_t szsrc,
+                          char* absl_nonnull dest, size_t szdest);
+bool Base32HexEscape(const std::string& src, std::string* absl_nonnull dest);
+
+// ----------------------------------------------------------------------
+// CalculateBase32EscapedLen()
+//
+// Returns the length to use for the output buffer given to the base32 escape
+// routines.  This function may return incorrect results if given input_len
+// values that are extremely high, which should happen rarely.
+// ----------------------------------------------------------------------
+ptrdiff_t CalculateBase32EscapedLen(size_t input_len);
+
+// ----------------------------------------------------------------------
+// FiveBytesToEightBase32Digits()
+//
+// Converts base32 from binary
+//   *in_bytes must point to 5 bytes.
+//   *out must point to 8 bytes.
+//
+// Note that the Base64 functions above are different. They deal with
+// arbitrary lengths and we deal with single, whole base32 quanta.
+// ----------------------------------------------------------------------
+void FiveBytesToEightBase32Digits(const unsigned char* absl_nonnull in_bytes,
+                                  char* absl_nonnull out);
+
+// ----------------------------------------------------------------------
 // UnescapeCEscapeSequences()
 //    Copies "source" to "dest", rewriting C-style escape sequences
 //    -- '\n', '\r', '\\', '\ooo', etc -- to their ASCII

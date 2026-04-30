@@ -20,10 +20,12 @@
 
 #include "gloop/strings/escaping.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <iterator>
+#include <limits>
 #include <string>
 
 #include "absl/base/macros.h"
@@ -422,6 +424,349 @@ void LegacyBase64EscapeWithoutPadding(absl::string_view src,
   while (!dest->empty() && dest->back() == '=') {
     dest->pop_back();
   }
+}
+
+// Returns true iff c is in the Base 32 alphabet.
+static bool ValidBase32Byte(char c) {
+  return (c >= 'A' && c <= 'Z') || (c >= '2' && c <= '7') || c == '=';
+}
+
+// Returns true iff c is in the Base 32 Hex alphabet.
+static bool ValidBase32HexByte(char c) {
+  return (c >= 'A' && c <= 'V') || (c >= '0' && c <= '9') || c == '=';
+}
+
+static void GeneralEightBase32DigitsToFiveBytes(
+    const char* absl_nonnull in, unsigned char* absl_nonnull bytes_out,
+    const std::array<unsigned char, 256>& inverse_alphabet) {
+  // If "char" is signed by default, using *src as an array index results in
+  // accessing negative array elements. Treat the input as a pointer to
+  // unsigned char to avoid this.
+  const unsigned char* inval = reinterpret_cast<const unsigned char*>(in);
+
+  // Convert to raw bytes. It's easier to just hard code this.
+  bytes_out[0] =
+      inverse_alphabet[inval[0]] << 3 | inverse_alphabet[inval[1]] >> 2;
+
+  bytes_out[1] = inverse_alphabet[inval[1]] << 6 |
+                 inverse_alphabet[inval[2]] << 1 |
+                 inverse_alphabet[inval[3]] >> 4;
+
+  bytes_out[2] =
+      inverse_alphabet[inval[3]] << 4 | inverse_alphabet[inval[4]] >> 1;
+
+  bytes_out[3] = inverse_alphabet[inval[4]] << 7 |
+                 inverse_alphabet[inval[5]] << 2 |
+                 inverse_alphabet[inval[6]] >> 3;
+
+  bytes_out[4] = inverse_alphabet[inval[6]] << 5 | inverse_alphabet[inval[7]];
+}
+
+// Mapping from number of Base32 escaped characters (0 through 8) to number of
+// unescaped bytes.  8 Base32 escaped characters represent 5 unescaped bytes.
+// For N < 8, then number of unescaped bytes is less than 5.  Note that in
+// valid input, N can only be 0, 2, 4, 5, 7, or 8 (corresponding to 0, 1, 2,
+// 3, 4, or 5 unescaped bytes).
+//
+// We use 5 for invalid values of N to be safe, since this is used to compute
+// the length of the buffer to hold unescaped data.
+//
+// See https://datatracker.ietf.org/doc/html/rfc4648#section-6 for details.
+static constexpr std::array<int, 9> kBase32NumUnescapedBytes = {0, 5, 1, 5, 2,
+                                                                3, 5, 4, 5};
+
+static ptrdiff_t GeneralBase32Unescape(
+    const char* absl_nullable src, ptrdiff_t slen, char* absl_nonnull dest,
+    ptrdiff_t szdest, const std::array<unsigned char, 256>& inverse_alphabet,
+    bool (*absl_nonnull byte_validator)(char)) {
+  ptrdiff_t destidx = 0;
+  char escaped_bytes[8];
+  unsigned char unescaped_bytes[5];
+  while (slen > 0) {
+    // Collect the next 8 escaped bytes and convert to upper case.  If there
+    // are less than 8 bytes left, pad with '=', but keep track of the number
+    // of non-padded bytes for later.
+    ptrdiff_t non_padded_len = 8;
+    for (int i = 0; i < 8; ++i) {
+      escaped_bytes[i] = (i < slen) ? absl::ascii_toupper(src[i]) : '=';
+      if (!byte_validator(escaped_bytes[i])) {
+        return -1;
+      }
+      // Stop counting escaped bytes at first '='.
+      if (escaped_bytes[i] == '=' && non_padded_len == 8) {
+        non_padded_len = i;
+      }
+    }
+
+    // Convert the 8 escaped bytes to 5 unescaped bytes and copy to dest.
+    GeneralEightBase32DigitsToFiveBytes(escaped_bytes, unescaped_bytes,
+                                        inverse_alphabet);
+    const int num_unescaped = kBase32NumUnescapedBytes[non_padded_len];
+    for (int i = 0; i < num_unescaped; ++i) {
+      if (destidx == szdest) {
+        // No more room in dest, so terminate early.
+        return -1;
+      }
+      dest[destidx] = unescaped_bytes[i];
+      ++destidx;
+    }
+    src += 8;
+    slen -= 8;
+  }
+  return destidx;
+}
+
+static bool GeneralBase32Unescape(
+    const char* absl_nullable src, ptrdiff_t slen,
+    std::string* absl_nonnull dest,
+    const std::array<unsigned char, 256>& inverse_alphabet,
+    bool (*absl_nonnull byte_validator)(char)) {
+  // Determine the size of the output string.
+  const ptrdiff_t dest_len =
+      5 * (slen / 8) + kBase32NumUnescapedBytes[slen % 8];
+
+  bool success = true;
+  absl::StringResizeAndOverwrite(*dest, dest_len,
+                                 [src, slen, inverse_alphabet, byte_validator,
+                                  &success](char* buf, size_t buf_size) {
+                                   const ptrdiff_t len = GeneralBase32Unescape(
+                                       src, slen, buf, buf_size,
+                                       inverse_alphabet, byte_validator);
+                                   if (len < 0) {
+                                     success = false;
+                                     return size_t{0};
+                                   }
+                                   return static_cast<size_t>(len);
+                                 });
+  return success;
+}
+
+static constexpr std::array<unsigned char, 256> kBase32InverseAlphabet = {
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       26 /*2*/, 27 /*3*/, 28 /*4*/, 29 /*5*/, 30 /*6*/, 31 /*7*/,
+    99,       99,       99,       99,       99,       00 /*=*/, 99,
+    99,       99,       0 /*A*/,  1 /*B*/,  2 /*C*/,  3 /*D*/,  4 /*E*/,
+    5 /*F*/,  6 /*G*/,  7 /*H*/,  8 /*I*/,  9 /*J*/,  10 /*K*/, 11 /*L*/,
+    12 /*M*/, 13 /*N*/, 14 /*O*/, 15 /*P*/, 16 /*Q*/, 17 /*R*/, 18 /*S*/,
+    19 /*T*/, 20 /*U*/, 21 /*V*/, 22 /*W*/, 23 /*X*/, 24 /*Y*/, 25 /*Z*/,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99};
+
+static constexpr std::array<unsigned char, 256> kBase32HexInverseAlphabet = {
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       00 /*0*/,
+    1 /*1*/,  2 /*2*/,  3 /*3*/,  4 /*4*/,  5 /*5*/,  6 /*6*/,  7 /*7*/,
+    8 /*8*/,  9 /*9*/,  99,       99,       99,       00 /*=*/, 99,
+    99,       99,       10 /*A*/, 11 /*B*/, 12 /*C*/, 13 /*D*/, 14 /*E*/,
+    15 /*F*/, 16 /*G*/, 17 /*H*/, 18 /*I*/, 19 /*J*/, 20 /*K*/, 21 /*L*/,
+    22 /*M*/, 23 /*N*/, 24 /*O*/, 25 /*P*/, 26 /*Q*/, 27 /*R*/, 28 /*S*/,
+    29 /*T*/, 30 /*U*/, 31 /*V*/, 99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99,       99,       99,       99,
+    99,       99,       99,       99};
+
+ptrdiff_t Base32Unescape(const char* absl_nullable src, ptrdiff_t slen,
+                         char* absl_nonnull dest, ptrdiff_t szdest) {
+  return GeneralBase32Unescape(src, slen, dest, szdest, kBase32InverseAlphabet,
+                               ValidBase32Byte);
+}
+
+bool Base32Unescape(const char* absl_nullable src, ptrdiff_t slen,
+                    std::string* absl_nonnull dest) {
+  return GeneralBase32Unescape(src, slen, dest, kBase32InverseAlphabet,
+                               ValidBase32Byte);
+}
+
+bool Base32HexUnescape(const std::string& src, std::string* absl_nonnull dest) {
+  return GeneralBase32Unescape(src.data(), static_cast<int>(src.size()), dest,
+                               kBase32HexInverseAlphabet, ValidBase32HexByte);
+}
+
+static void GeneralFiveBytesToEightBase32Digits(
+    const unsigned char* absl_nonnull in_bytes, char* absl_nonnull out,
+    const std::array<char, 32>& alphabet) {
+  // It's easier to just hard code this.
+  // The conversion is based on the following picture of the division of a
+  // 40-bit block into 8 5-byte words:
+  //
+  //       5   3  2  5  1  4   4 1  5  2  3   5
+  //     |:::::::|:::::::|:::::::|:::::::|:::::::
+  //     +----+----+----+----+----+----+----+----
+  //
+  out[0] = alphabet[in_bytes[0] >> 3];
+  out[1] = alphabet[(in_bytes[0] & 0x07) << 2 | in_bytes[1] >> 6];
+  out[2] = alphabet[(in_bytes[1] & 0x3E) >> 1];
+  out[3] = alphabet[(in_bytes[1] & 0x01) << 4 | in_bytes[2] >> 4];
+  out[4] = alphabet[(in_bytes[2] & 0x0F) << 1 | in_bytes[3] >> 7];
+  out[5] = alphabet[(in_bytes[3] & 0x7C) >> 2];
+  out[6] = alphabet[(in_bytes[3] & 0x03) << 3 | in_bytes[4] >> 5];
+  out[7] = alphabet[(in_bytes[4] & 0x1F)];
+}
+
+static ptrdiff_t GeneralBase32Escape(const unsigned char* absl_nullable src,
+                                     size_t szsrc, char* absl_nonnull dest,
+                                     size_t szdest,
+                                     const std::array<char, 32>& alphabet) {
+  static const char kPad32 = '=';
+
+  if (szsrc == 0) return 0;
+
+  char* cur_dest = dest;
+  const unsigned char* cur_src = src;
+
+  // Five bytes of data encodes to eight characters of cyphertext.
+  // So we can pump through three-byte chunks atomically.
+  while (szsrc > 4) {  // keep going until we have less than 40 bits
+    if (szdest < 8) return 0;
+    szdest -= 8;
+
+    GeneralFiveBytesToEightBase32Digits(cur_src, cur_dest, alphabet);
+
+    cur_dest += 8;
+    cur_src += 5;
+    szsrc -= 5;
+  }
+
+  // Now deal with the tail (<=4 bytes).
+  if (szsrc > 0) {
+    if (szdest < 8) return 0;
+    szdest -= 8;
+    unsigned char last_chunk[5];
+    memcpy(last_chunk, cur_src, szsrc);
+
+    for (size_t i = szsrc; i < 5; ++i) {
+      last_chunk[i] = '\0';
+    }
+
+    GeneralFiveBytesToEightBase32Digits(last_chunk, cur_dest, alphabet);
+    ptrdiff_t filled = (szsrc * 8) / 5 + 1;
+    cur_dest += filled;
+
+    // Add on the padding.
+    for (int i = 0; i < (8 - filled); ++i) {
+      *(cur_dest++) = kPad32;
+    }
+  }
+
+  return cur_dest - dest;
+}
+
+static bool GeneralBase32Escape(absl::string_view src,
+                                std::string* absl_nonnull dest,
+                                const std::array<char, 32>& alphabet) {
+  const ptrdiff_t max_escaped_size = CalculateBase32EscapedLen(src.length());
+  bool success = true;
+  absl::StringResizeAndOverwrite(
+      *dest, max_escaped_size + 1,
+      [src, alphabet, &success](char* buf, size_t buf_size) {
+        const ptrdiff_t escaped_len = GeneralBase32Escape(
+            reinterpret_cast<const unsigned char*>(src.data()), src.length(),
+            buf, buf_size, alphabet);
+
+        if (escaped_len < 0) {
+          success = false;
+          return size_t{0};
+        }
+
+        return static_cast<size_t>(escaped_len);
+      });
+  return true;
+}
+
+static constexpr std::array<char, 32> kBase32Alphabet = {
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K',
+    'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
+    'W', 'X', 'Y', 'Z', '2', '3', '4', '5', '6', '7'};
+
+ptrdiff_t Base32Escape(const unsigned char* absl_nullable src, size_t szsrc,
+                       char* absl_nonnull dest, size_t szdest) {
+  return GeneralBase32Escape(src, szsrc, dest, szdest, kBase32Alphabet);
+}
+
+bool Base32Escape(const std::string& src, std::string* absl_nonnull dest) {
+  return GeneralBase32Escape(src, dest, kBase32Alphabet);
+}
+
+void FiveBytesToEightBase32Digits(const unsigned char* absl_nonnull in_bytes,
+                                  char* absl_nonnull out) {
+  GeneralFiveBytesToEightBase32Digits(in_bytes, out, kBase32Alphabet);
+}
+
+static constexpr std::array<char, 32> Base32HexAlphabet = {
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A',
+    'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L',
+    'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
+};
+
+ptrdiff_t Base32HexEscape(const unsigned char* absl_nullable src, size_t szsrc,
+                          char* absl_nonnull dest, size_t szdest) {
+  return GeneralBase32Escape(src, szsrc, dest, szdest, Base32HexAlphabet);
+}
+
+bool Base32HexEscape(const std::string& src, std::string* absl_nonnull dest) {
+  return GeneralBase32Escape(src, dest, Base32HexAlphabet);
+}
+
+ptrdiff_t CalculateBase32EscapedLen(size_t input_len) {
+  assert(input_len <= std::numeric_limits<size_t>::max() / 8);
+  size_t intermediate_result = 8 * input_len + 4;
+  size_t len = intermediate_result / 5;
+  len = (len + 7) & ~7;
+  return len;
 }
 
 namespace strings_internal {
