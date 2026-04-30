@@ -36,6 +36,12 @@
 #include "gloop/base/config.h"
 #include "gloop/base/tracecontext.h"
 
+#if BASE_HAVE_CRASHREASON
+#include "absl/debugging/stacktrace.h"
+#include "gloop/base/context.h"
+#include "gloop/base/crash.h"
+#include "gloop/base/tracer.h"
+#endif
 #if BASE_HAVE_PROCESS_STATE
 #include "gloop/base/signal-handler.h"
 #endif
@@ -96,6 +102,33 @@ extern "C" void ABSL_INTERNAL_C_SYMBOL(AbslInternalOnFatalLogMessage)(
                                                    chars_written};
   base_logging::logging_internal::fatal_message_ready.store(
       true, std::memory_order_release);
+
+#if BASE_HAVE_CRASHREASON
+  ABSL_CONST_INIT static std::atomic_flag crashed = ATOMIC_FLAG_INIT;
+  ABSL_CONST_INIT static base::CrashReason reason;
+  if (crashed.test_and_set(std::memory_order_relaxed)) return;
+  // Record crash context information (for Deathrattle).
+  reason.filename = entry.source_filename();
+  reason.line_number = entry.source_line();
+  reason.message = entry.text_message_with_newline();
+  // Retrieve the stack trace, omitting this frame.
+  reason.depth =
+      absl::GetStackTrace(reason.stack, ABSL_ARRAYSIZE(reason.stack), 1);
+  // Grab the current TraceContext. We are not within a signal handler here,
+  // but we'll use CurrentNoAlloc() instead of Current() anyway because we don't
+  // need to create a new context object if one doesn't already exist.
+  const TraceContext* tc = base::CurrentTraceContextNoAlloc();
+  if (tc != nullptr && tc->CanRecordAnnotations()) {
+    // We're not within a signal handler here, so using ToString() is safe.
+    std::string info = tc->tracer()->ToString();
+    const int tocopy =
+        std::min<int>(ABSL_ARRAYSIZE(reason.trace_info) - 1, info.length());
+    memcpy(reason.trace_info, info.c_str(), tocopy);
+    reason.trace_info[tocopy] = '\0';
+  }
+  base::SetCrashReason(&reason);
+
+#endif
 }
 
 #endif  // ABSL_HAVE_ATTRIBUTE_WEAK && !_MSC_VER

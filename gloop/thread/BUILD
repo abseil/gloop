@@ -33,6 +33,7 @@ POSIX_PORT_DEPS = [
     "@abseil-cpp//absl/base",
     "@abseil-cpp//absl/container:flat_hash_map",
     "//gloop/base/scheduling",
+    "//gloop/base:crash",
     "//gloop/base:per-thread-sem",
     "//gloop/base:process_state",
     "//gloop/base:signal-handler",

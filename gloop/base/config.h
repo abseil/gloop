@@ -256,6 +256,8 @@
 #ifdef BASE_HAVE_CRASHREASON
 #error BASE_HAVE_CRASHREASON cannot be directly set
 #elif defined(__linux__) && !defined(__ANDROID__)
+// TODO: consider just adding CrashReason to all builds.
+#define BASE_HAVE_CRASHREASON 1
 #endif
 
 #ifdef BASE_HAVE_PROCESS_STATE

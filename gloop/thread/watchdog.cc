@@ -48,6 +48,7 @@
 #include "absl/time/time.h"
 #include "gloop/base/config.h"
 #include "gloop/base/context.h"
+#include "gloop/base/crash.h"
 #include "gloop/base/examine_stack.h"
 #include "gloop/base/port.h"
 #include "gloop/base/sysinfo.h"

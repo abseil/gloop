@@ -72,6 +72,10 @@
 #include "gloop/base/process_state.h"
 #endif
 
+#if BASE_HAVE_CRASHREASON
+#include "gloop/base/crash.h"
+#endif
+
 namespace {
 using ::absl::log_internal::LoggingEnabledAt;
 using ::testing::AllOf;

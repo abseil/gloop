@@ -319,6 +319,22 @@ cc_library(
 )
 
 cc_library(
+    name = "crash",
+    srcs = ["crash.cc"],
+    hdrs = ["crash.h"],
+    visibility = [
+        ":base_implementation",
+        "//gloop/thread:__pkg__",
+    ],
+    deps = [
+        ":config",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/strings",
+    ],
+)
+
+cc_library(
     name = "getpc",
     hdrs = ["getpc.h"],
     visibility = ["//visibility:public"],
@@ -483,9 +499,11 @@ cc_library(
     deps = [
         ":config",
         ":context",
+        ":crash",
         ":examine_stack",
         ":signal-handler",
         ":tracecontext",
+        ":tracer",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
@@ -1762,6 +1780,7 @@ cc_test(
     ],
     deps = [
         ":config",
+        ":crash",
         ":logging_extensions",
         "//gloop:gloop_test_main",
         "//gloop/thread",
