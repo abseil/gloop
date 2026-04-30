@@ -1104,10 +1104,10 @@ struct StructKeyComparator {
 template <>
 class IntervalTreeLimits<StructKey> {
  public:
-  static const StructKey min() {
+  static StructKey min() {
     return StructKey(std::numeric_limits<int32_t>::min());
   }
-  static const StructKey max() {
+  static StructKey max() {
     return StructKey(std::numeric_limits<int32_t>::max());
   }
 };
