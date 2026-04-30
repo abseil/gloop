@@ -40,9 +40,15 @@
 
 #include "absl/base/macros.h"
 #include "absl/container/chunked_queue.h"
+#include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/container/node_hash_map.h"
 #include "absl/functional/any_invocable.h"
+#include "absl/types/any_span.h"
 #include "benchmark/benchmark.h"
+#include "gloop/util/gtl/extend/debug_printing.h"
+#include "gloop/util/gtl/extend/equality.h"
+#include "gloop/util/gtl/extend/extend.h"
 #include "gloop/util/gtl/unique_array.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -53,7 +59,111 @@ namespace {
 using testing::ElementsAre;
 using testing::ElementsAreArray;
 using testing::IsEmpty;
+using testing::Pair;
 using testing::SizeIs;
+using testing::UnorderedElementsAre;
+
+// int wrapper that resets to zero when moved.
+struct Moveable : gtl::Extend<Moveable, 1>::With<gtl::EqualityExtension,
+                                                 gtl::DebugPrintingExtension> {
+  Moveable(int value = 0) : value(value) {}
+  Moveable(Moveable&& other) : value(other.value) { other.value = 0; }
+  Moveable(const Moveable& other) = default;
+
+  operator int() const { return value; }
+
+  int value;
+};
+
+TEST(STLInsertAllTest, IntoSet) {
+  std::set<int> out;
+
+  STLInsertAll(absl::AnySpan<const int>{1, 2, 3}, &out);
+  EXPECT_THAT(out, UnorderedElementsAre(1, 2, 3));
+
+  const int in_array[] = {3, 4, 5};
+  STLInsertAll(in_array, &out);
+  EXPECT_THAT(out, UnorderedElementsAre(1, 2, 3, 4, 5));
+}
+
+TEST(STLInsertAllTest, Moveable) {
+  absl::flat_hash_set<Moveable> out;
+
+  std::vector<Moveable> in = {{1}, {2}, {1}, {3}};
+  STLInsertAll(std::move(in), &out);
+  EXPECT_THAT(out, UnorderedElementsAre(1, 2, 3));
+  EXPECT_THAT(in, ElementsAre(0, 0, 1, 0));  // NOLINT(bugprone-use-after-move)
+
+  const std::vector<Moveable> in_not_moveable = {{4}};
+  STLInsertAll(in_not_moveable, &out);
+  EXPECT_THAT(out, UnorderedElementsAre(1, 2, 3, 4));
+  EXPECT_THAT(in_not_moveable, ElementsAre(4));
+}
+
+TEST(STLInsertAllTest, NotMoveable) {
+  absl::flat_hash_set<Moveable> out;
+  std::vector<Moveable> in = {{1}, {2}};
+  STLInsertAll(in, &out);  // no std::move()
+  EXPECT_THAT(out, UnorderedElementsAre(1, 2));
+  EXPECT_THAT(in, ElementsAre(1, 2));
+}
+
+TEST(STLInsertAllTest, IntoFlatHashMap) {
+  absl::flat_hash_map<int, std::string> out;
+
+  const std::vector<std::pair<int, std::string>> in_vector{{1, "1"}, {2, "2"}};
+  STLInsertAll(in_vector, &out);
+  EXPECT_THAT(out, UnorderedElementsAre(Pair(1, "1"), Pair(2, "2")));
+
+  const absl::flat_hash_map<int, std::string> in_map{{1, "1b"}, {3, "3"}};
+  STLInsertAll(in_map, &out);
+  EXPECT_THAT(out,
+              UnorderedElementsAre(Pair(1, "1"), Pair(2, "2"), Pair(3, "3")));
+}
+
+TEST(STLPushBackAllTest, IntoVector) {
+  std::vector<int> out;
+
+  STLPushBackAll(absl::AnySpan<const int>{1, 2, 3}, &out);
+  EXPECT_THAT(out, ElementsAre(1, 2, 3));
+
+  const int in_array[] = {3, 4, 5};
+  STLPushBackAll(in_array, &out);
+  EXPECT_THAT(out, ElementsAre(1, 2, 3, 3, 4, 5));
+}
+
+TEST(STLPushBackAllTest, IntoDeque) {
+  std::deque<int> out;
+
+  STLPushBackAll(std::vector<int>{1, 2, 3}, &out);
+  EXPECT_THAT(out, ElementsAre(1, 2, 3));
+
+  const int in_array[] = {3, 4, 5};
+  STLPushBackAll(in_array, &out);
+  EXPECT_THAT(out, ElementsAre(1, 2, 3, 3, 4, 5));
+}
+
+TEST(STLPushBackAllTest, Moveable) {
+  std::vector<Moveable> out;
+
+  std::vector<Moveable> in{{1}, {2}};
+  STLPushBackAll(std::move(in), &out);
+  EXPECT_THAT(out, ElementsAre(1, 2));
+  EXPECT_THAT(in, ElementsAre(0, 0));  // NOLINT(bugprone-use-after-move)
+
+  const std::vector<Moveable> in_not_moveable{{3}};
+  STLPushBackAll(in_not_moveable, &out);
+  EXPECT_THAT(out, UnorderedElementsAre(1, 2, 3));
+  EXPECT_THAT(in_not_moveable, ElementsAre(3));
+}
+
+TEST(STLPushBackAllTest, NotMoveable) {
+  std::vector<Moveable> out;
+  std::vector<Moveable> in{{1}, {2}};
+  STLPushBackAll(in, &out);  // no std::move()
+  EXPECT_THAT(out, ElementsAre(1, 2));
+  EXPECT_THAT(in, ElementsAre(1, 2));
+}
 
 // Test STLClearObject() which deallocates memory of STL container
 TEST(STLClearObjectTest, Basic) {

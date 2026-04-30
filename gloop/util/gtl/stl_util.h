@@ -102,6 +102,30 @@ inline void STLStableSortAndRemoveDuplicates(T* v) {
   v->erase(std::unique(v->begin(), v->end()), v->end());
 }
 
+// Adds all the elements of a range into a container that supports
+// position-less insertion like sets and maps.
+template <typename In, typename Out>
+void STLInsertAll(In&& in, Out* absl_nonnull out) {
+  if constexpr (std::is_lvalue_reference_v<In>) {
+    out->insert(std::begin(in), std::end(in));
+  } else {
+    out->insert(std::make_move_iterator(std::begin(in)),
+                std::make_move_iterator(std::end(in)));
+  }
+}
+
+// Adds all the elements of a range at the end of a container that supports
+// push_back() like std::vector.
+template <typename In, typename Out>
+void STLPushBackAll(In&& in, Out* absl_nonnull out) {
+  if constexpr (std::is_lvalue_reference_v<In>) {
+    std::copy(std::begin(in), std::end(in), std::back_inserter(*out));
+  } else {
+    std::copy(std::make_move_iterator(std::begin(in)),
+              std::make_move_iterator(std::end(in)), std::back_inserter(*out));
+  }
+}
+
 // Remove every occurrence of element e in v.
 template <typename T, typename E>
 void STLEraseAllFromSequence(T* v, const E& e) {
