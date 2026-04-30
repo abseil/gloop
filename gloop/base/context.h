@@ -78,6 +78,10 @@ namespace subtle {
 class WithLifetimeBoundContext;
 }  // namespace subtle
 
+//  Used to provide access to the context's extensions to
+//  ContextExtensionHandle.
+class ContextExtensionAccess;
+
 // This type is thread-compatible.
 class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
  public:
