@@ -1552,12 +1552,27 @@ cc_test(
     ],
 )
 
+# =========================================================
+# Some modules reference base header files directly, which does not
+# work with default private visibility. We allowlist such uses by
+# exporting these files explicitly to the existing users.
+#
+# The export rules intentionally have limited visibility so we can
+# keep track of such external dependencies and ensure that future
+# users work with base OWNERS on appropriately scoped rules that can
+# be exported by base/BUILD.
+exports_files(
+    ["file_toc.h"],
+    visibility = [
+        "//gloop/tools:__pkg__",
+    ],
+)
+
 # For other projects that just need the file_toc.h header
 cc_library(
     name = "file_toc",
     hdrs = ["file_toc.h"],
     visibility = ["//visibility:public"],
-    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_library(
