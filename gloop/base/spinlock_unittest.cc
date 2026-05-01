@@ -18,14 +18,14 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-//
 // A bunch of fibers repeatedly hash an array of ints protected by a
 // spinlock.  If the spinlock is working properly, all elements of the
 // array should be identically at the end of the test.
 //
 // This test uses non-portable google3 APIs such as Fibers and benchmarks.
-// See //absl/base:spinlock_test_common for tests using the
-// portable APIs.
+// See
+// https://github.com/abseil/abseil-cpp/tree/master/absl/base/spinlock_test_common.cc
+// for tests using the portable APIs.
 
 #include "gloop/base/spinlock.h"
 
@@ -36,7 +36,6 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
-#include "absl/base/base_config.h"
 #include "absl/flags/declare.h"
 #include "absl/flags/flag.h"
 #include "absl/functional/bind_front.h"
@@ -46,22 +45,21 @@
 #include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "base/commandlineflags.h"
-#include "base/init_google.h"
-#include "base/scheduling/domain.h"
-#include "base/scheduling/low-level-support.h"
-#include "base/scheduling/scheduler.h"
-#include "base/sysinfo.h"
+#include "gloop/base/init_google.h"
+#include "gloop/base/scheduling/domain.h"
+#include "gloop/base/scheduling/low-level-support.h"
+#include "gloop/base/scheduling/scheduler.h"
 #include "gloop/base/scheduling/scheduling_mode.h"
+#include "gloop/base/sysinfo.h"
+#include "gloop/thread/fiber/fiber-options.h"
+#include "gloop/thread/fiber/fiber.h"
+#include "gloop/thread/fiber/fifolifo-schedulers.h"
+#include "gloop/thread/fiber/init-domain.h"
+#include "gloop/util/hash/legacy_hash.h"
 #include "gtest/gtest.h"
-#include "thread/fiber/fiber-options.h"
-#include "thread/fiber/fiber.h"
-#include "thread/fiber/fifolifo-schedulers.h"
-#include "thread/fiber/init-domain.h"
-#include "util/hash/legacy_hash.h"
 
-DEFINE_int32(numthreads, 10, "Number of threads");
-DEFINE_int32(iters, 10, "Number of iterations per thread");
+ABSL_FLAG(int32_t, numthreads, 10, "Number of threads");
+ABSL_FLAG(int32_t, iters, 10, "Number of iterations per thread");
 ABSL_DECLARE_FLAG(absl::Duration, experimental_spinlock_wait_max_delay);
 
 namespace {
@@ -71,7 +69,7 @@ static uint32_t values[kArrayLength];
 
 ABSL_CONST_INIT static SpinLock static_cooperative_spinlock;
 ABSL_CONST_INIT static SpinLock static_noncooperative_spinlock(
-    base::scheduling::SCHEDULE_KERNEL_ONLY);
+    absl::base_internal::SCHEDULE_KERNEL_ONLY);
 
 static void TestFunction(SpinLock* spinlock) {
   int tid = GetTID();
@@ -110,13 +108,13 @@ static void FiberTest(SpinLock* spinlock) {
   scheduler->Orphan();
 }
 
-#if !PORTABLE_BASE
 TEST(SpinLock, StackCooperativeAllowsScheduling) {
   struct Helper {
     static void TestInFiber() {
       SpinLock spinlock;
       spinlock.lock();
-      EXPECT_TRUE(base::scheduling::SchedulingGuard::ReschedulingIsAllowed());
+      EXPECT_TRUE(
+          absl::base_internal::SchedulingGuard::ReschedulingIsAllowed());
       spinlock.unlock();
     }
   };
@@ -129,7 +127,8 @@ TEST(SpinLock, StaticCooperativeAllowsScheduling) {
   struct Helper {
     static void TestInFiber() {
       static_cooperative_spinlock.lock();
-      EXPECT_TRUE(base::scheduling::SchedulingGuard::ReschedulingIsAllowed());
+      EXPECT_TRUE(
+          absl::base_internal::SchedulingGuard::ReschedulingIsAllowed());
       static_cooperative_spinlock.unlock();
     }
   };
@@ -137,7 +136,6 @@ TEST(SpinLock, StaticCooperativeAllowsScheduling) {
   thread::Fiber f(Helper::TestInFiber);
   f.Join();
 }
-#endif
 
 TEST(SpinLockWithFibers, StackSpinLock) {
   SpinLock spinlock;
@@ -155,12 +153,12 @@ TEST(SpinLockWithFibers, StackCooperativeSpinLockDeepSleep) {
 }
 
 TEST(SpinLockWithFibers, StackNonCooperativeSpinLockDeepSleep) {
-  SpinLock spinlock(base::scheduling::SCHEDULE_KERNEL_ONLY);
+  SpinLock spinlock(absl::base_internal::SCHEDULE_KERNEL_ONLY);
   FiberTest(&spinlock);
 }
 
 TEST(SpinLockWithFibers, StackNonCooperativeSpinLock) {
-  SpinLock spinlock(base::scheduling::SCHEDULE_KERNEL_ONLY);
+  SpinLock spinlock(absl::base_internal::SCHEDULE_KERNEL_ONLY);
   FiberTest(&spinlock);
 }
 
@@ -224,6 +222,7 @@ static_assert(!std::is_copy_constructible<SpinLockHolder>(),
 int main(int argc, char** argv) {
   InitGoogle(argv[0], &argc, &argv, true);
   // Ensure that a ThreadIdentity is installed for all tests.
-  CHECK(base::subtle::GetOrCreateCurrentThreadIdentity() != nullptr);
+  CHECK(absl::synchronization_internal::GetOrCreateCurrentThreadIdentity() !=
+        nullptr);
   return RUN_ALL_TESTS();
 }

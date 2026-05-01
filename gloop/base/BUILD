@@ -28,10 +28,13 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 # Dependencies of //gloop/base that rely on POSIX support.
 POSIX_DEPS = [
+    ":mutex_yield",
     ":nsscache",
     ":per-thread-sem",
     ":process_state",
     ":signal-handler",
+    ":sleep",
+    ":spinlock_wait",
     "//gloop/base/scheduling",
 ]
 
@@ -490,6 +493,17 @@ cc_test(
 )
 
 cc_library(
+    name = "mutex_yield",
+    srcs = ["mutex_yield.cc"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "//gloop/base/scheduling",
+        "@abseil-cpp//absl/base:core_headers",
+    ],
+    alwayslink = 1,
+)
+
+cc_library(
     name = "on_fatal_log_message",
     srcs = ["on_fatal_log_message.cc"],
     hdrs = ["on_fatal_log_message.h"],
@@ -918,6 +932,19 @@ cc_library(
 )
 
 cc_library(
+    name = "sleep",
+    srcs = ["sleep.cc"],
+    deps = [
+        ":per-thread-sem",
+        "//gloop:enforce_gloop_support",
+        "//gloop/base/scheduling",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/time",
+    ],
+    alwayslink = 1,
+)
+
+cc_library(
     name = "spinlock",
     hdrs = ["spinlock.h"],
     visibility = [
@@ -927,6 +954,74 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base",
     ],
+)
+
+cc_test(
+    name = "spinlock_unittest",
+    size = "medium",
+    srcs = ["spinlock_unittest.cc"],
+    deps = [
+        ":init_google",
+        ":per-thread-sem",
+        ":spinlock",
+        ":sysinfo",
+        "//gloop/base/scheduling",
+        "//gloop/base/scheduling:low-level-support",
+        "//gloop/base/scheduling:scheduling_mode",
+        "//gloop/thread/fiber",
+        "//gloop/thread/fiber:fiber-options",
+        "//gloop/thread/fiber:fifolifo-schedulers",
+        "//gloop/util/hash:legacy_hash",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+# This version of spinlock_test links in //gloop/spinlock_wait, therefore
+# picking up the Gloop-specific symbol overrides for AbslInternalSpinLockDelay
+# and AbslInternalSpinLockWake.
+cc_test(
+    name = "spinlock_test",
+    size = "medium",
+    deps = [
+        ":spinlock",
+        ":spinlock_wait",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:spinlock_test_common",
+        "@abseil-cpp//absl/synchronization",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "spinlock_wait",
+    srcs = ["spinlock_wait.cc"],
+    hdrs = ["spinlock_wait.h"],
+    visibility = [
+        "//gloop/base:__pkg__",
+        "//gloop/thread/fiber:__subpackages__",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "//gloop/base/scheduling",
+        "//gloop/base/scheduling:scheduling_mode",
+        "@abseil-cpp//absl/base:base_internal",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/base:spinlock_wait",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/numeric:bits",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/time",
+    ],
+    alwayslink = 1,
 )
 
 cc_binary(
@@ -1350,6 +1445,28 @@ cc_test(
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/memory",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "signal_util_subtle_test",
+    size = "medium",
+    srcs = ["signal_util_subtle_test.cc"],
+    features = ["-use_header_modules"],
+    deps = [
+        ":commandlineflags",
+        ":percpu",
+        ":signal_util_subtle",
+        ":time_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

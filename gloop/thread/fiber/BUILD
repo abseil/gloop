@@ -235,8 +235,13 @@ cc_test(
     srcs = ["fiber-once_test.cc"],
     deps = [
         ":fiber",
+        ":fiber-options",
+        ":fifolifo-schedulers",
         "//gloop:gloop_test_main",
+        "//gloop/base/scheduling",
+        "//gloop/base/scheduling:low-level-support",
         "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
