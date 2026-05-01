@@ -387,6 +387,25 @@ TEST_F(FifoSemaphoreTest, AcquireWithUnselectedBlocker) {
   s.Release(7);
 }
 
+TEST_F(FifoSemaphoreTest, StressTest) {
+  const uintptr_t base_sem_capacity = 1000000;
+
+  SemaphoreVec sems;
+  for (int i = 0; i < 20; ++i) {
+    sems.emplace_back(new FifoSemaphore(base_sem_capacity * (i + 1)));
+  }
+
+  // Start fibers acquiring & releasing various resources.
+  for (int i = 0; i < 1000; ++i) {
+    AddAcquireAndReleaseFiber(sems);
+  }
+
+  // Give the test some time to run, then clean up.
+  absl::SleepFor(absl::Seconds(10));
+
+  Cleanup();
+}
+
 TEST_F(FifoSemaphoreTest, LargeBitValuesWorkAsExpected) {
   const uintptr_t capacity = std::numeric_limits<uintptr_t>::max() - 10;
   FifoSemaphore s(capacity);

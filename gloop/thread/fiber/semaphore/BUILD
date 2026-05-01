@@ -67,7 +67,7 @@ cc_library(
 
 cc_test(
     name = "fifo_semaphore_test",
-    size = "small",
+    size = "medium",
     srcs = ["fifo_semaphore_test.cc"],
     linkstatic = 1,
     visibility = ["//visibility:private"],

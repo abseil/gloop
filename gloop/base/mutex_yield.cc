@@ -18,24 +18,28 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// For google3 production Linux, provide Fiber aware overrides of the
-// weak symbols AbslInternalPerThreadSemPost() and
-// AbslInternalPerThreadSemWait() from
-// //absl/synchronization/internal/per_thread_sem.cc
-
-#include <stdint.h>
-
-#include <atomic>
+#include <thread>  // NOLINT(build/c++11)
 
 #include "absl/base/attributes.h"
-#include "absl/base/config.h"
-#include "absl/base/internal/raw_logging.h"  // NOLINT(build/include)
-#include "absl/base/internal/thread_identity.h"
-#include "absl/synchronization/internal/create_thread_identity.h"
-#include "absl/synchronization/internal/kernel_timeout.h"
-#include "absl/synchronization/internal/per_thread_sem.h"
-#include "absl/synchronization/internal/waiter.h"
 #include "gloop/base/scheduling/downcalls.h"
-#include "gloop/base/scheduling/scheduler.h"
-#include "gloop/base/spinlock.h"
-#include "tcmalloc/malloc_extension.h"
+
+extern "C" {
+
+// Google3-only Fiber-aware override of AbslInternalMutexYield().
+//
+// Gives a hint to the scheduler that the current thread should
+// relinquish the CPU.  If the current thread is a cooperative thread, the hint
+// goes to the cooperative scheduler.  Otherwise the hint goes to the kernel
+// thread scheduler.
+//
+// TODO ABSL_ATTRIBUTE_UNUSED is to suppress scythe.
+ABSL_ATTRIBUTE_UNUSED
+void AbslInternalMutexYield() {
+  if (base::scheduling::Downcalls::CurrentThreadIsCooperative()) {
+    base::scheduling::Downcalls::Reschedule();
+  } else {
+    std::this_thread::yield();
+  }
+}
+
+}  // extern "C"
