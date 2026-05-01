@@ -1229,7 +1229,8 @@ bool Writer<raw_type>::FindBestLexicons(
 
     for (int w = width_max_; w >= width_min_; --w) {
       // We need enough lexicon entries to satisfy width_start.
-      if (values_lex < (kint64one << width_start)) goto next_w;
+      if (width_start >= 63 || values_lex < (kint64one << width_start))
+        goto next_w;
 
       // Bits needed for positions containing lexicon indices:
       try_width_main = BitsNeededToDistinguish(values_lex);
@@ -1270,14 +1271,15 @@ bool Writer<raw_type>::FindBestLexicons(
 
     // Now consider using a non-last lexicon.
 
-    for (int w = width_start, values_lex = kint64one << w;
-         // Our self-imposed pruning constraints require a non-last
-         // lexicon to contain only repeated values...
-         values_lex <= values_repeated_uncovered &&
-         // ...and to leave enough values that the last lexicon's main
-         // width can be at least w.
-         values_lex + (values_lex >> 1) < values_uncovered;
-         ++w, values_lex = kint64one << w) {
+    for (int w = width_start;; ++w) {
+      if (w >= 63) break;
+      int64_t values_lex = kint64one << w;
+      // Our self-imposed pruning constraints require a non-last
+      // lexicon to contain only repeated values...
+      if (values_lex > values_repeated_uncovered) break;
+      // ...and to leave enough values that the last lexicon's main
+      // width can be at least w.
+      if (values_lex + (values_lex >> 1) >= values_uncovered) break;
       const ValueInfo* const next_vi = vi + values_lex;
       positions_lex = next_vi->positions_prior - positions_covered;
       const int64_t try_bits_main = positions_lex * w;
@@ -1530,7 +1532,8 @@ void Writer<raw_type>::EncodeLexicons() {
         std::accumulate(values_nonrepeated_of_width_ + (width_direct_max + 1),
                         values_nonrepeated_of_width_ + (width_max_ + 1),
                         values_repeated_ - values_lex_nonlast);
-    CHECK_LE(values_lex_last, kint64one << best_width_main_[profile]);
+    CHECK(best_width_main_[profile] >= 63 ||
+          values_lex_last <= (kint64one << best_width_main_[profile]));
     lexicon_index_for_value_.rehash(values_lex_nonlast + values_lex_last);
     // absl::flat_hash_map::rehash() takes the desired number of elements,
     // not the desired number of buckets.
