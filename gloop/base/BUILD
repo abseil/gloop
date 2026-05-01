@@ -554,10 +554,9 @@ cc_test(
     ],
     deps = [
         ":per-thread-sem",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/synchronization:per_thread_sem_test_common",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -849,6 +848,42 @@ cc_test(
         "@abseil-cpp//absl/base:core_headers",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "raw_logging",
+    srcs = ["raw_logging.cc"],
+    hdrs = ["raw_logging.h"],
+    deps = [
+        ":config",
+        ":crash",
+        ":examine_stack",
+        ":sysinfo",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/debugging:stacktrace",
+        "@abseil-cpp//absl/log:globals",
+        "@abseil-cpp//absl/log/internal:format",
+        "@abseil-cpp//absl/log/internal:globals",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:span",
+    ],
+)
+
+cc_test(
+    name = "raw_logging_test",
+    size = "small",
+    srcs = ["raw_logging_test.cc"],
+    deps = [
+        ":raw_logging",
+        "@abseil-cpp//absl/base:config",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -1419,8 +1454,10 @@ cc_library(
         ":coredump_flags",
         ":examine_stack",
         ":init_google_flags",
+        ":logging_extensions",
         ":on_fatal_log_message",
         ":port",
+        ":raw_logging",
         ":signal-handler",
         ":sysinfo",
         "//gloop:enforce_gloop_support",
@@ -1429,6 +1466,7 @@ cc_library(
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:dynamic_annotations",
+        "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/debugging:examine_stack",
         "@abseil-cpp//absl/debugging:leak_check",
         "@abseil-cpp//absl/debugging:stacktrace",
@@ -1623,6 +1661,7 @@ cc_library(
         ":examine_stack",
         ":googleinit",
         ":init_google_flags",
+        ":raw_logging",
         ":spinlock",
         ":sysinfo",
         ":user_name",
@@ -1796,7 +1835,9 @@ cc_test(
     deps = [
         ":config",
         ":crash",
+        ":init_google",
         ":logging_extensions",
+        ":raw_logging",
         "//gloop:gloop_test_main",
         "//gloop/thread",
         "@abseil-cpp//absl/base:core_headers",

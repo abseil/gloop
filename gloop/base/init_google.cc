@@ -90,6 +90,7 @@
 #include "gloop/base/googleinit.h"
 #include "gloop/base/init_google_flags.h"
 #include "gloop/base/internal/init_google.h"
+#include "gloop/base/raw_logging.h"
 #include "gloop/base/spinlock.h"
 #include "gloop/base/sysinfo.h"
 #include "gloop/base/user_name.h"
@@ -625,6 +626,12 @@ static void RealInitGoogle(absl::string_view usage, int* argc, char*** argv,
   doing_command_line_flags_parsing = false;
 
   ParseCommandLineNonHelpFlags(argc, argv, remove_flags);
+
+  // This is a no-op since the hooks are installed in a static initializer, but
+  // MSVC strips the static initializer because raw_logging.cc exports no called
+  // functions, even with alwayslink=1. So we work around this by calling it as
+  // a no-op here as well as in the static initializer.
+  base_raw_log::raw_log_internal::InstallGoogle3Hooks();
 
   absl::InitializeLog();
 

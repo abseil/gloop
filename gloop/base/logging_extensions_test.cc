@@ -64,6 +64,7 @@
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/config.h"
+#include "gloop/base/raw_logging.h"
 #include "gloop/thread/threadpool.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -306,6 +307,32 @@ TEST_F(NullSafeSinkWrapperTest, Concurrency) {
 
 // Tests for exit-time hook execution.
 // -----------------------------------
+
+#if GTEST_HAS_DEATH_TEST
+#ifdef _POSIX_VERSION
+#ifdef __ANDROID__
+// TODO: BUG
+#elif defined(ABSL_MIN_LOG_LEVEL)
+// TODO: BUG at ABSL_MIN_LOG_LEVEL > kFatal
+#elif defined(__Fuchsia__)
+// TODO: Fuchsia doesn't have RunSignalSafeOnFailure, it's in
+// PORT_POSIX_SOURCES.
+#else
+TEST(HookDeathTest, FatalRunsRunOnFailure) {
+  EXPECT_DEATH(
+      {
+        RunSignalSafeOnFailure([](FailureContext) {
+          const absl::string_view msg = "running RunOnFailure hook\n";
+          absl::raw_log_internal::AsyncSignalSafeWriteError(msg.data(),
+                                                            msg.size());
+        });
+        LOG(FATAL) << "hello world";
+      },
+      HasSubstr("running RunOnFailure hook"));
+}
+#endif
+#endif
+#endif
 
 #if GTEST_HAS_DEATH_TEST
 #ifdef _POSIX_VERSION

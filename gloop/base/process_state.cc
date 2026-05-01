@@ -20,6 +20,8 @@
 
 #include "gloop/base/process_state.h"
 
+#include "absl/base/log_severity.h"
+
 #if defined(BASE_PROCESS_STATE_USE_SYS_RESOURCE_H)
 #error "BASE_PROCESS_STATE_USE_SYS_RESOURCE_H must not be set externally"
 #elif !defined(__Fuchsia__)
@@ -81,8 +83,10 @@
 #include "gloop/base/coredump_flags.h"
 #include "gloop/base/examine_stack.h"
 #include "gloop/base/init_google_flags.h"
+#include "gloop/base/logging_extensions.h"
 #include "gloop/base/on_fatal_log_message.h"
 #include "gloop/base/port.h"
+#include "gloop/base/raw_logging.h"
 #include "gloop/base/sysinfo.h"
 #include "tcmalloc/malloc_extension.h"
 
@@ -121,6 +125,18 @@ ABSL_FLAG(bool, test_indicate_sighandler_done, false,
 #endif
 
 int32_t GetMainThreadPid() { return getpid(); }
+
+// Set the status message. It is only set in the
+// case of a crash, not a CHECK or assertion failure.
+static void SetKillSignalStatusMessage(int signo) {
+  // Don't overwrite a status message that could have
+  // been set by LOG(FATAL) or equivalent.
+  if (signo == SIGABRT) return;
+
+  char signal_exit_message[64];
+  absl::SNPrintF(signal_exit_message, sizeof(signal_exit_message),
+                 "Killed by signal %d!", signo);
+}
 
 /***** Callbacks to run on failure *****/
 
@@ -1157,6 +1173,7 @@ static void FailureSignalHandler(int signo, siginfo_t* si, void* uc) {
   // Flush the logs before we do anything in case 'anything'
   // causes problems.
 #if !PORTABLE_BASE
+  FlushLogFilesUnsafe(static_cast<absl::LogSeverity>(0));
 
   if (absl::StderrThreshold() > absl::LogSeverityAtLeast::kInfo) {
     // We already wrote this to stderr; don't write it again.
@@ -1217,6 +1234,8 @@ static void FailureSignalHandler(int signo, siginfo_t* si, void* uc) {
     if (absl::GetFlag(FLAGS_alarm_on_failure))
       alarm(alarm_on_failure_initial_secs);
 
+    // Try to make sure we at least get the stack trace
+    FlushLogFilesUnsafe(static_cast<absl::LogSeverity>(0));
 #endif  // !PORTABLE_BASE
   }
 
@@ -1225,6 +1244,11 @@ static void FailureSignalHandler(int signo, siginfo_t* si, void* uc) {
 #endif  // defined(BASE_PROCESS_STATE_USE_SYS_RESOURCE_H)
   // Flush the log files one last time, before we die.
   base_logging::logging_internal::ReprintFatalMessage();
+#if !PORTABLE_BASE
+  FlushLogFilesUnsafe(static_cast<absl::LogSeverity>(0));
+#endif  // !PORTABLE_BASE
+
+  SetKillSignalStatusMessage(signo);
 
   // Now that we're done with everything that might call libunwind, restore the
   // previous signal mask.

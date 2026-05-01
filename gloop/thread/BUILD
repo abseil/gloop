@@ -778,11 +778,10 @@ cc_test(
     copts = ["-Wno-deprecated-volatile"],
     deps = [
         ":thread",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log:check",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -792,14 +791,13 @@ cc_test(
     srcs = ["port/threadpool_test.cc"],
     deps = [
         ":thread",
-        "//gloop:gloop_test_main",
         "//gloop/base:timer",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
