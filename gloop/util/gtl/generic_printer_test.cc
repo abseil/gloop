@@ -34,6 +34,9 @@
 #include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
 #include "absl/types/optional_ref.h"
+#include "gloop/base/arena.h"
+#include "gloop/base/arena_allocator.h"
+#include "gloop/base/logging_extensions.h"
 #include "gloop/util/gtl/extend/extend.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -83,6 +86,12 @@ std::string GenericPrintToString(const T& v) {
   return ss.str();
 }
 
+TEST(GenericPrinterTest, StringsWithCustomAllocator) {
+  UnsafeArena arena(10);
+  astring s(R"(a"\b)", &arena);
+  EXPECT_EQ(R"("a\"\\b")", GenericPrintToString(s));
+}
+
 TEST(GenericPrinterTest, NotStreamableWithoutGenericPrint) {
   generic_logging_test::NotStreamable x;
   std::stringstream ss;
@@ -121,6 +130,31 @@ TEST(GenericPrinterTest, StreamAdapter) {
       ss.str(),
       MatchesRegex(
           "again, back-up, cue, double-u, eye, four: .unprintable value.*"));
+}
+
+TEST(GenericPrinterTest, LogStreamAdapter) {
+  std::string str;
+  base_logging::CopyToStringSink str_sink(&str);
+  LOG(INFO).ToSinkAlso(&str_sink)
+      << gtl::GenericPrint() << "again, " << "back-up, " << "cue, "
+      << "double-u, " << "eye, "
+      << "four: " << generic_logging_test::NotStreamable{};
+  EXPECT_THAT(
+      str,
+      MatchesRegex(
+          "again, back-up, cue, double-u, eye, four: .unprintable value.*"));
+}
+
+TEST(GenericPrinterTest, VoidifiedLogStreamAdapter) {
+  std::string str;
+  base_logging::CopyToStringSink sink(&str);
+  LOG_IF(INFO, true).ToSinkAlso(&sink)
+      << gtl::GenericPrint() << "again, " << "back-up, " << "cue, "
+      << std::vector<int>{1};
+  LOG_IF(INFO, false).ToSinkAlso(&sink)
+      << gtl::GenericPrint() << "double-u, " << "eye, " << "four"
+      << std::vector<int>{2};
+  EXPECT_EQ("again, back-up, cue, [1]", str);
 }
 
 TEST(GenericPrinterTest, OptionalRef) {

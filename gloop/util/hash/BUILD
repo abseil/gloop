@@ -501,6 +501,8 @@ cc_test(
     deps = [
         ":transparent_hash",
         "//gloop:gloop_test_main",
+        "//gloop/base:arena",
+        "//gloop/strings:arena-string",
         "//gloop/util/gtl:stl_util",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",

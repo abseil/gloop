@@ -38,6 +38,8 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "benchmark/benchmark.h"
+#include "gloop/base/arena.h"
+#include "gloop/base/arena_allocator.h"
 #include "gloop/util/random/acmrandom.h"
 #include "gloop/util/random/distributions.h"
 #include "gmock/gmock.h"
@@ -124,12 +126,28 @@ class IntervalMapTest : public ::testing::Test {
   // comparison object initialized by the `MakeComp` helper above, and an
   // allocator which is initialized with an UnsafeArena if this is an
   // ArenaAllocator.
-  IMap ConstructMap() { return IMap(MakeComp<typename IMap::key_compare>()); }
+  IMap ConstructMap() {
+    if constexpr (std::is_same_v<
+                      typename IMap::allocator_type,
+                      ArenaAllocator<typename IMap::Entry, UnsafeArena>>) {
+      return IMap(MakeComp<typename IMap::key_compare>(), &arena_);
+    } else {
+      return IMap(MakeComp<typename IMap::key_compare>());
+    }
+  }
+
+  UnsafeArena arena_{1024};
 };
 
 using MyTypes = ::testing::Types<
     MapTypes<OpaqueInt, int, OpaqueInt::Compare>::STL_IMap,
     MapTypes<OpaqueInt, int, OpaqueInt::StatefulCompare>::STL_IMap,
+    MapTypes<int, int, std::less<>,
+             ArenaAllocator<std::pair<int, int>, UnsafeArena>>::STL_IMap,
+    MapTypes<OpaqueInt, int, OpaqueInt::Compare,
+             ArenaAllocator<std::pair<OpaqueInt, int>, UnsafeArena>>::STL_IMap,
+    MapTypes<OpaqueInt, int, OpaqueInt::StatefulCompare,
+             ArenaAllocator<std::pair<OpaqueInt, int>, UnsafeArena>>::STL_IMap,
     MapTypes<int, int>::STL_IMap>;
 
 TYPED_TEST_SUITE(IntervalMapTest, MyTypes);

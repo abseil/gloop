@@ -796,10 +796,11 @@ cc_test(
     deps = [
         ":generic_printer",
         "//gloop:gloop_test_main",
+        "//gloop/base:arena",
+        "//gloop/base:arena_allocator",
+        "//gloop/base:logging_extensions",
         "//gloop/util/gtl/extend",
         "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:generic_printer",
         "@abseil-cpp//absl/strings:string_view",
@@ -842,6 +843,8 @@ cc_test(
     deps = [
         ":intervalmap",
         "//gloop:gloop_test_main",
+        "//gloop/base:arena",
+        "//gloop/base:arena_allocator",
         "//gloop/util/random:acmrandom",
         "//gloop/util/random:distributions",
         "@abseil-cpp//absl/container:flat_hash_map",

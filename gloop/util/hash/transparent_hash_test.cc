@@ -30,6 +30,8 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
+#include "gloop/base/arena.h"
+#include "gloop/strings/arena-string.h"
 #include "gloop/util/gtl/stl_util.h"
 #include "gtest/gtest.h"
 
@@ -224,6 +226,62 @@ BENCHMARK_TEMPLATE(BM_StringEq, util_hash::StringEq)
     ->Arg(8 * 1024);
 
 BENCHMARK_TEMPLATE(BM_StringEq, StringEqWithMemcmp)
+    ->Arg(4)
+    ->Arg(6)
+    ->Arg(8)
+    ->Arg(12)
+    ->Arg(16)
+    ->Arg(32)
+    ->Arg(128)
+    ->Arg(512)
+    ->Arg(2048)
+    ->Arg(4 * 1024)
+    ->Arg(8 * 1024);
+
+void BM_StringHashArenaString(benchmark::State& state) {
+  const int str_length = state.range(0);
+  UnsafeArena arena(1 << 10);
+  std::vector<strings::ArenaString> strings;
+  for (const std::string& str : GetStrings(str_length)) {
+    strings.push_back(strings::ArenaString(str, &arena));
+  }
+  util_hash::StringHash h;
+  for (auto _ : state) {  // NOLINT
+    for (const strings::ArenaString& str : strings) {
+      CHECK_NE(0, h(str));
+    }
+  }
+}
+
+BENCHMARK(BM_StringHashArenaString)
+    ->Arg(4)
+    ->Arg(6)
+    ->Arg(8)
+    ->Arg(12)
+    ->Arg(16)
+    ->Arg(32)
+    ->Arg(128)
+    ->Arg(512)
+    ->Arg(2048)
+    ->Arg(4 * 1024)
+    ->Arg(8 * 1024);
+
+void BM_StringEqArenaString(benchmark::State& state) {
+  const int str_length = state.range(0);
+  UnsafeArena arena(1 << 10);
+  std::vector<strings::ArenaString> strings;
+  for (const std::string& str : GetStrings(str_length)) {
+    strings.push_back(strings::ArenaString(str, &arena));
+  }
+  util_hash::StringEq eq;
+  for (auto _ : state) {  // NOLINT
+    for (const strings::ArenaString& str : strings) {
+      CHECK(eq(str, str));
+    }
+  }
+}
+
+BENCHMARK(BM_StringEqArenaString)
     ->Arg(4)
     ->Arg(6)
     ->Arg(8)
