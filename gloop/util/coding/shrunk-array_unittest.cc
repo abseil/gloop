@@ -225,6 +225,19 @@ TEST_P(ShrunkArrayTest, MaxSpan) {
   ShrinkAndVerify(in, in_size, out_size);
 }
 
+TEST_P(ShrunkArrayTest, LargeValuesOverflowShift) {
+  const int in_size = 3;
+  // Use values that require >= 62 bits to represent, to test the shift overflow
+  // bug.
+  uint64_t in[in_size] = {0x4000000000000000ull, 0x4000000000000001ull,
+                          0x8000000000000000ull};
+  ShrunkArray::Write(in, in_size, 3, decode_key_, &shrunk_vector_);
+  CopyAndBind(shrunk_vector_.size());
+  for (int i = 0; i < in_size; ++i) {
+    EXPECT_EQ(in[i], reader_->Get(i));
+  }
+}
+
 TEST_P(ShrunkArrayTest, TwoPositionsTwoWidths) {
   const int in_size = 2, out_size = 1;
   uint32_t in[in_size] = {3999777000u, 5};

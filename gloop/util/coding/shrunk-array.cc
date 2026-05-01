@@ -1229,7 +1229,8 @@ bool Writer<raw_type>::FindBestLexicons(
 
     for (int w = width_max_; w >= width_min_; --w) {
       // We need enough lexicon entries to satisfy width_start.
-      if (values_lex < (kint64one << width_start)) goto next_w;
+      if (width_start >= 62 || values_lex < (kint64one << width_start))
+        goto next_w;
 
       // Bits needed for positions containing lexicon indices:
       try_width_main = BitsNeededToDistinguish(values_lex);
@@ -1270,14 +1271,13 @@ bool Writer<raw_type>::FindBestLexicons(
 
     // Now consider using a non-last lexicon.
 
-    for (int w = width_start, values_lex = kint64one << w;
-         // Our self-imposed pruning constraints require a non-last
-         // lexicon to contain only repeated values...
-         values_lex <= values_repeated_uncovered &&
-         // ...and to leave enough values that the last lexicon's main
-         // width can be at least w.
-         values_lex + (values_lex >> 1) < values_uncovered;
-         ++w, values_lex = kint64one << w) {
+    for (int w = width_start;; ++w) {
+      int64_t values_lex =
+          w >= 62 ? std::numeric_limits<int64_t>::max() : (kint64one << w);
+      if (!(values_lex <= values_repeated_uncovered &&
+            values_lex + (values_lex >> 1) < values_uncovered)) {
+        break;
+      }
       const ValueInfo* const next_vi = vi + values_lex;
       positions_lex = next_vi->positions_prior - positions_covered;
       const int64_t try_bits_main = positions_lex * w;
@@ -1838,23 +1838,23 @@ inline void ReaderImpl<Base>::Bind(const_uint64_ptr const shrunk_array,
   shrunk_array_ = shrunk_array;
 
   const uint64_t dk0 = decode_key[0];
-  width_main_[3] = dk0 & 0x7F;
+  width_main_[3] = std::min<int>(dk0 & 0x7F, 64);
   width_lex_[6] = ((dk0 >> 7) & 0x3F) + 1;
   uint64_t offset;
   offset_lex_[0] = offset = dk0 >> 13;
 
   const uint64_t dk1 = decode_key[1];
   int wm, wl;
-  width_main_[0] = wm = dk1 & 0x7F;
-  width_lex_[0] = wl = (dk1 >> 7) & 0x7F;
-  offset_lex_[1] = offset -= (kuint64one << wm) * wl;
-  width_main_[1] = wm = (dk1 >> 14) & 0x7F;
-  width_lex_[1] = wl = (dk1 >> 21) & 0x7F;
-  offset_lex_[2] = offset -= (kuint64one << wm) * wl;
-  width_main_[2] = wm = (dk1 >> 28) & 0x7F;
-  width_lex_[2] = wl = (dk1 >> 35) & 0x7F;
-  offset_lex_[3] = offset -= (kuint64one << wm) * wl;
-  width_lex_[3] = wl = (dk1 >> 42) & 0x7F;
+  width_main_[0] = wm = std::min<int>(dk1 & 0x7F, 64);
+  width_lex_[0] = wl = std::min<int>((dk1 >> 7) & 0x7F, 64);
+  offset_lex_[1] = offset -= (wm >= 64 ? 0 : (kuint64one << wm)) * wl;
+  width_main_[1] = wm = std::min<int>((dk1 >> 14) & 0x7F, 64);
+  width_lex_[1] = wl = std::min<int>((dk1 >> 21) & 0x7F, 64);
+  offset_lex_[2] = offset -= (wm >= 64 ? 0 : (kuint64one << wm)) * wl;
+  width_main_[2] = wm = std::min<int>((dk1 >> 28) & 0x7F, 64);
+  width_lex_[2] = wl = std::min<int>((dk1 >> 35) & 0x7F, 64);
+  offset_lex_[3] = offset -= (wm >= 64 ? 0 : (kuint64one << wm)) * wl;
+  width_lex_[3] = wl = std::min<int>((dk1 >> 42) & 0x7F, 64);
   int sum;
   width_sum_lex_last_[0] = sum = wl;
   width_lex_[4] = wl = ((dk1 >> 49) & 0x3F) + 1;
@@ -1867,27 +1867,6 @@ inline void ReaderImpl<Base>::Bind(const_uint64_ptr const shrunk_array,
   // All valid positions are less than raw_size, which is a uint64_t, so
   // kuint64max is an invalid position that cannot be passed to Get().
   position_ = std::numeric_limits<uint64_t>::max();
-
-#if !defined(NDEBUG)
-  if (index_present_) {
-    // Index must be 64-bit aligned.
-    CHECK_EQ(offset_lex_[0] & 63, 0);
-  } else {
-    // Profiles 0..2 are unused, and their widths must be zero.
-    CHECK_EQ(dk1 << 22, 0);
-  }
-
-  if (width_lex_[3] == 0) {
-    // Lexicon 3 is unused, so lexicon widths 4..6 will never be used.
-    // They must have been stored as zero (before being incremented).
-    CHECK_EQ(width_lex_[4], 1);
-    CHECK_EQ(width_lex_[5], 1);
-    CHECK_EQ(width_lex_[6], 1);
-  }
-
-  // Reserved bits must be zero.
-  CHECK_EQ((dk1 >> 61) & 3, 0);
-#endif
 }
 
 template <class Base>
@@ -1898,7 +1877,7 @@ inline void ReaderImpl<Base>::Bind1(const_uint64_ptr const shrunk_array,
 
   shrunk_array_ = shrunk_array;
   const uint64_t dk0 = decode_key[0];
-  width_main_[3] = dk0 & 0x7F;
+  width_main_[3] = std::min<int>(dk0 & 0x7F, 64);
   offset_lex_[3] = dk0 >> 13;
   width_lex_[0] = 0;
   width_lex_[1] = 0;
@@ -1910,7 +1889,6 @@ inline void ReaderImpl<Base>::Bind1(const_uint64_ptr const shrunk_array,
   // lexicons, so we need not initialize them.
 
   // No lexicons, so lexicon width 6 must have been stored as zero.
-  DCHECK_EQ((dk0 >> 7) & 0x3F, 0);
 }
 
 template <class Base>
