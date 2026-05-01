@@ -735,7 +735,7 @@ TEST_F(StatusBuilderTest, AttachPayloadRvalue) {
 TEST_F(StatusBuilderTest, AttachPayloadStandard) {
   auto mset = MakePayloadMessageSet("oops");
   StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
-  util::AttachPayload(&builder, MakePayloadProto("oops"));
+  builder.AttachPayload(MakePayloadProto("oops"));
   EXPECT_THAT(ToStatus(builder),
               Eq(::util::MakeStatus(CanonicalErrorSpace(), error::CANCELLED, "",
                                     &mset)));
@@ -944,7 +944,7 @@ TEST_F(StatusBuilderTest, ToStringWithPayloads) {
   absl::Status status =
       ::util::MakeStatus(CanonicalErrorSpace(), error::CANCELLED, "", &mset);
   StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
-  util::AttachPayload(&builder, MakePayloadProto("oops"));
+  builder.AttachPayload(MakePayloadProto("oops"));
   EXPECT_EQ(ToStringViaStream(status), builder.ToString());
 }
 
@@ -964,7 +964,7 @@ TEST_F(StatusBuilderTest, ToStringDoesntHaveSideEffects) {
   }
 
   StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
-  util::AttachPayload(&builder, MakePayloadProto("oops"));
+  builder.AttachPayload(MakePayloadProto("oops"));
   builder << "hello world!";
   builder.LogError();
   builder.AlsoOutputToSink(&log_sink);

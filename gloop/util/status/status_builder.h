@@ -100,8 +100,6 @@ class StatusBuilderPrivateAccessor;
 
 }  // namespace status_internal
 
-// Forward declarations. See definitions for documentation.
-
 // Internal argument-dependent lookup extension point for StatusBuilder.
 // Necessary for allowing StatusBuilder to be open-sourced into Abseil without
 // introducing hard dependencies on non-canonical error spaces or protobuf.
@@ -1076,21 +1074,6 @@ inline std::optional<absl::Cord> StatusBuilder::GetPayload(
   return rep_ == nullptr ? std::nullopt : rep_->status.GetPayload(type_url);
 }
 
-template <typename Enum>
-ABSL_DEPRECATE_AND_INLINE()
-auto SetErrorCode(StatusBuilder& builder ABSL_ATTRIBUTE_LIFETIME_BOUND,
-                  Enum code)  //
-    -> decltype(builder.SetErrorCode(code)) {
-  return builder.SetErrorCode(code);
-}
-
-template <typename Enum>
-ABSL_DEPRECATE_AND_INLINE()
-auto SetErrorCode(StatusBuilder&& builder, Enum code)
-    -> decltype(std::move(builder).SetErrorCode(code)) {
-  return std::move(builder).SetErrorCode(code);
-}
-
 // Argument-dependent lookup extension point for setting error codes from
 // non-canonical error spaces.
 template <typename Enum>
@@ -1184,41 +1167,6 @@ inline StatusBuilder::operator absl::Status() && {
 
 inline absl::SourceLocation StatusBuilder::source_location() const {
   return loc_;
-}
-
-// AttachPayload()
-//
-// If `builder->ok()`, does nothing. Else sets message `obj` as the payload for
-// extension `id` on `builder`.
-//
-// `T` must be a protocol buffer type that can be stored in a MessageSet.
-// Usually `T::message_set_extension` is the extension id. If that's not the
-// case, call the overload that takes `ExtensionIdentifier` as an argument, e.g.
-// `google::rpc::Status` has a non-standard extension id
-// `google::rpc::error_details_ext`.
-//
-// Example:
-//   util::StatusBuilder builder;
-//   util::TestPayload test_payload;
-//   test_payload.set_message("test");
-//   util::AttachPayload(&builder, test_payload);
-//
-//   google::rpc::Status rpc_status;
-//   rpc_status.set_message("message for external");
-//   util::AttachPayload(&builder, rpc_status, google::rpc::error_details_ext);
-template <typename MessageSetExtension, typename ExtensionIdentifier>
-ABSL_DEPRECATE_AND_INLINE()
-auto AttachPayload(util::StatusBuilder* builder, const MessageSetExtension& obj,
-                   const ExtensionIdentifier& id)
-    -> decltype(builder->AttachPayload(obj, id)) {
-  return builder->AttachPayload(obj, id);
-}
-
-template <typename MessageSetExtension>
-ABSL_DEPRECATE_AND_INLINE()
-auto AttachPayload(util::StatusBuilder* builder, const MessageSetExtension& obj)
-    -> decltype(builder->AttachPayload(obj)) {
-  return builder->AttachPayload(obj);
 }
 
 // Argument-dependent lookup extension point for attaching payloads (e.g.,
