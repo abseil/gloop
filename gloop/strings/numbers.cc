@@ -315,6 +315,13 @@ std::string FpToString(Fprint fp) {
   return absl::StrCat(absl::Hex(fp, absl::kZeroPad16));
 }
 
+char* DoubleToBuffer(double i, char* buffer) {
+  return absl::numbers_internal::RoundTripDoubleToBuffer(i, buffer);
+}
+char* FloatToBuffer(float i, char* buffer) {
+  return absl::numbers_internal::RoundTripFloatToBuffer(i, buffer);
+}
+
 std::string SimpleBtoa(bool value) {
   return value ? std::string("true") : std::string("false");
 }

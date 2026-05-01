@@ -119,10 +119,58 @@ char* FastIntToBufferLeft(int_type i, char* buffer) {
   return absl::numbers_internal::FastIntToBuffer(i, buffer);
 }
 
+// Converts a double or float into a string which, if passed to `strtod()` or
+// `strtof()` respectively, will produce the exact same original double or
+// float.
+//
+// Exception: for NaN values,` strtod(RoundTripDtoa(NaN))` or
+// `strtof(RoundTripFtoa(NaN))` may produce any NaN value, not necessarily the
+// exact same original NaN value.
+//
+// Note: Calls to `RoundTrip*toa()` should preferably be replaced with
+// `absl::StrCat(absl::LegacyPrecision(d))`.
+//
+// This routine attempts to produce a short output string; however it is not
+// guaranteed to be as short as possible.
+ABSL_DEPRECATE_AND_INLINE()
+inline std::string RoundTripDtoa(double value) {
+  return absl::StrCat(absl::HighPrecision(value));
+}
+ABSL_DEPRECATE_AND_INLINE()
+inline std::string RoundTripFtoa(float value) {
+  return absl::StrCat(absl::HighPrecision(value));
+}
+ABSL_DEPRECATE_AND_INLINE()
+inline std::string RoundTripFtoa(double value) {
+  // Cast to float so we get single-precision output.
+  return absl::StrCat(absl::HighPrecision(static_cast<float>(value)));
+}
+
+// Overloads of RoundTrip*toa() to prevent accidentally passing integers to the
+// RoundTrip formatters. It is expensive to use these functions to convert
+// integers to strings. Instead, please use the implicit formatting provided by
+// `StrCat()` and `StrAppend()`.
+std::string RoundTripDtoa(int value) = delete;
+std::string RoundTripFtoa(int value) = delete;
+
+ABSL_DEPRECATE_AND_INLINE()
+[[nodiscard]] inline std::string SimpleFtoa(float f) {
+  return absl::StrCat(absl::HighPrecision(f));
+}
+ABSL_DEPRECATE_AND_INLINE()
+[[nodiscard]] inline std::string SimpleDtoa(double d) {
+  return absl::StrCat(absl::HighPrecision(d));
+}
+
 // Converts a boolean into a string, which if passed to `safe_strtob()` will
 // produce the exact same original boolean, returning `true` if the value ==
 // true, and `false` otherwise.
 std::string SimpleBtoa(bool value);
+
+ABSL_DEPRECATED("Use absl::StrCat to convert numbers to strings")
+char* DoubleToBuffer(double i, char* buffer);
+ABSL_DEPRECATED("Use absl::StrCat to convert numbers to strings")
+char* FloatToBuffer(float i, char* buffer);
 
 using absl::numbers_internal::  // NOLINT(readability/namespace)
     safe_strto32_base;
