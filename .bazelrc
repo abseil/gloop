@@ -49,14 +49,14 @@ build:san-common --config=dbg --strip=never --copt=-Og
 
 build:asan --config=san-common
 build:asan --//gloop:sanitizer=asan
-build:asan --copt=-fsanitize=address --linkopt=-fsanitize=address
+build:asan --features=asan
 build:asan --copt=-O2 # TODO Workaround cord/status false positive
 test:asan --test_tag_filters=-nosan,-noasan
 test:asan --build_tag_filters=-nosan,-noasan
 
 build:ubsan --config=san-common
 build:ubsan --//gloop:sanitizer=ubsan
-build:ubsan --copt=-fsanitize=undefined --linkopt=-fsanitize=undefined
+build:ubsan --features=ubsan
 build:ubsan --copt=-fno-sanitize=function --copt=-fno-sanitize=vptr --copt=-fno-sanitize=nonnull-attribute
 build:ubsan --copt=-D__SANITIZE_UNDEFINED__=1
 build:ubsan --copt=-O2
@@ -66,7 +66,7 @@ test:ubsan --build_tag_filters=-nosan,-noubsan
 
 build:msan --config=san-common
 build:msan --//gloop:sanitizer=msan
-build:msan --copt=-fsanitize=memory --linkopt=-fsanitize=memory
+build:msan --features=msan
 build:msan --copt=-fno-sanitize-memory-use-after-dtor --copt=-fsanitize-memory-track-origins=0
 build:msan --copt=-O2 # Avoids false positives from -Og
 build:msan --copt=-DLINUX_SYSCALL_ENABLE_HOOKS
@@ -76,7 +76,7 @@ test:msan --build_tag_filters=-nosan,-nomsan
 
 build:tsan --config=san-common
 build:tsan --//gloop:sanitizer=tsan
-build:tsan --copt=-fsanitize=thread --linkopt=-fsanitize=thread
+build:tsan --features=thread
 build:tsan --copt=-DLINUX_SYSCALL_ENABLE_HOOKS
 test:tsan --test_tag_filters=-nosan,-notsan
 test:tsan --build_tag_filters=-nosan,-notsan
@@ -97,6 +97,7 @@ build:remote-base --remote_download_minimal
 
 build:remote --config=remote-base
 build:remote --extra_execution_platforms=//gloop:rbe
+build:remote --extra_toolchains=//gloop/rbe_toolchain:cc-toolchain-rbe
 build:remote --host_platform=//gloop:rbe
 build:remote --platforms=//gloop:rbe
 

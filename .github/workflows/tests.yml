@@ -31,13 +31,6 @@ jobs:
   linux:
     runs-on: ubuntu-24.04${{ matrix.config.arch-suffix }}
     name: Linux (${{ matrix.config.name || format('{0}{1}', matrix.config.value, matrix.config.arch-suffix) }})
-    container:
-      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:575f02ebeb59cfd6b5e1db6ff44cf87807329ae5f0c44f87a59a479074ee901f
-      # Our images happen to be public today, but use our service account's credentials anyway in
-      # case we decide to lock down access.
-      credentials:
-        username: _json_key
-        password: ${{ secrets.GAR_SERVICE_ACCOUNT }}
     strategy:
       fail-fast: false   # Don't cancel all jobs if one fails.
       matrix:
@@ -65,6 +58,25 @@ jobs:
         run: |
           echo "${{ matrix.config.env }}" >> $GITHUB_ENV
 
+      - name: Cache RBE Sysroot
+        id: cache-sysroot
+        uses: actions/cache@v4
+        with:
+          path: gloop/rbe_toolchain/sysroot
+          key: sysroot-linux-9777b042be47a4cbd07e9422d8d142793d0d258fcafbd83a62ec3b12cbfbbfcd
+
+      - name: Extract Docker RBE Sysroot on Cache Miss
+        if: steps.cache-sysroot.outputs.cache-hit != 'true'
+        run: |
+          docker create --name sysroot_source gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:9777b042be47a4cbd07e9422d8d142793d0d258fcafbd83a62ec3b12cbfbbfcd
+          mkdir -p gloop/rbe_toolchain/sysroot
+          docker cp sysroot_source:/usr/include gloop/rbe_toolchain/sysroot/include
+          mkdir -p gloop/rbe_toolchain/llvm
+          docker cp sysroot_source:/usr/local/include/llvm/ gloop/rbe_toolchain/llvm/include
+          mkdir -p gloop/rbe_toolchain/clang/21
+          docker cp sysroot_source:/opt/llvm/lib/clang/21/include gloop/rbe_toolchain/clang/21/include
+          docker rm sysroot_source
+
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
         with:
           bazelisk-cache: true
@@ -85,7 +97,7 @@ jobs:
     name: Check Non-compilation for ${{ matrix.config }}
     runs-on: ubuntu-latest
     container:
-      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:575f02ebeb59cfd6b5e1db6ff44cf87807329ae5f0c44f87a59a479074ee901f
+      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:9777b042be47a4cbd07e9422d8d142793d0d258fcafbd83a62ec3b12cbfbbfcd
       # Our images happen to be public today, but use our service account's credentials anyway in
       # case we decide to lock down access.
       credentials:
