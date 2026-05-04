@@ -20,6 +20,7 @@
 
 #include "gloop/thread/fiber/sleep.h"
 
+#include "absl/log/log.h"
 #include "absl/time/clock.h"
 #include "absl/time/clock_interface.h"
 #include "absl/time/time.h"
@@ -38,11 +39,32 @@ bool CancellableSleepUntil(absl::Time t) {
 
 bool CancellableSleepFor(absl::Clock* clock, absl::Duration d) {
   absl::Time timeout = (clock ? clock->TimeNow() : absl::Now()) + d;
+  LOG(INFO) << "CancellableSleepFor: " << d << " (Sleep start)"
+            << " timeout: " << timeout;
   return CancellableSleepUntil(clock, timeout);
 }
 
 bool CancellableSleepUntil(absl::Clock* clock, absl::Time t) {
+  if (clock) {
+    if (clock == &absl::Clock::GetRealClock()) {
+      LOG(INFO) << "[Real Clock] CancellableSleepUntil: " << t
+                << " (Sleep start), current time: " << clock->TimeNow();
+    } else {
+      LOG(INFO) << "[Simulated Clock] CancellableSleepUntil: " << t
+                << " (Sleep start), current time: " << clock->TimeNow();
+    }
+  } else {
+    LOG(INFO) << "[Default Clock] CancellableSleepUntil: " << t
+              << " (Sleep start), current time: " << absl::Now();
+  }
   int i = thread::SelectUntil(clock, t, {thread::OnCancel()});
+  if (clock) {
+    LOG(INFO) << "CancellableSleepUntil: " << t
+              << " (Sleep done), current time: " << clock->TimeNow();
+  } else {
+    LOG(INFO) << "CancellableSleepUntil: " << t
+              << " (Sleep done), current time: " << absl::Now();
+  }
   return i == -1;
 }
 
