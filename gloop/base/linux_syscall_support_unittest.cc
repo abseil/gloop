@@ -51,11 +51,11 @@
 
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
-#include "absl/log/flags.h"  // IWYU pragma: keep
 #include "absl/log/log.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "gloop/base/linux_syscall_support_unittest_helper.h"
+#include "gloop/base/log_file_flags.h"
 #include "gloop/thread/thread_control.h"
 #include "gtest/gtest.h"
 
@@ -1291,6 +1291,7 @@ int main(int argc, char* argv[]) {
   // <link>.
   ::thread::DeprecatedThreadControl::AvoidBackgroundThreads();
 
+  absl::SetFlag(&FLAGS_logtostderr, true);
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

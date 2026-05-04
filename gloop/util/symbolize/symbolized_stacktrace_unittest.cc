@@ -36,7 +36,6 @@
 #include "absl/debugging/stacktrace.h"
 #include "absl/flags/flag.h"
 #include "absl/functional/function_ref.h"
-#include "absl/log/flags.h"
 #include "absl/log/log.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_join.h"
@@ -45,6 +44,7 @@
 #include "benchmark/benchmark.h"
 #include "gloop/base/examine_stack.h"
 #include "gloop/base/init_google.h"
+#include "gloop/base/log_file_flags.h"
 #include "gloop/util/symbolize/symbolize.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -309,6 +309,7 @@ BENCHMARK(BM_UtilCurrentStackTrace);
 }  // namespace
 
 ABSL_ATTRIBUTE_NO_TAIL_CALL int main(int argc, char** argv) {
+  absl::SetFlag(&FLAGS_logtostderr, true);
   InitGoogle(argv[0], &argc, &argv, true);
 
   if (util::SymbolMap::GetCached().binary_is_stripped()) {

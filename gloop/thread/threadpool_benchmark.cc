@@ -29,12 +29,12 @@
 #include "absl/flags/flag.h"
 #include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
-#include "absl/log/flags.h"
 #include "absl/log/initialize.h"
 #include "absl/synchronization/barrier.h"
 #include "absl/synchronization/blocking_counter.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/callback.h"
+#include "gloop/base/log_file_flags.h"
 #include "gloop/thread/executor.h"
 #include "gloop/thread/threadpool.h"
 #include "gloop/util/functional/from_callback.h"
@@ -367,6 +367,7 @@ void BM_ThreadPoolDuration(benchmark::State& state) {
 BENCHMARK(BM_ThreadPoolDuration);
 
 int main(int argc, char* argv[]) {
+  absl::SetFlag(&FLAGS_logtostderr, true);
   absl::InitializeLog();
   benchmark::RunSpecifiedBenchmarks();
   return 0;

@@ -32,13 +32,13 @@
 #include "absl/flags/declare.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
-#include "absl/log/flags.h"
 #include "absl/log/log.h"
 #include "absl/random/random.h"
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/arena.h"
 #include "gloop/base/init_google.h"
+#include "gloop/base/log_file_flags.h"
 #include "gloop/util/random/distributions.h"
 #include "gloop/util/random/mt_random.h"
 #include "gloop/util/random/random_base.h"
@@ -391,6 +391,7 @@ BENCHMARK(BM_arenastring_data)->Range(0, 1 << 16);
 }  // namespace strings
 
 int main(int argc, char** argv) {
+  absl::SetFlag(&FLAGS_logtostderr, true);
   InitGoogle(argv[0], &argc, &argv, true);
   if (!benchmark::GetBenchmarkFilter().empty()) {
     benchmark::RunSpecifiedBenchmarks();

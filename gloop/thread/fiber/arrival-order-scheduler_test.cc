@@ -26,12 +26,12 @@
 #include <vector>
 
 #include "absl/flags/flag.h"
-#include "absl/log/flags.h"
 #include "absl/random/distributions.h"
 #include "absl/random/random.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "gloop/base/init_google.h"
+#include "gloop/base/log_file_flags.h"
 #include "gloop/base/scheduling/domain.h"
 #include "gloop/base/scheduling/downcalls.h"
 #include "gloop/base/scheduling/scheduler.h"
@@ -198,6 +198,7 @@ TEST(ArrivalOrderSchedulerTest, GroupAdmissionLimitWorks) {
 }  // namespace thread
 
 int main(int argc, char** argv) {
+  absl::SetFlag(&FLAGS_logtostderr, true);
   InitGoogle(argv[0], &argc, &argv, true);
 
   return RUN_ALL_TESTS();

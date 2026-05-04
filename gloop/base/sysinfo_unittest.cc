@@ -1023,6 +1023,8 @@ int main(int argc, char** argv) {
     return 0;
   }
 
+  absl::SetFlag(&FLAGS_logtostderr, true);
+
   SaveCommandLine(argc, argv);
   // Some of the tests above fork() so we don't want to launch threads in
   // InitGoogle.

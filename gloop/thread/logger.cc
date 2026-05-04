@@ -36,7 +36,6 @@
 #include "absl/base/log_severity.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
-#include "absl/log/flags.h"
 #include "absl/log/log.h"
 #include "absl/log/log_sink_registry.h"
 #include "absl/synchronization/mutex.h"
@@ -304,7 +303,7 @@ void EnableThreadedLogging(base_logging::LogSeverity max_severity) {
   // Record that user wants threaded logging
   absl::SetFlag(&FLAGS_threaded_logging, true);
   // Safe way of determining max severity level
-  const int kMinSeverity = static_cast<int>(absl::LogSeverityAtLeast::kInfo);
+  const int kMinSeverity = absl::GetFlag(FLAGS_logbuflevel);
   int max_severity_int = std::clamp(kMinSeverity, max_severity,
                                     static_cast<int>(base_logging::FATAL));
   max_severity = max_severity_int;

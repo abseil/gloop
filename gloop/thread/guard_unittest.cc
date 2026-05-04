@@ -34,10 +34,10 @@
 #include "absl/base/macros.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
-#include "absl/log/flags.h"
 #include "absl/log/log.h"
 #include "gloop/base/address_is_readable.h"
 #include "gloop/base/init_google.h"
+#include "gloop/base/log_file_flags.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
 
@@ -120,6 +120,8 @@ bool TestOneSize(int stack_size, int guard_size) {
 }
 
 int main(int argc, char** argv) {
+  absl::SetFlag(&FLAGS_logtostderr, true);
+  absl::SetFlag(&FLAGS_logbuflevel, -1);
   InitGoogle(argv[0], &argc, &argv, true);
 
   int pagesize = getpagesize();

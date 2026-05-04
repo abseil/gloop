@@ -34,13 +34,13 @@
 
 #include "absl/base/log_severity.h"
 #include "absl/flags/flag.h"
-#include "absl/log/flags.h"
 #include "absl/log/internal/test_actions.h"
 #include "absl/log/internal/test_helpers.h"
 #include "absl/log/log.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "gloop/base/log_file.h"
+#include "gloop/base/log_file_flags.h"
 #include "gloop/base/logging_extensions.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -96,6 +96,8 @@ class LoggerTest : public Test {
         original_warning_logger_(base::GetLogger(absl::LogSeverity::kWarning)),
         original_error_logger_(base::GetLogger(absl::LogSeverity::kError)),
         original_fatal_logger_(base::GetLogger(absl::LogSeverity::kFatal)) {
+    absl::SetFlag(&FLAGS_logtostderr, false);
+
     info_logger_ = new StrictMock<MockInfoLogger>;
     warning_logger_ = new StrictMock<MockWarningLogger>;
     error_logger_ = new StrictMock<MockErrorLogger>;

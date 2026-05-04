@@ -43,7 +43,6 @@
 #include "absl/flags/declare.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
-#include "absl/log/flags.h"
 #include "absl/log/log.h"
 #include "absl/log/scoped_mock_log.h"
 #include "absl/status/status.h"
@@ -53,6 +52,7 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "gloop/base/init_google.h"
+#include "gloop/base/log_file_flags.h"
 #include "gloop/base/proc_maps.h"
 #include "gloop/base/strerror.h"
 #include "gloop/util/symbolize/symbolize-inl.h"
@@ -166,6 +166,7 @@ TEST(ElfReader, IgnoreVsyscall) {
 }  // namespace
 
 int main(int argc, char** argv) {
+  absl::SetFlag(&FLAGS_logtostderr, true);
   InitGoogle(argv[0], &argc, &argv, true);
 
   // Dumps symbols and exits if FLAGS_input is not empty.

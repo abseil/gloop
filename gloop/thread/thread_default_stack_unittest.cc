@@ -22,8 +22,8 @@
 
 #include "absl/flags/declare.h"
 #include "absl/flags/flag.h"
-#include "absl/log/flags.h"
 #include "absl/log/initialize.h"
+#include "gloop/base/log_file_flags.h"
 #include "gloop/thread/thread.h"
 #include "gtest/gtest.h"
 
@@ -112,6 +112,7 @@ TEST(DefaultStackSizeTest, EnoughStackManual) {
 }
 
 int main(int argc, char** argv) {
+  absl::SetFlag(&FLAGS_logtostderr, true);
   absl::InitializeLog();
 
   return RUN_ALL_TESTS();

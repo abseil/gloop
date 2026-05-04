@@ -58,6 +58,7 @@
 #include "gloop/base/callback.h"
 #include "gloop/base/futex.h"
 #include "gloop/base/init_google.h"
+#include "gloop/base/log_file_flags.h"
 #include "gloop/base/percpu_types.h"
 #include "gloop/base/proc_maps.h"
 #include "gloop/base/scheduling/domain.h"
@@ -1405,6 +1406,7 @@ TEST(RestartableSequences, CriticalSectionMetadata) {
 int main(int argc, char* argv[]) {
   const bool fast_desired =
       !base::subtle::percpu::percpu_internal::disable_rseq();
+  absl::SetFlag(&FLAGS_logtostderr, true);
   InitGoogle(argv[0], &argc, &argv, true);
 
   if (fast_desired) {

@@ -681,11 +681,11 @@ cc_test(
         ":thread",
         "//gloop/base:address_is_readable",
         "//gloop/base:init_google",
+        "//gloop/base:log_file_flags",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/log:flags",
         "@abseil-cpp//absl/log:initialize",
     ],
 )
@@ -744,8 +744,8 @@ cc_test(
     copts = ["$(STACK_FRAME_UNLIMITED)"],  # thread_default_stack_unittest.cc
     deps = [
         ":thread",
+        "//gloop/base:log_file_flags",
         "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/log:flags",
         "@abseil-cpp//absl/log:initialize",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

@@ -31,9 +31,9 @@
 #include "absl/flags/flag.h"
 #include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
-#include "absl/log/flags.h"
 #include "absl/strings/str_format.h"
 #include "gloop/base/init_google.h"
+#include "gloop/base/log_file_flags.h"
 
 // ========================================================================= //
 
@@ -234,6 +234,8 @@ void RunThreadTest() {
 // ========================================================================= //
 
 int main(int argc, char** argv) {
+  absl::SetFlag(&FLAGS_logtostderr, true);
+
   std::vector<char*> my_argv(argv, argv + argc);
   char arg[] = "--g_init_check_2=2";
   my_argv.push_back(arg);

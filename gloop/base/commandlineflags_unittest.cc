@@ -44,7 +44,6 @@
 #include "absl/flags/reflection.h"
 #include "absl/log/check.h"
 #include "absl/log/die_if_null.h"
-#include "absl/log/flags.h"
 #include "absl/log/log.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
@@ -55,6 +54,7 @@
 #include "benchmark/benchmark.h"
 #include "gloop/base/config.h"
 #include "gloop/base/init_google.h"
+#include "gloop/base/log_file_flags.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -1694,6 +1694,8 @@ int main(int argc, char** argv) {
   setenv("FLAGS_test_tryfromenv", "pre-set", 1);
 #endif
 #endif  // GOOGLE_COMMANDLINEFLAGS_FULL_API
+
+  absl::SetFlag(&FLAGS_logtostderr, true);
 
 #ifndef GTEST_GOOGLE3_MODE_
   // Make sure googletest args are taken out of argc/argv
