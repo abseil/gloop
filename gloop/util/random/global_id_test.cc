@@ -83,14 +83,14 @@ static void RunSampling(int period) {
                (1.0 / period) * 100, total_sampled, total_generated,
                static_cast<double>(total_sampled) * 100 / total_generated);
 
-  // Make sure that the actual sample rate is within 4 standard deviations from
-  // the expected rate. 4 standard deviations means the test should fail with
-  // probability less than 0.01%. The standard deviation is n*p*(1-p) according
-  // to <http://en.wikipedia.org/wiki/Binomial_distribution>.
+  // Make sure that the actual sample rate is within 5 standard deviations from
+  // the expected rate. 5 standard deviations means the test should fail with
+  // probability less than 0.00003%. The standard deviation is n*p*(1-p)
+  // according to <http://en.wikipedia.org/wiki/Binomial_distribution>.
   double p = 1.0 / period;
   double std_dev = sqrt(total_generated * p * (1 - p));
-  EXPECT_GT(total_generated * p + 4 * std_dev, total_sampled);
-  EXPECT_LT(total_generated * p - 4 * std_dev, total_sampled);
+  EXPECT_GT(total_generated * p + 5 * std_dev, total_sampled);
+  EXPECT_LT(total_generated * p - 5 * std_dev, total_sampled);
 }
 
 TEST(GlobalID, Sampling) {

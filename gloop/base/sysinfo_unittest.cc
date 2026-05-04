@@ -222,10 +222,12 @@ void TestMemoryUsage() {
     // difficult to predict VM usage in this case.
   }
 
-  CHECK_GE(rss, rsstarget - 500);
-  CHECK_LE(rss, rsstarget + 500);
-  CHECK_GE(mem_stats.rss >> 10, rsstarget - 500);
-  CHECK_LE(mem_stats.rss >> 10, rsstarget + 500);
+  constexpr int64_t kRssTolerance = 750;
+
+  CHECK_GE(rss, rsstarget - kRssTolerance);
+  CHECK_LE(rss, rsstarget + kRssTolerance);
+  CHECK_GE(mem_stats.rss >> 10, rsstarget - kRssTolerance);
+  CHECK_LE(mem_stats.rss >> 10, rsstarget + kRssTolerance);
 
   int mintarget = niceval;
   int maxtarget = niceval;

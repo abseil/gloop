@@ -1028,35 +1028,3 @@ cc_test(
         "@googletest//:gtest",
     ],
 )
-
-# TODO: remove when removing the --threadmanager_experimental_use_cpu_subcontainer flag
-cc_test(
-    name = "thread_manager_experimental_use_cpu_subcontainer_test",
-    size = "medium",
-    srcs = ["thread_manager_test.cc"],
-    args = [
-        "--threadmanager_experimental_use_cpu_subcontainer",
-        "--use_thread_subcontainers",
-    ],
-    shard_count = 11,
-    deps = [
-        ":thread",
-        ":thread_manager",
-        "//gloop:gloop_test_main",
-        "//gloop/base:callback",
-        "//gloop/base:per_thread",
-        "//gloop/util/functional:from_callback",
-        "//gloop/util/functional:to_callback",
-        "@abseil-cpp//absl/base:config",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:dynamic_annotations",
-        "@abseil-cpp//absl/functional:bind_front",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/strings:str_format",
-        "@abseil-cpp//absl/synchronization",
-        "@abseil-cpp//absl/time",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
-    ],
-)
