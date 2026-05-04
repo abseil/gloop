@@ -79,6 +79,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
+#include "gloop/base/commandlineflags.h"
 #include "gloop/base/port.h"
 #include "gloop/util/symbolize/symbol_map_sink.h"
 #include "zlib.h"
@@ -1673,6 +1674,12 @@ ElfReader::ElfReader(const absl::string_view path, size_t off,
 
   fd_ = TEMP_FAILURE_RETRY(open(path_.c_str(), O_RDONLY));
   if (fd_ == -1 && path == "/proc/self/exe") {
+    // /proc/self/exe may be inaccessible (due to setuid, etc.), so try
+    // accessing the binary via argv0.
+    const char* argv0 = base::GetArgv0();
+    if (argv0 != nullptr) {
+      fd_ = TEMP_FAILURE_RETRY(open(argv0, O_RDONLY));
+    }
   }
   if (fd_ == -1) {
     // Not ERROR, since this gets called with things like "[heap]".

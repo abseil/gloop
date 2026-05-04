@@ -25,6 +25,7 @@
 
 #include "absl/flags/flag.h"
 #include "absl/strings/numbers.h"
+#include "gloop/base/commandlineflags.h"
 
 namespace {
 // Compute a default timeout to use after `exit()` before `SIGTRAP` is sent.
@@ -44,14 +45,7 @@ int32_t GetDefaultExitTimeoutSeconds() {
   int32_t default_timeout_seconds = 30;
 
   // Allow users to override the default with an environment variable.
-  const char* env_val = getenv("GOOGLE_EXIT_TIMEOUT_SECONDS");
-  if (env_val != nullptr) {
-    int32_t val;
-    if (absl::SimpleAtoi(env_val, &val)) {
-      return val;
-    }
-  }
-  return default_timeout_seconds;
+  return Int32FromEnv("GOOGLE_EXIT_TIMEOUT_SECONDS", default_timeout_seconds);
 }
 
 }  // namespace

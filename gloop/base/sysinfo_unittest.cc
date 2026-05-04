@@ -49,6 +49,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/strings/strip.h"
 #include "gloop/base/auxiliary/parsed_process_stat.h"
+#include "gloop/base/commandlineflags.h"
 #include "gloop/base/log_file_flags.h"
 
 // getpid() is deprecated on MSVC, use _getpid() instead.
@@ -970,6 +971,33 @@ TEST(ProcessState, GetUptimeInMs) {
 TEST(ProcessState, GetInitGoogleTime) {
   EXPECT_GT(GetInitGoogleTime(), absl::Now() - absl::Hours(1));
   EXPECT_LE(GetInitGoogleTime(), absl::Now());
+}
+
+TEST(AvailableCPUs, IsSensible) {
+  EXPECT_GE(base::AvailableCPUs(), 1);
+  EXPECT_LE(base::AvailableCPUs(), NumCPUs());
+  // base::AvailableCPUs() is computed once per process, so we spawn ourself as
+  // a subprocess to observe changes.
+  std::string self = ProgramInvocationName();
+  int n;
+  // Should fall back to NumCPUs() if $NPROC is unset.
+  ReadPipe(absl::StrCat("env -i ", self, " --show_available_cpus"), "%d", &n);
+  EXPECT_EQ(n, NumCPUs());
+  // Should return $NPROC when it's a positive integer.
+  ReadPipe(absl::StrCat("NPROC=7 ", self, " --show_available_cpus"), "%d", &n);
+  EXPECT_EQ(n, 7);
+  // Trailing garbage is permitted.
+  ReadPipe(absl::StrCat("NPROC=4x ", self, " --show_available_cpus"), "%d", &n);
+  EXPECT_EQ(n, 4);
+  // Should otherwise ignore garbage in $NPROC.
+  ReadPipe(absl::StrCat("NPROC= ", self, " --show_available_cpus"), "%d", &n);
+  EXPECT_EQ(n, NumCPUs());
+  ReadPipe(absl::StrCat("NPROC=0 ", self, " --show_available_cpus"), "%d", &n);
+  EXPECT_EQ(n, NumCPUs());
+  ReadPipe(absl::StrCat("NPROC=-1 ", self, " --show_available_cpus"), "%d", &n);
+  EXPECT_EQ(n, NumCPUs());
+  ReadPipe(absl::StrCat("NPROC=x4 ", self, " --show_available_cpus"), "%d", &n);
+  EXPECT_EQ(n, NumCPUs());
 }
 
 TEST(ParseProcessStatTest, StatPid) {

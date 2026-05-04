@@ -198,6 +198,7 @@ cc_library(
     hdrs = ["exit_timeout_seconds.h"],
     deps = [
         "//gloop:enforce_gloop_support",
+        "//gloop/base:commandlineflags",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/strings",
     ],
@@ -264,6 +265,7 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "//gloop/base:atomic_sequence_num",
         "//gloop/base:callback",
+        "//gloop/base:commandlineflags",
         "//gloop/base:config",
         "//gloop/base:context",
         "//gloop/base:examine_stack",
