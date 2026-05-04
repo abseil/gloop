@@ -81,7 +81,7 @@ TEST(ValueOrDieTest, SmartPointer) {
   EXPECT_EQ(ValueOrDie(int_value), 1);
   auto immovable_value = std::make_unique<Immovable>();
   EXPECT_EQ(&ValueOrDie(immovable_value), immovable_value.get());
-  EXPECT_DEATH(ValueOrDie(std::unique_ptr<nullptr_t>()), "ValueOrDie");
+  EXPECT_DEATH(ValueOrDie(std::unique_ptr<std::nullptr_t>()), "ValueOrDie");
 }
 
 TEST(ValueOrDieTest, Nested) {

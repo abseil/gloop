@@ -48,6 +48,8 @@ jobs:
           - value: ubsan
           - value: msan
           - value: tsan
+          - name: Unsupported libstdc++
+            value: libstdc++
           - name: Bazel 8
             value: asan
             env: USE_BAZEL_VERSION=8.x

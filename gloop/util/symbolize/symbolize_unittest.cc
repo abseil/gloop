@@ -140,6 +140,7 @@ TEST_P(SymbolMapTest, GetSymbolAtPosition) {
   EXPECT_EQ(symbol_map->num_symbols(), 6);
 }
 
+#ifndef GLOOP_UNSUPPORTED_LIBSTDCXX  // Extra characters inserted in libstdc++
 TEST_P(SymbolMapTest, GetDemangledSymbolAtPosition) {
   std::unique_ptr<SymbolMap> symbol_map(
       SymbolMap::GetEmpty(/*compression_level=*/GetParam()));
@@ -161,6 +162,7 @@ TEST_P(SymbolMapTest, GetDemangledSymbolAtPosition) {
 
   EXPECT_EQ(symbol_map->num_symbols(), 3);
 }
+#endif  // GLOOP_UNSUPPORTED_LIBSTDCXX
 
 TEST_P(SymbolMapTest, GetDemangledRustSymbolAtPosition) {
   std::unique_ptr<SymbolMap> symbol_map(

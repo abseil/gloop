@@ -30,7 +30,6 @@
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-W#warnings"
-#include <ext/__hash>
 #include <ext/hash_map>
 #pragma clang diagnostic pop
 

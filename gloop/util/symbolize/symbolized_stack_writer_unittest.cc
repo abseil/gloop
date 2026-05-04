@@ -123,6 +123,7 @@ TEST(SymbolizedStackWriterTest, WriteDuplicated) {
 }
 
 // Test with demangling.
+#ifndef GLOOP_UNSUPPORTED_LIBSTDCXX  // Extra characters inserted in libstdc++
 TEST_P(SymbolizedStackWriterTest, Write2) {
   if (!util::DemanglingIsSupported()) {
     LOG(INFO) << "demangling isn't supported on this platform";
@@ -156,6 +157,7 @@ TEST_P(SymbolizedStackWriterTest, Write2) {
     ASSERT_EQ(output, test_cases[i].output);
   }
 }
+#endif  // GLOOP_UNSUPPORTED_LIBSTDCXX
 
 TEST_P(SymbolizedStackWriterTest, SymbolizeCreatorThread) {
   std::unique_ptr<SymbolMap> symbol_map(

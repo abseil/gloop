@@ -606,6 +606,7 @@ TEST(OrderByPointeeTest, OrderByPointee) {
                           Pointee(std::string("a"))));
 }
 
+#ifndef GLOOP_UNSUPPORTED_LIBSTDCXX  // std::sort tries copies comparator
 TEST(OrderByPointeeTest, OrderByPointeeSupportsMoveOnlyComparator) {
   std::vector<std::string> a{"b", "a", "c"};
   std::vector<const std::string*> pv{&a[0], &a[1], &a[2]};
@@ -618,6 +619,7 @@ TEST(OrderByPointeeTest, OrderByPointeeSupportsMoveOnlyComparator) {
               ElementsAre(Pointee(std::string("a")), Pointee(std::string("b")),
                           Pointee(std::string("c"))));
 }
+#endif  // GLOOP_UNSUPPORTED_LIBSTDCXX
 
 TEST(ChainComparatorsTest, NoComparators) {
   std::vector<int> v = {2, 1, 3};

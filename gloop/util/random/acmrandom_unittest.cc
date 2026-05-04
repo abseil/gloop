@@ -211,8 +211,10 @@ TEST(ACMRandomTest, TestRndFloatRange) {
   CHECK_LT(0.0, low_value);
   CHECK_GT(1.0, high_value);
 
+#ifndef GLOOP_UNSUPPORTED_LIBSTDCXX  // Missing std::make_unsigned<double>
   CHECK_LE(MathUtil::AbsDiff<double>(1.0, high_value - low_value),
            1e-7L);  // Within float precision.
+#endif              // GLOOP_UNSUPPORTED_LIBSTDCXX
 }
 
 TEST(ACMRandomTest, TestExpectedValues) {

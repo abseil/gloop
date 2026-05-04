@@ -329,7 +329,7 @@ std::ostream& operator<<(std::ostream& out, Float128 x) {
 
   char fmt;
   int precision = out.precision();
-  switch (out.flags() & std::ostream::floatfield) {
+  switch (static_cast<int>(out.flags() & std::ostream::floatfield)) {
     case 0:
       fmt = 'g';
       break;

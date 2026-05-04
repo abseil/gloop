@@ -18,6 +18,8 @@
 #ifndef THIRD_PARTY_GLOOP_ENFORCE_GLOOP_SUPPORT_H_
 #define THIRD_PARTY_GLOOP_ENFORCE_GLOOP_SUPPORT_H_
 
+#include <cstddef>
+
 #if !defined(__clang__)
 #error "Gloop requires Clang."
 #endif  // !defined(__clang__)
@@ -51,5 +53,10 @@ static_assert(sizeof(void*) == 8);
 #if !defined(__x86_64__) && !defined(__aarch64__)
 #error "Gloop only supports x86-64 and AArch64."
 #endif  // !defined(__x86_64__) && !defined(__aarch64__)
+
+// TODO Remove this once we decide on whether to support libstdc++.
+#ifdef __GLIBCXX__
+#define GLOOP_UNSUPPORTED_LIBSTDCXX 1
+#endif
 
 #endif  // THIRD_PARTY_GLOOP_ENFORCE_GLOOP_SUPPORT_H_
