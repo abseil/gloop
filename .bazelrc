@@ -85,12 +85,14 @@ test:tsan --test_tag_filters=-nosan,-notsan
 test:tsan --build_tag_filters=-nosan,-notsan
 
 # Remote build configuration for Gloop CI.
+build:remote --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
 build:remote --define=EXECUTOR=remote
 build:remote --remote_cache=grpcs://us-west1-remotebuildexecution.googleapis.com
 build:remote --remote_executor=grpcs://us-west1-remotebuildexecution.googleapis.com
 build:remote --remote_instance_name=projects/google.com:absl-177019/instances/gloop-ci
 build:remote --remote_timeout=3600 --bes_timeout=600s
 build:remote --extra_execution_platforms=//gloop:rbe
+build:remote --extra_toolchains=@llvm_toolchain//:all
 build:remote --host_platform=//gloop:rbe
 build:remote --platforms=//gloop:rbe
 build:remote --jobs=800

@@ -31,13 +31,6 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     name: Linux (${{ matrix.config.name || matrix.config.value }})
-    container:
-      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:763336890942c7bcd17382945a8f9fa46d14a0509c9666566dae79edf4b7c2c5
-      # Our images happen to be public today, but use our service account's credentials anyway in
-      # case we decide to lock down access.
-      credentials:
-        username: _json_key
-        password: ${{ secrets.GAR_SERVICE_ACCOUNT }}
     strategy:
       fail-fast: false   # Don't cancel all jobs if one fails.
       matrix:
