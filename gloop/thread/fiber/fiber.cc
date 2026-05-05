@@ -28,6 +28,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/base/internal/thread_identity.h"
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
@@ -71,6 +72,13 @@ ABSL_FLAG(
     bool, fiber_cancel_dynamic_on_thread_exit, true,
     "If true, cancel the dynamic fiber if it exists on thread exit if it is "
     "not already joinable. This flag is intended for rollback only-");
+
+// TODO: Remove after soaking.
+ABSL_FLAG(
+    bool, fiber_inherit_scheduler_in_dfs, true,
+    "If true, inherit the current scheduler in a `DistinctFiberScope`. When "
+    "false, child fibers created in the `DistinctFiberScope` will run in a new "
+    "scheduler in the default domain. This is here for ease of rollback only.");
 
 // Implementation notes:
 //
@@ -670,9 +678,26 @@ void DynamicFiber::Finish() {
 
 }  // namespace internal
 
+static Scheduler* GetCurrentScheduler() {
+  const auto* const identity =
+      absl::base_internal::CurrentThreadIdentityIfPresent();
+  if (!identity) {
+    return nullptr;
+  }
+  const auto* const schedulable =
+      base::scheduling::Schedulable::GetBoundSchedulable(identity);
+  if (!schedulable) {
+    return nullptr;
+  }
+  return schedulable->manager;
+}
+
 DistinctFiberScope::DistinctFiberScope(const FiberOptions& options)
     : outer_(*GetPerThreadFiberPtr()),
-      inner_(TreeOptions{}.set_fiber_options(options)) {
+      inner_(TreeOptions{}.set_fiber_options(options).set_scheduler(
+          absl::GetFlag(FLAGS_fiber_inherit_scheduler_in_dfs)
+              ? GetCurrentScheduler()
+              : nullptr)) {
   *GetPerThreadFiberPtr() = &inner_.GetFiber();
 }
 
