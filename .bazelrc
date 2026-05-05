@@ -6,10 +6,10 @@ build --copt=-DGTEST_DEFAULT_DEATH_TEST_STYLE='"threadsafe"' --host_copt=-DGTEST
 build --define=absl=1
 
 # Gloop does not support exceptions.
-build --copt=-fno-exceptions
+build --copt=-fno-exceptions --host_copt=-fno-exceptions
 
 # Gloop only supports building with unsigned chars.
-build --copt=-funsigned-char
+build --copt=-funsigned-char --host_copt=-funsigned-char
 
 # Enable hardware-specific optimizations.
 build --copt=-march=x86-64-v2
@@ -84,10 +84,10 @@ build:tsan --copt=-DLINUX_SYSCALL_ENABLE_HOOKS
 test:tsan --test_tag_filters=-nosan,-notsan
 test:tsan --build_tag_filters=-nosan,-notsan
 
-build:libstdc++ --config=asan
-build:libstdc++ --repo_env=BAZEL_CXXOPTS= --repo_env=BAZEL_LINKOPTS= --repo_env=CPLUS_INCLUDE_PATH=
-build:libstdc++ --action_env=BAZEL_CXXOPTS= --action_env=BAZEL_LINKOPTS= --action_env=CPLUS_INCLUDE_PATH=
-build:libstdc++ --host_action_env=BAZEL_CXXOPTS= --host_action_env=BAZEL_LINKOPTS= --host_action_env=CPLUS_INCLUDE_PATH=
+build:libstdc++-base --repo_env=BAZEL_CXXOPTS= --repo_env=BAZEL_LINKOPTS= --repo_env=CPLUS_INCLUDE_PATH=
+build:libstdc++-base --action_env=BAZEL_CXXOPTS= --action_env=BAZEL_LINKOPTS= --action_env=CPLUS_INCLUDE_PATH=
+build:libstdc++-base --host_action_env=BAZEL_CXXOPTS= --host_action_env=BAZEL_LINKOPTS= --host_action_env=CPLUS_INCLUDE_PATH=
+build:libstdc++ --config=libstdc++-base --config=asan --copt=-DGLOOP_I_ACKNOWLEDGE_THAT_GLOOP_DOES_NOT_SUPPORT_LIBSTDCXX=1  --host_copt=-DGLOOP_I_ACKNOWLEDGE_THAT_GLOOP_DOES_NOT_SUPPORT_LIBSTDCXX=1
 
 # Remote build configuration for Gloop CI.
 build:remote --define=EXECUTOR=remote
