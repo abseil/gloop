@@ -93,6 +93,29 @@ class absl::status_internal::StatusPrivateAccessor {
   static absl::Status MakeNonOkStatusWithOkCode(absl::string_view message) {
     return absl::Status::MakeNonOkStatusWithOkCode(message);
   }
+
+  static absl::Status SetMessageWithoutPayloadsOrSourceLocations(
+      const absl::Status& status, absl::string_view message) {
+    if (status.ok()) {
+      return status;
+    }
+
+    if (message.empty()) {
+      return absl::Status(status.code(), message, absl::SourceLocation());
+    }
+
+    using StatusRep =
+        std::remove_cv_t<std::remove_pointer_t<decltype(Status::RepToPointer(
+            std::declval<uintptr_t>()))>>;
+    StatusRep* rep;
+    if (Status::IsInlined(status.rep_)) {
+      rep = new StatusRep(Status::InlinedRepToCode(status.rep_), message,
+                          nullptr);
+    } else {
+      rep = Status::RepToPointer(status.rep_)->Clone(message, false, false);
+    }
+    return absl::Status(Status::PointerToRep(rep));
+  }
 };
 
 namespace util {
@@ -135,7 +158,8 @@ inline absl::string_view CodeEnumToString(error::Code code) {
       return "UNAVAILABLE";
     case DATA_LOSS:
       return "DATA_LOSS";
-    case DO_NOT_USE_RESERVED_FOR_FUTURE_EXPANSION_USE_DEFAULT_IN_SWITCH_INSTEAD_:
+    case  //
+        DO_NOT_USE_RESERVED_FOR_FUTURE_EXPANSION_USE_DEFAULT_IN_SWITCH_INSTEAD_:
       // We are not adding a default clause here, to explicitly make clang
       // detect the missing codes. This conversion method must stay in sync
       // with codes.proto.

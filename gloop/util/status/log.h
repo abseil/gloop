@@ -27,9 +27,9 @@
 
 #include "absl/base/log_severity.h"  // IWYU pragma: export
 #include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/types/source_location.h"  // IWYU pragma: keep
 #include "gloop/util/status/status_builder.h"
-#include "gloop/util/status/status_macros.h"
 
 // The LOG_IF_ERROR macro logs but otherwise ignores the returned status.
 //
@@ -45,14 +45,14 @@
 // https://github.com/abseil/gloop/tree/main/gloop/util/status/status_builder.h;rcl=890490215;l=124
 // for documentation.
 
-#define LOG_IF_ERROR(level, expr)                                              \
-  STATUS_MACROS_IMPL_ELSE_BLOCKER_                                             \
-  if (::util::status_macro_internal::StatusAdaptorForMacros status_adaptor = { \
-          (expr)}) {                                                           \
-  } else /* NOLINT */                                                          \
-    ::util::status_macro_internal::StatusBuilderHolder{                        \
-        status_adaptor.Consume()}                                              \
-        .sb()                                                                  \
+#define LOG_IF_ERROR(level, expr)                                            \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_ELSE_BLOCKER_                             \
+  if (absl::status_macro_internal::StatusAdaptorForMacros status_adaptor = { \
+          (expr)}) {                                                         \
+  } else /* NOLINT */                                                        \
+    ::util::status_macro_internal::StatusBuilderHolder{                      \
+        status_adaptor.Consume()}                                            \
+        .sb()                                                                \
         .Log(::base_logging::level)
 
 namespace util {

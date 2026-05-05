@@ -29,23 +29,16 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
-#include "absl/base/log_severity.h"
-#include "absl/flags/flag.h"
-#include "absl/log/flags.h"
-#include "absl/log/globals.h"
 #include "absl/log/log.h"
 #include "absl/log/log_entry.h"
 #include "absl/log/log_sink.h"
-#include "absl/log/scoped_mock_log.h"
 #include "absl/status/status.h"
+#include "absl/status/status_builder.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/cord.h"
-#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/time/clock.h"
-#include "absl/time/time.h"
 #include "absl/types/source_location.h"
 #include "benchmark/benchmark.h"
 #include "gloop/util/status/codes.pb.h"
@@ -176,21 +169,18 @@ void CheckSourceLocation(
 class StatusBuilderTest : public ::testing::Test {
  protected:
   void TestRepCopyCtor() {
-    StatusBuilder::Rep r1(absl::OkStatus());
+    using Rep = std::decay_t<
+        // NOLINTNEXTLINE(abseil-no-internal-dependencies)
+        decltype(*absl::status_internal::StatusBuilderPrivateAccessor::GetRep(
+            std::declval<StatusBuilder>()))>;
+    Rep r1(absl::OkStatus());
     EXPECT_FALSE(r1.stream.has_value());
     r1.InitStream();
     EXPECT_TRUE(r1.stream.has_value());
-    StatusBuilder::Rep r2(r1);
+    Rep r2(r1);
     EXPECT_TRUE(r2.stream.has_value());
   }
 };
-
-TEST_F(StatusBuilderTest, Size) {
-  EXPECT_LE(sizeof(StatusBuilder), 40)
-      << "Relax this test with caution and thorough testing. If StatusBuilder "
-         "is too large it can potentially blow stacks, especially in debug "
-         "builds. See the comments for StatusBuilder::Rep.";
-}
 
 TEST_F(StatusBuilderTest, Ctors) {
   EXPECT_EQ(ToStatus(MakeStatusBuilder(kZomg) << "zomg"),
@@ -199,33 +189,6 @@ TEST_F(StatusBuilderTest, Ctors) {
             ::util::MakeStatus(TestSpace::Get(), kZomg, "zomg"));
   EXPECT_EQ(ToStatus(MakeStatusBuilder(PosixErrorSpace(), ENOSYS) << "nope"),
             PosixErrorToStatus(ENOSYS, "nope"));
-}
-
-TEST_F(StatusBuilderTest, RepCopyCtor) { TestRepCopyCtor(); }
-
-TEST_F(StatusBuilderTest, Identity) {
-  google::protobuf::bridge::MessageSet payload_message_set =
-      MakePayloadMessageSet("zomg");
-
-  const std::vector<absl::Status> statuses = {
-      absl::OkStatus(),
-      absl::CancelledError(),
-      absl::InvalidArgumentError("yup"),
-      ::util::MakeStatus(CanonicalErrorSpace(), error::UNKNOWN, "ow",
-                         &payload_message_set),
-      PosixErrorToStatus(ENOSYS, "enosys"),
-  };
-
-  for (const absl::Status& base : statuses) {
-    EXPECT_THAT(ToStatus(StatusBuilder(base, absl::SourceLocation())),
-                Eq(base));
-    EXPECT_EQ(StatusBuilder(base, absl::SourceLocation()).ok(), base.ok());
-    if (!base.ok()) {
-      EXPECT_THAT(
-          ToStatusOr<int>(StatusBuilder(base, absl::SourceLocation())).status(),
-          Eq(base));
-    }
-  }
 }
 
 TEST_F(StatusBuilderTest, IdentityWithStatusProto) {
@@ -261,26 +224,6 @@ TEST_F(StatusBuilderTest, IdentityWithStatusProto) {
   }
 }
 
-TEST_F(StatusBuilderTest, ExplicitSourceLocation) {
-  const absl::SourceLocation kLocation = absl::SourceLocation::current();
-
-  {
-    const StatusBuilder builder(absl::OkStatus(), kLocation);
-    EXPECT_THAT(builder.source_location().file_name(),
-                Eq(kLocation.file_name()));
-    EXPECT_THAT(builder.source_location().line(), Eq(kLocation.line()));
-  }
-}
-
-TEST_F(StatusBuilderTest, ImplicitSourceLocation) {
-  const StatusBuilder builder(absl::OkStatus());
-  auto loc = absl::SourceLocation::current();
-  EXPECT_THAT(builder.source_location().file_name(),
-              AnyOf(Eq(loc.file_name()), Eq("<source_location>")));
-  EXPECT_THAT(builder.source_location().line(),
-              AnyOf(Eq(1), Eq(loc.line() - 1)));
-}
-
 testing::Matcher<absl::SourceLocation> SourceLocationIs(
     absl::SourceLocation loc) {
   return AnyOf(
@@ -289,26 +232,6 @@ testing::Matcher<absl::SourceLocation> SourceLocationIs(
       // Fallback for platforms that don't support source locations.
       AllOf(Property(&absl::SourceLocation::file_name, Eq("<source_location>")),
             Property(&absl::SourceLocation::line, Eq(1))));
-}
-
-TEST_F(StatusBuilderTest, GetPreviousSourceLocations) {
-  const absl::SourceLocation loc0 = absl::SourceLocation::current();
-  absl::Status status = absl::InvalidArgumentError("hi", loc0);
-  const absl::SourceLocation loc1 = absl::SourceLocation::current();
-  status.AddSourceLocation(loc1);
-  const absl::SourceLocation loc2 = absl::SourceLocation::current();
-  status.AddSourceLocation(loc2);
-
-  // The builder's location is not included.
-  const StatusBuilder builder(status);
-  EXPECT_THAT(builder.GetPreviousSourceLocations(),
-              ElementsAre(SourceLocationIs(loc0), SourceLocationIs(loc1),
-                          SourceLocationIs(loc2)));
-}
-
-TEST_F(StatusBuilderTest, EmptyGetPreviousSourceLocationsForNewFromStatusCode) {
-  const StatusBuilder builder = InvalidArgumentErrorBuilder();
-  EXPECT_THAT(builder.GetPreviousSourceLocations(), IsEmpty());
 }
 
 TEST_F(StatusBuilderTest, ErrorCode) {
@@ -388,174 +311,6 @@ TEST_F(StatusBuilderTest, ErrorCode) {
     EXPECT_FALSE(util::HasErrorSpace(builder, CanonicalErrorSpace()));
     EXPECT_FALSE(util::HasErrorSpace(builder, TestSpace::Get()));
     EXPECT_TRUE(util::HasErrorSpace(builder, PosixErrorSpace()));
-  }
-}
-
-TEST_F(StatusBuilderTest, StatusCode) {
-  // OK
-  {
-    const StatusBuilder builder(absl::StatusCode::kOk);
-    EXPECT_TRUE(builder.ok());
-    EXPECT_THAT(builder.code(), Eq(absl::StatusCode::kOk));
-    EXPECT_TRUE(util::HasErrorCode(builder, error::OK));
-    EXPECT_TRUE(util::HasErrorCode(builder, absl::StatusCode::kOk));
-    EXPECT_TRUE(util::HasErrorCode(builder, kCustomOK));
-    EXPECT_TRUE(util::HasErrorCode(builder, PosixErrorSpace(), 0));
-    EXPECT_FALSE(util::HasErrorCode(builder, kZomg));
-  }
-  // Non-OK code
-  {
-    const StatusBuilder builder(absl::StatusCode::kInvalidArgument);
-    EXPECT_FALSE(builder.ok());
-    EXPECT_THAT(builder.code(), Eq(absl::StatusCode::kInvalidArgument));
-    EXPECT_TRUE(util::HasErrorCode(builder, error::INVALID_ARGUMENT));
-    EXPECT_TRUE(
-        util::HasErrorCode(builder, absl::StatusCode::kInvalidArgument));
-    EXPECT_FALSE(util::HasErrorCode(builder, kCustomOK));
-    EXPECT_FALSE(util::HasErrorCode(builder, kZomg));
-    EXPECT_FALSE(util::HasErrorCode(builder, PosixErrorSpace(), 0));
-    EXPECT_FALSE(util::HasErrorCode(builder, PosixErrorSpace(),
-                                    static_cast<int>(error::INVALID_ARGUMENT)));
-  }
-}
-
-TEST_F(StatusBuilderTest, OkIgnoresStuff) {
-  EXPECT_THAT(ToStatus(StatusBuilder(absl::OkStatus(), absl::SourceLocation())
-                       << "booyah"),
-              Eq(absl::OkStatus()));
-  EXPECT_THAT(ToStatus(std::move(StatusBuilder(absl::OkStatus(),
-                                               absl::SourceLocation()))
-                           .AttachPayload(MakePayloadProto("test"))
-                       << "zombies"),
-              Eq(absl::OkStatus()));
-  EXPECT_THAT(ToStatus(StatusBuilder(absl::OkStatus(), absl::SourceLocation())
-                           .SetPayload("url", absl::Cord("payload"))
-                       << "aliens"),
-              Eq(absl::OkStatus()));
-}
-
-TEST_F(StatusBuilderTest, Streaming) {
-  EXPECT_THAT(
-      ToStatus(StatusBuilder(absl::CancelledError(), absl::SourceLocation())
-               << "booyah"),
-      Eq(absl::CancelledError("booyah")));
-  EXPECT_THAT(
-      ToStatus(
-          StatusBuilder(absl::AbortedError("hello"), absl::SourceLocation())
-          << "world"),
-      Eq(absl::AbortedError("hello; world")));
-  EXPECT_THAT(ToStatus(StatusBuilder(PosixErrorToStatus(ENOSYS, "enosys"),
-                                     absl::SourceLocation())
-                       << "punk!"),
-              Eq(PosixErrorToStatus(ENOSYS, "enosys; punk!")));
-
-  // Explicitly set canonical codes should be preserved.
-  {
-    absl::Status original_status = PosixErrorToStatus(ENOSYS, "enosys");
-    SetCanonicalCode(absl::StatusCode::kPermissionDenied, &original_status);
-
-    const absl::Status transformed =
-        (StatusBuilder(original_status, absl::SourceLocation()) << "foo");
-
-    EXPECT_EQ(absl::StatusCode::kPermissionDenied, transformed.code());
-  }
-}
-
-TEST_F(StatusBuilderTest, PrependLvalue) {
-  {
-    StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
-    EXPECT_THAT(ToStatus(builder.SetPrepend() << "booyah"),
-                Eq(absl::CancelledError("booyah")));
-  }
-  {
-    StatusBuilder builder(absl::AbortedError(" hello"), absl::SourceLocation());
-    EXPECT_THAT(ToStatus(builder.SetPrepend() << "world"),
-                Eq(absl::AbortedError("world hello")));
-  }
-
-  // Explicitly set canonical codes should be preserved.
-  {
-    absl::Status original_status = PosixErrorToStatus(ENOSYS, "enosys");
-    SetCanonicalCode(absl::StatusCode::kPermissionDenied, &original_status);
-
-    StatusBuilder builder(original_status, absl::SourceLocation());
-    const absl::Status transformed = builder.SetPrepend() << "foo";
-
-    EXPECT_EQ(absl::StatusCode::kPermissionDenied, transformed.code());
-  }
-}
-
-TEST_F(StatusBuilderTest, PrependRvalue) {
-  EXPECT_THAT(
-      ToStatus(StatusBuilder(absl::CancelledError(), absl::SourceLocation())
-                   .SetPrepend()
-               << "booyah"),
-      Eq(absl::CancelledError("booyah")));
-  EXPECT_THAT(ToStatus(StatusBuilder(absl::AbortedError(" hello"),
-                                     absl::SourceLocation())
-                           .SetPrepend()
-                       << "world"),
-              Eq(absl::AbortedError("world hello")));
-
-  // Explicitly set canonical codes should be preserved.
-  {
-    absl::Status original_status = PosixErrorToStatus(ENOSYS, "enosys");
-    SetCanonicalCode(absl::StatusCode::kPermissionDenied, &original_status);
-
-    const absl::Status transformed =
-        (StatusBuilder(original_status, absl::SourceLocation()).SetPrepend()
-         << "foo");
-
-    EXPECT_EQ(absl::StatusCode::kPermissionDenied, transformed.code());
-  }
-}
-
-TEST_F(StatusBuilderTest, AppendLvalue) {
-  {
-    StatusBuilder builder(absl::CancelledError(), absl::SourceLocation());
-    EXPECT_THAT(ToStatus(builder.SetAppend() << "booyah"),
-                Eq(absl::CancelledError("booyah")));
-  }
-  {
-    StatusBuilder builder(absl::AbortedError("hello"), absl::SourceLocation());
-    EXPECT_THAT(ToStatus(builder.SetAppend() << " world"),
-                Eq(absl::AbortedError("hello world")));
-  }
-
-  // Explicitly set canonical codes should be preserved.
-  {
-    absl::Status original_status = PosixErrorToStatus(ENOSYS, "enosys");
-    SetCanonicalCode(absl::StatusCode::kPermissionDenied, &original_status);
-
-    StatusBuilder builder(original_status, absl::SourceLocation());
-    const absl::Status transformed = builder.SetAppend() << "foo";
-
-    EXPECT_EQ(absl::StatusCode::kPermissionDenied, transformed.code());
-  }
-}
-
-TEST_F(StatusBuilderTest, AppendRvalue) {
-  EXPECT_THAT(
-      ToStatus(StatusBuilder(absl::CancelledError(), absl::SourceLocation())
-                   .SetAppend()
-               << "booyah"),
-      Eq(absl::CancelledError("booyah")));
-  EXPECT_THAT(ToStatus(StatusBuilder(absl::AbortedError("hello"),
-                                     absl::SourceLocation())
-                           .SetAppend()
-                       << " world"),
-              Eq(absl::AbortedError("hello world")));
-
-  // Explicitly set canonical codes should be preserved.
-  {
-    absl::Status original_status = PosixErrorToStatus(ENOSYS, "enosys");
-    SetCanonicalCode(absl::StatusCode::kPermissionDenied, &original_status);
-
-    const absl::Status transformed =
-        (StatusBuilder(original_status, absl::SourceLocation()).SetAppend()
-         << "foo");
-
-    EXPECT_EQ(absl::StatusCode::kPermissionDenied, transformed.code());
   }
 }
 
@@ -805,33 +560,6 @@ TEST_F(StatusBuilderTest, SetPayloadRvalue) {
       Eq(expected));
 }
 
-TEST_F(StatusBuilderTest, WithRvalueRef) {
-  auto policy = [](StatusBuilder sb) { return sb << "policy"; };
-  EXPECT_THAT(ToStatus(StatusBuilder(absl::AbortedError("hello"),
-                                     absl::SourceLocation())
-                           .With(policy)),
-              Eq(absl::AbortedError("hello; policy")));
-}
-
-TEST_F(StatusBuilderTest, WithRef) {
-  auto policy = [](StatusBuilder sb) { return sb << "policy"; };
-  StatusBuilder sb(absl::AbortedError("zomg"), absl::SourceLocation());
-  EXPECT_THAT(ToStatus(sb.With(policy)),
-              Eq(absl::AbortedError("zomg; policy")));
-}
-
-TEST_F(StatusBuilderTest, WithTypeChange) {
-  auto policy = [](StatusBuilder sb) -> std::string {
-    return sb.ok() ? "true" : "false";
-  };
-  EXPECT_EQ(StatusBuilder(absl::CancelledError(), absl::SourceLocation())
-                .With(policy),
-            "false");
-  EXPECT_EQ(
-      StatusBuilder(absl::OkStatus(), absl::SourceLocation()).With(policy),
-      "true");
-}
-
 TEST_F(StatusBuilderTest, WithVoidTypeAndSideEffects) {
   int code = 0;
   auto policy = [&code](absl::Status status) {
@@ -849,15 +577,6 @@ struct MoveOnlyAdaptor {
     return std::move(value);
   }
 };
-
-TEST_F(StatusBuilderTest, WithMoveOnlyAdaptor) {
-  StatusBuilder sb(absl::AbortedError("zomg"), absl::SourceLocation());
-  EXPECT_THAT(sb.With(MoveOnlyAdaptor{std::make_unique<int>(100)}),
-              Pointee(100));
-  EXPECT_THAT(StatusBuilder(absl::AbortedError("zomg"), absl::SourceLocation())
-                  .With(MoveOnlyAdaptor{std::make_unique<int>(100)}),
-              Pointee(100));
-}
 
 template <typename T>
 std::string ToStringViaStream(const T& x) {
@@ -983,51 +702,11 @@ TEST_F(StatusBuilderTest, ToStringDoesntHaveSideEffects) {
             ToStringViaStream(builder));
 }
 
-TEST(WithExtraMessagePolicyTest, AppendsToExtraMessage) {
-  // The policy simply calls operator<< on the builder; the following examples
-  // demonstrate that, without duplicating all of the above tests.
-  EXPECT_THAT(ToStatus(StatusBuilder(absl::AbortedError("hello"),
-                                     absl::SourceLocation())
-                           .With(ExtraMessage("world"))),
-              Eq(absl::AbortedError("hello; world")));
-  EXPECT_THAT(ToStatus(StatusBuilder(absl::AbortedError("hello"),
-                                     absl::SourceLocation())
-                           .With(ExtraMessage() << "world")),
-              Eq(absl::AbortedError("hello; world")));
-  EXPECT_THAT(ToStatus(StatusBuilder(absl::AbortedError("hello"),
-                                     absl::SourceLocation())
-                           .With(ExtraMessage("world"))
-                           .With(ExtraMessage("!"))),
-              Eq(absl::AbortedError("hello; world!")));
-  EXPECT_THAT(ToStatus(StatusBuilder(absl::AbortedError("hello"),
-                                     absl::SourceLocation())
-                           .With(ExtraMessage("world, "))
-                           .SetPrepend()),
-              Eq(absl::AbortedError("world, hello")));
-  EXPECT_THAT(ToStatus(StatusBuilder(absl::AbortedError("hello"),
-                                     absl::SourceLocation())
-                           .With(ExtraMessage() << StringifiableType{"world"})),
-              Eq(absl::AbortedError("hello; world")));
-
-  // The above examples use temporary StatusBuilder rvalues; verify things also
-  // work fine when StatusBuilder is an lvalue.
-  StatusBuilder builder(absl::AbortedError("hello"), absl::SourceLocation());
-  EXPECT_THAT(
-      ToStatus(builder.With(ExtraMessage("world")).With(ExtraMessage("!"))),
-      Eq(absl::AbortedError("hello; world!")));
-}
-
 TEST(WithExtraMessagePolicyTest, ExtraMessageMoveConstructor) {
   auto policy = util::ExtraMessage() << "doing foo";
 
   EXPECT_THAT(StatusBuilder(absl::AbortedError("taco")).With(std::move(policy)),
               StatusIs(absl::StatusCode::kAborted, "taco; doing foo"));
-}
-
-TEST(WithExtraMessagePolicyTest,
-     ExtraMessageStreamOperatorPreservesRvalueness) {
-  static_assert(
-      std::is_same_v<ExtraMessage&&, decltype(ExtraMessage() << "foo")>);
 }
 
 TEST(CanonicalErrorsTest, CreateAndClassify) {
@@ -1087,69 +766,6 @@ TEST(CanonicalErrorsTest, CreateAndClassify) {
     EXPECT_EQ(message, status.message());
     EXPECT_EQ(static_cast<::util::error::Code>(status.code()), test.code);
   }
-}
-
-TEST_F(StatusBuilderTest, StatusSourceLocationChaining) {
-  {
-    absl::Status src = absl::OkStatus();
-    CheckSourceLocation(src);
-    CheckSourceLocation(ToStatus(StatusBuilder(src, absl::SourceLocation())));
-    CheckSourceLocation(
-        ToStatus(StatusBuilder(src, absl::SourceLocation::current())));
-    CheckSourceLocation(
-        ToStatus(StatusBuilder(src, absl::SourceLocation::current()) << "hmm"));
-  }
-  {
-    absl::Status src = absl::Status(absl::StatusCode::kCancelled, "");
-    CheckSourceLocation(src);
-    CheckSourceLocation(ToStatus(StatusBuilder(src, absl::SourceLocation())));
-    CheckSourceLocation(
-        ToStatus(StatusBuilder(src, absl::SourceLocation::current())));
-    CheckSourceLocation(
-        ToStatus(StatusBuilder(src, absl::SourceLocation::current()) << ""));
-    CheckSourceLocation(
-        ToStatus(StatusBuilder(src, absl::SourceLocation::current()) << "hmm"),
-        {__builtin_LINE() - 1});
-  }
-  {
-    absl::Status src = absl::Status(absl::StatusCode::kCancelled, "msg",
-                                    absl::SourceLocation());
-    CheckSourceLocation(src);
-    CheckSourceLocation(ToStatus(StatusBuilder(src, absl::SourceLocation())));
-    CheckSourceLocation(
-        ToStatus(StatusBuilder(src, absl::SourceLocation::current())),
-        {__builtin_LINE() - 1});
-    CheckSourceLocation(
-        ToStatus(StatusBuilder(src, absl::SourceLocation::current()) << "hmm"),
-        {__builtin_LINE() - 1});
-  }
-  {
-    absl::Status src = absl::Status(absl::StatusCode::kCancelled, "msg");
-    int src_line = __builtin_LINE() - 1;
-    CheckSourceLocation(src, {src_line});
-    CheckSourceLocation(ToStatus(StatusBuilder(src, absl::SourceLocation())),
-                        {src_line});
-    CheckSourceLocation(
-        ToStatus(StatusBuilder(src, absl::SourceLocation::current())),
-        {src_line, __builtin_LINE() - 1});
-    CheckSourceLocation(
-        ToStatus(StatusBuilder(src, absl::SourceLocation::current()) << "hmm"),
-        {src_line, __builtin_LINE() - 1});
-  }
-}
-
-TEST_F(StatusBuilderTest, SetErrorCode) {
-  StatusBuilder builder;
-  builder.SetCode(absl::StatusCode::kResourceExhausted);
-  LOG(INFO) << "Builder code: " << builder;
-  EXPECT_FALSE(builder.ok());
-  EXPECT_EQ(builder.code(), absl::StatusCode::kResourceExhausted);
-}
-
-TEST_F(StatusBuilderTest, BuilderToStatusOrStatusShouldGiveErrorStatusOr) {
-  absl::StatusOr<absl::Status> value = StatusBuilder(absl::CancelledError());
-  ASSERT_FALSE(value.ok());
-  EXPECT_THAT(value.status(), StatusIs(absl::StatusCode::kCancelled));
 }
 
 volatile bool force_failure = false;
