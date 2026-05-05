@@ -1,0 +1,5 @@
+IDATE TIME__ logging_unittest.cc:LINE] RAW: log
+IDATE TIME__ logging_unittest.cc:LINE] RAW: log INFO disabled
+WDATE TIME__ logging_unittest.cc:LINE] RAW: log WARNING on
+IDATE TIME__ logging_unittest.cc:LINE] RAW: log INFO disabled
+EDATE TIME__ logging_unittest.cc:LINE] RAW: log ERROR on

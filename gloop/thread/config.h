@@ -63,6 +63,7 @@
 #error THREAD_HAVE_ALTERNATE_THREAD_LOCAL cannot be set directly
 #elif defined(__linux__) || defined(__APPLE__)
 #define THREAD_HAVE_THREAD_CLASS 1
+#define THREAD_HAVE_FIBER 1
 #else
 #define THREAD_HAVE_ALTERNATE_THREAD_POOL 1
 #define THREAD_HAVE_ALTERNATE_THREAD_LOCAL 1

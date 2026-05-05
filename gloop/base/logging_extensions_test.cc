@@ -162,6 +162,119 @@ class CapturedLogStats {
   const std::vector<size_t> bytes_baseline_;
 };
 
+void PrintTo(const CapturedLogStats& counter, std::ostream* os) {
+  *os << "CapturedLogStats{" << std::endl
+      << "  NewMessages{kInfo: " << counter.NewInfoMessages()
+      << ", kWarning: " << counter.NewWarningMessages()
+      << ", kError: " << counter.NewErrorMessages() << "}" << std::endl
+      << "  NewBytes{kInfo: " << counter.NewInfoBytes()
+      << ", kWarning: " << counter.NewWarningBytes()
+      << ", kError: " << counter.NewErrorBytes() << "}" << std::endl
+      << "}" << std::endl;
+}
+
+// Any `LogSeverity` keys omitted from the `new_messages` or `new_bytes` maps
+// implicitly have the value `Eq(0)`, meaning the matcher matches only if the
+// counter's value for that level has not changed.
+Matcher<const CapturedLogStats&> NewMessages(
+    absl::flat_hash_map<absl::LogSeverity, Matcher<size_t>> new_messages) {
+  const Matcher<size_t> new_infos =
+      new_messages.emplace(absl::LogSeverity::kInfo, Eq(0)).first->second;
+  const Matcher<size_t> new_warnings =
+      new_messages.emplace(absl::LogSeverity::kWarning, Eq(0)).first->second;
+  const Matcher<size_t> new_errors =
+      new_messages.emplace(absl::LogSeverity::kError, Eq(0)).first->second;
+  return AllOf(Property("NewInfoMessages", &CapturedLogStats::NewInfoMessages,
+                        new_infos),
+               Property("NewWarningMessages",
+                        &CapturedLogStats::NewWarningMessages, new_warnings),
+               Property("NewErrorMessages", &CapturedLogStats::NewErrorMessages,
+                        new_errors));
+}
+Matcher<const CapturedLogStats&> NewBytes(
+    absl::flat_hash_map<absl::LogSeverity, Matcher<size_t>> new_bytes) {
+  const Matcher<size_t> new_infos =
+      new_bytes.emplace(absl::LogSeverity::kInfo, Eq(0)).first->second;
+  const Matcher<size_t> new_warnings =
+      new_bytes.emplace(absl::LogSeverity::kWarning, Eq(0)).first->second;
+  const Matcher<size_t> new_errors =
+      new_bytes.emplace(absl::LogSeverity::kError, Eq(0)).first->second;
+  return AllOf(
+      Property("NewInfoBytes", &CapturedLogStats::NewInfoBytes, new_infos),
+      Property("NewWarningBytes", &CapturedLogStats::NewWarningBytes,
+               new_warnings),
+      Property("NewErrorBytes", &CapturedLogStats::NewErrorBytes, new_errors));
+}
+
+Matcher<const CapturedLogStats&> AreUnchanged() {
+  return AllOf(NewMessages({}), NewBytes({}));
+}
+
+// `LoggedBytes()` in the stats tests below should grow by the size of the
+// prefix plus the message ("hello world").  The prefix size is unspecified, so
+// we aim for at least few bytes bigger than the message.
+//
+// However, the prefix is not added / recorded in stats on platforms that are
+// using LogSink, so on those platforms we relax the expectation to only the
+// "hello world" bytes. See LogMessage::Flush() implementation for details.
+#if defined(__Fuchsia__) || defined(__myriad2__)
+constexpr int kHelloWorldLoggedBytes = 12;
+#else
+constexpr int kHelloWorldLoggedBytes = 16;
+#endif
+
+TEST(StatsTest, Info) {
+  CapturedLogStats stats;
+  LOG(INFO) << "hello world";
+  if (LoggingEnabledAt(absl::LogSeverity::kInfo)) {
+    EXPECT_THAT(stats, AllOf(NewMessages({{absl::LogSeverity::kInfo, 1}}),
+                             NewBytes({{absl::LogSeverity::kInfo,
+                                        Ge(kHelloWorldLoggedBytes)}})));
+  } else {
+    EXPECT_THAT(stats, AreUnchanged());
+  }
+}
+
+TEST(StatsTest, Warning) {
+  CapturedLogStats stats;
+  LOG(WARNING) << "hello world";
+  if (LoggingEnabledAt(absl::LogSeverity::kWarning)) {
+    EXPECT_THAT(stats, AllOf(NewMessages({{absl::LogSeverity::kWarning, 1}}),
+                             NewBytes({{absl::LogSeverity::kWarning,
+                                        Ge(kHelloWorldLoggedBytes)}})));
+  } else {
+    EXPECT_THAT(stats, AreUnchanged());
+  }
+}
+
+TEST(StatsTest, Error) {
+  CapturedLogStats stats;
+  LOG(ERROR) << "hello world";
+  if (LoggingEnabledAt(absl::LogSeverity::kError)) {
+    EXPECT_THAT(stats, AllOf(NewMessages({{absl::LogSeverity::kError, 1}}),
+                             NewBytes({{absl::LogSeverity::kError,
+                                        Ge(kHelloWorldLoggedBytes)}})));
+  } else {
+    EXPECT_THAT(stats, AreUnchanged());
+  }
+}
+
+TEST(StatsTest, Level) {
+  auto severity = absl::LogSeverity::kError;
+  // Ensure that `severity` is not a compile-time constant to prove that
+  // `LOG(LEVEL(severity))` works regardless:
+  benchmark::DoNotOptimize(severity);
+  CapturedLogStats stats;
+  LOG(LEVEL(severity)) << "hello world";
+  if (LoggingEnabledAt(absl::LogSeverity::kError)) {
+    EXPECT_THAT(stats, AllOf(NewMessages({{absl::LogSeverity::kError, 1}}),
+                             NewBytes({{absl::LogSeverity::kError,
+                                        Ge(kHelloWorldLoggedBytes)}})));
+  } else {
+    EXPECT_THAT(stats, AreUnchanged());
+  }
+}
+
 // Tests for `absl::LogSink` implementations.
 // ------------------------------------------
 

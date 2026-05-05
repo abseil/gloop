@@ -18,3 +18,11 @@ package(
     default_applicable_licenses = ["//gloop:license"],
     default_visibility = ["//gloop/base:__subpackages__"],
 )
+
+filegroup(
+    name = "logging_test_golden_files",
+    srcs = glob(["logging_unittest/*"]),
+    visibility = [
+        "//gloop/base:__pkg__",
+    ],
+)

@@ -34,7 +34,6 @@
 #include "absl/base/nullability.h"
 #include "absl/flags/internal/program_name.h"
 #include "absl/flags/parse.h"
-#include "absl/log/initialize.h"
 #include "absl/log/vlog_is_on.h"
 #include "gloop/base/config.h"
 
@@ -90,6 +89,8 @@
 #include "gloop/base/googleinit.h"
 #include "gloop/base/init_google_flags.h"
 #include "gloop/base/internal/init_google.h"
+#include "gloop/base/internal/logging_globals.h"
+#include "gloop/base/logging.h"
 #include "gloop/base/raw_logging.h"
 #include "gloop/base/spinlock.h"
 #include "gloop/base/sysinfo.h"
@@ -627,13 +628,21 @@ static void RealInitGoogle(absl::string_view usage, int* argc, char*** argv,
 
   ParseCommandLineNonHelpFlags(argc, argv, remove_flags);
 
+  base_logging::logging_internal::SetLoggingFlagsParsed();
+
   // This is a no-op since the hooks are installed in a static initializer, but
   // MSVC strips the static initializer because raw_logging.cc exports no called
   // functions, even with alwayslink=1. So we work around this by calling it as
   // a no-op here as well as in the static initializer.
   base_raw_log::raw_log_internal::InstallGoogle3Hooks();
 
-  absl::InitializeLog();
+  // Initialize the base_logging library. This optionally returns a function
+  // to be called at the very end of InitGoogle() to complete initialization.
+  //
+  // Do not write to LOG(XXX) before base_logging::Initialize().  The
+  // output may not go where you expect.
+  base_logging::InitializeCallback end_of_init_google_logging_init =
+      base_logging::Initialize();
 
   // Check if there are flags that ask us to print something and exit.
   // Do that early to avoid unnecessary logging (and other unnecessary work)
@@ -751,6 +760,9 @@ static void RealInitGoogle(absl::string_view usage, int* argc, char*** argv,
     init_google_state = INIT_GOOGLE_DONE;
   }
 
+  if (end_of_init_google_logging_init != nullptr) {
+    (*end_of_init_google_logging_init)();
+  }
 #if BASE_HAVE_PROCESS_STATE
   // Report that all InitGoogle-related tasks have completed.
   base::process_state::ReportChange(base::process_state::kInitGoogleDone,

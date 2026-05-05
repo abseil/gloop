@@ -1,0 +1,36 @@
+IDATE TIME__ logging_unittest.cc:LINE] foo bar 10 3.4
+EDATE TIME__ logging_unittest.cc:LINE] Plog every 2, iteration 1: Success [0]
+EDATE TIME__ logging_unittest.cc:LINE] Log every 3, iteration 1
+EDATE TIME__ logging_unittest.cc:LINE] Log every 4, iteration 1
+WDATE TIME__ logging_unittest.cc:LINE] Log if every 5, iteration 1
+IDATE TIME__ logging_unittest.cc:LINE] Log if every 1, iteration 1
+EDATE TIME__ logging_unittest.cc:LINE] Log if less than 3 every 2, iteration 1
+IDATE TIME__ logging_unittest.cc:LINE] Log twice if less than 5, iteration 1
+IDATE TIME__ logging_unittest.cc:LINE] Log first three times, iteration 1
+IDATE TIME__ logging_unittest.cc:LINE] Log if every 1, iteration 2
+IDATE TIME__ logging_unittest.cc:LINE] Log twice if less than 5, iteration 2
+IDATE TIME__ logging_unittest.cc:LINE] Log first three times, iteration 2
+EDATE TIME__ logging_unittest.cc:LINE] Plog every 2, iteration 3: No such file or directory [2]
+IDATE TIME__ logging_unittest.cc:LINE] Log if every 1, iteration 3
+EDATE TIME__ logging_unittest.cc:LINE] Log if less than 3 every 2, iteration 3
+IDATE TIME__ logging_unittest.cc:LINE] Log first three times, iteration 3
+EDATE TIME__ logging_unittest.cc:LINE] Log every 3, iteration 4
+IDATE TIME__ logging_unittest.cc:LINE] Log if every 1, iteration 4
+EDATE TIME__ logging_unittest.cc:LINE] Plog every 2, iteration 5: Interrupted system call [4]
+EDATE TIME__ logging_unittest.cc:LINE] Log every 4, iteration 5
+IDATE TIME__ logging_unittest.cc:LINE] Log if every 1, iteration 5
+WDATE TIME__ logging_unittest.cc:LINE] Log if every 5, iteration 6
+IDATE TIME__ logging_unittest.cc:LINE] Log if every 1, iteration 6
+EDATE TIME__ logging_unittest.cc:LINE] Plog every 2, iteration 7: No such device or address [6]
+EDATE TIME__ logging_unittest.cc:LINE] Log every 3, iteration 7
+IDATE TIME__ logging_unittest.cc:LINE] Log if every 1, iteration 7
+IDATE TIME__ logging_unittest.cc:LINE] Log if every 1, iteration 8
+EDATE TIME__ logging_unittest.cc:LINE] Plog every 2, iteration 9: Exec format error [8]
+EDATE TIME__ logging_unittest.cc:LINE] Log every 4, iteration 9
+IDATE TIME__ logging_unittest.cc:LINE] Log if every 1, iteration 9
+EDATE TIME__ logging_unittest.cc:LINE] Log every 3, iteration 10
+IDATE TIME__ logging_unittest.cc:LINE] Log if every 1, iteration 10
+WDATE TIME__ logging_unittest.cc:LINE] log_if this
+IDATE TIME__ logging_unittest.cc:LINE] array
+IDATE TIME__ logging_unittest.cc:LINE] const array
+EDATE TIME__ logging_unittest.cc:LINE] foo 1000 1000 0x3e8
