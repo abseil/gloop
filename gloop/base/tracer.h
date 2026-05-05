@@ -98,7 +98,7 @@
 #include "absl/time/time.h"
 #include "absl/types/source_location.h"
 #include "gloop/base/port.h"
-#include "gloop/base/reference_tracker.h"
+#include "gloop/base/reference_tracker.h"  // IWYU pragma: keep
 #include "gloop/base/time/time_unix_nanos.h"
 #include "gloop/base/tracecontext.h"
 #include "gloop/base/tracing_types.h"
@@ -821,7 +821,7 @@ class Tracer {
   // cl/882422446 for a minor side quest that will allow you to resurrect
   // this debugging ability.
   void GetTraceContextStackTraces(
-      std::vector<base::ReferenceTracker::StackTrace>*) const {}
+      std::vector<base::ReferenceTracker::StackTrace>* traces) const;
 
   // Returns the underlying annotation map of the tracer, or nullptr. In
   // particular, it could return nullptr even when is_traced() is true, so
@@ -1117,12 +1117,21 @@ class Tracer {
   // Ref() and Unref() as well.
   friend class ::perftools::tracing::WrappedTracer;
 
-  void Ref(void*) { ref_count_.fetch_add(1, std::memory_order_relaxed); }
+  void Ref(void* owner) {
+    tracker_.Ref(owner);
+    ref_count_.fetch_add(1, std::memory_order_relaxed);
+  }
 
-  void Unref(void*) {
+  void Unref(void* owner) {
+    tracker_.Unref(owner);
     if (ref_count_.fetch_sub(1, std::memory_order_acq_rel) - 1 == 0) {
       UnrefSlow();
     }
+  }
+
+  void SwapRefOwner(void* old_owner, void* new_owner) {
+    tracker_.Ref(new_owner);
+    tracker_.Unref(old_owner);
   }
 
   // This should only be used in special cases where this data is not
@@ -1339,6 +1348,54 @@ class Tracer {
   // This should only be used by Census. For more details, see
   // <link>.
   std::atomic<TracerNotification*> notification_ = nullptr;
+
+  // A struct that encapsulates the reference tracking done when the
+  // ENABLE_TRACER_REF_TRACKING macro is defined. Centralizing logic here
+  // reduces the number of #ifdef statements required to optionally support
+  // reference tracking.
+  //
+  // In normal builds this is a no-op.
+#ifdef ENABLE_TRACER_REF_TRACKING
+  struct Tracker {
+    std::unique_ptr<ReferenceTracker> ref_tracker =
+        absl::GetFlag(FLAGS_tracer_debug_refcounts)
+            ? std::make_unique<ReferenceTracker>()
+            : nullptr;
+
+    void Ref(void* owner) {
+      if (ref_tracker != nullptr) {
+        ref_tracker->Ref(owner);
+      }
+    }
+
+    void Unref(void* owner) {
+      if (ref_tracker != nullptr) {
+        ref_tracker->Unref(owner);
+      }
+    }
+
+    void GetReferenceTraces(
+        std::vector<ReferenceTracker::StackTrace>* traces) const {
+      if (ref_tracker != nullptr) {
+        ref_tracker->GetReferenceTraces(traces);
+      }
+    }
+  };
+#else
+  struct Tracker {
+    void StartTracking() {}  // empty
+    void Unref(void*) {}     // empty
+    void Ref(void*) {}       // empty
+    void GetReferenceTraces(std::vector<ReferenceTracker::StackTrace>*) const {
+    }  // empty
+  };
+#endif
+
+  // When the ENABLE_TRACER_REF_TRACKING macro is defined, an object that tracks
+  // who has references to this tracer, to help debug context leaks.
+  //
+  // When ENABLE_TRACER_REF_TRACKING is not defined, this struct is empty.
+  ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS Tracker tracker_;
 
 #if LANG_CXX11
   Tracer(const Tracer&) = delete;

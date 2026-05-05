@@ -68,7 +68,7 @@ const uint32_t TraceContext::kTraceMaskTagOffset;
 // in tracecontext.h won't compile.
 base::Tracer* TraceContext::GetNoopTracer() { return base::GetNoopTracer(); }
 
-void TraceContext::RefTracer() { get_raw_tracer()->Ref(this); }
+void TraceContext::RefTracer() { get_raw_tracer()->Ref(get_tracer_owner()); }
 
 // Copy from the current thread to this context
 void TraceContext::FromThread() { *this = *Current(); }
@@ -148,7 +148,7 @@ void TraceContext::AbandonTracer() {
     // the subsequent code can be reordered before it.
     set_tracer(nullptr);
     std::atomic_signal_fence(std::memory_order_seq_cst);
-    tracer->Unref(this);
+    tracer->Unref(get_tracer_owner());
   }
 }
 
@@ -204,7 +204,7 @@ void TraceContext::ReplaceTracer(base::Tracer* tracer) {
   }
 
   if (nullptr != tracer) {
-    tracer->Ref(this);
+    tracer->Ref(get_tracer_owner());
   }
   // Now remove a reference to the old tracer (possibly freeing it).
   this->AbandonTracer();
@@ -213,6 +213,10 @@ void TraceContext::ReplaceTracer(base::Tracer* tracer) {
 }
 
 void swap(TraceContext& lhs, TraceContext& rhs) noexcept {
+  // If we are tracking ownership of trace contexts, swap our reference
+  // tracking between lhs and rhs.
+  TraceContext::SwapRefs(&lhs, &rhs);
+
   using std::swap;
 
   swap(lhs.rpc_id_, rhs.rpc_id_);
@@ -248,9 +252,29 @@ void TraceContext::Reset() {
 }
 
 void TraceContext::MoveTracer(TraceContext* from, TraceContext* to) {
+  // If we are tracking ownership of trace contexts, record that we now have a
+  // reference on the tracer and that &c does not.
+  if (to->tracer_ != nullptr) {
+    to->tracer_->SwapRefOwner(from->get_tracer_owner(), to->get_tracer_owner());
+  }
+
   // When moving, we steal the tracer refcount from the other context and must
   // be sure that its destructor does not unref the tracer.
   from->tracer_ = nullptr;
+}
+
+void TraceContext::SwapRefs(TraceContext* lhs, TraceContext* rhs) {
+  if (lhs->tracer_ == rhs->tracer_) {
+    return;
+  }
+  if (lhs->tracer_ != nullptr) {
+    lhs->tracer_->SwapRefOwner(lhs->get_tracer_owner(),
+                               rhs->get_tracer_owner());
+  }
+  if (rhs->tracer_ != nullptr) {
+    rhs->tracer_->SwapRefOwner(rhs->get_tracer_owner(),
+                               lhs->get_tracer_owner());
+  }
 }
 
 void TraceContext::SetTraceLevel(TraceLevel level) {

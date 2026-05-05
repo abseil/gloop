@@ -26,6 +26,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/base/call_once.h"
@@ -37,18 +38,21 @@
 #include "absl/time/time.h"
 #include "absl/types/source_location.h"
 #include "gloop/base/internal/effective_user_id.h"
+#include "gloop/base/reference_tracker.h"  // IWYU pragma: keep
 #include "gloop/base/time/time_unix_nanos.h"
 #include "gloop/base/tracecontext.h"
 #include "gloop/base/tracing_types.h"
 #include "gloop/base/xray/tracing_annotations.h"
 #include "gloop/perftools/tracing/tracing.h"
 
-// This does nothing today, but used to be useful for debugging in special
-// compilation modes. If you are here because you are debugging a leaked tracer
-// in a situation where you are able to recompile the binary, see
-// cl/882422446 for a minor side quest that will allow you to resurrect
-// this debugging ability.
-ABSL_FLAG(bool, tracer_debug_refcounts, false, "");
+ABSL_FLAG(bool, tracer_debug_refcounts, false,
+          "With this flag on and when compiled with "
+          "`--copt=-DENABLE_TRACER_REF_TRACKING`, each Tracer will keep track "
+          "of how each of its outstanding references was acquired "
+          "(that is, the call stack of each copy of its parent TraceContext). "
+          "You can then consult /requestz to get this information.  Used to "
+          "debug cases where a tracer has been copied to too many trace "
+          "contexts and is living too long.");
 
 namespace {
 
@@ -210,6 +214,11 @@ void Tracer::set_inherited_initiator_id(uint64_t value) {
   // Reset the bit indicating this span is initiating the trace.
   value &= ~kTraceInitiatingSpan;
   initiator_id_.store(value, std::memory_order_relaxed);
+}
+
+void Tracer::GetTraceContextStackTraces(
+    std::vector<ReferenceTracker::StackTrace>* traces) const {
+  tracker_.GetReferenceTraces(traces);
 }
 
 void Tracer::set_initiator_id_on_child_trace(uint64_t value) {

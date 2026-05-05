@@ -1264,6 +1264,7 @@ cc_library(
         ":context_access",
         ":context_origin",
         ":port",
+        ":reference_tracker",
         ":sysinfo",
         ":tracer",
         ":xray_tracing_annotations",

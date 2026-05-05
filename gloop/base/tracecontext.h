@@ -850,6 +850,9 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
   // handling reference tracking if enabled.
   static void MoveTracer(TraceContext* from, TraceContext* to);
 
+  // Swaps reference tracking between two trace contexts.
+  static void SwapRefs(TraceContext* lhs, TraceContext* rhs);
+
   // Sets the tracer for this context. If C++20 is available, this uses an
   // atomic store; otherwise, it falls back to a regular non-atomic store.
   // Use of atomic store operations ensures that signal handlers can atomically
@@ -907,6 +910,32 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
   // Propagated along with copies and moves to other TraceContext instances.
   base::ContextOrigin origin_;
 #endif
+
+#ifdef ENABLE_TRACER_REF_TRACKING
+  // The object whose address we use in tracking live references to tracers.
+  // This has a stable address even if our own changes, allowing us to have a
+  // trivial ABI.
+  //
+  // We have to go to some lengths to manage this. This class is documented as
+  // being trivially-destructible in its moved-from state. Thus we need to clear
+  // this in instances being moved-from; and recreate it when those same objects
+  // are assigned-to by move or copy.
+  std::unique_ptr<bool> tracer_owner_;
+#endif
+
+  // Return an arbitrary pointer, used for tracking owners of tracers, that is
+  // unique during the lifetime of this object if ENABLE_TRACER_REF_TRACKING is
+  // defined.
+  void* get_tracer_owner() {
+#ifdef ENABLE_TRACER_REF_TRACKING
+    if (tracer_owner_ == nullptr) {
+      tracer_owner_ = std::make_unique<bool>(false);
+    }
+    return tracer_owner_.get();
+#else
+    return nullptr;
+#endif
+  }
 };
 
 // Create a TraceContext with explicitly known contents
@@ -984,6 +1013,9 @@ inline TraceContext::TraceContext(TraceContext&& c) noexcept
   if (c.sync_context_.has_listeners()) {
     sync_context_ = std::move(c.sync_context_);
   }
+#ifdef ENABLE_TRACER_REF_TRACKING
+  c.tracer_owner_.reset();
+#endif
   // No rpc_add_ktrace needed here since the current TraceContext can not be
   // replaced via move constructor.
 }
@@ -1010,6 +1042,9 @@ inline TraceContext& TraceContext::operator=(TraceContext&& c) noexcept {
 
   // Handle the details of moving the tracer from c to *this.
   MoveTracer(&c, this);
+#ifdef ENABLE_TRACER_REF_TRACKING
+  c.tracer_owner_.reset();
+#endif
   return *this;
 }
 
