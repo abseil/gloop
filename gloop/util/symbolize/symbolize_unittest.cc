@@ -266,6 +266,8 @@ TEST_P(SymbolMapTest, UnstrippedBinary) {
 
 #ifdef ABSL_HAVE_VDSO_SUPPORT  // does OS+compiler support vdso?
 
+// TODO: Reenable this test on ARM64.
+#ifndef __aarch64__
 // Handle symbol aliases, such as __vdso_getcpu vs. getcpu
 static std::string CanonicalSymbolName(const std::string& name) {
   if (name.substr(0, 7) == "__vdso_") {
@@ -274,8 +276,6 @@ static std::string CanonicalSymbolName(const std::string& name) {
   return name;
 }
 
-// TODO: Reenable this test on ARM64.
-#ifndef __aarch64__
 TEST_P(SymbolMapTest, VDSOSymbols) {
   absl::debugging_internal::VDSOSupport vdso;
   if (vdso.IsPresent()) {

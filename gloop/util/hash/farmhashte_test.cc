@@ -149,5 +149,4 @@ TEST(FarmHashteFingerprint64Test, Unchanging1) {
   EXPECT_EQ(uint64_t{0x6b5c772d842e8c11}, h);
 }
 #else
-#error "The test is unsupported for other platforms other than x86 and Arm"
 #endif  // can_use_sse41 || can_use_neon

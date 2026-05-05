@@ -29,10 +29,10 @@ concurrency:
 
 jobs:
   linux:
-    runs-on: ubuntu-latest
-    name: Linux (${{ matrix.config.name || matrix.config.value }})
+    runs-on: ubuntu-24.04${{ matrix.config.arch-suffix }}
+    name: Linux (${{ matrix.config.name || format('{0}{1}', matrix.config.value, matrix.config.arch-suffix) }})
     container:
-      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:763336890942c7bcd17382945a8f9fa46d14a0509c9666566dae79edf4b7c2c5
+      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:575f02ebeb59cfd6b5e1db6ff44cf87807329ae5f0c44f87a59a479074ee901f
       # Our images happen to be public today, but use our service account's credentials anyway in
       # case we decide to lock down access.
       credentials:
@@ -48,6 +48,10 @@ jobs:
           - value: ubsan
           - value: msan
           - value: tsan
+          - value: opt
+            arch-suffix: -arm
+          - value: asan
+            arch-suffix: -arm
           - name: Unsupported libstdc++
             value: libstdc++
           - name: Bazel 8
@@ -69,7 +73,7 @@ jobs:
           repository-cache: |
             - MODULE.bazel
           google-credentials: ${{ secrets.GAR_SERVICE_ACCOUNT }}
-          bazelrc: common --config=remote
+          bazelrc: common --config=remote${{ matrix.config.arch-suffix }}
 
       - name: Run tests
         run: bazel test ... --config=${{ matrix.config.value }}
@@ -81,7 +85,7 @@ jobs:
     name: Check Non-compilation for ${{ matrix.config }}
     runs-on: ubuntu-latest
     container:
-      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:763336890942c7bcd17382945a8f9fa46d14a0509c9666566dae79edf4b7c2c5
+      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:575f02ebeb59cfd6b5e1db6ff44cf87807329ae5f0c44f87a59a479074ee901f
       # Our images happen to be public today, but use our service account's credentials anyway in
       # case we decide to lock down access.
       credentials:

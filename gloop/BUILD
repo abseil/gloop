@@ -103,9 +103,23 @@ platform(
         "@platforms//cpu:x86_64",
     ],
     exec_properties = {
-        "container-image": "docker://gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:763336890942c7bcd17382945a8f9fa46d14a0509c9666566dae79edf4b7c2c5",
-        "Pool": "default",
+        "container-image": "docker://gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:575f02ebeb59cfd6b5e1db6ff44cf87807329ae5f0c44f87a59a479074ee901f",
+        "OSArch": "amd64",
         "dockerRunAsRoot": "true",
-        "cache-silo-key": "default-04162026",
+        "cache-silo-key": "n2-highmem-8-2026-05-02",
+    },
+)
+
+platform(
+    name = "rbe-arm",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:aarch64",
+    ],
+    exec_properties = {
+        "container-image": "docker://gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:575f02ebeb59cfd6b5e1db6ff44cf87807329ae5f0c44f87a59a479074ee901f",
+        "OSArch": "arm64",
+        "dockerRunAsRoot": "true",
+        "cache-silo-key": "t2a-standard-8-2026-05-02",
     },
 )

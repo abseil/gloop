@@ -104,4 +104,9 @@ static_assert((char)-1 > 0,
 #error "Gloop does not support exceptions (use -fno-exceptions)"
 #endif
 
+// Convenience macro for checking if we're building for open source.
+// This is useful for controlling test behavior where we don't actually need to
+// worry about scrubbing.
+#define GLOOP_OPENSOURCE 1
+
 #endif  // THIRD_PARTY_GLOOP_ENFORCE_GLOOP_SUPPORT_H_

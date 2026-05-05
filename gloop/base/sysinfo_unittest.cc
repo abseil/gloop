@@ -447,7 +447,12 @@ void TestSystemState() {
   // There are many ways to assign NominalCPUFrequency, depending on the
   // machine.  We just want to make sure at least one of them gave
   // back a plausible value.
+#if defined(__aarch64__) && defined(GLOOP_OPENSOURCE)
+  // Our ARM docker containers don't have access to the CPU frequency.
+  EXPECT_EQ(NominalCPUFrequency(), 1.0);
+#else
   EXPECT_GT(NominalCPUFrequency(), 10.0);
+#endif
 
   LOG(INFO) << "Testing CycleClock::Frequency()";
   // There are many ways to assign CycleClock::Frequency(), depending on the

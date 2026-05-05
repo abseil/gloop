@@ -251,6 +251,7 @@ cc_library(
     srcs = ["foobar.cc"],
     hdrs = ["foobar.h"],
     copts = ["-fbasic-block-sections=all"],
+    target_compatible_with = ["@platforms//cpu:x86_64"],
     deps = [
         ":symbolize",
         "//gloop:enforce_gloop_support",
@@ -268,6 +269,7 @@ cc_library(
 cc_test(
     name = "symbolized_stacktrace_bb_sections_unittest",
     srcs = ["symbolized_stacktrace_bb_sections_unittest.cc"],
+    target_compatible_with = ["@platforms//cpu:x86_64"],
     deps = [
         ":foobar_bbsections_all",
         "//gloop:gloop_test_main",

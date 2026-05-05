@@ -204,7 +204,7 @@ namespace percpu {
   " :got_lo12:__rseq_virtual_flat_cpu_id_offset]\n"             \
   "ldr    %[" PERCPU_RSEQ_STRINGIZE(var) "],"                   \
   " [%[" PERCPU_RSEQ_STRINGIZE(var) "]]\n"                      \
-  "ldrsh  %w[" PERCPU_RSEQ_STRINGIZE(var) "],"                  \
+  "ldrsh  %[" PERCPU_RSEQ_STRINGIZE(var) "],"                  \
   " [%[percpu_rseq_abi], %[" PERCPU_RSEQ_STRINGIZE(var) "]]\n"
 
 #endif
