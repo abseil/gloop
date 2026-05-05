@@ -1146,7 +1146,6 @@ cc_test(
     srcs = ["sysinfo_unittest.cc"],
     malloc = "//gloop:malloc",
     deps = [
-        ":commandlineflags",
         ":init_google",
         ":log_file_flags",
         ":proc_maps",

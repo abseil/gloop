@@ -100,7 +100,6 @@ cc_library(
     deps = [
         ":symbol_map_sink",
         "//gloop:enforce_gloop_support",
-        "//gloop/base:commandlineflags",
         "//gloop/base:port",
         "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/flags:flag",
