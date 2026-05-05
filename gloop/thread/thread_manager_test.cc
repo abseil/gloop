@@ -436,7 +436,17 @@ TEST(ThreadManagerTest, Queues) {
       CHECK_LE(8, queue_info[i].max_pending_for_queue);
       CHECK_LE(queue_info[i].max_pending_for_queue, 28);
     } else {  // others should see more queuing
-      CHECK_LE(27, queue_info[i].max_pending_for_queue);
+      // We have a queue limit of 27. However, the callback will normally never
+      // see that 27 as it pops the queue and then invokes the callback. The
+      // only time it can see 27 is if a Schedule() call manages to interleave
+      // inside the pop() --> cb() execution.
+      // The other factor that can cause `num_pending_closures()` to return 27
+      // or higher is if an entry was scheduled to run, but the TM worker pools
+      // are saturated, i.e., the callback is pending in the TM worker pool,
+      // which is sampled / estimated by `num_pending_closures()`. This latter
+      // factor is strongly dependent on how much CPUs are available to the
+      // machine running the test. To avoid flakes, we check for 'at least 25'.
+      ASSERT_GE(queue_info[i].max_pending_for_queue, 25);
       CHECK_LE(queue_info[i].max_pending_for_queue, 40);
     }
     delete queue_info[i].cb;
