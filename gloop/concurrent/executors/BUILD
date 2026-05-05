@@ -35,6 +35,7 @@ cc_library(
         "//gloop/base:callback",
         "//gloop/base:varsetter",
         "//gloop/thread",
+        "//gloop/thread:shutdown_gate",
         "//gloop/util/functional:to_callback",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/functional:any_invocable",

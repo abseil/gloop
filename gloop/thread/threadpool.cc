@@ -172,6 +172,7 @@ ThreadPool::ThreadPool(int num_threads, Options options)
 }
 
 ThreadPool::~ThreadPool() {
+  shutdown_gate_.CloseAndWait();
   // Provide for safe shutdown by forcing all AddAfter() closures onto
   // queue_, even if they have not yet expired. After this call returns, no
   // more closures can be queued, even if AddAfter() is somehow called.

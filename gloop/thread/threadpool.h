@@ -37,6 +37,7 @@
 
 #include "absl/base/attributes.h"
 #include "gloop/thread/config.h"  // IWYU pragma: keep
+#include "gloop/thread/shutdown_gate.h"
 #include "gtest/gtest_prod.h"
 
 // When building some platforms, this file is effectively replaced by its analog
@@ -192,6 +193,10 @@ class ThreadPool : public AbstractThreadPool {
   ThreadPool& operator=(const ThreadPool&) = delete;
 #endif
 
+  void ShutdownRef() override { shutdown_gate_.Enter(); }
+
+  void ShutdownUnref() override { shutdown_gate_.Leave(); }
+
  private:
   // Waiter for a single thread. Uses intrusive_list to allow for simple and
   // efficient mid-list removal and to avoid allocations.
@@ -269,6 +274,7 @@ class ThreadPool : public AbstractThreadPool {
   size_t running_threads_ ABSL_GUARDED_BY(mutex_) = 0;
   thread::CpuSubContainer* const subcontainer_;  // Thread scheduling container
   std::vector<Thread*> threads_ ABSL_GUARDED_BY(mutex_);  // List of threads
+  thread::ShutdownGate shutdown_gate_;
 
   FRIEND_TEST(ThreadPoolTest, OptionsConstructor);
 };

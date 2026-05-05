@@ -31,6 +31,7 @@
 #include "gloop/base/callback.h"
 #include "gloop/thread/add_after_helper.h"
 #include "gloop/thread/executor.h"
+#include "gloop/thread/shutdown_gate.h"
 
 class TimedCall;
 
@@ -93,6 +94,10 @@ class LoopExecutor : public thread::Executor {
                   absl::AnyInvocable<void() &&> callback) override;
   int num_pending_closures() const override;
 
+  void ShutdownRef() override { shutdown_gate_.Enter(); }
+
+  void ShutdownUnref() override { shutdown_gate_.Leave(); }
+
  private:
   class ScopedLoopRunningRegion;
 
@@ -130,6 +135,7 @@ class LoopExecutor : public thread::Executor {
   std::deque<Closure*> work_queue_ ABSL_GUARDED_BY(mu_);
   // Provides a shutdown-safe implementation of AddAfter().
   thread::AddAfterHelper add_after_helper_;
+  thread::ShutdownGate shutdown_gate_;
 };
 
 }  // namespace concurrent

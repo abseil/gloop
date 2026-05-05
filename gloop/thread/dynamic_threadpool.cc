@@ -163,7 +163,10 @@ DynamicThreadPool::DynamicThreadPool(int queue_capacity, int min_threads,
                         queue_capacity, min_threads, max_threads, max_idle_ms) {
 }
 
-DynamicThreadPool::~DynamicThreadPool() { ShutDown(); }
+DynamicThreadPool::~DynamicThreadPool() {
+  shutdown_gate_.CloseAndWait();
+  ShutDown();
+}
 
 void DynamicThreadPool::ShutDown() {
   if (ended_.HasBeenNotified()) {

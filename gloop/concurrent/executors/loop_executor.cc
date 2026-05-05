@@ -85,6 +85,7 @@ void STLDeleteNonPermanentCallbacks(C* container) {
 }  // namespace
 
 LoopExecutor::~LoopExecutor() {
+  shutdown_gate_.CloseAndWait();
   // We need to cancel any AddAfter() calls and then delete any
   // closures that have been pushed onto work_queue_.  The order is
   // important because running AddAfter() calls can continue to push

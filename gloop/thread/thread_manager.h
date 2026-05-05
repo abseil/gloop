@@ -240,6 +240,10 @@ class ManagedQueue : public thread::Executor {
       override;                               // Schedule(callback) at time.
   int num_pending_closures() const override;  // Count of closures on queue.
 
+  void ShutdownRef() override;
+
+  void ShutdownUnref() override;
+
   // Wait until all work currently associated with this queue (including work
   // passed to ScheduleAt()) is complete.  If new work is added during the call,
   // it is unspecified whether the call waits for the new work to complete.

@@ -1200,6 +1200,13 @@ static void TMQueueRepUnref(ManagedQueue::Rep* q_rep) {
   }
 }
 
+static void TMQueueRepRef(ManagedQueue::Rep* q_rep) {
+  q_rep->queue_mu.lock();
+  CHECK_GT(q_rep->queue_refcount, 0);
+  q_rep->queue_refcount++;
+  q_rep->queue_mu.unlock();
+}
+
 // -----------------------------------------------------------------------
 // public interface
 
@@ -1489,6 +1496,10 @@ void ManagedQueue::WaitUntilComplete() {
 ManagedQueue* ManagedQueue::current_executor_for_testing() const {
   return &this->q_rep_->queue_external;
 }
+
+void ManagedQueue::ShutdownRef() { TMQueueRepRef(q_rep_); }
+
+void ManagedQueue::ShutdownUnref() { TMQueueRepUnref(q_rep_); }
 
 // -----------------------------------------------------------------------
 // Constructors for default options.

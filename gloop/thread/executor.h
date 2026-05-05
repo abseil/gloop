@@ -153,6 +153,16 @@ class Executor {
     return &absl::Clock::GetRealClock();
   }
 
+  // These two methods adjust a refcount which prevents a concurrent shutdown
+  // from returning if it is positive. Note that shutdown normally blocks
+  // until pending callbacks complete -- this is only necessary if code running
+  // outside of this executor needs to block this executor from shutdown.
+  //
+  // Note that the machinery of shutdown is implementation-specific. Some
+  // executors may not implement it.
+  virtual void ShutdownRef() {}
+  virtual void ShutdownUnref() {}
+
  protected:
   // Executes 'callback' after 'when'. The callback is executed by a thread
   // internal to the implementation, so the caller must make sure that

@@ -124,6 +124,7 @@ cc_library(
     srcs = ["dynamic_threadpool.cc"],
     hdrs = ["dynamic_threadpool.h"],
     deps = [
+        ":shutdown_gate",
         ":thread",
         ":wait_state",
         "//gloop:enforce_gloop_support",
@@ -258,6 +259,7 @@ cc_library(
         ":os_semaphore",
         ":prioritized_wait_queue",
         ":python_stack_size",
+        ":shutdown_gate",
         ":sync_queue",
         ":thread-internal",
         ":wait_queue",
@@ -1025,6 +1027,41 @@ cc_test(
     deps = [
         ":thread_manager",
         "//gloop/base:init_google",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "keep_alive",
+    hdrs = ["keep_alive.h"],
+    deps = [
+        ":thread",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+    ],
+)
+
+cc_library(
+    name = "shutdown_gate",
+    hdrs = ["shutdown_gate.h"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+    ],
+)
+
+cc_test(
+    name = "shutdown_gate_test",
+    srcs = ["shutdown_gate_test.cc"],
+    deps = [
+        ":shutdown_gate",
+        ":thread",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",

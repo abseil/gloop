@@ -48,6 +48,7 @@
 #include "absl/synchronization/notification.h"
 #include "absl/time/time.h"
 #include "gloop/base/callback.h"
+#include "gloop/thread/shutdown_gate.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
 #include "gloop/thread/threadpool.h"
@@ -114,6 +115,10 @@ class DynamicThreadPool : public AbstractThreadPool {
   std::string thread_name_prefix() const override {
     return thread_name_prefix_;
   }
+
+  void ShutdownRef() override { shutdown_gate_.Enter(); }
+
+  void ShutdownUnref() override { shutdown_gate_.Leave(); }
 
   int num_threads() const;
   Thread* thread(int i) const;
@@ -199,6 +204,7 @@ class DynamicThreadPool : public AbstractThreadPool {
   const int max_idle_ms_;
   thread::Options thread_options_;
   const std::string thread_name_prefix_;
+  thread::ShutdownGate shutdown_gate_;
 };
 
 #endif  // THIRD_PARTY_GLOOP_THREAD_DYNAMIC_THREADPOOL_H_
