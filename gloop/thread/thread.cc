@@ -748,6 +748,12 @@ struct StackTrace {
   // Worker thread wait state of this thread at the time of collection.
   thread::WaitStateScope::WaitState wait_state;
 
+  // Only populated if a Python interpreter is linked in (see
+  // `IsCurrentThreadHoldingPythonGil()`). Note that it is possible for
+  // this to be true on multiple stack traces, as we query whether each
+  // thread is holding the GIL at a different moment.
+  bool holding_python_gil = false;
+
   size_t stack_size;
   size_t stack_usage;
   // TODO: Add name if available
@@ -842,6 +848,25 @@ void* MaybeGetPC(const StackTrace* trace) { return GetPC(trace->uc); }
 
 }  // namespace
 
+// This weak symbol is only defined when the program has a Python
+// interpreter linked in. It returns 1 if the current thread holds the
+// Python GIL, and 0 otherwise (see
+// https://docs.python.org/3/c-api/threads.html#c.PyGILState_Check).
+// When defined, this function is async-signal-safe.
+extern "C" ABSL_ATTRIBUTE_WEAK int PyGILState_Check();
+
+namespace {
+// Returns true if a Python interpreter is linked in, and the current
+// thread holds the Python GIL. This is async-signal-safe.
+bool IsCurrentThreadHoldingPythonGil() {
+#if !PORTABLE_BASE
+  return &PyGILState_Check && PyGILState_Check();
+#else
+  return false;
+#endif
+}
+}  // namespace
+
 // 'context' may be nullptr, in which case an all-zero ucontext_t will be used.
 //
 // (Note that this function must be marked noinline for this to work reliably.)
@@ -928,6 +953,8 @@ ABSL_ATTRIBUTE_NOINLINE void FillStackTrace(StackTrace* trace,
   } else {
     trace->wait_state = thread::WaitStateScope::WaitState::kActive;
   }
+
+  trace->holding_python_gil = IsCurrentThreadHoldingPythonGil();
 }
 
 void FillCurrentRequestInfo(StackTrace* trace) {
@@ -963,6 +990,10 @@ size_t StackTrace_GetStackSize(const StackTrace* trace) {
 
 size_t StackTrace_GetStackUsage(const StackTrace* trace) {
   return trace->stack_usage;
+}
+
+bool StackTrace_IsHoldingPythonGil(const StackTrace* trace) {
+  return trace->holding_python_gil;
 }
 
 class LiveThread;
@@ -1462,26 +1493,6 @@ void* ThreadLivenessWatcher(void* arg) {
   return nullptr;
 }
 
-int64_t (*python_gil_holder_thread_id)() = nullptr;
-ABSL_CONST_INIT absl::Mutex python_gil_holder_thread_id_lock(absl::kConstInit);
-
-void DumpGilHolder(DebugWriter writerfn, void* arg) {
-  absl::MutexLock ml(python_gil_holder_thread_id_lock);
-  if (python_gil_holder_thread_id == nullptr) {
-    return;
-  }
-  const int64_t holder_thread_id = python_gil_holder_thread_id();
-  if (holder_thread_id == -1) {
-    return;
-  }
-
-  constexpr int64_t kGilPrinterBufSize = 64;
-  char buf[kGilPrinterBufSize];
-  base::RawPrinter printer(buf, kGilPrinterBufSize);
-  printer.Printf("--- Python GIL held by thread %llx ---\n", holder_thread_id);
-  writerfn(buf, arg);
-}
-
 ABSL_CONST_INIT SpinLock exit_handler_list_lock{
     absl::base_internal::SCHEDULE_KERNEL_ONLY};
 
@@ -1501,11 +1512,6 @@ void RunExitHandlers() {
 
 }  // namespace
 
-void PythonGilHolderLookup::Register(int64_t (*fn)()) {
-  absl::MutexLock ml(python_gil_holder_thread_id_lock);
-  python_gil_holder_thread_id = fn;
-}
-
 void Thread::RegisterExitHandler(std::function<void()> handler) {
   SpinLockHolder lock(exit_handler_list_lock);
   if (g_exit_handlers == nullptr) {
@@ -1522,14 +1528,10 @@ void Thread::ThreadExitHandler(void* unused) {
   // skip one stack frame (myself)
   DumpStackTrace(1, DebugWriteToStderr, nullptr);
   DumpAddressMap(DebugWriteToStderr, nullptr);
-  DumpGilHolder(DebugWriteToStderr, nullptr);
   DumpStackTrace(
       1, base::DebugWriteToStream,
       &absl::LogErrorStreamer(absl::SourceLocation::current()).stream());
   DumpAddressMap(
-      base::DebugWriteToStream,
-      &absl::LogErrorStreamer(absl::SourceLocation::current()).stream());
-  DumpGilHolder(
       base::DebugWriteToStream,
       &absl::LogErrorStreamer(absl::SourceLocation::current()).stream());
 
@@ -1945,6 +1947,7 @@ void PrintStackTrace(void* print_arg, const LiveThread* thread,
   size_t stack_size_kb = 0;
   size_t stack_used_kb = 0;
   ThreadNotesForTrace notes;
+  bool holding_python_gil = false;
   if (trace == nullptr) {
     // Print fake info.
     stack = nullptr;
@@ -1964,6 +1967,7 @@ void PrintStackTrace(void* print_arg, const LiveThread* thread,
     notes = LiveThread_GetNotesForTrace(thread, trace);
     stack_size_kb = StackTrace_GetStackSize(trace) / 1024;
     stack_used_kb = StackTrace_GetStackUsage(trace) / 1024;
+    holding_python_gil = trace->holding_python_gil;
     trace = nullptr;  // Catch mistaken access below
   }
 
@@ -1992,6 +1996,12 @@ void PrintStackTrace(void* print_arg, const LiveThread* thread,
   }
   for (const std::string& note : notes.notes) {
     printer.Printf("note: %s\n", note);
+  }
+
+  if (holding_python_gil) {
+    // Note: It is possible for this to be printed for multiple threads,
+    // as thread states are not queried at a single moment in time.
+    printer.Printf("python_gil: held\n");
   }
 
   if (stack == nullptr) {
@@ -2259,7 +2269,6 @@ void PrintStackExtractionSummary(const PrintArg& print_arg, int dropped,
   if (!skip_address_map) {
     DumpAddressMap(ThreadDebugWriter, writer);
   }
-  DumpGilHolder(ThreadDebugWriter, writer);
 }
 
 void Thread_ExtractStacks(ThreadStackWriter* writer) {

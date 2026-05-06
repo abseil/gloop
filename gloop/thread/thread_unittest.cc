@@ -42,6 +42,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/optimization.h"
+#include "absl/cleanup/cleanup.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/flags/declare.h"
 #include "absl/flags/flag.h"
@@ -97,11 +98,6 @@ class DeprecatedSingleThreadedTest {
   static void AvoidBackgroundThreads() {
     ::thread::DeprecatedThreadControl::AvoidBackgroundThreads();
   }
-};
-
-class PythonGilHolderLookupForTest : public PythonGilHolderLookup {
- public:
-  using PythonGilHolderLookup::Register;
 };
 
 namespace {
@@ -1829,27 +1825,27 @@ TEST(ThreadTest, CheckThreadNotesInStack) {
   EXPECT_THAT(dump, testing::HasSubstr("note: test_note\n"));
 }
 
+#if !PORTABLE_BASE
+
+// Pretend to be a Python interpreter to test detection of threads
+// holding the Python GIL.
+std::atomic<bool> gil_held;
+extern "C" int PyGILState_Check() { return gil_held.load(); }
+
 TEST(ThreadTest, DumpGilHolder) {
+  absl::Cleanup restore_gil_held = [] { gil_held.store(false); };
   std::string dump;
 
-  PythonGilHolderLookupForTest::Register(nullptr);
+  gil_held.store(false);
   SaveStackTraceDump(&dump);
-  EXPECT_THAT(dump, Not(testing::HasSubstr("--- Python GIL")));
+  EXPECT_THAT(dump, Not(testing::HasSubstr("python_gil: held")));
 
-  auto return_minus_one = []() { return static_cast<int64_t>(-1); };
-  PythonGilHolderLookupForTest::Register(return_minus_one);
+  gil_held.store(true);
   SaveStackTraceDump(&dump);
-  EXPECT_THAT(dump, Not(testing::HasSubstr("--- Python GIL")));
-
-  auto return_valid = []() { return static_cast<int64_t>(-42); };
-  PythonGilHolderLookupForTest::Register(return_valid);
-  SaveStackTraceDump(&dump);
-  EXPECT_THAT(dump,
-              testing::HasSubstr(
-                  "--- Python GIL held by thread ffffffffffffffd6 ---\n"));
-
-  PythonGilHolderLookupForTest::Register(nullptr);
+  EXPECT_THAT(dump, testing::HasSubstr("python_gil: held"));
 }
+
+#endif
 
 TEST(ThreadTest, DebugNameNotInsideFiber) {
   if (thread::Fiber::IsFiber()) {

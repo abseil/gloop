@@ -590,6 +590,7 @@ cc_test(
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/debugging:stacktrace",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/functional:any_invocable",

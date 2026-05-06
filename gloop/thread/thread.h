@@ -625,6 +625,10 @@ size_t StackTrace_GetStackSize(const StackTrace* trace);
 // (or 0 if it cannot be determined).
 size_t StackTrace_GetStackUsage(const StackTrace* trace);
 
+// Returns whether the thread is holding the Python GIL. Always returns
+// false if the process does not link a Python runtime.
+bool StackTrace_IsHoldingPythonGil(const StackTrace* trace);
+
 // Extract all thread stacks, convert them to printable form, and write
 // the printable form to STDERR.
 //
@@ -867,21 +871,5 @@ ThreadNotesForTrace LiveThread_GetNotesForTrace(const LiveThread* thread,
 bool LiveThread_ForEachNoteAsyncSignalSafe(
     const LiveThread* thread, const StackTrace* must_match,
     void (*fn)(void* arg, absl::string_view note), void* arg);
-
-// A hook to register a function to look up the thread id of the current Python
-// GIL holder, if any.  Any previous registered function will be overridden;
-// register nullptr to remove the current function with no replacement.
-namespace pyglib {
-class PythonGilHolderLookup;
-}
-class PythonGilHolderLookup {
- private:
-  friend class PythonGilHolderLookupForTest;
-  friend class pyglib::PythonGilHolderLookup;
-
-  // fn should be a function that returns the current Python GIL holder's thread
-  // id, or -1 to not report any GIL holder.
-  static void Register(int64_t (*fn)());
-};
 
 #endif  // THIRD_PARTY_GLOOP_THREAD_THREAD_H_
