@@ -402,18 +402,21 @@ ptrdiff_t UnescapeCEscapeSequences(const char* absl_nonnull source,
 
 ptrdiff_t UnescapeCEscapeString(const std::string& src,
                                 std::string* absl_nonnull dest) {
-  CHECK(dest);
-  dest->resize(src.size() + 1);
-  ptrdiff_t len = UnescapeCEscapeSequences(src.c_str(), &(*dest)[0]);
-  dest->erase(len);
-  return len;
+  std::string error;
+  if (!absl::CUnescape(src, dest, &error)) {
+    // This function is documented to report errors via LOG(ERROR).
+    LOG(ERROR) << error;
+  }
+  return static_cast<ptrdiff_t>(dest->size());
 }
 
 std::string UnescapeCEscapeString(const std::string& src) {
-  std::string unescaped(src.size() + 1, '\0');
-
-  ptrdiff_t len = UnescapeCEscapeSequences(src.c_str(), &unescaped[0]);
-  unescaped.erase(len);
+  std::string unescaped;
+  std::string error;
+  if (!absl::CUnescape(src, &unescaped, &error)) {
+    // This function is documented to report errors via LOG(ERROR).
+    LOG(ERROR) << error;
+  }
   return unescaped;
 }
 

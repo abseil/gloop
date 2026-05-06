@@ -980,7 +980,7 @@ TEST(Unescape, BasicFunction) {
                  {"\\U0000DD04", ""},  // surrogate character (D800-DFFF)
                  {"\\777", ""},        // exceeds 0xff
                  {"\\xABCD", ""},      // exceeds 0xff
-                 {"\\U41Z", "Z"}};     // contains non-hex
+                 {"\\U41Z", ""}};      // contains non-hex
   for (const epair& val : bad) {
     for (bool same_buffer : {false, true}) {
       absl::ScopedMockLog mock_log;
