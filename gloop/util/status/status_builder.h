@@ -1101,12 +1101,13 @@ inline absl::StatusCode StatusBuilder::code() const {
 
 // Returns true iff the status created by the builder will have the code and
 // associated error space of `code`. Intended to be called with enumerators from
-// non-canonical error spaces. `StatusBuilder(Status(code, "")).Is(code)` is
-// always true. In particular, if the `code` is zero, returns true if
-// `status_builder.ok()`. Sample usage:
+// non-canonical error spaces.
+// `util::HasErrorCode(StatusBuilder(Status(code, "")), code)` is always true.
+// In particular, if the `code` is zero, returns true if `status_builder.ok()`.
+// Sample usage:
 //
 //   StatusBuilder TeamPolicy(StatusBuilder builder) {
-//     if (builder.Is(frobber::kNoMoreFrobs)) {
+//     if (util::HasErrorCode(builder, frobber::kNoMoreFrobs)) {
 //       builder.Log(absl::LogSeverity::kWarning);
 //     }
 //     return std::move(builder);
@@ -1132,9 +1133,9 @@ inline bool HasErrorCode(const StatusBuilder& builder,
 
 // Returns true iff the status created by this builder will have an error code
 // equal to `code` and an error space equal to `space`.
-// NOTE: Most error spaces can and should use the one-arg `Is()` function taking
-// an enum. This overload is provided for error spaces such as
-// util::PosixErrorSpace() which cannot use that templace because they lack an
+// NOTE: Most error spaces can and should use the two-args `HasErrorCode()`
+// function taking an enum. This overload is provided for error spaces such as
+// util::PosixErrorSpace() which cannot use that template because they lack an
 // associated Enum type.
 inline bool HasErrorCode(const StatusBuilder& builder, const ErrorSpace* space,
                          int code) {
