@@ -62,6 +62,28 @@ cc_test(
 )
 
 cc_library(
+    name = "monotonic_clock",
+    srcs = [
+        "monotonic_clock.cc",
+    ],
+    hdrs = [
+        "monotonic_clock.h",
+        "monotonic_clock-internal.h",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/time:clock_interface",
+    ],
+)
+
+cc_library(
     name = "protoutil",
     srcs = ["protoutil.cc"],
     hdrs = ["protoutil.h"],
@@ -78,6 +100,31 @@ cc_library(
 )
 
 # Tests:
+
+cc_test(
+    name = "monotonic_clock_test",
+    srcs = ["monotonic_clock_test.cc"],
+    deps = [
+        ":monotonic_clock",
+        "//gloop:gloop_test_main",
+        "//gloop/base:commandlineflags",
+        "//gloop/thread",
+        "//gloop/util/random:acmrandom",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:scoped_mock_log",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/time:clock_interface",
+        "@abseil-cpp//absl/time:simulated_clock",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
 
 cc_test(
     name = "protoutil_test",
