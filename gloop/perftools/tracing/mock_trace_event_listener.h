@@ -27,6 +27,7 @@
 
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
+#include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
 #include "gmock/gmock.h"
 
@@ -71,8 +72,8 @@ class MockTraceEventListener : public TraceEventListener {
   MOCK_METHOD(void, OnTraceStreamingReceive,
               (MsgOrigin, MsgId, MsgSequence, MsgFlags));
 
-  MOCK_METHOD(void, OnTraceMark, (StringRef));
-  MOCK_METHOD(void, OnTraceBeginRegion, (StringRef));
+  MOCK_METHOD(void, OnTraceMark, (StringRef, TraceSourceLocation));
+  MOCK_METHOD(void, OnTraceBeginRegion, (StringRef, TraceSourceLocation));
   MOCK_METHOD(void, OnTraceEndRegion, ());
 
   MOCK_METHOD(void, OnTraceControlFlow,

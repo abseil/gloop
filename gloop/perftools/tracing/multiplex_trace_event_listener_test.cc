@@ -23,8 +23,11 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
+#include "gloop/perftools/tracing/test_only_access.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
+#include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -32,12 +35,22 @@
 namespace perftools::tracing {
 namespace {
 
+using ::perftools::tracing::testing::TestOnlyAccess;
 using ::testing::ElementsAreArray;
 using ::testing::Eq;
 using ::testing::InSequence;
 using ::testing::Le;
 using ::testing::Return;
 using ::testing::StrictMock;
+
+TraceSourceLocation SourceLocation(const char* file, int line) {
+  return TraceSourceLocation(
+      TestOnlyAccess::Create<TraceSourceLocation::Access>(), file, line);
+}
+
+MATCHER_P2(EqSourceLocation, file, line, "Matches source location") {
+  return arg.file_name() == absl::string_view(file) && arg.line() == line;
+}
 
 // Minimum default TraceEventListener implementation.
 class DefaultTraceEventListener : public TraceEventListener {
@@ -109,10 +122,14 @@ TEST(MultiplexTraceEventListener, Basics) {
               OnTraceStreamingReceive(MsgOrigin::kClient, MsgId{842},
                                       MsgSequence{2}, MsgFlags::kControl));
 
-  EXPECT_CALL(first, OnTraceMark(Eq("Not Marc")));
-  EXPECT_CALL(second, OnTraceMark(Eq("Not Marc")));
-  EXPECT_CALL(first, OnTraceBeginRegion(Eq("Here, not there")));
-  EXPECT_CALL(second, OnTraceBeginRegion(Eq("Here, not there")));
+  EXPECT_CALL(first,
+              OnTraceMark(Eq("Not Marc"), EqSourceLocation("foo.cc", 11)));
+  EXPECT_CALL(second,
+              OnTraceMark(Eq("Not Marc"), EqSourceLocation("foo.cc", 11)));
+  EXPECT_CALL(first, OnTraceBeginRegion(Eq("Here, not there"),
+                                        EqSourceLocation("foo.cc", 12)));
+  EXPECT_CALL(second, OnTraceBeginRegion(Eq("Here, not there"),
+                                         EqSourceLocation("foo.cc", 12)));
   EXPECT_CALL(second, OnTraceEndRegion());
   EXPECT_CALL(first, OnTraceEndRegion());
 
@@ -146,8 +163,8 @@ TEST(MultiplexTraceEventListener, Basics) {
   listener.OnTraceStreamingReceive(MsgOrigin::kClient, MsgId{842},
                                    MsgSequence{2}, MsgFlags::kControl);
 
-  listener.OnTraceMark("Not Marc");
-  listener.OnTraceBeginRegion("Here, not there");
+  listener.OnTraceMark("Not Marc", SourceLocation("foo.cc", 11));
+  listener.OnTraceBeginRegion("Here, not there", SourceLocation("foo.cc", 12));
   listener.OnTraceEndRegion();
   listener.OnTraceControlFlow("Flow", ControlFlowType::kSchedule,
                               ControlFlowId{3421}, ControlFlowSequence(1));

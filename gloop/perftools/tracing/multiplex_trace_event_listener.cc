@@ -30,6 +30,7 @@
 #include "gloop/base/examine_stack.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
+#include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
 
 namespace perftools::tracing::internal {
@@ -131,12 +132,12 @@ class Mux final : public TraceEventListener {
     Dispatch(&TraceEventListener::OnTraceSignal, id, label);
   }
 
-  void OnTraceMark(StringRef label) final {
-    Dispatch(&TraceEventListener::OnTraceMark, label);
+  void OnTraceMark(StringRef label, TraceSourceLocation location) final {
+    Dispatch(&TraceEventListener::OnTraceMark, label, location);
   }
 
-  void OnTraceBeginRegion(StringRef label) final {
-    Dispatch(&TraceEventListener::OnTraceBeginRegion, label);
+  void OnTraceBeginRegion(StringRef label, TraceSourceLocation location) final {
+    Dispatch(&TraceEventListener::OnTraceBeginRegion, label, location);
   }
 
   void OnTraceEndRegion() final {

@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "gloop/perftools/tracing/string_label.h"
+#include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
 
 namespace perftools::tracing {
@@ -49,8 +50,11 @@ void TraceEventListener::OnTraceStreamingSend(MsgOrigin, MsgId, MsgSequence,
                                               MsgFlags) {}
 void TraceEventListener::OnTraceStreamingReceive(MsgOrigin, MsgId, MsgSequence,
                                                  MsgFlags) {}
-void TraceEventListener::OnTraceMark(StringRef) {}
-void TraceEventListener::OnTraceBeginRegion(StringRef) {}
+void TraceEventListener::OnTraceMark(StringRef, TraceSourceLocation location) {}
+// void TraceEventListener::OnTraceBeginRegion(StringRef label) {
+//   OnTraceBeginRegion(label, TraceSourceLocation::current());
+// }
+void TraceEventListener::OnTraceBeginRegion(StringRef, TraceSourceLocation) {}
 void TraceEventListener::OnTraceEndRegion() {}
 void TraceEventListener::OnTraceControlFlow(StringRef, ControlFlowType,
                                             ControlFlowId,

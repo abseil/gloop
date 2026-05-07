@@ -103,6 +103,7 @@ TEST(TraceEventListener, InvokeAllEvents) {
   listener.OnTraceSuspendSync(SyncId{721});
   listener.OnTraceResumeSync(SyncId{721});
   listener.OnTraceEnterSync(SyncId{722}, "Enter");
+
   listener.OnTraceWait(BarrierId{313131}, "Wait wait");
   listener.OnTraceContinue(BarrierId{3412442});
   listener.OnTraceObserved(BarrierId{3412442}, "Peekaboo");
@@ -122,8 +123,8 @@ TEST(TraceEventListener, InvokeAllEvents) {
   listener.OnTraceSessionEnd("Finish Client", MsgId{842},
                              EndPoint::kStreamingClient);
 
-  listener.OnTraceMark("Not Marc");
-  listener.OnTraceBeginRegion("Here, not there");
+  listener.OnTraceMark("Not Marc", TraceSourceLocation());
+  listener.OnTraceBeginRegion("Here, not there", TraceSourceLocation());
   listener.OnTraceEndRegion();
   listener.OnTraceControlFlow("Flow", ControlFlowType::kSchedule,
                               ControlFlowId{3421}, ControlFlowSequence(1));

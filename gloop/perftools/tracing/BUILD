@@ -142,6 +142,7 @@ cc_library(
         ":trace_event_listener_visibility",
     ],
     deps = [
+        ":trace_source_location",
         ":tracing_base",
         "//gloop:enforce_gloop_support",
     ],
@@ -171,6 +172,7 @@ cc_library(
     ],
     deps = [
         ":trace_event_listener",
+        ":trace_source_location",
         ":tracing_base",
         "//gloop:enforce_gloop_support",
         "//gloop/base:examine_stack",
@@ -185,9 +187,12 @@ cc_test(
     deps = [
         ":mock_trace_event_listener",
         ":multiplex_trace_event_listener",
+        ":test_only_access",
         ":trace_event_listener",
+        ":trace_source_location",
         ":tracing_base",
         "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -200,6 +205,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":trace_event_listener",
+        ":trace_source_location",
         ":tracing_base",
         "//gloop:enforce_gloop_support",
         "@google_benchmark//:benchmark",
@@ -231,6 +237,8 @@ cc_test(
     srcs = ["tracing_core_test.cc"],
     deps = [
         ":mock_trace_event_listener",
+        ":test_only_access",
+        ":trace_source_location",
         ":tracing_base",
         ":tracing_core",
         "//gloop:gloop_test_main",
@@ -238,6 +246,7 @@ cc_test(
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:tracing_internal",
         "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
@@ -296,6 +305,7 @@ cc_test(
     deps = [
         ":mock_trace_event_listener",
         ":sync_context",
+        ":trace_source_location",
         ":tracing_base",
         ":tracing_core",
         "//gloop:gloop_test_main",
@@ -372,6 +382,7 @@ cc_test(
     srcs = ["tracing_test.cc"],
     deps = [
         ":mock_trace_event_listener",
+        ":test_only_access",
         ":trace_source_location",
         ":tracing",
         ":tracing_base",

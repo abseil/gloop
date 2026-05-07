@@ -24,10 +24,13 @@
 #include "absl/base/config.h"
 #include "absl/base/internal/tracing.h"
 #include "absl/log/check.h"
+#include "absl/strings/string_view.h"
 #include "absl/synchronization/blocking_counter.h"
 #include "absl/synchronization/notification.h"
 #include "absl/time/time.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
+#include "gloop/perftools/tracing/test_only_access.h"
+#include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -35,13 +38,23 @@
 namespace perftools::tracing::core {
 namespace {
 
+using ::perftools::tracing::testing::TestOnlyAccess;
 using ::testing::Eq;
 using ::testing::InSequence;
 using ::testing::StrictMock;
 
 // This should not be needed b/356628268
-using absl::base_internal::AbslInternalTraceWait;  // NOLINT
-using ::absl::base_internal::ObjectKind;           // NOLINT
+using ::absl::base_internal::AbslInternalTraceWait;  // NOLINT
+using ::absl::base_internal::ObjectKind;             // NOLINT
+
+TraceSourceLocation SourceLocation(const char* file, int line) {
+  return TraceSourceLocation(
+      TestOnlyAccess::Create<TraceSourceLocation::Access>(), file, line);
+}
+
+MATCHER_P2(EqSourceLocation, file, line, "Matches source location") {
+  return arg.file_name() == absl::string_view(file) && arg.line() == line;
+}
 
 // Helper class to check thread state to be clean and install the mock.
 struct WithMock {
@@ -76,8 +89,8 @@ TEST(TracingCore, ApiWithoutActiveSync) {
                         MsgFlags::kDefault);
   TraceStreamingReceive(MsgOrigin::kServer, MsgId{842}, MsgSequence{13},
                         MsgFlags::kHalfClose);
-  TraceMark("Not Marc");
-  TraceBeginRegion("Here");
+  TraceMark("Not Marc", TraceSourceLocation::current());
+  TraceBeginRegion("Here", TraceSourceLocation::current());
   TraceEndRegion();
   TraceControlFlow("Flow", ControlFlowType::kSchedule, ControlFlowId{635412},
                    ControlFlowSequence{1});
@@ -116,8 +129,10 @@ TEST(TracingCore, ApiWithActiveSync) {
               OnTraceStreamingReceive(MsgOrigin::kServer, MsgId{842},
                                       MsgSequence{13}, MsgFlags::kHalfClose));
 
-  EXPECT_CALL(mock, OnTraceMark(Eq("Not Marc")));
-  EXPECT_CALL(mock, OnTraceBeginRegion(Eq("Here")));
+  EXPECT_CALL(mock,
+              OnTraceMark(Eq("Not Marc"), EqSourceLocation("Foo.cc", 11)));
+  EXPECT_CALL(mock,
+              OnTraceBeginRegion(Eq("Here"), EqSourceLocation("Foo.cc", 12)));
   EXPECT_CALL(mock, OnTraceEndRegion());
   EXPECT_CALL(
       mock, OnTraceControlFlow(Eq("Flow"), ControlFlowType::kSchedule,
@@ -144,8 +159,8 @@ TEST(TracingCore, ApiWithActiveSync) {
   TraceStreamingReceive(MsgOrigin::kServer, MsgId{842}, MsgSequence{13},
                         MsgFlags::kHalfClose);
 
-  TraceMark("Not Marc");
-  TraceBeginRegion("Here");
+  TraceMark("Not Marc", SourceLocation("Foo.cc", 11));
+  TraceBeginRegion("Here", SourceLocation("Foo.cc", 12));
   TraceEndRegion();
   TraceControlFlow("Flow", ControlFlowType::kSchedule, ControlFlowId{635412},
                    ControlFlowSequence{1});

@@ -23,18 +23,30 @@
 #include "absl/strings/string_view.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/string_label.h"
+#include "gloop/perftools/tracing/test_only_access.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-using testing::Eq;
-using testing::InSequence;
-using testing::Ne;
-using testing::StrictMock;
-
 namespace perftools::tracing {
 namespace {
+
+using ::perftools::tracing::testing::TestOnlyAccess;
+using ::testing::_;
+using ::testing::Eq;
+using ::testing::InSequence;
+using ::testing::Ne;
+using ::testing::StrictMock;
+
+TraceSourceLocation SourceLocation(const char* file, int line) {
+  return TraceSourceLocation(
+      TestOnlyAccess::Create<TraceSourceLocation::Access>(), file, line);
+}
+
+MATCHER_P2(EqSourceLocation, file, line, "Matches source location") {
+  return arg.file_name() == absl::string_view(file) && arg.line() == line;
+}
 
 MATCHER(IsSourceLocation, "Matches " __FILE__) {
   if (!arg.IsSourceLocation()) {
@@ -100,8 +112,13 @@ TEST(TracingApiTest, Region) {
   StrictMock<MockTraceEventListener> mock;
   WithListener with(&mock);
 
-  EXPECT_CALL(mock, OnTraceBeginRegion(Eq("Hello world")));
-  TraceRegion region("Hello world");
+  EXPECT_CALL(mock,
+              OnTraceBeginRegion(Eq("Hello"), EqSourceLocation("foo.h", 12)));
+  TraceRegion region1("Hello", SourceLocation("foo.h", 12));
+  EXPECT_CALL(mock, OnTraceBeginRegion(
+                        Eq("World"), EqSourceLocation(__FILE__, __LINE__ + 1)));
+  TraceRegion region2("World");
+  EXPECT_CALL(mock, OnTraceEndRegion());
   EXPECT_CALL(mock, OnTraceEndRegion());
 }
 
@@ -109,8 +126,11 @@ TEST(TracingApiTest, Mark) {
   StrictMock<MockTraceEventListener> mock;
   WithListener with(&mock);
 
-  EXPECT_CALL(mock, OnTraceMark(Eq("Not Marc")));
-  TraceMark("Not Marc");
+  EXPECT_CALL(mock, OnTraceMark(Eq("Not Marc"), EqSourceLocation("foo.h", 12)));
+  TraceMark("Not Marc", SourceLocation("foo.h", 12));
+  EXPECT_CALL(mock, OnTraceMark(Eq("Also not Marc"),
+                                EqSourceLocation(__FILE__, __LINE__ + 1)));
+  TraceMark("Also not Marc");
 }
 
 TEST(TracingApiTest, DefaultScopedWait) {
@@ -213,7 +233,7 @@ TEST(TracingApiTest, ScopedDisableTraceEventsWithActiveListenerSwapsToNoop) {
   StrictMock<MockTraceEventListener> mock;
   WithListener with(&mock);
 
-  EXPECT_CALL(mock, OnTraceMark(Eq("Mark1")));
+  EXPECT_CALL(mock, OnTraceMark(Eq("Mark1"), _));
   tracing::TraceMark("Mark1");
   {
     ScopedDisableTraceEvents scoped;
@@ -227,7 +247,7 @@ TEST(TracingApiTest, ScopedDisableTraceEventsWithActiveListenerSwapsToNoop) {
   }
   EXPECT_THAT(active_sync_id(), Eq(kMainSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(&mock));
-  EXPECT_CALL(mock, OnTraceMark(Eq("Mark3")));
+  EXPECT_CALL(mock, OnTraceMark(Eq("Mark3"), _));
   tracing::TraceMark("Mark3");
 }
 
@@ -235,7 +255,7 @@ TEST(TracingApiTest, TraceScopedSuspend) {
   StrictMock<MockTraceEventListener> mock;
   WithListener with(&mock);
 
-  EXPECT_CALL(mock, OnTraceMark(Eq("Mark1")));
+  EXPECT_CALL(mock, OnTraceMark(Eq("Mark1"), _));
   tracing::TraceMark("Mark1");
   {
     EXPECT_CALL(mock, OnTraceSuspendSync(Eq(kMainSyncId)));
@@ -248,7 +268,7 @@ TEST(TracingApiTest, TraceScopedSuspend) {
     tracing::TraceMark("IgnoredMark");
     EXPECT_CALL(mock, OnTraceResumeSync(Eq(kMainSyncId)));
   }
-  EXPECT_CALL(mock, OnTraceMark(Eq("Mark2")));
+  EXPECT_CALL(mock, OnTraceMark(Eq("Mark2"), _));
   tracing::TraceMark("Mark2");
 }
 

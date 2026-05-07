@@ -36,12 +36,16 @@ namespace perftools::tracing {
 // current thread.
 class TraceRegion {
  public:
-  explicit TraceRegion(StringRef label) { core::TraceBeginRegion(label); }
+  explicit TraceRegion(StringRef label, TraceSourceLocation location =
+                                            TraceSourceLocation::current()) {
+    core::TraceBeginRegion(label, location);
+  }
   ~TraceRegion() { core::TraceEndRegion(); }
 };
 
 // Emits the `OnTraceMark()` event if the current thread is traced.
-void TraceMark(StringRef label);
+void TraceMark(StringRef label,
+               TraceSourceLocation location = TraceSourceLocation::current());
 
 // `TraceScopedWait` scopes a possible blocking execution, emitting 'TraceWait`
 // and `TraceContinue` events if a trace event listener is active for the
@@ -188,7 +192,9 @@ inline void TraceControlFlow(StringRef label, ControlFlowType type,
 // --------------------
 // Implementation
 // --------------------
-inline void TraceMark(StringRef label) { core::TraceMark(label); }
+inline void TraceMark(StringRef label, TraceSourceLocation location) {
+  core::TraceMark(label, location);
+}
 
 inline TraceScopedWait::~TraceScopedWait() {
   if (auto* listener = internal::active_event_listener()) {

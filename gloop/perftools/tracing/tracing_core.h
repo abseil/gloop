@@ -90,10 +90,10 @@ void TraceStreamingReceive(MsgOrigin origin, MsgId id, MsgSequence sequence,
                            MsgFlags flags);
 
 // Emits the `OnTraceMark()` event if the current thread is traced.
-void TraceMark(StringRef label);
+void TraceMark(StringRef label, TraceSourceLocation location);
 
 // Emits the `OnTraceBeginRegion()` event if the current thread is traced.
-void TraceBeginRegion(StringRef label);
+void TraceBeginRegion(StringRef label, TraceSourceLocation location);
 
 // Emits the `OnTraceEndRegion()` event if the current thread is traced.
 void TraceEndRegion();
@@ -194,15 +194,15 @@ inline void TraceStreamingReceive(MsgOrigin origin, MsgId id,
   }
 }
 
-inline void TraceMark(StringRef label) {
+inline void TraceMark(StringRef label, TraceSourceLocation location) {
   if (auto* listener = internal::active_event_listener()) {
-    listener->OnTraceMark(label);
+    listener->OnTraceMark(label, location);
   }
 }
 
-inline void TraceBeginRegion(StringRef label) {
+inline void TraceBeginRegion(StringRef label, TraceSourceLocation location) {
   if (auto* listener = internal::active_event_listener()) {
-    listener->OnTraceBeginRegion(label);
+    listener->OnTraceBeginRegion(label, location);
   }
 }
 

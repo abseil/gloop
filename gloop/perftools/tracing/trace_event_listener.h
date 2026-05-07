@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "gloop/perftools/tracing/string_label.h"
+#include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
 
 namespace perftools::tracing {
@@ -291,7 +292,7 @@ class TraceEventListener {
   // The `Mark` event is emitted typically from an application annotation to
   // mark a specific condition or location in the executing code. For example,
   // an application could emit `tracing::Mark("Special cleanup triggered")`,
-  virtual void OnTraceMark(StringRef label);
+  virtual void OnTraceMark(StringRef label, TraceSourceLocation location);
 
   // `BeginRegion()` and `EndRegion()` events are emitted through scoped regions
   // in the executing code to add granularity to the trace. For example:
@@ -300,7 +301,9 @@ class TraceEventListener {
   //     tracing::Region region("SlowFunction");
   //     ...
   //   }
-  virtual void OnTraceBeginRegion(StringRef label);
+  //  virtual void OnTraceBeginRegion(StringRef label);
+  virtual void OnTraceBeginRegion(StringRef label,
+                                  TraceSourceLocation location);
   virtual void OnTraceEndRegion();
 
   // ControlFlow events are emitted from application annotations and indicate

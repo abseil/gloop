@@ -30,6 +30,7 @@
 #include "gloop/base/tracecontext.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/string_label.h"
+#include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
 #include "gloop/perftools/tracing/tracing_core.h"
 #include "gloop/thread/thread.h"
@@ -573,8 +574,8 @@ TEST_F(SyncContextTest, CommonSwapRestore) {
   EXPECT_THAT(tracing::active_sync_id(), Eq(kMainSyncId));
 
   // Verify per thread listener is installed
-  EXPECT_CALL(mock, OnTraceMark(Eq("PerThreadListener")));
-  TraceMark("PerThreadListener");
+  EXPECT_CALL(mock, OnTraceMark(Eq("PerThreadListener"), _));
+  TraceMark("PerThreadListener", TraceSourceLocation::current());
 
   EXPECT_CALL(mock, OnTraceEndSync(kMainSyncId));
 }
@@ -595,15 +596,15 @@ TEST_F(SyncContextTest, SwapContextSuspendResumeContext) {
     EXPECT_THAT(tracing::active_sync_id(), Eq(kNoSyncId));
 
     // Verify per thread listener is uninstalled
-    TraceMark("NoPerThreadListener");
+    TraceMark("NoPerThreadListener", TraceSourceLocation::current());
 
     EXPECT_CALL(mock, OnTraceResumeSync(kMainSyncId));
   }
   EXPECT_THAT(tracing::active_sync_id(), Eq(kMainSyncId));
 
   // Verify per thread listener is reinstalled
-  EXPECT_CALL(mock, OnTraceMark(Eq("PerThreadListener")));
-  TraceMark("PerThreadListener");
+  EXPECT_CALL(mock, OnTraceMark(Eq("PerThreadListener"), _));
+  TraceMark("PerThreadListener", TraceSourceLocation::current());
 
   EXPECT_CALL(mock, OnTraceEndSync(kMainSyncId));
 }
@@ -621,7 +622,7 @@ TEST_F(SyncContextTest, SwapContextSuspendResumeWithSwap) {
     EXPECT_THAT(tracing::active_sync_id(), Eq(kNoSyncId));
 
     // Verify per thread listener is uninstalled
-    TraceMark("NoPerThreadListener");
+    TraceMark("NoPerThreadListener", TraceSourceLocation::current());
 
     EXPECT_CALL(mock, OnTraceResumeSync(kMainSyncId));
     Context::Swap(empty);
@@ -629,8 +630,8 @@ TEST_F(SyncContextTest, SwapContextSuspendResumeWithSwap) {
   EXPECT_THAT(tracing::active_sync_id(), Eq(kMainSyncId));
 
   // Verify per thread listener is reinstalled
-  EXPECT_CALL(mock, OnTraceMark(Eq("PerThreadListener")));
-  TraceMark("PerThreadListener");
+  EXPECT_CALL(mock, OnTraceMark(Eq("PerThreadListener"), _));
+  TraceMark("PerThreadListener", TraceSourceLocation::current());
 
   EXPECT_CALL(mock, OnTraceEndSync(kMainSyncId));
 }
@@ -700,8 +701,8 @@ TEST_F(SyncContextTest, Nested) {
     EXPECT_THAT(active_sync_id(), Eq(kMainSyncId));
 
     // Verify that mock is still in place.
-    EXPECT_CALL(mock, OnTraceMark(Eq("Mark")));
-    core::TraceMark("Mark");
+    EXPECT_CALL(mock, OnTraceMark(Eq("Mark"), _));
+    core::TraceMark("Mark", TraceSourceLocation::current());
 
     // Expect 'EnterSync' for switching back to the main scope
     EXPECT_CALL(mock, OnTraceEnterSync(kMainSyncId, _));
