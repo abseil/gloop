@@ -28,6 +28,7 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_STATUS_RETURN_H_
 #define THIRD_PARTY_GLOOP_UTIL_STATUS_RETURN_H_
 
+#include <type_traits>
 #include <utility>
 
 #include "absl/meta/type_traits.h"
@@ -100,8 +101,8 @@ struct ReturnImpl {
 }  // namespace internal_return
 
 template <typename T>
-inline internal_return::ReturnImpl<absl::decay_t<T>> Return(T&& value) {
-  return internal_return::ReturnImpl<absl::decay_t<T>>{std::forward<T>(value)};
+inline internal_return::ReturnImpl<std::decay_t<T>> Return(T&& value) {
+  return internal_return::ReturnImpl<std::decay_t<T>>{std::forward<T>(value)};
 }
 
 }  // namespace status_macros
