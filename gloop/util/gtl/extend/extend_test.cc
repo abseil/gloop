@@ -21,6 +21,7 @@
 #include "gloop/util/gtl/extend/extend.h"
 
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <optional>
 #include <tuple>
@@ -254,6 +255,23 @@ TEST(FieldCount, Extension) {
 TEST(FieldCount, CanBeConstantEvaluated) {
   using absl::meta_internal::HasConstexprEvaluation;
   EXPECT_TRUE(HasConstexprEvaluation([] { return gtl::FieldCount<S1>(); }));
+}
+
+struct WithComparison : public gtl::Extend<WithComparison>::With<> {
+  friend bool operator==(WithComparison, WithComparison) = default;
+  friend auto operator<=>(WithComparison, WithComparison) = default;
+};
+
+TEST(Comparison, AllowsDefault) {
+  EXPECT_TRUE(std::equality_comparable<WithComparison>);
+  EXPECT_TRUE(std::totally_ordered<WithComparison>);
+}
+
+struct WithoutComparison : public gtl::Extend<WithoutComparison>::With<> {};
+
+TEST(Comparison, DoesNotAddDefault) {
+  EXPECT_FALSE(std::equality_comparable<WithoutComparison>);
+  EXPECT_FALSE(std::totally_ordered<WithoutComparison>);
 }
 
 namespace {

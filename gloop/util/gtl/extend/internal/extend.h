@@ -56,7 +56,18 @@ struct ExtensionSet;
 // `ExtendableTypedStruct` is an empty struct that allows us to determine
 // whether a struct is an extendable struct.
 template <typename T>
-struct ExtendableTypedStruct {};
+struct ExtendableTypedStruct {
+  // Allow gtl::Extend<> classes to define defaulted comparison operators.
+  friend bool operator==(ExtendableTypedStruct,
+                         ExtendableTypedStruct) = default;
+  friend auto operator<=>(ExtendableTypedStruct,
+                          ExtendableTypedStruct) = default;
+
+  // Prevent generating defaulted comparison operators when they are not asked
+  // for.
+  friend bool operator==(const T&, ExtendableTypedStruct) = delete;
+  friend auto operator<=>(const T&, ExtendableTypedStruct) = delete;
+};
 
 template <typename T>
 std::enable_if_t<!std::is_base_of_v<ExtendableTypedStruct<T>, T>, T>
