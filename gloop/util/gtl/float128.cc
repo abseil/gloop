@@ -43,8 +43,6 @@
 
 namespace gtl {
 
-#if GTL_FLOAT128_INTERNAL_HAVE_FULL_LIBC_SUPPORT
-
 Float128::StringRepBuffer Float128::ToString(const int width, const char fill,
                                              const int precision,
                                              const char conversion_char) const {
@@ -112,8 +110,6 @@ std::optional<Float128> Float128::FromString(const std::string& str) {
   return Float128(Float128::FromCompilerQuadTag{}, compiler_quad);
 }
 
-#endif  // GTL_FLOAT128_INTERNAL_HAVE_FULL_LIBC_SUPPORT
-
 Float128 abs(Float128 x) { return fabs(x); }
 
 Float128 fabs(Float128 x) {
@@ -135,14 +131,10 @@ Float128 remquo(Float128 x, Float128 y, int* quotient) {
                   __builtin_remquof128(x.data_, y.data_, quotient));
 }
 
-#if GTL_FLOAT128_INTERNAL_HAVE_FULL_LIBC_SUPPORT
-
 Float128 fma(Float128 x, Float128 y, Float128 z) {
   return Float128(Float128::FromCompilerQuadTag{},
                   __builtin_fmaf128(x.data_, y.data_, z.data_));
 }
-
-#endif  // GTL_FLOAT128_INTERNAL_HAVE_FULL_LIBC_SUPPORT
 
 Float128 fmax(Float128 x, Float128 y) {
   return Float128(Float128::FromCompilerQuadTag{},
@@ -275,8 +267,6 @@ Float128 ldexp(Float128 x, int exponent) {
                   __builtin_ldexpf128(x.data_, exponent));
 }
 
-#if GTL_FLOAT128_INTERNAL_HAVE_FULL_LIBC_SUPPORT
-
 Float128 modf(Float128 x, Float128* absl_nonnull integral_part) {
   // As of 2024-05-30, Clang erroneously believes that `__builtin_modff128`
   // can't take a `long double*` as its second argument on AArch64. Call
@@ -284,8 +274,6 @@ Float128 modf(Float128 x, Float128* absl_nonnull integral_part) {
   return Float128(Float128::FromCompilerQuadTag{},
                   modff128(x.data_, &integral_part->data_));
 }
-
-#endif  // GTL_FLOAT128_INTERNAL_HAVE_FULL_LIBC_SUPPORT
 
 int ilogb(Float128 x) { return __builtin_ilogbf128(x.data_); }
 
@@ -317,8 +305,6 @@ bool isnan(Float128 x) { return __builtin_isnan(x.data_); }
 bool isnormal(Float128 x) { return __builtin_isnormal(x.data_); }
 
 bool signbit(Float128 x) { return __builtin_signbit(x.data_); }
-
-#if GTL_FLOAT128_INTERNAL_HAVE_FULL_LIBC_SUPPORT
 
 std::ostream& operator<<(std::ostream& out, Float128 x) {
   if (out.flags() & (std::ostream::left | std::ostream::internal |
@@ -399,8 +385,6 @@ AbslFormatConvert(Float128 x, const absl::FormatConversionSpec& spec,
   sink->Append(absl::string_view(buf.data(), buf.size()));
   return {true};
 }
-
-#endif  // GTL_FLOAT128_INTERNAL_HAVE_FULL_LIBC_SUPPORT
 
 }  // namespace gtl
 

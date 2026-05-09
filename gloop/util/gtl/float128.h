@@ -93,8 +93,6 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_GTL_FLOAT128_H_
 #define THIRD_PARTY_GLOOP_UTIL_GTL_FLOAT128_H_
 
-#include <features.h>
-
 #include <bit>
 #include <cmath>
 #include <compare>
@@ -109,16 +107,6 @@
 #include "absl/numeric/int128.h"
 #include "absl/strings/str_format.h"
 #include "gtest/gtest_prod.h"
-
-#if defined(__GLIBC_PREREQ)
-#if __GLIBC_PREREQ(2, 27)
-#define GTL_FLOAT128_INTERNAL_HAVE_FULL_LIBC_SUPPORT 1
-#else
-#define GTL_FLOAT128_INTERNAL_HAVE_FULL_LIBC_SUPPORT 0
-#endif  // __GLIBC_PREREQ(2, 27)
-#else   // defined(__GLIBC_PREREQ)
-#define GTL_FLOAT128_INTERNAL_HAVE_FULL_LIBC_SUPPORT 1
-#endif  // defined(__GLIBC_PREREQ)
 
 // NOLINTBEGIN(google-explicit-constructor)
 // NOLINTBEGIN(google-runtime-int)
@@ -149,9 +137,7 @@ class Float128 final {
   // See https://en.cppreference.com/w/c/string/byte/strtof for details about
   // the allowed formats, except FromString() is locale-independent and will
   // always use the "C" locale.
-#if GTL_FLOAT128_INTERNAL_HAVE_FULL_LIBC_SUPPORT
   static std::optional<Float128> FromString(const std::string&);
-#endif
 
   // Constructs a Float128 representing zero.
   Float128() = default;
@@ -259,10 +245,8 @@ class Float128 final {
 
   constexpr explicit Float128(FromCompilerQuadTag, CompilerQuad);
 
-#if GTL_FLOAT128_INTERNAL_HAVE_FULL_LIBC_SUPPORT
   StringRepBuffer ToString(int width, char fill, int precision,
                            char conversion_char) const;
-#endif
 
   friend constexpr Float128 operator+(Float128);
   friend constexpr Float128 operator-(Float128);
@@ -292,6 +276,7 @@ class Float128 final {
   friend Float128 fabs(Float128);
   friend Float128 fdim(Float128, Float128);
   friend Float128 floor(Float128);
+  friend Float128 fma(Float128, Float128, Float128);
   friend Float128 fmax(Float128, Float128);
   friend Float128 fmin(Float128, Float128);
   friend Float128 fmod(Float128, Float128);
@@ -312,6 +297,7 @@ class Float128 final {
   friend Float128 logb(Float128);
   friend long lrint(Float128);
   friend long lround(Float128);
+  friend Float128 modf(Float128, Float128* absl_nonnull);
   friend Float128 nan(const char*);
   friend Float128 nextafter(Float128, Float128);
   friend Float128 pow(Float128, Float128);
@@ -325,11 +311,6 @@ class Float128 final {
   friend Float128 tan(Float128);
   friend Float128 trunc(Float128);
   // <link> end
-
-#if GTL_FLOAT128_INTERNAL_HAVE_FULL_LIBC_SUPPORT
-  friend Float128 modf(Float128, Float128* absl_nonnull);
-  friend Float128 fma(Float128, Float128, Float128);
-#endif
 
   friend std::ostream& operator<<(std::ostream&, Float128);
   friend absl::FormatConvertResult<absl::FormatConversionCharSet::kFloating |
