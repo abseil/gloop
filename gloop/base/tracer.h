@@ -1134,6 +1134,14 @@ class Tracer {
     }
   }
 
+  bool UnrefNoDelete(void* owner) {
+    tracker_.Unref(owner);
+    if (ref_count_.fetch_sub(1, std::memory_order_acq_rel) - 1 == 0) {
+      return true;
+    }
+    return false;
+  }
+
   void SwapRefOwner(void* old_owner, void* new_owner) {
     tracker_.Ref(new_owner);
     tracker_.Unref(old_owner);

@@ -145,7 +145,8 @@ Tracer::~Tracer() {
 void Tracer::UnrefSlow() {
   // If the request previously had its unref_time set, assume it was
   // already logged and entered into the history.
-  if (has_unref_time()) {
+  // If the tracer was never started, delete it immediately without logging.
+  if (has_unref_time() || !has_start_time()) {
     delete this;
     return;
   }

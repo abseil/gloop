@@ -244,6 +244,8 @@ void AdoptTracer(TraceContext* tc, base::Tracer* tracer);
 namespace testing {
 void AbandonTracer(TraceContext* tc);
 void AdoptTracerForTesting(TraceContext* tc, base::Tracer* tracer);
+void AdoptTracerForTestingNoCheck(TraceContext* tc, base::Tracer* tracer);
+void ReplaceTracerForTesting(TraceContext* tc, base::Tracer* tracer);
 }  // namespace testing
 class OperationTraceSpan;
 class RpcTraceSpanState;
