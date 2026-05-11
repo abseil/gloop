@@ -227,14 +227,19 @@ class ContextBuilder {
  public:
   // By default, use the fields from the supplied context. Overrides
   // are specified using set* and adopt* methods.  Applications should
-  // prefer to use the `DefaultInitType` constructor below rather than
-  // passing in `BackgroundContext()` or `Context(Context::kDefault)`.
+  // prefer to use the default constructor below rather than passing in
+  // `BackgroundContext()` or `Context(Context::kDefault)`.
   // See the comments on the `ThreadInitType` constructor on when to use
   // `CurrentContext()` or `Context::kThread` as a constructor argument.
   explicit ContextBuilder(Context base_context);
 
   // Creates a ContextBuilder based on the background context.
-  explicit ContextBuilder(Context::DefaultInitType);
+  ContextBuilder();
+
+  // Deprecated. Use the default constructor instead.
+  [[deprecated("Use the default constructor.")]]
+  explicit ContextBuilder(Context::DefaultInitType)
+      : ContextBuilder() {}
 
   // Creates a ContextBuilder based on the current thread's active context.
   // This constructor should be used to construct a `Context` intended to be
@@ -580,7 +585,7 @@ inline const Context& DefaultContext() { return *internal::background_context; }
 inline ContextBuilder::ContextBuilder(Context context)
     : context_(std::move(context)) {}
 
-inline ContextBuilder::ContextBuilder(Context::DefaultInitType) : context_() {}
+inline ContextBuilder::ContextBuilder() : context_() {}
 
 inline ContextBuilder::ContextBuilder(Context::ThreadInitType,
                                       perftools::tracing::StringRef label)
