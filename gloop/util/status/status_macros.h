@@ -90,7 +90,8 @@
 //     RETURN_IF_ERROR(foo.Method(args...));
 //     return absl::OkStatus();
 //   }
-#define RETURN_IF_ERROR(expr) STATUS_MACROS_RETURN_IF_ERROR_IMPL_(return, expr)
+#define RETURN_IF_ERROR(expr) \
+  ABSL_INTERNAL_STATUS_MACROS_RETURN_IF_ERROR_IMPL_(return, expr)
 
 // Executes an expression `rexpr` that returns an `absl::StatusOr<T>`. On OK,
 // moves its value into the variable defined by `lhs`, otherwise returns
@@ -155,24 +156,27 @@
 //   ASSIGN_OR_RETURN(ValueType value, MaybeGetValue(query), _.LogError());
 //
 #define ASSIGN_OR_RETURN(...) \
-  STATUS_MACROS_ASSIGN_OR_RETURN_IMPL_(return, __VA_ARGS__)
+  ABSL_INTERNAL_STATUS_MACROS_ASSIGN_OR_RETURN_IMPL_(return, __VA_ARGS__)
 
 // =================================================================
 // == Implementation details, do not rely on anything below here. ==
 // =================================================================
 
-#define STATUS_MACROS_RETURN_IF_ERROR_IMPL_(return_keyword, expr) \
-  STATUS_MACROS_IMPL_ELSE_BLOCKER_                                \
-  if (auto status_macro_internal_adaptor =                        \
-          ::util::status_macro_internal::MacroAdaptor(            \
-              (expr), ::absl::SourceLocation::current())) {       \
-  } else /* NOLINT */                                             \
+#define ABSL_INTERNAL_STATUS_MACROS_RETURN_IF_ERROR_IMPL_(return_keyword, \
+                                                          expr)           \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_ELSE_BLOCKER_                          \
+  if (auto status_macro_internal_adaptor =                                \
+          ::util::status_macro_internal::MacroAdaptor(                    \
+              (expr), ::absl::SourceLocation::current())) {               \
+  } else /* NOLINT */                                                     \
     return_keyword status_macro_internal_adaptor.Consume()
 
-#define STATUS_MACROS_ASSIGN_OR_RETURN_IMPL_(return_keyword, ...)            \
-  STATUS_MACROS_IMPL_GET_VARIADIC_((return_keyword, __VA_ARGS__,             \
-                                    STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_3_,  \
-                                    STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_2_)) \
+#define ABSL_INTERNAL_STATUS_MACROS_ASSIGN_OR_RETURN_IMPL_(return_keyword, \
+                                                           ...)            \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_GET_VARIADIC_(                          \
+      (return_keyword, __VA_ARGS__,                                        \
+       ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_3_,               \
+       ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_2_))              \
   (return_keyword, __VA_ARGS__)
 
 constexpr bool HasPotentialConditionalOperator(const char* lhs, int size) {
@@ -207,92 +211,110 @@ struct IsAllowedStatusOrMacroType<
 
 // MSVC incorrectly expands variadic macros, splice together a macro call to
 // work around the bug.
-#define STATUS_MACROS_IMPL_GET_VARIADIC_HELPER_(_1, _2, _3, _4, NAME, ...) NAME
-#define STATUS_MACROS_IMPL_GET_VARIADIC_(args)            \
-  /* NOLINTNEXTLINE(clang-diagnostic-pre-c++20-compat) */ \
-  STATUS_MACROS_IMPL_GET_VARIADIC_HELPER_ args
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_GET_VARIADIC_HELPER_(_1, _2, _3, _4, \
+                                                              NAME, ...)      \
+  NAME
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_GET_VARIADIC_(args) \
+  /* NOLINTNEXTLINE(clang-diagnostic-pre-c++20-compat) */    \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_GET_VARIADIC_HELPER_ args
 
-#define STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_2_(return_keyword, lhs, rexpr)  \
-  STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_(                                     \
-      STATUS_MACROS_IMPL_CONCAT_(_status_or_value, __LINE__), lhs, rexpr,   \
-      return_keyword absl::Status(                                          \
-          std::move(STATUS_MACROS_IMPL_CONCAT_(_status_or_value, __LINE__)) \
-              .status(),                                                    \
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_2_(return_keyword,   \
+                                                             lhs, rexpr)       \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_(                          \
+      ABSL_INTERNAL_STATUS_MACROS_IMPL_CONCAT_(_status_or_value, __LINE__),    \
+      lhs, rexpr,                                                              \
+      return_keyword absl::Status(                                             \
+          std::move(ABSL_INTERNAL_STATUS_MACROS_IMPL_CONCAT_(_status_or_value, \
+                                                             __LINE__))        \
+              .status(),                                                       \
           ::absl::SourceLocation::current()))
 
-#define STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_3_(return_keyword, lhs, rexpr,  \
-                                               error_expression)            \
-  STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_(                                     \
-      STATUS_MACROS_IMPL_CONCAT_(_status_or_value, __LINE__), lhs,          \
-      rexpr, /* NOLINTNEXTLINE(misc-const-correctness) */                   \
-      ::util::StatusBuilder _(                                              \
-          std::move(STATUS_MACROS_IMPL_CONCAT_(_status_or_value, __LINE__)) \
-              .status(),                                                    \
-          ::absl::SourceLocation::current());                               \
-      (void)_; /* error_expression is allowed to not use this variable */   \
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_3_(                  \
+    return_keyword, lhs, rexpr, error_expression)                              \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_(                          \
+      ABSL_INTERNAL_STATUS_MACROS_IMPL_CONCAT_(_status_or_value, __LINE__),    \
+      lhs, rexpr, /* NOLINTNEXTLINE(misc-const-correctness) */                 \
+      ::util::StatusBuilder _(                                                 \
+          std::move(ABSL_INTERNAL_STATUS_MACROS_IMPL_CONCAT_(_status_or_value, \
+                                                             __LINE__))        \
+              .status(),                                                       \
+          ::absl::SourceLocation::current());                                  \
+      (void)_; /* error_expression is allowed to not use this variable */      \
       return_keyword(error_expression))
 
-#define STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_(statusor, lhs, rexpr,     \
-                                             error_expression)         \
-  auto statusor = (rexpr);                                             \
-  if (ABSL_PREDICT_FALSE(!statusor.ok())) {                            \
-    error_expression;                                                  \
-  }                                                                    \
-  {                                                                    \
-    static_assert(                                                     \
-        !IsEnclosedByParentheses(#lhs) ||                              \
-            !HasPotentialConditionalOperator(#lhs, sizeof(#lhs) - 2),  \
-        "Identified potential conditional operator, consider not "     \
-        "using ASSIGN_OR_RETURN");                                     \
-  }                                                                    \
-  {                                                                    \
-    static_assert(                                                     \
-        ::util::status_macro_internal::IsAllowedStatusOrMacroType<     \
-            typename std::remove_const<decltype(statusor)>::type>(),   \
-        "ASSIGN_OR_RETURN should only be used with absl::StatusOr<>"); \
-  }                                                                    \
-  STATUS_MACROS_IMPL_UNPARENTHESIZE_IF_PARENTHESIZED(lhs) =            \
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_(               \
+    statusor, lhs, rexpr, error_expression)                               \
+  auto statusor = (rexpr);                                                \
+  if (ABSL_PREDICT_FALSE(!statusor.ok())) {                               \
+    error_expression;                                                     \
+  }                                                                       \
+  {                                                                       \
+    static_assert(                                                        \
+        !IsEnclosedByParentheses(#lhs) ||                                 \
+            !HasPotentialConditionalOperator(#lhs, sizeof(#lhs) - 2),     \
+        "Identified potential conditional operator, consider not "        \
+        "using ASSIGN_OR_RETURN");                                        \
+  }                                                                       \
+  {                                                                       \
+    static_assert(                                                        \
+        ::util::status_macro_internal::IsAllowedStatusOrMacroType<        \
+            typename std::remove_const<decltype(statusor)>::type>(),      \
+        "ASSIGN_OR_RETURN should only be used with absl::StatusOr<>");    \
+  }                                                                       \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_UNPARENTHESIZE_IF_PARENTHESIZED(lhs) = \
       (*std::move(statusor))
 
 // Internal helpers for macro expansion.
-#define STATUS_MACROS_IMPL_EAT(...)
-#define STATUS_MACROS_IMPL_REM(...) __VA_ARGS__
-#define STATUS_MACROS_IMPL_EMPTY()
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_EAT(...)
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_REM(...) __VA_ARGS__
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_EMPTY()
 
 // Internal helpers for emptiness arguments check.
-#define STATUS_MACROS_IMPL_IS_EMPTY_INNER(...) \
-  STATUS_MACROS_IMPL_IS_EMPTY_INNER_HELPER((__VA_ARGS__, 0, 1))
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_INNER(...) \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_INNER_HELPER((__VA_ARGS__, 0, 1))
 // MSVC expands variadic macros incorrectly, so we need this extra indirection
 // to work around that (b/110959038).
-#define STATUS_MACROS_IMPL_IS_EMPTY_INNER_HELPER(args) \
-  STATUS_MACROS_IMPL_IS_EMPTY_INNER_I args
-#define STATUS_MACROS_IMPL_IS_EMPTY_INNER_I(e0, e1, is_empty, ...) is_empty
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_INNER_HELPER(args) \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_INNER_I args
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_INNER_I(e0, e1, is_empty, \
+                                                          ...)              \
+  is_empty
 
-#define STATUS_MACROS_IMPL_IS_EMPTY(...) \
-  STATUS_MACROS_IMPL_IS_EMPTY_I(__VA_ARGS__)
-#define STATUS_MACROS_IMPL_IS_EMPTY_I(...) \
-  STATUS_MACROS_IMPL_IS_EMPTY_INNER(_ __VA_OPT__(, )##__VA_ARGS__)
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY(...) \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_I(__VA_ARGS__)
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_I(...) \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_INNER(_ __VA_OPT__(, )##__VA_ARGS__)
 
 // Internal helpers for if statement.
-#define STATUS_MACROS_IMPL_IF_1(_Then, _Else) _Then
-#define STATUS_MACROS_IMPL_IF_0(_Then, _Else) _Else
-#define STATUS_MACROS_IMPL_IF(_Cond, _Then, _Else) \
-  STATUS_MACROS_IMPL_CONCAT_(STATUS_MACROS_IMPL_IF_, _Cond)(_Then, _Else)
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IF_1(_Then, _Else) _Then
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IF_0(_Then, _Else) _Else
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IF(_Cond, _Then, _Else) \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_CONCAT_(                      \
+      ABSL_INTERNAL_STATUS_MACROS_IMPL_IF_, _Cond)(_Then, _Else)
 
 // Expands to 1 if the input is parenthesized. Otherwise expands to 0.
-#define STATUS_MACROS_IMPL_IS_PARENTHESIZED(...) \
-  STATUS_MACROS_IMPL_IS_EMPTY(STATUS_MACROS_IMPL_EAT __VA_ARGS__)
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_PARENTHESIZED(...) \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY(                   \
+      ABSL_INTERNAL_STATUS_MACROS_IMPL_EAT __VA_ARGS__)
 
 // If the input is parenthesized, removes the parentheses. Otherwise expands to
 // the input unchanged.
-#define STATUS_MACROS_IMPL_UNPARENTHESIZE_IF_PARENTHESIZED(...)             \
-  STATUS_MACROS_IMPL_IF(STATUS_MACROS_IMPL_IS_PARENTHESIZED(__VA_ARGS__),   \
-                        STATUS_MACROS_IMPL_REM, STATUS_MACROS_IMPL_EMPTY()) \
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_UNPARENTHESIZE_IF_PARENTHESIZED(...) \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_IF(                                        \
+      ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_PARENTHESIZED(__VA_ARGS__),         \
+      ABSL_INTERNAL_STATUS_MACROS_IMPL_REM,                                   \
+      ABSL_INTERNAL_STATUS_MACROS_IMPL_EMPTY())                               \
   __VA_ARGS__
 
 // Internal helper for concatenating macro values.
+// TODO: Remove this once all users and redefinitions are updated.
 #define STATUS_MACROS_IMPL_CONCAT_INNER_(x, y) x##y
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_CONCAT_INNER_(x, y) x##y
+
+// TODO: Remove this once all users and redefinitions are updated.
 #define STATUS_MACROS_IMPL_CONCAT_(x, y) STATUS_MACROS_IMPL_CONCAT_INNER_(x, y)
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_CONCAT_(x, y) \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_CONCAT_INNER_(x, y)
 
 // The GNU compiler emits a warning for code like:
 //
@@ -305,49 +327,50 @@ struct IsAllowedStatusOrMacroType<
 //   if (do_expr) RETURN_IF_ERROR(expr) << "Some message";
 //
 // The "switch (0) case 0:" idiom is used to suppress this.
+// TODO: Remove this once all users and redefinitions are updated.
 #define STATUS_MACROS_IMPL_ELSE_BLOCKER_ \
   switch (0)                             \
   case 0:                                \
   default:  // NOLINT
-
-#define ABSL_INTERNAL_STATUS_MACROS_RETURN_IF_ERROR_IMPL_ \
-  STATUS_MACROS_RETURN_IF_ERROR_IMPL_
-#define ABSL_INTERNAL_STATUS_MACROS_ASSIGN_OR_RETURN_IMPL_ \
-  STATUS_MACROS_ASSIGN_OR_RETURN_IMPL_
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_GET_VARIADIC_HELPER_ \
-  STATUS_MACROS_IMPL_GET_VARIADIC_HELPER_
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_GET_VARIADIC_ \
-  STATUS_MACROS_IMPL_GET_VARIADIC_
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_2_ \
-  STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_2_
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_3_ \
-  STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_3_
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_ \
-  STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_EAT STATUS_MACROS_IMPL_EAT
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_REM STATUS_MACROS_IMPL_REM
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_EMPTY STATUS_MACROS_IMPL_EMPTY
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_INNER \
-  STATUS_MACROS_IMPL_IS_EMPTY_INNER
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_INNER_HELPER \
-  STATUS_MACROS_IMPL_IS_EMPTY_INNER_HELPER
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_INNER_I \
-  STATUS_MACROS_IMPL_IS_EMPTY_INNER_I
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY STATUS_MACROS_IMPL_IS_EMPTY
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_I \
-  STATUS_MACROS_IMPL_IS_EMPTY_I
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IF_1 STATUS_MACROS_IMPL_IF_1
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IF_0 STATUS_MACROS_IMPL_IF_0
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IF STATUS_MACROS_IMPL_IF
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_PARENTHESIZED \
-  STATUS_MACROS_IMPL_IS_PARENTHESIZED
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_UNPARENTHESIZE_IF_PARENTHESIZED \
-  STATUS_MACROS_IMPL_UNPARENTHESIZE_IF_PARENTHESIZED
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_CONCAT_INNER_ \
-  STATUS_MACROS_IMPL_CONCAT_INNER_
-#define ABSL_INTERNAL_STATUS_MACROS_IMPL_CONCAT_ STATUS_MACROS_IMPL_CONCAT_
 #define ABSL_INTERNAL_STATUS_MACROS_IMPL_ELSE_BLOCKER_ \
-  STATUS_MACROS_IMPL_ELSE_BLOCKER_
+  switch (0)                                           \
+  case 0:                                              \
+  default:  // NOLINT
+
+// TODO: Remove these once all users and redefinitions are updated.
+#define STATUS_MACROS_RETURN_IF_ERROR_IMPL_ \
+  ABSL_INTERNAL_STATUS_MACROS_RETURN_IF_ERROR_IMPL_
+#define STATUS_MACROS_ASSIGN_OR_RETURN_IMPL_ \
+  ABSL_INTERNAL_STATUS_MACROS_ASSIGN_OR_RETURN_IMPL_
+#define STATUS_MACROS_IMPL_GET_VARIADIC_HELPER_ \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_GET_VARIADIC_HELPER_
+#define STATUS_MACROS_IMPL_GET_VARIADIC_ \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_GET_VARIADIC_
+#define STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_2_ \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_2_
+#define STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_3_ \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_3_
+#define STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_ \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_
+#define STATUS_MACROS_IMPL_EAT ABSL_INTERNAL_STATUS_MACROS_IMPL_EAT
+#define STATUS_MACROS_IMPL_REM ABSL_INTERNAL_STATUS_MACROS_IMPL_REM
+#define STATUS_MACROS_IMPL_EMPTY ABSL_INTERNAL_STATUS_MACROS_IMPL_EMPTY
+#define STATUS_MACROS_IMPL_IS_EMPTY_INNER \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_INNER
+#define STATUS_MACROS_IMPL_IS_EMPTY_INNER_HELPER \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_INNER_HELPER
+#define STATUS_MACROS_IMPL_IS_EMPTY_INNER_I \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_INNER_I
+#define STATUS_MACROS_IMPL_IS_EMPTY ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY
+#define STATUS_MACROS_IMPL_IS_EMPTY_I \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_I
+#define STATUS_MACROS_IMPL_IF_1 ABSL_INTERNAL_STATUS_MACROS_IMPL_IF_1
+#define STATUS_MACROS_IMPL_IF_0 ABSL_INTERNAL_STATUS_MACROS_IMPL_IF_0
+#define STATUS_MACROS_IMPL_IF ABSL_INTERNAL_STATUS_MACROS_IMPL_IF
+#define STATUS_MACROS_IMPL_IS_PARENTHESIZED \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_PARENTHESIZED
+#define STATUS_MACROS_IMPL_UNPARENTHESIZE_IF_PARENTHESIZED \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_UNPARENTHESIZE_IF_PARENTHESIZED
 
 namespace util {
 namespace status_macro_internal {
