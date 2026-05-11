@@ -2431,3 +2431,42 @@ cc_library(
     hdrs = ["xray/tracing_annotations.h"],
     deps = ["//gloop:enforce_gloop_support"],
 )
+
+cc_library(
+    name = "sample_recorder",
+    hdrs = ["sample_recorder.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/synchronization",
+    ],
+)
+
+cc_test(
+    name = "sample_recorder_mutex_test",
+    srcs = ["sample_recorder_mutex_test.cc"],
+    deps = [
+        ":sample_recorder",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "sample_recorder_rc_test",
+    srcs = ["sample_recorder_rc_test.cc"],
+    deps = [
+        ":sample_recorder",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
