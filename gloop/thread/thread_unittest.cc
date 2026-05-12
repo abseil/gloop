@@ -1830,10 +1830,7 @@ TEST(ThreadTest, CheckThreadNotesInStack) {
 // Pretend to be a Python interpreter to test detection of threads
 // holding the Python GIL.
 std::atomic<bool> gil_held;
-typedef struct _ts PyThreadState;
-extern "C" PyThreadState* PyThreadState_GetUnchecked() {
-  return gil_held.load() ? reinterpret_cast<PyThreadState*>(1) : nullptr;
-}
+extern "C" int PyGILState_Check() { return gil_held.load(); }
 
 TEST(ThreadTest, DumpGilHolder) {
   absl::Cleanup restore_gil_held = [] { gil_held.store(false); };
