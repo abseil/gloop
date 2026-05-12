@@ -740,7 +740,7 @@ void EncapsulateFiles(const std::vector<std::string>& infiles,
 
   // Parse FLAGS_ld_opts into individual args.
   std::vector<std::string> ld_opts;
-  if (FLAGS_ld_opts.length() > 0) {
+  if (!FLAGS_ld_opts.empty()) {
     std::size_t idx = 0;
     while (true) {
       std::size_t next_idx = FLAGS_ld_opts.find(' ', idx);
