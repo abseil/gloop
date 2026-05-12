@@ -75,6 +75,8 @@ namespace thread {
 class CpuSubContainer;
 }  // end namespace thread
 
+static constexpr absl::string_view kMagic = "johnson";
+
 /** The Thread class can be subclassed to create an object whose
     "Run" method is invoked in a separate thread.
 
