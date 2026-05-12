@@ -147,6 +147,9 @@ TEST(AssignOrReturn, WorksWithReferences) {
 }
 
 TEST(AssignOrReturn, WorksWithCommasInType) {
+#if defined(_MSC_VER) && (!defined(_MSVC_TRADITIONAL) || _MSVC_TRADITIONAL)
+  GTEST_SKIP() << "Comma support on MSVC requires /Zc:preprocessor";
+#else
   auto func = []() -> absl::Status {
     ASSIGN_OR_RETURN((std::tuple<int, int> t1), ReturnStatusOrTupleValue(1, 1));
     EXPECT_EQ((std::tuple{1, 1}), t1);
@@ -161,9 +164,13 @@ TEST(AssignOrReturn, WorksWithCommasInType) {
   };
 
   EXPECT_THAT(func().message(), Eq("EXPECTED"));
+#endif
 }
 
 TEST(AssignOrReturn, WorksWithStructureBindings) {
+#if defined(_MSC_VER) && (!defined(_MSVC_TRADITIONAL) || _MSVC_TRADITIONAL)
+  GTEST_SKIP() << "Comma support on MSVC requires /Zc:preprocessor";
+#else
   auto func = []() -> absl::Status {
     ASSIGN_OR_RETURN((const auto& [t1, t2, t3, t4, t5]),
                      ReturnStatusOrTupleValue(std::tuple{1, 1}, 1, 2, 3, 4));
@@ -177,9 +184,13 @@ TEST(AssignOrReturn, WorksWithStructureBindings) {
   };
 
   EXPECT_THAT(func().message(), Eq("EXPECTED"));
+#endif
 }
 
 TEST(AssignOrReturn, WorksWithParenthesesAndDereference) {
+#if defined(_MSC_VER) && (!defined(_MSVC_TRADITIONAL) || _MSVC_TRADITIONAL)
+  GTEST_SKIP() << "Comma support on MSVC requires /Zc:preprocessor";
+#else
   auto func = []() -> absl::Status {
     int integer;
     int* pointer_to_integer = &integer;
@@ -199,6 +210,7 @@ TEST(AssignOrReturn, WorksWithParenthesesAndDereference) {
   };
 
   EXPECT_THAT(func().message(), Eq("EXPECTED"));
+#endif
 }
 
 TEST(AssignOrReturn, WorksWithAppend) {
@@ -238,6 +250,9 @@ TEST(AssignOrReturn, WorksWithAdaptorFunc) {
 }
 
 TEST(AssignOrReturn, WorksWithThirdArgumentAndCommas) {
+#if defined(_MSC_VER) && (!defined(_MSVC_TRADITIONAL) || _MSVC_TRADITIONAL)
+  GTEST_SKIP() << "Comma support on MSVC requires /Zc:preprocessor";
+#else
   auto fail_test_if_called = [](util::StatusBuilder builder) {
     ADD_FAILURE();
     return builder;
@@ -263,6 +278,7 @@ TEST(AssignOrReturn, WorksWithThirdArgumentAndCommas) {
 
   EXPECT_THAT(func().message(),
               AllOf(HasSubstr("EXPECTED A"), HasSubstr("EXPECTED B")));
+#endif
 }
 
 TEST(AssignOrReturn, WorksWithAppendIncludingLocals) {

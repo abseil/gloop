@@ -282,8 +282,16 @@ struct IsAllowedStatusOrMacroType<
 
 #define ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY(...) \
   ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_I(__VA_ARGS__)
+
+#if !defined(_MSC_VER) || defined(__clang__) || \
+    (defined(_MSVC_TRADITIONAL) && !_MSVC_TRADITIONAL)
 #define ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_I(...) \
   ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_INNER(_ __VA_OPT__(, )##__VA_ARGS__)
+#else
+// Nonstandard hack that works for MSVC's legacy preprocessor
+#define ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_I(...) \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_IS_EMPTY_INNER(_, ##__VA_ARGS__)
+#endif
 
 // Internal helpers for if statement.
 #define ABSL_INTERNAL_STATUS_MACROS_IMPL_IF_1(_Then, _Else) _Then
