@@ -849,20 +849,18 @@ void* MaybeGetPC(const StackTrace* trace) { return GetPC(trace->uc); }
 }  // namespace
 
 // This weak symbol is only defined when the program has a Python
-// interpreter linked in. It returns a non-NULL pointer if the current
-// thread holds the Python GIL, and NULL otherwise
-// (https://docs.python.org/3/c-api/threads.html#c.PyThreadState_GetUnchecked).
+// interpreter linked in. It returns 1 if the current thread holds the
+// Python GIL, and 0 otherwise (see
+// https://docs.python.org/3/c-api/threads.html#c.PyGILState_Check).
 // When defined, this function is async-signal-safe.
-typedef struct _ts PyThreadState;
-extern "C" ABSL_ATTRIBUTE_WEAK PyThreadState* PyThreadState_GetUnchecked();
+extern "C" ABSL_ATTRIBUTE_WEAK int PyGILState_Check();
 
 namespace {
 // Returns true if a Python interpreter is linked in, and the current
 // thread holds the Python GIL. This is async-signal-safe.
 bool IsCurrentThreadHoldingPythonGil() {
 #if !PORTABLE_BASE
-  return &PyThreadState_GetUnchecked != nullptr &&
-         PyThreadState_GetUnchecked() != nullptr;
+  return &PyGILState_Check && PyGILState_Check();
 #else
   return false;
 #endif
