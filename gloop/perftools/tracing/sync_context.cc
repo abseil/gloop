@@ -21,7 +21,6 @@
 #include "gloop/perftools/tracing/sync_context.h"
 
 #include <atomic>
-#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <utility>

@@ -47,12 +47,12 @@ namespace {
 class Mux final : public TraceEventListener {
  public:
   // kMaxDepth is the depth after which we will automatically balance.
-  static inline constexpr size_t kMaxDepth = 25;
+  static constexpr size_t kMaxDepth = 25;
 
   // kMaxSize is the maximum listeners we retain when balancing. The total
   // number can exceed this as we don't check max items until we balance.
   // The purpose here is to avoid hostile unbounded multiplexing.
-  static inline constexpr size_t kMaxSize = 1 << 20;
+  static constexpr size_t kMaxSize = 1 << 20;
 
   Mux() = delete;
   Mux(const Mux&) = delete;
@@ -219,14 +219,14 @@ class Mux final : public TraceEventListener {
 
   // Dispatches to first_, then second_
   template <typename MemberFn, typename... Args>
-  inline void Dispatch(MemberFn fn, Args&&... args) {
+  void Dispatch(MemberFn fn, Args&&... args) {
     (first_->*fn)(args...);
     (second_->*fn)(std::forward<Args>(args)...);
   }
 
   // Dispatches to second_, then first_
   template <typename MemberFn, typename... Args>
-  inline void RDispatch(MemberFn fn, Args&&... args) {
+  void RDispatch(MemberFn fn, Args&&... args) {
     (second_->*fn)(args...);
     (first_->*fn)(std::forward<Args>(args)...);
   }
