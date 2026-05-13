@@ -72,7 +72,9 @@ jobs:
           external-cache: true
           repository-cache: |
             - MODULE.bazel
-          google-credentials: ${{ secrets.GAR_SERVICE_ACCOUNT }}
+          # TODO: either revert to GAR_SERVICE_ACCOUNT or switch
+          # to more appropriately named credentials after testing.
+          google-credentials: ${{ secrets.BAZEL_CACHE_KEY_FOR_B_512558700 }}
           bazelrc: common --config=remote${{ matrix.config.arch-suffix }}
 
       - name: Run tests
@@ -121,7 +123,9 @@ jobs:
           external-cache: true
           repository-cache: |
             - MODULE.bazel
-          google-credentials: ${{ secrets.GAR_SERVICE_ACCOUNT }}
+          # TODO: either revert to GAR_SERVICE_ACCOUNT or switch
+          # to more appropriately named credentials after testing.
+          google-credentials: ${{ secrets.BAZEL_CACHE_KEY_FOR_B_512558700 }}
           bazelrc: common --remote_cache=https://storage.googleapis.com/gloop-bazel-remote-cache
 
       - name: Run tests
