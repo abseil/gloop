@@ -138,6 +138,15 @@
 #include "absl/types/source_location.h"
 #include "gloop/base/commandlineflags_declare.h"  // IWYU pragma: keep
 
+// Determine whether the full commandlineflags API
+// should be used based on platform if it has not
+// been specified on the command line.
+#if !defined(GOOGLE_COMMANDLINEFLAGS_FULL_API)
+#if defined(__linux__)
+#define GOOGLE_COMMANDLINEFLAGS_FULL_API 1
+#endif  // defined(__linux__)
+#endif  // !defined(GOOGLE_COMMANDLINEFLAGS_FULL_API)
+
 #ifndef SWIG
 
 // --------------------------------------------------------------------
@@ -371,13 +380,31 @@ inline void ShutDownCommandLineFlags() {}
 // --------------------------------------------------------------------
 // Deprecated functions
 
-// This is often used for logging.  TODO: figure out a better way
-extern std::string CommandlineFlagsIntoString();
-
 // Usually where this is used, a FlagSaver should be used instead.
 extern bool ReadFlagsFromString(const std::string& flagfilecontents,
                                 const char* prog_name,
                                 bool errors_are_fatal);  // uses SET_FLAGS_VALUE
+
+namespace base {
+
+// If a flag with specified "name" exists and has type T, store
+// its current value in *dst and return true.  Else return false
+// without touching *dst.  T must obey all of the requirements for
+// types passed to ABSL_FLAG.
+template <typename T>
+inline bool GetByName(absl::string_view name, T* dst) {
+  absl::CommandLineFlag* flag = absl::FindCommandLineFlag(name);
+  if (!flag) return false;
+
+  if (auto val = flag->TryGet<T>()) {
+    *dst = *val;
+    return true;
+  }
+
+  return false;
+}
+
+}  // namespace base
 
 #endif  // SWIG
 

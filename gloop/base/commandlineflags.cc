@@ -781,25 +781,28 @@ bool WasPresentOnCommandLine(absl::string_view name) {
 bool ReadFlagsFromString(const std::string& flagfilecontents,
                          const char* /*prog_name*/,  // TODO: nix this
                          bool errors_are_fatal) {
-  absl::FlagSaver saved_states;
-
   CommandLineFlagParser parser(absl_flags::kProgrammaticChange);
+  {
+    absl::FlagSaver saved_states;
+
+    parser.ProcessOptionsFromString(flagfilecontents, SET_FLAGS_VALUE,
+                                    "user-provided string");
+    // Should we handle --help and such when reading flags from a string?  Sure.
+    const absl_flags::HelpMode help_mode =
+        absl_flags::HandleUsageFlags(std::cout, absl::ProgramUsageMessage());
+
+    absl_flags::MaybeExit(help_mode);
+
+    if (parser.ReportErrors()) {
+      // Error.  Restore all global flags to their previous values.
+      if (errors_are_fatal) {
+        std::exit(1);
+      }
+      return false;
+    }
+  }
   parser.ProcessOptionsFromString(flagfilecontents, SET_FLAGS_VALUE,
                                   "user-provided string");
-  // Should we handle --help and such when reading flags from a string?  Sure.
-  const absl_flags::HelpMode help_mode =
-      absl_flags::HandleUsageFlags(std::cout, absl::ProgramUsageMessage());
-
-  absl_flags::MaybeExit(help_mode);
-
-  if (parser.ReportErrors()) {
-    // Error.  Restore all global flags to their previous values.
-    if (errors_are_fatal) {
-      std::exit(1);
-    }
-    return false;
-  }
-
   return true;
 }
 
