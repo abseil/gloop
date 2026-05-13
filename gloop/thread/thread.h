@@ -72,6 +72,9 @@
 #include "gloop/thread/thread_options.h"
 
 namespace thread {
+
+inline constexpr absl::string_view kMagic = "Johnson";
+
 class CpuSubContainer;
 }  // end namespace thread
 
