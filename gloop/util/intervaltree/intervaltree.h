@@ -163,7 +163,7 @@ class IntervalNode : public ArenaOnlyGladiator {
         max_end_(node_end),
         rank_(1) {}
 
-  inline V* ptr() { return &value; }
+  V* ptr() { return &value; }
 
   // begin, end, value is defined without the trailing "_", because we need to
   // keep the interface identical to ChartItem
@@ -172,10 +172,10 @@ class IntervalNode : public ArenaOnlyGladiator {
   V value;  // Your data here
 
   // The maximum value of the datatype.
-  static inline K max_value() { return IntervalTreeLimits<K>::max(); }
+  static K max_value() { return IntervalTreeLimits<K>::max(); }
 
   // The minimum value of the datatype.
-  static inline K min_value() { return IntervalTreeLimits<K>::min(); }
+  static K min_value() { return IntervalTreeLimits<K>::min(); }
 
  private:
   friend class IntervalTree<K, V, KeyLess>;
@@ -190,19 +190,19 @@ class IntervalNode : public ArenaOnlyGladiator {
   int rank_;   // Rank_ implicitly stores the color (red or black) or a node.
 
   // is the node black?
-  inline static bool IsBlack(const IntervalNode<K, V, KeyLess>* node) {
+  static bool IsBlack(const IntervalNode<K, V, KeyLess>* node) {
     if (node == nullptr || node->parent_ == nullptr) return true;
     if (node->parent_->rank_ == node->rank_ + 1) return true;
     return false;
   }
 
   // is the node red?
-  inline static bool IsRed(const IntervalNode<K, V, KeyLess>* node) {
+  static bool IsRed(const IntervalNode<K, V, KeyLess>* node) {
     return !IsBlack(node);
   }
 
   // check if the node and its parent violated the rank invariant
-  inline static bool IsViolate(const IntervalNode<K, V, KeyLess>* node) {
+  static bool IsViolate(const IntervalNode<K, V, KeyLess>* node) {
     CHECK(node != nullptr);
     CHECK(node->parent_ != nullptr);
     CHECK_LE(node->parent_->rank_ - node->rank_, 2);
@@ -249,6 +249,15 @@ class IntervalTree {
   // This type is neither copyable nor movable.
   IntervalTree(const IntervalTree&) = delete;
   IntervalTree& operator=(const IntervalTree&) = delete;
+
+  iterator begin() {
+    return iterator(this, TreeNode::min_value(), TreeNode::max_value());
+  }
+  const_iterator begin() const {
+    return const_iterator(this, TreeNode::min_value(), TreeNode::max_value());
+  }
+  iterator end() { return iterator(this, nullptr); }
+  const_iterator end() const { return const_iterator(this, nullptr); }
 
   // Emplace an interval, the emplaced interval is returned.
   template <typename... Args>
@@ -421,7 +430,7 @@ class IntervalTree {
 
   // Helper function for Process Pending, this builds the tree with nodes in
   // pending_[begin] to pending_[end], then returns the root.
-  TreeNode* BuildTree(const int begin, const int end) const;
+  TreeNode* BuildTree(int begin, int end) const;
 
   inline bool LessThan(const K& begin, const K& end,
                        const TreeNode* node) const;
@@ -462,34 +471,33 @@ class IntervalTree {
   // Rotate child with child->parent
   //   Warning: Rotate does not update treeRoot pointer
   // Roughly 11% gain to inline rotate when testing regtest
-  TreeNode* Rotate(TreeNode* const child) const;
+  TreeNode* Rotate(TreeNode* child) const;
 
   // Find the node closest in rank to (begin, end),
   //   Note: when there is duplicate, this finds the most recently inserted
   //         However, if most recent is false, it finds the earliest insertion.
-  TreeNode* Find(const K& begin, const K& end, TreeNode* const tree,
+  TreeNode* Find(const K& begin, const K& end, TreeNode* tree,
                  bool most_recent) const;
 
   // The red-black tree operations
-  TreeNode* RBInsert(TreeNode* newInterval, TreeNode* const tree);
+  TreeNode* RBInsert(TreeNode* newInterval, TreeNode* tree);
 
   // Insert the node into the appropriate data structure (lazily)
-  TreeNode* SmartInsert(TreeNode* const newNode);
+  TreeNode* SmartInsert(TreeNode* newNode);
 
   // (For INTERVAL_TREE mode only)
   // Find the smallest node with [begin, end] range in tree's subtree
   //   a node with smaller begin index is smaller
   //   for nodes with the same begin index, wider interval is smaller
   //   for nodes with same begin and end index, earlier insertion is smaller
-  TreeNode* FindSmallest(const K& begin, const K& end, TreeNode* const tree);
+  TreeNode* FindSmallest(const K& begin, const K& end, TreeNode* tree);
 
   // (For INTERVAL_TREE mode only)
   // Find the largest node with [begin, end] range in tree's subtree
-  TreeNode* FindLargest(const K& begin, const K& end, TreeNode* const tree);
+  TreeNode* FindLargest(const K& begin, const K& end, TreeNode* tree);
 
   // (For VECTOR mode only) Find the node that intersect the range begin, end
-  int VecFindIntersect(const K& begin, const K& end,
-                       const bool startSmallest) const;
+  int VecFindIntersect(const K& begin, const K& end, bool startSmallest) const;
 
   // (For VECTOR mode only)
   // Find the node (begin, end) if exists, otherwise find the next element
@@ -532,8 +540,7 @@ class IntervalIterator {
   //
   // Note: When specifying INTERVAL_LARGEST, you have to call ::Prev() instead
   // of ::Next() to advance the iterator.
-  IntervalIterator(Tree* tree, const K& begin, const K& end,
-                   const IterStart start);
+  IntervalIterator(Tree* tree, const K& begin, const K& end, IterStart start);
 
   // This is here for easy implementation of copy constructor in DocChart
   explicit IntervalIterator(const IntervalIterator<K, V, KeyLess>& rhs);
@@ -553,19 +560,21 @@ class IntervalIterator {
 
   // Accessors.
   TreeNode* Get() const { return node_; }
+  TreeNode* operator*() const { return node_; }
   V* ptr() const { return node_->ptr(); }
 
   // Extra accessors for convenience
-  inline const K& begin() const { return node_->begin; }
-  inline const K& end() const { return node_->end; }
-  inline const V& value() const { return node_->value; }
-  inline Tree* tree() { return tree_; }
+  const K& begin() const { return node_->begin; }
+  const K& end() const { return node_->end; }
+  const V& value() const { return node_->value; }
+  Tree* tree() { return tree_; }
 
   // Find the next smallest node intersecting [begin, end].
   //   this includes nodes inserted after you initialized the iterator.
-  // If you reaches the end, NULL is returned.
+  // If you reached the end, NULL is returned.
   // (Order defined by Annotation Order)
   TreeNode* Next();
+  void operator++() { Next(); }
 
   // Find the previous largest node,
   //   WARNING: this is slightly more expensive than Next()
@@ -589,6 +598,10 @@ class IntervalIterator {
     end_ = end;
   }
 
+  bool operator!=(const IntervalIterator<K, V, KeyLess>& rhs) const {
+    return tree_ != rhs.tree_ || node_ != rhs.node_;
+  }
+
  private:
   Tree* tree_;
   TreeNode* node_;  // the last node returned
@@ -601,7 +614,7 @@ class IntervalIterator {
   int position_;
 
   // Helper function for initialization
-  void Init(const K& begin, const K& end, const IterStart start);
+  void Init(const K& begin, const K& end, IterStart start);
 
   // Get the node from the position_ (for vector mode)
   inline TreeNode* GetNodeFromPos();
@@ -624,14 +637,22 @@ class ConstIntervalIterator {
   ConstIntervalIterator(const Tree* tree, const K& begin, const K& end)
       : it(const_cast<Tree*>(tree), begin, end) {}
 
-  inline const K begin() const { return it.begin(); }
-  inline const K end() const { return it.end(); }
-  inline const V& value() const { return it.value(); }
+  ConstIntervalIterator(const Tree* tree, const TreeNode* node)
+      : it(const_cast<Tree*>(tree), const_cast<TreeNode*>(node)) {}
 
-  const TreeNode* const Get() const { return it.Get(); }
-  const TreeNode* const Next() { return it.Next(); }
-  const TreeNode* const Prev() { return it.Prev(); }
+  K begin() const { return it.begin(); }
+  K end() const { return it.end(); }
+  const V& value() const { return it.value(); }
+
+  const TreeNode* Get() const { return it.Get(); }
+  const TreeNode* operator*() const { return *it; }
+  const TreeNode* Next() { return it.Next(); }
+  void operator++() { ++it; }
+  const TreeNode* Prev() { return it.Prev(); }
   void ResetRange(const K& begin, const K& end) { it.ResetRange(begin, end); }
+  bool operator!=(const ConstIntervalIterator<K, V, KeyLess>& rhs) const {
+    return it != rhs.it;
+  }
 
  private:
   IntervalIterator<K, V, KeyLess> it;

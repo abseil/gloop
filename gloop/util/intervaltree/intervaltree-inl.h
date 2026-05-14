@@ -367,10 +367,10 @@ int IntervalTree<K, V, KeyLess>::VecFindPos(const K& begin,
 //       (no check because static function has no access to members.)
 template <typename K, typename V, typename KeyLess>
 IntervalNode<K, V, KeyLess>* IntervalTree<K, V, KeyLess>::FindSmallest(
-    const K& begin, const K& end, TreeNode* const node) {
-  if (node == nullptr) return nullptr;
+    const K& begin, const K& end, TreeNode* const tree) {
+  if (tree == nullptr) return nullptr;
 
-  TreeNode* root = node;
+  TreeNode* root = tree;
   // The data structure is designed so that it is easy to check the existence
   // of a interval that intersects with (begin, end) in the LEFT subtree.
 
@@ -409,10 +409,10 @@ IntervalNode<K, V, KeyLess>* IntervalTree<K, V, KeyLess>::FindSmallest(
 // 2) intersect the interval [begin, end]
 template <typename K, typename V, typename KeyLess>
 IntervalNode<K, V, KeyLess>* IntervalTree<K, V, KeyLess>::FindLargest(
-    const K& begin, const K& end, TreeNode* const node) {
-  if (node == nullptr) return nullptr;
+    const K& begin, const K& end, TreeNode* const tree) {
+  if (tree == nullptr) return nullptr;
 
-  TreeNode* root = node;
+  TreeNode* root = tree;
 
   // Remember the best answer so far
   TreeNode* result = nullptr;
@@ -1222,7 +1222,7 @@ void IntervalTree<K, V, KeyLess>::Delete(TreeNode* node) {
       child->parent_ = nullptr;
     } else {
       // if root has no children, then we are deletion the last node
-      CHECK(size_ == 1);
+      CHECK_EQ(size_, 1);
     }
   } else {  // todel is not the root
     // if todel is a leaf (i.e. todel have no child)
@@ -1488,11 +1488,15 @@ IntervalIterator<K, V, KeyLess>::IntervalIterator(Tree* tree, TreeNode* node)
   if (!tree_->uptodate_) tree_->UpdateStructure();
 
   if (tree_->IsVector()) {
-    position_ = tree_->VecFindPos(node->begin, node->end);
-    // When there are duplicate, FindPos find the smallest one.
-    while (node_ != GetNodeFromPos()) {
-      DCHECK(tree_->KeyEqualTo(node_->begin, GetNodeFromPos()->begin));
-      ++position_;
+    if (node == nullptr) {
+      position_ = tree_->sorted_.size();
+    } else {
+      position_ = tree_->VecFindPos(node->begin, node->end);
+      // When there are duplicate, FindPos find the smallest one.
+      while (node_ != GetNodeFromPos()) {
+        DCHECK(tree_->KeyEqualTo(node_->begin, GetNodeFromPos()->begin));
+        ++position_;
+      }
     }
   }
 }

@@ -197,7 +197,8 @@ void BM_RandomOperations(benchmark::State& state) {
         std::pair<int32_t, int32_t> p = GeneratePair(grandom);
         tree.InsertVal(p.first, p.second, state.max_iterations);
         inserts++;
-      } break;
+        break;
+      }
       case DELETE: {
         std::pair<int32_t, int32_t> p = GeneratePair(grandom);
         IntervalIterator<int32_t, int32_t> del(&tree, p.first, p.second,
@@ -206,7 +207,8 @@ void BM_RandomOperations(benchmark::State& state) {
           del.Delete();
           deletes++;
         }
-      } break;
+        break;
+      }
       case ITERATE:
         IterateRandom(grandom, tree);
         iterate++;
@@ -386,8 +388,8 @@ void TestIntervalNode(const K& begin, const K& end) {
   CHECK_EQ(node.end, end);
 
   CHECK(node.max_value() > node.min_value());
-  CHECK(node.max_value() > 0);
-  CHECK(node.min_value() < 0);
+  CHECK_GT(node.max_value(), 0);
+  CHECK_LT(node.min_value(), 0);
 }
 
 template <class K, class KeyLess = std::less<K>>
@@ -1073,6 +1075,81 @@ void TestMakeLinearCopyOnArena() {
   CHECK_EQ(node->value, 64);
 }
 
+void TestIterable(TreeFactory& factory) {
+  VLOG(1) << "Check Iterable vector mode";
+  {
+    auto tree = factory.Create<int, std::string>();
+    tree.InsertVal(3, 4, "b");
+    tree.InsertVal(5, 6, "c");
+    tree.InsertVal(1, 2, "a");
+    tree.UpdateStructure();
+
+    std::vector<std::string> values;
+    for (auto node : tree) {
+      values.push_back(node->value);
+    }
+    CHECK_EQ(values.size(), 3);
+    CHECK_EQ(values[0], "a");
+    CHECK_EQ(values[1], "b");
+    CHECK_EQ(values[2], "c");
+
+    const auto& const_tree = tree;
+    std::vector<std::string> const_values;
+    for (auto node : const_tree) {
+      const_values.push_back(node->value);
+    }
+    CHECK_EQ(const_values.size(), 3);
+    CHECK_EQ(const_values[0], "a");
+    CHECK_EQ(const_values[1], "b");
+    CHECK_EQ(const_values[2], "c");
+  }
+
+  VLOG(1) << "Check Iterable tree mode";
+  {
+    auto tree = factory.Create<int, std::string>();
+    tree.InsertVal(2, 6, "b");
+    tree.InsertVal(3, 7, "c");
+    tree.InsertVal(1, 5, "a");
+    tree.UpdateStructure();
+
+    std::vector<std::string> values;
+    for (auto node : tree) {
+      values.push_back(node->value);
+    }
+    CHECK_EQ(values.size(), 3);
+    CHECK_EQ(values[0], "a");
+    CHECK_EQ(values[1], "b");
+    CHECK_EQ(values[2], "c");
+
+    const auto& const_tree = tree;
+    std::vector<std::string> const_values;
+    for (auto node : const_tree) {
+      const_values.push_back(node->value);
+    }
+    CHECK_EQ(const_values.size(), 3);
+    CHECK_EQ(const_values[0], "a");
+    CHECK_EQ(const_values[1], "b");
+    CHECK_EQ(const_values[2], "c");
+  }
+
+  VLOG(1) << "Check Iterable empty tree";
+  {
+    auto tree = factory.Create<int, std::string>();
+    tree.UpdateStructure();
+
+    for (auto unused_node : tree) {
+      (void)unused_node;
+      CHECK(false) << "Loop body should not execute for empty tree";
+    }
+
+    const auto& const_tree = tree;
+    for (auto unused_node : const_tree) {
+      (void)unused_node;
+      CHECK(false) << "Loop body should not execute for empty tree";
+    }
+  }
+}
+
 // Test that struct key w/o comparison operators works well with the interval
 // tree.
 namespace {
@@ -1081,7 +1158,6 @@ struct StructKey {
 
   StructKey operator+(int delta) const {
     StructKey ret(value + delta);
-    ;
     return ret;
   }
 
@@ -1144,6 +1220,7 @@ void RunIntervalTreeTests(TreeFactory& factory) {
   TestIntervalTreeRanges(factory);
   TestMakeLinearCopy(factory);
   TestMakeLinearCopyOnArena();
+  TestIterable(factory);
 }
 
 int main(int argc, char** argv) {
