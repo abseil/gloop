@@ -12,7 +12,7 @@ index edb49d0b..c16aa93d 100644
 +git_override(
 +    module_name = "gloop",
 +    remote = "https://github.com/abseil/gloop",
-+    commit = "8eead4aaf1eb3685921b09e4fc03a69a31e35d53",
++    commit = "04e795c4fc1a551e979af1af61902040df148ceb",
 +)
 diff --git absl/base/BUILD.bazel absl/base/BUILD.bazel
 index a0e71edb..ac359b23 100644
