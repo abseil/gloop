@@ -53,7 +53,7 @@
     ::util::status_macro_internal::StatusBuilderHolder{                      \
         status_adaptor.Consume()}                                            \
         .sb()                                                                \
-        .Log(::base_logging::level)
+        .Log(absl::LogSeverity{::base_logging::level})
 
 namespace util {
 namespace status_macro_internal {
