@@ -2,7 +2,7 @@ diff --git MODULE.bazel MODULE.bazel
 index edb49d0b..c16aa93d 100644
 --- MODULE.bazel
 +++ MODULE.bazel
-@@ -43 +43,11 @@ bazel_dep(
+@@ -42 +42,11 @@ bazel_dep(
  )
 +
 +bazel_dep(
