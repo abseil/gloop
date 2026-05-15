@@ -281,7 +281,8 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI
   [[clang::unsafe_buffer_usage]]
 #endif
   void reset(T* ptr, size_t size) {
-    *this = UniqueArray(ptr, size);
+    data_.reset(ptr);
+    *this = UniqueArray(std::move(data_), size);
   }
 
   // Resets the managed unique_ptr and leaves `*this` in the default-constructed

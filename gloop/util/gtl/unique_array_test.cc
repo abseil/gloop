@@ -71,6 +71,8 @@ class DeleterWithNoDefaultCtor {
 
   void operator()(int* ptr) { delete[] ptr; }
 
+  int GetData() { return data_; }
+
  private:
   int data_;
 };
@@ -482,6 +484,17 @@ TEST(UniqueArrayTest, CustomDeleter) {
     EXPECT_THAT(CustomDeleter::signature, Eq(0));
   }
   EXPECT_THAT(CustomDeleter::signature, Eq(kDeleterSignature));
+}
+
+TEST(UniqueArrayTest, ResetWithCustomDeleter) {
+  std::unique_ptr<int[], DeleterWithNoDefaultCtor> ptr(
+      new int[kArraySize], DeleterWithNoDefaultCtor(kDeleterSignature));
+  UniqueArray<int, DeleterWithNoDefaultCtor> buffer(std::move(ptr), kArraySize);
+  int* raw = new int[kArraySize];
+  buffer.reset(raw, kArraySize);
+  EXPECT_THAT(buffer, Not(IsNull()));
+  auto owned_ptr = buffer.release();
+  EXPECT_THAT(owned_ptr.ptr.get_deleter().GetData(), Eq(kDeleterSignature));
 }
 
 TEST(UniqueArrayTest, LambdaDeleter) {
