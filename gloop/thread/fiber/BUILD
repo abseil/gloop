@@ -67,11 +67,13 @@ cc_test(
 
 cc_library(
     name = "channel",
-    srcs = [
-        "channel.cc",
-        # TODO: Break this circular dep.
-        "fiber.h",
-    ],
+    srcs = select({
+        "//conditions:default": [
+            "channel.cc",
+            # TODO: Break this circular dep.
+            "fiber.h",
+        ],
+    }),
     hdrs = ["channel.h"],
     visibility = ["//visibility:public"],
     deps = [
@@ -143,13 +145,15 @@ cc_test(
 
 cc_library(
     name = "fiber",
-    srcs = [
-        "bundle.cc",
-        "fiber.cc",
-        "init-domain.cc",
-        "pthread-domain.cc",
-        "sleep.cc",
-    ],
+    srcs = select({
+        "//conditions:default": [
+            "bundle.cc",
+            "fiber.cc",
+            "init-domain.cc",
+            "pthread-domain.cc",
+            "sleep.cc",
+        ],
+    }),
     hdrs = [
         "bundle.h",
         "fiber.h",
@@ -534,7 +538,9 @@ cc_test(
 
 cc_library(
     name = "select",
-    srcs = ["select.cc"],
+    srcs = select({
+        "//conditions:default": ["select.cc"],
+    }),
     hdrs = ["select.h"],
     visibility = ["//visibility:public"],
     deps = [
@@ -557,7 +563,9 @@ cc_library(
 
 cc_library(
     name = "select-internal",
-    srcs = ["select-internal.cc"],
+    srcs = select({
+        "//conditions:default": ["select-internal.cc"],
+    }),
     hdrs = ["select-internal.h"],
     visibility = [
         "//gloop/thread/fiber:__subpackages__",
@@ -573,7 +581,9 @@ cc_library(
 
 cc_library(
     name = "selectables",
-    srcs = ["selectables.cc"],
+    srcs = select({
+        "//conditions:default": ["selectables.cc"],
+    }),
     hdrs = ["selectables.h"],
     visibility = ["//visibility:public"],
     deps = [
