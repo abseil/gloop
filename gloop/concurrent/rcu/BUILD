@@ -145,6 +145,7 @@ cc_library(
     visibility = [
         "//gloop/base:__pkg__",
         "//gloop/concurrent/rcu:__subpackages__",
+        "//security/loas/l2/internal/lib/psp:__pkg__",
     ],
     deps = [
         ":llist",
