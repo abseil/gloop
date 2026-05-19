@@ -82,9 +82,10 @@ using PeerOrFakePeer = net_base::Peer;
 // Build a security context using the supplied peer and return it as a handle.
 static absl::StatusOr<SecurityContextHandle> BuildSecurityContextHandle(
     const refcount::reffed_ptr<net_base::Peer>& peer) {
-  ASSIGN_OR_RETURN(std::unique_ptr<SecurityContext> sc,
-                   FakeUnvalidatedSecurityContextBuilder::WithPeer(peer.get())
-                       ->BuildUnvalidated());
+  ABSL_ASSIGN_OR_RETURN(
+      std::unique_ptr<SecurityContext> sc,
+      FakeUnvalidatedSecurityContextBuilder::WithPeer(peer.get())
+          ->BuildUnvalidated());
 
   return SecurityContextHandle(std::move(sc));
 }

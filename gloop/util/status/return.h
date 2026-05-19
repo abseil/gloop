@@ -21,9 +21,9 @@
 // Return(foo) and ReturnVoid adaptors, for use with `StatusBuilder::With()`.
 //
 // These simplify interoperability between `Status` and non-`Status` code when
-// using `RETURN_IF_ERROR` and `ASSIGN_OR_RETURN`. `Return(foo)` converts a
-// `StatusBuilder` into `foo`, which can be any value, while `ReturnVoid`
-// converts a `StatusBuilder` into void.
+// using `ABSL_RETURN_IF_ERROR` and `ABSL_ASSIGN_OR_RETURN`. `Return(foo)`
+// converts a `StatusBuilder` into `foo`, which can be any value, while
+// `ReturnVoid` converts a `StatusBuilder` into void.
 
 #ifndef THIRD_PARTY_GLOOP_UTIL_STATUS_RETURN_H_
 #define THIRD_PARTY_GLOOP_UTIL_STATUS_RETURN_H_
@@ -42,22 +42,22 @@ struct ReturnImpl;
 
 // Adaptor that converts a `StatusBuilder` into the provided value of any type.
 //
-// Useful for adapting `RETURN_IF_ERROR` and `ASSIGN_OR_RETURN` macros in code
-// with non-`Status` return types. For example:
+// Useful for adapting `ABSL_RETURN_IF_ERROR` and `ABSL_ASSIGN_OR_RETURN` macros
+// in code with non-`Status` return types. For example:
 //
 //   bool UpdateWidget() {
-//     ASSIGN_OR_RETURN(foo_, GetFoo(),
+//     ABSL_ASSIGN_OR_RETURN(foo_, GetFoo(),
 //                      _.LogWarning().With(status_macros::Return(false)));
-//     ASSIGN_OR_RETURN(bar_, GetBar(),
+//     ABSL_ASSIGN_OR_RETURN(bar_, GetBar(),
 //                      _.LogWarning().With(status_macros::Return(false)));
 //     return true;
 //   }
 //
 //   std::unique_ptr<Widget> CreateWidget() {
-//     ASSIGN_OR_RETURN(
+//     ABSL_ASSIGN_OR_RETURN(
 //         auto w, Widget::Create(),
 //         _.LogWarning().With(status_macros::Return(nullptr)));
-//     RETURN_IF_ERROR(w->Prepare())
+//     ABSL_RETURN_IF_ERROR(w->Prepare())
 //         .LogWarning()
 //         .With(status_macros::Return(nullptr));
 //     return w;
@@ -70,14 +70,14 @@ internal_return::ReturnImpl<absl::decay_t<T>> Return(T&& value);
 
 // Adaptor that converts a `StatusBuilder` to void.
 //
-// Useful for adapting `RETURN_IF_ERROR` and `ASSIGN_OR_RETURN` macros in
-// methods with void return types. For example:
+// Useful for adapting `ABSL_RETURN_IF_ERROR` and `ABSL_ASSIGN_OR_RETURN` macros
+// in methods with void return types. For example:
 //
 //   void ProcessWidget(const Widget& w) {
-//     RETURN_IF_ERROR(PrepareWidget(w))
+//     ABSL_RETURN_IF_ERROR(PrepareWidget(w))
 //         .LogWarning()
 //         .With(status_macros::ReturnVoid());
-//     RETURN_IF_ERROR(PackageWidget(w))
+//     ABSL_RETURN_IF_ERROR(PackageWidget(w))
 //         .LogWarning()
 //         .With(status_macros::ReturnVoid());
 //   }

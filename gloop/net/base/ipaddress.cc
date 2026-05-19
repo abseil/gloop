@@ -513,8 +513,8 @@ static absl::StatusOr<IPAddress> GetIPAddressFromSockaddrIn6(
 
 absl::StatusOr<SocketAddress> MakeSocketAddressFromSockaddrIn6(
     const sockaddr_in6& sin6) {
-  ASSIGN_OR_RETURN(const IPAddress host, GetIPAddressFromSockaddrIn6(sin6),
-                   _ << "getting IP address");
+  ABSL_ASSIGN_OR_RETURN(const IPAddress host, GetIPAddressFromSockaddrIn6(sin6),
+                        _ << "getting IP address");
 
   return SocketAddress{
       host,
@@ -1491,7 +1491,7 @@ static SocketAddress MakeSocketAddressFromSockaddr(const sockaddr& sa) {
       // Our type punning should result in this condition.
       ABSL_ASSUME(sin6.sin6_family == AF_INET6);
 
-      ASSIGN_OR_RETURN(
+      ABSL_ASSIGN_OR_RETURN(
           IPAddress fully_specified_ip_address,
           MakeIPAddressWithScopeId(sin6.sin6_addr, sin6.sin6_scope_id),
           _.With([&](const absl::Status& error) {

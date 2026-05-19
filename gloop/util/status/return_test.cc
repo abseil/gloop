@@ -38,7 +38,8 @@ absl::Status IfFiveReturnError(int x) {
 
 TEST(ReturnTest, ReturnsBool) {
   auto if_five_return_false = [](int x) -> bool {
-    RETURN_IF_ERROR(IfFiveReturnError(x)).With(::status_macros::Return(false));
+    ABSL_RETURN_IF_ERROR(IfFiveReturnError(x))
+        .With(::status_macros::Return(false));
     return true;
   };
   EXPECT_EQ(if_five_return_false(5), false);
@@ -47,7 +48,8 @@ TEST(ReturnTest, ReturnsBool) {
 
 TEST(ReturnTest, ReturnsInt) {
   auto if_five_return_404 = [](int x) -> int {
-    RETURN_IF_ERROR(IfFiveReturnError(x)).With(::status_macros::Return(404));
+    ABSL_RETURN_IF_ERROR(IfFiveReturnError(x))
+        .With(::status_macros::Return(404));
     return 200;
   };
   EXPECT_EQ(if_five_return_404(5), 404);
@@ -57,7 +59,8 @@ TEST(ReturnTest, ReturnsInt) {
 TEST(ReturnTest, ReturnsConstRef) {
   auto if_five_return_foo = [](int x) -> std::string {
     const std::string foo = "foo";
-    RETURN_IF_ERROR(IfFiveReturnError(x)).With(::status_macros::Return(foo));
+    ABSL_RETURN_IF_ERROR(IfFiveReturnError(x))
+        .With(::status_macros::Return(foo));
     return "bar";
   };
   EXPECT_EQ(if_five_return_foo(5), "foo");
@@ -67,7 +70,7 @@ TEST(ReturnTest, ReturnsConstRef) {
 TEST(ReturnTest, ReturnsConstRefAdaptor) {
   auto if_five_return_foo = [](int x) -> std::string {
     const auto return_foo = ::status_macros::Return("foo");
-    RETURN_IF_ERROR(IfFiveReturnError(x)).With(return_foo);
+    ABSL_RETURN_IF_ERROR(IfFiveReturnError(x)).With(return_foo);
     return "bar";
   };
   EXPECT_EQ(if_five_return_foo(5), "foo");
@@ -76,7 +79,7 @@ TEST(ReturnTest, ReturnsConstRefAdaptor) {
 
 TEST(ReturnTest, ReturnsNullptr) {
   auto if_five_return_null = [](int x) -> std::unique_ptr<std::string> {
-    RETURN_IF_ERROR(IfFiveReturnError(x))
+    ABSL_RETURN_IF_ERROR(IfFiveReturnError(x))
         .With(::status_macros::Return(nullptr));
     return std::make_unique<std::string>("ok");
   };
@@ -86,7 +89,7 @@ TEST(ReturnTest, ReturnsNullptr) {
 
 TEST(ReturnTest, ReturnsUniquePtr) {
   auto if_five_return_404 = [](int x) -> std::unique_ptr<int> {
-    RETURN_IF_ERROR(IfFiveReturnError(x))
+    ABSL_RETURN_IF_ERROR(IfFiveReturnError(x))
         .With(::status_macros::Return(std::make_unique<int>(404)));
     return std::make_unique<int>(200);
   };
@@ -98,7 +101,8 @@ TEST(ReturnTest, ReturnsVoid) {
   bool success = false;
   auto if_five_then_fail = [&success](int x) -> void {
     success = false;
-    RETURN_IF_ERROR(IfFiveReturnError(x)).With(::status_macros::ReturnVoid());
+    ABSL_RETURN_IF_ERROR(IfFiveReturnError(x))
+        .With(::status_macros::ReturnVoid());
     success = true;
   };
 

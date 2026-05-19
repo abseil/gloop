@@ -675,13 +675,13 @@ class Task {
 
 // Adapts a callback that returns a status to a task.
 //
-// This can be used to adapt `RETURN_IF_ERROR` macros for use with `Task`.
+// This can be used to adapt `ABSL_RETURN_IF_ERROR` macros for use with `Task`.
 // For example:
 //
 //   void ProcessWidgets(const Widget& w, Task* t) {
-//     RETURN_IF_ERROR(PrepareWidget(w)).With(TaskReturn(t));
-//     RETURN_IF_ERROR(PackageWidget(w)).With(TaskReturn(t));
-//     RETURN_IF_ERROR(ShipWidget(w)).With(TaskReturn(t));
+//     ABSL_RETURN_IF_ERROR(PrepareWidget(w)).With(TaskReturn(t));
+//     ABSL_RETURN_IF_ERROR(PackageWidget(w)).With(TaskReturn(t));
+//     ABSL_RETURN_IF_ERROR(ShipWidget(w)).With(TaskReturn(t));
 //     t->Return();
 //
 class TaskReturn {

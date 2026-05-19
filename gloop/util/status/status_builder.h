@@ -94,19 +94,19 @@ StatusBuilder UnknownErrorBuilder(
 // This is most useful with adaptors such as util::TaskReturn that otherwise
 // would prevent use of operator<<.  For example:
 //
-//   RETURN_IF_ERROR(foo(val))
+//   ABSL_RETURN_IF_ERROR(foo(val))
 //       .With(util::ExtraMessage("when calling foo()"))
 //       .With(util::TaskReturn(task));
 //
 // or
 //
-//   RETURN_IF_ERROR(foo(val))
+//   ABSL_RETURN_IF_ERROR(foo(val))
 //       .With(util::ExtraMessage() << "val: " << val)
 //       .With(util::TaskReturn(task));
 //
-// Note in the above example, the RETURN_IF_ERROR macro ensures the ExtraMessage
-// expression is evaluated only in the error case, so efficiency of constructing
-// the message is not a concern in the success case.
+// Note in the above example, the ABSL_RETURN_IF_ERROR macro ensures the
+// ExtraMessage expression is evaluated only in the error case, so efficiency of
+// constructing the message is not a concern in the success case.
 class ExtraMessage {
  public:
   ExtraMessage() : ExtraMessage(std::string()) {}
