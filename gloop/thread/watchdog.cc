@@ -93,6 +93,22 @@ static absl::Time ReadApproximateClock() {
   return absl::FromUnixNanos(cached);
 }
 
+namespace {
+
+// Returns a watchdog name, truncating it if it's too long.
+std::string TruncateName(std::string name) {
+  // The maximum length of a watchdog name. Names longer than this will be
+  // truncated.
+  static constexpr size_t kMaxNameLength = 128;
+  if (name.size() > kMaxNameLength) {
+    name.resize(kMaxNameLength);
+    name.append("...");
+  }
+  return name;
+}
+
+}  // namespace
+
 WatchDog::WatchDog() : WatchDog("?", DefaultTimeout()) {}
 
 WatchDog::WatchDog(const char* name, absl::Duration timeout)
@@ -105,7 +121,7 @@ WatchDog::WatchDog(std::string name, absl::Duration timeout)
       tid_(GetTID()),
       callback_tid_(0),
       pthread_id_(pthread_self()),
-      name_(std::move(name)) {
+      name_(TruncateName(std::move(name))) {
   CHECK_GE(timeout, absl::Seconds(1));
 
   timeout_duration_nanos_.store(timeout / absl::Nanoseconds(1),
@@ -382,7 +398,9 @@ void WatchDog::PrintExpirationMessage(char* buf, int buf_size,
   len = absl::SNPrintF(buf, buf_size,
                        "Watchdog: %s (pthread id: %x, tid: %u) expired; ",
                        name().c_str(), PRINTABLE_PTHREAD(pthread_id()), tid());
-  PrintStatusInternal(buf + len, buf_size - len, state, now_for_check);
+  if (len >= 0 && len < buf_size) {
+    PrintStatusInternal(buf + len, buf_size - len, state, now_for_check);
+  }
 }
 
 void WatchDog::SetCrashReasonFromStuckThread() {
