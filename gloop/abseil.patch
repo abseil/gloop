@@ -8,7 +8,7 @@ index cc60d224..e83fa2f6 100644
  )
 +
 +bazel_dep(
-+    name = "gloop",
++    name = "gloop",  // Dummy
 +    repo_name = "do_not_use_for_gloop_visibility_only",
 +)
 +git_override(
