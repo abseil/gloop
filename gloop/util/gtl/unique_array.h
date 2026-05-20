@@ -32,6 +32,7 @@
 #include <utility>
 
 #include "absl/base/attributes.h"
+#include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/strings/str_format.h"
@@ -261,7 +262,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI
   // Returns a reference to the element in position `index`. Fails when `index`
   // is out of bounds and Abseil hardening is enabled.
   T& operator[](size_t idx) const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    ABSL_HARDENING_ASSERT(idx < size());
+    absl::base_internal::HardeningAssertLT(idx, size());
     return data_[idx];
   }
 
