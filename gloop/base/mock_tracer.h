@@ -114,6 +114,7 @@ class MockTracer : public Tracer {
   using Tracer::set_invalid_inherited_initiator_id;
   using Tracer::set_inverse_sampling_probability;
   using Tracer::set_span_type;
+  using Tracer::set_speculative_root;
   using Tracer::SetStartTime;
   using Tracer::SetStartTimeNow;
   using Tracer::SetStopTime;

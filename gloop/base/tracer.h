@@ -815,6 +815,10 @@ class Tracer {
     return (initiator_id() & kHighValueTrace) != 0;
   }
 
+  bool is_speculative_root() const {
+    return (initiator_id() & kSpeculativeRoot) != 0;
+  }
+
   // This does nothing today, but used to be useful for debugging in special
   // compilation modes. If you are here because you are debugging a leaked
   // tracer in a situation where you are able to recompile the binary, see
@@ -955,6 +959,7 @@ class Tracer {
   static constexpr uint64_t kBucketedSampling{uint64_t{1} << 40};
   static constexpr uint64_t kBatchSampling{uint64_t{1} << 41};
   static constexpr uint64_t kSharedFate{uint64_t{1} << 42};
+  static constexpr uint64_t kSpeculativeRoot{uint64_t{1} << 43};
 
   // Initiator ID type is stored in bits 32 and 35, and the initiator value
   // (whose interpretation depends on the type) in bits 0..31.
@@ -1249,6 +1254,8 @@ class Tracer {
   void enable_query_cost_tracing();
   // Sets the "high value trace" bit in the tracing initiator ID metadata.
   void set_high_value_trace();
+  // Sets the "speculative root" bit in the tracing initiator ID metadata.
+  void set_speculative_root();
   // Sets the "bucketed sampling" bit in the tracing initiator ID metadata.
   void set_initiated_by_bucketed_sampling();
   // Sets the "tracing cookie" bit in the tracing initiator ID metadata. Must

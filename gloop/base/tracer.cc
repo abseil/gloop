@@ -286,6 +286,10 @@ void Tracer::set_high_value_trace() {
   initiator_id_.fetch_or(kHighValueTrace, std::memory_order_relaxed);
 }
 
+void Tracer::set_speculative_root() {
+  initiator_id_.fetch_or(kSpeculativeRoot, std::memory_order_relaxed);
+}
+
 void Tracer::set_initiated_by_tracing_cookie() {
   initiator_id_.fetch_or(kTracingCookie | kTraceInitiatingSpan,
                          std::memory_order_relaxed);
