@@ -381,7 +381,7 @@ void RoundTripDeprecated(T v, int64_t expected_sec, int32_t expected_nsec) {
   EXPECT_EQ(expected_nsec, proto.nanos()) << "Given: " << v;
   absl::Duration subsec;  // for checking if v is nanosecond aligned
   absl::IDivDuration(v - T(), absl::Seconds(1), &subsec);
-  if (absl::Nanoseconds(subsec / absl::Nanoseconds(1)) == subsec) {
+  if (absl::Trunc(subsec, absl::Nanoseconds(1)) == subsec) {
     const T v2 = util_time::FromProto(proto);
     EXPECT_EQ(v, v2);
   }

@@ -79,7 +79,6 @@ cc_test(
         "//gloop/thread/fiber:select",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/log:log_streamer",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_matchers",

@@ -34,7 +34,6 @@ namespace {
 using ::std::get;
 using ::std::make_pair;
 using ::std::make_tuple;
-using ::std::tie;
 
 class Ref : public TestValues {};
 

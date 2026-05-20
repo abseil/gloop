@@ -62,7 +62,7 @@ struct Task::Child final {
   absl::AnyInvocable<void(Task*) &&> user_cb_;
   Task child_task_;
 
-  explicit inline Child(thread::Executor* executor, Task* parent)
+  explicit Child(thread::Executor* executor, Task* parent)
       : parent_(parent),
         child_task_([this](util::Task* task) { Run(task); }, executor,
                     parent->arena()) {}

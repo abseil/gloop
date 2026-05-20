@@ -40,27 +40,16 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <cstddef>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-
-#include "absl/base/attributes.h"
-#include "absl/base/const_init.h"
-#include "absl/base/internal/raw_logging.h"
-#include "absl/flags/flag.h"  // IWYU pragma: keep
-#include "absl/log/check.h"
-#include "absl/log/log.h"
-#include "absl/log/vlog_is_on.h"
-#include "gloop/util/functional/from_callback.h"
-#include "gloop/util/gtl/unique_array.h"
-
 #ifdef __i386__
 #include <asm/ldt.h>  // For struct user_desc
 #endif
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <ios>
 #include <limits>
 #include <memory>
@@ -70,9 +59,16 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/attributes.h"
+#include "absl/base/const_init.h"
+#include "absl/base/internal/raw_logging.h"
 #include "absl/container/fixed_array.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/flags/flag.h"  // IWYU pragma: keep
+#include "absl/log/check.h"
+#include "absl/log/log.h"
+#include "absl/log/vlog_is_on.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
@@ -87,6 +83,8 @@
 #include "gloop/base/strerror.h"
 #include "gloop/base/sysinfo.h"
 #include "gloop/strings/util.h"
+#include "gloop/util/functional/from_callback.h"
+#include "gloop/util/gtl/unique_array.h"
 #include "gloop/util/process/nul_terminated_buf_appender.h"
 #include "gloop/util/status/status_builder.h"
 

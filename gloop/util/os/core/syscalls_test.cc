@@ -35,7 +35,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "gloop/util/status/errno_mapping.h"
-#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace {

@@ -46,7 +46,6 @@ cc_test(
         "//gloop:gloop_test_main",
         "//gloop/thread/fiber",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",

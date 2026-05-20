@@ -40,10 +40,13 @@
 // instructions.  However it is found that the improvements on
 // Sandybridge and Ivybridge are not significiant.  So we only
 // do this on POWER8 for now.  We may revisit this for Haswell.
+#include <climits>
 #include <cstdint>
+#include <cstring>
 
 #include "absl/base/call_once.h"
 #include "absl/log/check.h"
+#include "absl/numeric/int128.h"
 
 #if (defined(__powerpc__) && defined(__CRYPTO__)) || \
     (defined(__x86_64__) && defined(__PCLMUL__)) ||  \

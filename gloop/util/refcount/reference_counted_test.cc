@@ -22,6 +22,7 @@
 
 #include <string>
 
+#include "absl/strings/match.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
@@ -50,7 +51,7 @@ class RefTest : public testing::Test {
 
   // Return "OK" if sub is found in str.  Else return str.
   std::string Contains(absl::string_view sub, absl::string_view str) {
-    if (str.find(sub) != std::string::npos) {
+    if (absl::StrContains(str, sub)) {
       return "OK";
     } else {
       return std::string(str);
