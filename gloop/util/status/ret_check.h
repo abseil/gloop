@@ -39,7 +39,7 @@
 // while the `RET_QCHECK*` macros do not.
 //
 // These macros end with a `util::StatusBuilder` in their tail
-// position and can be customized like calls to `RETURN_IF_ERROR` from
+// position and can be customized like calls to `ABSL_RETURN_IF_ERROR` from
 // "https://github.com/abseil/gloop/tree/main/gloop/util/status/status_macros.h".
 //
 // Be careful with the usage of `RET_CHECK_*` for checking user-sensitive data
@@ -233,7 +233,7 @@ inline unsigned long long GetReferenceableValue(unsigned long long t) {
 // Takes an expression returning absl::Status and asserts that the status is
 // `ok()`.  If not, it returns a `util::error::INTERNAL` error.
 //
-// This is similar to `RETURN_IF_ERROR` in that it propagates errors.  The
+// This is similar to `ABSL_RETURN_IF_ERROR` in that it propagates errors.  The
 // difference is that it follows the behavior of `RET_CHECK`, returning an
 // internal error (wrapping the original error text), including the filename and
 // line number, and logging a stack trace.
@@ -242,7 +242,7 @@ inline unsigned long long GetReferenceableValue(unsigned long long t) {
 // `absl::Status` cannot fail, particularly when the error code itself should
 // not be surfaced.
 #define RET_CHECK_OK(status)                                               \
-  STATUS_MACROS_IMPL_ELSE_BLOCKER_                                         \
+  ABSL_INTERNAL_STATUS_MACROS_IMPL_ELSE_BLOCKER_                           \
   if (const absl::Status ret_check_macro_status =                          \
           ::util::internal_status_macros_ret_check::AsStatus(status);      \
       ret_check_macro_status.ok()) {                                       \

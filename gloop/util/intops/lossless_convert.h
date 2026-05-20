@@ -64,7 +64,7 @@ bool LosslessConvert(InType in_val, OutType* out);
 // Example usage:
 //
 //   float x = 5.0;
-//   ASSIGN_OR_RETURN(auto y, util_intops::LosslessConvert<int>(x));
+//   ABSL_ASSIGN_OR_RETURN(auto y, util_intops::LosslessConvert<int>(x));
 //
 template <typename OutType, typename InType>
 absl::StatusOr<OutType> LosslessConvert(InType in);

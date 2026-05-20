@@ -71,7 +71,7 @@
 // It also works well with the status macros from
 // //gloop/util/task/status_macros.h
 //
-//   RETURN_IF_ERROR(DoStuff(in_dirs, out_dirs))
+//   ABSL_RETURN_IF_ERROR(DoStuff(in_dirs, out_dirs))
 //       << "DoStuff() failed: "
 //       << DUMP_VARS(in_dirs.size(), out_dirs.size(), in_dirs, out_dirs);
 //

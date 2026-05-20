@@ -535,7 +535,7 @@ BENCHMARK(BM_RetQCheckOk_Error);
 
 void BM_ReturnIfError_Ok(benchmark::State& state) {
   auto f = [](absl::Status status) -> absl::Status {
-    RETURN_IF_ERROR(status);
+    ABSL_RETURN_IF_ERROR(status);
     return absl::OkStatus();
   };
   for (auto _ : state) {
@@ -548,7 +548,7 @@ BENCHMARK(BM_ReturnIfError_Ok);
 
 void BM_ReturnIfError_Error(benchmark::State& state) {
   auto f = [](absl::Status status) -> absl::Status {
-    RETURN_IF_ERROR(status);
+    ABSL_RETURN_IF_ERROR(status);
     return absl::OkStatus();
   };
   for (auto _ : state) {

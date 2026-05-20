@@ -812,7 +812,7 @@ static void BM_StatusBuilder(benchmark::State& state) {
 BENCHMARK(BM_StatusBuilder)->Arg(0)->Arg(1);
 
 absl::Status ABSL_ATTRIBUTE_NOINLINE ReturnIfErrorIter() {
-  RETURN_IF_ERROR(MaybeFail());
+  ABSL_RETURN_IF_ERROR(MaybeFail());
   return absl::OkStatus();
 }
 
@@ -834,7 +834,7 @@ MaybeFailWithPtr() {
 }
 
 ABSL_ATTRIBUTE_NOINLINE absl::Status AssignOrReturnIter() {
-  ASSIGN_OR_RETURN(auto x, MaybeFailWithPtr());
+  ABSL_ASSIGN_OR_RETURN(auto x, MaybeFailWithPtr());
   return absl::OkStatus();
 }
 

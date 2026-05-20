@@ -39,11 +39,12 @@ TEST(AssignOrReturn, PreservesExplicitlySetCanonicalCode) {
   absl::Status error = util::PosixErrorToStatus(ENOSYS, "enosys");
   util::SetCanonicalCode(absl::StatusCode::kPermissionDenied, &error);
 
-  // Obtain the error via ASSIGN_OR_RETURN, exercising the various code paths
-  // that add context.
+  // Obtain the error via ABSL_ASSIGN_OR_RETURN, exercising the various code
+  // paths that add context.
   const absl::Status transformed = [error]() -> absl::Status {
-    ASSIGN_OR_RETURN(int dummy, absl::StatusOr<int>(error),
-                     ((_ << "foo").SetAppend() << "bar").SetPrepend() << "baz");
+    ABSL_ASSIGN_OR_RETURN(int dummy, absl::StatusOr<int>(error),
+                          ((_ << "foo").SetAppend() << "bar").SetPrepend()
+                              << "baz");
 
     // Silence errors about an unused value.
     static_cast<void>(dummy);
@@ -54,7 +55,7 @@ TEST(AssignOrReturn, PreservesExplicitlySetCanonicalCode) {
   EXPECT_EQ(absl::StatusCode::kPermissionDenied, transformed.code());
 }
 
-// Basis for RETURN_IF_ERROR and ASSIGN_OR_RETURN benchmarks.  Derived
+// Basis for ABSL_RETURN_IF_ERROR and ABSL_ASSIGN_OR_RETURN benchmarks.  Derived
 // classes override LoopAgain() with the macro invocation(s).
 template <class T>
 class ReturnLoop {
@@ -88,7 +89,7 @@ class ReturnIfErrorLoop : public ReturnLoop<absl::Status> {
  private:
   absl::Status LoopAgain(size_t* ops) override {
     --*ops;
-    RETURN_IF_ERROR(Loop(ops));
+    ABSL_RETURN_IF_ERROR(Loop(ops));
     return absl::OkStatus();
   }
 };
@@ -101,7 +102,7 @@ class ReturnIfErrorWithAnnotateLoop : public ReturnLoop<absl::Status> {
  private:
   absl::Status LoopAgain(size_t* ops) override {
     --*ops;
-    RETURN_IF_ERROR(Loop(ops))
+    ABSL_RETURN_IF_ERROR(Loop(ops))
         << "The quick brown fox jumped over the lazy dog.";
     return absl::OkStatus();
   }
@@ -115,7 +116,7 @@ class AssignOrReturnLoop : public ReturnLoop<absl::StatusOr<int>> {
  private:
   ReturnType LoopAgain(size_t* ops) override {
     --*ops;
-    ASSIGN_OR_RETURN(int result, Loop(ops));
+    ABSL_ASSIGN_OR_RETURN(int result, Loop(ops));
     return result;
   }
 
@@ -130,8 +131,8 @@ class AssignOrReturnAnnotateLoop : public ReturnLoop<absl::StatusOr<int>> {
  private:
   ReturnType LoopAgain(size_t* ops) override {
     --*ops;
-    ASSIGN_OR_RETURN(int result, Loop(ops),
-                     _ << "The quick brown fox jumped over the lazy dog.");
+    ABSL_ASSIGN_OR_RETURN(int result, Loop(ops),
+                          _ << "The quick brown fox jumped over the lazy dog.");
     return result;
   }
 
@@ -231,7 +232,7 @@ absl::Status Codegen_Control_Status_Status(int& out) {
 }
 
 absl::Status Codegen_RETURN_IF_ERROR_Status(int& out) {
-  RETURN_IF_ERROR(DummyMakeStatus());
+  ABSL_RETURN_IF_ERROR(DummyMakeStatus());
   out = 17;  // just some work to do conditionally.
   return absl::OkStatus();
 }
@@ -239,7 +240,7 @@ absl::Status Codegen_RETURN_IF_ERROR_Status(int& out) {
 absl::Status Codegen_RETURN_IF_ERROR_Status_Stream(int& out) {
   // We perform many operations in the builder to make sure they don't cause
   // spills or escape the object.
-  RETURN_IF_ERROR(DummyMakeStatus()).LogError().SetAppend().SetPrepend()
+  ABSL_RETURN_IF_ERROR(DummyMakeStatus()).LogError().SetAppend().SetPrepend()
       << "First " << out << " another one!";
   out = 17;  // just some work to do conditionally.
   return absl::OkStatus();
@@ -254,7 +255,7 @@ absl::StatusOr<int> Codegen_Control_Status_StatusOr(int x) {
 }
 
 absl::StatusOr<int> Codegen_RETURN_IF_ERROR_StatusOr(int x) {
-  RETURN_IF_ERROR(DummyMakeStatus());
+  ABSL_RETURN_IF_ERROR(DummyMakeStatus());
   return ~x;
 }
 
@@ -269,7 +270,7 @@ absl::Status Codegen_Control_StatusOr_Status(int& out) {
 }
 
 absl::Status Codegen_ASSIGN_OR_RETURN_Status(int& out) {
-  ASSIGN_OR_RETURN(out, DummyMakeStatusOr());
+  ABSL_ASSIGN_OR_RETURN(out, DummyMakeStatusOr());
   return absl::OkStatus();
 }
 
@@ -296,19 +297,19 @@ absl::Status CodegenBoundCheck(int a, int b) {
 }
 
 absl::Status Codegen_RETURN_IF_ERROR_BoundsCheck(int* ptr, int a, int b) {
-  RETURN_IF_ERROR(CodegenBoundCheck(a, b));
+  ABSL_RETURN_IF_ERROR(CodegenBoundCheck(a, b));
   *ptr = a - b;
   return absl::OkStatus();
 }
 
 absl::StatusOr<int> Codegen_ASSIGN_OR_RETURN_StatusOr() {
-  ASSIGN_OR_RETURN(int x, DummyMakeStatusOr());
+  ABSL_ASSIGN_OR_RETURN(int x, DummyMakeStatusOr());
   return ~x;
 }
 
 absl::StatusOr<int> Codegen_RETURN_IF_ERROR_LValue() {
   auto result = DummyMakeStatusOr();
-  RETURN_IF_ERROR(result.status());
+  ABSL_RETURN_IF_ERROR(result.status());
   return ~*result;
 }
 
