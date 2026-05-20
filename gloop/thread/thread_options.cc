@@ -20,6 +20,8 @@
 
 #include "gloop/thread/thread_options.h"
 
+#include <cstdint>
+
 #include "absl/flags/flag.h"
 
 ABSL_FLAG(int32_t, default_thread_stack_size, 0,

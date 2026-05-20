@@ -28,7 +28,6 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
-#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -40,6 +39,7 @@
 #include "absl/base/thread_annotations.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/debugging/stacktrace.h"
+#include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
@@ -51,6 +51,7 @@
 #include "gloop/base/crash.h"
 #include "gloop/base/examine_stack.h"
 #include "gloop/base/port.h"
+#include "gloop/base/raw_logging.h"
 #include "gloop/base/sysinfo.h"
 #include "gloop/base/tracecontext.h"
 #include "gloop/thread/thread.h"

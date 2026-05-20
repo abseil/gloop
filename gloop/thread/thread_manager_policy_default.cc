@@ -47,7 +47,7 @@ class ThreadManagerPolicyDefault : public ThreadManagerPolicy {
 
   virtual ~ThreadManagerPolicyDefault();
   virtual void Eval(const ThreadManagerState& state,
-                    ThreadManagerAction* result);
+                    ThreadManagerAction* action);
 
  private:
   int (*num_cpus_)();           // returns number of number of CPUs to assume.

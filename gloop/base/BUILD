@@ -869,6 +869,7 @@ cc_library(
     name = "raw_logging",
     srcs = ["raw_logging.cc"],
     hdrs = ["raw_logging.h"],
+    visibility = ["//gloop/thread:__subpackages__"],
     deps = [
         ":config",
         ":crash",

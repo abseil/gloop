@@ -40,7 +40,7 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
-#include "absl/base/config.h"
+#include "absl/base/log_severity.h"
 #include "absl/base/optimization.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/debugging/stacktrace.h"
@@ -50,6 +50,7 @@
 #include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
 #include "absl/log/globals.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
@@ -63,6 +64,7 @@
 #include "gloop/base/context.h"
 #include "gloop/base/init_google.h"
 #include "gloop/base/port.h"
+#include "gloop/base/raw_logging.h"
 #include "gloop/base/signal-handler.h"
 #include "gloop/base/sysinfo.h"
 #include "gloop/base/timer.h"
@@ -73,6 +75,7 @@
 #include "gloop/thread/thread_control.h"
 #include "gloop/thread/thread_options.h"
 #include "gloop/thread/threadpool.h"
+#include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
 #include "gloop/util/gtl/container_logging.h"
 #include "gmock/gmock.h"

@@ -33,7 +33,6 @@
 #include "absl/base/attributes.h"
 #include "absl/base/call_once.h"
 #include "absl/base/const_init.h"
-#include "absl/base/log_severity.h"
 #include "absl/base/optimization.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/container/flat_hash_map.h"

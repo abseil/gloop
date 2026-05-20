@@ -30,20 +30,6 @@
 #include <functional>
 #include <limits>
 
-#include "absl/base/const_init.h"
-#include "absl/base/dynamic_annotations.h"
-#include "absl/base/optimization.h"
-#include "absl/base/thread_annotations.h"
-#include "absl/log/log.h"
-#include "absl/log/log_streamer.h"
-#include "absl/log/vlog_is_on.h"
-#include "gloop/base/scheduling/scheduling_mode.h"
-#include "gloop/base/thread-identity.h"
-#include "gloop/base/tracecontext.h"
-#include "gloop/thread/thread_options.h"
-#include "gloop/thread/wait_state.h"
-#include "gloop/util/gtl/intrusive_list.h"
-
 #define _GNU_SOURCE 1
 
 #include "gloop/thread/thread.h"
@@ -93,16 +79,22 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
-#include "absl/base/config.h"
+#include "absl/base/const_init.h"
+#include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/direct_mmap.h"  // For direct mmap
 #include "absl/base/log_severity.h"
 #include "absl/base/macros.h"
 #include "absl/base/no_destructor.h"
+#include "absl/base/optimization.h"
+#include "absl/base/thread_annotations.h"
 #include "absl/debugging/leak_check.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/flags/flag.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/log/check.h"
+#include "absl/log/log.h"
+#include "absl/log/log_streamer.h"
+#include "absl/log/vlog_is_on.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -121,12 +113,16 @@
 #include "gloop/base/per-thread-sem.h"
 #include "gloop/base/port.h"
 #include "gloop/base/process_state.h"
+#include "gloop/base/raw_logging.h"
 #include "gloop/base/raw_printer.h"
 #include "gloop/base/scheduling/domain.h"
+#include "gloop/base/scheduling/scheduling_mode.h"
 #include "gloop/base/signal-handler.h"
 #include "gloop/base/spinlock.h"
 #include "gloop/base/static_threadlocal.h"
 #include "gloop/base/sysinfo.h"
+#include "gloop/base/thread-identity.h"
+#include "gloop/base/tracecontext.h"
 #include "gloop/thread/config.h"
 #include "gloop/thread/cpu_subcontainer.h"
 #include "gloop/thread/exit_timeout_seconds.h"
@@ -135,8 +131,11 @@
 #include "gloop/thread/run_in_thread.h"
 #include "gloop/thread/thread-internal.h"
 #include "gloop/thread/thread_control.h"
+#include "gloop/thread/thread_options.h"
+#include "gloop/thread/wait_state.h"
 #include "gloop/thread/watchdog.h"
 #include "gloop/util/functional/with_context.h"
+#include "gloop/util/gtl/intrusive_list.h"
 #include "tcmalloc/malloc_extension.h"
 
 #if defined(__linux__) && !defined(__ANDROID__)

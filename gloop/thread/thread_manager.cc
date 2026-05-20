@@ -78,8 +78,8 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/base/call_once.h"
 #include "absl/base/const_init.h"
-#include "absl/base/log_severity.h"
 #include "absl/base/no_destructor.h"
 #include "absl/base/nullability.h"
 #include "absl/base/thread_annotations.h"
@@ -88,6 +88,7 @@
 #include "absl/flags/flag.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/functional/bind_front.h"
+#include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
@@ -1087,8 +1088,8 @@ static bool TMNeedWakeOverseer(TMPool* pool) {
   // the overseer unless there's some chance it will do something for us.
   // The test against pool->overseer_woken squashes multiple wakeups.
   if (!pool->overseer_woken.load(std::memory_order_relaxed) &&
-      pool->delay_until_ms.load(std::memory_order_relaxed) <=
-          ToUnixMillis(absl::Now())) {
+      absl::FromUnixMillis(pool->delay_until_ms.load(
+          std::memory_order_relaxed)) <= absl::Now()) {
     pool->overseer_woken.store(true, std::memory_order_relaxed);
     return true;
   }
