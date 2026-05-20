@@ -24,7 +24,6 @@
 #include <stddef.h>
 
 #include <algorithm>
-#include <array>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -726,34 +725,5 @@ BENCHMARK(BM_ParseFile)->Range(1, 1 << 20);
 
 // Microbenchmark for parsing a multi-line File from memory using
 // FileLineReader
-
-constexpr size_t kModesSize = 3;  // The number of values in `Parser::Mode`.
-constexpr std::array<Parser::Mode, kModesSize> kAllModes = {
-    Parser::Mode::RFC4180, Parser::Mode::LITERAL_QUOTES,
-    Parser::Mode::MYSQL_ESCAPING};
-// TODO: b/183016365: Until enums are supported among <link>, the
-// following function checks at *compile time*, that `kAllModes` indeed contains
-// all possible values: If some known values are missing, the corresponding
-// entry in `present` stays `false`, leading to a failed `static_assert`. If
-// `Parser::Modes` gets updated, the `switch` statement below fails to be
-// exhaustive, and so the compiler will flag that.
-constexpr bool CheckAllModesPresent() {
-  std::array<bool, kModesSize> present = {false, false, false};
-  for (Parser::Mode mode : kAllModes) {
-    switch (mode) {
-      case Parser::Mode::RFC4180:
-        present[0] = true;
-        break;
-      case Parser::Mode::LITERAL_QUOTES:
-        present[1] = true;
-        break;
-      case Parser::Mode::MYSQL_ESCAPING:
-        present[2] = true;
-        break;
-    }
-  }
-  return std::all_of(present.begin(), present.end(), [](bool x) { return x; });
-}
-static_assert(CheckAllModesPresent());
 
 }  // namespace

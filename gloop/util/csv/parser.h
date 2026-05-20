@@ -160,7 +160,7 @@ class Record {
 // See file-level comments above for description and use
 class Parser {
  public:
-  enum Mode {
+  enum Mode : int {
     // Normal mode per RFC4180.
     RFC4180,
     // Treat quotes as literal quotes (i.e. not a special character).
