@@ -312,15 +312,16 @@ index 0344b56d..a787ab35 100644
      ],
      deps = [
          "//absl/base:config",
-@@ -125,6 +127,7 @@ cc_library(
+@@ -125,7 +127,8 @@ cc_library(
      visibility = [
          ":internal_users",
+         "//absl:friends",
          "//absl/status:__pkg__",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
      deps = [
          "//absl/flags:flag",
-@@ -160,6 +163,7 @@ cc_library(
+@@ -161,6 +164,7 @@ cc_library(
      visibility = [
          "//absl:friends",
          "//absl/log:__pkg__",
@@ -328,7 +329,7 @@ index 0344b56d..a787ab35 100644
      ],
      deps = [
          "//absl/base:config",
-@@ -193,6 +197,7 @@ cc_library(
+@@ -194,6 +198,7 @@ cc_library(
      visibility = [
          "//absl:friends",
          "//absl/log:__pkg__",
@@ -336,7 +337,7 @@ index 0344b56d..a787ab35 100644
      ],
      deps = [
          ":append_truncated",
-@@ -312,6 +317,7 @@ cc_library(
+@@ -313,6 +318,7 @@ cc_library(
      visibility = [
          ":internal_users",
          ":structured_proto_users",
@@ -344,7 +345,7 @@ index 0344b56d..a787ab35 100644
      ],
      deps = [
          ":log_message",
-@@ -386,6 +392,7 @@ cc_library(
+@@ -387,6 +393,7 @@ cc_library(
      visibility = [
          ":internal_users",
          ":structured_proto_users",
@@ -352,7 +353,7 @@ index 0344b56d..a787ab35 100644
      ],
      deps = [
          ":globals",
-@@ -407,6 +414,7 @@ cc_library(
+@@ -408,6 +415,7 @@ cc_library(
      visibility = [
          ":internal_users",
          ":structured_proto_users",
@@ -360,7 +361,7 @@ index 0344b56d..a787ab35 100644
      ],
      deps = [
          ":test_helpers",
-@@ -472,6 +480,7 @@ cc_library(
+@@ -473,6 +481,7 @@ cc_library(
          "//absl:friends",
          "//absl/log:__subpackages__",
          "//absl/status:__pkg__",
@@ -368,7 +369,7 @@ index 0344b56d..a787ab35 100644
      ],
      deps = [
          ":fnmatch",
-@@ -569,6 +578,7 @@ cc_library(
+@@ -570,6 +579,7 @@ cc_library(
      visibility = [
          "//absl:__subpackages__",
          "//absl:friends",
