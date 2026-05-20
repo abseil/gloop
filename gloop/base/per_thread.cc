@@ -18,9 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2006 Google Inc.
-// All rights reserved.
-
 // An implementation of thread-specific data that uses
 // a cache to speed up accesses.
 // This implementation should be replaced when thread-local storage is widely
