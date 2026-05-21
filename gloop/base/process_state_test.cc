@@ -457,6 +457,28 @@ TEST_F(FailureSignalHandlers, CancelRunOnFailure) {
   EXPECT_FALSE(callback_called_);
 }
 
+TEST_F(FailureSignalHandlers, ScopedRunOnFailureCancel) {
+  testing::MockFunction<void(bool)> deletion_callback;
+  EXPECT_CALL(deletion_callback, Call(true)).Times(1);
+  {
+    ScopedRunOnFailure scoped_failure(*CallbackWrapper, this,
+                                      deletion_callback.AsStdFunction());
+  }
+
+  base::internal::ExecuteFailureCallbacks(9, nullptr, nullptr, kUnsafe);
+  EXPECT_FALSE(callback_called_);
+}
+
+TEST_F(FailureSignalHandlers, ScopedRunOnFailureExecute) {
+  testing::MockFunction<void(bool)> deletion_callback;
+  EXPECT_CALL(deletion_callback, Call(false)).Times(1);
+
+  ScopedRunOnFailure scoped_failure(*CallbackWrapper, this,
+                                    deletion_callback.AsStdFunction());
+  base::internal::ExecuteFailureCallbacks(9, nullptr, nullptr, kUnsafe);
+  EXPECT_TRUE(callback_called_);
+}
+
 TEST_F(FailureSignalHandlers, CancelRunSignalSafeOnFailure) {
   int ticket = RunSignalSafeOnFailure(*CallbackWrapper, this);
   EXPECT_TRUE(CancelRunSignalSafeOnFailure(ticket));

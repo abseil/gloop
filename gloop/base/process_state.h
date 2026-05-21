@@ -39,6 +39,7 @@
 #include <string>
 
 #include "absl/flags/declare.h"
+#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "gloop/base/config.h"  // For BASE_USE_SIGNAL_H
 
@@ -193,6 +194,26 @@ int RunOnFailure(FailureFunction callback, void* args = nullptr);
 // by the failure handler, in such case the caller must not delete the args
 // passed into the callback.
 bool CancelRunOnFailure(int ticket);
+
+class ScopedRunOnFailure {
+ public:
+  ScopedRunOnFailure(
+      FailureFunction callback, void* args = nullptr,
+      absl::AnyInvocable<void(bool)> deletion_callback = [](bool success) {})
+      : deletion_callback_(std::move(deletion_callback)),
+        ticket_(RunOnFailure(callback, args)) {}
+  ~ScopedRunOnFailure() { deletion_callback_(CancelRunOnFailure(ticket_)); }
+
+  // Neither copyable nor movable.
+  ScopedRunOnFailure(const ScopedRunOnFailure&) = delete;
+  ScopedRunOnFailure& operator=(const ScopedRunOnFailure&) = delete;
+  ScopedRunOnFailure(ScopedRunOnFailure&&) = delete;
+  ScopedRunOnFailure& operator=(ScopedRunOnFailure&&) = delete;
+
+ private:
+  absl::AnyInvocable<void(bool)> deletion_callback_;
+  const int ticket_;
+};
 
 // Call this ONLY with callbacks known not to allocate or free memory,
 // use iostreams, LOG macros, or anything else that is unsafe in a

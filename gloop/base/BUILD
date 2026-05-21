@@ -1591,6 +1591,7 @@ cc_library(
         "@abseil-cpp//absl/debugging:leak_check",
         "@abseil-cpp//absl/debugging:stacktrace",
         "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:flags",
