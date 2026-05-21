@@ -149,7 +149,7 @@ ABSL_CONST_INIT ABSL_ATTRIBUTE_WEAK thread_local volatile kernel_rseq
     __rseq_abi = {
         0, static_cast<unsigned>(kCpuIdUninitialized),   0, 0, 0,
         0, {{kCpuIdUninitialized, kCpuIdUninitialized}},
-};
+    };
 
 ABSL_CONST_INIT __attribute__((used)) size_t __rseq_virtual_flat_cpu_id_offset =
     offsetof(kernel_rseq, cpu_id);

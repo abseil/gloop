@@ -334,7 +334,7 @@ class ComparingOutputStream final : public ZeroCopyOutputStream {
   }
 
   // Compares outstanding bytes, if any.
-  inline bool CompareOutstanding() {
+  bool CompareOutstanding() {
     if (outstanding_ == 0) {
       return true;
     }

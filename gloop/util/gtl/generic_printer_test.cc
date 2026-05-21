@@ -39,6 +39,7 @@
 #include "gloop/base/logging_extensions.h"
 #include "gloop/util/gtl/extend/extend.h"
 #include "gmock/gmock.h"
+#include "google/protobuf/arena.h"
 #include "gtest/gtest.h"
 
 namespace generic_logging_test {

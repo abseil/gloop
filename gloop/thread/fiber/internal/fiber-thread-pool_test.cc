@@ -21,12 +21,14 @@
 #include "gloop/thread/fiber/internal/fiber-thread-pool.h"
 
 #include <atomic>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
 #include <thread>  // NOLINT(build/c++11)
 #include <vector>
 
+#include "absl/flags/declare.h"
 #include "absl/flags/flag.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"

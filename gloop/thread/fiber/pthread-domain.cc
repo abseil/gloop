@@ -25,7 +25,6 @@
 #include <cstdint>
 #include <ctime>
 
-#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/flags/flag.h"
 #include "absl/strings/str_cat.h"

@@ -39,7 +39,6 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "absl/base/config.h"
 #include "absl/container/internal/container_memory.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/log/log.h"

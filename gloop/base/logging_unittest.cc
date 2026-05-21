@@ -250,7 +250,9 @@ TEST_F(AutomaticGoldenStderrTest, Logging) { TestLogging(); }
     LOG_IF_EVERY_N_SEC(INFO, true, 5);
     LOG_IF_FIRST_N(INFO, true, 6);
     LOG_FIRST_N(INFO, 7);
-  label: {}
+  label:
+    {
+    }
   }
 }
 

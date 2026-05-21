@@ -22,7 +22,6 @@
 
 #include <tuple>
 
-#include "absl/base/config.h"
 #include "absl/log/log.h"
 #include "gloop/base/init_google.h"
 #include "gloop/base/scheduling/domain-test.h"

@@ -33,7 +33,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/base/config.h"
 #include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
 #include "absl/time/clock.h"

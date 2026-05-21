@@ -38,7 +38,6 @@
 #include "absl/hash/hash_testing.h"
 #include "absl/log/check.h"
 #include "absl/meta/internal/constexpr_testing.h"
-#include "absl/meta/type_traits.h"
 #include "absl/random/random.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"

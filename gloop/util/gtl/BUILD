@@ -200,7 +200,6 @@ cc_test(
         "@abseil-cpp//absl/hash:hash_testing",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/meta:constexpr_testing",
-        "@abseil-cpp//absl/meta:type_traits",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/strings:string_view",
@@ -238,7 +237,6 @@ cc_test(
         "@abseil-cpp//absl/hash:hash_testing",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/meta:constexpr_testing",
-        "@abseil-cpp//absl/meta:type_traits",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:string_view",
@@ -343,7 +341,6 @@ cc_test(
         ":interval_set",
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/algorithm:container",
-        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/container:container_memory",
         "@abseil-cpp//absl/hash:hash_testing",
         "@abseil-cpp//absl/log",
@@ -807,6 +804,7 @@ cc_test(
         "@abseil-cpp//absl/types:optional_ref",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@protobuf//:protobuf_lite",
     ],
 )
 

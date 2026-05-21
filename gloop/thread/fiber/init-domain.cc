@@ -21,7 +21,7 @@
 #include "gloop/thread/fiber/init-domain.h"
 
 #include "absl/base/attributes.h"
-#include "absl/base/config.h"
+#include "absl/base/call_once.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/flags/flag.h"
 #include "absl/memory/memory.h"
