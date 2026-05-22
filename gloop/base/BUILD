@@ -338,6 +338,33 @@ cc_library(
 )
 
 cc_library(
+    name = "cycleclock",
+    hdrs = ["cycleclock.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base",
+    ],
+)
+
+cc_test(
+    name = "cycleclock_test",
+    size = "small",
+    srcs = ["cycleclock_test.cc"],
+    flaky = 1,
+    deps = [
+        ":cycleclock",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:cycleclock_internal",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "getpc",
     hdrs = ["getpc.h"],
     visibility = ["//visibility:public"],
