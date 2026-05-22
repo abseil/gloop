@@ -536,6 +536,9 @@ bool Downcalls::UserSchedule(bool runnable, KernelTimeout t) {
   absl::base_internal::SchedulingGuard::ScopedDisable disable_rescheduling;
 
   Schedulable* prev = Domain::CurrentThreadSchedulable();
+#ifdef ABSL_HAVE_THREAD_SANITIZER
+  __tsan_acquire(&prev->managing_slot);
+#endif
   // NOTE: If TSAN complains about the memory reference in the check below, it's
   // likely not a TSAN issue and indicates a test timeout. See b/275634003 for
   // details.
