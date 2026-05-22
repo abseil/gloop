@@ -151,6 +151,9 @@ ABSL_FLAG(bool, syslog_on_start, true,
           "syslog() on program start-up.  We collect these logs to "
           "identify used (vs obsolete) binaries");
 
+ABSL_FLAG(bool, print_wl_commands, false,
+          "If true, print all 'wl xxx' commands to the terminal.");
+
 // TODO: This should move somewhere reasonable (selectserver.cc)
 ABSL_FLAG(std::string, data_version, "", "Data version of the server");
 
