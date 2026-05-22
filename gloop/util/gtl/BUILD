@@ -520,6 +520,65 @@ cc_test(
 )
 
 cc_library(
+    name = "sparse_hash_map",
+    hdrs = ["sparse_hash_map.h"],
+    deps = [
+        ":sparsehashtable",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/hash",
+    ],
+)
+
+cc_library(
+    name = "sparse_hash_set",
+    hdrs = ["sparse_hash_set.h"],
+    deps = [
+        ":sparsehashtable",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/hash",
+    ],
+)
+
+cc_library(
+    name = "sparsehashtable",
+    hdrs = ["sparsehashtable.h"],
+    deps = [
+        ":hashtable_common",
+        ":sparsetable",
+        "//gloop:enforce_gloop_support",
+        "//gloop/util/hash",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/log",
+    ],
+)
+
+cc_library(
+    name = "sparsetable",
+    hdrs = ["sparsetable.h"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:string_view",
+    ],
+)
+
+cc_test(
+    name = "sparsetable_unittest",
+    srcs = ["sparsetable_unittest.cc"],
+    deps = [
+        ":sparsetable",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "stl_util",
     hdrs = ["stl_util.h"],
     deps = [
