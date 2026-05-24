@@ -145,6 +145,7 @@ cc_library(
     visibility = [
         "//gloop/base:__pkg__",
         "//gloop/concurrent/rcu:__subpackages__",
+        "//production/network/giro/control/orion/route_producer/bgp_listener:__pkg__",
     ],
     deps = [
         ":llist",
