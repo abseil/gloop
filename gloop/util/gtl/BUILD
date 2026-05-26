@@ -797,6 +797,7 @@ cc_test(
         "//gloop/base:arena_allocator",
         "//gloop/base:logging_extensions",
         "//gloop/util/gtl/extend",
+        "//gloop/util/gtl/extend:debug_printing",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:generic_printer",

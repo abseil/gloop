@@ -44,6 +44,7 @@
 #include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "gloop/util/gtl/extend/debug_printing.h"
 #include "gloop/util/gtl/extend/extend.h"
 #include "gloop/util/status/codes.pb.h"
 #include "gloop/util/tuple/components/streamable_test.pb.h"
@@ -252,6 +253,11 @@ class WithAbslStringifyRepeatStars {
 
  private:
   int length_;
+};
+
+struct WithDebugPrinting
+    : gtl::Extend<WithDebugPrinting>::With<gtl::DebugPrintingExtension> {
+  ::std::string s;
 };
 
 TEST(Tuple, Empty) { EXPECT_EQ(to_string(::std::tuple()), "{}"); }
@@ -607,6 +613,11 @@ TEST(WithAbslStringify, Basic) {
 TEST(WithAbslStringify, RepeatStars) {
   WithAbslStringifyRepeatStars foo(5);
   EXPECT_EQ(to_string(foo), "*****");
+}
+
+TEST(WithDebugPrinting, Basic) {
+  WithDebugPrinting foo = {.s = "Print me!"};
+  EXPECT_THAT(to_string(foo), HasSubstr("Print me!"));
 }
 
 }  // namespace

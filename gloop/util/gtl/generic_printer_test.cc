@@ -37,6 +37,7 @@
 #include "gloop/base/arena.h"
 #include "gloop/base/arena_allocator.h"
 #include "gloop/base/logging_extensions.h"
+#include "gloop/util/gtl/extend/debug_printing.h"
 #include "gloop/util/gtl/extend/extend.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/arena.h"
@@ -74,6 +75,13 @@ struct AbslStringifiable {
     sink.Append("AbslStringifiable!");
   }
 };
+
+auto HasExactlyNInstancesOf(int n, absl::string_view me) {
+  absl::string_view value_m_times = "(.*?$0){$1}.*";
+
+  return AllOf(MatchesRegex(absl::Substitute(value_m_times, me, n)),
+               Not(MatchesRegex(absl::Substitute(value_m_times, me, n + 1))));
+}
 
 template <typename T>
 std::string GenericPrintToString(const T& v) {
@@ -165,6 +173,31 @@ TEST(GenericPrinterTest, OptionalRef) {
   EXPECT_EQ("<3>", GenericPrintToString(absl::optional_ref(3)));
   EXPECT_EQ("<Streamable{3}>", GenericPrintToString(absl::optional_ref(
                                    generic_logging_test::Streamable{3})));
+}
+
+// TODO: If recursive `unique_ptr`s become an issue that needs
+// handling, submit the implementation documented in <link>
+// and re-enable the following disabled test cases.
+//  ...
+// <start DISABLED_ test section>
+TEST(GenericPrinterTest, DISABLED_SmartPointerDetectsRecursion) {
+  struct Recursive : gtl::Extend<Recursive>::With<gtl::DebugPrintingExtension> {
+    std::unique_ptr<Recursive> next;
+    int val;
+  };
+
+  auto r1 = std::make_unique<Recursive>();
+  r1->val = 1;
+  auto& r2 = r1->next = std::make_unique<Recursive>();
+  r2->val = 2;
+  r2->next = std::move(r1);
+
+  EXPECT_THAT(GenericPrintToString(*r2),
+              AllOf(HasExactlyNInstancesOf(1, "val = 2"),
+                    HasExactlyNInstancesOf(1, "val = 1"),
+                    HasExactlyNInstancesOf(1, "<recursive>")));
+
+  r2->next = nullptr;  // break the cycle
 }
 
 }  // namespace
