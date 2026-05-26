@@ -698,6 +698,47 @@ void ExpectGaiaMintContext(std::string expected_mint_wrapper) {
 }
 #endif  // BASE_CONTEXT_HAVE_SECURITYCONTEXT
 
+void ExpectDeadline(absl::Time deadline) {
+  EXPECT_EQ(deadline, CurrentContext().deadline());
+}
+
+// A permanent callback does not capture the current context at creation.
+// When invoked, it runs with the then-current context.
+TEST_F(ContextTest, TestPermanentCallback) {
+  std::unique_ptr<Closure> permanent_cb;
+#if BASE_CONTEXT_HAVE_SECURITYCONTEXT
+  EndUserCredentialsProto euc1;
+  AuthenticatorProto* auth1 = euc1.add_credential();
+  auth1->set_type(AuthenticatorProto::GAIA_MINT);
+  auth1->set_gaia_mint_wrapper("abc");
+  std::unique_ptr<SecurityContext> sec1(MakeSecurity(dummy_peer_, &euc1));
+  EndUserCredentialsProto euc2;
+  AuthenticatorProto* auth2 = euc2.add_credential();
+  auth2->set_type(AuthenticatorProto::GAIA_MINT);
+  auth2->set_gaia_mint_wrapper("xyz");
+  std::unique_ptr<SecurityContext> sec2(MakeSecurity(dummy_peer_, &euc2));
+
+  {
+    WithSecurityContext c(std::move(sec1));
+    EXPECT_TRUE(CurrentContext().security() != nullptr);
+    permanent_cb.reset(::util::functional::ToPermanentCallback(
+        absl::bind_front(&ExpectGaiaMintContext, "xyz")));
+  }
+  {
+    WithSecurityContext c(std::move(sec2));
+    EXPECT_TRUE(CurrentContext().security() != nullptr);
+    permanent_cb->Run();  // runs with 'sec2' context
+  }
+#endif  // BASE_CONTEXT_HAVE_SECURITYCONTEXT
+  {
+    permanent_cb.reset(::util::functional::ToPermanentCallback(
+        absl::bind_front(&ExpectDeadline, kTestDeadline)));
+    std::unique_ptr<Context> handle(GetTestContext());
+    WithContext wc(*handle);
+    permanent_cb->Run();
+  }
+}
+
 TEST_F(ContextTest, WithDeadline) {
   absl::Time deadline = absl::Now() + absl::Seconds(60);
   std::unique_ptr<Context> handle(new Context(

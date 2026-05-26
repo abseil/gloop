@@ -32,6 +32,7 @@
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_format.h"
+#include "gloop/util/functional/from_callback.h"
 #include "gloop/util/random/random_base.h"
 
 ABSL_FLAG(bool, random_debug, false, "Emit debugging output for unit test");
@@ -752,6 +753,40 @@ bool ChiSquaredStatisticsTest(const char* name, RandomBase* gen) {
 
 bool Statistics(const char* name, RandomBase* gen) {
   return ChiSquaredStatisticsTest(name, gen);
+}
+
+bool RepeatedStatistics(
+    const char* name,
+    ::util::functional::ResultCallbackFunctor<RandomBase*> generator_factory,
+    int required_passes, int num_attempts) {
+  int passes = 0;
+  for (int remaining = num_attempts; remaining > 0; --remaining) {
+    if (remaining < required_passes - passes) {
+      LOG(INFO) << name << ", cannot meet required pass count "
+                << required_passes << ", pass count is " << passes
+                << " and only " << remaining << " iteration(s) remain";
+      return false;
+    } else if (passes >= required_passes) {
+      LOG(INFO) << name << ", met required pass count " << required_passes
+                << " after " << num_attempts - remaining << " iteration(s)";
+      return true;
+    }
+
+    std::unique_ptr<RandomBase> gen(generator_factory->Run());
+    if (ChiSquaredStatisticsTest(name, gen.get())) {
+      passes++;
+    }
+  }
+
+  if (num_attempts > 0) {
+    LOG(INFO) << name << ", could not meet required pass count "
+              << required_passes << " after " << num_attempts << " iteration(s)"
+              << ", pass count is " << passes;
+  } else {
+    LOG(INFO) << name << ", no attempts made for limit " << num_attempts
+              << ", required passes " << required_passes;
+  }
+  return false;
 }
 
 void CloneTest(const char* name, RandomBase* gen) {

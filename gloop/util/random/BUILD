@@ -205,6 +205,7 @@ cc_library(
     deps = [
         ":random_base",
         "//gloop:enforce_gloop_support",
+        "//gloop/util/functional:from_callback",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",

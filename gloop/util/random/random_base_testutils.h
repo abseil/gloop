@@ -28,6 +28,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/flags/declare.h"
+#include "gloop/util/functional/from_callback.h"
 #include "gloop/util/random/random_base.h"
 
 // See comments in secure_random_testutils.cc for what these flags do.
@@ -76,6 +77,10 @@ bool Statistics(const char* name, RandomBase* gen) ABSL_MUST_USE_RESULT;
 // Yes, arguably this might belong in a regression test instead, but
 // it is good to run this more frequently (as w/ unit tests) to ensure
 // that generators do not generate bad outputs.
+bool RepeatedStatistics(
+    const char* name,
+    util::functional::ResultCallbackFunctor<RandomBase*> generator_factory,
+    int required_passes, int num_attempts) ABSL_MUST_USE_RESULT;
 
 ABSL_DECLARE_FLAG(int32_t, clone_count);
 
