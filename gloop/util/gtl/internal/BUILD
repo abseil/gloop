@@ -107,6 +107,7 @@ cc_test(
     deps = [
         ":num_initializers",
         "//gloop:gloop_test_main",
+        "//gloop/util/intops",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

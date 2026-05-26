@@ -26,6 +26,7 @@
 #include <array>
 #include <optional>
 
+#include "gloop/util/intops/safe_int.h"
 #include "gtest/gtest.h"
 
 namespace gtl::internal_aggregate {
@@ -245,6 +246,14 @@ TEST(NumInitializers, StdAnyMembers) {
     std::any&& d;
   };
   EXPECT_EQ(NumInitializers<A2>(), 4);
+}
+
+TEST(NumInitializers, OptionalStrongInt) {
+  DEFINE_SAFE_INT_TYPE(SafeInt, int64_t, util_intops::LogFatalOnError);
+  struct OptionalStrongInt {
+    std::optional<SafeInt> num;
+  };
+  EXPECT_EQ(NumInitializers<OptionalStrongInt>(), 1);
 }
 
 }  // namespace
