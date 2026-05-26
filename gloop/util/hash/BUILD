@@ -52,6 +52,7 @@ cc_library(
         ":jenkins",
         ":string_hash",
         "//gloop:enforce_gloop_support",
+        "//gloop/base:port",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:config",
@@ -322,6 +323,7 @@ cc_library(
     srcs = ["fingerprint2011_test.cc"],
     deps = [
         ":fingerprint2011",
+        ":hash",
         "//gloop:enforce_gloop_support",
         "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",

@@ -66,6 +66,7 @@ cc_library(
         "//gloop/util/bits",
         "//gloop/util/endian",
         "//gloop/util/gtl:stl_util",
+        "//gloop/util/hash",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:fixed_array",

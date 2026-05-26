@@ -33,6 +33,7 @@
 #include "gloop/util/coding/bitcoding.h"
 #include "gloop/util/coding/coder.h"
 #include "gloop/util/coding/tablecoding.h"
+#include "gloop/util/hash/hash.h"
 
 const uint32_t HuffmanCode::kMagicNumber;
 
@@ -168,6 +169,67 @@ bool HuffmanCode::TryToBuild(Symbol* sym, int N, int max_length) {
   }
 
   return true;
+}
+
+void HuffmanCode::Save(std::vector<char>* buffer) const {
+  // Format:    FIELD                   BYTES
+  //            magic                   4
+  //            num symbols: N          4
+  //            bit length:             1 * N
+  //            checksum                4
+  size_t max_bytes = 12 + num_;
+  absl::FixedArray<char, 0> buf(max_bytes);
+  Encoder e(buf.data(), buf.size());
+  e.put32(kMagicNumber);
+  e.put32(num_);
+  for (int i = 0; i < num_; i++) {
+    e.put8(length_[i]);
+  }
+  uint32_t checksum = HashTo32(buf.data(), e.length());
+  e.put32(checksum);
+  CHECK(e.length() == max_bytes);
+  buffer->insert(buffer->end(), buf.begin(), buf.end());
+}
+
+HuffmanCode* HuffmanCode::Restore(const char* buffer, int size, int* consumed) {
+  HuffmanCode* h = HuffmanCode::SafeRestore(buffer, size, consumed);
+  CHECK(h != nullptr) << "invalid serialized huffman code";
+  return h;
+}
+
+HuffmanCode* HuffmanCode::SafeRestore(const char* buffer, int size,
+                                      int* length) {
+  Decoder d(buffer, size);
+  if (d.avail() < 12) {
+    return nullptr;
+  }
+  if (d.get32() != kMagicNumber) {
+    return nullptr;
+  }
+  uint32_t num = d.get32();
+  // Since input may be untrusted, avoid overflow by not using num+4.
+  if (d.avail() < num || d.avail() - num < 4) {  // lengths and checksum
+    return nullptr;
+  }
+  int* len = new int[num];
+  for (uint32_t i = 0; i < num; i++) {
+    len[i] = d.get8();
+    if (len[i] > 27) {
+      delete[] len;
+      return nullptr;
+    }
+  }
+  uint32_t checksum = d.get32();
+  if (HashTo32(buffer, 8 + num) != checksum) {
+    delete[] len;
+    return nullptr;
+  }
+
+  HuffmanCode* h = new HuffmanCode;
+  h->num_ = num;
+  h->length_ = len;
+  *length = static_cast<int>(d.pos());
+  return h;
 }
 
 // Note that sym is already sorted by id, so because counting sort is stable

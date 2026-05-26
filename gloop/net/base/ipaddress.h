@@ -51,6 +51,11 @@
 #include <stdint.h>
 #include <string.h>
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-W#warnings"
+#include <ext/hash_map>
+#pragma clang diagnostic pop
+
 #include <algorithm>
 #include <compare>
 #include <ostream>
@@ -73,6 +78,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/compare.h"
 #include "absl/types/span.h"
+#include "gloop/base/port.h"
 #include "gloop/util/endian/endian.h"
 #include "gloop/util/gtl/value_or_die.h"
 #include "gloop/util/tuple/components/dump_vars.h"
@@ -1734,6 +1740,23 @@ static_assert(sizeof(IPRange) == 20, "IPRange should be 20 bytes");
 
 #ifndef SWIG
 
+// Hash functions, for use in hash_set<> etc.
+HASH_NAMESPACE_DECLARATION_START
+template <>
+struct hash<net_base::IPAddress> {
+  size_t operator()(const net_base::IPAddress& address) const;
+};
+
+template <>
+struct hash<net_base::SocketAddress> {
+  size_t operator()(const net_base::SocketAddress& address) const;
+};
+
+template <>
+struct hash<net_base::IPRange> {
+  size_t operator()(const net_base::IPRange& range) const;
+};
+HASH_NAMESPACE_DECLARATION_END
 #endif  // SWIG
 
 ////////////////////////////////////////////////////////////////////////

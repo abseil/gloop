@@ -305,6 +305,15 @@ static inline uint64_t bswap_64(uint64_t x) {
 #endif
 
 // -----------------------------------------------------------------------------
+// Hash
+// -----------------------------------------------------------------------------
+
+// TODO Migrate Abseil's implementation to Gloop.
+#define HASH_NAMESPACE __gnu_cxx
+#define HASH_NAMESPACE_DECLARATION_START namespace __gnu_cxx {
+#define HASH_NAMESPACE_DECLARATION_END }
+
+// -----------------------------------------------------------------------------
 // Global Variables
 // -----------------------------------------------------------------------------
 

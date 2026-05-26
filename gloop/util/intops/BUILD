@@ -40,6 +40,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//gloop:enforce_gloop_support",
+        "//gloop/base:port",
         "//gloop/util/floatops:castops",
         "//gloop/util/symbolize:demangle",
         "@abseil-cpp//absl/base:core_headers",

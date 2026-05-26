@@ -41,6 +41,19 @@ void Build(const char* label, int* count, int N, int max_length) {
   HuffmanCode* h = HuffmanCode::Create(count, N, max_length);
   h->Dump(label);
 
+  // Check save and restore
+  std::vector<char> buffer;
+  h->Save(&buffer);
+  int consumed;
+  HuffmanCode* h2 = HuffmanCode::Restore(&buffer[0], buffer.size(), &consumed);
+  EXPECT_EQ(buffer.size(), consumed);
+  std::vector<char> buffer2;
+  h2->Save(&buffer2);
+  EXPECT_EQ(buffer2.size(), buffer.size());
+  EXPECT_EQ(0, memcmp(&buffer[0], &buffer2[0], buffer.size()));
+  // h2->Dump(label);
+  delete h2;
+
   TableEncoder te;
   h->InitializeEncoder(&te);
   switch (max_length) {
@@ -155,3 +168,56 @@ TEST(HuffCoding, Test) {
   Build("fib/8", count, 32, 8);
   Build("fib/5", count, 32, 5);
 }
+
+std::vector<char> MakeSampleCode() {
+  // Example from Cormen/Leisersen/Rivest
+  int count[6]{5, 9, 12, 13, 16, 45};
+  auto* src = HuffmanCode::Create(count, 6, 4);
+  std::vector<char> code;
+  src->Save(&code);
+  delete src;
+  return code;
+}
+
+namespace {
+
+TEST(HuffCoding, RestoreErrors) {
+  std::vector<char> code = MakeSampleCode();
+
+  // Internal corruption.
+  for (size_t i = 0; i < code.size(); i++) {
+    std::vector<char> mutated = code;
+    mutated[i] = code[i] ^ 1;
+    int len;
+    EXPECT_EQ(HuffmanCode::SafeRestore(mutated.data(), mutated.size(), &len),
+              nullptr);
+  }
+
+  // Truncation.
+  std::vector<char> mutated = code;
+  while (!mutated.empty()) {
+    mutated.pop_back();
+    int len;
+    EXPECT_EQ(HuffmanCode::SafeRestore(mutated.data(), mutated.size(), &len),
+              nullptr);
+  }
+
+  // Length liable to overflow.
+  mutated = code;
+  LittleEndian::Store32(&mutated[4], 0xffffffffu);
+  int len;
+  EXPECT_EQ(HuffmanCode::SafeRestore(mutated.data(), mutated.size(), &len),
+            nullptr);
+}
+
+void BM_HuffmanRestore(benchmark::State& b) {
+  std::vector<char> code = MakeSampleCode();
+  for (auto unused : b) {
+    int len;
+    delete HuffmanCode::SafeRestore(code.data(), code.size(), &len);
+    CHECK_EQ(len, code.size());
+  }
+}
+BENCHMARK(BM_HuffmanRestore);
+
+}  // namespace

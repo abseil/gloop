@@ -71,6 +71,16 @@ class HuffmanCode {
   ~HuffmanCode();
 
   // Append huffman code to supplied buffer
+  void Save(std::vector<char>* buffer) const;
+
+  // Load huffman code from supplied buffer.  Stores number of bytes
+  // consumed in "*length".  Returns nullptr on malformed input.
+  static HuffmanCode* SafeRestore(const char* buffer, int size, int* length);
+
+  // Load huffman code from supplied buffer.  Stores number of bytes
+  // consumed in "*length".  Dies on malformed input.
+  ABSL_DEPRECATED("Use SafeRestore instead")
+  static HuffmanCode* Restore(const char* buffer, int size, int* length);
 
   // Debugging routine
   void Dump(const char* label) const;

@@ -916,6 +916,26 @@ TYPED_TEST(StrongIntTest, AbslStringify) {
   }
 }
 
+TYPED_TEST(StrongIntTest, TestHasher) {
+  using T = typename TestFixture::T;
+  using Hasher = typename T::Hasher;
+
+  EXPECT_EQ(Hasher()(T(0)), Hasher()(T(0)));
+  EXPECT_NE(Hasher()(T(1)), Hasher()(T(2)));
+}
+
+TYPED_TEST(StrongIntTest, TestHashFunctor) {
+  using T = typename TestFixture::T;
+  using Hasher = typename T::Hasher;
+
+  absl::node_hash_map<T, char, Hasher> map;
+  T a(0);
+  map[a] = 'c';
+  EXPECT_EQ('c', map[a]);
+  map[++a] = 'o';
+  EXPECT_EQ('o', map[a]);
+}
+
 TYPED_TEST(StrongIntTest, TestHash) {
   using T = typename TestFixture::T;
   using V = typename TestFixture::V;

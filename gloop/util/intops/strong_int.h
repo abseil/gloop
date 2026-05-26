@@ -127,6 +127,11 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_INTOPS_STRONG_INT_H_
 #define THIRD_PARTY_GLOOP_UTIL_INTOPS_STRONG_INT_H_
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-W#warnings"
+#include <ext/hash_map>
+#pragma clang diagnostic pop
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -146,6 +151,7 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
+#include "gloop/base/port.h"
 
 namespace util_intops {
 
@@ -250,6 +256,12 @@ template <typename TagType, typename NativeType, typename ValidatorType>
 class StrongInt {
  public:
   typedef NativeType ValueType;
+
+  struct ABSL_DEPRECATED("Use absl::Hash instead") Hasher {
+    size_t operator()(const StrongInt& x) const {
+      return static_cast<size_t>(x.value());
+    }
+  };
 
   static constexpr absl::string_view TypeName() { return TagType::TypeName(); }
 
@@ -679,6 +691,11 @@ StrongIntRange<IntType> MakeStrongIntRange(IntType begin, IntType end) {
       type_name;
 
 // Allow StrongInt to be used as a key to hashable containers.
+HASH_NAMESPACE_DECLARATION_START
+template <typename Tag, typename Value, typename Validator>
+struct hash<util_intops::StrongInt<Tag, Value, Validator>>
+    : ::util_intops::StrongInt<Tag, Value, Validator>::Hasher {};
+HASH_NAMESPACE_DECLARATION_END
 
 // Numeric_limits override for strong int.
 namespace std {

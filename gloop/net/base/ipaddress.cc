@@ -2328,3 +2328,48 @@ std::string AbslUnparseFlag(IPAddressList ips) {
 }
 
 }  // namespace net_base
+
+size_t HASH_NAMESPACE::hash<net_base::IPAddress>::operator()(
+    const net_base::IPAddress& address) const {
+  switch (address.address_family()) {
+    case AF_INET: {
+      in_addr addr4 = address.ipv4_address();
+      return Hash32NumWithSeed(addr4.s_addr, AF_INET);
+    }
+    case AF_INET6: {
+      const in6_addr addr6 = address.ipv6_address();
+      const size_t value =
+          Hash32NumWithSeed(UNALIGNED_LOAD32(addr6.s6_addr16),
+                            UNALIGNED_LOAD32(addr6.s6_addr16 + 2)) ^
+          Hash32NumWithSeed(UNALIGNED_LOAD32(addr6.s6_addr16 + 4),
+                            UNALIGNED_LOAD32(addr6.s6_addr16 + 6));
+      const uint32_t scope_id = address.scope_id();
+      if (scope_id == 0) return value;
+      return value ^ Hash32NumWithSeed(scope_id, AF_INET6);
+    }
+    case AF_UNSPEC: {
+      return hash<int>()(address.address_family());
+    }
+    default: {
+      LOG(FATAL) << "Unknown address family " << address.address_family();
+    }
+  }
+}
+
+size_t HASH_NAMESPACE::hash<net_base::SocketAddress>::operator()(
+    const net_base::SocketAddress& address) const {
+  if (!IsInitializedSocketAddress(address)) {
+    return hash<net_base::IPAddress>()(address.host());
+  }
+  return Hash32NumWithSeed(hash<net_base::IPAddress>()(address.host()),
+                           address.port());
+}
+
+size_t HASH_NAMESPACE::hash<net_base::IPRange>::operator()(
+    const net_base::IPRange& range) const {
+  if (!IsInitializedRange(range)) {
+    return hash<net_base::IPAddress>()(range.host());
+  }
+  return Hash32NumWithSeed(hash<net_base::IPAddress>()(range.network_address()),
+                           range.length());
+}

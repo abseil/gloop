@@ -100,14 +100,12 @@
 #include "absl/base/port.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
+#include "gloop/base/port.h"
 #include "gloop/util/hash/builtin_type_hash.h"
 #include "gloop/util/hash/hash128to64.h"
 #include "gloop/util/hash/jenkins.h"
 #include "gloop/util/hash/jenkins_lookup2.h"
 #include "gloop/util/hash/string_hash.h"
-
-#define HASH_NAMESPACE_DECLARATION_START namespace __gnu_cxx {
-#define HASH_NAMESPACE_DECLARATION_END }
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

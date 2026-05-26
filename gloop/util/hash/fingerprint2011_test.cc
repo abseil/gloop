@@ -29,6 +29,7 @@
 #include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
+#include "gloop/util/hash/hash.h"
 #include "gloop/util/random/acmrandom.h"
 #include "gtest/gtest.h"
 
@@ -198,6 +199,17 @@ TEST_F(Fingerprint2011Test, CatIsNotCommutative) {
       FingerprintCat2011(Fingerprint2011("hello"), Fingerprint2011("world")),
       FingerprintCat2011(Fingerprint2011("world"), Fingerprint2011("hello")));
 }
+
+static void BM_FingerprintCat(benchmark::State& state) {
+  uint64_t res = 0;
+  int i = 0;
+  for (auto _ : state) {  // NOLINT
+    res = FingerprintCat(res, i++);
+  }
+  VLOG(99) << res;
+}
+
+BENCHMARK(BM_FingerprintCat);
 
 static void BM_FingerprintCat2011(benchmark::State& state) {
   uint64_t res = 0;
