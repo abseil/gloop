@@ -46,6 +46,7 @@
 #include "absl/strings/string_view.h"
 #include "gloop/util/gtl/extend/debug_printing.h"
 #include "gloop/util/gtl/extend/extend.h"
+#include "gloop/util/gtl/iterator_range.h"
 #include "gloop/util/status/codes.pb.h"
 #include "gloop/util/tuple/components/streamable_test.pb.h"
 #include "gloop/util/tuple/struct.h"
@@ -554,6 +555,21 @@ TEST(ConvertibleToStringPiece, Basic) {
 TEST(IntegralConstant, Basic) {
   EXPECT_EQ(to_string(::std::true_type()), "true");
   EXPECT_EQ(to_string(::std::integral_constant<int, 42>()), "42");
+}
+
+struct Range : gtl::iterator_range<std::istreambuf_iterator<char>> {
+  using iterator_range::iterator_range;
+  friend ::std::ostream& operator<<(::std::ostream& stream, const Range&) {
+    return stream << "Range";
+  }
+};
+
+TEST(SinglePassRange, Basic) {
+  ::std::stringstream stream("hello");
+  ::std::istreambuf_iterator<char> b(stream), e;
+  EXPECT_EQ(to_string(Range(b, e)), "Range");
+  // Verify that the stream hasn't been consumed.
+  EXPECT_FALSE(b == e);
 }
 
 TEST(Volatile, Basic) {

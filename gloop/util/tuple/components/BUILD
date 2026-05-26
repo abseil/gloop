@@ -215,6 +215,7 @@ cc_test(
         ":streamable",
         ":streamable_test_cc_proto",
         "//gloop:gloop_test_main",
+        "//gloop/util/gtl:iterator_range",
         "//gloop/util/gtl/extend",
         "//gloop/util/gtl/extend:debug_printing",
         "//gloop/util/tuple:struct",
