@@ -44,6 +44,7 @@
 #include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/source_location.h"
 #include "gloop/util/gtl/extend/extend.h"
 #include "gloop/util/status/codes.pb.h"
 #include "gloop/util/tuple/components/streamable_test.pb.h"
@@ -607,6 +608,11 @@ TEST(WithAbslStringify, Basic) {
 TEST(WithAbslStringify, RepeatStars) {
   WithAbslStringifyRepeatStars foo(5);
   EXPECT_EQ(to_string(foo), "*****");
+}
+
+TEST(SourceLocation, Basic) {
+  const absl::SourceLocation here = absl::SourceLocation::current();
+  EXPECT_EQ(to_string(here), absl::StrCat(here.file_name(), ":", here.line()));
 }
 
 }  // namespace

@@ -182,7 +182,9 @@ cc_library(
     srcs = ["streamable.cc"],
     hdrs = ["streamable.h"],
     defines = select({
-        "//conditions:default": [],
+        "//conditions:default": [
+            "UTIL_TUPLE_COMPONENTS_HAVE_UTIL_SYMBOLIZE",
+        ],
     }) + ["UTIL_TUPLE_COMPONENTS_HAVE_NET_PROTO2"],
     visibility = ["//visibility:public"],
     deps = [
@@ -192,6 +194,7 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "//gloop/strings:ostringstream",
         "//gloop/util/gtl:typeid",
+        "//gloop/util/status",
         "//gloop/util/symbolize:demangle",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
@@ -202,6 +205,7 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:source_location",
         "@protobuf",
         "@protobuf//:protobuf_lite",
     ],
@@ -224,6 +228,7 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:source_location",
         "@gloop//gloop/util/status:codes_cc_proto",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
