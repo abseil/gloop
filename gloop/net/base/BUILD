@@ -41,6 +41,7 @@ cc_library(
         "//gloop/util/bits",
         "//gloop/util/endian",
         "//gloop/util/gtl:comparator",
+        "//gloop/util/gtl:value_or_die",
         "//gloop/util/hash",
         "//gloop/util/status:errno_mapping",
         "//gloop/util/status:status_macros",

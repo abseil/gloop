@@ -74,6 +74,7 @@
 #include "absl/types/compare.h"
 #include "absl/types/span.h"
 #include "gloop/util/endian/endian.h"
+#include "gloop/util/gtl/value_or_die.h"
 #include "gloop/util/tuple/components/dump_vars.h"
 
 #ifdef _WIN32
@@ -495,7 +496,8 @@ class SocketAddress {
   // use this in new code.
   ABSL_DEPRECATE_AND_INLINE()
   explicit SocketAddress(const struct sockaddr_in6& sin6)
-      : SocketAddress{MakeSocketAddressFromSockaddrIn6(sin6).value()} {}
+      : SocketAddress{gtl::ValueOrDie(MakeSocketAddressFromSockaddrIn6(sin6))} {
+  }
 
   // The following constructors are not recommended for most users, because
   // storing raw ::ffff:0.0.0.0/96 addresses may lead to cumbersome interactions
@@ -1369,7 +1371,8 @@ inline SocketAddress NormalizeSocketAddress(const sockaddr& addr) {
   return NormalizeSocketAddress(SocketAddress(addr));
 }
 inline SocketAddress NormalizeSocketAddress(const sockaddr_in6& addr) {
-  return NormalizeSocketAddress(MakeSocketAddressFromSockaddrIn6(addr).value());
+  return NormalizeSocketAddress(
+      gtl::ValueOrDie(MakeSocketAddressFromSockaddrIn6(addr)));
 }
 inline SocketAddress NormalizeSocketAddress(const sockaddr_storage& addr) {
   return NormalizeSocketAddress(SocketAddress(addr));
