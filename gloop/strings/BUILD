@@ -606,6 +606,7 @@ cc_test(
     deps = [
         ":si_prefix",
         "//gloop:gloop_test_main",
+        "//gloop/util/tuple/components:dump_vars",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:optional",
         "@google_benchmark//:benchmark",

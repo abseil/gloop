@@ -53,6 +53,7 @@
 #include "gloop/thread/fiber/fiber.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
+#include "gloop/util/tuple/components/dump_vars.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -911,6 +912,8 @@ void ReaderWriterMutexTest_Exhaustive() {
   for (auto& task : tasks) {
     task.Join();
   }
+
+  std::cout << DUMP_VARS(reads, try_reads, missed_reads, writes) << "\n";
 }
 
 TEST(CountingMutexTest, Exhaustive) {

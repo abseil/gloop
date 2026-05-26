@@ -28,6 +28,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "benchmark/benchmark.h"
+#include "gloop/util/tuple/components/dump_vars.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -106,6 +107,8 @@ TEST(ToExponentAndMantissa, ExponentBase_1000) {
   };
 
   for (const TestCase& tc : test_cases) {
+    SCOPED_TRACE(DUMP_VARS(tc.value).str());
+
     std::string mantissa;
     int exponent;
     ToExponentAndMantissa(tc.value, 1.0, 2, ExponentBase::k1000, &mantissa,
@@ -183,6 +186,8 @@ TEST(ToExponentAndMantissa, ExponentBase_1024) {
   };
 
   for (const TestCase& tc : test_cases) {
+    SCOPED_TRACE(DUMP_VARS(tc.value).str());
+
     std::string mantissa;
     int exponent;
     ToExponentAndMantissa(tc.value, 1.0, 2, ExponentBase::k1024, &mantissa,
@@ -335,6 +340,8 @@ TEST(Consume, InvalidInput) {
   };
 
   for (const absl::string_view input : inputs) {
+    SCOPED_TRACE(DUMP_VARS(input).str());
+
     // We expect the call to fail.
     EXPECT_EQ(std::nullopt, Consume(input));
   }
@@ -456,12 +463,13 @@ TEST(Consume, ValidInput) {
   };
 
   for (const TestCase& tc : test_cases) {
+    SCOPED_TRACE(DUMP_VARS(tc.input).str());
+
     const std::optional<ParseResult> result = Consume(tc.input);
     ASSERT_TRUE(result.has_value());
 
     if (std::isnan(tc.expected_mantissa)) {
-      EXPECT_TRUE(
-          std::isnan(result->mantissa));  // NOLINT(whitespace/semicolon)
+      EXPECT_TRUE(std::isnan(result->mantissa)) << DUMP_VARS(result->mantissa);
     } else {
       EXPECT_EQ(tc.expected_mantissa, result->mantissa);
     }
@@ -498,6 +506,8 @@ TEST(Parse, InvalidInput) {
   };
 
   for (const absl::string_view input : inputs) {
+    SCOPED_TRACE(DUMP_VARS(input).str());
+
     // Expect Parse to fail.
     EXPECT_EQ(std::nullopt, Parse(input));
   }
@@ -602,12 +612,13 @@ TEST(Parse, ValidInput) {
   };
 
   for (const TestCase& tc : test_cases) {
+    SCOPED_TRACE(DUMP_VARS(tc.input).str());
+
     const std::optional<ParseResult> result = Parse(tc.input);
     ASSERT_TRUE(result.has_value());
 
     if (std::isnan(tc.expected_mantissa)) {
-      EXPECT_TRUE(
-          std::isnan(result->mantissa));  // NOLINT(whitespace/semicolon)
+      EXPECT_TRUE(std::isnan(result->mantissa)) << DUMP_VARS(result->mantissa);
     } else {
       EXPECT_EQ(tc.expected_mantissa, result->mantissa);
     }
