@@ -41,7 +41,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
-#include "gloop/base/callback.h"
+#include "gloop/base/context.h"
 #include "gloop/thread/add_after_helper.h"
 #include "gloop/thread/cpu_subcontainer.h"
 #include "gloop/thread/python_stack_size.h"
@@ -49,7 +49,6 @@
 #include "gloop/thread/thread_options.h"
 #include "gloop/thread/wait_state.h"
 #include "gloop/thread/watchdog.h"
-#include "gloop/util/functional/to_callback.h"
 #include "gloop/util/intops/saturated_cast.h"
 
 #if THREAD_HAVE_ALTERNATE_THREAD_POOL
@@ -79,8 +78,6 @@ void ThreadPool::RunWorker() {
     absl::MutexLock lock(mutex_);
     running_threads_++;
   }
-  // Run closures until we get a NULL closure
-  Closure* closure;
   *thread::Executor::CurrentExecutorPointerInternal() = this;
   std::unique_ptr<WatchDog> watchdog;
   if (watchdog_timeout_ > absl::ZeroDuration() &&
@@ -101,25 +98,21 @@ void ThreadPool::RunWorker() {
       watchdog->Disable();
     }
 
-    {
-      thread::WaitStateScope scope(
-          thread::WaitStateScope::WaitState::kWaitingForWork);
-      closure = DequeueWork().release();
-    }
-    if (closure == nullptr) {
+    std::unique_ptr<Entry> entry = DequeueWork();
+    if (entry == nullptr) {
       break;
     }
-
     if (watchdog) {
       watchdog->Alive();
     }
-    closure->Run();
+    // Run scheduled callback with our copy of the scheduler's context.
+    // We early deallocate `entry` so any (tail) scheduling from inside
+    // the callback can directly reuse the hot memory allocation.
+    base::WithContext with(std::move(entry->context));
+    absl::AnyInvocable<void() &&> callback = std::move(entry->callback);
+    entry = nullptr;
+    std::move(callback)();
   }
-}
-
-static absl_nonnull std::unique_ptr<Closure> ToClosure(
-    absl::AnyInvocable<void() &&> cb) {
-  return absl::WrapUnique(util::functional::ToCallback<Closure>(std::move(cb)));
 }
 
 ThreadPool::ThreadPool(int num_threads, Options options)
@@ -150,7 +143,7 @@ ThreadPool::ThreadPool(int num_threads, Options options)
                                  "been shutdown, this "
                                  "is a bug in AddAfterHelper";
                           if (ABSL_PREDICT_FALSE(stopping_)) return;
-                          InternalPut(ToClosure(std::move(cb)));
+                          InternalPut(std::move(cb));
                         }),
       watchdog_callback_(options.watchdog_callback),
       subcontainer_(
@@ -211,7 +204,7 @@ void ThreadPool::SpawnThread() {
 
 void ThreadPool::Schedule(absl::AnyInvocable<void() &&> callback) {
   DCHECK(callback != nullptr);
-  Put(ToClosure(std::move(callback)));
+  Put(std::move(callback));
 }
 
 void ThreadPool::ScheduleAt(absl::Time when,
@@ -225,12 +218,12 @@ void ThreadPool::ScheduleAt(absl::Time when,
 
 bool ThreadPool::TrySchedule(absl::AnyInvocable<void() &&> callback) {
   DCHECK(callback != nullptr);
-  return TryPut(ToClosure(std::move(callback)));
+  return TryPut(std::move(callback));
 }
 
 bool ThreadPool::ScheduleIfReadyToRun(absl::AnyInvocable<void() &&> callback) {
   DCHECK(callback != nullptr);
-  return PutIfReadyToRun(ToClosure(std::move(callback)));
+  return PutIfReadyToRun(std::move(callback));
 }
 
 int ThreadPool::queue_count() const {
@@ -247,7 +240,7 @@ std::string ThreadPool::thread_name_prefix() const { return name_prefix_; }
 
 int ThreadPool::num_threads() const { return max_threads_; }
 
-void ThreadPool::Put(absl_nonnull std::unique_ptr<Closure> closure) {
+void ThreadPool::Put(absl_nonnull absl::AnyInvocable<void() &&>&& callback) {
   // Wait for queue to be not-full
   absl::MutexLock m(mutex_);
   DCHECK(!stopping_) << "Callback added after destructor started";
@@ -257,10 +250,10 @@ void ThreadPool::Put(absl_nonnull std::unique_ptr<Closure> closure) {
       wait_nonfull_.Wait(&mutex_);
     }
   }
-  InternalPut(std::move(closure));
+  InternalPut(std::move(callback));
 }
 
-bool ThreadPool::TryPut(absl_nonnull std::unique_ptr<Closure> closure) {
+bool ThreadPool::TryPut(absl_nonnull absl::AnyInvocable<void() &&>&& callback) {
   absl::MutexLock m(mutex_);
   DCHECK(!stopping_) << "Callback added after destructor started";
   if (ABSL_PREDICT_FALSE(stopping_)) return false;
@@ -268,14 +261,13 @@ bool ThreadPool::TryPut(absl_nonnull std::unique_ptr<Closure> closure) {
   // Check if the queue is full
   if (queue_.size() >= capacity_) {
     return false;
-  } else {
-    InternalPut(std::move(closure));
-    return true;
   }
+  InternalPut(std::move(callback));
+  return true;
 }
 
 bool ThreadPool::PutIfReadyToRun(
-    absl_nonnull std::unique_ptr<Closure> closure) {
+    absl_nonnull absl::AnyInvocable<void() &&>&& callback) {
   absl::MutexLock m(mutex_);
   DCHECK(!stopping_) << "Callback added after destructor started";
   if (ABSL_PREDICT_FALSE(stopping_)) return false;
@@ -284,7 +276,7 @@ bool ThreadPool::PutIfReadyToRun(
   if (!queue_.empty() && /* O(n) */ waiters_.size() <= queue_.size()) {
     return false;
   }
-  InternalPut(std::move(closure));
+  InternalPut(std::move(callback));
   return true;
 }
 
@@ -303,12 +295,19 @@ void ThreadPool::SignalWaiter() {
   }
 }
 
-void ThreadPool::InternalPut(absl_nonnull std::unique_ptr<Closure> closure) {
-  queue_.push_back(std::move(closure));
+void ThreadPool::InternalPut(
+    absl_nonnull absl::AnyInvocable<void() &&>&& callback) {
+  // Schedule the callback to be run in our queue with a copy of the current
+  // caller's context which is essential for distributed execution, tracing,
+  // census accounting and security in google3 applications.
+  queue_.push_back(std::make_unique<Entry>(
+      base::Context(base::Context::kThread), std::move(callback)));
   SignalWaiter();
 }
 
-absl_nullable std::unique_ptr<Closure> ThreadPool::DequeueWork() {
+std::unique_ptr<ThreadPool::Entry> ThreadPool::DequeueWork() {
+  thread::WaitStateScope scope(
+      thread::WaitStateScope::WaitState::kWaitingForWork);
   // Wait for queue to be not-empty
   absl::MutexLock m(mutex_);
   while (queue_.empty() && !stopping_) {
@@ -321,7 +320,7 @@ absl_nullable std::unique_ptr<Closure> ThreadPool::DequeueWork() {
     DCHECK(stopping_);
     return nullptr;
   }
-  absl_nonnull std::unique_ptr<Closure> result = std::move(queue_.front());
+  absl_nonnull std::unique_ptr<Entry> entry = std::move(queue_.front());
   queue_.pop_front();
 
   // Be careful: have to signal every time we remove an element,
@@ -331,5 +330,5 @@ absl_nullable std::unique_ptr<Closure> ThreadPool::DequeueWork() {
   }
 
   if (!queue_.empty()) SignalWaiter();
-  return result;
+  return entry;
 }

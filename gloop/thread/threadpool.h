@@ -65,7 +65,6 @@
 #include "absl/synchronization/mutex.h"
 #include "absl/synchronization/notification.h"
 #include "absl/time/time.h"
-#include "gloop/base/callback.h"
 #include "gloop/thread/add_after_helper.h"
 #include "gloop/thread/executor.h"
 #include "gloop/thread/thread.h"
@@ -193,6 +192,12 @@ class ThreadPool : public AbstractThreadPool {
 #endif
 
  private:
+  // Queue entry of the invocable to run and the captured base::Context.
+  struct Entry {
+    base::Context context;
+    absl_nonnull absl::AnyInvocable<void() &&> callback;
+  };
+
   // Waiter for a single thread. Uses intrusive_list to allow for simple and
   // efficient mid-list removal and to avoid allocations.
   struct Waiter : public gtl::intrusive_link<Waiter> {
@@ -206,22 +211,23 @@ class ThreadPool : public AbstractThreadPool {
 
   void RunWorker();
 
-  // Adds "elem" to the queue.  Causes the current thread
+  // Adds `callback` to the queue.  Causes the current thread
   // to wait for consumers if the queue is full.
-  void Put(absl_nonnull std::unique_ptr<Closure> closure)
+  void Put(absl_nonnull absl::AnyInvocable<void() &&>&& callback)
       ABSL_LOCKS_EXCLUDED(mutex_);
 
-  // If the queue is not full, adds "elem" to the queue and returns true.
+  // If the queue is not full, adds `callback` to the queue and returns true.
   // If the queue is full, returns false and has no side-effects.
-  bool TryPut(absl_nonnull std::unique_ptr<Closure> closure)
+  bool TryPut(absl_nonnull absl::AnyInvocable<void() &&>&& callback)
       ABSL_LOCKS_EXCLUDED(mutex_);
 
-  // If there is a waiter, adds "elem" to the queue and returns true.
+  // If there is a waiter, adds `callback` to the queue and returns true.
   // If there are no waiters, returns false and has no side-effects.
-  bool PutIfReadyToRun(absl_nonnull std::unique_ptr<Closure> closure)
+  bool PutIfReadyToRun(absl_nonnull absl::AnyInvocable<void() &&>&& callback)
       ABSL_LOCKS_EXCLUDED(mutex_);
 
-  void InternalPut(absl_nonnull std::unique_ptr<Closure> closure)
+  // Adds `callback` to the queue
+  void InternalPut(absl_nonnull absl::AnyInvocable<void() &&>&& callback)
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Signals a waiter if there is one, or spawns a thread to try to add a new
@@ -234,7 +240,7 @@ class ThreadPool : public AbstractThreadPool {
   // Causes the current thread to wait for producers if the queue is empty.
   //
   // Returns nullptr if the thread pool is shutting down.
-  absl_nullable std::unique_ptr<Closure> DequeueWork()
+  absl_nullable std::unique_ptr<Entry> DequeueWork()
       ABSL_LOCKS_EXCLUDED(mutex_);
 
   bool IsLimitedCapacity() {
@@ -258,7 +264,7 @@ class ThreadPool : public AbstractThreadPool {
   const std::string name_prefix_;          // Worker thread name prefix
   const thread::Options thread_options_;   // Standard thread options
 
-  absl::chunked_queue<absl_nonnull std::unique_ptr<Closure> >
+  absl::chunked_queue<absl_nonnull std::unique_ptr<Entry> >
       queue_;                         // Queue of elements
   const bool eager_thread_creation_;  // Whether to eagerly spawn threads
 

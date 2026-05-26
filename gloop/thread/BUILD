@@ -284,6 +284,8 @@ cc_library(
         "//gloop/base:tracecontext",
         "//gloop/base:walltime",
         "//gloop/base/scheduling:scheduling_mode",
+        "//gloop/perftools/tracing:trace_source_location",
+        "//gloop/perftools/tracing:tracing_base",
         "//gloop/strings:util",
         "//gloop/util/functional:from_callback",
         "//gloop/util/functional:to_callback",
