@@ -40,11 +40,11 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/log/globals.h"
 #include "absl/status/status.h"
 #include "absl/status/status_matchers.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/strip.h"
@@ -63,7 +63,6 @@
 #include <algorithm>
 #include <cmath>
 #include <ios>
-#include <list>
 #include <optional>
 #include <set>
 #include <string>
@@ -908,9 +907,7 @@ TEST_F(SysinfoUnittest, ProcessStartTime) {
   EXPECT_LT(start_time, absl::Now());
   // And also before InitGoogle() is called. We make use of the WallTimer
   // started in InitGoogle(), referenced by GetUptime().
-  absl::Duration time_pre_initgoogle =
-      absl::Now() - absl::Milliseconds(absl::ToInt64Milliseconds(GetUptime())) -
-      start_time;
+  absl::Duration time_pre_initgoogle = absl::Now() - GetUptime() - start_time;
   EXPECT_GT(time_pre_initgoogle, absl::ZeroDuration());
   // Being very generous, the time between process start and InitGoogle() should
   // be less than 1 hour.

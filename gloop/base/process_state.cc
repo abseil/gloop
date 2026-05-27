@@ -20,8 +20,6 @@
 
 #include "gloop/base/process_state.h"
 
-#include "absl/base/log_severity.h"
-
 #if defined(BASE_PROCESS_STATE_USE_SYS_RESOURCE_H)
 #error "BASE_PROCESS_STATE_USE_SYS_RESOURCE_H must not be set externally"
 #elif !defined(__Fuchsia__)
@@ -63,6 +61,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/const_init.h"
 #include "absl/base/dynamic_annotations.h"
+#include "absl/base/log_severity.h"
 #include "absl/base/macros.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/debugging/internal/examine_stack.h"

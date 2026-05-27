@@ -42,6 +42,7 @@
 #include "absl/base/thread_annotations.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/internal/program_name.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/time/clock.h"

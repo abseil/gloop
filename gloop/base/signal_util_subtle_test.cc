@@ -46,7 +46,6 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "benchmark/benchmark.h"
-#include "gloop/base/commandlineflags.h"
 #include "gloop/base/percpu.h"
 #include "gloop/base/time_support.h"
 #include "gmock/gmock.h"

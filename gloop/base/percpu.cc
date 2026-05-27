@@ -20,6 +20,7 @@
 
 #include "gloop/base/percpu.h"
 
+#include <cstdlib>
 #include <cstring>
 
 #if __linux__ && !defined(__ANDROID__) && !defined(__EMSCRIPTEN__) && \

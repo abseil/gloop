@@ -26,7 +26,6 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
-#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/optimization.h"
 #include "absl/strings/string_view.h"

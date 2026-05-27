@@ -21,7 +21,6 @@
 #include <cstdint>
 
 #include "absl/base/attributes.h"
-#include "absl/base/const_init.h"
 #include "gloop/base/percpu.h"
 #include "gloop/base/scheduling/scheduling_mode.h"
 
@@ -34,7 +33,6 @@
 
 #include <atomic>
 
-#include "absl/base/call_once.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/thread_annotations.h"
 #include "gloop/base/spinlock.h"

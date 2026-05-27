@@ -49,11 +49,13 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
+#include "gloop/base/internal/logging_directories.h"
 #include "gloop/base/signal-handler.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+
 using testing::AllOf;
 using testing::ContainsRegex;
 using testing::HasSubstr;

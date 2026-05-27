@@ -21,7 +21,7 @@
 //
 #include "gloop/base/percpu_types.h"
 
-#include "absl/base/config.h"
+#include "absl/base/config.h"  // IWYU pragma: keep
 
 #ifdef ABSL_HAVE_MEMORY_SANITIZER
 #include <sanitizer/msan_interface.h>

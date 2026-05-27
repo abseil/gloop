@@ -24,7 +24,6 @@
 #include <stdint.h>
 
 #include "gloop/base/percpu.h"
-#include "tcmalloc/internal/linux_syscall_support.h"
 
 #if PERCPU_USE_RSEQ
 

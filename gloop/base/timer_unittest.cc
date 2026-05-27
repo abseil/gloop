@@ -40,10 +40,8 @@
 #include <sys/time.h>
 
 #include <functional>
-#include <memory>
 #include <thread>
 
-#include "absl/base/config.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/time/clock.h"

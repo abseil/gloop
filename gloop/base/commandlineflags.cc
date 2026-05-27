@@ -685,7 +685,7 @@ void ResetArgv(int argc, const char** argv) {
   std::string cmdline_string;  // easier than doing strcats
   for (int i = 0; i < argc; i++) {
     if (i != 0) {
-      cmdline_string += " ";
+      cmdline_string += ' ';
     }
     cmdline_string += argv[i];
     InternalGetArgvs().push_back(argv[i]);

@@ -36,7 +36,6 @@
 #include <cstring>
 
 #include "absl/base/attributes.h"
-#include "absl/base/const_init.h"
 #include "absl/base/internal/low_level_alloc.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/thread_annotations.h"
