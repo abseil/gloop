@@ -33,12 +33,12 @@
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/status/status.h"
-#include "absl/status/status_builder.h"  // IWYU pragma: export
-#include "absl/status/status_macros.h"   // IWYU pragma: export
+#include "absl/status/status_builder.h"
+#include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
 #include "absl/types/source_location.h"
 #include "gloop/util/status/status.h"
-#include "gloop/util/status/status_builder.h"  // IWYU pragma: export
+#include "gloop/util/status/status_builder.h"
 
 namespace util::status_macro_internal {
 
