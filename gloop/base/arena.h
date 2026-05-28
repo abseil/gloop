@@ -279,37 +279,10 @@
 // const methods.
 class BaseArena {
  protected:  // You can't make an arena directly; only a subclass of one
-  BaseArena(char* first_block, const size_t block_size, bool align_to_page);
+  BaseArena(char* first_block, const size_t block_size, bool align_to_page,
+            bool is_thread_safe);
 
  public:
-  virtual ~BaseArena();
-
-  virtual void Reset();
-
-  // they're "slow" only 'cause they're virtual (subclasses define "fast" ones)
-  virtual char* SlowAlloc(size_t size) = 0;
-  virtual char* SlowRealloc(char* memory, size_t old_size, size_t new_size) = 0;
-
-  // ----------------------------------------------------------------------
-  // BaseArena::Snprintf()
-  //    You give us a max-buffer-size, which we allocate but shrink if
-  //    we can.  We *could* do a growing-buffer thing (like iobuffer
-  //    does) but I don't think it's necessary here.  Note that we use
-  //    SlowAlloc() and SlowRealloc() to avoid duplication of code;
-  //    compared to the cost of snprintf() itself, the overhead of two
-  //    virtual calls is tiny.
-  // ----------------------------------------------------------------------
-  template <typename... Args>
-  char* Snprintf(size_t max_buffer_size,
-                 const absl::FormatSpec<Args...>& format, const Args&... args) {
-    char* buf = SlowAlloc(max_buffer_size);
-    const size_t size =
-        absl::SNPrintF(buf, max_buffer_size, format, args...) + 1;  // for \0
-    if (size > 0 && size < max_buffer_size)  // didn't use entire buffer
-      buf = SlowRealloc(buf, max_buffer_size, size);  // use just-enough space
-    return buf;
-  }
-
   class Status {
    private:
     friend class BaseArena;
@@ -319,6 +292,145 @@ class BaseArena {
     Status() : bytes_allocated_(0) {}
     size_t bytes_allocated() const { return bytes_allocated_; }
   };
+
+  virtual ~BaseArena();
+
+  virtual void Reset();
+
+  // they're "slow" only 'cause they're virtual (subclasses define "fast" ones)
+  virtual char* SlowAlloc(size_t size) = 0;
+  virtual void* SlowAllocAligned(size_t size, size_t align) = 0;
+  virtual char* SlowRealloc(char* memory, size_t old_size, size_t new_size) = 0;
+  virtual char* SlowShrink(char* s, size_t newsize) = 0;
+  virtual void SlowFree(void* memory, size_t size) = 0;
+  virtual Status SlowStatus() const = 0;
+  virtual size_t SlowBytesUntilNextAllocation() const = 0;
+
+  char* Alloc(const size_t size) {
+    if (ABSL_PREDICT_TRUE(!is_thread_safe_)) {
+      return reinterpret_cast<char*>(GetMemory(size, 1));
+    }
+    return SlowAlloc(size);
+  }
+
+  void* AllocAligned(const size_t size, const size_t align) {
+    if (ABSL_PREDICT_TRUE(!is_thread_safe_)) {
+      return GetMemory(size, align);
+    }
+    return SlowAllocAligned(size, align);
+  }
+
+  char* Calloc(const size_t size) {
+    void* return_value = Alloc(size);
+    if (ABSL_PREDICT_TRUE(return_value != nullptr)) {
+      memset(return_value, 0, size);
+    }
+    return reinterpret_cast<char*>(return_value);
+  }
+
+  void* CallocAligned(const size_t size, const size_t align) {
+    void* return_value = AllocAligned(size, align);
+    if (ABSL_PREDICT_TRUE(return_value != nullptr)) {
+      memset(return_value, 0, size);
+    }
+    return return_value;
+  }
+
+  // Free does nothing except for the last piece allocated.
+  void Free(void* memory, size_t size) {
+    if (ABSL_PREDICT_TRUE(!is_thread_safe_)) {
+      ReturnMemory(memory, size);
+      return;
+    }
+    SlowFree(memory, size);
+  }
+
+  char* Memdup(const char* s, size_t bytes) {
+    char* newstr = Alloc(bytes);
+    if (ABSL_PREDICT_TRUE(newstr != nullptr)) {
+      memcpy(newstr, s, bytes);
+    }
+    return newstr;
+  }
+
+  char* MemdupPlusNUL(const char* s, size_t bytes) {  // like "string(s, len)"
+    char* newstr = Alloc(bytes + 1);
+    if (ABSL_PREDICT_TRUE(newstr != nullptr)) {
+      memcpy(newstr, s, bytes);
+      newstr[bytes] = '\0';
+    }
+    return newstr;
+  }
+
+  char* Strdup(const char* s) { return Memdup(s, strlen(s) + 1); }
+
+  char* Strndup(const char* s, size_t n) {
+    const char* null_terminator =
+        reinterpret_cast<const char*>(memchr(s, '\0', n));
+    const size_t bytes = (null_terminator == nullptr) ? n : null_terminator - s;
+    return MemdupPlusNUL(s, bytes);
+  }
+
+  char* Realloc(char* original, size_t oldsize, size_t newsize) {
+    if (ABSL_PREDICT_TRUE(!is_thread_safe_)) {
+      if (AdjustLastAlloc(original, newsize)) {
+        return original;
+      }
+      char* resized = original;
+      if (newsize > oldsize) {
+        resized = Alloc(newsize);
+        memcpy(resized, original, oldsize);
+      }
+#ifdef ABSL_HAVE_ADDRESS_SANITIZER
+      ASAN_POISON_MEMORY_REGION(original, oldsize);
+      ASAN_UNPOISON_MEMORY_REGION(resized, newsize);
+#endif
+      return resized;
+    }
+    return SlowRealloc(original, oldsize, newsize);
+  }
+
+  char* Shrink(char* s, size_t newsize) {
+    if (ABSL_PREDICT_TRUE(!is_thread_safe_)) {
+      AdjustLastAlloc(s, newsize);
+      return s;
+    }
+    return SlowShrink(s, newsize);
+  }
+
+  Status status() const {
+    if (ABSL_PREDICT_TRUE(!is_thread_safe_)) {
+      return status_;
+    }
+    return SlowStatus();
+  }
+
+  size_t bytes_until_next_allocation() const {
+    if (ABSL_PREDICT_TRUE(!is_thread_safe_)) {
+      return remaining_;
+    }
+    return SlowBytesUntilNextAllocation();
+  }
+
+  // ----------------------------------------------------------------------
+  // BaseArena::Snprintf()
+  //    You give us a max-buffer-size, which we allocate but shrink if
+  //    we can.  We *could* do a growing-buffer thing (like iobuffer
+  //    does) but I don't think it's necessary here.  Note that we use
+  //    Alloc() and Realloc() to avoid duplication of code;
+  //    compared to the cost of snprintf() itself, the overhead of two
+  //    calls is tiny.
+  // ----------------------------------------------------------------------
+  template <typename... Args>
+  char* Snprintf(size_t max_buffer_size,
+                 const absl::FormatSpec<Args...>& format, const Args&... args) {
+    char* buf = Alloc(max_buffer_size);
+    const size_t size =
+        absl::SNPrintF(buf, max_buffer_size, format, args...) + 1;  // for \0
+    if (size > 0 && size < max_buffer_size)       // didn't use entire buffer
+      buf = Realloc(buf, max_buffer_size, size);  // use just-enough space
+    return buf;
+  }
 
   // Accessors and stats counters
   // This accessor isn't so useful here, but is included so we can be
@@ -348,11 +460,14 @@ class BaseArena {
   void MakeNewBlock(const size_t alignment);
   void* GetMemoryFallback(const size_t size, const size_t align);
   void* GetMemory(const size_t size, const size_t align) {
-    assert(remaining_ <= block_size_);                   // an invariant
-    if (size > 0 && size <= remaining_ && align == 1) {  // common case
-      last_alloc_ = freestart_;
-      freestart_ += size;
-      remaining_ -= size;
+    assert(remaining_ <= block_size_);  // an invariant
+    uintptr_t start = reinterpret_cast<uintptr_t>(freestart_);
+    uintptr_t aligned_start = (start + align - 1) & ~(align - 1);
+    size_t waste = aligned_start - start;
+    if (size > 0 && size + waste <= remaining_) {
+      last_alloc_ = reinterpret_cast<char*>(aligned_start);
+      freestart_ = last_alloc_ + size;
+      remaining_ -= (size + waste);
 #ifdef ABSL_HAVE_ADDRESS_SANITIZER
       ASAN_UNPOISON_MEMORY_REGION(last_alloc_, size);
 #endif
@@ -401,10 +516,11 @@ class BaseArena {
   // if the first_blocks_ aren't enough, expand into overflow_blocks_.
   std::vector<AllocatedBlock>* overflow_blocks_;
   // STL vector isn't as efficient as it could be, so we use an array at first
+  const bool is_thread_safe_;
   const bool first_block_externally_owned_;  // true if they pass in 1st block
   const bool page_aligned_;  // when true, all blocks need to be page aligned
   int8_t blocks_alloced_;    // how many of the first_blocks_ have been alloced
-  AllocatedBlock first_blocks_[16];  // the length of this array is arbitrary
+  AllocatedBlock first_blocks_[2];  // the length of this array is arbitrary
 
   void FreeBlocks();  // Frees all except first block
 
@@ -419,18 +535,18 @@ class UnsafeArena : public BaseArena {
  public:
   // Allocates a thread-compatible arena with the specified block size.
   explicit UnsafeArena(const size_t block_size)
-      : BaseArena(nullptr, block_size, false) {}
+      : BaseArena(nullptr, block_size, false, false) {}
   UnsafeArena(const size_t block_size, bool align)
-      : BaseArena(nullptr, block_size, align) {}
+      : BaseArena(nullptr, block_size, align, false) {}
 
   // Allocates a thread-compatible arena with the specified block
   // size. "first_block" must have size "block_size". Memory is
   // allocated from "first_block" until it is exhausted; after that
   // memory is allocated by allocating new blocks from the heap.
   UnsafeArena(char* first_block, const size_t block_size)
-      : BaseArena(first_block, block_size, false) {}
+      : BaseArena(first_block, block_size, false, false) {}
   UnsafeArena(char* first_block, const size_t block_size, bool align)
-      : BaseArena(first_block, block_size, align) {}
+      : BaseArena(first_block, block_size, align, false) {}
 
   char* Alloc(const size_t size) {
     return reinterpret_cast<char*>(GetMemory(size, 1));
@@ -438,72 +554,32 @@ class UnsafeArena : public BaseArena {
   void* AllocAligned(const size_t size, const size_t align) {
     return GetMemory(size, align);
   }
-  char* Calloc(const size_t size) {
-    void* return_value = Alloc(size);
-    if (ABSL_PREDICT_TRUE(return_value != nullptr)) {
-      memset(return_value, 0, size);
-    }
-    return reinterpret_cast<char*>(return_value);
-  }
-  void* CallocAligned(const size_t size, const size_t align) {
-    void* return_value = AllocAligned(size, align);
-    if (ABSL_PREDICT_TRUE(return_value != nullptr)) {
-      memset(return_value, 0, size);
-    }
-    return return_value;
-  }
-  // Free does nothing except for the last piece allocated.
   void Free(void* memory, size_t size) { ReturnMemory(memory, size); }
-  char* SlowAlloc(size_t size) override {  // "slow" 'cause it's virtual
-    return Alloc(size);
+
+  char* SlowAlloc(size_t size) override { return Alloc(size); }
+  void* SlowAllocAligned(size_t size, size_t align) override {
+    return AllocAligned(size, align);
   }
   char* SlowRealloc(char* memory, size_t old_size, size_t new_size) override {
     return Realloc(memory, old_size, new_size);
   }
-
-  char* Memdup(const char* s, size_t bytes) {
-    char* newstr = Alloc(bytes);
-    if (ABSL_PREDICT_TRUE(newstr != nullptr)) {
-      memcpy(newstr, s, bytes);
-    }
-    return newstr;
+  char* SlowShrink(char* s, size_t newsize) override {
+    return Shrink(s, newsize);
   }
-  char* MemdupPlusNUL(const char* s, size_t bytes) {  // like "string(s, len)"
-    char* newstr = Alloc(bytes + 1);
-    memcpy(newstr, s, bytes);
-    newstr[bytes] = '\0';
-    return newstr;
+  void SlowFree(void* memory, size_t size) override {
+    ReturnMemory(memory, size);
   }
-  char* Strdup(const char* s) { return Memdup(s, strlen(s) + 1); }
-  // Unlike libc's strncpy, I always NUL-terminate.  libc's semantics are dumb.
-  // This will allocate at most n+1 bytes (+1 is for the nul terminator).
-  char* Strndup(const char* s, size_t n) {
-    // Use memchr so we don't walk past n.
-    // We can't use the one in //gloop/strings since this is the base library,
-    // so we have to reinterpret_cast from the libc void*.
-    const char* null_terminator =
-        reinterpret_cast<const char*>(memchr(s, '\0', n));
-    // if no null terminator found, use full n
-    const size_t bytes = (null_terminator == nullptr) ? n : null_terminator - s;
-    return MemdupPlusNUL(s, bytes);
-  }
+  Status SlowStatus() const override { return status_; }
+  size_t SlowBytesUntilNextAllocation() const override { return remaining_; }
 
   // You can realloc a previously-allocated string either bigger or smaller.
   // We can be more efficient if you realloc a string right after you allocate
   // it (eg allocate way-too-much space, fill it, realloc to just-big-enough)
   char* Realloc(char* original, size_t oldsize, size_t newsize);
-  // If you know the new size is smaller (or equal), you don't need to know
-  // oldsize.  We don't check that newsize is smaller, so you'd better be sure!
   char* Shrink(char* s, size_t newsize) {
     AdjustLastAlloc(s, newsize);  // reclaim space if we can
     return s;                     // never need to move if we go smaller
   }
-
-  // We make a copy so you can keep track of status at a given point in time
-  Status status() const { return status_; }
-
-  // Number of bytes remaining before the arena has to allocate another block.
-  size_t bytes_until_next_allocation() const { return remaining_; }
 
  private:
   UnsafeArena(const UnsafeArena&) = delete;
@@ -520,14 +596,14 @@ class SafeArena : public BaseArena {
  public:
   // Allocates a thread-safe arena with the specified block size.
   explicit SafeArena(const size_t block_size)
-      : BaseArena(nullptr, block_size, false) {}
+      : BaseArena(nullptr, block_size, false, true) {}
 
   // Allocates a thread-safe arena with the specified block size.
   // "first_block" must have size "block_size".  Memory is allocated
   // from "first_block" until it is exhausted; after that memory is
   // allocated by allocating new blocks from the heap.
   SafeArena(char* first_block, const size_t block_size)
-      : BaseArena(first_block, block_size, false) {}
+      : BaseArena(first_block, block_size, false, true) {}
 
   void Reset() ABSL_LOCKS_EXCLUDED(mutex_) override {
     absl::MutexLock lock(mutex_);  // in case two threads Reset() at same time
@@ -543,56 +619,31 @@ class SafeArena : public BaseArena {
     absl::MutexLock lock(mutex_);
     return GetMemory(size, align);
   }
-  char* Calloc(const size_t size) {
-    void* return_value = Alloc(size);
-    if (ABSL_PREDICT_TRUE(return_value != nullptr)) {
-      memset(return_value, 0, size);
-    }
-    return reinterpret_cast<char*>(return_value);
-  }
-  void* CallocAligned(const size_t size, const size_t align) {
-    void* return_value = AllocAligned(size, align);
-    if (ABSL_PREDICT_TRUE(return_value != nullptr)) {
-      memset(return_value, 0, size);
-    }
-    return return_value;
-  }
   // Free does nothing except for the last piece allocated.
   void Free(void* memory, size_t size) ABSL_LOCKS_EXCLUDED(mutex_) {
     absl::MutexLock lock(mutex_);
     ReturnMemory(memory, size);
   }
-  char* SlowAlloc(size_t size) override {  // "slow" 'cause it's virtual
-    return Alloc(size);
+
+  char* SlowAlloc(size_t size) override { return Alloc(size); }
+  void* SlowAllocAligned(size_t size, size_t align) override {
+    return AllocAligned(size, align);
   }
   char* SlowRealloc(char* memory, size_t old_size, size_t new_size) override {
     return Realloc(memory, old_size, new_size);
   }
-  char* Memdup(const char* s, size_t bytes) {
-    char* newstr = Alloc(bytes);
-    if (ABSL_PREDICT_TRUE(newstr != nullptr)) {
-      memcpy(newstr, s, bytes);
-    }
-    return newstr;
+  char* SlowShrink(char* s, size_t newsize) override {
+    return Shrink(s, newsize);
   }
-  char* MemdupPlusNUL(const char* s, size_t bytes) {  // like "string(s, len)"
-    char* newstr = Alloc(bytes + 1);
-    memcpy(newstr, s, bytes);
-    newstr[bytes] = '\0';
-    return newstr;
+  void SlowFree(void* memory, size_t size) override { Free(memory, size); }
+  Status SlowStatus() const override ABSL_LOCKS_EXCLUDED(mutex_) {
+    absl::MutexLock lock(mutex_);
+    return status_;
   }
-  char* Strdup(const char* s) { return Memdup(s, strlen(s) + 1); }
-  // Unlike libc's strncpy, I always NUL-terminate.  libc's semantics are dumb.
-  // This will allocate at most n+1 bytes (+1 is for the nul terminator).
-  char* Strndup(const char* s, size_t n) {
-    // Use memchr so we don't walk past n.
-    // We can't use the one in //gloop/strings since this is the base library,
-    // so we have to reinterpret_cast from the libc void*.
-    const char* null_terminator =
-        reinterpret_cast<const char*>(memchr(s, '\0', n));
-    // if no null terminator found, use full n
-    const size_t bytes = (null_terminator == nullptr) ? n : null_terminator - s;
-    return MemdupPlusNUL(s, bytes);
+  size_t SlowBytesUntilNextAllocation() const override
+      ABSL_LOCKS_EXCLUDED(mutex_) {
+    absl::MutexLock lock(mutex_);
+    return remaining_;
   }
 
   // You can realloc a previously-allocated string either bigger or smaller.
@@ -608,19 +659,8 @@ class SafeArena : public BaseArena {
     return s;                     // we never need to move if we go smaller
   }
 
-  Status status() ABSL_LOCKS_EXCLUDED(mutex_) {
-    absl::MutexLock lock(mutex_);
-    return status_;
-  }
-
-  // Number of bytes remaining before the arena has to allocate another block.
-  size_t bytes_until_next_allocation() ABSL_LOCKS_EXCLUDED(mutex_) {
-    absl::MutexLock lock(mutex_);
-    return remaining_;
-  }
-
  protected:
-  absl::Mutex mutex_;
+  mutable absl::Mutex mutex_;
 
  private:
   SafeArena(const SafeArena&) = delete;

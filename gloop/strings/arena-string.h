@@ -148,7 +148,7 @@ class ArenaString {
   }
 
   static char* Allocate(UnsafeArena* a, size_t s) { return a->Alloc(s); }
-  static char* Allocate(BaseArena* a, size_t s) { return a->SlowAlloc(s); }
+  static char* Allocate(BaseArena* a, size_t s) { return a->Alloc(s); }
   // Note that by making the return type dependent on a.allocate, this override
   // is only considered for allocators that have an allocate() member function.
   // Thanks SFINAE!
