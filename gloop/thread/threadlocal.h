@@ -108,10 +108,8 @@
 
 #include <functional>
 
+#include "gloop/base/callback.h"
 #include "gloop/thread/threadlocal-internal.h"
-
-template <typename T>
-class Callback1;
 
 template <class Type>
 class ThreadLocal {
@@ -160,16 +158,11 @@ class ThreadLocal {
   // ForEachUnlocked() may visit instances of threads that exited after the
   // iteration began (delaying destruction of those instances--see above), and
   // may fail to visit instances of threads created after the iteration began.
-  void ForEachUnlocked(Callback1<Type*>* v) { rep_.ForEachUnlocked<Type>(v); }
-  void ForEachUnlocked(Callback1<const Type&>* v) const {
+  void ForEachUnlocked(::util::functional::CallbackFunctor<Type*> v) {
     rep_.ForEachUnlocked<Type>(v);
   }
-
-  // std::function variants of ForEachUnlocked.
-  void ForEachUnlocked(const std::function<void(Type*)>& v) {
-    rep_.ForEachUnlocked<Type>(v);
-  }
-  void ForEachUnlocked(const std::function<void(const Type&)>& v) const {
+  void ForEachUnlocked(
+      ::util::functional::CallbackFunctor<const Type&> v) const {
     rep_.ForEachUnlocked<Type>(v);
   }
 

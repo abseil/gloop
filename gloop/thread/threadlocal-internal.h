@@ -52,10 +52,8 @@
 
 #include "absl/log/check.h"
 #include "absl/types/span.h"
+#include "gloop/util/functional/from_callback.h"
 #include "gloop/util/gtl/intrusive_list.h"
-
-template <typename T>
-class Callback1;
 
 namespace thread {
 namespace local {
@@ -128,14 +126,9 @@ class Var {
   void* Get() const;
 
   template <class T>
-  void ForEachUnlocked(Callback1<T*>* v);
+  void ForEachUnlocked(::util::functional::CallbackFunctor<T*> v);
   template <class T>
-  void ForEachUnlocked(Callback1<const T&>* v) const;
-
-  template <class T>
-  void ForEachUnlocked(const std::function<void(T*)>& v);
-  template <class T>
-  void ForEachUnlocked(const std::function<void(const T&)>& v) const;
+  void ForEachUnlocked(::util::functional::CallbackFunctor<const T&> v) const;
 
  private:
   // Index into internal array
@@ -203,43 +196,22 @@ class ThreadInfo {
 // These don't have to be super-fast, but it's really bad for them to hold the
 // lock. So we copy out the list of instances.
 template <class T>
-void Var::ForEachUnlocked(Callback1<T*>* v) {
+void Var::ForEachUnlocked(::util::functional::CallbackFunctor<T*> v) {
   std::vector<const Instance*> copy;
   CopyInstances(&copy);
   for (std::vector<const Instance*>::size_type i = 0; i < copy.size(); ++i) {
     v->Run(static_cast<T*>(copy[i]->ptr_));
     copy[i]->Unref();
   }
-  delete v;
 }
 
 template <class T>
-void Var::ForEachUnlocked(Callback1<const T&>* v) const {
+void Var::ForEachUnlocked(
+    ::util::functional::CallbackFunctor<const T&> v) const {
   std::vector<const Instance*> copy;
   CopyInstances(&copy);
   for (std::vector<const Instance*>::size_type i = 0; i < copy.size(); ++i) {
     v->Run(*static_cast<T*>(copy[i]->ptr_));
-    copy[i]->Unref();
-  }
-  delete v;
-}
-
-template <class T>
-void Var::ForEachUnlocked(const std::function<void(T*)>& v) {
-  std::vector<const Instance*> copy;
-  CopyInstances(&copy);
-  for (std::vector<const Instance*>::size_type i = 0; i < copy.size(); ++i) {
-    v(static_cast<T*>(copy[i]->ptr_));
-    copy[i]->Unref();
-  }
-}
-
-template <class T>
-void Var::ForEachUnlocked(const std::function<void(const T&)>& v) const {
-  std::vector<const Instance*> copy;
-  CopyInstances(&copy);
-  for (std::vector<const Instance*>::size_type i = 0; i < copy.size(); ++i) {
-    v(*static_cast<T*>(copy[i]->ptr_));
     copy[i]->Unref();
   }
 }
