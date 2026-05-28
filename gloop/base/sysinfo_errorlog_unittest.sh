@@ -7,7 +7,7 @@
 output=$TEST_TMPDIR/unittestbin.out
 binary=$TEST_SRCDIR/_main/gloop/base/sysinfo_unittest
 
-"$binary" > "$output" 2>&1
+"$binary" --threaded_logging=false > "$output" 2>&1
 rc=$?
 if [ $rc != 0 ]; then
   {

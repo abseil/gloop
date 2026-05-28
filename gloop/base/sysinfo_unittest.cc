@@ -41,7 +41,7 @@
 #include <unistd.h>
 
 #include "absl/base/macros.h"
-#include "absl/log/globals.h"
+#include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "absl/status/status_matchers.h"
 #include "absl/strings/numbers.h"
@@ -50,7 +50,6 @@
 #include "absl/strings/strip.h"
 #include "gloop/base/auxiliary/parsed_process_stat.h"
 #include "gloop/base/commandlineflags.h"
-#include "gloop/base/log_file_flags.h"
 
 // getpid() is deprecated on MSVC, use _getpid() instead.
 // Reference: https://msdn.microsoft.com/en-us/library/ms235372.aspx
@@ -83,32 +82,61 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "benchmark/benchmark.h"
-#include "gloop/base/init_google.h"
+#include "gloop/base/googleinit.h"
 #include "gloop/base/proc_maps.h"
 #include "gloop/thread/thread.h"
+#include "gloop/util/process/subprocess.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "tcmalloc/malloc_extension.h"
+
+// This flag and the accompanying module initializer are used for verifying
+// base::AvailableCPUs() behavior against various environment states (like
+// the NPROC variable).
+//
+// Since base::AvailableCPUs() computes and caches its return value statically
+// upon its very first call in a process, and raw fork() is unsafe in
+// multi-threaded GoogleTest environments, tests must execute their checks
+// inside isolated subprocesses.
+//
+// To avoid messy interception logic inside a custom main() or requiring
+// complex test fixtures, the module initializer triggers immediately during
+// InitGoogle(). It checks this flag, and if true, outputs the calculated
+// available CPU count directly to stdout and exits immediately, bypassing
+// GUnit entirely.
+ABSL_FLAG(bool, internal_print_available_cpus, false,
+          "Internal sub-process flag to enable thread-safe CPU checks.");
+
+REGISTER_MODULE_INITIALIZER(sysinfo_print_cpus, {
+  if (absl::GetFlag(FLAGS_internal_print_available_cpus)) {
+    printf("%d\n", base::AvailableCPUs());
+    exit(0);
+  }
+});
 
 namespace {
 
 using ::absl::base_internal::CycleClock;
 using ::absl_testing::IsOk;
 using ::absl_testing::IsOkAndHolds;
+using ::base::CPUUsage;
+using ::base::ReapedCPUUsage;
+using ::base::ThreadCPUUsage;
 using ::testing::AnyOf;
 using ::testing::Eq;
+using ::testing::HasSubstr;
+using ::testing::IsSupersetOf;
+using ::testing::StartsWith;
+using ::testing::StrEq;
+using ::testing::UnorderedElementsAre;
+using ::testing::WhenSorted;
 
 #ifdef __linux__
 
-int example_global_const = 30;
-void* example_heap_address = malloc(sizeof(int));
-
 // Check the base /proc file parsing functions
-void TestParseFunctions() {
+TEST(SysinfoUnittest, ParseFunctions) {
   char buf[kScanfileBufsize];
   int intval;
-
-  LOG(INFO) << "Checking ReadProcKeyword()";
 
   // Am I called sysinfo_unittest?
   ASSERT_TRUE(ReadProcKeyword("/proc/%d/status", 0, "Name:", "%s", buf));
@@ -129,93 +157,90 @@ void TestParseFunctions() {
   EXPECT_EQ(intval, getpid());
 
   // Check for missing keywords
-  ASSERT_TRUE(!ReadProcKeyword("/proc/%d/status", 0,
+  EXPECT_FALSE(ReadProcKeyword("/proc/%d/status", 0,
                                "NonexistentKeyword:", "%d", &intval));
-  ASSERT_TRUE(!ReadProcKeywordQuiet("/proc/%d/status", 0,
+  EXPECT_FALSE(ReadProcKeywordQuiet("/proc/%d/status", 0,
                                     "YouShouldntSeeThisError:", "%d", &intval));
   // Check for missing files
-  ASSERT_TRUE(
-      !ReadProcKeyword("/proc/nonexistentfile", 0, "Foo:", "%d", &intval));
-  ASSERT_TRUE(!ReadProcKeywordQuiet("/proc/nonexistentquietfile", 0,
+  EXPECT_FALSE(
+      ReadProcKeyword("/proc/nonexistentfile", 0, "Foo:", "%d", &intval));
+  EXPECT_FALSE(ReadProcKeywordQuiet("/proc/nonexistentquietfile", 0,
                                     "Foo:", "%d", &intval));
-  LOG(INFO) << "Checking ReadProcField()";
 
   // Ensure /proc/*/stat is not parsed
-  ASSERT_TRUE(
-      !ReadProcField("/proc/%d/stat", /*pid=*/1, /*field=*/1, "%s", buf));
+  EXPECT_FALSE(
+      ReadProcField("/proc/%d/stat", /*pid=*/1, /*field=*/1, "%s", buf));
 
-  ASSERT_TRUE(
+  EXPECT_TRUE(
       ReadProcField("/proc/%d/statm", /*pid=*/0, /*field=*/1, "%d", &intval));
 }
 
-void TestMemoryUsage() {
-  LOG(INFO) << "Testing memory usage";
-
+TEST(SysinfoUnittest, MemoryUsage) {
   // Find the "real" memory usage values
   int64_t vmsize = VirtualMemorySize(getpid()) >> 10;
   int64_t rss = MemoryUsage(getpid()) >> 10;
 
   // Read all the memory stats.
   base::MemoryStats mem_stats;
-  CHECK(GetMemoryStats(getpid(), &mem_stats));
+  ASSERT_TRUE(GetMemoryStats(getpid(), &mem_stats));
 
   // Get the number of threads.
   int num_threads = GetProcessThreadCount(getpid());
-  CHECK_GT(num_threads, 0);
-  CHECK_LT(num_threads, 100);
+  EXPECT_GT(num_threads, 0);
+  EXPECT_LT(num_threads, 100);
 
   // check that Nice() returns a sane value
   int niceval = Nice();
-  CHECK_GE(niceval, -20);
-  CHECK_LE(niceval, 19);
+  EXPECT_GE(niceval, -20);
+  EXPECT_LE(niceval, 19);
 
   // Get the expected values by reading the proc/<pid>/stat file
   // (we do this after calling VirtualMemorySize and MemoryUsage
   // since those routines can cause memory allocation).
   std::string filename = absl::StrCat("/proc/", getpid(), "/stat");
   FILE* f = fopen(filename.c_str(), "r");
-  CHECK(f);
+  ASSERT_NE(f, nullptr);
 
   char proc_contents[PATH_MAX];
-  std::string result = fgets(proc_contents, sizeof(proc_contents), f);
-  CHECK(!result.empty());
+  char* got_line = fgets(proc_contents, sizeof(proc_contents), f);
+  ASSERT_NE(got_line, nullptr);
+  std::string result = proc_contents;
+  EXPECT_FALSE(result.empty());
 
   std::vector<std::string> col =
       absl::StrSplit(result, absl::ByAnyChar("\t "), absl::SkipEmpty());
 
   int32_t nicetarget;
-  CHECK(absl::SimpleAtoi(col[18], &nicetarget));
+  ASSERT_TRUE(absl::SimpleAtoi(col[18], &nicetarget));
 
   // Stat file reports virtual memory size in bytes. We shift to KB.
   int64_t vmtarget;
-  CHECK(absl::SimpleAtoi(col[22], &vmtarget));
+  ASSERT_TRUE(absl::SimpleAtoi(col[22], &vmtarget));
   vmtarget = vmtarget >> 10;
 
   // Stat file reports the number of pages the process has in real memory.
   // Convert that to bytes based on system page size and then make it
   // user-friendlier in KB.
   int64_t rsstarget;
-  CHECK(absl::SimpleAtoi(col[23], &rsstarget));
+  ASSERT_TRUE(absl::SimpleAtoi(col[23], &rsstarget));
   rsstarget *= getpagesize();
   rsstarget = rsstarget >> 10;
 
-  LOG(INFO) << "Got"
-            << " nice:" << nicetarget << " vm:" << vmtarget
-            << " rss:" << rsstarget << " from proc/" << getpid() << "/stat";
+  VLOG(1) << "Got"
+          << " nice:" << nicetarget << " vm:" << vmtarget
+          << " rss:" << rsstarget << " from proc/" << getpid() << "/stat";
 
   fclose(f);
 
   int64_t vmsize_mem_stats = mem_stats.vsize;
   const double epsilon = 0.01;
   // VMSize is much more predictable then RSS
-  CHECK_GE(vmsize, (1 - epsilon) * vmtarget);
-  CHECK_LE(vmsize, (1 + epsilon) * vmtarget);
+  EXPECT_NEAR(vmsize, vmtarget, epsilon * vmtarget);
   if (tcmalloc::MallocExtension::GetNumericProperty(
           "dynamic_tool.virtual_memory_overhead")
           .value_or(0) == 0) {
     // Dynamic tools are not being used.
-    CHECK_GE(vmsize_mem_stats >> 10, (1 - epsilon) * vmtarget);
-    CHECK_LE(vmsize_mem_stats >> 10, (1 + epsilon) * vmtarget);
+    EXPECT_NEAR(vmsize_mem_stats >> 10, vmtarget, epsilon * vmtarget);
   } else {
     // GetMemoryStats doesn't count part of virtual memory overhead
     // introduced by dynamic testing tools, such as ASan and TSan. It's too
@@ -224,32 +249,31 @@ void TestMemoryUsage() {
 
   constexpr int64_t kRssTolerance = 750;
 
-  CHECK_GE(rss, rsstarget - kRssTolerance);
-  CHECK_LE(rss, rsstarget + kRssTolerance);
-  CHECK_GE(mem_stats.rss >> 10, rsstarget - kRssTolerance);
-  CHECK_LE(mem_stats.rss >> 10, rsstarget + kRssTolerance);
+  EXPECT_NEAR(rss, rsstarget, kRssTolerance);
+  EXPECT_NEAR(mem_stats.rss >> 10, rsstarget, kRssTolerance);
 
   int mintarget = niceval;
   int maxtarget = niceval;
-  CHECK_GE(nicetarget, mintarget);
-  CHECK_LE(nicetarget, maxtarget);
+  EXPECT_GE(nicetarget, mintarget);
+  EXPECT_LE(nicetarget, maxtarget);
 
   // reduce our nice level and make sure Nice() returns the new value
   errno = 0;
   niceval = Nice();
   // You can't go lower than 19 ...
   if (niceval < 19) {
-    PCHECK(nice(1) != -1);
-    CHECK_EQ(niceval + 1, Nice());
+    ASSERT_NE(nice(1), -1) << strerror(errno);
+    EXPECT_EQ(niceval + 1, Nice());
   }
 }
 
-void TestProcessState() {
-  LOG(INFO) << "Testing process names";
+TEST(SysinfoUnittest, ProcessName) {
   EXPECT_EQ(ProcessName(0), "sysinfo_unittes");
   // Test for non-existent process
   EXPECT_EQ(ProcessName(999999999), "");
+}
 
+TEST(SysinfoUnittest, ProcessParent) {
   // Several of the following are something of a duplication of the tests in
   // TestParseFunctions, but they're testing slightly different things.
 
@@ -258,7 +282,9 @@ void TestProcessState() {
   EXPECT_EQ(ProcessParent(getpid()), getppid());
   // Check init's parent
   EXPECT_EQ(ProcessParent(1), 0);
+}
 
+TEST(SysinfoUnittest, ProcessExePath) {
   // Check the process exe path.
   // Reminder: readlink does not '\0'-terminate.
   char self_exe_buf[PATH_MAX];
@@ -268,20 +294,22 @@ void TestProcessState() {
   self_exe_buf[n] = '\0';
   EXPECT_EQ(ProcessExePath(getpid()), self_exe_buf);
   EXPECT_EQ(ProcessExePath(-1), "");
+}
 
+TEST(SysinfoUnittest, NumOpenFDs) {
   // Check the number of open file descriptors.
   int num_open_fds = NumOpenFDs();
   if (num_open_fds < 0) {
     ASSERT_GE(num_open_fds, 0);
-
-    int fds[2];
-    CHECK_EQ(pipe(fds), 0);
-    EXPECT_EQ(num_open_fds + 2, NumOpenFDs());
-    CHECK_EQ(close(fds[0]), 0);
-    EXPECT_EQ(num_open_fds + 1, NumOpenFDs());
-    CHECK_EQ(close(fds[1]), 0);
-    EXPECT_EQ(num_open_fds, NumOpenFDs());
   }
+
+  int fds[2];
+  ASSERT_EQ(pipe(fds), 0);
+  EXPECT_EQ(num_open_fds + 2, NumOpenFDs());
+  ASSERT_EQ(close(fds[0]), 0);
+  EXPECT_EQ(num_open_fds + 1, NumOpenFDs());
+  ASSERT_EQ(close(fds[1]), 0);
+  EXPECT_EQ(num_open_fds, NumOpenFDs());
 }
 
 static void BM_ProcessName(benchmark::State& state) {
@@ -291,9 +319,7 @@ static void BM_ProcessName(benchmark::State& state) {
 }
 BENCHMARK(BM_ProcessName);
 
-void TestProcessPageFaults() {
-  LOG(INFO) << "Testing ProcessPageFaults()";
-
+TEST(SysinfoUnittest, ProcessPageFaults) {
   // We cannot assert that page faults will not occur between the
   // getrusage() call and reading /proc, but once "warmed up," an
   // otherwise idle process should see no major faults most of the
@@ -302,10 +328,10 @@ void TestProcessPageFaults() {
     struct rusage self, children;
     int64_t minor_faults, cminor_faults, major_faults, cmajor_faults;
 
-    PCHECK(getrusage(RUSAGE_SELF, &self) != -1);
-    PCHECK(getrusage(RUSAGE_CHILDREN, &children) != -1);
-    CHECK(ProcessPageFaults(0, &minor_faults, &cminor_faults, &major_faults,
-                            &cmajor_faults));
+    ASSERT_NE(getrusage(RUSAGE_SELF, &self), -1) << strerror(errno);
+    ASSERT_NE(getrusage(RUSAGE_CHILDREN, &children), -1) << strerror(errno);
+    ASSERT_TRUE(ProcessPageFaults(0, &minor_faults, &cminor_faults,
+                                  &major_faults, &cmajor_faults));
 
     VLOG(1) << "getrusage():" << self.ru_minflt << " " << self.ru_majflt << " "
             << children.ru_minflt << " " << children.ru_majflt;
@@ -326,15 +352,16 @@ void TestProcessPageFaults() {
                        children.ru_majflt <= cmajor_faults &&
                        children.ru_majflt >= (cmajor_faults - epsilon));
     if (pass || attempt >= 100) {
-      CHECK_LE(self.ru_minflt, minor_faults);
-      CHECK_GE(self.ru_minflt, minor_faults - epsilon);
-      CHECK_LE(self.ru_majflt, major_faults);
-      CHECK_GE(self.ru_majflt, major_faults - epsilon);
-      CHECK_LE(children.ru_minflt, cminor_faults);
-      CHECK_GE(children.ru_minflt, cminor_faults - epsilon);
-      CHECK_LE(children.ru_majflt, cmajor_faults);
-      CHECK_GE(children.ru_majflt, cmajor_faults - epsilon);
-      CHECK(pass) << "; This shouldn't fire -- a prior CHECK should have.";
+      EXPECT_LE(self.ru_minflt, minor_faults);
+      EXPECT_GE(self.ru_minflt, minor_faults - epsilon);
+      EXPECT_LE(self.ru_majflt, major_faults);
+      EXPECT_GE(self.ru_majflt, major_faults - epsilon);
+      EXPECT_LE(children.ru_minflt, cminor_faults);
+      EXPECT_GE(children.ru_minflt, cminor_faults - epsilon);
+      EXPECT_LE(children.ru_majflt, cmajor_faults);
+      EXPECT_GE(children.ru_majflt, cmajor_faults - epsilon);
+      EXPECT_TRUE(pass)
+          << "; This shouldn't fire -- a prior expectation should have.";
       break;
     }
   }
@@ -372,27 +399,21 @@ class TestThread : public Thread {
   }
 };
 
-void TestThreads() {
+TEST(SysinfoUnittest, Threads) {
   int pid;
 
-  LOG(INFO) << "Checking GetTID()";
-  CHECK_EQ(GetTID(), getpid());
+  EXPECT_EQ(GetTID(), getpid());
 
-  LOG(INFO) << "Checking ThreadGroup(0)";
-  CHECK_EQ(ThreadGroup(0), getpid());
+  EXPECT_EQ(ThreadGroup(0), getpid());
 
-  LOG(INFO) << "Checking ThreadGroup(child process)";
-
-  PCHECK((pid = fork()) != -1);
+  ASSERT_NE(pid = fork(), -1) << strerror(errno);
   if (pid != 0) {
     // Parent
-    CHECK_EQ(ThreadGroup(pid), pid);
+    EXPECT_EQ(ThreadGroup(pid), pid);
     waitpid(pid, nullptr, 0);
   } else {
     exit(0);
   }
-
-  LOG(INFO) << "Checking ThreadGroup(child thread)";
 
   TestThread t;
   t.parent_pid = getpid();
@@ -404,15 +425,13 @@ void TestThreads() {
   // Wait for child to set up pid/tid
   t.parent_notify.WaitForNotification();
 
-  CHECK_EQ(ThreadGroup(t.tid), t.pid);
+  EXPECT_EQ(ThreadGroup(t.tid), t.pid);
 
   t.child_notify.Notify();
   t.Join();
 }
 
-void TestHasPosixThreads() {
-  LOG(INFO) << "Testing HasPosixThreads()";
-
+TEST(SysinfoUnittest, HasPosixThreads) {
   //  Our litmus test for "is POSIX compliant" is that all threads in
   //  a process have the same PID.  We test this directly here.
   class GetPidThread : public Thread {
@@ -425,24 +444,33 @@ void TestHasPosixThreads() {
   t.Start();
   t.Join();
 
-  LOG(INFO) << "HasPosixThreads() => " << HasPosixThreads();
-  CHECK_EQ((t.pid_ == getpid()), HasPosixThreads());
+  EXPECT_EQ(t.pid_ == getpid(), HasPosixThreads());
 }
 
-void ReadPipe(std::string str, const char* fmt, void* result) {
-  FILE* f = popen(str.c_str(), "r");
-  CHECK(f);
-  EXPECT_EQ(fscanf(f, fmt, result), 1);
-  CHECK_EQ(pclose(f), 0);
+absl::Status ReadPipe(absl::string_view cmd, const char* fmt, void* result) {
+  FILE* f = popen(std::string(cmd).c_str(), "r");
+  if (f == nullptr) {
+    return absl::InternalError("popen failed");
+  }
+  int items_read = fscanf(f, fmt, result);
+  int status = pclose(f);
+  if (items_read != 1) {
+    return absl::InternalError("fscanf parse failure");
+  }
+  if (status != 0) {
+    return absl::InternalError("pclose failed");
+  }
+  return absl::OkStatus();
 }
 
-void TestSystemState() {
-  LOG(INFO) << "Testing NumCPUs()";
+TEST(SysinfoUnittest, NumCPUs) {
   int numcpus;
-  ReadPipe("grep -c -i ^processor /proc/cpuinfo", "%d", &numcpus);
+  ASSERT_THAT(ReadPipe("grep -c -i ^processor /proc/cpuinfo", "%d", &numcpus),
+              IsOk());
   EXPECT_EQ(NumCPUs(), numcpus);
+}
 
-  LOG(INFO) << "Testing NominalCPUFrequency()";
+TEST(SysinfoUnittest, NominalCPUFrequency) {
   // There are many ways to assign NominalCPUFrequency, depending on the
   // machine.  We just want to make sure at least one of them gave
   // back a plausible value.
@@ -452,27 +480,29 @@ void TestSystemState() {
 #else
   EXPECT_GT(NominalCPUFrequency(), 10.0);
 #endif
+}
 
-  LOG(INFO) << "Testing CycleClock::Frequency()";
+TEST(SysinfoUnittest, CycleClockFrequency) {
   // There are many ways to assign CycleClock::Frequency(), depending on the
   // machine.  We just want to make sure at least one of them gave
   // back a plausible value.
   EXPECT_GT(CycleClock::Frequency(), 10.0);
+}
 
-  LOG(INFO) << "Testing boot time";
-
+TEST(SysinfoUnittest, BootTimePrecision) {
   // Extract the uptime from the output of "uptime", and use "date" to
   // convert it into a number by adding it to the Unix epoch and
   // printing the result in seconds. (Only has 1-minute accuracy ...)
+}
 
-  LOG(INFO) << "Testing SystemLoadAverage()";
-
+TEST(SysinfoUnittest, SystemLoadAverage) {
   // Check SystemLoadAverage() which returns 1 min load average
   // This is a little non-deterministic. Be happy with one out of three.
   int success_load_average = 0;
   for (int i = 0; i < 3; i++) {
     double loadavg;
-    ReadPipe("awk '{print $1}' < /proc/loadavg", "%lf", &loadavg);
+    ASSERT_THAT(ReadPipe("awk '{print $1}' < /proc/loadavg", "%lf", &loadavg),
+                IsOk());
     const double reported_load = SystemLoadAverage();
     if (fabs(reported_load - loadavg) > 0.02) {
       LOG(ERROR) << "loadavg = " << loadavg << ", reported = " << reported_load;
@@ -483,18 +513,19 @@ void TestSystemState() {
     }
   }
   EXPECT_GT(success_load_average, 0);
+}
 
+TEST(SysinfoUnittest, SystemLoadAverageForTimeRange) {
   // Check for 1/5/15 minute load averages using SystemLoadAverage()
   for (int j = 0; j < 3; j++) {
-    LOG(INFO) << "Testing SystemLoadAverageForTimeRange(" << j << ")";
-    success_load_average = 0;
+    int success_load_average = 0;
     // This is a little non-deterministic. Be happy with one out of three.
     for (int i = 0; i < 3; i++) {
       double loadavg;
-      char awk_cmd[] = "awk '{print $1}' < /proc/loadavg";
+      char awk_cmd[128];
       snprintf(awk_cmd, sizeof(awk_cmd), "awk '{print $%1d}' < /proc/loadavg",
                j + 1);
-      ReadPipe(awk_cmd, "%lf", &loadavg);
+      ASSERT_THAT(ReadPipe(awk_cmd, "%lf", &loadavg), IsOk());
       const double reported_load = SystemLoadAverageForTimeRange(
           static_cast<SystemLoadAverageTimeRange>(j));
       if (fabs(reported_load - loadavg) > 0.02) {
@@ -508,7 +539,9 @@ void TestSystemState() {
     }
     EXPECT_GT(success_load_average, 0);
   }
+}
 
+TEST(SysinfoUnittest, PhysicalAndFreeMem) {
   // Make sure PhysicalMem() returns a plausible value.
   EXPECT_GE(PhysicalMem(), uint64_t{128} << 20);  // 128 MB
   EXPECT_LE(PhysicalMem(), uint64_t{1} << 50);    // 1 PB
@@ -525,8 +558,7 @@ void BM_NumCPUs(benchmark::State& state) {
 }
 BENCHMARK(BM_NumCPUs);
 
-void TestGetIdleTime() {
-  LOG(INFO) << "Testing GetIdleTime()";
+TEST(SysinfoUnittest, GetIdleTime) {
 #if defined __linux__
   const double start_idle = GetIdleTime();
 
@@ -543,14 +575,19 @@ void TestGetIdleTime() {
   // The following check may fail if the machine is completely pegged
   // while this test is running.  Disable it if automated unittests
   // start complaining.
-  CHECK(found_idle);
+  EXPECT_TRUE(found_idle);
 #else
   const double idle_time = GetIdleTime();
-  CHECK_LT(idle_time, 0);  // Should return -1
+  EXPECT_LT(idle_time, 0);  // Should return -1
 #endif
 }
 
-void TestCommandLine(absl::string_view cmdline) {
+TEST(SysinfoUnittest, CommandLine) {
+  std::string cmdline;
+  for (const auto& arg : base::GetArgvs()) {
+    cmdline += arg;
+    cmdline.push_back('\0');
+  }
   char buf[4096];
   int linelen;
 
@@ -558,11 +595,22 @@ void TestCommandLine(absl::string_view cmdline) {
   EXPECT_EQ(cmdline, std::string(buf, linelen));
   ASSERT_TRUE(linelen = CommandLine(1, buf, sizeof(buf)));
   // SysVinit 2.85 changed /proc/1/cmdline to include the current run level.
-  EXPECT_TRUE((linelen >= 4 && strncmp("init", buf, 4)) ||
-              (linelen >= 10 && strncmp("/sbin/init", buf, 10)));
+  EXPECT_THAT(
+      absl::string_view(buf, linelen),
+      AnyOf(StartsWith("init"), StartsWith("/sbin/init"),
+            // Docker containers in Gloop CI will use bash as an entrypoint.
+            StartsWith("bash"), StartsWith("/bin/bash")));
 }
 
-void TestProcMaps() {
+int example_global_const = 30;
+
+void ExampleFunctionForAddressCheck() {}
+
+TEST(SysinfoUnittest, ProcMaps) {
+  void* example_heap_address = malloc(sizeof(int));
+  absl::Cleanup cleanup = [example_heap_address] {
+    free(example_heap_address);
+  };
   // Some architecture-specific attributes of /proc/*/maps:
   static const struct ProcMapData {
     bool position_independent_executable;
@@ -592,7 +640,6 @@ void TestProcMaps() {
 #error "Unknown platform -- unsure how to test ProcMapsIterator."
 #endif
   };
-  LOG(INFO) << "Testing ProcMapsIterator";
   ProcMapsIterator it(0);
   ASSERT_TRUE(it.Valid());
 
@@ -619,13 +666,13 @@ void TestProcMaps() {
     PLOG_IF(FATAL, mkdir(longname.data(), 0700) == -1 && errno != EEXIST);
   }
   int longfd;
-  PCHECK(rmdir(longname.data()) != -1);
-  PCHECK((longfd = open(longname.data(), O_RDWR | O_CREAT, 0600)) != -1);
-  PCHECK(unlink(longname.data()) != -1);
+  ASSERT_NE(rmdir(longname.data()), -1) << strerror(errno);
+  ASSERT_NE(longfd = open(longname.data(), O_RDWR | O_CREAT, 0600), -1)
+      << strerror(errno);
+  ASSERT_NE(unlink(longname.data()), -1) << strerror(errno);
   void* longmap;
   longmap = mmap(nullptr, 4096, PROT_READ, MAP_PRIVATE, longfd, 0);
   ASSERT_NE(longmap, MAP_FAILED);
-  LOG(INFO) << "Mapped longmap at " << longmap;
   // The name of the file in /proc/self/maps changes when we delete it
   absl::SNPrintF(longname.data(), longname.size(), "%s",
                  absl::StrCat(longname.data(), " (deleted)"));
@@ -636,11 +683,13 @@ void TestProcMaps() {
   struct stat statbuf;
   absl::FixedArray<char> binname(PATH_MAX);
   memset(binname.data(), 0, binname.size());
-  PCHECK(stat(exe, &statbuf) != -1);
-  PCHECK(readlink(exe, binname.data(), binname.size()) != -1);
+  ASSERT_NE(stat(exe, &statbuf), -1) << strerror(errno);
+  ASSERT_NE(readlink(exe, binname.data(), binname.size()), -1)
+      << strerror(errno);
 
   if (!kProcMapData.position_independent_executable) {
-    CHECK(it.NextExt(&start, &end, &flags, &offset, &inode, &filename, &dev));
+    ASSERT_TRUE(
+        it.NextExt(&start, &end, &flags, &offset, &inode, &filename, &dev));
     // TEXT segment
     EXPECT_EQ(inode, statbuf.st_ino);
     EXPECT_EQ(dev, statbuf.st_dev);
@@ -651,7 +700,8 @@ void TestProcMaps() {
     EXPECT_GT(end, start);
 
     // Check that a text address is really in the range start-end.
-    uintptr_t entry_point = reinterpret_cast<uintptr_t>(&TestProcMaps);
+    uintptr_t entry_point =
+        reinterpret_cast<uintptr_t>(&ExampleFunctionForAddressCheck);
     EXPECT_LT(start, entry_point);
     EXPECT_GT(end, entry_point);
     // Check that the "canonical" line is correct
@@ -677,7 +727,7 @@ void TestProcMaps() {
       prev_end = end;
       ASSERT_TRUE(
           it.NextExt(&start, &end, &flags, &offset, &inode, &filename, &dev));
-      LOG(ERROR) << "START: " << start << " FLAGS: " << flags;
+      VLOG(1) << "START: " << start << " FLAGS: " << flags;
       if (kProcMapData.expect_consecutive_map_regions) {
         EXPECT_EQ(start, prev_end);
       }
@@ -713,16 +763,16 @@ void TestProcMaps() {
   bool long_seen = false;
   bool example_heap_seen = false;
   while (it.NextExt(&start, &end, &flags, &offset, &inode, &filename, &dev)) {
-    LOG(INFO) << std::hex << start << "-" << end << ": " << filename;
+    VLOG(1) << std::hex << start << "-" << end << ": " << filename;
     maps_seen++;
     if (start <= reinterpret_cast<uintptr_t>(example_heap_address) &&
         reinterpret_cast<uintptr_t>(example_heap_address) < end) {
       EXPECT_EQ(inode, 0);
       // Linux 2.6.12 gives names to some segments, while others
       // versions leave the name field blank. Tcmalloc names its memory regions.
-      EXPECT_TRUE(!strcmp(filename, "") || !strcmp(filename, "[heap]") ||
-                  absl::StrContains(filename, "tcmalloc_region_"));
-      EXPECT_TRUE(!strcmp(flags, "rwxp") || !strcmp(flags, "rw-p"));
+      EXPECT_THAT(filename, AnyOf(StrEq(""), StrEq("[heap]"),
+                                  HasSubstr("tcmalloc_region_")));
+      EXPECT_THAT(flags, AnyOf(StrEq("rwxp"), StrEq("rw-p")));
       EXPECT_EQ(dev, 0);
       example_heap_seen = true;
 
@@ -734,7 +784,7 @@ void TestProcMaps() {
         end > (uintptr_t)&example_stack_var) {
       // Found the stack.
       EXPECT_EQ(inode, 0);
-      EXPECT_TRUE(!strcmp(filename, "") || !strcmp(filename, "[stack]"));
+      EXPECT_THAT(filename, AnyOf(StrEq(""), StrEq("[stack]")));
     }
   }
   EXPECT_TRUE(example_heap_seen);
@@ -744,10 +794,6 @@ void TestProcMaps() {
 }
 
 #endif
-
-using base::CPUUsage;
-using base::ReapedCPUUsage;
-using base::ThreadCPUUsage;
 
 static void BM_CPUUsageOther(benchmark::State& state) {
   // use init as our guineapig -- marginally easier than spawning a target
@@ -772,33 +818,52 @@ static void BM_ThreadCPUUsage(benchmark::State& state) {
 
 BENCHMARK(BM_ThreadCPUUsage);
 
-static void TestReadProcMap() {
-  LOG(INFO) << "Testing ReadProcMap()";
-
+TEST(SysinfoUnittest, ReadProcMap) {
   ProcMap pm;
   // Should fail on a non-existent entry
-  CHECK(!ReadProcMap("/proc/doesnt_exist", &pm));
+  EXPECT_FALSE(ReadProcMap("/proc/doesnt_exist", &pm));
 
   // Should succeed on a non map-file, but find nothing
-  CHECK(ReadProcMap("/proc/filesystems", &pm));
-  CHECK(pm.empty());
+  ASSERT_TRUE(ReadProcMap("/proc/filesystems", &pm));
+  EXPECT_TRUE(pm.empty());
 
   // Should succeed with useful results on a real map
-  CHECK(ReadProcMap("/proc/self/status", &pm));
-  CHECK(pm.count("Name"));
-  CHECK_EQ(pm["Name"], "\tsysinfo_unittes\n");
-  CHECK_EQ(pm["State"], "\tR (running)\n");
+  ASSERT_TRUE(ReadProcMap("/proc/self/status", &pm));
+  EXPECT_EQ(pm.count("Name"), 1);
+  EXPECT_EQ(pm["Name"], "\tsysinfo_unittes\n");
+  EXPECT_EQ(pm["State"], "\tR (running)\n");
 }
 
-static void TestProcessList() {
+TEST(SysinfoUnittest, ProcessGroup) {
+  char buffer[128];
+  int pgid;
+
+  snprintf(buffer, sizeof(buffer), "ps h -o pgid %d",
+           static_cast<int>(getpid()));
+  ASSERT_THAT(ReadPipe(buffer, "%d", &pgid), IsOk());
+  EXPECT_EQ(ProcessGroup(getpid()), ((pid_t)pgid));
+}
+
+TEST(SysinfoUnittest, VirtualProcessSize) {
+  char buffer[128];
+  int64_t vsize_test = VirtualProcessSize();
+  long long vsize;  // NOLINT
+
+  snprintf(buffer, sizeof(buffer), "ps h -o vsize %d",
+           static_cast<int>(getpid()));
+  ASSERT_THAT(ReadPipe(buffer, "%lld", &vsize), IsOk());
+  vsize *= 1024;
+
+  // vsize_test must be in the range of 256K
+  EXPECT_NEAR(vsize_test, vsize, 262144);
+}
+
+TEST(SysinfoUnittest, ProcessList) {
   std::vector<pid_t> pids;
   ProcessList(&pids);
 
-  EXPECT_TRUE(std::find(pids.begin(), pids.end(), 1) != pids.end());
-  EXPECT_TRUE(std::find(pids.begin(), pids.end(), getpid()) != pids.end());
+  EXPECT_THAT(pids, IsSupersetOf({static_cast<pid_t>(1), getpid()}));
 }
-
-class SysinfoUnittest : public testing::Test {};
 
 // Use some CPU time.  Aim for being active for <time> at a cpu usage
 // rate of <activity>.  (On a contended system we will get less time.)
@@ -828,10 +893,9 @@ absl::Duration MeasureUsageInThread(absl::Duration (*func)(),
   return after - before;
 }
 
-TEST_F(SysinfoUnittest, ThreadCPUUsage) {
+TEST(SysinfoUnittest, ThreadCPUUsage) {
 #ifndef __linux__
-  LOG(WARNING) << "unsupported";
-  return;
+  GTEST_SKIP() << "unsupported";
 #endif
   const absl::Duration kDuration = absl::Milliseconds(500);
 
@@ -865,20 +929,16 @@ static absl::Duration CPUUsageMatch() {
   absl::Duration d = CPUUsage();
   absl::Duration e = CPUUsage(0);
   absl::Duration f = CPUUsage(pid);
-  EXPECT_LE(a, b);
-  EXPECT_LE(b, c);
-  EXPECT_LE(c, d);
-  EXPECT_LE(d, e);
-  EXPECT_LE(e, f);
+  const std::vector<absl::Duration> usages = {a, b, c, d, e, f};
+  EXPECT_THAT(usages, WhenSorted(Eq(usages)));
 
   // Pick the last (most accurate, since we've used all that time).
   return f;
 }
 
-TEST_F(SysinfoUnittest, CPUUsageInThread) {
+TEST(SysinfoUnittest, CPUUsageInThread) {
 #ifndef __linux__
-  LOG(WARNING) << "unsupported";
-  return;
+  GTEST_SKIP() << "unsupported";
 #endif
   const absl::Duration kDuration = absl::Milliseconds(500);
   // As with ThreadCPUUsage, we should be charged for our own time...
@@ -897,10 +957,118 @@ TEST_F(SysinfoUnittest, CPUUsageInThread) {
   }
 }
 
-TEST_F(SysinfoUnittest, ProcessStartTime) {
+TEST(SysinfoUnittest, CPUUsageOther) {
 #ifndef __linux__
-  LOG(WARNING) << "unsupported";
-  return;
+  GTEST_SKIP() << "unsupported";
+#endif
+  SubProcess proc;
+  // This will try to eat 100% of one cpu without forking any children,
+  // so we can easily measure it.
+  proc.SetShellCommand("while :; do :; done");
+  proc.Start();
+  pid_t pid = proc.pid();
+
+  // Make sure we're looking at the right guy--consume and don't
+  // consume in appropriate patterns and see that reflected in usage.
+  // This test is flaky; accept the first successful measurement.
+  const absl::Duration kDuration = absl::Milliseconds(100);
+  for (int attempt = 0;; ++attempt) {
+    absl::Duration before = CPUUsage(pid);
+    absl::SleepFor(kDuration);
+    absl::Duration after = CPUUsage(pid);
+    absl::Duration usage = after - before;
+    const absl::Duration kMinDuration = kDuration / 20;
+    if (usage >= kMinDuration || attempt >= 10) {
+      EXPECT_GE(usage, kMinDuration);
+      break;
+    }
+  }
+
+  ASSERT_TRUE(proc.Kill(SIGSTOP));
+  int status;
+  ASSERT_EQ(pid, waitpid(pid, &status, WUNTRACED)) << strerror(errno);
+  EXPECT_TRUE(WIFSTOPPED(status));
+
+  // Now we shouldn't see any usage at all.  This test is flaky;
+  // accept the first successful measurement.
+  for (int attempt = 0;; ++attempt) {
+    absl::Duration before = CPUUsage(pid);
+    absl::SleepFor(kDuration);
+    absl::Duration after = CPUUsage(pid);
+    absl::Duration usage = after - before;
+    // Should be zero, but some small races make that difficult.
+    const absl::Duration kMaxUsage = kDuration / 100;
+    if (usage <= kMaxUsage || attempt >= 10) {
+      EXPECT_LE(usage, kMaxUsage);
+      break;
+    }
+  }
+
+  ASSERT_TRUE(proc.Kill(SIGCONT));
+  ASSERT_EQ(pid, waitpid(pid, nullptr, WCONTINUED)) << strerror(errno);
+
+  // Back to normal.  This test is flaky; accept the first successful
+  // measurement.
+  for (int attempt = 0;; ++attempt) {
+    absl::Duration before = CPUUsage(pid);
+    absl::SleepFor(kDuration);
+    absl::Duration after = CPUUsage(pid);
+    absl::Duration usage = after - before;
+    const absl::Duration kMinDuration = kDuration / 20;
+    if (usage >= kMinDuration || attempt >= 10) {
+      EXPECT_GE(usage, kMinDuration);
+      break;
+    }
+  }
+
+  ASSERT_TRUE(proc.Kill(SIGKILL));
+  proc.Wait();
+}
+
+static inline absl::Duration Abs(absl::Duration d) {
+  return d >= absl::ZeroDuration() ? d : (absl::ZeroDuration() - d);
+}
+
+TEST(SysinfoUnittest, ReapedCPUUsage) {
+#ifndef __linux__
+  GTEST_SKIP() << "unsupported";
+#endif
+  for (int attempt = 0;; ++attempt) {
+    absl::Duration before = ReapedCPUUsage();
+    SubProcess proc;
+    // This will try to eat 100% of one cpu without forking any children,
+    // so we can easily measure it.
+    proc.SetShellCommand("while :; do :; done");
+    proc.Start();
+    pid_t pid = proc.pid();
+    const absl::Duration kDuration = absl::Milliseconds(200);
+    absl::SleepFor(kDuration);
+    ASSERT_TRUE(proc.Kill(SIGKILL));
+    // Urgh. I hope no one calls Subprocess::DoWait() in a background thread
+    // here, but that seems unlikely.
+    absl::Duration usage_actual = CPUUsage(pid);
+    proc.Wait();
+    // Now it's been reaped and should be accounted for by the call.
+    absl::Duration after = ReapedCPUUsage();
+    absl::Duration usage = after - before;
+    // Those should be identical. But Reaped uses a rusage-based
+    // approximation that's not necessarily accurate, and is rounded to
+    // milliseconds.  So give some slack.
+    if (Abs(usage - usage_actual) <= absl::Milliseconds(20)) {
+      return;  // pass
+    }
+    if (attempt > 5) {
+      FAIL() << "Failed after multiple attempts, giving up.  Measured "
+                "ReapedCPUUsage:"
+             << usage << " Actual CPUUsage: " << usage_actual;
+      break;
+    }
+  }
+}
+
+TEST(SysinfoUnittest, ProcessStartTime) {
+#ifndef __linux__
+  GTEST_SKIP() << "unsupported";
 #endif
   absl::Time start_time = base::ProcessStartTime();
   // Process start time should be before the current time.
@@ -914,50 +1082,9 @@ TEST_F(SysinfoUnittest, ProcessStartTime) {
   EXPECT_LT(time_pre_initgoogle, absl::Hours(1));
 }
 
-std::string* cmdline = nullptr;
-void SaveCommandLine(int argc, char* argv[]) {
-  // Save the command line
-  cmdline = new std::string;
-  for (int i = 0; i < argc; i++) {
-    *cmdline += argv[i] + std::string("\0", 1);
-  }
-}
-
-const std::string& GetCommandLine() { return *cmdline; }
-// These are all very old tests that need attention and love.
-// TODO: split out each function into a test case here, update it
-// to modern standards.
-TEST_F(SysinfoUnittest, AntiquatedTests) {
-  absl::SetVLogLevel("sysinfo", 3);
-
-  TestHasPosixThreads();
-
-#ifdef __linux__
-  TestParseFunctions();
-  TestMemoryUsage();
-  TestProcessState();
-  TestThreads();
-  TestSystemState();
-  TestCommandLine(GetCommandLine());
-  TestGetIdleTime();
-  TestReadProcMap();
-
-  TestProcessPageFaults();
-
-  TestProcMaps();
-#endif
-
-  // Check that the error logging only prints three times for each
-  // distinct error file
-  for (int i = 0; i < 4; i++) {
-    ThreadGroup(-1);
-    ThreadGroup(-2);
-    MemoryUsage(-1);
-  }
-
+TEST(SysinfoUnittest, BootTime) {
   // Check misc functions in sysinfo
-  CHECK_GT(BootTime(), 0);
-  TestProcessList();
+  EXPECT_GT(BootTime(), 0);
 }
 
 TEST(ProcessState, GetUptimeInMs) {
@@ -976,30 +1103,36 @@ TEST(ProcessState, GetInitGoogleTime) {
 }
 
 TEST(AvailableCPUs, IsSensible) {
-  EXPECT_GE(base::AvailableCPUs(), 1);
-  EXPECT_LE(base::AvailableCPUs(), NumCPUs());
-  // base::AvailableCPUs() is computed once per process, so we spawn ourself as
-  // a subprocess to observe changes.
-  std::string self = ProgramInvocationName();
-  int n;
+  auto get_cpus_with_env = [](absl::string_view env_vars) -> int {
+    int num_cpus = -1;
+    std::string cmd = absl::StrCat(env_vars, env_vars.empty() ? "" : " ",
+                                   base::ProgramInvocationName(),
+                                   " --internal_print_available_cpus");
+    EXPECT_THAT(ReadPipe(cmd, "%d", &num_cpus), IsOk());
+    return num_cpus;
+  };
+
+  // base::AvailableCPUs() is computed once per process. Multi-process execution
+  // provides absolute thread safety guarantee without local static cache
+  // poisoning.
+  int base_nproc = get_cpus_with_env("");
+  EXPECT_GE(base_nproc, 1);
+  EXPECT_LE(base_nproc, NumCPUs());
+
   // Should fall back to NumCPUs() if $NPROC is unset.
-  ReadPipe(absl::StrCat("env -i ", self, " --show_available_cpus"), "%d", &n);
-  EXPECT_EQ(n, NumCPUs());
+  EXPECT_EQ(get_cpus_with_env("unset NPROC;"), NumCPUs());
+
   // Should return $NPROC when it's a positive integer.
-  ReadPipe(absl::StrCat("NPROC=7 ", self, " --show_available_cpus"), "%d", &n);
-  EXPECT_EQ(n, 7);
+  EXPECT_EQ(get_cpus_with_env("NPROC=7"), 7);
+
   // Trailing garbage is permitted.
-  ReadPipe(absl::StrCat("NPROC=4x ", self, " --show_available_cpus"), "%d", &n);
-  EXPECT_EQ(n, 4);
+  EXPECT_EQ(get_cpus_with_env("NPROC=4x"), 4);
+
   // Should otherwise ignore garbage in $NPROC.
-  ReadPipe(absl::StrCat("NPROC= ", self, " --show_available_cpus"), "%d", &n);
-  EXPECT_EQ(n, NumCPUs());
-  ReadPipe(absl::StrCat("NPROC=0 ", self, " --show_available_cpus"), "%d", &n);
-  EXPECT_EQ(n, NumCPUs());
-  ReadPipe(absl::StrCat("NPROC=-1 ", self, " --show_available_cpus"), "%d", &n);
-  EXPECT_EQ(n, NumCPUs());
-  ReadPipe(absl::StrCat("NPROC=x4 ", self, " --show_available_cpus"), "%d", &n);
-  EXPECT_EQ(n, NumCPUs());
+  EXPECT_EQ(get_cpus_with_env("NPROC="), NumCPUs());
+  EXPECT_EQ(get_cpus_with_env("NPROC=0"), NumCPUs());
+  EXPECT_EQ(get_cpus_with_env("NPROC=-1"), NumCPUs());
+  EXPECT_EQ(get_cpus_with_env("NPROC=x4"), NumCPUs());
 }
 
 TEST(ParseProcessStatTest, StatPid) {
@@ -1046,42 +1179,19 @@ TEST(ParseProcessStatTest, StatState) {
   EXPECT_THAT(parsed->GetState(), IsOkAndHolds(Eq('R')));
 }
 
-}  // namespace
-
-int main(int argc, char** argv) {
-  // To support testing AvailableCPUs(), which is computed once per process.
-  if (argc == 2 && !strcmp(argv[1], "--show_available_cpus")) {
-    printf("%d\n", base::AvailableCPUs());
-    return 0;
-  }
-
-  absl::SetFlag(&FLAGS_logtostderr, true);
-
-  SaveCommandLine(argc, argv);
-  // Some of the tests above fork() so we don't want to launch threads in
-  // InitGoogle.
-  absl::SetFlag(&FLAGS_threaded_logging, false);
-
-  InitGoogle(argv[0], &argc, &argv, true);
-
+class SysinfoEnvironment : public ::testing::Environment {
+ public:
+  void SetUp() override {
 #ifdef __linux__
-  // Check that idle time close to beginning of program is close to 0.
-  // Allow more idle time if there are more CPUs.
-  const double max_idle_time = 1.0 * NumCPUs();
-  CHECK_LT(GetIdleTime(), max_idle_time);
+    // Check that idle time close to beginning of program is close to 0.
+    // Allow more idle time if there are more CPUs.
+    const double max_idle_time = 1.0 * NumCPUs();
+    ASSERT_LT(GetIdleTime(), max_idle_time);
 #endif
-
-  // Note: this cannot use benchmark::RunSpecifiedBenchmarksThenExit() because
-  // it may be link with the external library.
-  // FIXME(vyng): Fix this once we've moved the wrapper out of the internal
-  // header.
-  if (!benchmark::GetBenchmarkFilter().empty()) {
-    benchmark::RunSpecifiedBenchmarks();
-    exit(0);
   }
+};
 
-  // Run the gUnit tests
-  int ret = RUN_ALL_TESTS();
-  free(example_heap_address);
-  return ret;
-}
+::testing::Environment* const sysinfo_env =
+    ::testing::AddGlobalTestEnvironment(new SysinfoEnvironment);
+
+}  // namespace

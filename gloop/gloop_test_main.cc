@@ -26,10 +26,11 @@
 #include "gtest/gtest.h"
 
 GTEST_API_ int main(int argc, char** argv) {
-  printf("Running main() from %s\n", __FILE__);
   InitGoogleExceptChangeRootAndUser(/*usage=*/nullptr, &argc, &argv,
                                     /*remove_flags=*/true);
   testing::InitGoogleTest(&argc, argv);
+
+  printf("Running main() from %s\n", __FILE__);
 
   // TODO Use benchmark::RunSpecifiedBenchmarksThenExit() once
   // the migration is complete.
