@@ -121,12 +121,13 @@ const size_t BaseArena::kDefaultAlignment;
 // ----------------------------------------------------------------------
 
 BaseArena::BaseArena(char* first, const size_t orig_block_size,
-                     bool align_to_page)
+                     bool align_to_page, bool is_thread_safe)
     : remaining_(0),
       block_size_(nallocx(orig_block_size, 0)),
       freestart_(nullptr),  // set for real in Reset()
       last_alloc_(nullptr),
       overflow_blocks_(nullptr),
+      is_thread_safe_(is_thread_safe),
       first_block_externally_owned_(first != nullptr),
       page_aligned_(align_to_page),
       blocks_alloced_(1) {
