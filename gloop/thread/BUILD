@@ -1035,3 +1035,9 @@ cc_test(
         "@googletest//:gtest",
     ],
 )
+
+cc_library(
+    name = "yield",
+    hdrs = ["yield.h"],
+    deps = ["//gloop:enforce_gloop_support"],
+)
