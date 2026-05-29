@@ -45,8 +45,8 @@ cc_test(
     malloc = "//gloop:malloc",
     deps = [
         ":intervaltree",
+        "//gloop:gloop_test_main",
         "//gloop/base:arena",
-        "//gloop/base:init_google",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/container:node_hash_map",
         "@abseil-cpp//absl/log",

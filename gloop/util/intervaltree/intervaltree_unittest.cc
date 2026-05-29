@@ -20,11 +20,8 @@
 
 #include "gloop/util/intervaltree/intervaltree.h"
 
-#include <stdio.h>  // why not use <cstdio>?
-
 #include <cstdint>
-#include <cstdlib>
-#include <ctime>
+#include <cstdio>
 #include <deque>
 #include <functional>
 #include <limits>
@@ -44,12 +41,44 @@
 #include "absl/strings/str_format.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/arena.h"
-#include "gloop/base/init_google.h"
 #include "gloop/util/random/acmrandom.h"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 namespace {
 
-// ------------------------------------------------------------------
+using ::testing::ElementsAre;
+using ::testing::Pointee;
+
+MATCHER_P(NodeValue, inner_matcher, "") {
+  if (arg == nullptr) {
+    *result_listener << "is nullptr";
+    return false;
+  }
+  return testing::ExplainMatchResult(inner_matcher, arg->value,
+                                     result_listener);
+}
+
+template <typename Iter>
+auto ExtractValues(Iter iter) {
+  std::vector<const typename Iter::TreeNode*> nodes;
+  while (iter.Get() != nullptr) {
+    nodes.push_back(iter.Get());
+    iter.Next();
+  }
+  return nodes;
+}
+
+template <typename Iter>
+auto ExtractValuesReverse(Iter iter) {
+  std::vector<const typename Iter::TreeNode*> nodes;
+  while (iter.Get() != nullptr) {
+    nodes.push_back(iter.Get());
+    iter.Prev();
+  }
+  return nodes;
+}
+
 // Benchmarks
 // ------------------------------------------------------------------
 std::pair<int32_t, int32_t> GeneratePair(ACMRandom& random, int32_t range) {
@@ -255,61 +284,87 @@ class TreeFactory {
   std::deque<UnsafeArena> owned_arenas_;
 };
 
-void CheckClosedIntervals(TreeFactory& factory) {
-  auto tree = factory.Create<int, char>();
+class IntervalTreeTest : public ::testing::TestWithParam<TestMode> {
+ protected:
+  IntervalTreeTest() : factory_(GetParam()) {}
+  TreeFactory factory_;
+};
+
+INSTANTIATE_TEST_SUITE_P(IntervalTreeTests, IntervalTreeTest,
+                         ::testing::Values(TestMode::kDefaultArena,
+                                           TestMode::kUserArena,
+                                           TestMode::kHeapAllocation),
+                         [](const ::testing::TestParamInfo<TestMode>& info) {
+                           switch (info.param) {
+                             case TestMode::kDefaultArena:
+                               return "DefaultArena";
+                             case TestMode::kUserArena:
+                               return "UserArena";
+                             case TestMode::kHeapAllocation:
+                               return "HeapAllocation";
+                           }
+                         });
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(IntervalTreeTest);
+
+TEST_P(IntervalTreeTest, CheckClosedIntervals) {
+  auto tree = factory_.Create<int, char>();
   const int begin = 1;
   const int end = 3;
   tree.InsertVal(begin, end, 'a');
   IntervalIterator<int, char> left_it(&tree, begin - 1, begin,
                                       INTERVAL_SMALLEST);
-  CHECK_EQ(left_it.Get()->begin, begin);
-  CHECK_EQ(left_it.Get()->end, end);
+  ASSERT_NE(left_it.Get(), nullptr);
+  EXPECT_EQ(left_it.Get()->begin, begin);
+  EXPECT_EQ(left_it.Get()->end, end);
   IntervalIterator<int, char> right_it(&tree, end, end + 1, INTERVAL_SMALLEST);
-  CHECK_EQ(left_it.Get()->begin, begin);
-  CHECK_EQ(left_it.Get()->end, end);
+  ASSERT_NE(right_it.Get(), nullptr);
+  EXPECT_EQ(right_it.Get()->begin, begin);
+  EXPECT_EQ(right_it.Get()->end, end);
 }
 
-void CheckFoo(TreeFactory& factory) {
-  auto tree = factory.Create<int, char>();  // Create an interval tree
+TEST_P(IntervalTreeTest, CheckFoo) {
+  auto tree = factory_.Create<int, char>();  // Create an interval tree
   tree.InsertVal(1, 3, 'a');  // Insert an element (requires copy constructor)
   IntervalNode<int, char>* node =
       tree.Insert(2, 4);  // No copy constructor called
-  node->value = 'b';      // Assign the value of interval [2, 4] to 'b'
+  ASSERT_NE(node, nullptr);
+  node->value = 'b';  // Assign the value of interval [2, 4] to 'b'
 
   // Create an iterator that finds all intervals intersecting [2, 3],
   // The last flag decide if its initialized to smallest (or largest)
   IntervalIterator<int, char> iter(&tree, 2, 3, INTERVAL_SMALLEST);
-  CHECK_EQ(iter.Get()->value, 'a');
-  CHECK_EQ(iter.Get()->begin, 1);
-  CHECK_EQ(iter.Get()->end, 3);
+  ASSERT_THAT(iter.Get(), NodeValue('a'));
+  EXPECT_EQ(iter.Get()->begin, 1);
+  EXPECT_EQ(iter.Get()->end, 3);
   iter.Next();  // move to the next intersecting interval
-  CHECK_EQ(iter.Get()->value, 'b');
+  EXPECT_THAT(iter.Get(), NodeValue('b'));
   iter.Prev();  // move to the previous intersecting interval
-  CHECK_EQ(iter.Get()->value, 'a');
+  EXPECT_THAT(iter.Get(), NodeValue('a'));
   iter.Delete();  // delete the interval 'a' and move to the next element
-  CHECK_EQ(iter.Get()->value, 'b');
+  EXPECT_THAT(iter.Get(), NodeValue('b'));
   iter.Next();
-  CHECK(iter.Get() == nullptr);  // we already moved to the end
+  EXPECT_EQ(iter.Get(), nullptr);  // we already moved to the end
 }
 
-void CheckInsertValUniquePtr(TreeFactory& factory) {
-  auto tree = factory.Create<int, std::unique_ptr<int>>();
+TEST_P(IntervalTreeTest, CheckInsertValUniquePtr) {
+  auto tree = factory_.Create<int, std::unique_ptr<int>>();
   tree.InsertVal(1, 3, std::make_unique<int>(3));
   IntervalTree<int, std::unique_ptr<int>>::iterator iter(&tree, 0, 10,
                                                          INTERVAL_SMALLEST);
-  CHECK_EQ(*iter.Get()->value, 3);
+  EXPECT_THAT(iter.Get(), NodeValue(Pointee(3)));
   iter.Next();
-  CHECK(iter.Get() == nullptr);  // we already moved to the end
+  EXPECT_EQ(iter.Get(), nullptr);  // we already moved to the end
 }
 
-void CheckInsertValTemporaryValue(TreeFactory& factory) {
-  auto tree = factory.Create<int, std::string>();
+TEST_P(IntervalTreeTest, CheckInsertValTemporaryValue) {
+  auto tree = factory_.Create<int, std::string>();
   tree.InsertVal(1, 3, absl::StrCat(3, "aaa", 3));
   IntervalTree<int, std::string>::iterator iter(&tree, 0, 10,
                                                 INTERVAL_SMALLEST);
-  CHECK_EQ(iter.Get()->value, "3aaa3");
+  EXPECT_THAT(iter.Get(), NodeValue("3aaa3"));
   iter.Next();
-  CHECK(iter.Get() == nullptr);  // we already moved to the end
+  EXPECT_EQ(iter.Get(), nullptr);  // we already moved to the end
 }
 
 struct Aggregate {
@@ -324,114 +379,41 @@ struct Aggregate {
   }
 };
 
-void CheckInsertValAggregate(TreeFactory& factory) {
-  auto tree = factory.Create<int, Aggregate>();
+TEST_P(IntervalTreeTest, CheckInsertValAggregate) {
+  auto tree = factory_.Create<int, Aggregate>();
   tree.InsertVal(1, 3, {4, 5});
   IntervalTree<int, Aggregate>::iterator iter(&tree, 0, 10, INTERVAL_SMALLEST);
-  auto value = iter.Get()->value;
-  CHECK_EQ(value, Aggregate({4, 5}));
+  EXPECT_THAT(iter.Get(), NodeValue(Aggregate({4, 5})));
   iter.Next();
-  CHECK(iter.Get() == nullptr);  // we already moved to the end
+  EXPECT_EQ(iter.Get(), nullptr);  // we already moved to the end
 }
 
-void CheckBug(TreeFactory& factory) {
+TEST_P(IntervalTreeTest, CheckBug) {
   // Bug regression test
-  auto tree = factory.Create<int, char>();
+  auto tree = factory_.Create<int, char>();
   tree.InsertVal(0, 0, 'x');
   tree.InsertVal(0, 7, 'y');
 
   IntervalIterator<int, char> iter(&tree, 4, 7, INTERVAL_SMALLEST);
-  CHECK(iter.Get() != nullptr);
+  ASSERT_NE(iter.Get(), nullptr);
 }
 
-void CheckNodeIteratorBug(TreeFactory& factory) {
+TEST_P(IntervalTreeTest, CheckNodeIteratorBug) {
   // Regression test for bug encountered with node-based iterators.
-  auto tree = factory.Create<int, char>();
+  auto tree = factory_.Create<int, char>();
   IntervalNode<int, char>* node_1 = tree.InsertVal(0, 10, 'x');
   tree.InsertVal(0, 10, 'y');
   IntervalIterator<int, char> node_1_iter(&tree, node_1);
-}
-
-void CheckConst(const IntervalTree<int, std::string>* tree) {
-  // You can only create ConstIntervalIterator from const IntervalTree
-  const ConstIntervalIterator<int, std::string> iter(tree, 1, 5,
-                                                     INTERVAL_SMALLEST);
-  CHECK_EQ(iter.value(), "ac");
-  // One can not move to next in a const iterator
-
-  ConstIntervalIterator<int, std::string> del(tree, 1, 5, INTERVAL_SMALLEST);
-  del.Next();
-  // One can not delete from a const tree
+  ASSERT_NE(node_1_iter.Get(), nullptr);
+  EXPECT_EQ(node_1_iter.Get(), node_1);
 }
 
 template <typename T, typename U, typename KeyLess>
-void InsertAndCheck(IntervalTree<T, U, KeyLess>* tree, const T& begin,
-                    const T& end, U data) {
+[[nodiscard]] bool InsertAndCheck(IntervalTree<T, U, KeyLess>* tree,
+                                  const T& begin, const T& end, U data) {
   int size = tree->size();
   tree->InsertVal(begin, end, data);
-  CHECK_EQ(size + 1, tree->size());
-  tree->CheckInvariants();
-}
-
-}  // namespace
-
-template <class K>
-void TestIntervalNode(const K& begin, const K& end) {
-  VLOG(1) << "Check IntervalNode<int, int>";
-  IntervalNode<K, int> node(begin, end);
-  *(node.ptr()) = 15;
-
-  CHECK_EQ(node.value, 15);
-  CHECK_EQ(node.begin, begin);
-  CHECK_EQ(node.end, end);
-
-  CHECK(node.max_value() > node.min_value());
-  CHECK(node.max_value() > 0);
-  CHECK(node.min_value() < 0);
-}
-
-template <class K, class KeyLess = std::less<K>>
-void TestIntervalTree(const K& k, const KeyLess& less = KeyLess()) {
-  IntervalTree<K, char, KeyLess> tree(less);
-
-  VLOG(1) << "Check Insert";
-  CHECK_EQ(tree.size(), 0);
-  InsertAndCheck(&tree, k - 10, k + 2, 'a');
-  InsertAndCheck(&tree, k + 5, k + 6, 'e');
-  InsertAndCheck(&tree, k + 7, k + 8, 'f');
-  InsertAndCheck(&tree, k + 2, k + 3, 'c');
-  InsertAndCheck(&tree, k + 5, k + 7, 'd');
-  InsertAndCheck(&tree, k + 2, k + 5, 'b');
-  InsertAndCheck(&tree, k + 10, k + 12, 'g');
-
-  typename IntervalTree<K, char, KeyLess>::iterator iter(&tree, k - 2, k + 10,
-                                                         INTERVAL_SMALLEST);
-
-  VLOG(1) << "Check IntervalIterator";
-  CHECK_EQ(iter.Get()->value, 'a');
-  tree.CheckInvariants();
-  CHECK_EQ(iter.Next()->value, 'b');
-  tree.CheckInvariants();
-  CHECK_EQ(iter.Next()->value, 'c');
-  tree.CheckInvariants();
-  CHECK_EQ(iter.Next()->value, 'd');
-  tree.CheckInvariants();
-  CHECK_EQ(iter.Next()->value, 'e');
-  tree.CheckInvariants();
-  CHECK_EQ(iter.Get()->value, 'e');
-  tree.CheckInvariants();
-  CHECK_EQ(iter.Next()->value, 'f');
-  tree.CheckInvariants();
-  tree.InsertVal(k + 10, k + 11, 'h');
-  tree.CheckInvariants();
-  CHECK_EQ(iter.Next()->value, 'g');
-  tree.CheckInvariants();
-  CHECK_EQ(iter.Next()->value, 'h');
-  tree.CheckInvariants();
-  CHECK(iter.Next() == nullptr);
-  tree.CheckInvariants();
-  CHECK(iter.Get() == nullptr);
-  tree.CheckInvariants();
+  return (tree->size() == size + 1) && tree->CheckInvariants();
 }
 
 struct InitRequired {
@@ -447,7 +429,7 @@ struct InitRequired {
     field_ = 54321;
     VLOG(1) << "del: " << this;
     --global_count_;
-    CHECK(global_count_ >= 0);
+    CHECK_GE(global_count_, 0);
   }
   int field_;
   static int global_count_;
@@ -455,46 +437,54 @@ struct InitRequired {
 
 // static
 int InitRequired::global_count_ = 0;
-
-void TestCtorAndDtor(TreeFactory& factory) {
-  auto tree = factory.Create<int, InitRequired>();
+TEST_P(IntervalTreeTest, TestCtorAndDtor) {
+  InitRequired::global_count_ = 0;
+  auto tree = factory_.Create<int, InitRequired>();
 
   IntervalNode<int, InitRequired>* node = tree.Insert(0, 1);
-  CHECK_EQ(node->value.field_, 12345);
-  CHECK_EQ(1, InitRequired::global_count_);
+  ASSERT_NE(node, nullptr);
+  EXPECT_EQ(node->value.field_, 12345);
+  EXPECT_EQ(1, InitRequired::global_count_);
 
   // check destructor gets invoked.
   IntervalTree<int, InitRequired>::iterator iter(&tree, 0, 1);
   iter.Delete();
-  CHECK_EQ(0, InitRequired::global_count_);
-  CHECK_EQ(0, tree.size());
+  EXPECT_EQ(0, InitRequired::global_count_);
+  EXPECT_EQ(0, tree.size());
 
   // check constructor is invoked on re-use from freelist.
   node = tree.Insert(2, 3);
-  CHECK_EQ(node->value.field_, 12345);
-  CHECK_EQ(1, tree.size());
+  ASSERT_NE(node, nullptr);
+  EXPECT_EQ(node->value.field_, 12345);
+  EXPECT_EQ(1, tree.size());
 
   // Tree will now get destroyed;  if the tree destruction re-invokes
   // destructors on deleted elements, this will be caught in the destructor
   // for InitRequired.
 }
 
-void TestCallerProvidedArena() {
-  UnsafeArena arena(1024);
-  {
-    IntervalTree<int, InitRequired> tree(&arena);
-    tree.Insert(0, 1);
-    // destroy tree before arena
-  }
+TEST(IntervalTreeBasicTest, TestCallerProvidedArena) {
+  alignas(alignof(IntervalNode<int, InitRequired>)) char buffer[4096];
+  UnsafeArena arena(buffer, sizeof(buffer));
+  IntervalTree<int, InitRequired> tree(&arena);
+  auto* node = tree.Insert(0, 1);
+  ASSERT_NE(node, nullptr);
+  EXPECT_EQ(node->value.field_, 12345);
+  EXPECT_GE(static_cast<const void*>(node), static_cast<const void*>(buffer));
+  EXPECT_LE(static_cast<const void*>(node + 1),
+            static_cast<const void*>(buffer + sizeof(buffer)));
+  // destroy tree before arena
 }
 
-void TestCtorAndDtor2(TreeFactory& factory) {
-  auto tree = factory.Create<int, InitRequired>();
+TEST_P(IntervalTreeTest, TestCtorAndDtor2) {
+  InitRequired::global_count_ = 0;
+  auto tree = factory_.Create<int, InitRequired>();
 
   InitRequired my_obj;  // this will be copied.
   IntervalNode<int, InitRequired>* node = tree.InsertVal(0, 1, my_obj);
-  CHECK_EQ(node->value.field_, 12345);
-  CHECK_EQ(2, InitRequired::global_count_);
+  ASSERT_NE(node, nullptr);
+  EXPECT_EQ(node->value.field_, 12345);
+  EXPECT_EQ(2, InitRequired::global_count_);
 
   // add a second.
   node = tree.Insert(0, 1);
@@ -502,327 +492,544 @@ void TestCtorAndDtor2(TreeFactory& factory) {
   // remove one, and check destructor gets invoked.
   IntervalTree<int, InitRequired>::iterator iter(&tree, 0, 1);
   iter.Delete();
-  CHECK_EQ(2, InitRequired::global_count_);
-  CHECK_EQ(1, tree.size());
+  EXPECT_EQ(2, InitRequired::global_count_);
+  EXPECT_EQ(1, tree.size());
 
   // (non-empty) Tree will now get destroyed;  if the tree destruction
   // re-invokes destructors on deleted elements, this will be caught in
   // the destructor for InitRequired.
 }
 
-void TestIntervalTreeBasic(TreeFactory& factory) {
-  auto tree = factory.Create<int, char>();
+TEST_P(IntervalTreeTest, TestBasicInsertionAndInvariants) {
+  auto tree = factory_.Create<int, char>();
 
-  VLOG(1) << "Check Insert";
-  CHECK_EQ(tree.size(), 0);
-  InsertAndCheck(&tree, -10, 2, 'a');
-  InsertAndCheck(&tree, 5, 6, 'e');
-  InsertAndCheck(&tree, 7, 8, 'f');
-  InsertAndCheck(&tree, 2, 3, 'c');
-  InsertAndCheck(&tree, 5, 7, 'd');
-  InsertAndCheck(&tree, 2, 5, 'b');
-  InsertAndCheck(&tree, 10, 12, 'g');
+  EXPECT_EQ(tree.size(), 0);
+  ASSERT_TRUE(InsertAndCheck(&tree, -10, 2, 'a'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 5, 6, 'e'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 7, 8, 'f'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 2, 3, 'c'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 5, 7, 'd'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 2, 5, 'b'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 10, 12, 'g'));
+}
+
+TEST_P(IntervalTreeTest, TestBasicIteratorTraversal) {
+  auto tree = factory_.Create<int, char>();
+  ASSERT_TRUE(InsertAndCheck(&tree, -10, 2, 'a'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 5, 6, 'e'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 7, 8, 'f'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 2, 3, 'c'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 5, 7, 'd'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 2, 5, 'b'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 10, 12, 'g'));
 
   IntervalTree<int, char>::iterator iter(&tree, -2, 10, INTERVAL_SMALLEST);
 
-  VLOG(1) << "Check IntervalIterator";
-  CHECK_EQ(iter.Get()->value, 'a');
-  tree.CheckInvariants();
-  CHECK_EQ(iter.Next()->value, 'b');
-  tree.CheckInvariants();
-  CHECK_EQ(iter.Next()->value, 'c');
-  tree.CheckInvariants();
-  CHECK_EQ(iter.Next()->value, 'd');
-  tree.CheckInvariants();
-  CHECK_EQ(iter.Next()->value, 'e');
-  tree.CheckInvariants();
-  CHECK_EQ(iter.Get()->value, 'e');
-  tree.CheckInvariants();
-  CHECK_EQ(iter.Next()->value, 'f');
-  tree.CheckInvariants();
-  tree.InsertVal(10, 11, 'h');
-  tree.CheckInvariants();
-  CHECK_EQ(iter.Next()->value, 'g');
-  tree.CheckInvariants();
-  CHECK_EQ(iter.Next()->value, 'h');
-  tree.CheckInvariants();
-  CHECK(iter.Next() == nullptr);
-  tree.CheckInvariants();
-  CHECK(iter.Get() == nullptr);
-  tree.CheckInvariants();
+  EXPECT_THAT(iter.Get(), NodeValue('a'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter.Next(), NodeValue('b'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter.Next(), NodeValue('c'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter.Next(), NodeValue('d'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter.Next(), NodeValue('e'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter.Get(), NodeValue('e'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter.Next(), NodeValue('f'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  ASSERT_TRUE(InsertAndCheck(&tree, 10, 11, 'h'));
+  EXPECT_THAT(iter.Next(), NodeValue('g'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter.Next(), NodeValue('h'));
+  ASSERT_TRUE(tree.CheckInvariants());
 
-  VLOG(1) << "Check ConstIntervalIterator";
+  EXPECT_EQ(iter.Next(), nullptr);
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_EQ(iter.Get(), nullptr);
+  ASSERT_TRUE(tree.CheckInvariants());
+}
+
+TEST_P(IntervalTreeTest, TestBasicConstIteratorTraversal) {
+  auto tree = factory_.Create<int, char>();
+  ASSERT_TRUE(InsertAndCheck(&tree, -10, 2, 'a'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 5, 6, 'e'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 7, 8, 'f'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 2, 3, 'c'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 5, 7, 'd'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 2, 5, 'b'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 10, 12, 'g'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 10, 11, 'h'));
+
   IntervalTree<int, char>::const_iterator iter2(&tree, 5, 7, INTERVAL_SMALLEST);
-  CHECK_EQ(iter2.Get()->value, 'b');
-  CHECK_EQ(iter2.value(), 'b');
-  tree.CheckInvariants();
-  CHECK_EQ(iter2.Next()->value, 'd');
-  tree.CheckInvariants();
-  CHECK_EQ(iter2.Next()->value, 'e');
-  tree.CheckInvariants();
-  CHECK_EQ(iter2.Next()->value, 'f');
-  tree.CheckInvariants();
-  CHECK(iter2.Next() == nullptr);
-  tree.CheckInvariants();
+  EXPECT_THAT(iter2.Get(), NodeValue('b'));
+  EXPECT_EQ(iter2.value(), 'b');
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter2.Next(), NodeValue('d'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter2.Next(), NodeValue('e'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter2.Next(), NodeValue('f'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_EQ(iter2.Next(), nullptr);
+  ASSERT_TRUE(tree.CheckInvariants());
+}
 
-  VLOG(1) << "Check Delete";
+TEST_P(IntervalTreeTest, TestBasicDeletion) {
+  auto tree = factory_.Create<int, char>();
+  ASSERT_TRUE(InsertAndCheck(&tree, -10, 2, 'a'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 5, 6, 'e'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 7, 8, 'f'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 2, 3, 'c'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 5, 7, 'd'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 2, 5, 'b'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 10, 12, 'g'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 10, 11, 'h'));
 
-  tree.CheckInvariants();
+  ASSERT_TRUE(tree.CheckInvariants());
   IntervalIterator<int, char> iter3(&tree, 5, 7, INTERVAL_SMALLEST);
 
   IntervalIterator<int, char> del(&tree, 7, 8, INTERVAL_SMALLEST);
   del.Delete();
-  tree.CheckInvariants();
+  ASSERT_TRUE(tree.CheckInvariants());
 
-  CHECK_EQ(iter3.Get()->value, 'b');
+  EXPECT_THAT(iter3.Get(), NodeValue('b'));
   // c is not in range, and d is deleted
-  CHECK_EQ(iter3.Next()->value, 'e');
-  CHECK_EQ(iter3.Next()->value, 'f');
-  tree.CheckInvariants();
+  EXPECT_THAT(iter3.Next(), NodeValue('e'));
+  EXPECT_THAT(iter3.Next(), NodeValue('f'));
+  ASSERT_TRUE(tree.CheckInvariants());
 
-  VLOG(1) << "Check Delete 2";
   IntervalIterator<int, char> iter4(&tree, 1, 12, INTERVAL_SMALLEST);
-  CHECK_EQ(iter4.Get()->value, 'a');
-  tree.CheckInvariants();
-  CHECK_EQ(iter4.Delete()->value, 'b');
-  tree.CheckInvariants();
-  CHECK_EQ(iter4.Delete()->value, 'c');
-  tree.CheckInvariants();
-  CHECK_EQ(iter4.Delete()->value, 'e');
-  tree.CheckInvariants();
-  CHECK_EQ(iter4.Delete()->value, 'f');
-  tree.CheckInvariants();
-  CHECK_EQ(iter4.Delete()->value, 'g');
-  tree.CheckInvariants();
-  CHECK_EQ(iter4.Delete()->value, 'h');
-  tree.CheckInvariants();
-  CHECK(iter4.Delete() == nullptr);
-  tree.CheckInvariants();
+  EXPECT_THAT(iter4.Get(), NodeValue('a'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter4.Delete(), NodeValue('b'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter4.Delete(), NodeValue('c'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter4.Delete(), NodeValue('e'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter4.Delete(), NodeValue('f'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter4.Delete(), NodeValue('g'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter4.Delete(), NodeValue('h'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_EQ(iter4.Delete(), nullptr);
+  ASSERT_TRUE(tree.CheckInvariants());
+}
 
-  VLOG(1) << "Check multiple IntervalIterator's with updates";
+TEST_P(IntervalTreeTest, TestConcurrentIteratorsWithUpdates) {
+  auto tree = factory_.Create<int, char>();
 
-  InsertAndCheck(&tree, 1, 1, 'a');
+  ASSERT_TRUE(InsertAndCheck(&tree, 1, 1, 'a'));
   IntervalIterator<int, char> i1(&tree, 1, 10, INTERVAL_SMALLEST);
-  InsertAndCheck(&tree, 2, 2, 'b');
+  ASSERT_TRUE(InsertAndCheck(&tree, 2, 2, 'b'));
   IntervalIterator<int, char> i2(&tree, 2, 10, INTERVAL_SMALLEST);
-  InsertAndCheck(&tree, 3, 3, 'c');
+  ASSERT_TRUE(InsertAndCheck(&tree, 3, 3, 'c'));
   IntervalIterator<int, char> i3(&tree, 3, 10, INTERVAL_SMALLEST);
-  InsertAndCheck(&tree, 4, 4, 'd');
-  InsertAndCheck(&tree, 5, 5, 'e');
-  InsertAndCheck(&tree, 7, 7, 'g');
-  InsertAndCheck(&tree, 7, 7, 'g');
+  ASSERT_TRUE(InsertAndCheck(&tree, 4, 4, 'd'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 5, 5, 'e'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 7, 7, 'g'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 7, 7, 'g'));
+
+  EXPECT_THAT(i1.Get(), NodeValue('a'));
 
   // (x, y, z) means:
   //   i1.Get()->value, x, i2.Get()->value, y, i3.Get()->value, z
-  CHECK_EQ(i1.Get()->value, 'a');  // (a, b, c)
-  CHECK_EQ(i2.Get()->value, 'b');
-  CHECK_EQ(i3.Get()->value, 'c');
-  tree.CheckInvariants();
-  CHECK_EQ(i1.Delete()->value, 'b');  // (b, b, c) delete a
-  tree.CheckInvariants();
-  CHECK_EQ(i3.Delete()->value, 'd');  // (b, b, d) delete c
-  tree.CheckInvariants();
-  CHECK_EQ(i2.Next()->value, 'd');    // (b, d, d)
-  CHECK_EQ(i2.Next()->value, 'e');    // (b, e, d)
-  CHECK_EQ(i3.Delete()->value, 'e');  // (b, e, e) delete d
-  CHECK_EQ(i3.Next()->value, 'g');    // (b, e, g)
-  tree.InsertVal(3, 3, 'c');          // (b, e, g) insert c
-  tree.InsertVal(6, 6, 'f');
-  CHECK_EQ(i1.Delete()->value, 'c');  // (c, e, g) delete b
-  tree.CheckInvariants();
-  CHECK_EQ(i1.Delete()->value, 'e');  // (e, e, g) delete c
-  tree.CheckInvariants();
-  CHECK_EQ(i1.Get(), i2.Get());
-  CHECK_EQ(i2.Next()->value, 'f');  // (e, f, g)
-  CHECK_EQ(i2.Next()->value, 'g');  // (e, g, g)
-  CHECK_EQ(i2.Get(), i3.Get());
-  CHECK_EQ(i2.Next()->value, 'g');  // (e, g2, g)
-  CHECK_NE(i2.Get(), i3.Get());
-  CHECK_EQ(i3.Delete()->value, 'g');  // (e, g2, g2) delete first g
-  tree.CheckInvariants();
-  CHECK_EQ(i1.Delete()->value, 'f');  // (f, g2, g2) delete e
-  tree.CheckInvariants();
-  CHECK_EQ(i1.Delete()->value, 'g');  // (g2, g2, g2) delete f
-  tree.CheckInvariants();
-  CHECK_EQ(i1.Get(), i2.Get());
-  CHECK_EQ(i1.Get(), i3.Get());
-  CHECK(i2.Next() == nullptr);    // (g2, 0, g2)
-  CHECK(i3.Next() == nullptr);    // (g2, 0, 0
-  CHECK(i1.Delete() == nullptr);  // (0, 0, 0) delete second g
-  tree.CheckInvariants();
-  CHECK_EQ(tree.size(), 0);
+  EXPECT_THAT(i1.Get(), NodeValue('a'));  // (a, b, c)
+  EXPECT_THAT(i2.Get(), NodeValue('b'));
+  EXPECT_THAT(i3.Get(), NodeValue('c'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(i1.Delete(), NodeValue('b'));  // (b, b, c) delete a
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(i3.Delete(), NodeValue('d'));  // (b, b, d) delete c
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(i2.Next(), NodeValue('d'));         // (b, d, d)
+  EXPECT_THAT(i2.Next(), NodeValue('e'));         // (b, e, d)
+  EXPECT_THAT(i3.Delete(), NodeValue('e'));       // (b, e, e) delete d
+  EXPECT_THAT(i3.Next(), NodeValue('g'));         // (b, e, g)
+  ASSERT_TRUE(InsertAndCheck(&tree, 3, 3, 'c'));  // (b, e, g) insert c
+  ASSERT_TRUE(InsertAndCheck(&tree, 6, 6, 'f'));
+  EXPECT_THAT(i1.Delete(), NodeValue('c'));  // (c, e, g) delete b
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(i1.Delete(), NodeValue('e'));  // (e, e, g) delete c
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_EQ(i1.Get(), i2.Get());
+  EXPECT_THAT(i2.Next(), NodeValue('f'));  // (e, f, g)
+  EXPECT_THAT(i2.Next(), NodeValue('g'));  // (e, g, g)
+  EXPECT_EQ(i2.Get(), i3.Get());
+  EXPECT_THAT(i2.Next(), NodeValue('g'));  // (e, g2, g)
+  EXPECT_NE(i2.Get(), i3.Get());
+  EXPECT_THAT(i3.Delete(), NodeValue('g'));  // (e, g2, g2) delete first g
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(i1.Delete(), NodeValue('f'));  // (f, g2, g2) delete e
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(i1.Delete(), NodeValue('g'));  // (g2, g2, g2) delete f
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_EQ(i1.Get(), i2.Get());
+  EXPECT_EQ(i1.Get(), i3.Get());
+  EXPECT_EQ(i2.Next(), nullptr);    // (g2, 0, g2)
+  EXPECT_EQ(i3.Next(), nullptr);    // (g2, 0, 0)
+  EXPECT_EQ(i1.Delete(), nullptr);  // (0, 0, 0) delete second g
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_EQ(tree.size(), 0);
   tree.InsertVal(4, 4, 'x');
   tree.InsertVal(5, 5, 'f');
-  tree.CheckInvariants();
+  ASSERT_TRUE(tree.CheckInvariants());
 }
 
-void TestIntervalTreeStrings(TreeFactory& factory) {
-  VLOG(1) << "Check Stable";
+TEST_P(IntervalTreeTest, TestIntervalTreeStrings) {
+  auto str = factory_.Create<int, std::string>();
 
-  auto str = factory.Create<int, std::string>();
-
-  InsertAndCheck(&str, 1, 1, std::string("a1"));
-  InsertAndCheck(&str, 2, 2, std::string("b1"));
-  InsertAndCheck(&str, 3, 3, std::string("c5"));
-  InsertAndCheck(&str, 1, 1, std::string("a2"));
-  InsertAndCheck(&str, 2, 2, std::string("b2"));
-  InsertAndCheck(&str, 1, 3, std::string("ac"));
-  InsertAndCheck(&str, 3, 3, std::string("c4"));
-  InsertAndCheck(&str, 3, 3, std::string("c3"));
-  InsertAndCheck(&str, 2, 2, std::string("b3"));
-  InsertAndCheck(&str, 1, 1, std::string("a3"));
-  InsertAndCheck(&str, 2, 2, std::string("b4"));
-  InsertAndCheck(&str, 3, 3, std::string("c2"));
-  InsertAndCheck(&str, 2, 2, std::string("b5"));
-  InsertAndCheck(&str, 3, 3, std::string("c1"));
-  InsertAndCheck(&str, 1, 1, std::string("a4"));
-  InsertAndCheck(&str, 1, 1, std::string("a5"));
-  InsertAndCheck(&str, 1, 2, std::string("ab"));
-  InsertAndCheck(&str, 2, 4, std::string("bd"));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 1, std::string("a1")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 2, std::string("b1")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c5")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 1, std::string("a2")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 2, std::string("b2")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 3, std::string("ac")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c4")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c3")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 2, std::string("b3")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 1, std::string("a3")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 2, std::string("b4")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c2")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 2, std::string("b5")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c1")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 1, std::string("a4")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 1, std::string("a5")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 2, std::string("ab")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 4, std::string("bd")));
 
   IntervalIterator<int, std::string> nullIter1(&str, -10, 0, INTERVAL_SMALLEST);
-  CHECK(nullIter1.Get() == nullptr);
+  EXPECT_EQ(nullIter1.Get(), nullptr);
   IntervalIterator<int, std::string> nullIter2(&str, 5, 6, INTERVAL_LARGEST);
-  CHECK(nullIter2.Get() == nullptr);
+  EXPECT_EQ(nullIter2.Get(), nullptr);
 
   IntervalIterator<int, std::string> strIter1(&str, 1, 5, INTERVAL_SMALLEST);
-  CHECK_EQ(strIter1.value(), "ac");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Next()->value, "ab");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Next()->value, "a1");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Next()->value, "a2");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Next()->value, "a3");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Next()->value, "a4");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Next()->value, "a5");
-  str.CheckInvariants();
-  *(str.Insert(1, 1)->ptr()) = "a6";  // same as str.InsertVal(1, 1, "a6");
+  ASSERT_THAT(strIter1.Get(), NodeValue("ac"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Next(), NodeValue("ab"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Next(), NodeValue("a1"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Next(), NodeValue("a2"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Next(), NodeValue("a3"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Next(), NodeValue("a4"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Next(), NodeValue("a5"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  auto* inserted_node = str.Insert(1, 1);
+  ASSERT_NE(inserted_node, nullptr);
+  *(inserted_node->ptr()) = "a6";  // same as str.InsertVal(1, 1, "a6")
   str.InsertVal(1, 1, "a7");
-  CHECK_EQ(strIter1.Next()->value, "a6");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Next()->value, "a7");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Next()->value, "bd");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Next()->value, "b1");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Next()->value, "b2");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Next()->value, "b3");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Next()->value, "b4");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Next()->value, "b5");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Next()->value, "c5");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Next()->value, "c4");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Next()->value, "c3");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Next()->value, "c2");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Next()->value, "c1");
-  str.CheckInvariants();
 
-  VLOG(1) << "Check Const";
-  CheckConst(&str);
+  EXPECT_THAT(strIter1.Next(), NodeValue("a6"));
+  ASSERT_TRUE(str.CheckInvariants());
 
-  VLOG(1) << "Check Previous";
+  EXPECT_THAT(strIter1.Next(), NodeValue("a7"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Next(), NodeValue("bd"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Next(), NodeValue("b1"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Next(), NodeValue("b2"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Next(), NodeValue("b3"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Next(), NodeValue("b4"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Next(), NodeValue("b5"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Next(), NodeValue("c5"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Next(), NodeValue("c4"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Next(), NodeValue("c3"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Next(), NodeValue("c2"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Next(), NodeValue("c1"));
+  ASSERT_TRUE(str.CheckInvariants());
+}
+
+TEST_P(IntervalTreeTest, TestStringsConstIteratorTraversal) {
+  auto str = factory_.Create<int, std::string>();
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 1, std::string("a2")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 2, std::string("b2")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 3, std::string("ac")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c4")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 2, std::string("b3")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 2, std::string("ab")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 4, std::string("bd")));
+
+  // You can only create ConstIntervalIterator from const IntervalTree
+  const ConstIntervalIterator<int, std::string> iter(&str, 1, 5,
+                                                     INTERVAL_SMALLEST);
+  EXPECT_THAT(iter.Get(), NodeValue("ac"));
+
+  // One can not move to next in a const iterator
+  ConstIntervalIterator<int, std::string> del(&str, 1, 5, INTERVAL_SMALLEST);
+  EXPECT_THAT(del.Next(), NodeValue("ab"));
+  // One can not delete from a const tree
+}
+
+TEST_P(IntervalTreeTest, TestStringsReverseIteration) {
+  auto str = factory_.Create<int, std::string>();
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 1, std::string("a1")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 2, std::string("b1")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c5")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 3, std::string("ac")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c4")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c3")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c2")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 2, std::string("b5")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c1")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 2, std::string("ab")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 4, std::string("bd")));
 
   IntervalIterator<int, std::string> strIterNull(&str, 3, 3, INTERVAL_SMALLEST);
-  CHECK(strIterNull.Prev() == nullptr);
+  EXPECT_EQ(strIterNull.Prev(), nullptr);
 
-  CHECK_EQ(strIter1.Prev()->value, "c2");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Prev()->value, "c3");
-  str.CheckInvariants();
-  CHECK_EQ(strIter1.Prev()->value, "c4");
-  str.CheckInvariants();
+  IntervalIterator<int, std::string> strIter1(&str, 1, 5, INTERVAL_SMALLEST);
+  while (strIter1.Get() != nullptr && strIter1.value() != "c1") {
+    strIter1.Next();
+  }
+  ASSERT_NE(strIter1.Get(), nullptr);
+
+  EXPECT_THAT(strIter1.Prev(), NodeValue("c2"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Prev(), NodeValue("c3"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter1.Prev(), NodeValue("c4"));
+  ASSERT_TRUE(str.CheckInvariants());
 
   IntervalIterator<int, std::string> strIter2(&str, 3, 4, INTERVAL_LARGEST);
   IntervalIterator<int, std::string> strIter3(&str, 2, 3, INTERVAL_LARGEST);
 
-  CHECK_EQ(strIter2.Get()->value, "c1");
-  str.CheckInvariants();
-  CHECK_EQ(strIter3.Get()->value, "c1");
-  str.CheckInvariants();
+  EXPECT_THAT(strIter2.Get(), NodeValue("c1"));
+  ASSERT_TRUE(str.CheckInvariants());
 
-  CHECK_EQ(strIter2.Prev()->value, "c2");
-  str.CheckInvariants();
-  CHECK_EQ(strIter3.Prev()->value, "c2");
-  str.CheckInvariants();
-  CHECK_EQ(strIter2.Prev()->value, "c3");
-  str.CheckInvariants();
-  CHECK_EQ(strIter3.Prev()->value, "c3");
-  str.CheckInvariants();
+  EXPECT_THAT(strIter3.Get(), NodeValue("c1"));
+  ASSERT_TRUE(str.CheckInvariants());
 
-  CHECK_EQ(strIter1.Prev()->value, "c5");
-  str.CheckInvariants();
-  CHECK_EQ(strIter2.Prev()->value, "c4");
-  str.CheckInvariants();
-  CHECK_EQ(strIter3.Prev()->value, "c4");
-  str.CheckInvariants();
+  EXPECT_THAT(strIter2.Prev(), NodeValue("c2"));
+  ASSERT_TRUE(str.CheckInvariants());
 
-  VLOG(1) << "Check ResetRange";
+  EXPECT_THAT(strIter3.Prev(), NodeValue("c2"));
+  ASSERT_TRUE(str.CheckInvariants());
 
-  strIter2.ResetRange(1, 1);
-  CHECK_EQ(strIter2.Prev()->value, "a7");
-  str.CheckInvariants();
-  strIter2.ResetRange(2, 2);
-  CHECK_EQ(strIter2.Next()->value, "bd");
-  str.CheckInvariants();
-  CHECK_EQ(strIter2.Next()->value, "b1");
-  str.CheckInvariants();
-  strIter2.ResetRange(3, 3);
-  CHECK_EQ(strIter2.Next()->value, "c5");
-  str.CheckInvariants();
+  EXPECT_THAT(strIter2.Prev(), NodeValue("c3"));
+  ASSERT_TRUE(str.CheckInvariants());
 
-  VLOG(1) << "Check other constructors";
+  EXPECT_THAT(strIter3.Prev(), NodeValue("c3"));
+  ASSERT_TRUE(str.CheckInvariants());
 
-  IntervalIterator<int, std::string> strIter4(&str, strIter2.Get());
-  strIter4.ResetRange(2, 4);
-  CHECK_EQ(strIter4.Next()->value, "c4");
+  EXPECT_THAT(strIter1.Prev(), NodeValue("c5"));
+  ASSERT_TRUE(str.CheckInvariants());
 
-  IntervalIterator<int, std::string> strIter5(&str, 2, 3);
-  CHECK_EQ(strIter5.value(), "b1");
+  EXPECT_THAT(strIter2.Prev(), NodeValue("c4"));
+  ASSERT_TRUE(str.CheckInvariants());
 
-  IntervalIterator<int, std::string> strIter6(&str, 2, 2);
-  CHECK_EQ(strIter6.value(), "b1");
-
-  InsertAndCheck(&str, 1, 3, std::string("ac2"));
-  IntervalIterator<int, std::string> strIter7(&str, 1, 3);
-  CHECK_EQ(strIter7.value(), "ac");
+  EXPECT_THAT(strIter3.Prev(), NodeValue("c4"));
+  ASSERT_TRUE(str.CheckInvariants());
 }
 
-void TestIntervalTreeRanges(TreeFactory& factory) {
-  VLOG(1) << "Check overlaps";
-  auto integer = factory.Create<int, int>();
+TEST_P(IntervalTreeTest, TestIntervalTreePrevDelete) {
+  auto tree = factory_.Create<int, char>();
+  ASSERT_TRUE(InsertAndCheck(&tree, 1, 1, 'a'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 2, 2, 'b'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 3, 3, 'c'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 4, 4, 'd'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 5, 5, 'e'));
+
+  IntervalIterator<int, char> iter(&tree, 1, 5, INTERVAL_LARGEST);
+  ASSERT_THAT(iter.Get(), NodeValue('e'));
+
+  EXPECT_THAT(iter.PrevDelete(), NodeValue('d'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_EQ(tree.size(), 4);
+
+  EXPECT_THAT(iter.PrevDelete(), NodeValue('c'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_EQ(tree.size(), 3);
+
+  EXPECT_THAT(iter.PrevDelete(), NodeValue('b'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_EQ(tree.size(), 2);
+
+  EXPECT_THAT(iter.PrevDelete(), NodeValue('a'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_EQ(tree.size(), 1);
+
+  EXPECT_EQ(iter.PrevDelete(), nullptr);
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_EQ(tree.size(), 0);
+}
+
+TEST_P(IntervalTreeTest, TestConstIntervalIteratorPrev) {
+  auto tree = factory_.Create<int, char>();
+  ASSERT_TRUE(InsertAndCheck(&tree, 1, 1, 'a'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 2, 2, 'b'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 3, 3, 'c'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 4, 4, 'd'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 5, 5, 'e'));
+
+  ConstIntervalIterator<int, char> iter(&tree, 1, 5, INTERVAL_LARGEST);
+  ASSERT_THAT(iter.Get(), NodeValue('e'));
+
+  EXPECT_THAT(iter.Prev(), NodeValue('d'));
+  ASSERT_TRUE(tree.CheckInvariants());
+
+  EXPECT_THAT(iter.Prev(), NodeValue('c'));
+  ASSERT_TRUE(tree.CheckInvariants());
+
+  EXPECT_THAT(iter.Prev(), NodeValue('b'));
+  ASSERT_TRUE(tree.CheckInvariants());
+
+  EXPECT_THAT(iter.Prev(), NodeValue('a'));
+  ASSERT_TRUE(tree.CheckInvariants());
+
+  EXPECT_EQ(iter.Prev(), nullptr);
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_EQ(tree.size(), 5);
+}
+
+TEST_P(IntervalTreeTest, TestStringsResetRange) {
+  auto str = factory_.Create<int, std::string>();
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 1, std::string("a1")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 2, std::string("b1")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c5")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 1, std::string("a2")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 2, std::string("b2")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 3, std::string("ac")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c4")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c3")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 2, std::string("b3")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 1, std::string("a3")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 2, std::string("b4")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c2")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 2, std::string("b5")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c1")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 1, std::string("a4")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 1, std::string("a5")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 2, std::string("ab")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 4, std::string("bd")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 1, std::string("a6")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 1, std::string("a7")));
+
+  IntervalIterator<int, std::string> strIter2(&str, 3, 4, INTERVAL_LARGEST);
+  EXPECT_THAT(strIter2.Get(), NodeValue("c1"));
+  EXPECT_THAT(strIter2.Prev(), NodeValue("c2"));
+  EXPECT_THAT(strIter2.Prev(), NodeValue("c3"));
+  EXPECT_THAT(strIter2.Prev(), NodeValue("c4"));
+
+  strIter2.ResetRange(1, 1);
+  EXPECT_THAT(strIter2.Prev(), NodeValue("a7"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  strIter2.ResetRange(2, 2);
+  EXPECT_THAT(strIter2.Next(), NodeValue("bd"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  EXPECT_THAT(strIter2.Next(), NodeValue("b1"));
+  ASSERT_TRUE(str.CheckInvariants());
+
+  strIter2.ResetRange(3, 3);
+  EXPECT_THAT(strIter2.Next(), NodeValue("c5"));
+  ASSERT_TRUE(str.CheckInvariants());
+}
+
+TEST_P(IntervalTreeTest, TestIntervalTreeReset) {
+  auto tree = factory_.Create<int, char>();
+  ASSERT_TRUE(InsertAndCheck(&tree, 1, 3, 'a'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 2, 4, 'b'));
+  ASSERT_TRUE(InsertAndCheck(&tree, 5, 7, 'c'));
+
+  tree.Reset();
+
+  EXPECT_TRUE(tree.empty());
+  EXPECT_EQ(tree.size(), 0);
+  ASSERT_TRUE(tree.CheckInvariants());
+
+  IntervalIterator<int, char> iter(&tree, 0, 10, INTERVAL_SMALLEST);
+  EXPECT_EQ(iter.Get(), nullptr);
+}
+
+TEST_P(IntervalTreeTest, TestStringsAlternateConstructors) {
+  auto str = factory_.Create<int, std::string>();
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 1, std::string("a1")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 2, std::string("b1")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c5")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 2, std::string("b2")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 3, std::string("ac")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c4")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c3")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c2")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 2, std::string("b5")));
+  ASSERT_TRUE(InsertAndCheck(&str, 3, 3, std::string("c1")));
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 2, std::string("ab")));
+  ASSERT_TRUE(InsertAndCheck(&str, 2, 4, std::string("bd")));
+
+  IntervalIterator<int, std::string> find_c5(&str, 3, 3, INTERVAL_SMALLEST);
+  while (find_c5.Get() != nullptr && find_c5.value() != "c5") {
+    find_c5.Next();
+  }
+  auto* c5_node = find_c5.Get();
+  EXPECT_THAT(c5_node, NodeValue("c5"));
+
+  IntervalIterator<int, std::string> strIter4(&str, c5_node);
+  strIter4.ResetRange(2, 4);
+  EXPECT_THAT(strIter4.Next(), NodeValue("c4"));
+
+  IntervalIterator<int, std::string> strIter5(&str, 2, 3);
+  EXPECT_THAT(strIter5.Get(), NodeValue("b1"));
+
+  IntervalIterator<int, std::string> strIter6(&str, 2, 2);
+  EXPECT_THAT(strIter6.Get(), NodeValue("b1"));
+
+  ASSERT_TRUE(InsertAndCheck(&str, 1, 3, std::string("ac2")));
+  IntervalIterator<int, std::string> strIter7(&str, 1, 3);
+  EXPECT_THAT(strIter7.Get(), NodeValue("ac"));
+}
+
+TEST_P(IntervalTreeTest, TestOverlappingRangesSmallest) {
+  auto integer = factory_.Create<int, int>();
   integer.InsertVal(0, 0, 1);
   integer.InsertVal(0, 1, 0);
   integer.InsertVal(1, 2, 2);
-  integer.InsertVal(3, 3, 4);
-  integer.InsertVal(3, 5, 3);
-  integer.InsertVal(5, 5, 6);
-  integer.InsertVal(5, 5, 7);
-  integer.InsertVal(5, 7, 5);
-  integer.InsertVal(7, 8, 8);
-  int max;
 
   VLOG(2) << integer.DebugString();
 
-  max = 0;
-  for (IntervalIterator<int, int> iter(&integer, 0, 10, INTERVAL_SMALLEST);
-       iter.Next() != nullptr;) {
-    CHECK_EQ(iter.value(), max + 1);
-    max = iter.value();
-  }
+  EXPECT_THAT(ExtractValues(IntervalIterator<int, int>(&integer, 0, 10,
+                                                       INTERVAL_SMALLEST)),
+              ElementsAre(NodeValue(0), NodeValue(1), NodeValue(2)));
+}
 
-  integer.Reset();
+TEST_P(IntervalTreeTest, TestOverlappingRangesLargest) {
+  auto integer = factory_.Create<int, int>();
   integer.InsertVal(0, 1, 0);
   integer.InsertVal(1, 1, 1);
   integer.InsertVal(2, 2, 2);
@@ -833,13 +1040,15 @@ void TestIntervalTreeRanges(TreeFactory& factory) {
   integer.InsertVal(5, 7, 5);
   integer.InsertVal(7, 8, 8);
 
-  max = 8;
-  for (IntervalIterator<int, int> iter(&integer, 0, 10, INTERVAL_LARGEST);
-       iter.Prev() != nullptr;) {
-    CHECK_EQ(iter.value(), max - 1);
-    max = iter.value();
-  }
-  integer.Reset();
+  EXPECT_THAT(ExtractValuesReverse(IntervalIterator<int, int>(
+                  &integer, 0, 10, INTERVAL_LARGEST)),
+              ElementsAre(NodeValue(8), NodeValue(7), NodeValue(6),
+                          NodeValue(5), NodeValue(4), NodeValue(3),
+                          NodeValue(2), NodeValue(1), NodeValue(0)));
+}
+
+TEST_P(IntervalTreeTest, TestOverlappingRangesConstSmallest) {
+  auto integer = factory_.Create<int, int>();
   integer.InsertVal(0, 0, 1);
   integer.InsertVal(0, 0, 2);
   integer.InsertVal(0, 2, 0);
@@ -859,64 +1068,67 @@ void TestIntervalTreeRanges(TreeFactory& factory) {
   integer.InsertVal(9, 10, 15);
   integer.InsertVal(10, 10, 17);
 
-  max = 0;
-  for (ConstIntervalIterator<int, int> iter(&integer, 0, 10, INTERVAL_SMALLEST);
-       iter.Next() != nullptr;) {
-    CHECK_EQ(iter.value(), max + 1);
-    max = iter.value();
-  }
+  EXPECT_THAT(
+      ExtractValues(
+          ConstIntervalIterator<int, int>(&integer, 0, 10, INTERVAL_SMALLEST)),
+      ElementsAre(NodeValue(0), NodeValue(1), NodeValue(2), NodeValue(3),
+                  NodeValue(4), NodeValue(5), NodeValue(6), NodeValue(7),
+                  NodeValue(8), NodeValue(9), NodeValue(10), NodeValue(11),
+                  NodeValue(12), NodeValue(13), NodeValue(14), NodeValue(15),
+                  NodeValue(16), NodeValue(17)));
+}
 
-  VLOG(1) << "Check how Vector handles duplicate";
-
-  integer.Reset();
+TEST_P(IntervalTreeTest, TestVectorDuplicateHandling) {
+  auto integer = factory_.Create<int, int>();
   integer.InsertVal(1, 3, 1);
   integer.InsertVal(1, 3, 2);
+  integer.InsertVal(3, 4, 3);
+  integer.InsertVal(6, 6, 5);
+
+  IntervalIterator<int, int> iter0(&integer, -5, -3, INTERVAL_SMALLEST);
+  EXPECT_EQ(iter0.Get(), nullptr);
+
+  IntervalIterator<int, int> iter1(&integer, 9, 9, INTERVAL_SMALLEST);
+  EXPECT_EQ(iter1.Get(), nullptr);
+
+  IntervalIterator<int, int> iter2(&integer, 3, 3, INTERVAL_SMALLEST);
+  EXPECT_THAT(iter2.Get(), NodeValue(1));
+  EXPECT_EQ(iter2.Prev(), nullptr);
+
+  IntervalIterator<int, int> iter3(&integer, 5, 5, INTERVAL_SMALLEST);
+  EXPECT_EQ(iter3.Get(), nullptr);
+
+  IntervalIterator<int, int> iter4(&integer, 5, 6, INTERVAL_SMALLEST);
+  EXPECT_THAT(iter4.Get(), NodeValue(5));
+
+  IntervalIterator<int, int> iter5(&integer, 4, 5, INTERVAL_SMALLEST);
+  EXPECT_THAT(iter5.Get(), NodeValue(3));
+}
+
+TEST_P(IntervalTreeTest, TestBackwardIteratorDuplicateHandling) {
+  auto integer = factory_.Create<int, int>();
   integer.InsertVal(3, 4, 3);
   integer.InsertVal(3, 4, 4);
   integer.InsertVal(6, 6, 5);
 
-  {
-    IntervalIterator<int, int> iter0(&integer, -5, -3, INTERVAL_SMALLEST);
-    CHECK(iter0.Get() == nullptr);
+  IntervalIterator<int, int> iter1(&integer, 5, 5, INTERVAL_LARGEST);
+  EXPECT_EQ(iter1.Get(), nullptr);
 
-    IntervalIterator<int, int> iter1(&integer, 9, 9, INTERVAL_SMALLEST);
-    CHECK(iter1.Get() == nullptr);
+  IntervalIterator<int, int> iter2(&integer, 3, 3, INTERVAL_LARGEST);
+  EXPECT_THAT(iter2.Get(), NodeValue(4));
 
-    IntervalIterator<int, int> iter2(&integer, 3, 3, INTERVAL_SMALLEST);
-    CHECK_EQ(iter2.value(), 1);
-    CHECK(iter2.Prev() == nullptr);
-
-    IntervalIterator<int, int> iter3(&integer, 5, 5, INTERVAL_SMALLEST);
-    CHECK(iter3.Get() == nullptr);
-
-    IntervalIterator<int, int> iter4(&integer, 5, 6, INTERVAL_SMALLEST);
-    CHECK_EQ(iter4.value(), 5);
-
-    IntervalIterator<int, int> iter5(&integer, 4, 5, INTERVAL_SMALLEST);
-    CHECK_EQ(iter5.value(), 3);
-  }
-
-  VLOG(1) << "Check how backward iterator handles duplicate";
-  {
-    IntervalIterator<int, int> iter1(&integer, 5, 5, INTERVAL_LARGEST);
-    CHECK(iter1.Get() == nullptr);
-
-    IntervalIterator<int, int> iter2(&integer, 3, 3, INTERVAL_LARGEST);
-    CHECK_EQ(iter2.value(), 4);
-
-    IntervalIterator<int, int> iter3(&integer, 5, 6, INTERVAL_LARGEST);
-    CHECK_EQ(iter3.value(), 5);
-  }
+  IntervalIterator<int, int> iter3(&integer, 5, 6, INTERVAL_LARGEST);
+  EXPECT_THAT(iter3.Get(), NodeValue(5));
 }
 
 // Return true if two integer-based interval trees equal.
-bool TreeEqual(const IntervalTree<int, int>& tree1,
-               const IntervalTree<int, int>& tree2) {
+MATCHER_P(TreeEquals, expected_tree_ptr, "") {
   absl::node_hash_map<std::string, std::set<int>> ht1, ht2;
   char interval_buffer[100];
-  ConstIntervalIterator<int, int> iter1(&tree1, std::numeric_limits<int>::min(),
+  ConstIntervalIterator<int, int> iter1(&arg, std::numeric_limits<int>::min(),
                                         std::numeric_limits<int>::max());
-  ConstIntervalIterator<int, int> iter2(&tree2, std::numeric_limits<int>::min(),
+  ConstIntervalIterator<int, int> iter2(expected_tree_ptr,
+                                        std::numeric_limits<int>::min(),
                                         std::numeric_limits<int>::max());
   while (iter1.Get() != nullptr) {
     snprintf(interval_buffer, sizeof(interval_buffer), "%d-%d",
@@ -941,117 +1153,110 @@ bool TreeEqual(const IntervalTree<int, int>& tree1,
   return (ht1 == ht2);
 }
 
-void TestMakeLinearCopy(TreeFactory& factory) {
-  unsigned int seed = time(nullptr);
-  const auto& default_copy_function = [](const int src_value,
-                                         int* dst_value) -> void {
-    *dst_value = src_value;
-  };
-  // empty tree.
-  {
-    auto tree = factory.Create<int, int>();
-    tree.UpdateStructure();
-    auto tree_copy = tree.MakeLinearCopy(default_copy_function);
-    CHECK(tree_copy != nullptr);
-    CHECK(TreeEqual(*tree_copy, tree));
-    delete tree_copy;
-  }
-  // vector structure.
-  {
-    for (int trail = 0; trail < 10; ++trail) {
-      auto tree = factory.Create<int, int>();
-      std::vector<IntervalTree<int, int>::TreeNode> operation_nodes;
-      for (int i = 1000; i >= 0; --i) {
-        int span = rand_r(&seed) % 4;
-        int begin = i * 10 - span;
-        int end = i * 10 + span;
-        if (i > 10)
-          tree.InsertVal(begin, end, i);
-        else
-          operation_nodes.push_back(IntervalNode<int, int>(begin, end, i));
-      }
-      tree.UpdateStructure();
-      auto tree_copy = tree.MakeLinearCopy(default_copy_function);
-      CHECK(tree_copy != nullptr);
-      CHECK(TreeEqual(*tree_copy, tree));
-      // Add more nodes to tree and tree_copy, then check if they are equal.
-      for (const auto& node : operation_nodes) {
-        tree.InsertVal(node.begin, node.end, node.value);
-        tree_copy->InsertVal(node.begin, node.end, node.value);
-      }
-      tree.UpdateStructure();
-      tree_copy->UpdateStructure();
-      CHECK(TreeEqual(*tree_copy, tree));
-      // Delete nodes from tree and tree_copy, then check if they are equal.
-      for (int i = 0; i < operation_nodes.size(); ++i) {
-        int begin = operation_nodes[i].begin;
-        int end = operation_nodes[i].end;
-        IntervalIterator<int, int> iter1(&tree, begin, end, INTERVAL_SMALLEST);
-        IntervalIterator<int, int> iter2(tree_copy, begin, end,
-                                         INTERVAL_SMALLEST);
-        if (iter1.Get()) iter1.Delete();
-        if (iter2.Get()) iter2.Delete();
-        // Check iter reaches end after deleting the interval, because there
-        // can only be one matching interval as intervals are not overlapping.
-        CHECK_EQ(nullptr, iter1.Get());
-        CHECK_EQ(nullptr, iter2.Get());
-        // Check the trees are equal after deleting the same interval.
-        tree.UpdateStructure();
-        tree_copy->UpdateStructure();
-        CHECK(TreeEqual(*tree_copy, tree));
-      }
-      // Clean up.
-      delete tree_copy;
-    }
-  }
-  // tree structure.
-  {
+void DefaultCopyFunction(const int src_value, int* dst_value) {
+  *dst_value = src_value;
+}
+
+TEST_P(IntervalTreeTest, TestMakeLinearCopyEmpty) {
+  auto tree = factory_.Create<int, int>();
+  tree.UpdateStructure();
+  auto tree_copy = absl::WrapUnique(tree.MakeLinearCopy(DefaultCopyFunction));
+  ASSERT_NE(tree_copy, nullptr);
+  EXPECT_THAT(*tree_copy, TreeEquals(&tree));
+}
+
+TEST_P(IntervalTreeTest, TestMakeLinearCopyVectorStructure) {
+  absl::BitGen bitgen;
+  for (int trail = 0; trail < 10; ++trail) {
+    auto tree = factory_.Create<int, int>();
     std::vector<IntervalTree<int, int>::TreeNode> operation_nodes;
-    for (int trail = 0; trail < 10; ++trail) {
-      auto tree = factory.Create<int, int>();
-      for (int i = 0; i < 1000; ++i) {
-        int span = rand_r(&seed) % 15;
-        int begin = i * 10 - span;
-        int end = i * 10 + span;
-        if (i > 10)
-          tree.InsertVal(begin, end, i);
-        else
-          operation_nodes.push_back(IntervalNode<int, int>(begin, end, i));
-      }
-      tree.UpdateStructure();
-      auto tree_copy = tree.MakeLinearCopy(default_copy_function);
-      CHECK(tree_copy != nullptr);
-      CHECK(TreeEqual(*tree_copy, tree));
-      // Add more nodes to tree and tree_copy, then check if they are equal.
-      for (const auto& node : operation_nodes) {
-        tree.InsertVal(node.begin, node.end, node.value);
-        tree_copy->InsertVal(node.begin, node.end, node.value);
-      }
-      tree.UpdateStructure();
-      tree_copy->UpdateStructure();
-      CHECK(TreeEqual(*tree_copy, tree));
-      // Delete nodes from tree and tree_copy, then check if they are equal.
-      int begin = 10;
-      int end = 100;
+    for (int i = 1000; i >= 0; --i) {
+      int span = absl::Uniform(bitgen, 0, 4);
+      int begin = i * 10 - span;
+      int end = i * 10 + span;
+      if (i > 10)
+        tree.InsertVal(begin, end, i);
+      else
+        operation_nodes.push_back(IntervalNode<int, int>(begin, end, i));
+    }
+    tree.UpdateStructure();
+    auto tree_copy = absl::WrapUnique(tree.MakeLinearCopy(DefaultCopyFunction));
+    ASSERT_NE(tree_copy, nullptr);
+    EXPECT_THAT(*tree_copy, TreeEquals(&tree));
+    // Add more nodes to tree and tree_copy, then check if they are equal.
+    for (const auto& node : operation_nodes) {
+      tree.InsertVal(node.begin, node.end, node.value);
+      tree_copy->InsertVal(node.begin, node.end, node.value);
+    }
+    tree.UpdateStructure();
+    tree_copy->UpdateStructure();
+    EXPECT_THAT(*tree_copy, TreeEquals(&tree));
+    // Delete nodes from tree and tree_copy, then check if they are equal.
+    for (int i = 0; i < operation_nodes.size(); ++i) {
+      int begin = operation_nodes[i].begin;
+      int end = operation_nodes[i].end;
       IntervalIterator<int, int> iter1(&tree, begin, end, INTERVAL_SMALLEST);
-      IntervalIterator<int, int> iter2(tree_copy, begin, end,
+      IntervalIterator<int, int> iter2(tree_copy.get(), begin, end,
                                        INTERVAL_SMALLEST);
-      while (iter1.Get()) {
-        iter1.Delete();
-      }
-      while (iter2.Get()) {
-        iter2.Delete();
-      }
+      if (iter1.Get()) iter1.Delete();
+      if (iter2.Get()) iter2.Delete();
+      // Check iter reaches end after deleting the interval, because there
+      // can only be one matching interval as intervals are not overlapping.
+      EXPECT_EQ(nullptr, iter1.Get());
+      EXPECT_EQ(nullptr, iter2.Get());
+      // Check the trees are equal after deleting the same interval.
       tree.UpdateStructure();
       tree_copy->UpdateStructure();
-      CHECK(TreeEqual(*tree_copy, tree));
-      // Clean up.
-      delete tree_copy;
+      EXPECT_THAT(*tree_copy, TreeEquals(&tree));
     }
   }
 }
 
-void TestMakeLinearCopyOnArena() {
+TEST_P(IntervalTreeTest, TestMakeLinearCopyTreeStructure) {
+  absl::BitGen bitgen;
+  for (int trail = 0; trail < 10; ++trail) {
+    std::vector<IntervalTree<int, int>::TreeNode> operation_nodes;
+    auto tree = factory_.Create<int, int>();
+    for (int i = 0; i < 1000; ++i) {
+      int span = absl::Uniform(bitgen, 0, 15);
+      int begin = i * 10 - span;
+      int end = i * 10 + span;
+      if (i > 10)
+        tree.InsertVal(begin, end, i);
+      else
+        operation_nodes.push_back(IntervalNode<int, int>(begin, end, i));
+    }
+    tree.UpdateStructure();
+    auto tree_copy = absl::WrapUnique(tree.MakeLinearCopy(DefaultCopyFunction));
+    ASSERT_NE(tree_copy, nullptr);
+    EXPECT_THAT(*tree_copy, TreeEquals(&tree));
+    // Add more nodes to tree and tree_copy, then check if they are equal.
+    for (const auto& node : operation_nodes) {
+      tree.InsertVal(node.begin, node.end, node.value);
+      tree_copy->InsertVal(node.begin, node.end, node.value);
+    }
+    tree.UpdateStructure();
+    tree_copy->UpdateStructure();
+    EXPECT_THAT(*tree_copy, TreeEquals(&tree));
+    // Delete nodes from tree and tree_copy, then check if they are equal.
+    int begin = 10;
+    int end = 100;
+    IntervalIterator<int, int> iter1(&tree, begin, end, INTERVAL_SMALLEST);
+    IntervalIterator<int, int> iter2(tree_copy.get(), begin, end,
+                                     INTERVAL_SMALLEST);
+    while (iter1.Get()) {
+      iter1.Delete();
+    }
+    while (iter2.Get()) {
+      iter2.Delete();
+    }
+    tree.UpdateStructure();
+    tree_copy->UpdateStructure();
+    EXPECT_THAT(*tree_copy, TreeEquals(&tree));
+  }
+}
+
+TEST(IntervalTreeBasicTest, TestMakeLinearCopyOnArena) {
   IntervalTree<int, int64_t> tree;
   tree.InsertVal(0, 1, 64);
   alignas(alignof(int64_t)) char buffer[1024];
@@ -1062,26 +1267,26 @@ void TestMakeLinearCopyOnArena() {
             *dst_value = src_value;
           },
           &arena));
+  ASSERT_NE(tree_copy, nullptr);
   const IntervalNode<int, int64_t, std::less<int>>* node =
       IntervalIterator<int, int64_t>(tree_copy.get(), 0, 1, INTERVAL_SMALLEST)
           .Get();
 
   // check that the node was allocated on the arena.
-  CHECK_GE(static_cast<const void*>(node), static_cast<const void*>(buffer));
-  CHECK_LE(static_cast<const void*>(node + 1),
-           static_cast<const void*>(buffer + sizeof(buffer)));
-  CHECK_EQ(node->value, 64);
+  ASSERT_NE(node, nullptr);
+  EXPECT_GE(static_cast<const void*>(node), static_cast<const void*>(buffer));
+  EXPECT_LE(static_cast<const void*>(node + 1),
+            static_cast<const void*>(buffer + sizeof(buffer)));
+  EXPECT_EQ(node->value, 64);
 }
 
 // Test that struct key w/o comparison operators works well with the interval
 // tree.
-namespace {
 struct StructKey {
   explicit StructKey(int32_t value_in) : value(value_in) {}
 
   StructKey operator+(int delta) const {
     StructKey ret(value + delta);
-    ;
     return ret;
   }
 
@@ -1099,7 +1304,7 @@ struct StructKeyComparator {
   }
 };
 
-}  // anonymous namespace
+}  // namespace
 
 template <>
 class IntervalTreeLimits<StructKey> {
@@ -1112,52 +1317,104 @@ class IntervalTreeLimits<StructKey> {
   }
 };
 
-void RunIntervalTreeTests(TreeFactory& factory) {
-  VLOG(1) << "Check Closed Intervals";
-  CheckClosedIntervals(factory);
+namespace {
 
-  VLOG(1) << "Check Foo";
-  CheckFoo(factory);
+template <typename T>
+class IntervalNodeTest : public ::testing::Test {};
 
-  VLOG(1) << "Check InsertVal";
-  CheckInsertValUniquePtr(factory);
-  CheckInsertValTemporaryValue(factory);
-  CheckInsertValAggregate(factory);
+using IntervalNodeTypes = ::testing::Types<int, int64_t, double>;
+TYPED_TEST_SUITE(IntervalNodeTest, IntervalNodeTypes);
 
-  VLOG(1) << "Check Bug";
-  CheckBug(factory);
-  CheckNodeIteratorBug(factory);
+TYPED_TEST(IntervalNodeTest, TestIntervalNode) {
+  using T = TypeParam;
+  VLOG(1) << "Check IntervalNode<T, int>";
+  IntervalNode<T, int> node(1, 5);
+  *(node.ptr()) = 15;
 
-  TestCtorAndDtor(factory);
-  TestCtorAndDtor2(factory);
-  TestIntervalNode<int>(1, 5);
-  TestIntervalNode<int64_t>(1, 5);
-  TestIntervalNode<double>(1, 5);
-  TestIntervalTree<int>(0);
-  TestIntervalTree<int64_t>(0);
-  TestIntervalTree<double>(0.0);
-  TestIntervalTree<StructKey, StructKeyComparator>(StructKey(100),
-                                                   StructKeyComparator());
+  EXPECT_EQ(node.value, 15);
+  EXPECT_EQ(node.begin, 1);
+  EXPECT_EQ(node.end, 5);
 
-  TestIntervalTreeBasic(factory);
-  TestIntervalTreeStrings(factory);
-  TestIntervalTreeRanges(factory);
-  TestMakeLinearCopy(factory);
-  TestMakeLinearCopyOnArena();
+  EXPECT_GT(node.max_value(), node.min_value());
+  EXPECT_GT(node.max_value(), T(0));
+  EXPECT_LT(node.min_value(), T(0));
 }
 
-int main(int argc, char** argv) {
-  InitGoogle(argv[0], &argc, &argv, true);
-  if (!benchmark::GetBenchmarkFilter().empty()) {
-    benchmark::RunSpecifiedBenchmarks();
-    exit(0);
-  }
-  for (TestMode mode : {TestMode::kDefaultArena, TestMode::kUserArena,
-                        TestMode::kHeapAllocation}) {
-    TreeFactory factory(mode);
-    RunIntervalTreeTests(factory);
-  }
+template <typename K, typename V = char, typename C = std::less<K>>
+struct IntervalTreeTestParam {
+  using Key = K;
+  using Value = V;
+  using Comparator = C;
+  using Tree = IntervalTree<Key, Value, Comparator>;
+  static Key k() { return Key(0); }
+};
 
-  printf("PASS\n");
-  return 0;
+template <>
+struct IntervalTreeTestParam<StructKey, char, StructKeyComparator> {
+  using Key = StructKey;
+  using Value = char;
+  using Comparator = StructKeyComparator;
+  using Tree = IntervalTree<Key, Value, Comparator>;
+  static Key k() { return StructKey(100); }
+};
+
+template <typename T>
+class IntervalTreeBasicTest : public ::testing::Test {};
+
+using IntervalTreeTypes = ::testing::Types<
+    IntervalTreeTestParam<int>, IntervalTreeTestParam<int64_t>,
+    IntervalTreeTestParam<double>,
+    IntervalTreeTestParam<StructKey, char, StructKeyComparator>>;
+TYPED_TEST_SUITE(IntervalTreeBasicTest, IntervalTreeTypes);
+
+TYPED_TEST(IntervalTreeBasicTest, TestIntervalTree) {
+  using Param = TypeParam;
+  using Key = typename Param::Key;
+  using Comparator = typename Param::Comparator;
+  using Tree = typename Param::Tree;
+
+  Comparator less;
+  Tree tree(less);
+  Key k = Param::k();
+
+  VLOG(1) << "Check Insert";
+  EXPECT_EQ(tree.size(), 0);
+  ASSERT_TRUE(InsertAndCheck(&tree, k - 10, k + 2, 'a'));
+  ASSERT_TRUE(InsertAndCheck(&tree, k + 5, k + 6, 'e'));
+  ASSERT_TRUE(InsertAndCheck(&tree, k + 7, k + 8, 'f'));
+  ASSERT_TRUE(InsertAndCheck(&tree, k + 2, k + 3, 'c'));
+  ASSERT_TRUE(InsertAndCheck(&tree, k + 5, k + 7, 'd'));
+  ASSERT_TRUE(InsertAndCheck(&tree, k + 2, k + 5, 'b'));
+  ASSERT_TRUE(InsertAndCheck(&tree, k + 10, k + 12, 'g'));
+
+  typename decltype(tree)::iterator iter(&tree, k - 2, k + 10,
+                                         INTERVAL_SMALLEST);
+
+  VLOG(1) << "Check IntervalIterator";
+  EXPECT_THAT(iter.Get(), NodeValue('a'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter.Next(), NodeValue('b'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter.Next(), NodeValue('c'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter.Next(), NodeValue('d'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter.Next(), NodeValue('e'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter.Get(), NodeValue('e'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter.Next(), NodeValue('f'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  tree.InsertVal(k + 10, k + 11, 'h');
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter.Next(), NodeValue('g'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_THAT(iter.Next(), NodeValue('h'));
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_EQ(iter.Next(), nullptr);
+  ASSERT_TRUE(tree.CheckInvariants());
+  EXPECT_EQ(iter.Get(), nullptr);
+  ASSERT_TRUE(tree.CheckInvariants());
 }
+
+}  // namespace
