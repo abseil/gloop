@@ -886,6 +886,43 @@ cc_test(
 )
 
 cc_library(
+    name = "lazy_static_ptr",
+    hdrs = ["lazy_static_ptr.h"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/utility",
+    ],
+)
+
+cc_test(
+    name = "lazy_static_ptr_test",
+    size = "small",
+    srcs = [
+        "lazy_static_ptr_test.h",
+        "lazy_static_ptr_test1.cc",
+        "lazy_static_ptr_test2.cc",
+        "lazy_static_ptr_test3.cc",
+    ],
+    deps = [
+        ":lazy_static_ptr",
+        "//gloop:gloop_test_main",
+        "//gloop/thread",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/memory",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "lockfree_hashmap",
     hdrs = ["lockfree_hashmap.h"],
     deps = [
