@@ -40,6 +40,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <memory>
+
 #include "absl/base/macros.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
@@ -607,10 +609,7 @@ int example_global_const = 30;
 void ExampleFunctionForAddressCheck() {}
 
 TEST(SysinfoUnittest, ProcMaps) {
-  void* example_heap_address = malloc(sizeof(int));
-  absl::Cleanup cleanup = [example_heap_address] {
-    free(example_heap_address);
-  };
+  auto example_heap_alloc = std::make_unique<char[]>(42);
   // Some architecture-specific attributes of /proc/*/maps:
   static const struct ProcMapData {
     bool position_independent_executable;
@@ -751,7 +750,7 @@ TEST(SysinfoUnittest, ProcMaps) {
   }
 
   // Scan entries for the really long filename we created and for the
-  // entry which contains example_heap_address.
+  // entry which contains example_heap_alloc.
   //
   // We keep going when we get to the stack, for several reasons.  First,
   // it is followed by one or more additional segments, depending on
@@ -765,8 +764,8 @@ TEST(SysinfoUnittest, ProcMaps) {
   while (it.NextExt(&start, &end, &flags, &offset, &inode, &filename, &dev)) {
     VLOG(1) << std::hex << start << "-" << end << ": " << filename;
     maps_seen++;
-    if (start <= reinterpret_cast<uintptr_t>(example_heap_address) &&
-        reinterpret_cast<uintptr_t>(example_heap_address) < end) {
+    if (start <= reinterpret_cast<uintptr_t>(example_heap_alloc.get()) &&
+        reinterpret_cast<uintptr_t>(example_heap_alloc.get()) < end) {
       EXPECT_EQ(inode, 0);
       // Linux 2.6.12 gives names to some segments, while others
       // versions leave the name field blank. Tcmalloc names its memory regions.
