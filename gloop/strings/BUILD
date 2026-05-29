@@ -124,6 +124,44 @@ cc_test(
 )
 
 cc_library(
+    name = "cord_builder",
+    srcs = ["cord_builder.cc"],
+    hdrs = ["cord_builder.h"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/numeric:bits",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:span",
+    ],
+)
+
+cc_test(
+    name = "cord_builder_test",
+    size = "medium",
+    srcs = ["cord_builder_test.cc"],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":cord_builder",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/log:log_streamer",
+        "@abseil-cpp//absl/numeric:bits",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:cord_rep_test_util",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:source_location",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "cord_bytestream",
     hdrs = ["cord_bytestream.h"],
     deps = [
