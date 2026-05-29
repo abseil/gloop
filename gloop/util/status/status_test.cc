@@ -1831,7 +1831,7 @@ TEST(PrintStatusPayload, CanPrintKnownProto) {
   google::protobuf::Int32Value payload;
   payload.set_value(123);
   google::protobuf::Any any;
-  any.PackFrom(payload);
+  ASSERT_TRUE(any.PackFrom(payload));
 
   absl::Status status = absl::CancelledError("test");
   status.SetPayload(any.type_url(), absl::Cord(any.value()));
@@ -1860,7 +1860,7 @@ TEST(PrintStatusPayload, InvalidData) {
   google::protobuf::Int32Value payload;
   payload.set_value(123);
   google::protobuf::Any any;
-  any.PackFrom(payload);
+  ASSERT_TRUE(any.PackFrom(payload));
 
   absl::Status status = absl::CancelledError("test");
   status.SetPayload(any.type_url(), absl::Cord("this will not parse"));

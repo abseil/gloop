@@ -72,7 +72,7 @@ static std::string LegacyUnredactedShortDebugString(
   google::protobuf::TextFormat::Printer printer;
   printer.SetSingleLineMode(true);
   printer.SetExpandAny(true);
-  printer.PrintToString(message, &debug_string);
+  (void)printer.PrintToString(message, &debug_string);
   if (!debug_string.empty() && debug_string.back() == ' ') {
     debug_string.pop_back();
   }
@@ -562,7 +562,9 @@ static std::optional<std::string> PrintStatusPayload(
     if constexpr (std::is_base_of_v<google::protobuf::Message,
                                     google::protobuf::bridge::MessageSet>) {
       google::protobuf::bridge::MessageSet message_set_obj;
-      message_set_obj.ParsePartialFromString(payload);
+      if (!message_set_obj.ParsePartialFromString(payload)) {
+        return std::nullopt;
+      }
       return LegacyUnredactedShortDebugString(message_set_obj);
     } else {
       return std::nullopt;
@@ -624,7 +626,7 @@ google::protobuf::bridge::MessageSet MakePayloadsSet(const absl::Status& s) {
   google::protobuf::bridge::MessageSet message_set_obj;
   if (auto message_set_payload =
           s.GetPayload(status_internal::kMessageSetUrl)) {
-    message_set_obj.ParsePartialFromString(*message_set_payload);
+    (void)message_set_obj.ParsePartialFromString(*message_set_payload);
   }
 
   return message_set_obj;

@@ -755,7 +755,6 @@ BENCHMARK(BM_PbEqualsPackedLargeInts<MessageDifferencerEquals>)
 
 std::vector<gtl::TestMessage> MakeFlatHashMapBenchmarkProtos() {
   static constexpr int kSize = 1000;
-  gtl::TestMessage pb;
   std::vector<gtl::TestMessage> pbs(kSize);
   for (int i = 0; i < kSize; ++i) {
     auto& pb = pbs[i];

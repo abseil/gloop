@@ -380,7 +380,7 @@ void AttachPayload(absl::Status* s, const MessageSetExtension& obj,
   google::protobuf::bridge::MessageSet message_set_obj;
   if (auto message_set_payload =
           s->GetPayload(status_internal::kMessageSetUrl)) {
-    message_set_obj.ParsePartialFromString(*message_set_payload);
+    (void)message_set_obj.ParsePartialFromString(*message_set_payload);
   }
 
   message_set_obj.MutableExtension(id)->CopyFrom(obj);
@@ -424,7 +424,10 @@ bool ErasePayload(absl::Status* s, const ExtensionIdentifier& id) {
   }
 
   google::protobuf::bridge::MessageSet message_set_obj;
-  message_set_obj.ParsePartialFromString(*message_set_payload);
+  if (!message_set_obj.ParsePartialFromString(*message_set_payload)) {
+    return false;
+  }
+
   if (!message_set_obj.HasExtension(id)) {
     return false;
   }
@@ -465,7 +468,9 @@ bool HasPayloadWithType(const absl::Status& s, const ExtensionIdentifier& id) {
   if (auto message_set_payload =
           s.GetPayload(status_internal::kMessageSetUrl)) {
     google::protobuf::bridge::MessageSet message_set_obj;
-    message_set_obj.ParsePartialFromString(*message_set_payload);
+    if (!message_set_obj.ParsePartialFromString(*message_set_payload)) {
+      return false;
+    }
     return message_set_obj.HasExtension(id);
   }
 
@@ -517,7 +522,7 @@ inline MessageSetExtension GetPayload(const absl::Status& s,
       "Call to GetPayload should be guarded by the HasPayloadWithType check");
 
   google::protobuf::bridge::MessageSet message_set_obj;
-  message_set_obj.ParsePartialFromString(*message_set_payload);
+  (void)message_set_obj.ParsePartialFromString(*message_set_payload);
   return message_set_obj.GetExtension(id);
 }
 

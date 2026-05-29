@@ -792,6 +792,7 @@ cc_test(
     srcs = ["generic_printer_test.cc"],
     deps = [
         ":generic_printer",
+        ":generic_printer_test_cc_proto",
         "//gloop:gloop_test_main",
         "//gloop/base:arena",
         "//gloop/base:arena_allocator",

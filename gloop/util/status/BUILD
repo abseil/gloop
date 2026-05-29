@@ -27,12 +27,6 @@ package(
     features = ["header_modules"],
 )
 
-# TODO Remove this once we can use the real thing to avoid ODR violations.
-cc_proto_library(
-    name = "message_set_cc_proto",
-    deps = ["@protobuf//src/google/protobuf/bridge:message_set_proto"],
-)
-
 cc_test(
     name = "canonical_errors_test",
     size = "small",
@@ -81,10 +75,10 @@ cc_library(
         ":status",
         ":status_builder",
         "//gloop:enforce_gloop_support",
-        "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:source_location",
+        "@protobuf//src/google/protobuf/bridge:message_set_cc_proto",
     ],
 )
 
@@ -112,10 +106,10 @@ cc_library(
         ":status",
         "//gloop:enforce_gloop_support",
         "//gloop/base:strerror",
-        "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:source_location",
+        "@protobuf//src/google/protobuf/bridge:message_set_cc_proto",
     ],
 )
 
@@ -198,7 +192,6 @@ cc_library(
         ":non_message_set_payload_cc_proto",
         "//gloop:enforce_gloop_support",
         "//gloop/util/coding",
-        "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/container:fixed_array",
@@ -221,6 +214,7 @@ cc_library(
         "@gloop//gloop/util/status:status_cc_proto",
         "@protobuf",
         "@protobuf//:any_cc_proto",
+        "@protobuf//src/google/protobuf/bridge:message_set_cc_proto",
     ],
 )
 
@@ -237,7 +231,6 @@ cc_test(
         ":test_payload_cc_proto",
         "//gloop:gloop_test_main",
         "//gloop/thread",
-        "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log:check",
@@ -259,6 +252,7 @@ cc_test(
         "@protobuf",
         "@protobuf//:any_cc_proto",
         "@protobuf//:wrappers_cc_proto",
+        "@protobuf//src/google/protobuf/bridge:message_set_cc_proto",
     ],
 )
 
@@ -271,7 +265,6 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "//gloop/base:examine_stack",
         "//gloop/base:logger",
-        "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
@@ -289,6 +282,7 @@ cc_library(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:source_location",
+        "@protobuf//src/google/protobuf/bridge:message_set_cc_proto",
     ],
 )
 
@@ -301,7 +295,6 @@ cc_test(
         ":status_builder",
         ":status_macros",
         "//gloop:gloop_test_main",
-        "//gloop/util/status:message_set_cc_proto",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/flags:flag",
@@ -325,6 +318,7 @@ cc_test(
         "@gloop//gloop/util/status:status_cc_proto",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@protobuf//src/google/protobuf/bridge:message_set_cc_proto",
     ],
 )
 

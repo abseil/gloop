@@ -39,6 +39,7 @@
 #include "gloop/base/logging_extensions.h"
 #include "gloop/util/gtl/extend/debug_printing.h"
 #include "gloop/util/gtl/extend/extend.h"
+#include "gloop/util/gtl/generic_printer_test.pb.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/arena.h"
 #include "gtest/gtest.h"
@@ -175,6 +176,39 @@ TEST(GenericPrinterTest, OptionalRef) {
                                    generic_logging_test::Streamable{3})));
 }
 
+TEST(GenericPrinterTest, IsSupportedPointer) {
+  using absl::internal_generic_printer::is_supported_ptr;
+
+  EXPECT_TRUE(is_supported_ptr<std::unique_ptr<std::string>>);
+  EXPECT_TRUE(is_supported_ptr<
+              google::protobuf::Arena::UniquePtr<std::unique_ptr<int>>>);
+  EXPECT_TRUE(is_supported_ptr<std::unique_ptr<int[]>>);
+  EXPECT_TRUE((is_supported_ptr<std::unique_ptr<void, void (*)(void*)>>));
+
+  EXPECT_FALSE(is_supported_ptr<int*>);
+  EXPECT_FALSE(is_supported_ptr<std::shared_ptr<int>>);
+  EXPECT_FALSE(is_supported_ptr<std::weak_ptr<int>>);
+}
+
+TEST(GenericPrinterTest, SmartPointerPrintsNullptrForAllNullptrs) {
+  std::unique_ptr<std::string> up;
+  google::protobuf::Arena::UniquePtr<char> ap;
+
+  EXPECT_EQ("<nullptr>", GenericPrintToString(up));
+  EXPECT_EQ("<nullptr>", GenericPrintToString(ap));
+}
+
+TEST(GenericPrinterTest, SmartPointerPrintsValueIfNonNull) {
+  EXPECT_THAT(GenericPrintToString(std::make_unique<int>(5)),
+              HasSubstr("pointing to 5"));
+
+  EXPECT_THAT(
+      GenericPrintToString(
+          google::protobuf::Arena::MakeUnique<std::unique_ptr<std::string>>(
+              /*arena=*/nullptr, std::make_unique<std::string>("nested"))),
+      ContainsRegex("<.*pointing to <.* pointing to \"nested\".*>>"));
+}
+
 // TODO: If recursive `unique_ptr`s become an issue that needs
 // handling, submit the implementation documented in <link>
 // and re-enable the following disabled test cases.
@@ -198,6 +232,13 @@ TEST(GenericPrinterTest, DISABLED_SmartPointerDetectsRecursion) {
                     HasExactlyNInstancesOf(1, "<recursive>")));
 
   r2->next = nullptr;  // break the cycle
+}
+
+TEST(GenericPrinterTest, ProtoEnum) {
+  EXPECT_EQ("0(TEST_PROTO_ENUM0)",
+            GenericPrintToString(gtl::internal::TEST_PROTO_ENUM0));
+  EXPECT_EQ("1(TEST_PROTO_ENUM1)",
+            GenericPrintToString(gtl::internal::TEST_PROTO_ENUM1));
 }
 
 }  // namespace

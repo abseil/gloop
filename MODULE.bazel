@@ -4,7 +4,7 @@ module(
 )
 
 bazel_dep(name = "abseil-cpp", version = "20260107.1")
-bazel_dep(name = "protobuf", version = "33.5")
+bazel_dep(name = "protobuf", version = "35.0")
 bazel_dep(name = "tcmalloc", version = "0.0.0-20250927-12f2552")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
