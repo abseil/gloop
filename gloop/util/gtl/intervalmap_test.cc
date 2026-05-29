@@ -30,7 +30,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/container/flat_hash_map.h"
 #include "absl/log/check.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
@@ -680,12 +679,9 @@ TYPED_TEST(IntervalMapTest, MergeThatClears) {
 
 TYPED_TEST(IntervalMapTest, MergeValueRandomized) {
   auto m = TestFixture::ConstructMap();
-  absl::flat_hash_map<int, int> expected;
-  ACMRandom rnd(301);
   const int kMaxKey = 1000;
-  for (int i = 0; i < kMaxKey; i++) {
-    expected[i] = -1;  // -1 signifies missing
-  }
+  std::vector<int> expected(kMaxKey, -1);
+  ACMRandom rnd(301);
   for (int iter = 0; iter < 1000; iter++) {
     int start = rnd.Uniform(kMaxKey - 1);
     int end = std::min(kMaxKey - 1, start + 1 + rnd.Uniform(kMaxKey));
@@ -697,9 +693,8 @@ TYPED_TEST(IntervalMapTest, MergeValueRandomized) {
   }
 
   // Verify that the IMap has the same entries as our expected state
-  for (auto& p : expected) {
-    int k = p.first;
-    int expected_v = p.second;
+  for (int k = 0; k < kMaxKey; k++) {
+    int expected_v = expected[k];
     if (expected_v == -1) {
       EXPECT_TRUE(m.IsEmptyInterval(k, k + 1));
     } else {
@@ -711,14 +706,15 @@ TYPED_TEST(IntervalMapTest, MergeValueRandomized) {
     }
   }
 
-  // Verify the entries in the IMap look valid
+  // Verify the entries in the IMap look valid using FindNext traversal
   typename TestFixture::IMap::key_type start = 0, limit;
   typename TestFixture::IMap::mapped_type value;
-  while (m.FindInterval(start, &start, &limit, &value)) {
+  while (m.FindNext(start, &start, &limit, &value)) {
     EXPECT_LT(static_cast<int>(start), static_cast<int>(limit));
     for (int i = start; i < limit; i++) {
       EXPECT_EQ(value, expected[i]);
     }
+    start = limit;
   }
 }
 

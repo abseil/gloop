@@ -849,7 +849,6 @@ cc_test(
         "//gloop/base:arena_allocator",
         "//gloop/util/random:acmrandom",
         "//gloop/util/random:distributions",
-        "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
