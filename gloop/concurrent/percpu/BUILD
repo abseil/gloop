@@ -28,38 +28,33 @@ package(
 )
 
 cc_library(
-    name = "object",
-    hdrs = ["object.h"],
+    name = "counter",
+    hdrs = ["counter.h"],
     textual_hdrs = [
-        "object_emulated.inc",
-        "object_native.inc",
+        "counter_emulated.inc",
+        "counter_native.inc",
     ],
     visibility = ["//visibility:public"],
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base:percpu",
-        "//gloop/base:spinlock",
         "//gloop/base:sysinfo",
-        "//gloop/base/internal:percpu",
-        "@abseil-cpp//absl/base",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/container:fixed_array",
     ],
 )
 
 cc_test(
-    name = "object_test",
+    name = "counter_test",
     size = "small",
-    srcs = ["object_test.cc"],
+    srcs = ["counter_test.cc"],
     linkstatic = 1,
-    visibility = ["//visibility:private"],
     deps = [
-        ":object",
+        ":counter",
         "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
+        "//gloop/thread",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:no_destructor",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -114,22 +109,6 @@ cc_test(
 )
 
 cc_test(
-    name = "rseq_clobber_test",
-    srcs = ["rseq_clobber_test.cc"],
-    linkopts = ["-Wl,--script=$(location rseq_clobber_test.lds)"],
-    linkstatic = True,
-    visibility = ["//visibility:private"],
-    deps = [
-        ":counting_mutex",
-        ":rseq_clobber_test.lds",
-        "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/time",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
-    ],
-)
-
-cc_test(
     name = "counting_mutex_no_rseq_test",
     srcs = ["counting_mutex_test.cc"],
     visibility = ["//visibility:private"],
@@ -149,6 +128,60 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "object",
+    hdrs = ["object.h"],
+    textual_hdrs = [
+        "object_emulated.inc",
+        "object_native.inc",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "//gloop/base:percpu",
+        "//gloop/base:spinlock",
+        "//gloop/base:sysinfo",
+        "//gloop/base/internal:percpu",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:fixed_array",
+    ],
+)
+
+cc_test(
+    name = "object_test",
+    size = "small",
+    srcs = ["object_test.cc"],
+    linkstatic = 1,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":object",
+        "//gloop:gloop_test_main",
+        "//gloop/base:sysinfo",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "rseq_clobber_test",
+    srcs = ["rseq_clobber_test.cc"],
+    linkopts = ["-Wl,--script=$(location rseq_clobber_test.lds)"],
+    linkstatic = True,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":counting_mutex",
+        ":rseq_clobber_test.lds",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
