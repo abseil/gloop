@@ -33,12 +33,22 @@
 #include "absl/base/attributes.h"
 #include "absl/base/optimization.h"
 #include "absl/base/throw_delegate.h"
-#include "absl/meta/type_traits.h"
 #include "gloop/util/gtl/compressed_tuple.h"
 #include "gloop/util/gtl/requires.h"
 
 namespace gtl {
 namespace internal {
+
+// Helper template to resolve the type returned by dereferencing an iterator.
+// When kIsConst is true:
+//   - For reference types (e.g. T&), it yields a const reference (const T&).
+//   - For non-reference types (e.g. T), it propagates the type unchanged
+//   (yielding T).
+// When kIsConst is false, it propagates ExtRef unchanged.
+template <typename ExtRef, bool kIsConst>
+using ExtractingIteratorReferenceTypeFor = std::conditional_t<
+    kIsConst && std::is_reference_v<ExtRef>,
+    std::add_lvalue_reference_t<const std::remove_reference_t<ExtRef>>, ExtRef>;
 
 // Helper for extractors that want to conditionally preserve constness.
 template <bool PropagateConst = true>
@@ -61,7 +71,8 @@ struct Derefencer {
 // reference of a new type.
 // Note: CRTP is needed to provide CTAD to iterator_first and similar. Once type
 // aliases support deduction guides, most of the boilerplate can be removed.
-template <typename Sub, typename Iterator, typename Extractor>
+template <typename Sub, typename Iterator, typename Extractor,
+          bool kIsConst = false>
 class ABSL_ATTRIBUTE_VIEW ExtractingIteratorBase {
  private:
   using iterator_traits = std::iterator_traits<Iterator>;
@@ -72,9 +83,10 @@ class ABSL_ATTRIBUTE_VIEW ExtractingIteratorBase {
   using cv_value_type = std::remove_reference_t<extracted_reference>;
 
  public:
-  using reference = extracted_reference;
+  using reference =
+      ExtractingIteratorReferenceTypeFor<extracted_reference, kIsConst>;
   using value_type = std::remove_cv_t<cv_value_type>;
-  using pointer = std::add_pointer_t<cv_value_type>;
+  using pointer = std::add_pointer_t<std::remove_reference_t<reference>>;
   using difference_type = typename iterator_traits::difference_type;
   using iterator_category =
       std::conditional_t<!std::is_lvalue_reference_v<reference>,
@@ -186,9 +198,10 @@ class ABSL_ATTRIBUTE_VIEW ExtractingIteratorBase {
   gtl::CompressedTuple<Iterator, Extractor> iterator_and_extractor_;
 };
 
-template <typename It, typename Extractor>
+template <typename It, typename Extractor, bool kIsConst>
 struct ExtractingIterator
-    : ExtractingIteratorBase<ExtractingIterator<It, Extractor>, It, Extractor> {
+    : ExtractingIteratorBase<ExtractingIterator<It, Extractor, kIsConst>, It,
+                             Extractor, kIsConst> {
   using Base = typename ExtractingIterator::ExtractingIteratorBase;
   using Base::Base;
 };
@@ -202,9 +215,11 @@ struct HasSubscript {
       typename std::iterator_traits<Iterator>::iterator_category>;
 
   // If this is an extracting iterator, check the inner iterator.
-  template <typename Sub, typename InnerIterator, typename Extractor>
+  template <typename Sub, typename InnerIterator, typename Extractor,
+            bool kIsConst>
   static HasSubscript<InnerIterator> CheckHasSubscript(
-      const volatile ExtractingIteratorBase<Sub, InnerIterator, Extractor>*);
+      const volatile ExtractingIteratorBase<Sub, InnerIterator, Extractor,
+                                            kIsConst>*);
 
   // Otherwise, check if the iterator is random access.
   static IsRandomAccess CheckHasSubscript(const volatile void*);
@@ -226,10 +241,10 @@ struct CommonCtors : internal::ExtractingIteratorBase<Sub<It>, It, Extractor> {
             typename = std::enable_if_t<std::is_convertible_v<It2, It>>>
   // NOLINTNEXTLINE(google-explicit-constructor)
   constexpr CommonCtors(Sub<It2> o) : Base(std::move(o).base()) {}
-  template <typename It2,
+  template <typename It2, bool kIsConst,
             typename = std::enable_if_t<std::is_convertible_v<It2, It>>>
   // NOLINTNEXTLINE(google-explicit-constructor)
-  constexpr CommonCtors(ExtractingIterator<It2, Extractor> o)
+  constexpr CommonCtors(ExtractingIterator<It2, Extractor, kIsConst> o)
       : Base(std::move(o).base()) {}
 };
 
@@ -491,10 +506,7 @@ template <typename C, typename IteratorPolicy,
           typename IterGenerator = gtl::internal::IterGenerator>
 class ABSL_ATTRIBUTE_VIEW container_view {
   using source_container = std::remove_const_t<C>;
-  using container_iterator =
-      decltype(IterGenerator::begin(std::declval<source_container&>()));
-  using container_const_iterator =
-      decltype(IterGenerator::begin(std::declval<const source_container&>()));
+  using container_iterator = decltype(IterGenerator::begin(std::declval<C&>()));
   // Recursive traversal down the hierarchy of nested views. Constness exposed
   // by outer views must be determined by the innermost (non-view) container.
   // Nested views match the recursive ConstTrait template specialization (by the
@@ -512,8 +524,8 @@ class ABSL_ATTRIBUTE_VIEW container_view {
   using container_type = source_container;
   using iterator = decltype(std::declval<IteratorPolicy>().Adapt(
       std::declval<container_iterator>()));
-  using const_iterator = decltype(std::declval<IteratorPolicy>().Adapt(
-      std::declval<container_const_iterator>()));
+  using const_iterator = decltype(std::declval<IteratorPolicy>().AdaptAsConst(
+      std::declval<container_iterator>()));
   using value_type = typename std::iterator_traits<iterator>::value_type;
   using reference = typename std::iterator_traits<iterator>::reference;
   using const_reference =
@@ -548,55 +560,46 @@ class ABSL_ATTRIBUTE_VIEW container_view {
     return container_and_policy_.template get<1>();
   }
 
-  // Methods used for const containers only
-  template <int&... ExplicitArgumentBarrier, bool is_mutable = kMutable>
-  constexpr std::enable_if_t<!is_mutable, const_iterator> begin() const {
+  constexpr iterator begin() {
     return policy().Adapt(IterGenerator::begin(container()));
   }
-  template <int&... ExplicitArgumentBarrier, bool is_mutable = kMutable>
-  constexpr std::enable_if_t<!is_mutable, const_iterator> end() const {
-    return policy().Adapt(IterGenerator::end(container()));
-  }
-  template <int&... ExplicitArgumentBarrier, bool is_mutable = kMutable,
-            bool has_subscript = HasSubscript<const_iterator>::value>
-  constexpr std::enable_if_t<!is_mutable && has_subscript, const_reference>
-  operator[](size_type i) const {
-    return begin()[i];
-  }
-  template <int&... ExplicitArgumentBarrier, bool is_mutable = kMutable,
-            bool has_subscript = HasSubscript<const_iterator>::value>
-  constexpr std::enable_if_t<!is_mutable && has_subscript, const_reference> at(
-      size_type i) const {
-    if (ABSL_PREDICT_FALSE(i >= size())) {
-      absl::ThrowStdOutOfRange(
-          "`container_view::at(size_type)` failed bounds check");
-    }
-    return begin()[i];
-  }
-  template <int&... ExplicitArgumentBarrier, bool is_mutable = kMutable>
-  constexpr std::enable_if_t<!is_mutable, const container_type&> container()
-      const {
-    return *container_and_policy_.template get<0>();
+  constexpr const_iterator begin() const {
+    return policy().AdaptAsConst(
+        IterGenerator::begin(*container_and_policy_.template get<0>()));
   }
 
-  // Methods used for mutable containers only
-  template <int&... ExplicitArgumentBarrier, bool is_mutable = kMutable>
-  constexpr std::enable_if_t<is_mutable, iterator> begin() const {
-    return policy().Adapt(IterGenerator::begin(container()));
-  }
-  template <int&... ExplicitArgumentBarrier, bool is_mutable = kMutable>
-  constexpr std::enable_if_t<is_mutable, iterator> end() const {
+  constexpr iterator end() {
     return policy().Adapt(IterGenerator::end(container()));
   }
-  template <int&... ExplicitArgumentBarrier, bool is_mutable = kMutable,
+  constexpr const_iterator end() const {
+    return policy().AdaptAsConst(
+        IterGenerator::end(*container_and_policy_.template get<0>()));
+  }
+
+  template <int&... ExplicitArgumentBarrier,
             bool has_subscript = HasSubscript<iterator>::value>
-  constexpr std::enable_if_t<is_mutable && has_subscript, reference> operator[](
+  constexpr std::enable_if_t<has_subscript, reference> operator[](size_type i) {
+    return begin()[i];
+  }
+  template <int&... ExplicitArgumentBarrier,
+            bool has_subscript = HasSubscript<const_iterator>::value>
+  constexpr std::enable_if_t<has_subscript, const_reference> operator[](
       size_type i) const {
     return begin()[i];
   }
-  template <int&... ExplicitArgumentBarrier, bool is_mutable = kMutable,
+
+  template <int&... ExplicitArgumentBarrier,
             bool has_subscript = HasSubscript<iterator>::value>
-  constexpr std::enable_if_t<is_mutable && has_subscript, reference> at(
+  constexpr std::enable_if_t<has_subscript, reference> at(size_type i) {
+    if (ABSL_PREDICT_FALSE(i >= size())) {
+      absl::ThrowStdOutOfRange(
+          "`container_view::at(size_type)` failed bounds check");
+    }
+    return begin()[i];
+  }
+  template <int&... ExplicitArgumentBarrier,
+            bool has_subscript = HasSubscript<const_iterator>::value>
+  constexpr std::enable_if_t<has_subscript, const_reference> at(
       size_type i) const {
     if (ABSL_PREDICT_FALSE(i >= size())) {
       absl::ThrowStdOutOfRange(
@@ -604,8 +607,9 @@ class ABSL_ATTRIBUTE_VIEW container_view {
     }
     return begin()[i];
   }
-  template <int&... ExplicitArgumentBarrier, bool is_mutable = kMutable>
-  constexpr std::enable_if_t<is_mutable, container_type&> container() const {
+
+  constexpr C& container() { return *container_and_policy_.template get<0>(); }
+  constexpr const C& container() const {
     return *container_and_policy_.template get<0>();
   }
 
@@ -618,7 +622,11 @@ template <template <typename> typename Iterator>
 struct PolicyFor {
   template <typename It>
   constexpr auto Adapt(It&& it) const {
-    return Iterator<It>(std::forward<It>(it));
+    return Iterator<std::decay_t<It>>(std::forward<It>(it));
+  }
+  template <typename It>
+  constexpr auto AdaptAsConst(It&& it) const {
+    return Adapt(std::forward<It>(it));
   }
 };
 
@@ -627,6 +635,10 @@ struct ForwardPolicy {
   template <typename It>
   constexpr auto Adapt(It&& it) const {
     return std::forward<It>(it);
+  }
+  template <typename It>
+  constexpr auto AdaptAsConst(It&& it) const {
+    return Adapt(std::forward<It>(it));
   }
 };
 
@@ -644,8 +656,14 @@ struct ExtractorPolicy : private gtl::CompressedTuple<Extractor> {
 
   template <typename source_iterator>
   constexpr auto Adapt(source_iterator it) const {
-    return ExtractingIterator<source_iterator, Extractor>(std::move(it),
-                                                          AsExtractor());
+    return ExtractingIterator<source_iterator, Extractor, /*kIsConst=*/false>(
+        std::move(it), AsExtractor());
+  }
+
+  template <typename source_iterator>
+  constexpr auto AdaptAsConst(source_iterator it) const {
+    return ExtractingIterator<source_iterator, Extractor, /*kIsConst=*/true>(
+        std::move(it), AsExtractor());
   }
 };
 

@@ -1606,6 +1606,12 @@ TEST_F(IteratorAdaptorTest, ProjectionViewProto) {
       ElementsAre(34, 78));
 }
 
+TEST_F(IteratorAdaptorTest, ProjectionViewMutableOnlyProjection) {
+  std::vector<int> vec = {1, 2, 3};
+  auto view = gtl::projection_view(vec, [](int& v) -> int& { return v; });
+  EXPECT_THAT(view, ElementsAre(1, 2, 3));
+}
+
 template <typename T>
 using iter_category = typename T::iterator::iterator_category;
 

@@ -390,7 +390,6 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:throw_delegate",
-        "@abseil-cpp//absl/meta:type_traits",
     ],
 )
 
