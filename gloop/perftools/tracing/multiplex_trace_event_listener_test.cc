@@ -55,8 +55,8 @@ MATCHER_P2(EqSourceLocation, file, line, "Matches source location") {
 // Minimum default TraceEventListener implementation.
 class DefaultTraceEventListener : public TraceEventListener {
  public:
-  TraceEventListener* GetEventListener(SyncId) override { return this; }
-  void ReleaseEventListener() override {}
+  TraceEventListener* GetEventListener(SyncId) final { return this; }
+  void ReleaseEventListener() final {}
 };
 
 TEST(MultiplexTraceEventListener, Basics) {
@@ -221,6 +221,61 @@ TEST(MultiplexTraceEventListener, GetEventListenerReturningNull) {
   EXPECT_CALL(first1, GetEventListener(SyncId{3})).WillOnce(Return(nullptr));
   EXPECT_CALL(second1, GetEventListener(SyncId{3})).WillOnce(Return(nullptr));
   listener2 = listener1->GetEventListener(SyncId{3});
+  EXPECT_THAT(listener2, Eq(nullptr));
+
+  EXPECT_CALL(second1, ReleaseEventListener());
+  EXPECT_CALL(first1, ReleaseEventListener());
+  listener1->ReleaseEventListener();
+}
+
+TEST(MultiplexTraceEventListener, GetBridgingEventListener) {
+  StrictMock<MockTraceEventListener> first1, second1, first2, second2;
+  InSequence in_sequence;
+
+  auto* listener1 = MultiplexTraceEventListener(&first1, &second1);
+
+  EXPECT_CALL(first1, GetBridgingEventListener(Eq("Bridge")))
+      .WillOnce(Return(&first2));
+  EXPECT_CALL(second1, GetBridgingEventListener(Eq("Bridge")))
+      .WillOnce(Return(&second2));
+  auto* listener2 = listener1->GetBridgingEventListener("Bridge");
+
+  EXPECT_CALL(second2, ReleaseEventListener());
+  EXPECT_CALL(first2, ReleaseEventListener());
+  listener2->ReleaseEventListener();
+
+  EXPECT_CALL(second1, ReleaseEventListener());
+  EXPECT_CALL(first1, ReleaseEventListener());
+  listener1->ReleaseEventListener();
+}
+
+TEST(MultiplexTraceEventListener, GetBridgingEventListenerReturningNull) {
+  InSequence in_sequence;
+  StrictMock<MockTraceEventListener> first1, second1;
+
+  auto* listener1 = MultiplexTraceEventListener(&first1, &second1);
+
+  StrictMock<MockTraceEventListener> first2, second2;
+
+  EXPECT_CALL(first1, GetBridgingEventListener(Eq("Bridge")))
+      .WillOnce(Return(nullptr));
+  EXPECT_CALL(second1, GetBridgingEventListener(Eq("Bridge")))
+      .WillOnce(Return(&second2));
+  auto* listener2 = listener1->GetBridgingEventListener("Bridge");
+  EXPECT_THAT(listener2, Eq(&second2));
+
+  EXPECT_CALL(first1, GetBridgingEventListener(Eq("Bridge")))
+      .WillOnce(Return(&first2));
+  EXPECT_CALL(second1, GetBridgingEventListener(Eq("Bridge")))
+      .WillOnce(Return(nullptr));
+  listener2 = listener1->GetBridgingEventListener("Bridge");
+  EXPECT_THAT(listener2, Eq(&first2));
+
+  EXPECT_CALL(first1, GetBridgingEventListener(Eq("Bridge")))
+      .WillOnce(Return(nullptr));
+  EXPECT_CALL(second1, GetBridgingEventListener(Eq("Bridge")))
+      .WillOnce(Return(nullptr));
+  listener2 = listener1->GetBridgingEventListener("Bridge");
   EXPECT_THAT(listener2, Eq(nullptr));
 
   EXPECT_CALL(second1, ReleaseEventListener());

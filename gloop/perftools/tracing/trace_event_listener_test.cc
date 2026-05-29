@@ -91,12 +91,7 @@ TEST(TraceEventListener, CascadingRelease) {
 }
 
 TEST(TraceEventListener, InvokeAllEvents) {
-  class MiniListener : public TraceEventListener {
-   public:
-    TraceEventListener* GetEventListener(SyncId) override { return this; }
-    void ReleaseEventListener() override {}
-  };
-  MiniListener listener;
+  DefaultTraceEventListener listener;
   listener.OnTraceSpawn(SyncId{632}, "Hello world");
   listener.OnTraceBeginSync(SyncId{412}, "Begin");
   listener.OnTraceEndSync(SyncId{721});
@@ -138,6 +133,11 @@ TEST(TraceEventListenerPtr, ConfirmValidUniquePtrImplementation) {
   ptr = TraceEventListenerPtr(&mock);
   EXPECT_THAT(ptr.get(), Eq(&mock));
   EXPECT_CALL(mock, ReleaseEventListener());
+}
+
+TEST(TraceEventListenerPtr, GetBridgingEventListenerReturnsNullptr) {
+  DefaultTraceEventListener listener;
+  EXPECT_THAT(listener.GetBridgingEventListener("Foo"), Eq(nullptr));
 }
 
 }  // namespace

@@ -404,6 +404,60 @@ class TraceEventListener {
   // restored through a call to `RestoreTraceContext()`.
   virtual void ReleaseEventListener() = 0;
 
+  // `GetBridgingEventListener()` is invoked to allow listeners to "bridge"
+  // processing events across different trace contexts.
+  //
+  // Trace event listeners are normally bound to the same (distributed) trace
+  // context. However, we support the concept of 'linked traces' where a new
+  // trace context is initiated for some part of the distributed execution, and
+  // trace annotations are captured inside the linked trace.
+  //
+  // Linked traces can by default not emit processing events as processing
+  // events require consistent synchronous recordings: if we'd emit events
+  // like `OnTraceMark()` in isolation on the linked trace, then it is missing
+  // context of required synchronous execution such as the Begin and End events
+  // of the entire synchronous execution (i.e., "thread") inside which the
+  // linked trace is created, resulting in inconsistent events.
+  //
+  // `GetBridgingEventListener()` allows listeners to provide a specific
+  // listener instance to serve as a proxy for such events, where the proxy
+  // is responsible for recording the trace events as if they were recorded
+  // in the original trace event listener context / trace context.
+  //
+  // Listeners that already provide "per sync context" instances through for
+  // example heap allocated (child) instances could directly return `this`.
+  // They must however make sure to reference count the instance as the tracing
+  // framework will invoke `ReleaseEventListener` on the proxy to end its
+  // lifecycle. Since calls to the proxy and the original listener are strictly
+  // synchronized, such a proxy listener could use a simple counter as per the
+  // below example:
+  //
+  //   class MyListener : public TraceEventListener {
+  //    public:
+  //     TraceEventListener* GetEventListener(SyncId sync_id) final {
+  //       // Create a new child listener for each synchronous context.
+  //       return new MyListener(*this, sync_id);
+  //     }
+  //
+  //     TraceEventListener* GetBridgingEventListener(StringRef label) final {
+  //       ++bridges_;
+  //       return this;
+  //     }
+  //
+  //     void ReleaseEventListener() final {
+  //       if (bridges_-- == 0) {
+  //         delete this;
+  //       }
+  //     }
+  //
+  //    private:
+  //     int bridges_ = 0;
+  //   };
+  //
+  // The default implementation returns `null`, meaning that by default
+  // no processing events are recorded inside the linked trace.
+  virtual TraceEventListener* GetBridgingEventListener(StringRef label);
+
   // Extracts `listener` from this instance.
   //
   // Returns `{<new_root>, true}` on success, `{this, false}` if

@@ -43,6 +43,7 @@ class MockTraceEventListener : public TraceEventListener {
 
   MOCK_METHOD(TraceEventListener*, GetEventListener, (SyncId sync_id));
   MOCK_METHOD(void, ReleaseEventListener, ());
+  MOCK_METHOD(TraceEventListener*, GetBridgingEventListener, (StringRef));
   MOCK_METHOD((std::pair<TraceEventListener*, bool>), Extract,
               (TraceEventListener*));
   MOCK_METHOD(void, ExtractAll, (std::vector<TraceEventListener*>&));

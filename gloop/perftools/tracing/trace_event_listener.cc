@@ -60,6 +60,10 @@ void TraceEventListener::OnTraceControlFlow(StringRef, ControlFlowType,
                                             ControlFlowId,
                                             ControlFlowSequence) {}
 
+TraceEventListener* TraceEventListener::GetBridgingEventListener(StringRef) {
+  return nullptr;
+}
+
 std::pair<TraceEventListener*, bool> TraceEventListener::Extract(
     TraceEventListener* listener) {
   return (listener == this) ? std::make_pair(nullptr, true)

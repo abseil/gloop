@@ -82,6 +82,17 @@ class Mux final : public TraceEventListener {
     return new Mux(first, second);
   }
 
+  TraceEventListener* GetBridgingEventListener(StringRef label) final {
+    TraceEventListener* first = first_->GetBridgingEventListener(label);
+    TraceEventListener* second = second_->GetBridgingEventListener(label);
+    if (first == nullptr) {
+      return second;
+    } else if (second == nullptr) {
+      return first;
+    }
+    return new Mux(first, second);
+  }
+
   void ReleaseEventListener() final {
     RDispatch(&TraceEventListener::ReleaseEventListener);
 #ifdef NDEBUG
