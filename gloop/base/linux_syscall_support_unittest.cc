@@ -140,6 +140,8 @@ static void SigAction(int signum, siginfo_t* si, void* arg) {
   SigHandler(signum);
 }
 
+static void LssExit(int status, int* error) { lss_exit_group(status, error); }
+
 TEST(LinuxSyscallSupport, Sigaction) {
 #if defined(__ANDROID__) && defined(__i386__)
   LOG(WARNING) << "Android x86 only supports old_sigaction.";
@@ -956,12 +958,13 @@ TEST(LinuxSyscallSupport, poll) {
     EXPECT_EQ(child, pid);
     EXPECT_EQ(0, status);
   } else {
-    sleep(0);  // yield this time slice.
     const int test_data = 42;
     status = TEMP_FAILURE_RETRY(
         lss_write(pipefd[1], &test_data, sizeof(test_data), &errno));
-    CHECK_EQ(sizeof(test_data), status);
-    lss__exit(0, &errno);
+    if (status != sizeof(test_data)) {
+      LssExit(1, &errno);
+    }
+    LssExit(0, &errno);
   }
 
   EXPECT_EQ(0, lss_close(pipefd[0], &errno));
@@ -1017,15 +1020,27 @@ TEST(LinuxSyscallSupport, ppoll) {
     EXPECT_EQ(1, status);
 
     pid_t pid;
-    status = TEMP_FAILURE_RETRY(read(read_fd, &pid, sizeof(pid)));
+    status = TEMP_FAILURE_RETRY(lss_read(read_fd, &pid, sizeof(pid), &errno));
     EXPECT_EQ(sizeof(pid), status);
     EXPECT_EQ(child, pid);
 
-    // Send SIGUSR1 to child so that we can test signal unblocking in
-    // ppoll.  Give some slack so that SIGUSR1 is pending when child
-    // calls ppoll.
+    // Send SIGUSR1 to child, then write sync byte 'S'.
     lss_kill(child, SIGUSR1, &errno);
-    sleep(5);
+    char sync_byte = 'S';
+    status = TEMP_FAILURE_RETRY(lss_write(write_fd, &sync_byte, 1, &errno));
+    EXPECT_EQ(1, status);
+
+    // Wait for child to be ready for the answer.
+    char ready_byte;
+    status = TEMP_FAILURE_RETRY(lss_read(read_fd, &ready_byte, 1, &errno));
+    EXPECT_EQ(1, status);
+    EXPECT_EQ('R', ready_byte);
+
+    // Native Handshake: Wait for child to acknowledge receipt of SIGUSR1
+    char ack_byte;
+    status = TEMP_FAILURE_RETRY(lss_read(read_fd, &ack_byte, 1, &errno));
+    EXPECT_EQ(1, status);
+    EXPECT_EQ('A', ack_byte);
 
     const char answer = 42;
     status = TEMP_FAILURE_RETRY(
@@ -1051,39 +1066,67 @@ TEST(LinuxSyscallSupport, ppoll) {
     sa.sa_handler_ = Sigusr1Handler;
     lss_sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
-    CHECK_EQ(0, lss_sigaction(SIGUSR1, &sa, nullptr, &errno));
+    if (lss_sigaction(SIGUSR1, &sa, nullptr, &errno) != 0) {
+      LssExit(1, &errno);
+    }
 
     kernel_sigset_t blocked;
     lss_sigemptyset(&blocked);
     lss_sigaddset(&blocked, SIGUSR1, &errno);
-    CHECK_EQ(0, lss_sigprocmask(SIG_BLOCK, &blocked, nullptr, &errno));
+    if (lss_sigprocmask(SIG_BLOCK, &blocked, nullptr, &errno) != 0) {
+      LssExit(1, &errno);
+    }
 
     // Write pid to signal parent that child is ready.
     pid_t self = lss_getpid(&errno);
     status =
         TEMP_FAILURE_RETRY(lss_write(write_fd, &self, sizeof(self), &errno));
-    CHECK_EQ(sizeof(self), status);
+    if (status != sizeof(self)) {
+      LssExit(1, &errno);
+    }
 
-    // Wait until parent's SIGUSR1 arrives
-    kernel_sigset_t pending;
-    do {
-      sleep(0);  // give up time slice this runs many iterations.
-      CHECK_EQ(0, lss_sigpending(&pending, &errno));
-    } while (!lss_sigismember(&pending, SIGUSR1, &errno));
+    // Block on reading sync byte 'S' from parent. Consumes 0% CPU.
+    char sync_byte;
+    status = TEMP_FAILURE_RETRY(lss_read(read_fd, &sync_byte, 1, &errno));
+    if (status != 1 || sync_byte != 'S') {
+      LssExit(1, &errno);
+    }
+
+    // Signal parent that we are ready for the answer and about to ppoll.
+    char ready_byte = 'R';
+    status = TEMP_FAILURE_RETRY(lss_write(write_fd, &ready_byte, 1, &errno));
+    if (status != 1) {
+      LssExit(1, &errno);
+    }
 
     // Unblock SIGUSR1 in ppoll and poll 10 seconds for input.
     struct kernel_sigset_t signals;
-    CHECK_EQ(0, lss_sigemptyset(&signals));
-    CHECK_EQ(0, lss_sigdelset(&signals, SIGUSR1, &errno));
+    if (lss_sigemptyset(&signals) != 0 ||
+        lss_sigdelset(&signals, SIGUSR1, &errno) != 0) {
+      LssExit(1, &errno);
+    }
     pollfd.fd = read_fd;
     pollfd.events = POLLIN;
+
+    // Native Handshake: Call ppoll first time, expecting EINTR signal
+    // interruption.
+    status = lss_ppoll(&pollfd, 1, &ten_s, &signals, sizeof(signals), &errno);
+    if (status != -1 || errno != EINTR || !GotSigusr1) {
+      LssExit(1, &errno);
+    }
+    // Write 'A' (Ack) to parent to signal we received the signal.
+    char ack_byte = 'A';
+    status = TEMP_FAILURE_RETRY(lss_write(write_fd, &ack_byte, 1, &errno));
+    if (status != 1) {
+      LssExit(1, &errno);
+    }
+
     status = TEMP_FAILURE_RETRY(
         lss_ppoll(&pollfd, 1, &ten_s, &signals, sizeof(signals), &errno));
-    CHECK_EQ(1, status);
-    CHECK_EQ(POLLIN, pollfd.revents & POLLIN);
-    CHECK(GotSigusr1);
-
-    exit(0);
+    if (status != 1 || (pollfd.revents & POLLIN) != POLLIN) {
+      LssExit(1, &errno);
+    }
+    LssExit(GotSigusr1 ? 0 : 1, &errno);
   }
 
   EXPECT_EQ(0, lss_close(read_fd, &errno));
