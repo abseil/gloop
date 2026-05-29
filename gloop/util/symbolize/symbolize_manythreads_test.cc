@@ -25,7 +25,6 @@
 #include <optional>
 #include <vector>
 
-#include "absl/base/config.h"
 #include "absl/flags/flag.h"
 #include "absl/log/log.h"
 #include "absl/synchronization/barrier.h"

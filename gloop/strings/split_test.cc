@@ -27,9 +27,13 @@
 #include <string.h>
 
 #include <cstdint>
+#include <deque>
 #include <limits>
+#include <set>
 #include <string>
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-W#warnings"

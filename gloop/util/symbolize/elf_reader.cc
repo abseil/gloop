@@ -80,7 +80,7 @@
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "gloop/base/commandlineflags.h"
-#include "gloop/base/port.h"
+#include "gloop/base/port.h"  // IWYU pragma: keep
 #include "gloop/util/symbolize/symbol_map_sink.h"
 #include "zlib.h"
 

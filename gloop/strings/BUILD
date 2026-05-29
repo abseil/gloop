@@ -144,7 +144,6 @@ cc_library(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:charset",
-        "@abseil-cpp//absl/strings:internal",
         "@abseil-cpp//absl/strings:resize_and_overwrite",
         "@abseil-cpp//absl/strings:string_view",
     ],
@@ -467,6 +466,7 @@ cc_test(
     deps = [
         ":numbers",
         "//gloop:gloop_test_main",
+        "//gloop/base:fprint",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/numeric:int128",
@@ -608,7 +608,6 @@ cc_test(
         "//gloop:gloop_test_main",
         "//gloop/util/tuple/components:dump_vars",
         "@abseil-cpp//absl/strings:string_view",
-        "@abseil-cpp//absl/types:optional",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -684,6 +683,7 @@ cc_test(
     deps = [
         ":strip",
         "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",

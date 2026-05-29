@@ -325,7 +325,6 @@ cc_test(
         "@gloop//gloop/util/status:status_cc_proto",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@protobuf",
     ],
 )
 

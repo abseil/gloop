@@ -28,6 +28,7 @@
 #include <limits>
 #include <optional>
 #include <string>
+#include <system_error>  // NOLINT(build/c++11)
 
 #include "absl/base/attributes.h"
 #include "absl/base/macros.h"
@@ -36,7 +37,6 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/strip.h"
-#include "absl/types/optional.h"
 #include "gloop/util/math/mathutil.h"
 
 namespace strings {

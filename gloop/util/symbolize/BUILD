@@ -292,7 +292,6 @@ cc_test(
         "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
         "//gloop/thread",
-        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/synchronization",

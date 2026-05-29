@@ -280,7 +280,7 @@ std::string HumanReadableInt::ToString(int64_t value) {
   uint64_t v = value;
   if (value < 0) {
     v = 0 - v;  // MSVC 2013 errors on unary negation of unsigned.
-    s += "-";
+    s += '-';
   }
   if (v < int64_t{1000}) {
     absl::StrAppendFormat(&s, "%d", v);
@@ -316,7 +316,7 @@ std::string HumanReadableNum::ToString(int64_t value) {
 std::string HumanReadableNum::DoubleToString(double value) {
   std::string s;
   if (value < 0) {
-    s += "-";
+    s += '-';
     value = -value;
   }
   if (value < 1.0) {

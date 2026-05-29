@@ -26,7 +26,6 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "benchmark/benchmark.h"
 #include "gloop/util/tuple/components/dump_vars.h"
 #include "gmock/gmock.h"

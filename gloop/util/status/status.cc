@@ -43,9 +43,7 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/source_location.h"
-#include "absl/types/span.h"
 #include "gloop/util/coding/varint.h"
 #include "gloop/util/status/error_space.h"
 #include "gloop/util/status/status.pb.h"  // TO BE DELETED

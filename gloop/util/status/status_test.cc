@@ -58,7 +58,6 @@ namespace {
 
 using absl_testing::IsOk;
 using absl_testing::IsOkAndHolds;
-using absl_testing::StatusIs;
 using testing::AllOf;
 using testing::Eq;
 using testing::HasSubstr;

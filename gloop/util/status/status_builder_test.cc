@@ -57,7 +57,6 @@
 #include "gloop/util/status/status_macros.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/bridge/message_set.pb.h"
-#include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
 
 namespace testing {

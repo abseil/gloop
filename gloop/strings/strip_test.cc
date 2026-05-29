@@ -26,6 +26,7 @@
 
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
+#include "absl/strings/strip.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -69,7 +70,7 @@ TEST(StripTrailingNewline, Strip) {
   EXPECT_EQ(strip_me, copy);
 
   // Make sure it properly handles a single \n
-  strip_me += "\n";
+  strip_me += '\n';
   EXPECT_TRUE(StripTrailingNewline(&strip_me));
   EXPECT_EQ(strip_me, copy);
 
@@ -86,7 +87,7 @@ TEST(StripTrailingNewline, Strip) {
   // Make sure it doesn't strip things like trailing tabs that preceed
   // the newline like StripTrailingWhitespace would do.
   strip_me = copy + "\t\r\n";
-  copy += "\t";
+  copy += '\t';
   EXPECT_TRUE(StripTrailingNewline(&strip_me));
   EXPECT_EQ(strip_me, copy);
 }
