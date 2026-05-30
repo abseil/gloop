@@ -44,6 +44,7 @@
 #include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/source_location.h"
 #include "gloop/util/gtl/extend/debug_printing.h"
 #include "gloop/util/gtl/extend/extend.h"
 #include "gloop/util/gtl/iterator_range.h"
@@ -634,6 +635,11 @@ TEST(WithAbslStringify, RepeatStars) {
 TEST(WithDebugPrinting, Basic) {
   WithDebugPrinting foo = {.s = "Print me!"};
   EXPECT_THAT(to_string(foo), HasSubstr("Print me!"));
+}
+
+TEST(SourceLocation, Basic) {
+  const absl::SourceLocation here = absl::SourceLocation::current();
+  EXPECT_EQ(to_string(here), absl::StrCat(here.file_name(), ":", here.line()));
 }
 
 }  // namespace
