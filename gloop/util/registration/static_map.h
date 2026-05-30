@@ -156,7 +156,7 @@ class StaticMapBase {
         std::forward_as_tuple(location.file_name(), std::move(value)));
     ABSL_CHECK(inserted) << "Attempting to redefine value for key " << it->first
                          << ", that has been defined at " << it->second.first
-                         << ", at " << location;
+                         << ", at " << location.file_name();
     return false;
   }
 
@@ -167,8 +167,9 @@ class StaticMapBase {
     absl::MutexLock l(static_map->map_lock_);
 
     ABSL_CHECK(static_map->default_value_.get() == nullptr)
-        << "Attempting to redefine static map default value at " << location
-        << ", that has been defined at " << static_map->default_value_location_;
+        << "Attempting to redefine static map default value at "
+        << location.file_name() << ", that has been defined at "
+        << static_map->default_value_location_;
     static_map->default_value_ = std::make_unique<ValueType>(std::move(value));
     static_map->default_value_location_ = location.file_name();
     return false;
@@ -240,7 +241,7 @@ class StaticSetBase {
         {std::move(key), location.file_name()});
     CHECK(inserted) << "Attempting to reinsert key " << it->first
                     << ", that has been defined at " << it->second << ", at "
-                    << location;
+                    << location.file_name();
     return false;
   }
 

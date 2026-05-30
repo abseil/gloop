@@ -203,10 +203,8 @@
 #include "absl/strings/cord.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/source_location.h"
 #include "gloop/strings/ostringstream.h"
 #include "gloop/util/gtl/typeid.h"
-#include "gloop/util/status/status.h"
 #include "gloop/util/tuple/components/for_each.h"
 #include "gloop/util/tuple/components/intrinsics.h"
 #include "gloop/util/tuple/components/rank.h"
@@ -657,13 +655,6 @@ class printer {
   template <class T, class = ::std::enable_if_t<
                          ::std::is_same_v<typename T::type, ::std::monostate>>>
   void print(const T& obj, rank<32>) const {}
-
-  // SourceLocation printed as file:line - becomes clickable in test outputs.
-  template <class T, class = ::std::enable_if_t<
-                         ::std::is_same_v<T, absl::SourceLocation>>>
-  void print(const T& obj, rank<33>) const {
-    stream_ << obj.file_name() << ":" << obj.line();
-  }
 
   // Complete unprintable types are hex-dumped.
   template <class T,

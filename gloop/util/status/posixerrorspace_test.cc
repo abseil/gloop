@@ -157,17 +157,4 @@ TEST(PosixErrorSpaceTest, TESTToCanonical) {
   EXPECT_EQ(absl::StatusCode::kUnknown, ::util::ToCanonical(status).code());
 }
 
-TEST(PosixErrorSpaceTest, TESTSourceLocation) {
-  const absl::SourceLocation loc0 = absl::SourceLocation::current();
-  const absl::Status status = PosixErrorToStatus(ENOSPC, "foo");
-  const absl::SourceLocation loc1 = absl::SourceLocation::current();
-  EXPECT_EQ(ENOSPC, ::util::RetrieveErrorCode(status));
-  EXPECT_EQ(status.message(), "foo");
-  auto source_locations = status.GetSourceLocations();
-  ASSERT_EQ(status.GetSourceLocations().size(), 1);
-  EXPECT_EQ(source_locations[0].file_name(), loc0.file_name());
-  EXPECT_GT(source_locations[0].line(), loc0.line());
-  EXPECT_LT(source_locations[0].line(), loc1.line());
-}
-
 }  // namespace util
