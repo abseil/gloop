@@ -1782,8 +1782,6 @@ TEST(ThreadTest, CheckStackLineWrap) {
   }
 }
 
-#ifndef GLOOP_UNSUPPORTED_LIBSTDCXX  // Extra characters inserted under
-                                     // libstdc++
 TEST(ThreadTest, CheckStackTop) {
   if (!absl::debugging_internal::StackTraceWorksForTest()) {
     LOG(WARNING) << "Skip because stack traces are not expected to work.";
@@ -1811,7 +1809,6 @@ TEST(ThreadTest, CheckStackTop) {
         << ",  expected " << pc;
   }
 }
-#endif  // GLOOP_UNSUPPORTED_LIBSTDCXX
 
 TEST(ThreadTest, CheckThreadNotesInStack) {
   if (!absl::debugging_internal::StackTraceWorksForTest()) {

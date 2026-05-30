@@ -76,9 +76,9 @@ void DemangleToString(const char* mangled, std::string* out) {
 #if HAS_CXA_DEMANGLE
   demangled = abi::__cxa_demangle(mangled, nullptr, &length, &status);
 #endif
-  if (status == 0 && demangled != nullptr &&
-      length > 1) {                      // Demangling succeeded.
-    out->append(demangled, length - 1);  // length counts terminating null.
+  if (status == 0 && demangled != nullptr && length > 1) {
+    // Demangling succeeded.
+    out->append(demangled);
     free(demangled);
   } else {
     out->append(mangled);
