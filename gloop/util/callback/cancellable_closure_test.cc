@@ -22,65 +22,52 @@
 
 #include "gloop/util/callback/cancellable_closure.h"
 
-#include <limits.h>
-#include <stdio.h>
-#include <unistd.h>
-
+#include <array>
+#include <climits>
 #include <cstdint>
 #include <string>
+#include <thread>  // NOLINT(build/c++11)
+#include <tuple>
 #include <vector>
 
-#include "absl/base/macros.h"
-#include "absl/flags/flag.h"
-#include "absl/functional/bind_front.h"
-#include "absl/log/check.h"
-#include "absl/log/log.h"
-#include "absl/strings/str_format.h"
 #include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "gloop/base/callback.h"
-#include "gloop/base/init_google.h"
-#include "gloop/thread/executor.h"
 #include "gloop/thread/threadpool.h"
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
-// It may be useful to set -parallel=false when debugging.
-ABSL_FLAG(bool, parallel, true, "run the many WaitFor/Canceltests in parallel");
+namespace {
 
-// Set *x to n.
-static void SetToNWithDelayMS(int n, int* x, int delay_ms) {
-  if (delay_ms > 0) {
-    absl::SleepFor(absl::Milliseconds(delay_ms));
-  }
-  *x = n;
-}
+using ::testing::IsNull;
+using ::testing::NotNull;
 
-static void TestSimpleRun() {
-  LOG(INFO) << "=== TestSimpleRun";
-  util::callback::CancellableClosure* cc;
-  int x;
-
+TEST(CancellableClosureTest, RunBeforeUnref) {
+  int x = 0;
+  util::callback::CancellableClosure* cc =
+      util::callback::CancellableClosure::New(
+          ::util::functional::ToCallback([&x] { x = 1; }));
   // Use Run() before Unref()
-  x = 0;
-  cc = util::callback::CancellableClosure::New(
-      ::util::functional::ToCallback([&x] { SetToNWithDelayMS(1, &x, 0); }));
   cc->Run();
   cc->Unref();
-  CHECK_EQ(x, 1);
-
-  // Use Unref() before Run()
-  x = 0;
-  cc = util::callback::CancellableClosure::New(
-      ::util::functional::ToCallback([&x] { SetToNWithDelayMS(1, &x, 0); }));
-  cc->Unref();  // should be able to call Run after the last Unref().
-  cc->Run();
-  CHECK_EQ(x, 1);
+  EXPECT_EQ(x, 1);
 }
 
-static void TestRefUnref() {
-  LOG(INFO) << "=== TestRefUnref";
+TEST(CancellableClosureTest, UnrefBeforeRun) {
+  int x = 0;
+  util::callback::CancellableClosure* cc =
+      util::callback::CancellableClosure::New(
+          ::util::functional::ToCallback([&x] { x = 1; }));
+  // Use Unref() before Run()
+  cc->Unref();  // should be able to call Run after the last Unref().
+  cc->Run();
+  EXPECT_EQ(x, 1);
+}
+
+TEST(CancellableClosureTest, RefUnref) {
   util::callback::CancellableClosure* cc;
   int x;
   static const int kReferences = 100;
@@ -89,9 +76,9 @@ static void TestRefUnref() {
   // to keep the heap checker happy.
   x = 0;
   cc = util::callback::CancellableClosure::New(
-      ::util::functional::ToCallback([&x] { SetToNWithDelayMS(1, &x, 0); }));
+      ::util::functional::ToCallback([&x] { x = 1; }));
   cc->Run();
-  CHECK_EQ(x, 1);
+  EXPECT_EQ(x, 1);
   for (int i = 0; i != kReferences; i++) {
     cc->Ref();
   }
@@ -100,233 +87,357 @@ static void TestRefUnref() {
   }
 }
 
-// Parameters for a test run with WaitUntil or Cancel
-struct Parameters {
-  int run_delay_ms;   // delay before closure is Run() by Executor
-  int run_time_ms;    // time delay in Run()
-  int wait_delay_ms;  // delay before Cancel() or delay passed to WaitUntil()
-  int flags;          // flags passed to WaitUntil()
+struct WaitUntilExpectations {
+  bool expected_success;
+  int expected_x;
+  int expected_min_duration_ms;
 };
 
-static const int kRunInCaller =  // shorten the name
-    util::callback::CancellableClosure::kRunInCaller;
-
-// Run (*test_func)() for every combinary of parameters in the arrays
-// run_delay_ms, run_time_ms, wait_delay_ms, flags.  The sizes of these in
-// given by the *_count parameters.
-// Create and later Executors for the tests, and wait for them all to complete.
-// This routine is shared between the WaitUntil and Cancel tests
-static void RunTest(void (*test_func)(thread::Executor*, Parameters,
-                                      absl::Notification*),
-                    const int run_delay_ms[], int run_delay_ms_count,
-                    const int run_time_ms[], int run_time_ms_count,
-                    const int wait_delay_ms[], int wait_delay_ms_count,
-                    const int flags[], int flags_count) {
-  std::vector<absl::Notification*> wait_for;
-  ThreadPool* tp0 = nullptr;
-  ThreadPool* tp1 = new ThreadPool(40);
-  tp1->StartWorkers();
-  Parameters params;
-  for (int rdi = 0; rdi != run_delay_ms_count; rdi++) {
-    params.run_delay_ms = run_delay_ms[rdi];
-    for (int rti = 0; rti != run_time_ms_count; rti++) {
-      params.run_time_ms = run_time_ms[rti];
-      for (int wdi = 0; wdi != wait_delay_ms_count; wdi++) {
-        params.wait_delay_ms = wait_delay_ms[wdi];
-        for (int fi = 0; fi != flags_count; fi++) {
-          params.flags = flags[fi];
-          wait_for.push_back(new absl::Notification);
-          if (absl::GetFlag(FLAGS_parallel)) {
-            if (tp0 == nullptr) {
-              tp0 = new ThreadPool(40);
-              tp0->StartWorkers();
-            }
-            thread::Executor* exec = tp1;
-            tp0->Schedule(
-                absl::bind_front(test_func, exec, params, wait_for.back()));
-          } else {
-            (test_func)(tp1, params, wait_for.back());
-          }
-        }
-      }
-    }
+WaitUntilExpectations ComputeWaitUntilExpectations(int run_delay_ms,
+                                                   int run_time_ms,
+                                                   int wait_delay_ms,
+                                                   int flags) {
+  if ((flags & util::callback::CancellableClosure::kRunInCaller) != 0) {
+    // Expect closure to have run, and delay determined by run time
+    // because WaitUntil() will run the closure.
+    return {true, 1, run_time_ms};
   }
-  for (int i = 0; i != wait_for.size(); i++) {
-    wait_for[i]->WaitForNotification();
-    delete wait_for[i];
+  if (wait_delay_ms == INT_MAX) {
+    return {true, 1, run_delay_ms + run_time_ms};
   }
-  // in case some closures delayed with AddAfter() are not yet
-  // queued.
-  absl::SleepFor(absl::Seconds(1));
-  delete tp0;
-  delete tp1;
+  if (run_delay_ms < wait_delay_ms) {
+    // Expect closure to have run, and delay to be determined by
+    // Executor delay plus run time.
+    return {true, 1, run_delay_ms + run_time_ms};
+  }
+  // Expect closure not to have run, and delay determined by wait
+  // argument.
+  return {false, 0, wait_delay_ms};
 }
+
+class CancellableClosureWaitUntilTest
+    : public ::testing::TestWithParam<std::tuple<int, int, int, int>> {};
 
 // Check a single use of WaitUntil() with a given delay, wait time, and flags.
 // Run the closures on *exec, and notify *done when finished.
-static void TestWaitUntilSingle(thread::Executor* exec, Parameters params,
-                                absl::Notification* done) {
-  std::string description(
-      absl::StrFormat("TestWaitUntilSingle run_delay_ms=%d "
-                      "run_time_ms=%d wait_delay_ms=%d flags=%x\n",
-                      params.run_delay_ms, params.run_time_ms,
-                      params.wait_delay_ms, params.flags));
-  // Set up the closure
+TEST_P(CancellableClosureWaitUntilTest, Run) {
+  auto [run_delay_ms, run_time_ms, wait_delay_ms, flags] = GetParam();
+
+  ThreadPool exec(40);
+
   int x = 0;
   util::callback::CancellableClosure* cc =
-      util::callback::CancellableClosure::New(::util::functional::ToCallback(
-          absl::bind_front(&SetToNWithDelayMS, 1, &x, params.run_time_ms)));
-  exec->ScheduleAfterForMigration(absl::Milliseconds(params.run_delay_ms),
-                                  ::util::functional::FromCallback(cc));
+      util::callback::CancellableClosure::New(
+          ::util::functional::ToCallback([&x, run_time_ms] {
+            if (run_time_ms > 0) {
+              absl::SleepFor(absl::Milliseconds(run_time_ms));
+            }
+            x = 1;
+          }));
 
-  // Use WaitUntil()
-  int64_t before_ms = absl::ToUnixMillis(absl::Now());
-  int64_t timeout_ms = (params.wait_delay_ms == INT_MAX
-                            ? util::callback::CancellableClosure::kForever
-                            : params.wait_delay_ms + before_ms);
-  bool result = cc->WaitUntil(timeout_ms, params.flags);
-  int64_t after_ms = absl::ToUnixMillis(absl::Now());
-  int64_t interval_ms = after_ms - before_ms;
+  absl::Time now = exec.clock()->TimeNow();
+  exec.ScheduleAt(now + absl::Milliseconds(run_delay_ms),
+                  ::util::functional::FromCallback(cc));
 
-  // Compute what we expect to have seen and how long it should have taken.
-  bool expected_result = false;
-  if ((params.flags & kRunInCaller) != 0) {
-    // expect closure to have run, and delay determined by run time
-    // because WaitUntil() will run the closure.
-    expected_result = true;
-    CHECK_LT(interval_ms, params.run_time_ms + 140);
-    CHECK_LE(params.run_time_ms - 50, interval_ms);
-  } else if (params.run_delay_ms < params.wait_delay_ms) {
-    // expect closure to have run, and delay to be determined by
-    // Executor delay plus run time
-    expected_result = true;
-    CHECK_LT((params.run_delay_ms + params.run_time_ms) - 50, interval_ms);
-    CHECK_LT(interval_ms, (params.run_delay_ms + params.run_time_ms) + 140);
-  } else {
-    // expect closure not to have run, and delay determined by wait
-    // argument
-    CHECK_LT(params.wait_delay_ms - 50, interval_ms);
-    CHECK_LT(interval_ms, params.wait_delay_ms + 140);
-  }
-  CHECK_EQ(result, expected_result);
-  CHECK_EQ(x, result ? 1 : 0);
-  CHECK(cc->WaitUntil(util::callback::CancellableClosure::kForever, 0));
-  CHECK_EQ(x, 1);
+  int64_t before_ms = absl::ToUnixMillis(now);
+  int64_t timeout_ms =
+      (wait_delay_ms == INT_MAX ? util::callback::CancellableClosure::kForever
+                                : before_ms + wait_delay_ms);
+
+  bool result = cc->WaitUntil(timeout_ms, flags);
+  int64_t interval_ms = absl::ToUnixMillis(exec.clock()->TimeNow()) - before_ms;
+
+  auto expected = ComputeWaitUntilExpectations(run_delay_ms, run_time_ms,
+                                               wait_delay_ms, flags);
+
+  EXPECT_EQ(result, expected.expected_success);
+  EXPECT_EQ(x, expected.expected_x);
+
+  // GTest CI workers and sanitizers can suffer from scheduler latency. We
+  // apply a -100ms lower bound tolerance for clock granularity, and a
+  // generous +5000ms upper bound to prevent false-positive flakiness.
+  EXPECT_GE(interval_ms, expected.expected_min_duration_ms - 100);
+  EXPECT_LT(interval_ms, expected.expected_min_duration_ms + 5000);
+
+  EXPECT_TRUE(cc->WaitUntil(util::callback::CancellableClosure::kForever, 0));
+  EXPECT_EQ(x, 1);
+
   cc->Unref();
-  done->Notify();
 }
 
 // Test many combinations of delays and parameters for WaitUntil.
-static void TestWaitUntilAll() {
-  LOG(INFO) << "=== TestWaitUntil";
-  static const int run_delay_ms[] = {100, 500, 900};  // ms before Run()
-  static const int run_time_ms[] = {0, 100};  // Run() takes this many ms
-  static const int wait_delay_ms[] = {350, 750, INT_MAX /*infinity*/};
-  // WaitUtil wait time
-  static const int flags[] = {0, kRunInCaller};  // WaitUntil flags
-  RunTest(&TestWaitUntilSingle, run_delay_ms, ABSL_ARRAYSIZE(run_delay_ms),
-          run_time_ms, ABSL_ARRAYSIZE(run_time_ms), wait_delay_ms,
-          ABSL_ARRAYSIZE(wait_delay_ms), flags, ABSL_ARRAYSIZE(flags));
+INSTANTIATE_TEST_SUITE_P(
+    CancellableClosureWaitUntilTestSuite, CancellableClosureWaitUntilTest,
+    testing::Combine(
+        testing::Values(100, 500, 900), testing::Values(0, 100),
+        testing::Values(350, 750, INT_MAX),
+        testing::Values(0, util::callback::CancellableClosure::kRunInCaller)));
+
+MATCHER_P2(MatchesCancelledClosure, expect_nonnull, x_ptr,
+           std::string(negation ? "does not match" : "matches") +
+               " cancelled closure expectation") {
+  Closure* cancelled_cl = arg;
+  if (expect_nonnull) {
+    if (cancelled_cl == nullptr) {
+      *result_listener << "which is null";
+      return false;
+    }
+    if (*x_ptr != 0) {
+      *result_listener << "which is non-null, but x is already " << *x_ptr
+                       << " (expected 0 before running)";
+      return false;
+    }
+    cancelled_cl->Run();
+    if (*x_ptr != 1) {
+      *result_listener << "which is non-null, but running it did not change "
+                          "x to 1 (it is "
+                       << *x_ptr << ")";
+      return false;
+    }
+    return true;
+  } else {
+    if (cancelled_cl != nullptr) {
+      *result_listener << "which is non-null";
+      return false;
+    }
+    return true;
+  }
 }
+
+struct CancelExpectations {
+  util::callback::CancellableClosure::CancelResult expected_result1;
+  util::callback::CancellableClosure::CancelResult expected_result2;
+  bool expect_cancelled_nonnull;
+  int expected_x_before_cancelled_run;
+};
+
+CancelExpectations ComputeCancelExpectations(int run_delay_ms, int run_time_ms,
+                                             int wait_delay_ms, int flags) {
+  if (wait_delay_ms < run_delay_ms) {
+    // Expect to have cancelled on the first try.
+    return {util::callback::CancellableClosure::CANCELLED,
+            util::callback::CancellableClosure::ALREADY_CANCELLED, true, 0};
+  }
+  if (wait_delay_ms < run_delay_ms + run_time_ms) {
+    // Expect to see the closure while it's running on the first try,
+    // and finished on the second try.
+    return {util::callback::CancellableClosure::RUNNING,
+            util::callback::CancellableClosure::FINISHED, false, 1};
+  }
+  // Expect to see the closure finished.
+  return {util::callback::CancellableClosure::FINISHED,
+          util::callback::CancellableClosure::FINISHED, false, 1};
+}
+
+class CancellableClosureCancelTest
+    : public ::testing::TestWithParam<std::tuple<int, int, int, int>> {};
 
 // Check Cancel() of a closure delayed for run_delay_ms that runs for
 // run_time_ms, cancelling after wait_delay_ms, and trying again after
 // WaitUntil() with flags.
 // Run the closures on *exec, and notify *done when finished.
-static void TestCancelSingle(thread::Executor* exec, Parameters params,
-                             absl::Notification* done) {
-  std::string description(
-      absl::StrFormat("TestCancelSingle run_delay_ms=%d "
-                      "run_time_ms=%d wait_delay_ms=%d flags=%x\n",
-                      params.run_delay_ms, params.run_time_ms,
-                      params.wait_delay_ms, params.flags));
-  // set up the closure
+TEST_P(CancellableClosureCancelTest, Run) {
+  auto [run_delay_ms, run_time_ms, wait_delay_ms, flags] = GetParam();
+
+  ThreadPool exec(40);
+
   int x = 0;
   util::callback::CancellableClosure* cc =
-      util::callback::CancellableClosure::New(::util::functional::ToCallback(
-          absl::bind_front(&SetToNWithDelayMS, 1, &x, params.run_time_ms)));
-  exec->ScheduleAfterForMigration(absl::Milliseconds(params.run_delay_ms),
-                                  ::util::functional::FromCallback(cc));
+      util::callback::CancellableClosure::New(
+          ::util::functional::ToCallback([&x, run_time_ms] {
+            if (run_time_ms > 0) {
+              absl::SleepFor(absl::Milliseconds(run_time_ms));
+            }
+            x = 1;
+          }));
 
-  absl::SleepFor(
-      absl::Milliseconds(params.wait_delay_ms));  // first we sleep for a while.
-  Closure* cancelled_cl;
+  absl::Time start_time = exec.clock()->TimeNow();
+  exec.ScheduleAt(start_time + absl::Milliseconds(run_delay_ms),
+                  ::util::functional::FromCallback(cc));
 
-  // try cancelling....
+  absl::SleepFor(absl::Milliseconds(wait_delay_ms));
+
+  Closure* cancelled_cl = nullptr;
   util::callback::CancellableClosure::CancelResult result =
       cc->Cancel(&cancelled_cl);
 
-  // then wait until the closure has either run on been cancelled
-  CHECK(
-      cc->WaitUntil(util::callback::CancellableClosure::kForever, params.flags))
-      << description;
+  // Measure actual sleep duration to avoid flakiness from scheduler latency
+  // or sanitizer overheads causing sleep overshoots.
+  int64_t actual_wait_ms =
+      absl::ToInt64Milliseconds(exec.clock()->TimeNow() - start_time);
+
+  // then wait until the closure has either run or been cancelled
+  EXPECT_TRUE(
+      cc->WaitUntil(util::callback::CancellableClosure::kForever, flags));
 
   // then try cancelling again.
-  Closure* cancelled_cl2;
+  Closure* cancelled_cl2 = nullptr;
   util::callback::CancellableClosure::CancelResult result2 =
       cc->Cancel(&cancelled_cl2);
 
   // Now we compute the result we should expect.
-  util::callback::CancellableClosure::CancelResult expected_result;
-  util::callback::CancellableClosure::CancelResult expected_result2;
-  if (params.wait_delay_ms < params.run_delay_ms) {
-    // expect to have cancelled on the first try
-    expected_result = util::callback::CancellableClosure::CANCELLED;
-    expected_result2 = util::callback::CancellableClosure::ALREADY_CANCELLED;
-  } else if (params.wait_delay_ms < params.run_delay_ms + params.run_time_ms) {
-    // expect to see the closure while it's running on first try, and cancelled
-    // on second try.
-    expected_result = util::callback::CancellableClosure::RUNNING;
-    expected_result2 = util::callback::CancellableClosure::FINISHED;
-  } else {
-    // expect to see the closure finished
-    expected_result = util::callback::CancellableClosure::FINISHED;
-    expected_result2 = util::callback::CancellableClosure::FINISHED;
-  }
-  CHECK_EQ(result, expected_result) << description;
-  CHECK_EQ(result2, expected_result2) << description;
-  if (result == util::callback::CancellableClosure::CANCELLED) {
-    CHECK(cancelled_cl != nullptr) << description;
-    CHECK_EQ(x, 0) << description;
-    cancelled_cl->Run();
-    CHECK_EQ(x, 1) << description;
-  } else {
-    CHECK_EQ(x, 1) << description;
-    CHECK(cancelled_cl == nullptr) << description;
-  }
-  if (result2 == util::callback::CancellableClosure::CANCELLED) {
-    CHECK(cancelled_cl2 != nullptr) << description;
-    CHECK_EQ(x, 0) << description;
-    cancelled_cl2->Run();
-    CHECK_EQ(x, 1) << description;
-  } else {
-    CHECK_EQ(x, 1) << description;
-    CHECK(cancelled_cl2 == nullptr) << description;
-  }
+  auto expected = ComputeCancelExpectations(run_delay_ms, run_time_ms,
+                                            actual_wait_ms, flags);
+
+  EXPECT_EQ(result, expected.expected_result1);
+  EXPECT_EQ(result2, expected.expected_result2);
+  EXPECT_EQ(x, expected.expected_x_before_cancelled_run);
+
+  EXPECT_THAT(cancelled_cl,
+              MatchesCancelledClosure(expected.expect_cancelled_nonnull, &x));
+  EXPECT_THAT(cancelled_cl2, IsNull());
+
   cc->Unref();
-  done->Notify();
 }
 
 // Test many combinations of delays and parameters for Cancel.
-static void TestCancelAll() {
-  LOG(INFO) << "=== TestCancel";
-  static const int run_delay_ms[] = {0, 300};  // ms before Run()
-  static const int run_time_ms[] = {0, 300};   // Run() takes this many ms
-  static const int wait_delay_ms[] = {150, 450, 750};  // wait before Cancel()
-  static const int flags[] = {0, kRunInCaller};        // WaitUntil flags
-  RunTest(&TestCancelSingle, run_delay_ms, ABSL_ARRAYSIZE(run_delay_ms),
-          run_time_ms, ABSL_ARRAYSIZE(run_time_ms), wait_delay_ms,
-          ABSL_ARRAYSIZE(wait_delay_ms), flags, ABSL_ARRAYSIZE(flags));
+INSTANTIATE_TEST_SUITE_P(
+    CancellableClosureCancelTestSuite, CancellableClosureCancelTest,
+    testing::Combine(
+        testing::Values(0, 300), testing::Values(0, 300),
+        testing::Values(150, 450, 750),
+        testing::Values(0, util::callback::CancellableClosure::kRunInCaller)));
+
+TEST(CancellableClosureTest, CancelBeforeRunning) {
+  int run_count = 0;
+  util::callback::CancellableClosure* cc =
+      util::callback::CancellableClosure::New(
+          ::util::functional::ToCallback([&run_count] { run_count++; }));
+
+  Closure* cancelled_cl = nullptr;
+  util::callback::CancellableClosure::CancelResult result =
+      cc->Cancel(&cancelled_cl);
+
+  EXPECT_EQ(result, util::callback::CancellableClosure::CANCELLED);
+  ASSERT_THAT(cancelled_cl, NotNull());
+
+  // According to CancellableClosure's API contract, when Cancel() returns
+  // CANCELLED, the wrapped Closure is returned in cancelled_cl. The caller
+  // is responsible for executing/deleting the cancelled closure exactly once,
+  // and cc->Run() must still be called to allow the object to be freed.
+  cancelled_cl->Run();
+  EXPECT_EQ(run_count, 1);
+
+  // cc->Run() must still be called, but since it is cancelled, it should
+  // NOT run the wrapped callback again.
+  cc->Run();
+  EXPECT_EQ(run_count, 1);
+
+  cc->Unref();
 }
 
-int main(int argc, char* argv[]) {
-  InitGoogle(argv[0], &argc, &argv, true);
+TEST(CancellableClosureTest, CancelWhileRunning) {
+  absl::Notification cb_started;
+  absl::Notification cb_resume;
 
-  TestSimpleRun();
-  TestRefUnref();
-  TestWaitUntilAll();
-  TestCancelAll();
+  util::callback::CancellableClosure* cc =
+      util::callback::CancellableClosure::New(
+          ::util::functional::ToCallback([&cb_started, &cb_resume] {
+            cb_started.Notify();
+            cb_resume.WaitForNotification();
+          }));
 
-  printf("PASS\n");
-  return 0;
+  std::thread run_thread([cc] { cc->Run(); });
+
+  // Wait until the callback has actually started executing.
+  cb_started.WaitForNotification();
+
+  Closure* cancelled_cl = nullptr;
+  util::callback::CancellableClosure::CancelResult result =
+      cc->Cancel(&cancelled_cl);
+
+  // Since the closure is currently running, Cancel() should return RUNNING.
+  EXPECT_EQ(result, util::callback::CancellableClosure::RUNNING);
+  EXPECT_THAT(cancelled_cl, IsNull());
+
+  // Resume the callback and join the thread.
+  cb_resume.Notify();
+  run_thread.join();
+
+  cc->Unref();
 }
+
+TEST(CancellableClosureTest, WaitThenCancel) {
+  bool run_flag = false;
+  util::callback::CancellableClosure* cc =
+      util::callback::CancellableClosure::New(
+          ::util::functional::ToCallback([&run_flag] { run_flag = true; }));
+
+  absl::Notification waiter_started;
+  absl::Notification waiter_done;
+  std::thread waiter_thread([cc, &waiter_started, &waiter_done] {
+    waiter_started.Notify();
+    bool success =
+        cc->WaitUntil(util::callback::CancellableClosure::kForever, 0);
+    EXPECT_TRUE(success);
+    waiter_done.Notify();
+  });
+
+  waiter_started.WaitForNotification();
+
+  std::this_thread::yield();
+  absl::SleepFor(absl::Milliseconds(10));
+
+  Closure* cancelled_cl = nullptr;
+  EXPECT_EQ(cc->Cancel(&cancelled_cl),
+            util::callback::CancellableClosure::CANCELLED);
+  ASSERT_THAT(cancelled_cl, NotNull());
+
+  waiter_done.WaitForNotification();
+  waiter_thread.join();
+
+  EXPECT_FALSE(run_flag);
+
+  cc->Run();
+
+  cancelled_cl->Run();
+  EXPECT_TRUE(run_flag);
+
+  cc->Unref();
+}
+
+TEST(CancellableClosureTest, ConcurrentMultipleWaiters) {
+  bool run_flag = false;
+  util::callback::CancellableClosure* cc =
+      util::callback::CancellableClosure::New(
+          ::util::functional::ToCallback([&run_flag] { run_flag = true; }));
+
+  static constexpr int kNumWaiters = 10;
+  std::vector<std::thread> waiter_threads;
+  std::array<absl::Notification, kNumWaiters> started_notifications;
+  std::array<absl::Notification, kNumWaiters> done_notifications;
+
+  for (int i = 0; i < kNumWaiters; ++i) {
+    absl::Notification* started = &started_notifications[i];
+    absl::Notification* done = &done_notifications[i];
+    waiter_threads.emplace_back([cc, started, done] {
+      started->Notify();
+      bool success =
+          cc->WaitUntil(util::callback::CancellableClosure::kForever, 0);
+      EXPECT_TRUE(success);
+      done->Notify();
+    });
+  }
+
+  for (int i = 0; i < kNumWaiters; ++i) {
+    started_notifications[i].WaitForNotification();
+  }
+
+  std::this_thread::yield();
+  absl::SleepFor(absl::Milliseconds(10));
+
+  cc->Run();
+  EXPECT_TRUE(run_flag);
+
+  for (int i = 0; i < kNumWaiters; ++i) {
+    done_notifications[i].WaitForNotification();
+  }
+
+  for (auto& t : waiter_threads) {
+    t.join();
+  }
+
+  cc->Unref();
+}
+
+}  // namespace

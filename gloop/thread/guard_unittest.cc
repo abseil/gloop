@@ -27,129 +27,140 @@
 // This relies on the stack growing down so watch out if you use an
 // HPPA or something.  See stack_incr in GuardTestThread::DoStackTest.
 
+#include <limits.h>
+#include <pthread.h>
 #include <unistd.h>
 
 #include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <string>
+#include <tuple>
 
-#include "absl/base/macros.h"
-#include "absl/flags/flag.h"
-#include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "gloop/base/address_is_readable.h"
-#include "gloop/base/init_google.h"
-#include "gloop/base/log_file_flags.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
+#include "gtest/gtest.h"
+
+namespace {
+
+struct GuardSpec {
+  absl::string_view name;
+  std::function<size_t(size_t, size_t)> calculator;
+};
+
+const GuardSpec kOneByte = {"OneByte",
+                            [](size_t, size_t) -> size_t { return 1; }};
+
+const GuardSpec kOnePage = {
+    "OnePage", [](size_t, size_t pagesize) -> size_t { return pagesize; }};
+
+const GuardSpec kHalfStack = {"HalfStack",
+                              [](size_t mult, size_t pagesize) -> size_t {
+                                // Would fail with NPTL if Thread didn't
+                                // compensate.
+                                return (mult / 2) * pagesize;
+                              }};
+
+struct GuardTestNameFormatter {
+  std::string operator()(
+      const testing::TestParamInfo<std::tuple<size_t, GuardSpec>>& info) const {
+    const auto& [stack_multiplier, guard_spec] = info.param;
+    return absl::StrCat("StackMultiplier_", stack_multiplier, "_GuardType_",
+                        guard_spec.name);
+  }
+};
 
 // Thread which tests the size of its stack.
 class GuardTestThread : public Thread {
  public:
-  // After Start and Join, *ok is set to true if stack and guard sizes
-  // were verified to be OK.
-  GuardTestThread(int stack_size, int guard_size, bool* ok)
+  GuardTestThread(size_t stack_size, size_t guard_size)
       : Thread(thread::Options()
                    .set_stack_size(stack_size)
-                   .set_guard_size(guard_size),
-               "guardtest"),
-        requested_stack_size_(stack_size),
-        requested_guard_size_(guard_size),
-        ok_(ok) {
-    CHECK_LT(0, guard_size) << "guard_size of 0 is not supported by test.";
-    this->SetJoinable(true);
-  }
+                   .set_guard_size(guard_size)
+                   .set_joinable(true),
+               "guardtest") {}
 
-  virtual void Run() { *ok_ = DoStackTest(); }
+  void Run() override { DoStackTest(); }
+
+  size_t detected_stack_size() const { return detected_stack_size_; }
+  size_t detected_guard_size() const { return detected_guard_size_; }
 
  private:
-  // Returns true if sizes are OK.
-  bool DoStackTest() {
-    const char* stack_addr =
-        static_cast<const char*>(__builtin_frame_address(0));
-
-    // "Stuff" on the stack may have already consumed up to approximately
-    // PTHREAD_STACK_MIN bytes of space.
-    const int expected_stack_size = requested_stack_size_ - PTHREAD_STACK_MIN;
-    const int expected_guard_size = requested_guard_size_;
+  void DoStackTest() {
+    const uintptr_t stack_addr =
+        reinterpret_cast<uintptr_t>(__builtin_frame_address(0));
 
     // Change this to 1 if on a machine where stack grows up.
-    const int stack_incr = -1;
+    constexpr intptr_t stack_incr = -1;
 
     /* There may an arbitrary amount of extra stack, but in these tests
-       we assume that there will always be at least a bit of a guard.  */
-    int stack_size = 0;
-    while (base::AddressIsReadable(stack_addr + stack_size))
+       we assume that there will always be at least a bit of a guard. */
+    intptr_t stack_size = 0;
+    while (base::AddressIsReadable(
+        reinterpret_cast<const void*>(stack_addr + stack_size))) {
       stack_size += stack_incr;
+    }
 
-    int guard_size = stack_incr;
-    while (!base::AddressIsReadable(stack_addr + stack_size + guard_size) &&
-           (guard_size * stack_incr) < requested_guard_size_)
+    intptr_t guard_size = stack_incr;
+    const intptr_t req_guard_size =
+        static_cast<intptr_t>(options().guard_size());
+
+    while (!base::AddressIsReadable(reinterpret_cast<const void*>(
+               stack_addr + stack_size + guard_size)) &&
+           (guard_size * stack_incr) < req_guard_size) {
       guard_size += stack_incr;
+    }
 
     /* normalize back to positive.  */
-    stack_size *= stack_incr;
-    guard_size *= stack_incr;
-
-    LOG(INFO) << "detected available stack size " << stack_size
-              << ", guard size >= " << guard_size;
-    LOG(INFO) << "expected stack size >= " << expected_stack_size << ".  "
-              << (stack_size >= expected_stack_size ? "OK" : "BAD");
-    LOG(INFO) << "expected guard size >= " << expected_guard_size << ".  "
-              << (guard_size >= expected_guard_size ? "OK" : "BAD");
-
-    if (stack_size < expected_stack_size || guard_size < expected_guard_size)
-      return false;
-    return true;
+    detected_stack_size_ = static_cast<size_t>(stack_size * stack_incr);
+    detected_guard_size_ = static_cast<size_t>(guard_size * stack_incr);
   }
 
-  int requested_stack_size_;
-  int requested_guard_size_;
-  bool* ok_;
+  size_t detected_stack_size_ = 0;
+  size_t detected_guard_size_ = 0;
 };
 
-bool TestOneSize(int stack_size, int guard_size) {
-  LOG(INFO) << "Testing thread with stack_size = " << stack_size
-            << ", guard_size = " << guard_size;
+class GuardTest : public testing::TestWithParam<std::tuple<size_t, GuardSpec>> {
+};
 
-  bool ok;
-  GuardTestThread thread(stack_size, guard_size, &ok);
+TEST_P(GuardTest, StackAndGuardSizesAreOk) {
+  const auto& [stack_multiplier, guard_spec] = GetParam();
+  const int64_t sysconf_pagesize = sysconf(_SC_PAGESIZE);
+  ASSERT_GT(sysconf_pagesize, 0);
+  const size_t pagesize = static_cast<size_t>(sysconf_pagesize);
+
+  const size_t stack_size = stack_multiplier * pagesize;
+  const size_t guard_size = guard_spec.calculator(stack_multiplier, pagesize);
+
+  ASSERT_GT(guard_size, 0u);
+
+  GuardTestThread thread(stack_size, guard_size);
   thread.Start();
   thread.Join();
 
-  LOG(INFO) << (ok ? "PASSED" : "FAILED");
-  return ok;
+  // "Stuff" on the stack may have already consumed up to approximately
+  // PTHREAD_STACK_MIN bytes of space.
+  const size_t expected_stack_size =
+      (stack_size > static_cast<size_t>(PTHREAD_STACK_MIN))
+          ? (stack_size - static_cast<size_t>(PTHREAD_STACK_MIN))
+          : 0u;
+  const size_t expected_guard_size = guard_size;
+
+  VLOG(1) << "detected available stack size " << thread.detected_stack_size()
+          << ", guard size >= " << thread.detected_guard_size();
+
+  EXPECT_GE(thread.detected_stack_size(), expected_stack_size);
+  EXPECT_GE(thread.detected_guard_size(), expected_guard_size);
 }
 
-int main(int argc, char** argv) {
-  absl::SetFlag(&FLAGS_logtostderr, true);
-  absl::SetFlag(&FLAGS_logbuflevel, -1);
-  InitGoogle(argv[0], &argc, &argv, true);
+INSTANTIATE_TEST_SUITE_P(GuardTestInstantiation, GuardTest,
+                         testing::Combine(testing::Values(16, 256),
+                                          testing::Values(kOneByte, kOnePage,
+                                                          kHalfStack)),
+                         GuardTestNameFormatter());
 
-  int pagesize = getpagesize();
-  bool any_failures = false;
-
-  int sizes[] = {16, 256};
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(sizes); i++) {
-    int n = sizes[i];
-
-    if (!TestOneSize(n * pagesize, 1)) any_failures = true;
-
-    if (!TestOneSize(n * pagesize, pagesize)) any_failures = true;
-
-    // Would fail with NPTL if Thread didn't compensate.
-    if (!TestOneSize(n * pagesize, (n / 2) * pagesize)) any_failures = true;
-
-#if 0  // TODO: test linuxthreads, or enable after linuxthreads gone.
-    // LinuxThreads refuses to set the guard attr to be larger than
-    // the stack size, and NPTL fails to start the thread if the stack
-    // is larger than the guard size, so the next two threads fail a
-    // CHECK if Thread fails to compensate.
-    if (!TestOneSize(n * pagesize, n * pagesize))
-      any_failures = true;
-
-    if (!TestOneSize(n * pagesize, (n + 16) * pagesize))
-      any_failures = true;
-#endif
-  }
-
-  return (any_failures ? 1 : 0);
-}
+}  // namespace

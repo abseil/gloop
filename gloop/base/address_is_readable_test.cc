@@ -22,97 +22,175 @@
 
 #include "gloop/base/address_is_readable.h"
 
-#include <errno.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include "absl/log/check.h"
-#include "gloop/base/init_google.h"
+#include <cerrno>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <string>
 
-static void CheckOneAddr(const char* addr, bool expect, const char* test_case) {
-  // Verify we don't touch errno.
+#include "absl/cleanup/cleanup.h"
+#include "absl/log/check.h"
+#include "absl/strings/str_cat.h"
+#include "gloop/base/strerror.h"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+
+namespace {
+
+// Verify we don't touch errno.
+MATCHER_P(IsAddressReadable, expect,
+          absl::StrCat(negation ? "is not" : "is", " readable")) {
   for (int e : {0, EFAULT, 123456}) {
     errno = e;
-    CHECK_EQ(base::AddressIsReadable(addr), expect) << test_case;
-    CHECK_EQ(errno, e) << test_case;
+    bool actual = base::AddressIsReadable(arg);
+    if (actual != expect) {
+      *result_listener << "AddressIsReadable(" << arg << ") returned "
+                       << (actual ? "true" : "false") << " instead of "
+                       << (expect ? "true" : "false");
+      return false;
+    }
+    if (errno != e) {
+      *result_listener << "errno changed from " << e << " to " << errno;
+      return false;
+    }
   }
+  return true;
 }
+
+TEST(IsAddressReadableMatcherTest, ExplainsFailuresCorrectly) {
+  testing::StringMatchResultListener listener;
+
+  // nullptr is not readable. Verifying that it is readable (expect = true)
+  // should fail and explain the mismatch.
+  EXPECT_FALSE(ExplainMatchResult(IsAddressReadable(true), nullptr, &listener));
+  EXPECT_THAT(listener.str(),
+              testing::HasSubstr("returned false instead of true"));
+}
+
+size_t GetSystemPageSize() {
+  const int64_t pagesize = sysconf(_SC_PAGESIZE);
+  CHECK_GT(pagesize, 0);
+  return static_cast<size_t>(pagesize);
+}
+
+// Check that AddressIsReadable() doesn't leak file descriptors.
+TEST(AddressIsReadableTest, DoesNotLeakFds) {
+  // Verify next available file descriptor before runs to check for leaks
+  // safely.
+  const int initial_fd = open("/dev/null", O_RDONLY);
+  ASSERT_GE(initial_fd, 0) << base::StrError(errno);
+  close(initial_fd);
+
+  // Probe readability multiple times
+  EXPECT_FALSE(base::AddressIsReadable(nullptr));
+
+  // Perform a mmap/unmap sequence
+  const size_t pagesize = GetSystemPageSize();
+  void* page =
+      mmap(nullptr, pagesize, PROT_READ, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  ASSERT_NE(page, MAP_FAILED) << base::StrError(errno);
+  EXPECT_TRUE(base::AddressIsReadable(page));
+  EXPECT_EQ(munmap(page, pagesize), 0) << base::StrError(errno);
+
+  // Probe the next available file descriptor again.
+  const int final_fd = open("/dev/null", O_RDONLY);
+  ASSERT_GE(final_fd, 0) << base::StrError(errno);
+  close(final_fd);
+
+  // Ensure no file descriptors were leaked.
+  EXPECT_EQ(final_fd, initial_fd);
+}
+
+struct ProtectionParam {
+  std::string name;
+  int prot;
+  bool expect;
+};
+
 // Test a page mapped with protection prot for readability.
-static void TestCase(const char* test_case, int prot, bool expect) {
-  static const int pagesize = getpagesize();
+class AddressIsReadableProtectionTest
+    : public ::testing::TestWithParam<ProtectionParam> {};
+
+// Try mapped pages with various protections.
+TEST_P(AddressIsReadableProtectionTest, VerifiesReadability) {
+  const auto& [name, prot, expect] = GetParam();
+  const size_t pagesize = GetSystemPageSize();
+
   // Map two pages.
   char* page = static_cast<char*>(
       mmap(nullptr, 2 * pagesize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
-  PCHECK(page != MAP_FAILED);
-  // Make the second page inaccessible.
-  PCHECK(mprotect(page + pagesize, pagesize, PROT_NONE) == 0);
+  ASSERT_NE(page, MAP_FAILED) << base::StrError(errno);
 
-  CheckOneAddr(page, expect, test_case);
-  CheckOneAddr(page + pagesize - 8, expect, test_case);
+  auto cleanup = absl::MakeCleanup([page, pagesize]() {
+    EXPECT_EQ(munmap(page, 2 * pagesize), 0) << base::StrError(errno);
+  });
+
+  // Make the second page inaccessible.
+  ASSERT_EQ(mprotect(page + pagesize, pagesize, PROT_NONE), 0)
+      << base::StrError(errno);
+
+  EXPECT_THAT(page, IsAddressReadable(expect)) << name;
+  EXPECT_THAT(page + pagesize - 8, IsAddressReadable(expect)) << name;
   // Second page is never readable, regardless of `prot`.
-  CheckOneAddr(page + pagesize, false, test_case);
+  EXPECT_THAT(page + pagesize, IsAddressReadable(false)) << name;
 
   // Check mis-aligned bytes at the start and end of the page.
-  CheckOneAddr(page + 1, expect, test_case);
-  CheckOneAddr(page + pagesize - 7, expect, test_case);
-  CheckOneAddr(page + pagesize - 1, expect, test_case);
-
-  PCHECK(munmap(page, 2 * pagesize) == 0);
+  EXPECT_THAT(page + 1, IsAddressReadable(expect)) << name;
+  EXPECT_THAT(page + pagesize - 7, IsAddressReadable(expect)) << name;
+  EXPECT_THAT(page + pagesize - 1, IsAddressReadable(expect)) << name;
 }
 
-static void TestAddressIsReadable() {
-  // Check that AddressIsReadable() doesn't use more than 2 file descriptors
-  // even if invoked multiple times.
-  // First make a band of allocated file descriptors
-  int topfd = 0;
-  for (int i = 0; i != 10; i++) {
-    topfd = open("/dev/null", 0);
-  }
-  // After that clear a band.  File descriptors due to AddressIsReadable()
-  // will fall in this band.
-  for (int i = 0; i != 10; i++) {
-    close(topfd + i + 1);
-  }
-  CHECK_GE(topfd, 0);
+INSTANTIATE_TEST_SUITE_P(
+    ProtectionModes, AddressIsReadableProtectionTest,
+    ::testing::Values(ProtectionParam{"PROT_NONE", PROT_NONE, false},
+                      ProtectionParam{"PROT_READ", PROT_READ, true},
+                      ProtectionParam{"PROT_READ_PROT_WRITE",
+                                      PROT_READ | PROT_WRITE, true}),
+    [](const ::testing::TestParamInfo<ProtectionParam>& info) {
+      return info.param.name;
+    });
 
-  // Try mapped pages with various protections.
-  TestCase("PROT_NONE", PROT_NONE, false);
-  TestCase("PROT_READ", PROT_READ, true);
-  TestCase("PROT_READ|PROT_WRITE", PROT_READ | PROT_WRITE, true);
+// nullptr is never readable
+TEST(AddressIsReadableTest, NullptrIsUnreadable) {
+  EXPECT_FALSE(base::AddressIsReadable(nullptr));
+}
 
-  // nullptr is never readable
-  CHECK(!base::AddressIsReadable(nullptr));
-  CHECK(!base::AddressIsReadable(reinterpret_cast<void*>(7)));
-  CHECK(!base::AddressIsReadable(reinterpret_cast<void*>(31)));
+TEST(AddressIsReadableTest, LowAddressesAreUnreadable) {
+  EXPECT_FALSE(base::AddressIsReadable(reinterpret_cast<void*>(7)));
+  EXPECT_FALSE(base::AddressIsReadable(reinterpret_cast<void*>(31)));
+}
 
-  // Kernel address space is never readable.
-  CHECK(!base::AddressIsReadable(reinterpret_cast<void*>(1ULL << 63)));
-  CHECK(!base::AddressIsReadable(reinterpret_cast<void*>((1ULL << 63) + 7)));
-  CHECK(!base::AddressIsReadable(reinterpret_cast<void*>((1ULL << 63) + 31)));
+TEST(AddressIsReadableTest, KernelAddressesAreUnreadable) {
+  // Kernel address space is never readable (only tested on 64-bit platforms).
+  const uintptr_t kernel_base = static_cast<uintptr_t>(uint64_t{1} << 63);
+  EXPECT_FALSE(base::AddressIsReadable(reinterpret_cast<void*>(kernel_base)));
+  EXPECT_FALSE(
+      base::AddressIsReadable(reinterpret_cast<void*>(kernel_base + 7)));
+  EXPECT_FALSE(
+      base::AddressIsReadable(reinterpret_cast<void*>(kernel_base + 31)));
+}
 
-  CHECK(!base::AddressIsReadable(reinterpret_cast<void*>(~0UL)));
-  CHECK(!base::AddressIsReadable(reinterpret_cast<void*>(~0UL - 7)));
-  CHECK(!base::AddressIsReadable(reinterpret_cast<void*>(~0UL - 31)));
+TEST(AddressIsReadableTest, EndOfAddressSpaceIsUnreadable) {
+  EXPECT_FALSE(base::AddressIsReadable(reinterpret_cast<void*>(~uintptr_t{0})));
+  EXPECT_FALSE(
+      base::AddressIsReadable(reinterpret_cast<void*>(~uintptr_t{0} - 7)));
+  EXPECT_FALSE(
+      base::AddressIsReadable(reinterpret_cast<void*>(~uintptr_t{0} - 31)));
+}
 
-  // Try a page that is unmapped.
-  void* no_mapping = mmap(nullptr, getpagesize(), PROT_READ | PROT_WRITE,
+// Try a page that is unmapped.
+TEST(AddressIsReadableTest, UnmappedPageIsUnreadable) {
+  const size_t pagesize = GetSystemPageSize();
+  void* no_mapping = mmap(nullptr, pagesize, PROT_READ | PROT_WRITE,
                           MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  PCHECK(no_mapping != MAP_FAILED);
-  PCHECK(munmap(no_mapping, getpagesize()) == 0);
-  CHECK_EQ(base::AddressIsReadable(no_mapping), false);
-
-  CHECK_LE(open("/dev/null", 0), topfd + 3) << "topfd " << topfd;
+  ASSERT_NE(no_mapping, MAP_FAILED) << base::StrError(errno);
+  const uintptr_t unmapped_addr = reinterpret_cast<uintptr_t>(no_mapping);
+  ASSERT_EQ(munmap(no_mapping, pagesize), 0) << base::StrError(errno);
+  EXPECT_FALSE(base::AddressIsReadable(reinterpret_cast<void*>(unmapped_addr)));
 }
 
-int main(int argc, char* argv[]) {
-  // Run before InitGoogle() to ensure that is only one thread of control,
-  // and other file descriptors and mapppings cannot interfere.
-  TestAddressIsReadable();
-
-  // InitGoogle is not necessary for the test case above, but asan leak
-  // detection won't work without it (b/12596175). (Note: unlike asan, the leak
-  // sanitizer feature will detect leaks without relying on InitGoogle.)
-  InitGoogle(argv[0], &argc, &argv, true);
-  return (0);
-}
+}  // namespace

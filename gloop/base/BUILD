@@ -72,8 +72,13 @@ cc_test(
     ],
     deps = [
         ":address_is_readable",
-        ":init_google",
+        ":strerror",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
     ],
 )
 
@@ -1680,7 +1685,7 @@ cc_test(
     name = "limit_physical_memory_test",
     size = "small",
     srcs = ["limit_physical_memory_test.cc"],
-    flaky = 1,  # TODO
+    flaky = 1,  # TODO: b/165091006 -
     malloc = "//gloop:malloc",
     tags = [
         "noasan",
@@ -1806,15 +1811,18 @@ cc_test(
     name = "googleinit_unittest",
     size = "small",
     srcs = ["googleinit_unittest.cc"],
+    args = ["--g_init_check_2=2"],
     deps = [
         ":googleinit",
         ":init_google",
-        ":log_file_flags",
-        "@abseil-cpp//absl/base:core_headers",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/functional:bind_front",
-        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:scoped_mock_log",
         "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
     ],
 )
 

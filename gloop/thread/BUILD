@@ -576,9 +576,11 @@ cc_test(
         ":thread",
         ":thread-internal",
         ":thread_control",
+        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/base:config",
         "//gloop/base:context",
+        "//gloop/base:googleinit",
         "//gloop/base:init_google",
         "//gloop/base:port",
         "//gloop/base:raw_logging",
@@ -596,11 +598,13 @@ cc_test(
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/debugging:stacktrace",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/functional:function_ref",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:globals",
@@ -611,8 +615,11 @@ cc_test(
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@re2",
-    ],
+    ] + select({
+        "//conditions:default": [
+            "//gloop/util/priority:io-priority",
+        ],
+    }),
 )
 
 cc_library(
@@ -689,14 +696,13 @@ cc_test(
     srcs = ["guard_unittest.cc"],
     deps = [
         ":thread",
+        "//gloop:gloop_test_main",
         "//gloop/base:address_is_readable",
-        "//gloop/base:init_google",
-        "//gloop/base:log_file_flags",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/log:initialize",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
     ],
 )
 
@@ -932,14 +938,18 @@ cc_test(
     deps = [
         ":simple_weighted_semaphore",
         ":thread",
-        "//gloop/base:init_google",
-        "//gloop/util/random:acmrandom",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/functional:bind_front",
+        "//gloop:gloop_test_main",
+        "//gloop/util/random:shared_bit_gen",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_matchers",
+        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
     ],
 )
 
@@ -1015,11 +1025,14 @@ cc_test(
     srcs = ["thread_manager_policy_default_test.cc"],
     deps = [
         ":thread_manager",
-        "//gloop/base:init_google",
-        "@abseil-cpp//absl/container:flat_hash_set",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
     ],
 )
 
