@@ -49,6 +49,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
+#include "gloop/base/config.h"
 #include "gloop/base/internal/logging_directories.h"
 #include "gloop/base/signal-handler.h"
 #include "gloop/thread/thread.h"

@@ -293,4 +293,27 @@
 #define GOOGLE_HAVE_BASE_PERCPU 1
 #endif
 
+#ifdef PORTABLE_BASE
+#error "PORTABLE_BASE should only be set by gloop/base/config.h"
+#endif
+
+// DEPRECATED. Every use of PORTABLE_BASE is an implicit
+// work item. Portability should not be handled by keying off this macro,
+// it should be handled in a fine-grained manner and should share as
+// much API (and implementation) as possible with the main production
+// implementation. See <link> for more, or email
+// <internal team>.
+//
+// PORTABLE_BASE controls whether the header files from base/port are used
+// instead of the standard headers found in base. Similar conditional behavior
+// may be required of the build system to compile base/port source instead of
+// the code in base.  Do not use this macro outside of base and other closely
+// associated core packages.
+#if defined(__ANDROID__) || defined(__APPLE__) || defined(__EMSCRIPTEN__) || \
+    defined(_MSC_VER)
+#define PORTABLE_BASE 1
+#else
+#define PORTABLE_BASE 0
+#endif
+
 #endif  // THIRD_PARTY_GLOOP_BASE_CONFIG_H_

@@ -36,6 +36,7 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
+#include "gloop/base/config.h"
 #include "gloop/base/sysinfo.h"
 
 namespace base_logging {

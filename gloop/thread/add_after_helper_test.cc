@@ -35,6 +35,7 @@
 #include "absl/time/time.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/callback.h"
+#include "gloop/base/config.h"
 #include "gloop/base/context.h"
 #include "gloop/base/mock_tracer.h"
 #include "gloop/base/tracecontext.h"

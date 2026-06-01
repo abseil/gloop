@@ -61,6 +61,7 @@
 #include "absl/time/time.h"
 #include "absl/types/span.h"
 #include "gloop/base/callback.h"
+#include "gloop/base/config.h"
 #include "gloop/base/context.h"
 #include "gloop/base/init_google.h"
 #include "gloop/base/port.h"

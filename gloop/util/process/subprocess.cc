@@ -76,6 +76,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "gloop/base/commandlineflags.h"
+#include "gloop/base/config.h"
 #include "gloop/base/file_toc.h"
 #include "gloop/base/linux_syscall_support.h"
 #include "gloop/base/logging_extensions.h"

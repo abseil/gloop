@@ -39,6 +39,7 @@
 #include "absl/time/simulated_clock.h"
 #include "absl/time/time.h"
 #include "benchmark/benchmark.h"
+#include "gloop/base/config.h"
 #include "gloop/base/context.h"
 #include "gloop/base/scheduling/scheduler.h"
 #include "gloop/base/walltime.h"

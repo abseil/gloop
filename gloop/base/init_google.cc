@@ -113,7 +113,10 @@
 #include "gloop/base/process_state.h"
 #endif  // BASE_HAVE_PROCESS_STATE
 
+#if !PORTABLE_BASE
 #include "gloop/concurrent/rcu/rcu.h"
+
+#endif  // !PORTABLE_BASE
 
 #if BASE_HAVE_THREAD_STACK
 #else
@@ -735,8 +738,10 @@ static void RealInitGoogle(absl::string_view usage, int* argc, char*** argv,
 #endif
   absl::FlushLogSinks();  // so you can see command line early
 
+#if !PORTABLE_BASE
   // Initialize RCU domains.
   base::rcu::DomainInit();
+#endif
 
 #if BASE_HAVE_CPU_PROFILER
   // Initialize on demand CPU profiling, see comment to RegisterCpuProfiler.
@@ -752,7 +757,9 @@ static void RealInitGoogle(absl::string_view usage, int* argc, char*** argv,
 
   MaybeSyslogOnStart();
 
+#if !PORTABLE_BASE
   // TODO: clean up references to old heap checker interface.
+#endif
 
   absl::SetFlag(&FLAGS_silent_init, false);  // init is over now
   {

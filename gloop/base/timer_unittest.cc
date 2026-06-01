@@ -46,6 +46,7 @@
 #include "absl/log/log.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
+#include "gloop/base/config.h"
 #include "gtest/gtest.h"
 
 #if !PORTABLE_BASE  // TODO: Portable benchmark.h

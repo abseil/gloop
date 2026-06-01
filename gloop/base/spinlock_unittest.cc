@@ -45,6 +45,7 @@
 #include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
+#include "gloop/base/config.h"
 #include "gloop/base/init_google.h"
 #include "gloop/base/scheduling/domain.h"
 #include "gloop/base/scheduling/low-level-support.h"
@@ -108,6 +109,7 @@ static void FiberTest(SpinLock* spinlock) {
   scheduler->Orphan();
 }
 
+#if !PORTABLE_BASE
 TEST(SpinLock, StackCooperativeAllowsScheduling) {
   struct Helper {
     static void TestInFiber() {
@@ -136,6 +138,7 @@ TEST(SpinLock, StaticCooperativeAllowsScheduling) {
   thread::Fiber f(Helper::TestInFiber);
   f.Join();
 }
+#endif
 
 TEST(SpinLockWithFibers, StackSpinLock) {
   SpinLock spinlock;

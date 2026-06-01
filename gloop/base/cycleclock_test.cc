@@ -29,6 +29,7 @@
 #include "absl/base/internal/unscaledcycleclock_config.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "gloop/base/config.h"
 #include "gtest/gtest.h"
 
 #if !PORTABLE_BASE  // TODO: Remove when benchmark.h is portable.

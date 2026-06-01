@@ -63,6 +63,7 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "//gloop/base:callback",
         "//gloop/base:commandlineflags",
+        "//gloop/base:config",
         "//gloop/base:file_toc",
         "//gloop/base:googleinit",
         "//gloop/base:linux_syscall_support",

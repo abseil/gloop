@@ -23,6 +23,7 @@
 #include <tuple>
 
 #include "absl/log/log.h"
+#include "gloop/base/config.h"
 #include "gloop/base/init_google.h"
 #include "gloop/base/scheduling/domain-test.h"
 #include "gtest/gtest.h"

@@ -353,9 +353,9 @@ cc_test(
     srcs = ["cycleclock_test.cc"],
     flaky = 1,
     deps = [
+        ":config",
         ":cycleclock",
         "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:cycleclock_internal",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
@@ -988,6 +988,7 @@ cc_test(
     size = "medium",
     srcs = ["spinlock_unittest.cc"],
     deps = [
+        ":config",
         ":init_google",
         ":per-thread-sem",
         ":spinlock",
@@ -1243,10 +1244,10 @@ cc_test(
     srcs = ["timer_unittest.cc"],
     flaky = 1,
     deps = [
+        ":config",
         ":timer",
         "//gloop:gloop_test_main",
         "//gloop/util/gtl:unique_array",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/time",
@@ -1640,6 +1641,7 @@ cc_test(
     size = "small",
     srcs = ["process_state_test.cc"],
     deps = [
+        ":config",
         ":process_state",
         ":signal-handler",
         "//gloop:gloop_test_main",
@@ -1822,6 +1824,7 @@ cc_library(
         "//gloop/concurrent/rcu",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:base_internal",
+        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/base:no_destructor",
@@ -1997,6 +2000,7 @@ cc_library(
     hdrs = ["logging_extensions.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":config",
         ":logger",
         ":sysinfo",
         "//gloop:enforce_gloop_support",

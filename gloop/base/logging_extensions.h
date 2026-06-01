@@ -82,6 +82,7 @@
 #include "absl/log/log_sink.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
+#include "gloop/base/config.h"
 #include "gloop/base/internal/logging_directories.h"  // to be removed
 #include "gloop/base/internal/temp_directories.h"     // to be removed
 #include "gloop/base/log_file.h"
