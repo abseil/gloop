@@ -45,6 +45,71 @@
 #include "gloop/base/log_severity.h"
 #include "gloop/util/status/status.h"
 
+namespace absl {
+ABSL_NAMESPACE_BEGIN
+
+class status_internal::StatusBuilderPrivateAccessor {
+ public:
+  static absl::SourceLocation GetLoc(const StatusBuilder& builder) {
+    return builder.loc_;
+  }
+
+  static StatusBuilder::Rep* GetRep(const StatusBuilder& builder) {
+    return builder.rep_.get();
+  }
+
+  static void SetErrorCode(StatusBuilder& builder,
+                           const ::util::ErrorSpace* space, int code_int) {
+    if (builder.rep_ == nullptr) {
+      builder.rep_ = std::make_unique<StatusBuilder::Rep>(
+          ::util::SetErrorSpaceAndCode(absl::Status(), space, code_int));
+    } else {
+      builder.rep_->status =
+          ::util::SetErrorSpaceAndCode(builder.rep_->status, space, code_int);
+    }
+  }
+};
+
+// ADL extension point for setting error codes from non-canonical error spaces.
+// Argument-dependent lookup extension point for setting error codes from
+// non-canonical error spaces.
+template <typename Enum>
+auto AbslInternalSetErrorCode(
+    StatusBuilder& builder ABSL_ATTRIBUTE_LIFETIME_BOUND, Enum code)
+    -> decltype(std::conditional_t<
+                false, Enum, status_internal::StatusBuilderPrivateAccessor>::
+                    SetErrorCode(builder,
+                                 std::declval<const ::util::ErrorSpace*>(),
+                                 static_cast<int>(code))) {
+  return absl::status_internal::StatusBuilderPrivateAccessor::SetErrorCode(
+      builder, util::GetErrorSpaceForEnum(code), static_cast<int>(code));
+}
+
+// Argument-dependent lookup extension point for attaching payloads (e.g.,
+// protocol buffers) to the builder.
+//
+// Exists for the same reason as AbslInternalSetErrorCode() (see documentation).
+template <typename MessageSetExtension, typename ExtensionIdentifier>
+void AbslInternalAttachPayload(StatusBuilder& builder,
+                               const MessageSetExtension& obj,
+                               const ExtensionIdentifier& id) {
+  auto* rep =
+      absl::status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
+  if (rep != nullptr) {
+    util::AttachPayload(&rep->status, obj, id);
+  }
+}
+
+template <typename MessageSetExtension>
+void AbslInternalAttachPayload(StatusBuilder& builder,
+                               const MessageSetExtension& obj) {
+  return AbslInternalAttachPayload(builder, obj,
+                                   MessageSetExtension::message_set_extension);
+}
+
+ABSL_NAMESPACE_END
+}  // namespace absl
+
 namespace util {
 
 using StatusBuilder ABSL_DEPRECATE_AND_INLINE() = absl::StatusBuilder;
@@ -149,32 +214,6 @@ class ExtraMessage {
   absl::status_internal::Stream stream_;
 };
 
-}  // namespace util
-
-class absl::status_internal::StatusBuilderPrivateAccessor {
- public:
-  static absl::SourceLocation GetLoc(const StatusBuilder& builder) {
-    return builder.loc_;
-  }
-
-  static StatusBuilder::Rep* GetRep(const StatusBuilder& builder) {
-    return builder.rep_.get();
-  }
-
-  static void SetErrorCode(StatusBuilder& builder,
-                           const ::util::ErrorSpace* space, int code_int) {
-    if (builder.rep_ == nullptr) {
-      builder.rep_ = std::make_unique<StatusBuilder::Rep>(
-          ::util::SetErrorSpaceAndCode(absl::Status(), space, code_int));
-    } else {
-      builder.rep_->status =
-          ::util::SetErrorSpaceAndCode(builder.rep_->status, space, code_int);
-    }
-  }
-};
-
-namespace util {
-
 // Creates a `StatusBuilder` from an enum code and its associated `ErrorSpace`.
 // If logging is enabled, it will use `location` as the location from which the
 // log message occurs.  A typical user will not specify `location`, allowing it
@@ -205,32 +244,6 @@ inline StatusBuilder MakeStatusBuilder(
     absl::SourceLocation location = absl::SourceLocation::current()) {
   return StatusBuilder(::util::MakeStatus(space, code, ""), location);
 }
-
-}  // namespace util
-
-// TODO: Shuffle the namespaces to organize them better
-namespace absl {
-ABSL_NAMESPACE_BEGIN
-
-// ADL extension point for setting error codes from non-canonical error spaces.
-// Argument-dependent lookup extension point for setting error codes from
-// non-canonical error spaces.
-template <typename Enum>
-auto AbslInternalSetErrorCode(
-    StatusBuilder& builder ABSL_ATTRIBUTE_LIFETIME_BOUND, Enum code)
-    -> decltype(std::conditional_t<
-                false, Enum, status_internal::StatusBuilderPrivateAccessor>::
-                    SetErrorCode(builder,
-                                 std::declval<const ::util::ErrorSpace*>(),
-                                 static_cast<int>(code))) {
-  return absl::status_internal::StatusBuilderPrivateAccessor::SetErrorCode(
-      builder, util::GetErrorSpaceForEnum(code), static_cast<int>(code));
-}
-
-ABSL_NAMESPACE_END
-}  // namespace absl
-
-namespace util {
 
 // Implementation details follow; clients should ignore.
 
@@ -295,39 +308,6 @@ inline bool HasErrorSpace(const StatusBuilder& builder,
   return ::util::RetrieveErrorSpace(rep == nullptr ? absl::OkStatus()
                                                    : rep->status) == space;
 }
-
-}  // namespace util
-
-// TODO: Shuffle the namespaces to organize them better
-namespace absl {
-ABSL_NAMESPACE_BEGIN
-
-// Argument-dependent lookup extension point for attaching payloads (e.g.,
-// protocol buffers) to the builder.
-//
-// Exists for the same reason as AbslInternalSetErrorCode() (see documentation).
-template <typename MessageSetExtension, typename ExtensionIdentifier>
-void AbslInternalAttachPayload(util::StatusBuilder& builder,
-                               const MessageSetExtension& obj,
-                               const ExtensionIdentifier& id) {
-  auto* rep =
-      absl::status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
-  if (rep != nullptr) {
-    util::AttachPayload(&rep->status, obj, id);
-  }
-}
-
-template <typename MessageSetExtension>
-void AbslInternalAttachPayload(util::StatusBuilder& builder,
-                               const MessageSetExtension& obj) {
-  return AbslInternalAttachPayload(builder, obj,
-                                   MessageSetExtension::message_set_extension);
-}
-
-ABSL_NAMESPACE_END
-}  // namespace absl
-
-namespace util {
 
 // HasPayload()
 //
