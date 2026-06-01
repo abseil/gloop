@@ -69,10 +69,33 @@ cc_test(
 
 cc_library(
     name = "bytestream",
+    srcs = ["bytestream.cc"],
     hdrs = ["bytestream.h"],
     deps = [
         "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/memory",
         "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:internal",
+        "@abseil-cpp//absl/strings:string_view",
+    ],
+)
+
+cc_test(
+    name = "bytestream_test",
+    size = "small",
+    srcs = ["bytestream_test.cc"],
+    deps = [
+        ":bytestream",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/meta:type_traits",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:internal",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
     ],
 )
 

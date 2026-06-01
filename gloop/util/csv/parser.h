@@ -24,7 +24,6 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_CSV_PARSER_H_
 #define THIRD_PARTY_GLOOP_UTIL_CSV_PARSER_H_
 
-#include <cstddef>
 #include <cstdint>
 #include <iterator>
 #include <memory>
@@ -35,25 +34,6 @@
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "gloop/strings/bytestream.h"
-namespace strings {
-class ByteSource {
- public:
-  virtual ~ByteSource() {}
-  virtual size_t Available() const = 0;
-  virtual absl::string_view Peek() = 0;
-  virtual void Skip(size_t n) = 0;
-};
-class ArrayByteSource : public ByteSource {
- public:
-  explicit ArrayByteSource(absl::string_view s) : input_(s) {}
-  size_t Available() const override { return input_.size(); }
-  absl::string_view Peek() override { return input_; }
-  void Skip(size_t n) override { input_.remove_prefix(n); }
-
- private:
-  absl::string_view input_;
-};
-}  // namespace strings
 
 namespace util {
 namespace csv {

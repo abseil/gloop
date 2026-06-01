@@ -71,6 +71,7 @@ cc_test(
     deps = [
         ":csv",
         "//gloop:gloop_test_main",
+        "//gloop/strings:bytestream",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/log",

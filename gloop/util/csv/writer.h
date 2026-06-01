@@ -161,25 +161,6 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "gloop/strings/bytestream.h"
-namespace strings {
-class ByteSink {
- public:
-  virtual ~ByteSink() {}
-  virtual void Append(const char* bytes, size_t n) = 0;
-  virtual void Append(absl::string_view data) {
-    Append(data.data(), data.size());
-  }
-  virtual void Flush() {}
-};
-class StringByteSink : public ByteSink {
- public:
-  explicit StringByteSink(std::string* dest) : dest_(dest) {}
-  void Append(const char* bytes, size_t n) override { dest_->append(bytes, n); }
-
- private:
-  std::string* dest_;
-};
-}  // namespace strings
 
 namespace util {
 namespace csv {
