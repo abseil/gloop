@@ -92,6 +92,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <ostream>
 #include <utility>
 #include <vector>
 
@@ -102,6 +103,13 @@
 #include "absl/log/check.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/types/source_location.h"
+
+namespace absl {
+inline std::ostream& operator<<(std::ostream& os,
+                                const absl::SourceLocation& loc) {
+  return os << loc.file_name() << ":" << loc.line();
+}
+}  // namespace absl
 
 namespace util_registration {
 
