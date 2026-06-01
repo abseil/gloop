@@ -53,7 +53,6 @@ cc_test(
         "//gloop/base:port",
         "//gloop/base:uword",
         "@abseil-cpp//absl/base",
-        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/numeric:int128",
