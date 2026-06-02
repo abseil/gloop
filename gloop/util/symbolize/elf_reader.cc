@@ -415,6 +415,13 @@ class ElfSectionReader {
     auto data_length = section_size_ - sizeof(chdr);
     uLongf uncompressed_size = chdr.ch_size;
 
+    static constexpr uint64_t kMaxDecompressedSize =
+        2ULL * 1024 * 1024 * 1024;  // 2 GB
+    if (chdr.ch_size > kMaxDecompressedSize) {
+      LOG(ERROR) << "Decompressed section size is too large: " << chdr.ch_size;
+      return false;
+    }
+
     contents_ = new char[chdr.ch_size];
     section_size_ = chdr.ch_size;
     delete_contents_ = true;
@@ -1217,7 +1224,8 @@ class ElfReaderImpl {
     // direction of iteration.
     for (int k = GetNumSections() - 1; k >= 0; --k) {
       const char* name = GetSectionName(section_headers_[k].sh_name);
-      if (strncmp(name, ".debug", strlen(".debug")) == 0) return true;
+      if (name != nullptr && strncmp(name, ".debug", strlen(".debug")) == 0)
+        return true;
     }
     return false;
   }
@@ -1959,7 +1967,6 @@ std::optional<uint64_t> ElfReader::GetSectionHeaderOffset() {
 std::string ElfReader::GetBuildId() {
   std::vector<std::string> build_ids;
   static constexpr size_t kNoteHeaderSize = sizeof(ElfW(Nhdr));
-  static constexpr auto round_up_to_4 = [](size_t sz) { return (sz + 3) & ~3; };
 
   for (int nindex = GetSectionIndexByType(SHT_NOTE, 0); nindex >= 0;
        nindex = GetSectionIndexByType(SHT_NOTE, nindex + 1)) {
@@ -1968,27 +1975,43 @@ std::string ElfReader::GetBuildId() {
     if (c_note == nullptr) continue;
 
     const char* c_note_end = c_note + size;
-    while (c_note + kNoteHeaderSize < c_note_end) {
+    while (c_note + kNoteHeaderSize <= c_note_end) {
       const auto* note = reinterpret_cast<const ElfW(Nhdr)*>(c_note);
+      uint64_t namesz = note->n_namesz;
+      uint64_t descsz = note->n_descsz;
+
+      uint64_t namesz_rounded = (namesz + 3) & ~3ULL;
+      uint64_t descsz_rounded = (descsz + 3) & ~3ULL;
+      uint64_t note_size = kNoteHeaderSize + namesz_rounded + descsz_rounded;
+
+      if (note_size > static_cast<uint64_t>(c_note_end - c_note)) {
+        break;
+      }
+
       // Name immediately follows the note.
       const char* note_name = c_note + kNoteHeaderSize;
-      if (kNoteHeaderSize < size && note->n_type == NT_GNU_BUILD_ID &&
-          note->n_namesz == 4 && memcmp(note_name, "GNU\0", 4) == 0) {
-        std::string build_id(note->n_descsz * 2, '0');
+      if (note->n_type == NT_GNU_BUILD_ID && namesz == 4 &&
+          memcmp(note_name, "GNU\0", 4) == 0) {
+        if (descsz > 128) {
+          // Reject unreasonably large build-id sizes to prevent huge
+          // allocation.
+          break;
+        }
+        std::string build_id(descsz * 2, '0');
         const char hexdigits[] = "0123456789abcdef";
-        // Note data follows name.
-        const char* note_desc = note_name + note->n_namesz;
-        for (int i = 0; i < note->n_descsz; i++) {
-          build_id[i * 2] = hexdigits[(note_desc[i]) >> 4];
-          build_id[i * 2 + 1] = hexdigits[note_desc[i] & 0x0f];
+        // Note data follows name, aligned to 4 bytes.
+        const char* note_desc = note_name + namesz_rounded;
+        for (size_t i = 0; i < descsz; i++) {
+          unsigned char byte = static_cast<unsigned char>(note_desc[i]);
+          build_id[i * 2] = hexdigits[byte >> 4];
+          build_id[i * 2 + 1] = hexdigits[byte & 0x0f];
         }
         build_ids.push_back(build_id);
       }
 
       // There could be multiple ELF notes in the .note section.
       // Advance to the next note.
-      c_note += kNoteHeaderSize + round_up_to_4(note->n_namesz) +
-                round_up_to_4(note->n_descsz);
+      c_note += note_size;
     }
   }
 

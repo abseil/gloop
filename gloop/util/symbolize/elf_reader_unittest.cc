@@ -30,6 +30,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <fstream>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -161,6 +162,226 @@ TEST(ElfReader, IgnoreVsyscall) {
   EXPECT_CALL(log, Log(_, _, _)).Times(0);  // No log messages expected.
   log.StartCapturingLogs();
   ElfReader reader("[vsyscall]");
+}
+
+std::string GenerateMalformedElfForBuildId(uint32_t n_descsz) {
+  Elf64_Ehdr ehdr;
+  memset(&ehdr, 0, sizeof(ehdr));
+  memcpy(ehdr.e_ident,
+         "\x7f"
+         "ELF\x02\x01\x01",
+         6);
+  ehdr.e_type = ET_DYN;
+  ehdr.e_machine = EM_X86_64;
+  ehdr.e_version = EV_CURRENT;
+  ehdr.e_ehsize = sizeof(Elf64_Ehdr);
+  ehdr.e_shentsize = sizeof(Elf64_Shdr);
+  ehdr.e_shnum = 3;
+  ehdr.e_shstrndx = 1;
+
+  std::string shstrtab("\0.shstrtab\0.note\0", 17);
+  size_t name_shstrtab = 1;
+  size_t name_note = 11;
+
+  std::string note_body;
+  Elf64_Nhdr nhdr;
+  nhdr.n_namesz = 4;
+  nhdr.n_descsz = n_descsz;
+  nhdr.n_type = NT_GNU_BUILD_ID;
+  note_body.append(reinterpret_cast<const char*>(&nhdr), sizeof(nhdr));
+  note_body.append("GNU\0", 4);
+  note_body.append(16, '\xaa');
+
+  size_t shstrtab_offset = sizeof(Elf64_Ehdr);
+  size_t note_offset = shstrtab_offset + shstrtab.size();
+  while (note_offset % 4 != 0) {
+    note_offset++;
+  }
+
+  size_t shdrs_offset = note_offset + note_body.size();
+  while (shdrs_offset % 8 != 0) {
+    shdrs_offset++;
+  }
+
+  ehdr.e_shoff = shdrs_offset;
+
+  std::string buffer;
+  buffer.append(reinterpret_cast<const char*>(&ehdr), sizeof(ehdr));
+  buffer.append(shstrtab);
+  buffer.append(note_offset - (shstrtab_offset + shstrtab.size()), '\0');
+  buffer.append(note_body);
+  buffer.append(shdrs_offset - (note_offset + note_body.size()), '\0');
+
+  Elf64_Shdr shdr0;
+  memset(&shdr0, 0, sizeof(shdr0));
+  buffer.append(reinterpret_cast<const char*>(&shdr0), sizeof(shdr0));
+
+  Elf64_Shdr shdr1;
+  memset(&shdr1, 0, sizeof(shdr1));
+  shdr1.sh_name = name_shstrtab;
+  shdr1.sh_type = SHT_STRTAB;
+  shdr1.sh_offset = shstrtab_offset;
+  shdr1.sh_size = shstrtab.size();
+  shdr1.sh_addralign = 1;
+  buffer.append(reinterpret_cast<const char*>(&shdr1), sizeof(shdr1));
+
+  Elf64_Shdr shdr2;
+  memset(&shdr2, 0, sizeof(shdr2));
+  shdr2.sh_name = name_note;
+  shdr2.sh_type = SHT_NOTE;
+  shdr2.sh_offset = note_offset;
+  shdr2.sh_size = note_body.size();
+  shdr2.sh_addralign = 4;
+  buffer.append(reinterpret_cast<const char*>(&shdr2), sizeof(shdr2));
+
+  return buffer;
+}
+
+std::string GenerateMalformedElfForZlibHugeAlloc() {
+  Elf64_Ehdr ehdr;
+  memset(&ehdr, 0, sizeof(ehdr));
+  memcpy(ehdr.e_ident,
+         "\x7f"
+         "ELF\x02\x01\x01",
+         6);
+  ehdr.e_type = ET_DYN;
+  ehdr.e_machine = EM_X86_64;
+  ehdr.e_version = EV_CURRENT;
+  ehdr.e_ehsize = sizeof(Elf64_Ehdr);
+  ehdr.e_shentsize = sizeof(Elf64_Shdr);
+  ehdr.e_shnum = 2;
+  ehdr.e_shstrndx = 1;
+
+  std::string shstr_body;
+  Elf64_Chdr chdr;
+  chdr.ch_type = ELFCOMPRESS_ZLIB;
+  chdr.ch_reserved = 0;
+  chdr.ch_size = 0x7fffffffffffffffULL;
+  chdr.ch_addralign = 1;
+
+  shstr_body.append(reinterpret_cast<const char*>(&chdr), sizeof(chdr));
+  shstr_body.append("\x78\x9c\x03\x00\x00\x00\x00\x01", 8);
+
+  size_t shstr_offset = sizeof(Elf64_Ehdr);
+  size_t shdrs_offset = shstr_offset + shstr_body.size();
+  while (shdrs_offset % 8 != 0) {
+    shdrs_offset++;
+  }
+
+  ehdr.e_shoff = shdrs_offset;
+
+  std::string buffer;
+  buffer.append(reinterpret_cast<const char*>(&ehdr), sizeof(ehdr));
+  buffer.append(shstr_body);
+  buffer.append(shdrs_offset - (shstr_offset + shstr_body.size()), '\0');
+
+  Elf64_Shdr shdr0;
+  memset(&shdr0, 0, sizeof(shdr0));
+  buffer.append(reinterpret_cast<const char*>(&shdr0), sizeof(shdr0));
+
+  Elf64_Shdr shdr1;
+  memset(&shdr1, 0, sizeof(shdr1));
+  shdr1.sh_name = 1;
+  shdr1.sh_type = SHT_STRTAB;
+  shdr1.sh_flags = SHF_COMPRESSED;
+  shdr1.sh_offset = shstr_offset;
+  shdr1.sh_size = shstr_body.size();
+  shdr1.sh_addralign = 1;
+  buffer.append(reinterpret_cast<const char*>(&shdr1), sizeof(shdr1));
+
+  return buffer;
+}
+
+std::string GenerateMalformedElfForNullDeref() {
+  Elf64_Ehdr ehdr;
+  memset(&ehdr, 0, sizeof(ehdr));
+  memcpy(ehdr.e_ident,
+         "\x7f"
+         "ELF\x02\x01\x01",
+         6);
+  ehdr.e_type = ET_DYN;
+  ehdr.e_machine = EM_X86_64;
+  ehdr.e_version = EV_CURRENT;
+  ehdr.e_ehsize = sizeof(Elf64_Ehdr);
+  ehdr.e_shentsize = sizeof(Elf64_Shdr);
+  ehdr.e_shnum = 2;
+  ehdr.e_shstrndx = 1;
+
+  std::string shstr("\0.shstrtab", 10);
+
+  size_t shstr_offset = sizeof(Elf64_Ehdr);
+  size_t shdrs_offset = shstr_offset + shstr.size();
+  while (shdrs_offset % 8 != 0) {
+    shdrs_offset++;
+  }
+
+  ehdr.e_shoff = shdrs_offset;
+
+  std::string buffer;
+  buffer.append(reinterpret_cast<const char*>(&ehdr), sizeof(ehdr));
+  buffer.append(shstr);
+  buffer.append(shdrs_offset - (shstr_offset + shstr.size()), '\0');
+
+  Elf64_Shdr shdr0;
+  memset(&shdr0, 0, sizeof(shdr0));
+  buffer.append(reinterpret_cast<const char*>(&shdr0), sizeof(shdr0));
+
+  Elf64_Shdr shdr1;
+  memset(&shdr1, 0, sizeof(shdr1));
+  shdr1.sh_name = 1;
+  shdr1.sh_type = SHT_STRTAB;
+  shdr1.sh_offset = shstr_offset;
+  shdr1.sh_size = shstr.size();
+  shdr1.sh_addralign = 1;
+  buffer.append(reinterpret_cast<const char*>(&shdr1), sizeof(shdr1));
+
+  return buffer;
+}
+
+bool WriteToFile(const std::string& filepath, const std::string& buffer) {
+  std::ofstream ofs(filepath, std::ios::binary);
+  if (!ofs.is_open()) return false;
+  ofs.write(buffer.data(), buffer.size());
+  ofs.close();
+  return ofs.good();
+}
+
+TEST(ElfReader, MalformedElfBuildIdOverflow) {
+  std::string buffer = GenerateMalformedElfForBuildId(0x80000020);
+  std::string filepath = ::testing::TempDir() + "/malformed_buildid.elf";
+  ASSERT_TRUE(WriteToFile(filepath, buffer));
+
+  ElfReader reader(filepath);
+  std::string build_id = reader.GetBuildId();
+  EXPECT_EQ(build_id, "");
+}
+
+TEST(ElfReader, MalformedElfBuildIdOobRead) {
+  std::string buffer = GenerateMalformedElfForBuildId(0x10000000);
+  std::string filepath = ::testing::TempDir() + "/malformed_buildid_oob.elf";
+  ASSERT_TRUE(WriteToFile(filepath, buffer));
+
+  ElfReader reader(filepath);
+  std::string build_id = reader.GetBuildId();
+  EXPECT_EQ(build_id, "");
+}
+
+TEST(ElfReader, MalformedElfZlibHugeAlloc) {
+  std::string buffer = GenerateMalformedElfForZlibHugeAlloc();
+  std::string filepath = ::testing::TempDir() + "/malformed_zlib.elf";
+  ASSERT_TRUE(WriteToFile(filepath, buffer));
+
+  bool r = ElfReader::IsNonDebugStrippedELFBinary(filepath);
+  EXPECT_FALSE(r);
+}
+
+TEST(ElfReader, MalformedElfNullDeref) {
+  std::string buffer = GenerateMalformedElfForNullDeref();
+  std::string filepath = ::testing::TempDir() + "/malformed_nullderef.elf";
+  ASSERT_TRUE(WriteToFile(filepath, buffer));
+
+  bool r = ElfReader::IsNonDebugStrippedELFBinary(filepath);
+  EXPECT_FALSE(r);
 }
 
 }  // namespace
