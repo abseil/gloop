@@ -618,7 +618,8 @@ TEST(SysinfoUnittest, ProcMaps) {
   } kProcMapData = {
 #if defined(_GOOGLE_HARDENED_BUILD) || defined(ABSL_HAVE_THREAD_SANITIZER) || \
     defined(ABSL_HAVE_ADDRESS_SANITIZER) ||                                   \
-    defined(ABSL_HAVE_MEMORY_SANITIZER) || defined(__PIC__)
+    defined(ABSL_HAVE_MEMORY_SANITIZER) ||                                    \
+    defined(ABSL_HAVE_HWADDRESS_SANITIZER) || defined(__PIC__)
       // When a build is hardened (<link>), or dynamic tools are
       // used the ELF segments are loaded under random addresses due to full
       // ASLR of the binary. Therefore, testing addresses of TEXT and BSS
@@ -761,11 +762,16 @@ TEST(SysinfoUnittest, ProcMaps) {
   int maps_seen = 0;
   bool long_seen = false;
   bool example_heap_seen = false;
+  uintptr_t example_heap_address =
+      reinterpret_cast<uintptr_t>(example_heap_alloc.get());
+#if defined(ABSL_HAVE_HWADDRESS_SANITIZER)
+  // HWASan stores the tag in the top byte of the pointer, mask it out.
+  example_heap_address &= static_cast<uintptr_t>(-1LL) >> 8;
+#endif
   while (it.NextExt(&start, &end, &flags, &offset, &inode, &filename, &dev)) {
     VLOG(1) << std::hex << start << "-" << end << ": " << filename;
     maps_seen++;
-    if (start <= reinterpret_cast<uintptr_t>(example_heap_alloc.get()) &&
-        reinterpret_cast<uintptr_t>(example_heap_alloc.get()) < end) {
+    if (start <= example_heap_address && example_heap_address < end) {
       EXPECT_EQ(inode, 0);
       // Linux 2.6.12 gives names to some segments, while others
       // versions leave the name field blank. Tcmalloc names its memory regions.
