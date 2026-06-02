@@ -115,7 +115,7 @@ TEST_F(TestValue, Reset) {
 
 static void Delay(absl::Notification* started) {
   started->Notify();
-  absl::SleepFor(absl::Seconds(2.0));
+  absl::SleepFor(absl::Seconds(2));
 }
 
 TEST_F(TestValue, ClearWaitsForActiveCalls) {
