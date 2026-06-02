@@ -31,7 +31,6 @@
 #include "absl/log/check.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
-#include "gloop/base/callback.h"
 #include "gloop/base/context.h"
 #include "gloop/base/spinlock.h"
 #include "gloop/perftools/tracing/string_label.h"
@@ -40,8 +39,6 @@
 #include "gloop/util/random/shared_bit_gen.h"
 #include "gloop/util/refcount/reference_counted.h"
 #include "google/protobuf/arena.h"
-
-template class Callback1<::util::Task*>;
 
 // TODO: Remove this flag.
 ABSL_FLAG(

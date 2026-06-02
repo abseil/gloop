@@ -166,7 +166,6 @@ cc_library(
     }),
     deps = [
         "//gloop:enforce_gloop_support",
-        "//gloop/base:callback",
         "//gloop/base:context",
         "//gloop/base:spinlock",
         "//gloop/perftools/tracing:trace_source_location",
