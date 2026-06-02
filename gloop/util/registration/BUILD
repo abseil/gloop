@@ -81,7 +81,6 @@ cc_library(
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/util/gtl:lockfree_hashmap",
-        "//gloop/util/hash",
         "//gloop/util/hash:transparent_hash",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",

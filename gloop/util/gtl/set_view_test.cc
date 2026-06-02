@@ -45,8 +45,10 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
+#include "gloop/strings/case.h"
 #include "gloop/util/gtl/flat_set.h"
 #include "gloop/util/gtl/iterator_adaptors.h"
+#include "gloop/util/gtl/map_view.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -222,6 +224,7 @@ TEST(SetViewTest, InitializerList) {
   }({1, 2});
 }
 
+[[maybe_unused]] void Overloaded(const MapView<int, int>) {}
 void Overloaded(const SetView<int>) {}
 void Overloaded(const SetView<std::string>) {}
 
@@ -416,6 +419,8 @@ using StringSets = testing::Types<
     std::set<absl::string_view>,  //
     std::set<absl::Cord>,         //
     // Supports heterogeneous lookup (string_view but not Cord).
+    std::set<std::string, strings::AsciiCaseInsensitiveLess>,        //
+    std::set<absl::string_view, strings::AsciiCaseInsensitiveLess>,  //
     // initializer lists are special
     std::initializer_list<std::string>,        //
     std::initializer_list<absl::string_view>,  //

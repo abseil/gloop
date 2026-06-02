@@ -41,6 +41,7 @@
 #include "absl/hash/hash.h"
 #include "absl/types/span.h"
 #include "benchmark/benchmark.h"
+#include "gloop/util/coding/varint.h"
 #include "gloop/util/random/acmrandom.h"
 #include "gloop/util/random/mt_random.h"
 #include "gmock/gmock.h"

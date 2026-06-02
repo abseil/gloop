@@ -45,6 +45,7 @@
 #include "gloop/base/config.h"
 
 #if ABSL_HAVE_MMAP
+
 #include "absl/flags/declare.h"
 
 ABSL_DECLARE_FLAG(uint64_t, mmappedmemblock_munmap_pages_per_call);

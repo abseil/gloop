@@ -566,6 +566,14 @@ class printer {
   }
 #endif
 
+  // Print `Status` using the legacy format to keep backward-compatibility with
+  // tests relying on `streamable(status)` using the legacy format.
+  template <class T,
+            class = ::std::enable_if_t<::std::is_same_v<T, ::absl::Status>>>
+  void print(const T& obj, rank<19>) const {
+    stream_ << ::util::StatusToString(obj);
+  }
+
   // Error StatusOr is printed as status.
   // Successful StatusOr is printed as "OK" followed by the value.
   template <class T,

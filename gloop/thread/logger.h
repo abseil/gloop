@@ -21,6 +21,7 @@
 #ifndef THIRD_PARTY_GLOOP_THREAD_LOGGER_H_
 #define THIRD_PARTY_GLOOP_THREAD_LOGGER_H_
 
+#include "absl/base/log_severity.h"
 #include "absl/flags/declare.h"
 #include "gloop/base/log_severity.h"
 

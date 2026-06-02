@@ -229,5 +229,19 @@ TEST(JoinCSVLineWithDelimiter, Basics) {
   EXPECT_EQ(answer_string, "\"this example\" \"  uses \" spaces");
 }
 
+TEST(LegacyFormatter, FormatterAPI) {
+  std::string s = "Testing: ";
+  s += absl::StrJoin(std::set<int>{1}, "", LegacyFormatter());
+  s += absl::StrJoin(std::set<int16_t>{2}, "", LegacyFormatter());
+  s += absl::StrJoin(std::set<int64_t>{3}, "", LegacyFormatter());
+  s += absl::StrJoin(std::set<float>{4.123456f}, "", LegacyFormatter());
+  s += absl::StrJoin(std::set<double>{789.1011121314}, "", LegacyFormatter());
+  s += absl::StrJoin(std::set<unsigned>{15}, "", LegacyFormatter());
+  s += absl::StrJoin(std::set<size_t>{16}, "", LegacyFormatter());
+  s +=
+      absl::StrJoin(std::set<absl::string_view>{" OK "}, "", LegacyFormatter());
+  EXPECT_EQ("Testing: 1234.123456789.10111213141516 OK ", s);
+}
+
 }  // namespace
 }  // namespace strings

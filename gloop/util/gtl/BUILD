@@ -500,8 +500,10 @@ cc_test(
     deps = [
         ":flat_set",
         ":iterator_adaptors",
+        ":map_view",
         ":set_view",
         "//gloop:gloop_test_main",
+        "//gloop/strings:case",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:flat_hash_set",

@@ -72,6 +72,7 @@ cc_test(
     deps = [
         ":bitmap",
         "//gloop:gloop_test_main",
+        "//gloop/util/coding",
         "//gloop/util/random:acmrandom",
         "//gloop/util/random:mt_random",
         "@abseil-cpp//absl/base:config",

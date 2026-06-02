@@ -2429,6 +2429,169 @@ TEST(stringtest, u64tostr_base36) {
 #define ABSL_MISSING_FEDISABLEEXCEPT 1
 #endif
 
+class SimpleDtoaTest : public testing::Test {
+ protected:
+  void SetUp() override {
+    // Store the current floating point env & clear away any pending exceptions.
+    feholdexcept(&fp_env_);
+#ifndef ABSL_MISSING_FEENABLEEXCEPT
+    // Turn on floating point exceptions.
+    feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
+#endif
+  }
+
+  void TearDown() override {
+    // Restore the floating point environment to the original state.
+    // In theory fedisableexcept is unnecessary; fesetenv will also do it.
+    // In practice, our toolchains have subtle bugs.
+#ifndef ABSL_MISSING_FEDISABLEEXCEPT
+    fedisableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
+#endif
+    fesetenv(&fp_env_);
+  }
+
+  std::string ToNineDigits(double value) {
+    char buffer[kFastToBufferSize];  // more than enough for %.9g
+    absl::SNPrintF(buffer, sizeof(buffer), "%.9g", value);
+    return buffer;
+  }
+
+  void TestDtoaRoundTrip(double value, int min_length) {
+    std::string str = SimpleDtoa(value);
+    SCOPED_TRACE("SimpleDtoa() returned: " + str);
+    if (std::isnan(value)) {
+      EXPECT_TRUE(std::isnan(strtod(str.c_str(), nullptr)));
+    } else {
+      EXPECT_EQ(value, strtod(str.c_str(), nullptr));
+    }
+    EXPECT_LT(str.size(), kFastToBufferSize);
+    EXPECT_GE(str.size(), min_length);
+  }
+
+  void TestFtoaRoundTrip(float value, int min_length) {
+    std::string str = SimpleFtoa(value);
+    SCOPED_TRACE("SimpleFtoa() returned: " + str);
+    float rt = strtof(str.c_str(), nullptr);
+    if (std::isnan(value)) {
+      EXPECT_TRUE(std::isnan(rt));
+    } else {
+      EXPECT_EQ(value, rt) << " " << ToNineDigits(value)
+                           << "!=" << ToNineDigits(rt);
+    }
+    EXPECT_LT(str.size(), kFastToBufferSize);
+    EXPECT_GE(str.size(), min_length);
+  }
+
+  fenv_t fp_env_;
+};
+
+TEST_F(SimpleDtoaTest, SimpleDtoa) {
+  // Make sure that nice, round decimal numbers are printed using few digits,
+  // even if they can't be represented exactly in binary.
+  EXPECT_EQ("0", SimpleDtoa(0.0));
+  EXPECT_EQ("1", SimpleDtoa(1.0));
+  EXPECT_EQ("-1", SimpleDtoa(-1.0));
+  EXPECT_EQ("0.2", SimpleDtoa(0.2));
+  EXPECT_EQ("1.1", SimpleDtoa(1.1));
+  EXPECT_EQ("1e+23", SimpleDtoa(1e23));
+  EXPECT_EQ("47.8", SimpleDtoa(47.8));
+  EXPECT_EQ("1000.2", SimpleDtoa(1000.2));
+
+  // Make sure round-trips with strtod() work.  Note that even though we're
+  // dealing with floating points, we expect the results to be *exactly*
+  // equal, not approximately.
+  TestDtoaRoundTrip(1.2345678901234567, 18);
+  TestDtoaRoundTrip(1.2345678901234565, 18);
+  TestDtoaRoundTrip(1.2345678901234569, 18);
+  TestDtoaRoundTrip(47.800000000000001, 18);
+  TestDtoaRoundTrip(0.10000000000000005, 18);
+  TestDtoaRoundTrip(0.010000000000000005, 18);
+  TestDtoaRoundTrip(0.000000010000000000000005, 18);
+  TestDtoaRoundTrip(1.0000000000000005, 18);
+  TestDtoaRoundTrip(10.000000000000005, 18);
+  TestDtoaRoundTrip(100.00000000000005, 18);
+  TestDtoaRoundTrip(1000.0000000000005, 18);
+  TestDtoaRoundTrip(100000000000000.05, 18);
+
+  // IEEE-754 double finite values furthest from zero.
+  TestDtoaRoundTrip(1.7976931348623157e308, 22);
+  TestDtoaRoundTrip(-1.7976931348623157e308, 23);
+
+  // IEEE-754 double normalized values closest to zero.
+  TestDtoaRoundTrip(2.225073858507202e-308, 22);
+  TestDtoaRoundTrip(-2.225073858507202e-308, 23);
+
+  // IEEE-754 double denormalized values closest to zero.
+  TestDtoaRoundTrip(5e-324, 6);
+  TestDtoaRoundTrip(-5e-324, 7);
+
+  // Biggest and lowest valid numbers.
+  TestDtoaRoundTrip(std::numeric_limits<double>::max(), 3);
+  TestDtoaRoundTrip(std::numeric_limits<double>::lowest(), 3);
+
+  // Infinity and NaN.
+  TestDtoaRoundTrip(std::numeric_limits<double>::infinity(), 3);
+  TestDtoaRoundTrip(-std::numeric_limits<double>::infinity(), 3);
+  TestDtoaRoundTrip(std::numeric_limits<double>::quiet_NaN(), 3);
+}
+
+TEST_F(SimpleDtoaTest, SimpleFtoa) {
+  // Make sure that nice, round decimal numbers are printed using few digits,
+  // even if they can't be represented exactly in binary.
+  EXPECT_EQ("0", SimpleFtoa(0.0f));
+  EXPECT_EQ("-0", SimpleFtoa(-0.0f));
+  EXPECT_EQ("1", SimpleFtoa(1.0f));
+  EXPECT_EQ("-1", SimpleFtoa(-1.0f));
+  EXPECT_EQ("0.2", SimpleFtoa(0.2f));
+  EXPECT_EQ("1.1", SimpleFtoa(1.1f));
+  EXPECT_EQ("1e+23", SimpleFtoa(1e23f));
+  EXPECT_EQ("47.8", SimpleFtoa(47.8f));
+  EXPECT_EQ("1000.2", SimpleFtoa(1000.2f));
+  EXPECT_EQ("1.1754944e-38", SimpleFtoa(1.17549435e-38f));
+
+  // Make sure round-trips with strtod() work.  Note that even though we're
+  // dealing with floating points, we expect the results to be *exactly*
+  // equal, not approximately.
+  TestFtoaRoundTrip(1.2345678901234567, 9);
+  TestFtoaRoundTrip(1.2345678901234565, 9);
+  TestFtoaRoundTrip(1.2345678901234569, 9);
+  TestFtoaRoundTrip(47.800005, 9);
+  TestFtoaRoundTrip(0.10000005, 9);
+  TestFtoaRoundTrip(0.010000005, 9);
+  TestFtoaRoundTrip(0.000000010000005, 9);
+  TestFtoaRoundTrip(1.0000005, 9);
+  TestFtoaRoundTrip(10.000005, 9);
+  TestFtoaRoundTrip(100.00005, 9);
+  TestFtoaRoundTrip(1000.0005, 9);
+  TestFtoaRoundTrip(100000.05, 9);
+  TestFtoaRoundTrip(10.0000095, 8);
+  TestFtoaRoundTrip(10.0000100, 8);
+  TestFtoaRoundTrip(10.0000105, 8);
+  TestFtoaRoundTrip(10.0000110, 8);
+  TestFtoaRoundTrip(10.0000115, 8);
+
+  // IEEE-754 float finite values furthest from zero.
+  TestFtoaRoundTrip(+3.4028234e38f, 9);
+  TestFtoaRoundTrip(-3.4028234e38f, 9);
+
+  // IEEE-754 float normalized values closest to zero.
+  TestFtoaRoundTrip(+1.175494351e-38, 9);
+  TestFtoaRoundTrip(-1.175494351e-38, 9);
+
+  // IEEE-754 double denormalized values closest to zero.
+  TestFtoaRoundTrip(+1.4e-45, 5);
+  TestFtoaRoundTrip(-1.4e-45, 6);
+
+  // Biggest and lowest valid numbers.
+  TestDtoaRoundTrip(std::numeric_limits<float>::max(), 3);
+  TestDtoaRoundTrip(std::numeric_limits<float>::lowest(), 3);
+
+  // Infinity and NaN.
+  TestFtoaRoundTrip(std::numeric_limits<float>::infinity(), 3);
+  TestFtoaRoundTrip(-std::numeric_limits<float>::infinity(), 3);
+  TestFtoaRoundTrip(std::numeric_limits<float>::quiet_NaN(), 3);
+}
+
 TEST(Numbers, TestFunctionsMovedOverFromStrutilUnittestMain) {
   TestFastPrints();
   TestFastToBufferLefts();

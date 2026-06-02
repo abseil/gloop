@@ -231,6 +231,63 @@ BENCHMARK(BM_ParseLeading_i64_string)
     ->ArgPair(16, 8)
     ->ArgPair(16, 10);
 
+void BM_ParseLeading_unsigned64_string(benchmark::State& state) {
+  const int digits = state.range(0);
+  const int base = state.range(1);
+  std::string str1(digits, '7');  // valid in octal, decimal and hex
+  std::string parse_string = str1;
+  parse_string.append("x");  // Explicitly add non-digit character at end.
+  uint64_t value = 0;
+  uint64_t (*test_function)(absl::string_view, uint64_t) = nullptr;
+  switch (base) {
+    case 8:
+      test_function = &ParseLeadingUInt64Value;
+      parse_string.insert(0, "0");  // force octal interpretation
+      break;
+    case 10:
+      test_function = &ParseLeadingUDec64Value;
+      break;
+    case 16:
+      test_function = &ParseLeadingHex64Value;
+      break;
+  }
+  for (auto _ : state) {
+    value = test_function(parse_string, 0);
+  }
+  std::string str2;
+  ASSERT_TRUE(Itoa(value, base, &str2));
+  ASSERT_EQ(str1, str2);
+}
+BENCHMARK(BM_ParseLeading_unsigned64_string)
+    ->ArgPair(1, 8)
+    ->ArgPair(1, 10)
+    ->ArgPair(1, 16)
+    ->ArgPair(2, 8)
+    ->ArgPair(2, 10)
+    ->ArgPair(2, 16)
+    ->ArgPair(4, 8)
+    ->ArgPair(4, 10)
+    ->ArgPair(4, 16)
+    ->ArgPair(8, 8)
+    ->ArgPair(8, 10)
+    ->ArgPair(8, 16)
+    ->ArgPair(16, 8)
+    ->ArgPair(16, 10)
+    ->ArgPair(16, 16);
+
+void BM_float32_buf(benchmark::State& state) {
+  char buffer[32];
+  float float_value = 0.01f;
+  for (auto _ : state) {
+    absl::numbers_internal::RoundTripFloatToBuffer(float_value, buffer);
+    // Grow `float_value` geometrically, wrapping around to small exponents
+    // after hitting a threshold.
+    float_value = float_value * 1.00001;
+    if (float_value > 1e9) float_value *= 1e-18;
+  }
+}
+BENCHMARK(BM_float32_buf);
+
 void BM_HexStringToUint128(benchmark::State& state) {
   RandomEngine rng(0);
   std::uniform_int_distribution<uint64_t> random_uint64(

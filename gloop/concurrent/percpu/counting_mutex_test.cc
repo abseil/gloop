@@ -1141,6 +1141,211 @@ TEST(CountingMutexTest, RunAtThreadExit) {
   }
 }
 
+TEST(CountingMutexTest, AssertHeld) {
+  CountingMutex mutex;
+
+  mutex.AssertNotHeld();
+#if defined(GTEST_HAS_DEATH_TEST) && !defined(__APPLE__)
+  EXPECT_DEBUG_DEATH(mutex.AssertHeld(), "should hold an exclusive lock");
+  EXPECT_DEBUG_DEATH(mutex.AssertReaderHeld(), "should hold a lock");
+#endif
+
+  mutex.lock();
+  mutex.AssertHeld();
+  mutex.AssertReaderHeld();
+#if defined(GTEST_HAS_DEATH_TEST) && !defined(__APPLE__)
+  EXPECT_DEBUG_DEATH(mutex.AssertNotHeld(), "should not hold a lock");
+#endif
+  mutex.unlock();
+
+  mutex.lock_shared();
+#if defined(GTEST_HAS_DEATH_TEST) && !defined(__APPLE__)
+  EXPECT_DEBUG_DEATH(mutex.AssertHeld(), "should hold an exclusive lock");
+  EXPECT_DEBUG_DEATH(mutex.AssertNotHeld(), "should not hold a lock");
+#endif
+  mutex.AssertReaderHeld();
+  mutex.unlock_shared();
+
+#if defined(GTEST_HAS_DEATH_TEST) && !defined(__APPLE__)
+  EXPECT_DEBUG_DEATH(mutex.AssertHeld(), "should hold an exclusive lock");
+  EXPECT_DEBUG_DEATH(mutex.AssertReaderHeld(), "should hold a lock");
+#endif
+}
+
+TEST(CountingMutexTest, LockWhenAlreadyLockedAsserts) {
+#ifdef NDEBUG
+  GTEST_SKIP() << "Skipping test in non-debug mode";
+#endif
+  CountingMutex mutex;
+
+  // Break the lock analysis by using std::function.
+  std::function<void()> reader_dies = [&] {
+#if defined(GTEST_HAS_DEATH_TEST) && !defined(__APPLE__)
+    EXPECT_DEBUG_DEATH(CountingMutexReaderLock l(mutex),
+                       "should not hold a lock");
+#endif
+  };
+  std::function<void()> writer_dies = [&] {
+#if defined(GTEST_HAS_DEATH_TEST) && !defined(__APPLE__)
+    EXPECT_DEBUG_DEATH(CountingMutexLock l(mutex), "should not hold a lock");
+#endif
+  };
+
+  mutex.lock();
+
+  reader_dies();
+  writer_dies();
+
+  mutex.unlock();
+
+  mutex.lock_shared();
+
+  reader_dies();
+  writer_dies();
+
+  mutex.unlock_shared();
+}
+
+TEST(CountingMutexTest, AssertHeldMultiThreaded) {
+  CountingMutex mutex;
+
+  absl::Notification locked_exclusive_condition;
+  absl::Notification locked_shared_condition;
+  absl::Notification unlock_condition1;
+  absl::Notification unlock_condition2;
+  TestThread thread([&] {
+    mutex.AssertNotHeld();
+    mutex.lock();
+    mutex.AssertHeld();
+    mutex.AssertReaderHeld();
+    locked_exclusive_condition.Notify();
+
+    unlock_condition1.WaitForNotification();
+    mutex.unlock();
+
+    mutex.AssertNotHeld();
+    mutex.lock_shared();
+    mutex.AssertReaderHeld();
+    locked_shared_condition.Notify();
+
+    unlock_condition2.WaitForNotification();
+    mutex.unlock_shared();
+
+    mutex.AssertNotHeld();
+  });
+
+  auto check = [&](bool reader) {
+    std::vector<TestThread> threads;
+    for (int i = 0; i < 256; ++i) {
+      threads.emplace_back([&] {
+        mutex.AssertNotHeld();
+        if (reader) {
+          mutex.lock_shared();
+          mutex.AssertReaderHeld();
+          mutex.unlock_shared();
+          mutex.AssertNotHeld();
+        }
+      });
+    }
+#if defined(GTEST_HAS_DEATH_TEST) && !defined(__APPLE__)
+    EXPECT_DEBUG_DEATH(mutex.AssertReaderHeld(), "should hold a lock");
+    EXPECT_DEBUG_DEATH(mutex.AssertHeld(), "should hold an exclusive lock");
+#endif
+    for (auto& thread : threads) {
+      thread.Join();
+    }
+    threads.clear();
+  };
+
+  locked_exclusive_condition.WaitForNotification();
+  check(false);
+
+  unlock_condition1.Notify();
+  locked_shared_condition.WaitForNotification();
+  check(true);
+
+  unlock_condition2.Notify();
+  thread.Join();
+  check(true);
+}
+
+TEST(CountingMutexTest, AssertHeldMultiThreadedMultiMutexes) {
+  std::array<CountingMutex, 10> mutexes;
+
+  absl::Notification locked_exclusive_condition;
+  absl::Notification locked_shared_condition;
+  absl::Notification unlock_condition1;
+  absl::Notification unlock_condition2;
+  TestThread thread([&]() ABSL_NO_THREAD_SAFETY_ANALYSIS {
+    for (auto it = mutexes.begin(); it != mutexes.end(); ++it) {
+      it->AssertNotHeld();
+      it->lock();
+      it->AssertHeld();
+      it->AssertReaderHeld();
+    }
+    locked_exclusive_condition.Notify();
+
+    unlock_condition1.WaitForNotification();
+
+    // Release in reverse order to avoid deadlock cycle heuristics.
+    for (auto it = mutexes.rbegin(); it != mutexes.rend(); ++it) {
+      it->unlock();
+      it->AssertNotHeld();
+    }
+    for (auto it = mutexes.begin(); it != mutexes.end(); ++it) {
+      it->lock_shared();
+      it->AssertReaderHeld();
+    }
+    locked_shared_condition.Notify();
+
+    unlock_condition2.WaitForNotification();
+
+    // Release in reverse order to avoid deadlock cycle heuristics.
+    for (auto it = mutexes.rbegin(); it != mutexes.rend(); ++it) {
+      it->unlock_shared();
+      it->AssertNotHeld();
+    }
+  });
+
+  auto check = [&](bool reader) {
+    std::vector<TestThread> threads;
+    for (int i = 0; i < 16; ++i) {
+      threads.emplace_back([&] {
+        for (CountingMutex& mutex : mutexes) {
+          mutex.AssertNotHeld();
+          if (reader) {
+            mutex.lock_shared();
+            mutex.AssertReaderHeld();
+            mutex.unlock_shared();
+            mutex.AssertNotHeld();
+          }
+        }
+      });
+    }
+#if defined(GTEST_HAS_DEATH_TEST) && !defined(__APPLE__)
+    for (CountingMutex& mutex : mutexes) {
+      EXPECT_DEBUG_DEATH(mutex.AssertReaderHeld(), "should hold a lock");
+      EXPECT_DEBUG_DEATH(mutex.AssertHeld(), "should hold an exclusive lock");
+    }
+#endif
+    for (auto& thread : threads) {
+      thread.Join();
+    }
+    threads.clear();
+  };
+
+  locked_exclusive_condition.WaitForNotification();
+  check(false);
+
+  unlock_condition1.Notify();
+  locked_shared_condition.WaitForNotification();
+  check(true);
+
+  unlock_condition2.Notify();
+  thread.Join();
+  check(true);
+}
+
 TEST(CountingMutexTest, CountingMutexLockMaybe) {
   using MockFn = ::testing::MockFunction<bool()>;
   CountingMutex mu;
@@ -1263,6 +1468,16 @@ BENCHMARK(BM_ReaderWriter_WriterLock<CountingMutex>);
 BENCHMARK(BM_ReaderWriter_ReaderLock<absl::Mutex, kSingle>);
 BENCHMARK(BM_ReaderWriter_ReaderLock<CountingMutex, kSingle>);
 
+void RegisterMultiThreadBenchmarks(int min_threads, int max_threads) {
+#define ADD_BENCHMARK_T(...) \
+  BENCHMARK(__VA_ARGS__)->ThreadRange(min_threads, max_threads)
+
+  ADD_BENCHMARK_T(BM_ReaderWriter_ReaderLock<absl::Mutex, kShared>);
+  ADD_BENCHMARK_T(BM_ReaderWriter_ReaderLock<CountingMutex, kShared>);
+  ADD_BENCHMARK_T(BM_ReaderLock_Contended<absl::Mutex>);
+  ADD_BENCHMARK_T(BM_ReaderLock_Contended<CountingMutex>);
+#undef ADD_BENCHMARK_T
+}
 #endif  // !(defined(__APPLE__) && defined(__x86_64__))
 
 }  // namespace
@@ -1270,6 +1485,26 @@ BENCHMARK(BM_ReaderWriter_ReaderLock<CountingMutex, kSingle>);
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
+
+#if !(defined(__APPLE__) && defined(__x86_64__))
+  int threads = absl::GetFlag(FLAGS_threads);
+  int min_threads, max_threads;
+  if (threads > 0) {
+    min_threads = max_threads = threads;
+    if (int mt = absl::GetFlag(FLAGS_max_threads); mt >= 0) {
+      max_threads = mt ? mt : NumCPUs();
+    }
+  } else {
+    min_threads = max_threads = NumCPUs();
+  }
+
+  concurrent::RegisterMultiThreadBenchmarks(min_threads, max_threads);
+
+  if (!benchmark::GetBenchmarkFilter().empty()) {
+    benchmark::RunSpecifiedBenchmarks();
+    exit(0);
+  }
+#endif
 
   return RUN_ALL_TESTS();
 }
