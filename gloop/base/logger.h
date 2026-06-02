@@ -28,9 +28,10 @@
 #include <time.h>
 
 #include "absl/base/log_severity.h"
-#include "absl/log/internal/config.h"
+#include "gloop/base/config.h"
 #include "gloop/base/log_severity.h"
 
+#if GLOOP_INTERNAL_PROD_LOGGING
 namespace base_logging {
 // `Logger` is an interface used to write logged messages out (e.g. to disk
 // files).  It can be extended and registered to override the default behavior.
@@ -101,5 +102,7 @@ inline void SetLogger(base_logging::LogSeverity severity, Logger* logger) {
 }
 
 }  // namespace base
+
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 
 #endif  // THIRD_PARTY_GLOOP_BASE_LOGGER_H_

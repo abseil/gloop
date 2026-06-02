@@ -32,6 +32,7 @@
 #include "absl/log/globals.h"
 #include "absl/log/log.h"
 #include "absl/strings/string_view.h"
+#include "gloop/base/config.h"
 
 namespace {
 
@@ -106,6 +107,8 @@ ABSL_FLAG(std::string, log_dir, DefaultLogDir(),
           "If specified, logfiles are written into this directory instead of "
           "the default logging directory.");
 
+#if GLOOP_INTERNAL_PROD_LOGGING
+
 ABSL_FLAG(int, logbufsecs, 30,
           "When logging a new message, force a flush if any buffered messages "
           "are older than this. NOTE: this does *not* imply buffered log "
@@ -116,6 +119,8 @@ ABSL_FLAG(int, max_log_size, GetFromEnv("GOOGLE_MAX_LOG_MB", 200),
           "silently overridden to 1.");
 ABSL_FLAG(bool, stop_logging_if_full_disk, false,
           "Stop attempting to log to disk if the disk is full.");
+
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 
 ABSL_FLAG(std::string, log_link, "",
           "Put additional links to the log files in this directory. Has "

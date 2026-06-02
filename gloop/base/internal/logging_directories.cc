@@ -60,6 +60,8 @@ void InitLoggingDirectories() ABSL_EXCLUSIVE_LOCKS_REQUIRED(directories_mutex) {
 }
 }  // namespace
 
+#if GLOOP_INTERNAL_PROD_LOGGING
+
 void ClearLoggingDirectories() ABSL_LOCKS_EXCLUDED(directories_mutex) {
   absl::MutexLock l(directories_mutex);
   ResetDirectories();
@@ -78,6 +80,8 @@ absl::Span<const std::string> LoggingDirectoriesUnsafe() {
   }
   return *dirs;
 }
+
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 
 std::vector<std::string> LoggingDirectories()
     ABSL_LOCKS_EXCLUDED(directories_mutex) {

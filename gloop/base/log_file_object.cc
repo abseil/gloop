@@ -20,6 +20,8 @@
 
 #include "gloop/base/log_file_object.h"
 
+#if GLOOP_INTERNAL_PROD_LOGGING
+
 #include <fcntl.h>
 #include <features.h>
 #include <sys/stat.h>
@@ -395,3 +397,5 @@ void LogFileObject::CloseLogfile(bool delete_file) {
 
 }  // namespace logging_internal
 }  // namespace base_logging
+
+#endif  // GLOOP_INTERNAL_PROD_LOGGING

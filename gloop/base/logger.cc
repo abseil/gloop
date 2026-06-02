@@ -20,21 +20,25 @@
 
 #include "gloop/base/logger.h"
 
+#include <string_view>
+
+#include "absl/base/const_init.h"
+#include "absl/base/thread_annotations.h"
+#include "absl/log/log.h"
+#include "absl/log/log_sink.h"
+
+#if GLOOP_INTERNAL_PROD_LOGGING
+
 #include <cassert>
 #include <ctime>
 #include <memory>
-#include <string_view>
 
 #include "absl/base/attributes.h"
-#include "absl/base/const_init.h"
 #include "absl/base/log_severity.h"
-#include "absl/base/thread_annotations.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/log/globals.h"
-#include "absl/log/log.h"
 #include "absl/log/log_entry.h"
-#include "absl/log/log_sink.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
 #include "gloop/base/log_file.h"
@@ -186,3 +190,4 @@ void SetLogger(absl::LogSeverity severity, Logger* logger) {
       severity, std::make_shared<LogFileSinkToLoggerBridge>(severity, logger));
 }
 }  // namespace base_logging
+#endif  // GLOOP_INTERNAL_PROD_LOGGING

@@ -2043,6 +2043,7 @@ cc_library(
         "//gloop/util/status:__pkg__",
     ],
     deps = [
+        ":config",
         ":log_file_flags",
         ":port",
         ":user_name",
@@ -2060,7 +2061,6 @@ cc_library(
         "@abseil-cpp//absl/log:log_entry",
         "@abseil-cpp//absl/log:log_sink",
         "@abseil-cpp//absl/log:log_sink_registry",
-        "@abseil-cpp//absl/log/internal:config",
         "@abseil-cpp//absl/log/internal:globals",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
@@ -2117,6 +2117,7 @@ cc_library(
     hdrs = ["log_file_flags.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":config",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
@@ -2125,7 +2126,6 @@ cc_library(
         "@abseil-cpp//absl/flags:marshalling",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:globals",
-        "@abseil-cpp//absl/log/internal:config",
         "@abseil-cpp//absl/strings",
     ],
 )

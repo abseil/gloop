@@ -51,6 +51,7 @@
 #include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_replace.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
@@ -122,13 +123,17 @@ class GoldenStderrTest : public testing::Test {
 };
 
 TEST_F(GoldenStderrTest, BeforeInitGoogle) {
-#if !ABSL_LOG_INTERNAL_GOOGLE3_PROD_CORP_LOGGING
+#if !GLOOP_INTERNAL_PROD_LOGGING
   GTEST_SKIP() << "This testcase is not supported on this platform";
-#endif  // !ABSL_LOG_INTERNAL_GOOGLE3_PROD_CORP_LOGGING
-  const absl::StatusOr<std::string> golden_stderr = logging_testing::ReadFile(
+#endif  // !GLOOP_INTERNAL_PROD_LOGGING
+  absl::StatusOr<std::string> golden_stderr = logging_testing::ReadFile(
       GoldenStderrFilename(TestNameWithSuffix(".txt")));
   ASSERT_THAT(golden_stderr, IsOk())
       << "Could not read golden file for test " << TestName();
+  *golden_stderr = absl::StrReplaceAll(
+      *golden_stderr,
+      {{"Logging before InitGoogle() is",
+        "All log messages before absl::InitializeLog() is called are"}});
   const absl::StatusOr<std::string> munged_captured_stderr =
       base_logging::logging_testing::MungeFile(
           OutputFilepath(TestNameWithSuffix(".txt")),
@@ -715,6 +720,7 @@ void CheckFile(const std::string& name, const std::string& expected_string) {
 }
 #endif  // defined(_POSIX_VERSION) && !defined(__ANDROID__)
 
+#if GLOOP_INTERNAL_PROD_LOGGING
 void TestBasename() {
   fputs("==== Test setting log file basename\n", stderr);
   const std::string dest =
@@ -834,6 +840,7 @@ void TestGetLogPath() {
   FlushLogFiles(INFO);
   CHECK(GetLogPath(INFO).empty()) << "Path: " << GetLogPath(INFO);
 }
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 
 void TestGWQStatusMessage() {
 #if !PORTABLE_BASE
@@ -1048,6 +1055,7 @@ TEST(LogIfEveryN, RespectsCondition) {
   }
 }
 
+#if GLOOP_INTERNAL_PROD_LOGGING
 class LoggingDirectoriesTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -1109,6 +1117,7 @@ TEST_F(LoggingDirectoriesTest, EmptyEnvVar) {
   // function exits.  Remove the environment variable to prevent that.
   PCHECK(unsetenv("TEST_TMPDIR") != -1);
 }
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 
 #if GTEST_HAS_DEATH_TEST && \
     GTEST_GOOGLE3_MODE_  // EXPECT_DFATAL only exists in the internal gunit.
@@ -1334,6 +1343,7 @@ int main(int argc, char** argv) {
 
   QCHECK_EQ(RUN_ALL_TESTS(), 0);
 
+#if GLOOP_INTERNAL_PROD_LOGGING
   absl::SetFlag(&FLAGS_logtostderr, false);
   base_logging::InitializeLogFileSinks();
   base_logging::TestBasename();
@@ -1342,6 +1352,7 @@ int main(int argc, char** argv) {
   base_logging::TestPermissions();
   base_logging::TestGetLogPath();
   base_logging::TestGWQStatusMessage();
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 
   fputs("PASS\n", stdout);
   return 0;

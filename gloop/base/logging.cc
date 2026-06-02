@@ -33,7 +33,6 @@
 #include "absl/log/flags.h"
 #include "absl/log/globals.h"
 #include "absl/log/initialize.h"
-#include "absl/log/internal/config.h"
 #include "absl/log/internal/flags.h"
 #include "absl/log/log.h"
 #include "absl/log/log_sink_registry.h"
@@ -70,7 +69,9 @@ InitializeCallback Initialize() {
   // be called at the end of InitGoogle, unless it is null.
   InitializeCallback end_of_init_google_init = InitializeRemoteDebugLogging();
 
+#if GLOOP_INTERNAL_PROD_LOGGING
   base_logging::InitializeLogFileSinks();
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 
   if ((base::WasPresentOnCommandLine("logtostderr") ||
        base::WasPresentOnCommandLine("alsologtostderr")) &&

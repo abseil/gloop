@@ -24,9 +24,9 @@
 #include <string>
 #include <vector>
 
-#include "absl/log/internal/config.h"
 #include "absl/log/log.h"
 #include "absl/types/span.h"
+#include "gloop/base/config.h"
 
 namespace base_logging {
 namespace logging_internal {
@@ -36,6 +36,8 @@ namespace logging_internal {
 // --log_dir), and furthermore it will be cached and the flags will not take
 // effect when `InitGoogle` is eventually called.
 std::vector<std::string> LoggingDirectories();
+
+#if GLOOP_INTERNAL_PROD_LOGGING
 
 // For tests only: clear the internal (cached) list of logging directories to
 // force a refresh the next time `GetLoggingDirectories` is called.
@@ -49,6 +51,8 @@ void SetLoggingDirectories(std::vector<std::string> vec);
 // This is for signal handlers that can't safely take the underlying lock or
 // allocate to return-by-copy, so it's thread-hostile.
 absl::Span<const std::string> LoggingDirectoriesUnsafe();
+
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 
 }  // namespace logging_internal
 }  // namespace base_logging

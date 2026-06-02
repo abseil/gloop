@@ -100,11 +100,11 @@ cc_library(
     deps = [
         ":temp_directories",
         "//gloop:enforce_gloop_support",
+        "//gloop/base:config",
         "//gloop/base:log_file_flags",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log/internal:config",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/types:span",
     ],

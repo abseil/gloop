@@ -316,4 +316,17 @@
 #define PORTABLE_BASE 0
 #endif
 
+// `GLOOP_INTERNAL_PROD_LOGGING` controls the usual logfile
+// writing behavior seen in prod and corp linux builds.  It includes the
+// `base::Logger` interface as well as the default implementation which writes
+// to a set of per-severity files as documented at <link>.
+#if PORTABLE_BASE
+#define GLOOP_INTERNAL_PROD_LOGGING 0
+#else
+// TODO: and b/171338074: make these into bazel features
+// TODO: and b/171338074: don't make these into bazel features;
+// instead make them runtime knobs
+#define GLOOP_INTERNAL_PROD_LOGGING 1
+#endif
+
 #endif  // THIRD_PARTY_GLOOP_BASE_CONFIG_H_

@@ -22,15 +22,19 @@
 #ifndef THIRD_PARTY_GLOOP_BASE_LOG_FILE_H_
 #define THIRD_PARTY_GLOOP_BASE_LOG_FILE_H_
 
+#include "absl/log/log_entry.h"
+#include "absl/log/log_sink.h"
+#include "gloop/base/config.h"
+
+#if GLOOP_INTERNAL_PROD_LOGGING
+
 #include <functional>
 #include <memory>
 #include <string>
 
 #include "absl/base/log_severity.h"
-#include "absl/log/internal/config.h"
-#include "absl/log/log_entry.h"
-#include "absl/log/log_sink.h"
 #include "gloop/base/log_severity.h"
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 
 namespace base_logging {
 //-----------------------------------------------------------------------------
@@ -47,6 +51,7 @@ bool LogToFiles();
 // This function is async-signal-safe.
 void EnableLogToFiles(bool on_off);
 
+#if GLOOP_INTERNAL_PROD_LOGGING
 //-----------------------------------------------------------------------------
 // Interfaces which operate on underlying log file objects.
 
@@ -167,7 +172,7 @@ using LogFileFilter = std::function<bool(const absl::LogEntry*)>;
 
 // Attach log file filter to the sink for specified severity.
 void AttachLogFileFilter(absl::LogSeverity severity, LogFileFilter filter);
-
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 }  // namespace base_logging
 
 #endif  // THIRD_PARTY_GLOOP_BASE_LOG_FILE_H_

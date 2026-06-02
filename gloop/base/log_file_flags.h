@@ -24,12 +24,14 @@
 #include <string>
 
 #include "absl/flags/declare.h"
-#include "absl/log/internal/config.h"
+#include "gloop/base/config.h"
 
 // If specified, or if the `GOOGLE_LOG_DIR` environment variable is set,
 // logfiles are written into this directory instead of the default logging
 // directory.
 ABSL_DECLARE_FLAG(std::string, log_dir);
+
+#if GLOOP_INTERNAL_PROD_LOGGING
 
 // When logging a new message, force a flush if any buffered messages are older
 // than this. NOTE: this does *not* imply buffered log messages get flushed
@@ -44,6 +46,8 @@ ABSL_DECLARE_FLAG(int, max_log_size);
 // If true, logging will cease if the disk appears to be full.  Defaults to
 // false.
 ABSL_DECLARE_FLAG(bool, stop_logging_if_full_disk);
+
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 
 // If specified, a symbolic link to each logfile is put in this directory.
 ABSL_DECLARE_FLAG(std::string, log_link);
@@ -71,7 +75,11 @@ ABSL_DECLARE_FLAG(bool, threaded_logging);
 namespace base_logging {
 namespace internal {
 
+#if GLOOP_INTERNAL_PROD_LOGGING
 constexpr bool kDefaultLogtostderr = false;
+#else
+constexpr bool kDefaultLogtostderr = true;
+#endif
 
 bool LogtostderrDefault();
 bool AlsologtostderrDefault();

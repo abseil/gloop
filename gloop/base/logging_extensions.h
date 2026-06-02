@@ -76,17 +76,19 @@
 #include "absl/base/log_severity.h"
 #include "absl/base/nullability.h"
 #include "absl/base/thread_annotations.h"
-#include "absl/log/internal/config.h"
 #include "absl/log/internal/log_message.h"
 #include "absl/log/log_entry.h"
 #include "absl/log/log_sink.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "gloop/base/config.h"
-#include "gloop/base/internal/logging_directories.h"  // to be removed
-#include "gloop/base/internal/temp_directories.h"     // to be removed
+#include "gloop/base/internal/temp_directories.h"  // to be removed
 #include "gloop/base/log_file.h"
 #include "gloop/base/log_severity.h"
+
+#if GLOOP_INTERNAL_PROD_LOGGING
+#include "gloop/base/internal/logging_directories.h"  // to be removed
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 
 // -----------------------------------------------------------------------------
 // Miscellaneous
@@ -203,11 +205,15 @@ class NullSafeSinkWrapper final : public absl::LogSink {
 // specified severity level.  Thread-safe. The portable implementation does
 // nothing.
 inline void FlushLogFiles(absl::LogSeverity min_severity) {
+#if GLOOP_INTERNAL_PROD_LOGGING
   base_logging::FlushLogFiles(min_severity);
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 }
 // A thread-hostile variant of FlushLogFiles for catastrophic failures.
 inline void FlushLogFilesUnsafe(absl::LogSeverity min_severity) {
+#if GLOOP_INTERNAL_PROD_LOGGING
   base_logging::FlushLogFilesUnsafe(min_severity);
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 }
 
 #if !PORTABLE_BASE
@@ -219,6 +225,7 @@ inline void FlushLogFilesUnsafe(absl::LogSeverity min_severity) {
 void StatusMessage(int64_t done, int64_t total);
 #endif
 
+#if GLOOP_INTERNAL_PROD_LOGGING
 // Return the set of directories to try writing a log file into.  Do not call
 // before `InitGoogle` or the returned value will not honor flags (e.g.
 // --log_dir), and furthermore it will be cached and the flags will not take
@@ -226,6 +233,7 @@ void StatusMessage(int64_t done, int64_t total);
 inline std::vector<std::string> GetLoggingDirectories() {
   return base_logging::logging_internal::LoggingDirectories();
 }
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 
 // Returns a set of existing temporary directories, which will be a subset of
 // the directories returned by `GetLoggingDirectories`.  Thread-safe.

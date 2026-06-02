@@ -62,6 +62,7 @@ using ::testing::Truly;
 using ::absl::log_internal::DiedOfFatal;
 #endif
 
+#if GLOOP_INTERNAL_PROD_LOGGING
 // With more than one mocker of the same type, test failure messages are hard to
 // interpret.  These types are distinct and are printed as such in stacktraces.
 class MockInfoLogger : public base::Logger {
@@ -190,5 +191,6 @@ TEST_F(LoggerTest, Nullptr) {
   FlushLogFiles(absl::LogSeverity::kInfo);
   base_logging::EnableLogToFiles(true);
 }
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 
 }  // namespace

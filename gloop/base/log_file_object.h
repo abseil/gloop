@@ -23,6 +23,10 @@
 #ifndef THIRD_PARTY_GLOOP_BASE_LOG_FILE_OBJECT_H_
 #define THIRD_PARTY_GLOOP_BASE_LOG_FILE_OBJECT_H_
 
+#include "gloop/base/config.h"
+
+#if GLOOP_INTERNAL_PROD_LOGGING
+
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -30,7 +34,6 @@
 #include <string>
 
 #include "absl/base/log_severity.h"
-#include "absl/log/internal/config.h"
 #include "absl/time/time.h"
 
 namespace base_logging {
@@ -109,4 +112,5 @@ class LogFileObject {
 }  // namespace logging_internal
 }  // namespace base_logging
 
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 #endif  // THIRD_PARTY_GLOOP_BASE_LOG_FILE_OBJECT_H_

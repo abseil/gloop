@@ -20,38 +20,43 @@
 
 #include "gloop/base/log_file.h"
 
-#include <array>
-#include <atomic>
+#if GLOOP_INTERNAL_PROD_LOGGING
+
 #include <cassert>
 #include <cstddef>
 #include <ctime>
-#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "absl/base/attributes.h"
 #include "absl/base/const_init.h"
 #include "absl/base/log_severity.h"
-#include "absl/base/thread_annotations.h"
 #include "absl/log/globals.h"
-#include "absl/log/internal/config.h"
 #include "absl/log/internal/globals.h"
 #include "absl/log/log_entry.h"
+#include "absl/synchronization/mutex.h"
+#include "gloop/base/log_file_object.h"
+#include "gloop/base/logger.h"
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
+
+#include <array>
+#include <atomic>
+#include <functional>
+
+#include "absl/base/attributes.h"
+#include "absl/base/thread_annotations.h"
 #include "absl/log/log_sink.h"
 #include "absl/log/log_sink_registry.h"
 #include "absl/strings/string_view.h"
-#include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
-#include "gloop/base/log_file_object.h"
-#include "gloop/base/logger.h"
 
 namespace base_logging {
 namespace {
 ABSL_CONST_INIT std::atomic<bool> log_to_files{true};
 }  // namespace
 
+#if GLOOP_INTERNAL_PROD_LOGGING
 namespace {
 constexpr size_t ToIndex(absl::LogSeverity severity) {
   assert(severity == absl::NormalizeLogSeverity(severity));
@@ -374,12 +379,13 @@ void AttachLogFileFilter(absl::LogSeverity severity, LogFileFilter filter) {
   LogFile* log_file = GetLogFile(severity);
   log_file->AttachFilter(std::move(filter));
 }
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 
 bool LogToFiles() { return log_to_files.load(std::memory_order_relaxed); }
 
 void EnableLogToFiles(bool on_off) {
   log_to_files.store(on_off, std::memory_order_relaxed);
-
+#if GLOOP_INTERNAL_PROD_LOGGING
   absl::MutexLock lock(log_file_sinks_guard);
   // Do NOT register sinks before InitializeLogFileSinks() is called.
   if (!absl::log_internal::IsInitialized()) return;
@@ -396,6 +402,7 @@ void EnableLogToFiles(bool on_off) {
       is_log_file_sink_registered[ToIndex(severity)] = true;
     }
   }
+#endif  // GLOOP_INTERNAL_PROD_LOGGING
 }
 
 }  // namespace base_logging
