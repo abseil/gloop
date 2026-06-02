@@ -664,11 +664,16 @@ uint64_t atoi_kmgt(const char* s) {
         scale = uint64_t{1} << 40;
         break;
       default:
-        ABSL_RAW_LOG(
-            FATAL,
-            "Invalid mnemonic: '%c'; should be one of 'K', 'M', 'G', and 'T'.",
-            c);
+        ABSL_RAW_LOG(DFATAL,
+                     "atoi_kmgt: ignoring invalid mnemonic '%c'; "
+                     "should be one of 'K', 'M', 'G', and 'T'.",
+                     c);
+        break;
     }
+  }
+  if (scale > 1 && n > std::numeric_limits<uint64_t>::max() / scale) {
+    ABSL_RAW_LOG(DFATAL, "atoi_kmgt: overflow detected for value '%s'", s);
+    return std::numeric_limits<uint64_t>::max();
   }
   return n * scale;
 }

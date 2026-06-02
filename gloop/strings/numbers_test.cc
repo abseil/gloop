@@ -52,11 +52,14 @@
 #include "absl/strings/string_view.h"
 #include "gloop/base/fprint.h"
 #include "gloop/strings/numbers_test_common.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace strings {
 
 namespace {
+
+using ::testing::HasSubstr;
 
 // Run all ParseDoubleRange() tests. Otherwise runs a few.
 const bool all_parserange_tests = false;
@@ -1459,14 +1462,44 @@ void TestParseLeadingBoolValue() {
 }
 
 void Test_atoi_kmgt() {
-  ASSERT_EQ(atoi_kmgt("321k"), uint64_t{321} << 10);
-  ASSERT_EQ(atoi_kmgt("321m"), uint64_t{321} << 20);
-  ASSERT_EQ(atoi_kmgt("321g"), uint64_t{321} << 30);
-  ASSERT_EQ(atoi_kmgt("321t"), uint64_t{321} << 40);
-  ASSERT_EQ(atoi_kmgt("123K"), uint64_t{123} << 10);
-  ASSERT_EQ(atoi_kmgt("123M"), uint64_t{123} << 20);
-  ASSERT_EQ(atoi_kmgt("123G"), uint64_t{123} << 30);
-  ASSERT_EQ(atoi_kmgt("123T"), uint64_t{123} << 40);
+  EXPECT_EQ(atoi_kmgt("321k"), uint64_t{321} << 10);
+  EXPECT_EQ(atoi_kmgt("321m"), uint64_t{321} << 20);
+  EXPECT_EQ(atoi_kmgt("321g"), uint64_t{321} << 30);
+  EXPECT_EQ(atoi_kmgt("321t"), uint64_t{321} << 40);
+  EXPECT_EQ(atoi_kmgt("123K"), uint64_t{123} << 10);
+  EXPECT_EQ(atoi_kmgt("123M"), uint64_t{123} << 20);
+  EXPECT_EQ(atoi_kmgt("123G"), uint64_t{123} << 30);
+  EXPECT_EQ(atoi_kmgt("123T"), uint64_t{123} << 40);
+  EXPECT_EQ(atoi_kmgt("321"), uint64_t{321});
+  EXPECT_EQ(atoi_kmgt(""), uint64_t{0});
+
+// Test invalid suffix does not crash and returns unscaled value
+#ifdef NDEBUG
+  EXPECT_EQ(atoi_kmgt("321x"), uint64_t{321});
+  EXPECT_EQ(atoi_kmgt("321X"), uint64_t{321});
+  EXPECT_EQ(atoi_kmgt("321"), uint64_t{321});
+#else
+  EXPECT_DEATH(atoi_kmgt("321x"),
+               HasSubstr("atoi_kmgt: ignoring invalid mnemonic 'X'"));
+  EXPECT_DEATH(atoi_kmgt("321X"),
+               HasSubstr("atoi_kmgt: ignoring invalid mnemonic 'X'"));
+#endif
+
+  // Test overflow clamping
+#ifdef NDEBUG
+  EXPECT_EQ(atoi_kmgt("18446744073709551T"),
+            std::numeric_limits<uint64_t>::max());
+  EXPECT_EQ(atoi_kmgt("999999999999999999999K"),
+            std::numeric_limits<uint64_t>::max());
+#else
+  EXPECT_DEATH(
+      atoi_kmgt("18446744073709551T"),
+      HasSubstr("atoi_kmgt: overflow detected for value '18446744073709551T'"));
+  EXPECT_DEATH(
+      atoi_kmgt("999999999999999999999K"),
+      HasSubstr(
+          "atoi_kmgt: overflow detected for value '999999999999999999999K'"));
+#endif
 }
 
 void TestStringsItoa() {

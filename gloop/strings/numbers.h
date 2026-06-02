@@ -323,7 +323,10 @@ size_t u64tostr_base36(uint64_t number, size_t buf_size, char* buffer);
 
 // Converts the given string representation into a 64-bit unsigned integer
 // value similar to `atoi(s)`, except `s` may refer to metric size suffixes for
-// kilo, mega, giga, and tera. (E.g. 16k", "32M", "2G", "4t").
+// kilo, mega, giga, and tera. (E.g. "16k", "32M", "2G", "4t").
+//
+// Returns 0 if the string is empty or cannot be parsed. Returns the maximum
+// representable uint64_t value on overflow.
 uint64_t atoi_kmgt(const char* s);
 inline uint64_t atoi_kmgt(const std::string& s) { return atoi_kmgt(s.c_str()); }
 
