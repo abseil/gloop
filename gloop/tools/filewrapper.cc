@@ -94,13 +94,15 @@
 auto& MD5_init = ::MD5_Init;
 auto& MD5_update = ::MD5_Update;
 
+#include "rules_cc/cc/runfiles/runfiles.h"
+using rules_cc::cc::runfiles::Runfiles;
+
 #ifndef PATH_MAX
 #define PATH_MAX (512)
 #endif
 
 namespace {
 
-std::string runfiles;  // NOLINT(runtime/string)
 std::string progname;  // NOLINT(runtime/string)
 
 // Command-line flags.
@@ -364,42 +366,25 @@ std::streamoff Size(const std::string& path) {
   return buf.st_size;
 }
 
-bool IsDir(const std::string& path) {
-  struct stat buf;
-  if (stat(path.c_str(), &buf) == -1) return false;
-  return S_ISDIR(buf.st_mode);
+Runfiles* runfiles_bazel;  // NOLINT(runtime/string)
+
+Runfiles* CreateRunfiles(int argc, char** argv) {
+  if (argc <= 0) {
+    FatalError("Missing program name in argv[0].");
+  }
+  std::string error;
+#ifdef BAZEL_CURRENT_REPOSITORY
+  return Runfiles::Create(argv[0], BAZEL_CURRENT_REPOSITORY, &error);
+#else
+  return Runfiles::Create(argv[0], "", &error);
+#endif
 }
 
-// Determine the "runfiles" directory from argv[0].
-std::string RunFiles(int argc, char** argv) {
-  if (argc <= 0) return std::string();
-
-  assert(strlen(argv[0]) < PATH_MAX);
-  char path[PATH_MAX];
-  strcpy(path, argv[0]);  // NOLINT(runtime/printf)
-  while (readlink(path, path, sizeof path) > 0) {
-    std::string link = path;
-    std::string::size_type pos = link.find("/<path>");
-    if (pos == std::string::npos) continue;
-    if (std::string r = link.substr(0, pos) + "/<path>"; IsDir(r)) {
-      return r;
-    }
+std::string GetRunfilePath(const std::string& path) {
+  if (runfiles_bazel == nullptr) {
+    FatalError("Runfiles not initialized.");
   }
-
-  std::string runfiles = argv[0];
-  const std::string suffix = ".runfiles/";
-  std::string::size_type pos = runfiles.rfind(suffix);
-  if (pos != std::string::npos) {
-    return runfiles.substr(0, pos + suffix.size());
-  }
-  pos = runfiles.find_last_of('.');
-  if (pos != std::string::npos) {
-    if (runfiles.find_first_of('/', pos) == std::string::npos) {
-      runfiles.erase(pos);
-    }
-  }
-  runfiles += suffix;
-  return runfiles;
+  return runfiles_bazel->Rlocation(path);
 }
 
 std::string ProgramInvocationShortName(int argc, char** argv) {
@@ -616,7 +601,7 @@ void EncapsulateFiles(const std::vector<std::string>& infiles,
                       const std::string& obj_name,
                       std::vector<Initializer>& initializers,
                       std::vector<std::string>& externs) {
-  const std::string set_symbol_size = runfiles + "<path>";
+  const std::string set_symbol_size = GetRunfilePath("<path>");
 
   // Create a temporary directory for the intermediate .o files.  Note
   // that objcopy chooses the symbol names based on the output filename,
@@ -876,7 +861,7 @@ void WriteHeader(const std::string& filename, const std::string& comment,
 
   hdr << comment << "//  Output: " << filename << "\n\n";
 
-  std::ifstream toc(runfiles + "_main/gloop/base/file_toc.h");
+  std::ifstream toc(GetRunfilePath("gloop/gloop/base/file_toc.h"));
   if (toc.is_open()) {
     std::string line;
     while (std::getline(toc, line)) hdr << line << "\n";
@@ -1127,7 +1112,7 @@ void WriteCpp(const std::string& cc_filename, const std::string& comment,
 }  // namespace
 
 int main(int argc, char** argv) {
-  runfiles = RunFiles(argc, argv);
+  runfiles_bazel = CreateRunfiles(argc, argv);
   progname = ProgramInvocationShortName(argc, argv);
   if (int rc = ParseCommandLineFlags(&argc, &argv)) return rc;
 

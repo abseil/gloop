@@ -1,6 +1,9 @@
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
-load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+
+# buildifier: disable=out-of-order-load
+load("@gloop//gloop/tools/build_defs/cc:cc_embed_data.bzl", "cc_embed_data")
 
 package(
     default_applicable_licenses = ["@gloop//gloop:license"],
@@ -46,4 +49,24 @@ proto_library(
 cc_proto_library(
     name = "example_cc_proto",
     deps = [":example_proto"],
+)
+
+cc_embed_data(
+    name = "embedded_test_data",
+    srcs = ["test_data.txt"],
+    outs = [
+        "embedded_test_data.cc",
+        "embedded_test_data.h",
+    ],
+    flatten = True,
+)
+
+cc_test(
+    name = "cc_embed_data_test",
+    srcs = ["cc_embed_data_test.cc"],
+    deps = [
+        ":embedded_test_data",
+        "@abseil-cpp//absl/strings:string_view",
+        "@googletest//:gtest_main",
+    ],
 )
