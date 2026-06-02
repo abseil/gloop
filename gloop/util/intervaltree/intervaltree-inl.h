@@ -1488,11 +1488,15 @@ IntervalIterator<K, V, KeyLess>::IntervalIterator(Tree* tree, TreeNode* node)
   if (!tree_->uptodate_) tree_->UpdateStructure();
 
   if (tree_->IsVector()) {
-    position_ = tree_->VecFindPos(node->begin, node->end);
-    // When there are duplicate, FindPos find the smallest one.
-    while (node_ != GetNodeFromPos()) {
-      DCHECK(tree_->KeyEqualTo(node_->begin, GetNodeFromPos()->begin));
-      ++position_;
+    if (node == nullptr) {
+      position_ = tree_->sorted_.size();
+    } else {
+      position_ = tree_->VecFindPos(node->begin, node->end);
+      // When there are duplicate, FindPos find the smallest one.
+      while (node_ != GetNodeFromPos()) {
+        DCHECK(tree_->KeyEqualTo(node_->begin, GetNodeFromPos()->begin));
+        ++position_;
+      }
     }
   }
 }

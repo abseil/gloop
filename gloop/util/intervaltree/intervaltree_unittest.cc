@@ -48,6 +48,7 @@
 namespace {
 
 using ::testing::ElementsAre;
+using ::testing::IsEmpty;
 using ::testing::Pointee;
 
 MATCHER_P(NodeValue, inner_matcher, "") {
@@ -1119,6 +1120,66 @@ TEST_P(IntervalTreeTest, TestBackwardIteratorDuplicateHandling) {
 
   IntervalIterator<int, int> iter3(&integer, 5, 6, INTERVAL_LARGEST);
   EXPECT_THAT(iter3.Get(), NodeValue(5));
+}
+
+TEST_P(IntervalTreeTest, TestIterableDisjointRanges) {
+  IntervalTree<int, std::string> tree = factory_.Create<int, std::string>();
+  tree.InsertVal(3, 4, "b");
+  tree.InsertVal(5, 6, "c");
+  tree.InsertVal(1, 2, "a");
+  tree.UpdateStructure();
+
+  std::vector<std::string> values;
+  for (const auto& node : tree) {
+    values.push_back(node.value);
+  }
+  EXPECT_THAT(values, ElementsAre("a", "b", "c"));
+
+  const IntervalTree<int, std::string>& const_tree = tree;
+  std::vector<std::string> const_values;
+  for (const auto& node : const_tree) {
+    const_values.push_back(node.value);
+  }
+  EXPECT_THAT(const_values, ElementsAre("a", "b", "c"));
+}
+
+TEST_P(IntervalTreeTest, TestIterableOverlappingRanges) {
+  IntervalTree<int, std::string> tree = factory_.Create<int, std::string>();
+  tree.InsertVal(2, 6, "b");
+  tree.InsertVal(3, 7, "c");
+  tree.InsertVal(1, 5, "a");
+  tree.UpdateStructure();
+
+  std::vector<std::string> values;
+  for (const auto& node : tree) {
+    values.push_back(node.value);
+  }
+  EXPECT_THAT(values, ElementsAre("a", "b", "c"));
+
+  const IntervalTree<int, std::string>& const_tree = tree;
+  std::vector<std::string> const_values;
+  for (const auto& node : const_tree) {
+    const_values.push_back(node.value);
+  }
+  EXPECT_THAT(const_values, ElementsAre("a", "b", "c"));
+}
+
+TEST_P(IntervalTreeTest, TestIterableEmptyTree) {
+  IntervalTree<int, std::string> tree = factory_.Create<int, std::string>();
+  tree.UpdateStructure();
+
+  std::vector<std::string> values;
+  for (const auto& node : tree) {
+    values.push_back(node.value);
+  }
+  EXPECT_THAT(values, IsEmpty());
+
+  const IntervalTree<int, std::string>& const_tree = tree;
+  std::vector<std::string> const_values;
+  for (const auto& node : const_tree) {
+    const_values.push_back(node.value);
+  }
+  EXPECT_THAT(const_values, IsEmpty());
 }
 
 // Return true if two integer-based interval trees equal.

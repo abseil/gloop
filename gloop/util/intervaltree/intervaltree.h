@@ -250,6 +250,15 @@ class IntervalTree {
   IntervalTree(const IntervalTree&) = delete;
   IntervalTree& operator=(const IntervalTree&) = delete;
 
+  iterator begin() {
+    return iterator(this, TreeNode::min_value(), TreeNode::max_value());
+  }
+  const_iterator begin() const {
+    return const_iterator(this, TreeNode::min_value(), TreeNode::max_value());
+  }
+  iterator end() { return iterator(this, nullptr); }
+  const_iterator end() const { return const_iterator(this, nullptr); }
+
   // Emplace an interval, the emplaced interval is returned.
   template <typename... Args>
   TreeNode* EmplaceVal(const K& begin, const K& end, Args&&... val);
@@ -553,6 +562,8 @@ class IntervalIterator {
 
   // Accessors.
   TreeNode* Get() const { return node_; }
+  TreeNode& operator*() const { return *node_; }
+  TreeNode* operator->() const { return node_; }
   V* ptr() const { return node_->ptr(); }
 
   // Extra accessors for convenience
@@ -566,6 +577,10 @@ class IntervalIterator {
   // If you reaches the end, NULL is returned.
   // (Order defined by Annotation Order)
   TreeNode* Next();
+  IntervalIterator& operator++() {
+    Next();
+    return *this;
+  }
 
   // Find the previous largest node,
   //   WARNING: this is slightly more expensive than Next()
@@ -587,6 +602,10 @@ class IntervalIterator {
   void ResetRange(const K& begin, const K& end) {
     begin_ = begin;
     end_ = end;
+  }
+
+  bool operator!=(const IntervalIterator& rhs) const {
+    return tree_ != rhs.tree_ || node_ != rhs.node_;
   }
 
  private:
@@ -624,14 +643,26 @@ class ConstIntervalIterator {
   ConstIntervalIterator(const Tree* tree, const K& begin, const K& end)
       : it(const_cast<Tree*>(tree), begin, end) {}
 
+  ConstIntervalIterator(const Tree* tree, const TreeNode* node)
+      : it(const_cast<Tree*>(tree), const_cast<TreeNode*>(node)) {}
+
   inline const K begin() const { return it.begin(); }
   inline const K end() const { return it.end(); }
   inline const V& value() const { return it.value(); }
 
   const TreeNode* const Get() const { return it.Get(); }
+  const TreeNode& operator*() const { return *it; }
+  const TreeNode* operator->() const { return it.operator->(); }
   const TreeNode* const Next() { return it.Next(); }
+  ConstIntervalIterator& operator++() {
+    ++it;
+    return *this;
+  }
   const TreeNode* const Prev() { return it.Prev(); }
   void ResetRange(const K& begin, const K& end) { it.ResetRange(begin, end); }
+  bool operator!=(const ConstIntervalIterator& rhs) const {
+    return it != rhs.it;
+  }
 
  private:
   IntervalIterator<K, V, KeyLess> it;
