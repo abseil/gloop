@@ -598,6 +598,34 @@ TEST(VarintTest, FastDecodeDeltas) {
   CheckFastDecodeDeltas(d3, 4, std::numeric_limits<int64_t>::max());
 }
 
+TEST(VarintTest, ParseBackwardSlowInvalid) {
+  // Test Parse32BackwardSlow with invalid input that triggers the slow path.
+  // We need the input to be short enough to trigger the slow path (<= kMax32
+  // bytes) and invalid so that Parse32 fails.
+  {
+    unsigned char buf[5] = {0x80, 0x80, 0x80, 0x80, 0x10};
+    // Initialize with some value to detect uninitialized read/write.
+    uint32_t val = 0xdeadbeef;
+    const char* base = reinterpret_cast<char*>(buf);
+    const char* p = base + 5;
+    EXPECT_EQ(Varint::Parse32Backward(p, base, &val), nullptr);
+    EXPECT_EQ(val, 0xdeadbeef);  // Should not be written
+  }
+
+  // Test Parse64BackwardSlow with invalid input that triggers the slow path.
+  // We need the input to be short enough to trigger the slow path (<= kMax64
+  // bytes) and invalid so that Parse64 fails.
+  {
+    unsigned char buf[10] = {0x80, 0x80, 0x80, 0x80, 0x80,
+                             0x80, 0x80, 0x80, 0x80, 0x02};
+    uint64_t val = 0xdeadbeefdeadbeefull;
+    const char* base = reinterpret_cast<char*>(buf);
+    const char* p = base + 10;
+    EXPECT_EQ(Varint::Parse64Backward(p, base, &val), nullptr);
+    EXPECT_EQ(val, 0xdeadbeefdeadbeefull);  // Should not be written
+  }
+}
+
 // Helper routine to initialize an array of N values based on "bit_len".
 // If "bit_len" is 0, random values are chosen.  Otherwise, the values
 // are all the same constant value of "1ull << bit_len"
