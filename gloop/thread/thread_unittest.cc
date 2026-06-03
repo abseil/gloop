@@ -411,126 +411,108 @@ TEST(ThreadTest, CheckThreadSignalSafeDumpStacks) {
 
 #endif  // !__APPLE__ && !__ANDROID__
 
-TEST(ThreadTest, CheckPeriodicThreads) {
-  bool signaled;
-  WallTimer timer;
+template <typename T>
+class PeriodicThreadHelper {
+ public:
+  PeriodicThreadHelper() = default;
 
-  class MyTest {
-   public:
-    MyTest() : t_(this) {}
-    void RunInThread(PeriodicThread<MyTest>* thd) {
-      sleep(2);
-      printf("[2sec sleep done] ");
+  ~PeriodicThreadHelper() {
+    EXPECT_TRUE(exited)
+        << "PeriodicThreadHelper destroyed before Exit() was called";
+    if (!exited) {
+      target.thread.Exit();
     }
+  }
 
-    bool Signal(bool wait) { return t_.Signal(wait); }
-    void Exit() { t_.Exit(); }
+  bool Signal(bool wait) { return target.thread.Signal(wait); }
+  void Exit() {
+    exited = true;
+    target.thread.Exit();
+  }
 
-   private:
-    PeriodicThread<MyTest> t_;
-  };
-  MyTest tester;
+ private:
+  T target;
+  bool exited = false;
+};
 
+struct PeriodicThreadTestTarget {
+ public:
+  PeriodicThreadTestTarget() : thread(this) {}
+
+  void RunInThread(PeriodicThread<PeriodicThreadTestTarget>*) {
+    absl::SleepFor(absl::Seconds(2));
+    VLOG(1) << "[2sec sleep done]";
+  }
+
+  PeriodicThread<PeriodicThreadTestTarget> thread;
+};
+
+struct CallbackTestTarget {
+ public:
+  CallbackTestTarget()
+      : thread(::util::functional::ToPermanentCallback(&TestCallback)) {}
+
+  PeriodicThread<::util::functional::CallbackFunctor<Thread*>> thread;
+};
+
+struct ClosureTestTarget {
+ public:
+  ClosureTestTarget()
+      : closure(::util::functional::ToPermanentCallback(&TestClosure)),
+        thread(closure.get()) {}
+
+  std::unique_ptr<Closure> closure;
+  PeriodicThread<Closure> thread;
+};
+
+template <typename T>
+class PeriodicThreadTest : public ::testing::Test {};
+
+using PeriodicThreadTypes =
+    ::testing::Types<PeriodicThreadHelper<PeriodicThreadTestTarget>,
+                     PeriodicThreadHelper<CallbackTestTarget>,
+                     PeriodicThreadHelper<ClosureTestTarget>>;
+TYPED_TEST_SUITE(PeriodicThreadTest, PeriodicThreadTypes);
+
+TYPED_TEST(PeriodicThreadTest, CheckPeriodicThreads) {
+  TypeParam helper;
+  WallTimer timer;
+  bool signaled;
+  double elapsed;
+
+  VLOG(1) << "Sending first thread off (should be 1)...";
   timer.Restart();
-  printf("Sending first thread off (should be 1): ");
-  fflush(stdout);
-  signaled = tester.Signal(true);
-  printf("%d\n", signaled);
-  fflush(stdout);
-  CHECK(signaled);
-  CHECK_LT(timer.Get(), 0.2);  // shouldn't have had to wait at all
+  signaled = helper.Signal(true);
+  elapsed = timer.Get();
+  VLOG(1) << "First thread signal returned: " << signaled
+          << " elapsed: " << elapsed;
+  EXPECT_TRUE(signaled);
+  EXPECT_LT(elapsed, 0.2);  // shouldn't have had to wait at all
 
-  printf("Sending second thread off (should be 0): ");
-  fflush(stdout);
-  signaled = tester.Signal(false);
-  printf("%d\n", signaled);
-  fflush(stdout);
-  CHECK(!signaled);
-  CHECK_LT(timer.Get(), 0.2);  // shouldn't have had to wait at all
-
-  printf("Sending third thread off (should be 1, after a wait): ");
-  fflush(stdout);
-  signaled = tester.Signal(true);
-  printf("%d\n", signaled);
-  fflush(stdout);
-  CHECK(signaled);
-  CHECK_GT(timer.Get(), 1.8);  // should have to wait about 2 seconds
-
-  printf("Telling thread to exit (should have to wait again): ");
-  fflush(stdout);
-  tester.Exit();
-  CHECK_GT(timer.Get(), 1.8);  // should have to wait about 2 seconds
-
-  ::util::functional::CallbackFunctor<Thread*> callback(
-      ::util::functional::ToPermanentCallback(&TestCallback));
-  PeriodicThread<::util::functional::CallbackFunctor<Thread*>> callback_thread(
-      callback.get());
-
+  VLOG(1) << "Sending second thread off (should be 0)...";
   timer.Restart();
-  printf("Sending first thread off (should be 1): ");
-  fflush(stdout);
-  signaled = callback_thread.Signal(true);
-  printf("%d\n", signaled);
-  fflush(stdout);
-  CHECK(signaled);
-  CHECK_LT(timer.Get(), 0.2);  // shouldn't have had to wait at all
+  signaled = helper.Signal(false);
+  elapsed = timer.Get();
+  VLOG(1) << "Second thread signal returned: " << signaled
+          << " elapsed: " << elapsed;
+  EXPECT_FALSE(signaled);
+  EXPECT_LT(elapsed, 0.2);  // shouldn't have had to wait at all
 
-  printf("Sending second thread off (should be 0): ");
-  fflush(stdout);
-  signaled = callback_thread.Signal(false);
-  printf("%d\n", signaled);
-  fflush(stdout);
-  CHECK(!signaled);
-  CHECK_LT(timer.Get(), 0.2);  // shouldn't have had to wait at all
-
-  printf("Sending third thread off (should be 1, after a wait): ");
-  fflush(stdout);
-  signaled = callback_thread.Signal(true);
-  printf("%d\n", signaled);
-  fflush(stdout);
-  CHECK(signaled);
-  CHECK_GT(timer.Get(), 1.8);  // should have to wait about 2 seconds
-
-  printf("Telling thread to exit (should have to wait again): ");
-  fflush(stdout);
-  callback_thread.Exit();
-  CHECK_GT(timer.Get(), 1.8);  // should have to wait about 2 seconds
-
-  std::unique_ptr<Closure> closure(
-      ::util::functional::ToPermanentCallback(&TestClosure));
-  PeriodicThread<Closure> closure_thread(closure.get());
-
+  VLOG(1) << "Sending third thread off (should be 1, after a wait)...";
   timer.Restart();
-  printf("Sending first thread off (should be 1): ");
-  fflush(stdout);
-  signaled = closure_thread.Signal(true);
-  printf("%d\n", signaled);
-  fflush(stdout);
-  CHECK(signaled);
-  CHECK_LT(timer.Get(), 0.2);  // shouldn't have had to wait at all
+  signaled = helper.Signal(true);
+  elapsed = timer.Get();
+  VLOG(1) << "Third thread signal returned: " << signaled
+          << " elapsed: " << elapsed;
+  EXPECT_TRUE(signaled);
+  EXPECT_GT(elapsed, 1.8);  // should have to wait about 2 seconds
 
-  printf("Sending second thread off (should be 0): ");
-  fflush(stdout);
-  signaled = closure_thread.Signal(false);
-  printf("%d\n", signaled);
-  fflush(stdout);
-  CHECK(!signaled);
-  CHECK_LT(timer.Get(), 0.2);  // shouldn't have had to wait at all
-
-  printf("Sending third thread off (should be 1, after a wait): ");
-  fflush(stdout);
-  signaled = closure_thread.Signal(true);
-  printf("%d\n", signaled);
-  fflush(stdout);
-  CHECK(signaled);
-  CHECK_GT(timer.Get(), 1.8);  // should have to wait about 2 seconds
-
-  printf("Telling thread to exit (should have to wait again): ");
-  fflush(stdout);
-  closure_thread.Exit();
-  CHECK_GT(timer.Get(), 1.8);  // should have to wait about 2 seconds
-  printf("\n");
-  fflush(stdout);
+  VLOG(1) << "Telling thread to exit (should have to wait again)...";
+  timer.Restart();
+  helper.Exit();
+  elapsed = timer.Get();
+  VLOG(1) << "Exit completed in elapsed: " << elapsed;
+  EXPECT_GT(elapsed, 1.8);  // should have to wait about 2 seconds
 }
 
 // Collects a list of thread IDs using Thread_ForEach. Assumes that
