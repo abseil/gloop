@@ -40,6 +40,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <type_traits>
 
 #include "absl/log/check.h"
 #include "absl/log/log.h"
@@ -202,6 +203,8 @@ Array2D<T>::Array2D(InstantiationMode inst_mode, Array2D<T>* leader) {
 
       owns_data_ = true;
 
+      static_assert(std::is_trivially_copyable_v<T>,
+                    "T must be trivially copyable to use this constructor");
       memcpy(data_, leader->data_, num_elements_ * sizeof(T));
       return;
 
@@ -258,6 +261,8 @@ template <typename T>
 Array2D<T>& Array2D<T>::operator=(const Array2D& src) {
   Release();
   InitOwned(src.height_, src.width_);
+  static_assert(std::is_trivially_copyable_v<T>,
+                "T must be trivially copyable to copy Array2D");
   memcpy(data_, src.data_, num_elements_ * sizeof(T));
   return *this;
 }
