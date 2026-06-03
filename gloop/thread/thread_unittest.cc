@@ -51,6 +51,7 @@
 #include "absl/log/check.h"
 #include "absl/log/globals.h"
 #include "absl/log/log.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
@@ -132,6 +133,44 @@ static void DieHorribly() {
   strcpy(null, "Hi!");  // NOLINT
 }
 
+// Helper to check if a thread is a background thread that is not relevant to
+// the test. These background threads (such as the global "timedcall" timer
+// executor and the fiber scheduling domain threads "-SDomainT" or "-PDomainT")
+// are lazy-spawned on-demand during tests and remain active for the lifetime of
+// the process by design. To prevent them from polluting active thread count
+// assertions when tests are executed sequentially or shuffled (e.g. under
+// --gunit_shuffle), we filter them out unconditionally.
+bool IsBackgroundExecutorThread(const LiveThread* thread) {
+  const char* prefix = LiveThread_NamePrefix(thread);
+  if (prefix == nullptr) return false;
+  absl::string_view prefix_sv(prefix);
+  return prefix_sv == "timedcall" || absl::EndsWith(prefix_sv, "-SDomainT") ||
+         absl::EndsWith(prefix_sv, "-PDomainT");
+}
+
+// Wait up to 60 seconds for detached threads to fully exit and unregister
+// themselves, so they do not leak into subsequent tests.
+void WaitForDetachedThreadsToExit() {
+  auto count_thread_fn = [](void* arg, const LiveThread* thread) -> bool {
+    if (IsBackgroundExecutorThread(thread)) {
+      return false;
+    }
+    *static_cast<int*>(arg) += 1;
+    return false;
+  };
+
+  for (int i = 0; i < 600; ++i) {
+    int count = 0;
+    Thread_ForEach(count_thread_fn, &count, nullptr, nullptr, 0);
+    if (count <= kBaselineThreads) {
+      return;
+    }
+    absl::SleepFor(absl::Milliseconds(100));
+  }
+
+  GTEST_FAIL() << "Detached threads did not exit in time";
+}
+
 TEST(ThreadTest, CheckClosureThread) {
   int y(3);
   ClosureThread t([&y] { IncrementMe(&y); });
@@ -182,6 +221,7 @@ TEST(ThreadTest, StartDetachedThread) {
   StartDetachedThread("test", [&notify] { notify.Notify(); });
   notify.WaitForNotification();
   // If the test doesn't hang, it has succeeded.
+  WaitForDetachedThreadsToExit();
 }
 
 class MemberThreadChecker {
@@ -229,6 +269,7 @@ TEST(ThreadTest, CheckDetachableThread) {
   StartDetachedThread(thread::Options(), "testing_thread",
                       [&notification] { notification.Notify(); });
   notification.WaitForNotification();
+  WaitForDetachedThreadsToExit();
 }
 
 class TidTestThread : public Thread {
@@ -492,10 +533,11 @@ TEST(ThreadTest, CheckPeriodicThreads) {
   fflush(stdout);
 }
 
-// Collects a list of thread IDs using Thread_ForEach.  Assumes that
+// Collects a list of thread IDs using Thread_ForEach. Assumes that
 // insertion of a pthread_t into a vector is safe from an async signal
 // handler, so long as the vector has the required capacity and
 // multiple threads don't try to do it concurrently.
+// Skips background threads. (See IsBackgroundExecutorThread.)
 class ThreadCollector {
  public:
   struct ThreadTids {
@@ -527,6 +569,10 @@ class ThreadCollector {
   // in that case will not collect a thread name.
   static void Add(void* arg, const LiveThread* thread,
                   bool signal_safety_required) {
+    if (IsBackgroundExecutorThread(thread)) {
+      return;
+    }
+
     ThreadCollector* collector = static_cast<ThreadCollector*>(arg);
     ABSL_RAW_CHECK(collector->tids_.size() < collector->tids_.capacity(),
                    "ThreadCollector overflow");
