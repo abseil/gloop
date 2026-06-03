@@ -1839,7 +1839,9 @@ inline void ReaderImpl<Base>::Bind(const_uint64_ptr const shrunk_array,
 
   const uint64_t dk0 = decode_key[0];
   width_main_[3] = dk0 & 0x7F;
+  CHECK_LE(width_main_[3], 64);
   width_lex_[6] = ((dk0 >> 7) & 0x3F) + 1;
+  CHECK_LE(width_lex_[6], 64);
   uint64_t offset;
   offset_lex_[0] = offset = dk0 >> 13;
 
@@ -1847,19 +1849,49 @@ inline void ReaderImpl<Base>::Bind(const_uint64_ptr const shrunk_array,
   int wm, wl;
   width_main_[0] = wm = dk1 & 0x7F;
   width_lex_[0] = wl = (dk1 >> 7) & 0x7F;
-  offset_lex_[1] = offset -= (kuint64one << wm) * wl;
+  CHECK_LE(wm, 64);
+  CHECK_LE(wl, 64);
+  if (wl > 0) {
+    CHECK_LT(wm, 64);
+    CHECK_LE(wl, std::numeric_limits<uint64_t>::max() >> wm);
+    CHECK_GE(offset, (kuint64one << wm) * wl);
+    offset -= (kuint64one << wm) * wl;
+  }
+  offset_lex_[1] = offset;
+
   width_main_[1] = wm = (dk1 >> 14) & 0x7F;
   width_lex_[1] = wl = (dk1 >> 21) & 0x7F;
-  offset_lex_[2] = offset -= (kuint64one << wm) * wl;
+  CHECK_LE(wm, 64);
+  CHECK_LE(wl, 64);
+  if (wl > 0) {
+    CHECK_LT(wm, 64);
+    CHECK_LE(wl, std::numeric_limits<uint64_t>::max() >> wm);
+    CHECK_GE(offset, (kuint64one << wm) * wl);
+    offset -= (kuint64one << wm) * wl;
+  }
+  offset_lex_[2] = offset;
+
   width_main_[2] = wm = (dk1 >> 28) & 0x7F;
   width_lex_[2] = wl = (dk1 >> 35) & 0x7F;
-  offset_lex_[3] = offset -= (kuint64one << wm) * wl;
+  CHECK_LE(wm, 64);
+  CHECK_LE(wl, 64);
+  if (wl > 0) {
+    CHECK_LT(wm, 64);
+    CHECK_LE(wl, std::numeric_limits<uint64_t>::max() >> wm);
+    CHECK_GE(offset, (kuint64one << wm) * wl);
+    offset -= (kuint64one << wm) * wl;
+  }
+  offset_lex_[3] = offset;
+
   width_lex_[3] = wl = (dk1 >> 42) & 0x7F;
+  CHECK_LE(wl, 64);
   int sum;
   width_sum_lex_last_[0] = sum = wl;
   width_lex_[4] = wl = ((dk1 >> 49) & 0x3F) + 1;
+  CHECK_LE(wl, 64);
   width_sum_lex_last_[1] = sum += wl;
   width_lex_[5] = wl = ((dk1 >> 55) & 0x3F) + 1;
+  CHECK_LE(wl, 64);
   width_sum_lex_last_[2] = sum += wl;
   width_sum_lex_last_[3] = sum += width_lex_[6];
   index_present_ = dk1 >> 63;
@@ -1868,7 +1900,6 @@ inline void ReaderImpl<Base>::Bind(const_uint64_ptr const shrunk_array,
   // kuint64max is an invalid position that cannot be passed to Get().
   position_ = std::numeric_limits<uint64_t>::max();
 
-#if !defined(NDEBUG)
   if (index_present_) {
     // Index must be 64-bit aligned.
     CHECK_EQ(offset_lex_[0] & 63, 0);
@@ -1887,7 +1918,6 @@ inline void ReaderImpl<Base>::Bind(const_uint64_ptr const shrunk_array,
 
   // Reserved bits must be zero.
   CHECK_EQ((dk1 >> 61) & 3, 0);
-#endif
 }
 
 template <class Base>
@@ -1899,6 +1929,7 @@ inline void ReaderImpl<Base>::Bind1(const_uint64_ptr const shrunk_array,
   shrunk_array_ = shrunk_array;
   const uint64_t dk0 = decode_key[0];
   width_main_[3] = dk0 & 0x7F;
+  CHECK_LE(width_main_[3], 64);
   offset_lex_[3] = dk0 >> 13;
   width_lex_[0] = 0;
   width_lex_[1] = 0;
@@ -1907,10 +1938,10 @@ inline void ReaderImpl<Base>::Bind1(const_uint64_ptr const shrunk_array,
   index_present_ = false;
 
   // Other member variables are unused when there is no index and no
-  // lexicons, so we need not initialize them.
+  // lexicon, so we need not initialize them.
 
   // No lexicons, so lexicon width 6 must have been stored as zero.
-  DCHECK_EQ((dk0 >> 7) & 0x3F, 0);
+  CHECK_EQ((dk0 >> 7) & 0x3F, 0);
 }
 
 template <class Base>

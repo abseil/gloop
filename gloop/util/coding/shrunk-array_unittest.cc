@@ -1077,6 +1077,38 @@ TEST_P(ShrunkArrayTest, SharedGet) {
   }
 }
 
+TEST_P(ShrunkArrayTest, InvalidKeys) {
+  // We need a dummy shrunk array to bind to.
+  uint64_t dummy_array[1] = {0};
+
+  // 1. width_main_[3] > 64 in Bind
+  {
+    uint64_t bad_key[2] = {65, 0};
+    EXPECT_DEATH_IF_SUPPORTED(reader_->Bind(dummy_array, bad_key),
+                              "width_main_");
+  }
+
+  // 2. width_main_[3] > 64 in Bind1
+  {
+    uint64_t bad_key[2] = {65, 0};
+    EXPECT_DEATH_IF_SUPPORTED(reader_->Bind1(dummy_array, bad_key),
+                              "width_main_");
+  }
+
+  // 3. index_present = true, but offset_lex_[0] not 64-bit aligned
+  {
+    uint64_t bad_key[2] = {1ULL << 13, 1ULL << 63};
+    EXPECT_DEATH_IF_SUPPORTED(reader_->Bind(dummy_array, bad_key),
+                              "offset_lex_");
+  }
+
+  // 4. Bind1 with non-zero lexicon width in dk0
+  {
+    uint64_t bad_key[2] = {1ULL << 7, 0};
+    EXPECT_DEATH_IF_SUPPORTED(reader_->Bind1(dummy_array, bad_key), "dk0 >> 7");
+  }
+}
+
 INSTANTIATE_TEST_SUITE_P(PerReader, ShrunkArrayTest, ::testing::Bool());
 
 }  // namespace
