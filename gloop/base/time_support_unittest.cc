@@ -380,6 +380,16 @@ TEST(TimeSupport, Iso8601DateRangeToJulian) {
   EXPECT_FALSE(Iso8601DateRangeToJulian("1929-01-15.2007-01-17", &j1, &j2));
   EXPECT_FALSE(Iso8601DateRangeToJulian("1929-01-15...2007-01-17", &j1, &j2));
   EXPECT_FALSE(Iso8601DateRangeToJulian("2007-01-17..2007-01-16", &j1, &j2));
+  EXPECT_FALSE(
+      Iso8601DateRangeToJulian("999999999-01-15..2007-01-17", &j1, &j2));
+  EXPECT_FALSE(
+      Iso8601DateRangeToJulian("999999999-01-15..999999999-01-16", &j1, &j2));
+  EXPECT_FALSE(
+      Iso8601DateRangeToJulian("1929-01-15..999999999-01-17", &j1, &j2));
+  EXPECT_FALSE(
+      Iso8601DateRangeToJulian("-999999999-01-15..2007-01-17", &j1, &j2));
+  EXPECT_FALSE(
+      Iso8601DateRangeToJulian("-999999999-01-15..-999999999-01-14", &j1, &j2));
 }
 
 TEST(TimeSupport, Iso8601DateToJulian) {
@@ -395,6 +405,8 @@ TEST(TimeSupport, Iso8601DateToJulian) {
   EXPECT_FALSE(Iso8601DateToJulian("2007-01-32", &julian_date));
   EXPECT_FALSE(Iso8601DateToJulian("2007-13-01", &julian_date));
   EXPECT_FALSE(Iso8601DateToJulian("2007-01-17zqx", &julian_date));
+  EXPECT_FALSE(Iso8601DateToJulian("999999999-01-15", &julian_date));
+  EXPECT_FALSE(Iso8601DateToJulian("-999999999-01-15", &julian_date));
 }
 
 TEST(TimeSupport, JulianToSeconds) {

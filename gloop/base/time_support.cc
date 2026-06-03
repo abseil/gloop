@@ -229,6 +229,9 @@ bool Iso8601DateRangeToJulian(const char* daterange, int* julian_start,
     if (sscanf(daterange, "%d-%d-%d", &y, &m, &d) != 3) {
       return false;
     }
+    if (y < -5000000 || y > 5000000) {
+      return false;
+    }
     *julian_start = YMDToJulian(y, m, d);
     if (!IfDayExists(y, m, d)) {
       return false;
@@ -238,6 +241,9 @@ bool Iso8601DateRangeToJulian(const char* daterange, int* julian_start,
     *julian_end = INT_MAX;
   } else {
     if (sscanf(end_date, "%d-%d-%d%c", &y, &m, &d, &c) != 3) {
+      return false;
+    }
+    if (y < -5000000 || y > 5000000) {
       return false;
     }
     *julian_end = YMDToJulian(y, m, d);
@@ -260,6 +266,9 @@ bool Iso8601DateToJulian(const char* date, int* julian_date) {
   int y, m, d;
   char c;
   if (sscanf(date, "%d-%d-%d%c", &y, &m, &d, &c) != 3) {
+    return false;
+  }
+  if (y < -5000000 || y > 5000000) {
     return false;
   }
   if (!IfDayExists(y, m, d)) {

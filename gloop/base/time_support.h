@@ -104,10 +104,11 @@ bool rfc_strptime(const char* buf, struct tm* tm);
 // Converts from the Gregorian civil calendar to a continuous counter of days.
 // See note above about the epoch.
 //
-// The year must be a full year (eg. 2010).  Zero and negative years are fine
-// with 1 = 1 CE, 0 = 1 BCE, -1 = 2 BCE, etc.
+// The year must be a full year (eg. 2010) in the range -5000000..5000000.
+// Zero and negative years are fine with 1 = 1 CE, 0 = 1 BCE, -1 = 2 BCE, etc.
 //
 // REQUIRES: month is in the range 1..12
+// REQUIRES: year is in the range -5000000..5000000
 int YMDToJulian(int year, int month, int day);
 
 // Translate a Julian date back into normal YMD date.
