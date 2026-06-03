@@ -368,15 +368,72 @@ void SplitCSVLine(char* line, std::vector<char*>* cols) {
 
 void SplitCSVLineWithDelimiterForStrings(absl::string_view line, char delimiter,
                                          std::vector<std::string>* cols) {
-  // Unfortunately, the interface requires char*, which requires copying the
-  // string.
-  char* cline = strndup_with_new(line.data(), line.size());
-  std::vector<char*> v;
-  SplitCSVLineWithDelimiter(cline, delimiter, &v);
-  for (char* str : v) {
-    cols->push_back(str);
+  if (line.empty()) {
+    return;
   }
-  delete[] cline;
+
+  size_t i = 0;
+  size_t len = line.size();
+
+  while (true) {
+    // Skip leading whitespace, unless said whitespace is the delimiter.
+    while (i < len && absl::ascii_isspace(line[i]) && line[i] != delimiter) {
+      i++;
+    }
+
+    if (i < len && line[i] == '"' && delimiter == ',') {  // Quoted value...
+      i++;                                                // skip open quote
+      std::string col;
+      while (i < len) {
+        if (line[i] == '"') {
+          i++;
+          if (i < len && line[i] == '"') {
+            // [""] is an escaped ["]
+            col.push_back('"');
+            i++;
+          } else {
+            // but just ["] is end of value
+            break;
+          }
+        } else {
+          col.push_back(line[i]);
+          i++;
+        }
+      }
+      // All characters after the closing quote and before the delimiter
+      // are ignored.
+      while (i < len && line[i] != delimiter) {
+        i++;
+      }
+      cols->push_back(col);
+    } else {
+      size_t start = i;
+      while (i < len && line[i] != delimiter) {
+        i++;
+      }
+      size_t end = i;
+      // Skip all trailing whitespace, unless said whitespace is the delimiter.
+      while (end > start && absl::ascii_isspace(line[end - 1]) &&
+             line[end - 1] != delimiter) {
+        end--;
+      }
+      if (start < len) {
+        cols->push_back(std::string(line.substr(start, end - start)));
+      } else {
+        cols->push_back("");
+      }
+    }
+
+    if (i < len && line[i] == delimiter) {
+      i++;  // Move past delimiter
+      if (i == len) {
+        cols->push_back("");
+        break;
+      }
+    } else {
+      break;
+    }
+  }
 }
 
 // Constants for ClipString()

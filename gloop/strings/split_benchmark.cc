@@ -59,5 +59,16 @@ void BM_SplitStringAndParseToList_SizedString(benchmark::State& state) {
 }
 BENCHMARK(BM_SplitStringAndParseToList_SizedString)->Range(8, 256);
 
+void BM_SplitCSVLineWithDelimiterForStrings(benchmark::State& state) {
+  std::string source(
+      "Google, x , \"Buchheit, Paul\", \"string with \"\" quote in it\"");
+  std::vector<std::string> output;
+  for (auto _ : state) {
+    output.clear();
+    SplitCSVLineWithDelimiterForStrings(source, ',', &output);
+  }
+}
+BENCHMARK(BM_SplitCSVLineWithDelimiterForStrings);
+
 }  // namespace
 }  // namespace strings

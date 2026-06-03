@@ -700,6 +700,14 @@ TEST(OldSplit, SplitCSVLineWithDelimiter) {
   ASSERT_STREQ(str_answer_vector[1].c_str(), "x");
   ASSERT_STREQ(str_answer_vector[2].c_str(), "Buchheit, Paul");
   ASSERT_STREQ(str_answer_vector[3].c_str(), "string with \" quote in it");
+
+  // Test with NUL characters.
+  std::string nul_sentence("a\0b,c\0d", 7);
+  std::vector<std::string> nul_answer_vector;
+  SplitCSVLineWithDelimiterForStrings(nul_sentence, ',', &nul_answer_vector);
+  ASSERT_EQ(nul_answer_vector.size(), 2);
+  ASSERT_EQ(nul_answer_vector[0], std::string("a\0b", 3));
+  ASSERT_EQ(nul_answer_vector[1], std::string("c\0d", 3));
 }
 
 TEST(OldSplit, SplitCSVLine) {
