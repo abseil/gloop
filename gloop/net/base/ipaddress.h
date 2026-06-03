@@ -162,6 +162,7 @@ class IPAddress {
         return AF_INET;
 
       case Variant::Type::kIpv6:
+      case Variant::Type::kIpv6WithScope:
         return AF_INET6;
     }
 
@@ -178,21 +179,23 @@ class IPAddress {
   // The address as an in6_addr structure; CHECK-fails if address_family() is
   // not AF_INET6 (ie. the held address is not an IPv6 address).
   in6_addr ipv6_address() const {
-    return ABSL_PREDICT_TRUE(is_ipv6() &&
-                             !HasCompactScopeId(address_.get_ipv6()))
+    return ABSL_PREDICT_TRUE(address_.type() == Variant::Type::kIpv6)
                ? address_.get_ipv6()
                : ipv6_address_slowpath();
   }
 
   // Convenient helpers that return true if IP address is v4 or v6 respectively.
   bool is_ipv4() const { return address_.type() == Variant::Type::kIpv4; }
-  bool is_ipv6() const { return address_.type() == Variant::Type::kIpv6; }
+  bool is_ipv6() const {
+    return address_.type() == Variant::Type::kIpv6 ||
+           address_.type() == Variant::Type::kIpv6WithScope;
+  }
 
   // Returns the scope_id if this is an IPv6 link-local address with a
   // compactly stored scope_id; 0U otherwise. An IPv6 link-local address
   // may not have had a scope_id assigned; in this case 0U is also returned.
   uint32_t scope_id() const {
-    return is_ipv6() && HasCompactScopeId(address_.get_ipv6())
+    return address_.type() == Variant::Type::kIpv6WithScope
                ? BigEndian::Load32(address_.get_ipv6().s6_addr16 + 2)
                : 0U;
   }
@@ -246,6 +249,7 @@ class IPAddress {
         return a.get_ipv4().s_addr == b.get_ipv4().s_addr;
 
       case IPAddress::Variant::Type::kIpv6:
+      case IPAddress::Variant::Type::kIpv6WithScope:
         return std::equal(a.get_ipv6().s6_addr16,
                           std::end(a.get_ipv6().s6_addr16),
                           b.get_ipv6().s6_addr16);
@@ -297,19 +301,21 @@ class IPAddress {
 
   template <typename H>
   friend H AbslHashValue(H h, const IPAddress& ip) {
-    switch (ip.address_.type()) {
+    const auto type = ip.address_.type();
+    switch (type) {
       case IPAddress::Variant::Type::kIpv4:
-        return H::combine(std::move(h), ip.address_.get_ipv4().s_addr, AF_INET);
+        return H::combine(std::move(h), ip.address_.get_ipv4().s_addr, type);
 
       case IPAddress::Variant::Type::kIpv6:
+      case IPAddress::Variant::Type::kIpv6WithScope:
         return H::combine(H::combine_contiguous(
                               std::move(h), ip.address_.get_ipv6().s6_addr16,
                               ABSL_ARRAYSIZE(ip.address_.get_ipv6().s6_addr16)),
-                          AF_INET6);
+                          type);
 
       case IPAddress::Variant::Type::kUninitialized:
-        // NOTE; added a zero to ensure the hashing unit tests pass.
-        return H::combine(std::move(h), 0, AF_UNSPEC);
+        // NOTE: added a zero to ensure the hashing unit tests pass.
+        return H::combine(std::move(h), 0, type);
     }
 
     ABSL_UNREACHABLE();
@@ -325,6 +331,7 @@ class IPAddress {
     switch (address.address_.type()) {
       case IPAddress::Variant::Type::kIpv4:
       case IPAddress::Variant::Type::kIpv6:
+      case IPAddress::Variant::Type::kIpv6WithScope:
         sink.Append(address.ToString());
         return;
 
@@ -390,12 +397,14 @@ class IPAddress {
   }
 
   // Constructor that also supports an IPv6 link-local address with a scope_id.
-  IPAddress(const in6_addr& addr, const uint32_t scope_id) : address_(addr) {
-    if (ABSL_PREDICT_FALSE(MayUseScopeIds(address_.get_ipv6()))) {
+  IPAddress(const in6_addr& addr, const uint32_t scope_id)
+      : address_(addr, scope_id != 0 && MayUseCompactScopeIds(addr)
+                           ? Variant::Type::kIpv6WithScope
+                           : Variant::Type::kIpv6) {
+    if (ABSL_PREDICT_FALSE(scope_id != 0)) {
       if (MayUseCompactScopeIds(address_.get_ipv6())) {
-        // May have been asked to explicitly overwrite one scope with another.
         BigEndian::Store32(address_.get_ipv6().s6_addr16 + 2, scope_id);
-      } else if (scope_id != 0) {
+      } else if (MayUseScopeIds(address_.get_ipv6())) {
         LOG(WARNING) << "Discarding scope_id; cannot be compactly stored.";
       }
     }
@@ -415,6 +424,7 @@ class IPAddress {
       kUninitialized,
       kIpv4,
       kIpv6,
+      kIpv6WithScope,
     };
 
     Variant() = default;
@@ -424,6 +434,8 @@ class IPAddress {
 
     constexpr explicit Variant(const in6_addr& a)
         : addr_(a), type_(Type::kIpv6) {}
+
+    constexpr Variant(const in6_addr& a, Type type) : addr_(a), type_(type) {}
 
     Type type() const { return type_; }
 
@@ -1771,12 +1783,14 @@ inline const in_addr& IPAddress::Variant::get_ipv4() const {
 }
 
 inline in6_addr& IPAddress::Variant::get_ipv6() {
-  DCHECK(type_ == Type::kIpv6) << DUMP_VARS(type_);
+  DCHECK(type_ == Type::kIpv6 || type_ == Type::kIpv6WithScope)
+      << DUMP_VARS(type_);
   return addr_.addr6;
 }
 
 inline const in6_addr& IPAddress::Variant::get_ipv6() const {
-  DCHECK(type_ == Type::kIpv6) << DUMP_VARS(type_);
+  DCHECK(type_ == Type::kIpv6 || type_ == Type::kIpv6WithScope)
+      << DUMP_VARS(type_);
   return addr_.addr6;
 }
 

@@ -1251,6 +1251,22 @@ TEST(IPAddressTest, IPv6LinkLocal) {
   // application.
   EXPECT_EQ(fe80_2.ToPackedString(), fe80_2_if17.ToPackedString());
   EXPECT_EQ(fe80_2.ToPackedString(), fe80_2_if22.ToPackedString());
+
+  // Repro b/519294482
+  EXPECT_NE(StringToIPAddressOrDie("fe80:0:1::2"),
+            StringToIPAddressOrDie("fe80::2"));
+  EXPECT_NE(StringToIPAddressOrDie("ff02:0:1::2"),
+            StringToIPAddressOrDie("ff02::2"));
+
+  // Verify that we cannot assign a scope ID to these addresses because they
+  // cannot be compactly stored without stomping.
+  const IPAddress fe80_0_1_2 = StringToIPAddressOrDie("fe80:0:1::2");
+  EXPECT_FALSE(MakeIPAddressWithScopeId(fe80_0_1_2.ipv6_address(), 5).ok());
+  EXPECT_FALSE(StringToIPAddressWithOptionalScope("fe80:0:1::2%5").ok());
+
+  const IPAddress ff02_0_1_2 = StringToIPAddressOrDie("ff02:0:1::2");
+  EXPECT_FALSE(MakeIPAddressWithScopeId(ff02_0_1_2.ipv6_address(), 5).ok());
+  EXPECT_FALSE(StringToIPAddressWithOptionalScope("ff02:0:1::2%5").ok());
 }
 
 // Test case shamelessly lifted from:

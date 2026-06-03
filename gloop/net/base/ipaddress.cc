@@ -163,7 +163,7 @@ in6_addr IPAddress::ipv6_address_slowpath() const {
   // scope ID. In this case we must clear that out of our result.
   in6_addr copy = address_.get_ipv6();
 
-  DCHECK(HasCompactScopeId(copy));
+  DCHECK(address_.type() == Variant::Type::kIpv6WithScope);
   copy.s6_addr16[2] = 0;  // clear the scope_id (interface index)
   copy.s6_addr16[3] = 0;
 
@@ -197,6 +197,9 @@ bool IsAnyIPAddress(const IPAddress& ip) {
                         std::end(ip.address_.get_ipv6().s6_addr16),
                         kAnyIPv6.s6_addr16);
     }
+
+    case IPAddress::Variant::Type::kIpv6WithScope:
+      return false;
 
     case IPAddress::Variant::Type::kUninitialized:
       LOG(DFATAL) << "Calling IsAnyIPAddress() on an empty IPAddress";
@@ -409,9 +412,11 @@ char* IPAddress::ToCharBuf(char* const buffer) const {
 
     case IPAddress::Variant::Type::kIpv6: {
       const in6_addr& a = address_.get_ipv6();
-      return ABSL_PREDICT_FALSE(HasCompactScopeId(a))
-                 ? IPv6ToCharBuf(ipv6_address(), buffer)
-                 : IPv6ToCharBuf(a, buffer);
+      return IPv6ToCharBuf(a, buffer);
+    }
+
+    case IPAddress::Variant::Type::kIpv6WithScope: {
+      return IPv6ToCharBuf(ipv6_address(), buffer);
     }
 
     case IPAddress::Variant::Type::kUninitialized:
@@ -440,24 +445,24 @@ std::string IPAddress::ToPackedString() const {
 
     case IPAddress::Variant::Type::kIpv6: {
       const in6_addr& a = address_.get_ipv6();
-      if (ABSL_PREDICT_FALSE(HasCompactScopeId(a))) {
-        // Calling ToPackedString() on an IPv6 link-local address is somewhat
-        // suspect. When later de-serialized, even on the same machine, there is
-        // no inherent guarantee that a given interface index remains valid. For
-        // now, output them the same way as their un-scoped cousins -- what to
-        // do with the interface index and/or name is likely to be an
-        // application-dependent matter.
-        VLOG(2) << "ToPackedString() dropping scope ID";
-        const auto addr6 = ipv6_address();
-        return std::string{
-            reinterpret_cast<const char*>(&addr6),
-            sizeof(addr6),
-        };
-      }
-
       return std::string{
           reinterpret_cast<const char*>(&a),
           sizeof(a),
+      };
+    }
+
+    case IPAddress::Variant::Type::kIpv6WithScope: {
+      // Calling ToPackedString() on an IPv6 link-local address is somewhat
+      // suspect. When later de-serialized, even on the same machine, there is
+      // no inherent guarantee that a given interface index remains valid. For
+      // now, output them the same way as their un-scoped cousins -- what to
+      // do with the interface index and/or name is likely to be an
+      // application-dependent matter.
+      VLOG(2) << "ToPackedString() dropping scope ID";
+      const auto addr6 = ipv6_address();
+      return std::string{
+          reinterpret_cast<const char*>(&addr6),
+          sizeof(addr6),
       };
     }
 
@@ -1114,8 +1119,20 @@ ABSL_ATTRIBUTE_NOINLINE static absl::weak_ordering ThreeWayCompare_SlowPath(
 
 absl::weak_ordering ThreeWayCompare(const IPAddress& lhs,
                                     const IPAddress& rhs) {
+  IPAddress::Variant::Type type_a = lhs.address_.type();
+  IPAddress::Variant::Type type_b = rhs.address_.type();
+  const IPAddress::Variant::Type orig_type_a = type_a;
+  const IPAddress::Variant::Type orig_type_b = type_b;
+
+  if (type_a == IPAddress::Variant::Type::kIpv6WithScope) {
+    type_a = IPAddress::Variant::Type::kIpv6;
+  }
+  if (type_b == IPAddress::Variant::Type::kIpv6WithScope) {
+    type_b = IPAddress::Variant::Type::kIpv6;
+  }
+
   if (const auto r = absl::compare_internal::do_three_way_comparison(
-          gtl::Less{}, lhs.address_.type(), rhs.address_.type());
+          gtl::Less{}, type_a, type_b);
       r != absl::weak_ordering::equivalent) {
     return r;
   }
@@ -1123,41 +1140,43 @@ absl::weak_ordering ThreeWayCompare(const IPAddress& lhs,
   const IPAddress::Variant& a = lhs.address_;
   const IPAddress::Variant& b = rhs.address_;
 
-  switch (a.type()) {
+  switch (type_a) {
     case IPAddress::Variant::Type::kIpv4:
       // IPv4 addresses are ordered by their 32-bit integer values.
       return absl::compare_internal::do_three_way_comparison(
           gtl::Less{}, ntohl(a.get_ipv4().s_addr), ntohl(b.get_ipv4().s_addr));
 
     case IPAddress::Variant::Type::kIpv6: {
-      // Compare the bytes of the IPv6 address in big endian order. This is
-      // equivalent to comparing as 128-bit integers.
+      if (orig_type_a != orig_type_b) {
+        return ThreeWayCompare_SlowPath(lhs, rhs);
+      }
+
+      // They have the same type.
       const in6_addr& addr_a = a.get_ipv6();
       const in6_addr& addr_b = b.get_ipv6();
 
       const int r =
           std::memcmp(addr_a.s6_addr, addr_b.s6_addr, sizeof(addr_a.s6_addr));
 
-      // Fast path: if the bytes are equal, then we have our answer no matter
-      // what the addresses are.
       if (r == 0) {
         return absl::weak_ordering::equivalent;
       }
 
-      // Fast and common path; if we know there are no compact scope IDs
-      // involved, then the numeric comparison gives us our answer.
-      if (ABSL_PREDICT_TRUE(!IPAddress::MayUseCompactScopeIds(addr_a) &&
-                            !IPAddress::MayUseCompactScopeIds(addr_b))) {
+      // If they are both kIpv6, we can use fast path.
+      if (orig_type_a == IPAddress::Variant::Type::kIpv6) {
         return r < 0 ? absl::weak_ordering::less : absl::weak_ordering::greater;
       }
 
-      // Otherwise we must unpack the compact scope IDs and compare again.
+      // If they are both kIpv6WithScope, we must use slow path.
       return ThreeWayCompare_SlowPath(lhs, rhs);
     }
 
     case IPAddress::Variant::Type::kUninitialized:
       // Uninitialized addresses are all considered equivalent.
       return absl::weak_ordering::equivalent;
+
+    case IPAddress::Variant::Type::kIpv6WithScope:
+      ABSL_UNREACHABLE();
   }
 
   ABSL_UNREACHABLE();
