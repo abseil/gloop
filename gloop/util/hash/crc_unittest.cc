@@ -25,6 +25,7 @@
 
 #include <cstdint>
 #include <ios>
+#include <limits>
 
 #include "absl/base/macros.h"
 #include "absl/container/fixed_array.h"
@@ -531,6 +532,37 @@ static void TestRegression() {
   }
 }
 
+static void TestNegativeLength() {
+  CRC* crcs[] = {
+      CRC::Default(8, 0),  CRC::Default(16, 0),  CRC::Default(32, 0),
+      CRC::Default(64, 0), CRC::Default(128, 0), CRC::Standard(CRC::CRC_32C, 0),
+  };
+
+  const char data[] = "hello";
+  const int64_t neg_lengths[] = {
+      -1, -5, -100, -123456789LL, std::numeric_limits<int64_t>::min(),
+  };
+
+  for (CRC* crc : crcs) {
+    for (int64_t len : neg_lengths) {
+      uint64_t lo, hi;
+      crc->Empty(&lo, &hi);
+      uint64_t expected_lo = lo;
+      uint64_t expected_hi = hi;
+
+      // Extend should not change the CRC and should not crash/hang.
+      crc->Extend(&lo, &hi, data, len);
+      CHECK_EQ(lo, expected_lo);
+      CHECK_EQ(hi, expected_hi);
+
+      // ExtendByZeroes should not change the CRC and should not crash/hang.
+      crc->ExtendByZeroes(&lo, &hi, len);
+      CHECK_EQ(lo, expected_lo);
+      CHECK_EQ(hi, expected_hi);
+    }
+  }
+}
+
 int main(int argc, char* argv[]) {
 #ifdef ABSL_HAVE_MEMORY_SANITIZER
   printf("PASS\n");
@@ -540,6 +572,8 @@ int main(int argc, char* argv[]) {
   TestRegression();
 
   TestLargeExtendByZeroes();
+
+  TestNegativeLength();
 
   for (int i = 0; i <= CRC::CRC_64_ECMA; i++) {  // all standard polys
     for (int r = 1; r < 16; r += 13) {           // try various roll lengths

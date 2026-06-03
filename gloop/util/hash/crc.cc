@@ -1218,6 +1218,7 @@ void CRC128::InitTables() {
 
 void CRC128::Extend(uint64_t* lo, uint64_t* hi, const void* bytes,
                     int64_t length) const {
+  if (length <= 0) return;
   const uint8_t* p = static_cast<const uint8_t*>(bytes);
   const uint8_t* e = p + length;
   CrcUint128 l = MakeCrcUint128(*hi, *lo);
@@ -1323,6 +1324,7 @@ void CRC128::Extend(uint64_t* lo, uint64_t* hi, const void* bytes,
 }
 
 void CRC128::ExtendByZeroes(uint64_t* lo, uint64_t* hi, int64_t length) const {
+  if (length <= 0) return;
   // Process the low order SMALL_BITS of the length by simply
   // using Extend() on an array of bytes that are zero.
   int small_part = (length & ((kOneInt64 << SMALL_BITS) - 1));
@@ -1423,6 +1425,7 @@ void CRC64::InitTables() {
 
 void CRC64::Extend(uint64_t* lo, uint64_t* hi, const void* bytes,
                    int64_t length) const {
+  if (length <= 0) return;
   const uint8_t* p = static_cast<const uint8_t*>(bytes);
   const uint8_t* e = p + length;
   uint64_t l = *lo;
@@ -1535,6 +1538,7 @@ void CRC64::Extend(uint64_t* lo, uint64_t* hi, const void* bytes,
 }
 
 void CRC64::ExtendByZeroes(uint64_t* lo, uint64_t* hi, int64_t length) const {
+  if (length <= 0) return;
   // Process the low order SMALL_BITS of the length by simply
   // using Extend() on an array of bytes that are zero.
   int small_part = (length & ((kOneInt64 << SMALL_BITS) - 1));
@@ -1645,6 +1649,7 @@ void CRC32::InitTables() {
 
 void CRC32::Extend(uint64_t* lo, uint64_t* hi, const void* bytes,
                    int64_t length) const {
+  if (length <= 0) return;
   const uint8_t* p = static_cast<const uint8_t*>(bytes);
   const uint8_t* e = p + length;
   uint32_t l = static_cast<uint32_t>(*lo);
@@ -1754,6 +1759,7 @@ void CRC32::Extend(uint64_t* lo, uint64_t* hi, const void* bytes,
 }
 
 void CRC32::ExtendByZeroes(uint64_t* lo, uint64_t* hi, int64_t length) const {
+  if (length <= 0) return;
   // Process the low order SMALL_BITS of the length by simply
   // using Extend() on an array of bytes that are zero.
   int small_part = (length & ((kOneInt64 << SMALL_BITS) - 1));

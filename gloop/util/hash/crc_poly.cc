@@ -380,6 +380,7 @@ template <class Base, typename CRCValue>
 void CRCHWPolyMul<Base, CRCValue>::Extend(uint64_t* lo, uint64_t* hi,
                                           const void* bytes,
                                           int64_t length) const {
+  if (length <= 0) return;
   if (length < kSmallInputSize) {
     Base::Extend(lo, hi, bytes, length);
     return;
@@ -612,6 +613,7 @@ Chunk CRCHWPolyMul<Base, CRCValue>::ZeroExtensionFactor(int64_t length) const {
 template <class Base, typename CRCValue>
 void CRCHWPolyMul<Base, CRCValue>::ExtendByZeroes(uint64_t* lo, uint64_t* hi,
                                                   int64_t length) const {
+  if (length <= 0) return;
   // Let M(x) be a message, P(x) be a polynomial of degree n,
   //     C(X) = (M(x) * x^n) mod P(x) be the current CRC and
   //     M'(x) = M(x) * x^L be input extended by L bits.

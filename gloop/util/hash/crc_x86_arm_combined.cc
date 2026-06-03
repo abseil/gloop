@@ -65,6 +65,7 @@ void LookupCRC32CPoly(const CRC::Poly** crc32c_poly) {
 
 void CRC32AcceleratedX86ARMCombined::ExtendByZeroes(uint64_t* lo, uint64_t* hi,
                                                     int64_t length) const {
+  if (length <= 0) return;
   constexpr uint32_t kCrc32Xor = 0xffffffffU;
   absl::crc32c_t crc = static_cast<absl::crc32c_t>(*lo ^ kCrc32Xor);
   *lo = static_cast<uint32_t>(absl::ExtendCrc32cByZeroes(crc, length)) ^
@@ -76,6 +77,7 @@ void CRC32AcceleratedX86ARMCombined::Extend(uint64_t* lo,
                                             uint64_t* absl_nullable hi,
                                             const void* bytes,
                                             int64_t length) const {
+  if (length <= 0) return;
   constexpr uint32_t kCrc32Xor = 0xffffffffU;
   absl::crc32c_t crc = static_cast<absl::crc32c_t>(*lo ^ kCrc32Xor);
   *lo = static_cast<uint32_t>(absl::ExtendCrc32c(
