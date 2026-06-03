@@ -206,6 +206,7 @@ struct ManagedQueue::Rep {
                       // queue_id is used to distinguish the work of one queue
                       // from that of another, deleted queue that
                       // had the same address.
+  std::atomic<bool> user_handle_gone{false};
   absl::Mutex queue_mu;  // protects following fields.
   int queue_refcount;    // reference count of Queues, not counting
                          // queue_external; under queue_mu
@@ -1114,8 +1115,11 @@ static bool TMQueueAdd(ThreadManager::Rep* rep,
   bool wake_overseer = false;
   TMPool* pool = nullptr;
   do {
-    if (q_rep->queue_options.thread_limit == INT_MAX &&
-        (flags & kDecAddAfter) == 0) {
+    bool try_fast_path =
+        (q_rep->queue_options.thread_limit == INT_MAX &&
+         (flags & kDecAddAfter) == 0 &&
+         !q_rep->user_handle_gone.load(std::memory_order_relaxed));
+    if (try_fast_path) {
       // Optimize case where the number of running threads is unlimited:
       // acquire only the pool lock, rather than both the queue lock and the
       // pool lock.   This is possible by not maintaining queue_running
@@ -1125,13 +1129,20 @@ static bool TMQueueAdd(ThreadManager::Rep* rep,
       // q_rep if the queue has been deleted by the client.
       pool = TMRandomPool(rep);
       pool->pool_mu.lock();
-      wake_overseer = TMAddToPool(std::move(cb), q_rep, pool, 0) &&
-                      TMNeedWakeOverseer(pool);
-      pool->pool_mu.unlock();
-      // The pool can be deleted right after pool->pool_mu.Unlock() above.
-      pool = nullptr;
-      added = true;
-    } else {
+      if (q_rep->user_handle_gone.load(std::memory_order_relaxed)) {
+        pool->pool_mu.unlock();
+        pool = nullptr;
+        try_fast_path = false;
+      } else {
+        wake_overseer = TMAddToPool(std::move(cb), q_rep, pool, 0) &&
+                        TMNeedWakeOverseer(pool);
+        pool->pool_mu.unlock();
+        // The pool can be deleted right after pool->pool_mu.Unlock() above.
+        pool = nullptr;
+        added = true;
+      }
+    }
+    if (!try_fast_path) {
       q_rep->queue_mu.lock();
       if ((flags & kDecAddAfter) != 0) {
         q_rep->add_after_count--;
@@ -1359,6 +1370,7 @@ ManagedQueue::~ManagedQueue() {
     // not update the running count to reduce cost.  Make sure that all
     // such updates are done before we unref the queue to prevent
     // uncounted work from dereferencing a deleted queue.
+    this->q_rep_->user_handle_gone.store(true, std::memory_order_relaxed);
     TMCountAllWorkFromQueue(this->q_rep_);
     TMQueueRepUnref(this->q_rep_);  // compensates for ref inc in NewQueue().
   }

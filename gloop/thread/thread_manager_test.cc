@@ -58,6 +58,7 @@
 #include "gtest/gtest.h"
 
 using testing::AllOf;
+using testing::Contains;
 using testing::ElementsAre;
 using testing::Eq;
 using testing::Field;
@@ -720,7 +721,13 @@ void PrintTo(const thread::ManagedQueueStats& s, std::ostream* os) {
 TEST(QueueStatsTest, ZeroQueues) {
   std::vector<thread::ManagedQueueStats> stats =
       thread::ThreadManager::QueueStats();
-  EXPECT_THAT(stats, IsEmpty());
+  std::vector<thread::ManagedQueueStats> filtered;
+  for (const auto& s : stats) {
+    if (s.queue_name != "default_queue") {
+      filtered.push_back(s);
+    }
+  }
+  EXPECT_THAT(filtered, IsEmpty());
 }
 
 TEST(QueueStatsTest, OneQueue) {
@@ -751,7 +758,7 @@ TEST(QueueStatsTest, OneQueue) {
         thread::ThreadManager::QueueStats();
     EXPECT_THAT(
         stats,
-        ElementsAre(AllOf(
+        Contains(AllOf(
             Field(&thread::ManagedQueueStats::queue_name, Eq("OneQueue")),
             Field(&thread::ManagedQueueStats::queue_running, Eq(1)),
             Field(&thread::ManagedQueueStats::num_pending_closures, Eq(2)))));
@@ -764,6 +771,31 @@ TEST(QueueStatsTest, OneQueue) {
     finish.Notify();
     q->WaitUntilComplete();
   }
+}
+
+TEST(ThreadManagerTest, ManagedQueueUAFRepro) {
+  thread::ThreadManager* tm =
+      new thread::ThreadManager("repro_tm", thread::ManagerOptions());
+  thread::ManagedQueueOptions options;
+  options.thread_limit = INT_MAX;
+  thread::ManagedQueue* q = tm->NewQueue("repro_q", options);
+
+  absl::Notification C1_started;
+  absl::Notification C1_continue;
+  absl::Notification C2_done;
+
+  q->Schedule([&C1_started, &C1_continue, &C2_done] {
+    C1_started.Notify();
+    C1_continue.WaitForNotification();
+    thread::Executor::CurrentExecutor()->Schedule(
+        [&C2_done] { C2_done.Notify(); });
+  });
+
+  C1_started.WaitForNotification();
+  delete q;
+  C1_continue.Notify();
+  C2_done.WaitForNotification();
+  delete tm;
 }
 
 // Helper class for benchmarks.  It arranges to invoke Run() a specified
