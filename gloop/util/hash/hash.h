@@ -125,22 +125,6 @@ inline uint32_t HashTo32(const char* s, size_t slen) {
   return HashTo32(absl::string_view(s, slen));
 }
 
-// HashTo32(const absl::Cord& c).
-// This returns the same value as HashTo32(std::string(c).data(), c.size()),
-// without having to copy or flatten the Cord.
-// It is a template to avoid adding a hard dependency on Cord.
-template <typename AbslCord, typename = typename std::enable_if<std::is_same<
-                                 AbslCord, absl::Cord>::value>::type>
-[[deprecated(
-    "Prefer absl::Hash or use util_hash::HashCordTo32() if necessary")]]
-inline uint32_t HashTo32(const AbslCord& c) {
-  std::string flat;
-  for (absl::string_view chunk : c.Chunks()) {
-    flat.append(chunk.data(), chunk.size());
-  }
-  return HashTo32(flat);
-}
-
 inline uint64_t Hash64StringWithSeed(absl::string_view s, uint64_t seed) {
   return Hash64StringWithSeed(s.data(), s.size(), seed);
 }
@@ -550,8 +534,7 @@ namespace internal {
 
 // Inheritance hierarchy of tag types to break ties in overload resolution
 // below.  Lower rank number indicates abetter match.
-struct Rank2 {};
-struct Rank1 : Rank2 {};
+struct Rank1 {};
 struct Rank0 : Rank1 {};
 
 // Best match: dispatch to GoodFastHash<T> if it exists.
@@ -560,16 +543,9 @@ size_t ChooseHasherImpl(const T& v, const Rank0&) {
   return GoodFastHash<T>()(v);
 }
 
-// Second best match: if T == absl::Cord, dispatch to HashTo32().  (This hash
-// function is used for compatibility with legacy code.)
-template <typename T, std::enable_if_t<std::is_same_v<T, absl::Cord>, int> = 0>
-size_t ChooseHasherImpl(const T& c, const Rank1&) {
-  return HashTo32(c);
-}
-
-// Third best match: dispatch to __gnu_cxx::hash<T> as a last resort.
+// Second best match: dispatch to __gnu_cxx::hash<T> as a last resort.
 template <typename T>
-size_t ChooseHasherImpl(const T& v, const Rank2&) {
+size_t ChooseHasherImpl(const T& v, const Rank1&) {
   return __gnu_cxx::hash<T>()(v);  // NOLINT
 }
 
@@ -617,22 +593,6 @@ inline uint64_t CombineFingerprintHalves(uint64_t hi, uint32_t lo) {
 inline uint64_t Fingerprint(absl::string_view s) {
   return Fingerprint(s.data(), s.size());
 }
-
-// Fingerprint(const absl::Cord& c).
-// This returns the same value as Fingerprint(std::string(c)), without having
-// to copy or flatten the Cord.
-// It is a template to avoid adding a hard dependency on Cord.
-template <typename AbslCord, typename = typename std::enable_if<std::is_same<
-                                 AbslCord, absl::Cord>::value>::type>
-[[deprecated("Use util_hash::FingerprintCord()")]]
-inline uint64_t Fingerprint(const AbslCord& c) {
-  std::string flat;
-  for (absl::string_view chunk : c.Chunks()) {
-    flat.append(chunk.data(), chunk.size());
-  }
-  return Fingerprint(flat.data(), flat.size());
-}
-
 inline uint64_t Fingerprint(char c) {
   return Hash64NumWithSeed(static_cast<uint64_t>(static_cast<unsigned char>(c)),
                            MIX64);

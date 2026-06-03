@@ -1072,23 +1072,3 @@ TEST(Hash, UtilHash_Hash_Permutations) {
 }
 
 TEST(Hash, UtilHash_Hash_DoesntCopy) { ::util_hash::Hash(NotCopyable()); }
-
-TEST(Hash, CordFunctions) {
-  static constexpr absl::string_view str = "123456";
-  absl::Cord flat_cord("123456");
-  absl::Cord fragmented_cord = absl::MakeFragmentedCord({"123", "456"});
-
-  EXPECT_EQ(Fingerprint(str), Fingerprint(flat_cord));
-  EXPECT_EQ(Fingerprint(str), Fingerprint(fragmented_cord));
-  EXPECT_EQ(Fingerprint(""), Fingerprint(absl::Cord()));
-
-  EXPECT_EQ(HashTo32(str), HashTo32(flat_cord));
-  EXPECT_EQ(HashTo32(str), HashTo32(fragmented_cord));
-  EXPECT_EQ(HashTo32(""), HashTo32(absl::Cord()));
-
-  EXPECT_EQ(util_hash::Hash(flat_cord), util_hash::Hash(fragmented_cord));
-  EXPECT_EQ(util_hash::Hash(flat_cord, 42),
-            util_hash::Hash(fragmented_cord, 42));
-  EXPECT_EQ(util_hash::Hash(std::make_tuple(flat_cord, 42)),
-            util_hash::Hash(std::make_tuple(fragmented_cord, 42)));
-}
