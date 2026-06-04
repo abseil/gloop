@@ -101,6 +101,10 @@ Case FifoSemaphore::OnAcquire(const uintptr_t amount) {
   return c;
 }
 
+bool FifoSemaphore::TryAcquire(const uintptr_t amount) {
+  return sem_.TryAcquire(amount);
+}
+
 void FifoSemaphore::Release(const uintptr_t amount) { sem_.Release(amount); }
 
 void FifoSemaphore::WaitUntilAllResourcesReleased() {

@@ -31,6 +31,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "absl/base/attributes.h"
 #include "absl/base/casts.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/synchronization/mutex.h"
@@ -120,6 +121,18 @@ class OrderedSemaphore {
   //
   // REQUIRES: amount was previously acquired from this semaphore.
   void Release(uintptr_t amount) ABSL_LOCKS_EXCLUDED(resource_.mu());
+
+  // Attempts to acquire `amount` from the semaphore without blocking. Returns
+  // true and acquires the resources only if the operation can be satisfied
+  // immediately while preserving the semaphore's strict acquisition order
+  // (i.e. there are no callers already waiting). Otherwise returns false
+  // without modifying state and without enqueueing the caller.
+  //
+  // On success, the caller must eventually Release() the acquired amount.
+  //
+  // REQUIRES: amount <= the semaphore's capacity.
+  ABSL_MUST_USE_RESULT bool TryAcquire(uintptr_t amount)
+      ABSL_LOCKS_EXCLUDED(resource_.mu());
 
   // Returns the semaphore's current value (between 0 and capacity, inclusive).
   // Note that this is inherently racy, since the value may change before the

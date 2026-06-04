@@ -130,6 +130,18 @@ void OrderedSemaphore::Release(const uintptr_t amount) {
   resource_.Release(amount);
 }
 
+bool OrderedSemaphore::TryAcquire(const uintptr_t amount) {
+  CHECK_GE(resource_.capacity(), amount);
+  absl::MutexLock l(*resource_.mu());
+  // Preserve order: refuse if any caller is already queued, even if there
+  // would otherwise be sufficient capacity for us.
+  if (*resource_.waiters() != nullptr || resource_.available() < amount) {
+    return false;
+  }
+  resource_.Acquire(amount);
+  return true;
+}
+
 uintptr_t OrderedSemaphore::current_value() const {
   absl::ReaderMutexLock l(*resource_.mu());
   return resource_.available();

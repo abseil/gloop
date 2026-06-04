@@ -386,6 +386,84 @@ TEST_F(FifoSemaphoreTest, AcquireWithUnselectedBlocker) {
   s.Release(7);
 }
 
+TEST_F(FifoSemaphoreTest, TryAcquireSucceedsWhenUncontended) {
+  FifoSemaphore s(10);
+  EXPECT_TRUE(s.TryAcquire(4));
+  EXPECT_EQ(6, GetOrderedSem(s)->current_value());
+  EXPECT_TRUE(s.TryAcquire(6));
+  EXPECT_EQ(0, GetOrderedSem(s)->current_value());
+  s.Release(10);
+}
+
+TEST_F(FifoSemaphoreTest, TryAcquireZeroAlwaysSucceeds) {
+  FifoSemaphore s(10);
+  EXPECT_TRUE(s.TryAcquire(0));
+  EXPECT_EQ(10, GetOrderedSem(s)->current_value());
+
+  // Even when the semaphore is fully drained, TryAcquire(0) succeeds because
+  // available_ >= 0 always holds and there are no waiters.
+  s.Acquire(10);
+  EXPECT_TRUE(s.TryAcquire(0));
+  EXPECT_EQ(0, GetOrderedSem(s)->current_value());
+  s.Release(10);
+}
+
+TEST_F(FifoSemaphoreTest, TryAcquireFailsWhenInsufficient) {
+  FifoSemaphore s(10);
+  s.Acquire(8);
+  EXPECT_EQ(2, GetOrderedSem(s)->current_value());
+
+  // Not enough available -- TryAcquire must fail and leave the semaphore
+  // unchanged.
+  EXPECT_FALSE(s.TryAcquire(3));
+  EXPECT_EQ(2, GetOrderedSem(s)->current_value());
+
+  // Exactly the available amount works.
+  EXPECT_TRUE(s.TryAcquire(2));
+  EXPECT_EQ(0, GetOrderedSem(s)->current_value());
+
+  s.Release(10);
+}
+
+TEST_F(FifoSemaphoreTest, TryAcquireRespectsFifoOrder) {
+  FifoSemaphore s(10);
+  s.Acquire(5);
+
+  // Fiber blocks waiting for 8 (only 5 available).
+  Fiber* f = AddWaitingFiber(&s, 8);
+  WaitForBlockedFibers(&s, 1);
+  EXPECT_EQ(5, GetOrderedSem(s)->current_value());
+
+  // Even though we'd fit (need 1, have 5), TryAcquire must refuse so that the
+  // waiter ahead of us is not starved.
+  EXPECT_FALSE(s.TryAcquire(1));
+  EXPECT_EQ(5, GetOrderedSem(s)->current_value());
+  EXPECT_EQ(1, GetOrderedSem(s)->WaiterCount());
+
+  // Release enough to unblock the queued waiter.
+  s.Release(3);
+  f->Join();
+  EXPECT_EQ(0, GetOrderedSem(s)->current_value());
+
+  // With the queue drained, TryAcquire works again.
+  s.Release(2);
+  EXPECT_TRUE(s.TryAcquire(2));
+  EXPECT_EQ(0, GetOrderedSem(s)->current_value());
+
+  s.Release(10);
+}
+
+TEST_F(FifoSemaphoreTest, TryAcquireDoesNotEnqueue) {
+  FifoSemaphore s(10);
+  s.Acquire(10);
+
+  // A failed TryAcquire must not leave the caller queued.
+  EXPECT_FALSE(s.TryAcquire(1));
+  EXPECT_EQ(0, GetOrderedSem(s)->WaiterCount());
+
+  s.Release(10);
+}
+
 TEST_F(FifoSemaphoreTest, StressTest) {
   const uintptr_t base_sem_capacity = 1000000;
 

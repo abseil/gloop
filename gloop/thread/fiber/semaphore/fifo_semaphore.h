@@ -114,6 +114,20 @@ class ABSL_LOCKABLE FifoSemaphore {
   // Convenience helper that will block to acquire the requested amount.
   void Acquire(uintptr_t amount);
 
+  // Attempts to acquire `amount` from the semaphore without blocking.
+  //
+  // Returns true and acquires the resources only if the semaphore has at
+  // least `amount` available AND no callers are already queued ahead. The
+  // FIFO-fairness check is what prevents TryAcquire() from starving fibers
+  // that have already blocked via Acquire() or Select() on OnAcquire().
+  //
+  // Returns false otherwise; the caller is not enqueued.
+  //
+  // On success, the caller must eventually Release() the acquired amount.
+  //
+  // REQUIRES: amount <= the semaphore's capacity.
+  ABSL_MUST_USE_RESULT bool TryAcquire(uintptr_t amount);
+
   // Releases resources from the semaphore.  Callers waiting to acquire the
   // semaphore will be woken in FIFO order if there are sufficient resources.
   //
