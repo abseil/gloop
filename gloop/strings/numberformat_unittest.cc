@@ -25,6 +25,7 @@
 #include <sys/types.h>
 
 #include <cstdint>
+#include <limits>
 #include <string>
 
 #include "absl/log/check.h"
@@ -193,6 +194,30 @@ TEST(NumberFormatTest, AllTests) {
   // needed for that value. Make sure that this special handling is
   // correct.
   CheckBinaryEng(static_cast<int64_t>(uint64_t{1} << 63), 1, "-8E");
+
+  // Check minimum/maximum values that don't overflow.
+  CheckParseInt64(std::numeric_limits<int64_t>::min(),
+                  "-9223372036854775808");  // -2^63
+  CheckParseInt64(std::numeric_limits<int64_t>::max() - 1023,
+                  "9223372036854775295");  // 2^63-513
+  CheckParseInt64(std::numeric_limits<int64_t>::max() - 1023,
+                  "9223372036854774784");  // 2^63-1024
+
+  // Test overflow/underflow for ParseSuffixedInt64
+  CheckParseInt64(std::numeric_limits<int64_t>::max(),
+                  "9223372036854775808");        // 2^63, overflows by 1
+  CheckParseInt64(kDefaultVal, "10000000000G");  // overflows
+  CheckParseInt64(std::numeric_limits<int64_t>::min(),
+                  "-9223372036854775809");        // -2^63 - 1, underflows
+  CheckParseInt64(kDefaultVal, "-10000000000G");  // underflows
+
+  // Test overflow/underflow for ParseDecimalSuffixedInt64
+  CheckParseDecimalInt64(std::numeric_limits<int64_t>::max(),
+                         "9223372036854775808");        // overflows
+  CheckParseDecimalInt64(kDefaultVal, "10000000000G");  // overflows
+  CheckParseDecimalInt64(std::numeric_limits<int64_t>::min(),
+                         "-9223372036854775809");        // underflows
+  CheckParseDecimalInt64(kDefaultVal, "-10000000000G");  // underflows
 }
 
 }  // namespace strings

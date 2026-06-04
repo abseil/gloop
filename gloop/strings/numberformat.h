@@ -32,6 +32,7 @@
 #define THIRD_PARTY_GLOOP_STRINGS_NUMBERFORMAT_H__
 
 #include <cstdint>
+#include <limits>
 #include <string>
 
 #include "absl/strings/string_view.h"
@@ -117,9 +118,27 @@ std::string UnitConvert(int64_t val, const int64_t unit_arr[], int64_t base,
 //
 double ParseSuffixedDouble(absl::string_view str, double defValue);
 
+namespace internal {
+
+inline int64_t DoubleToInt64Safe(double d, int64_t defValue) {
+  double min_double = static_cast<double>(std::numeric_limits<int64_t>::min());
+  double max_double = -min_double;
+  if (d >= min_double && d < max_double) {
+    return static_cast<int64_t>(d);
+  }
+  if (d == max_double) {
+    // Special case for exactly max_double, since we can't represent the maximum
+    // int64 as a double.
+    return std::numeric_limits<int64_t>::max();
+  }
+  return defValue;
+}
+
+}  // namespace internal
+
 inline int64_t ParseSuffixedInt64(absl::string_view str, int64_t defValue) {
-  return static_cast<int64_t>(
-      ParseSuffixedDouble(str, static_cast<double>(defValue)));
+  return internal::DoubleToInt64Safe(
+      ParseSuffixedDouble(str, static_cast<double>(defValue)), defValue);
 }
 
 // As ParseSuffixed{Double,Int64} but working with power-of-ten units
@@ -127,8 +146,8 @@ double ParseDecimalSuffixedDouble(absl::string_view str, double defValue);
 
 inline int64_t ParseDecimalSuffixedInt64(absl::string_view str,
                                          int64_t defValue) {
-  return static_cast<int64_t>(
-      ParseDecimalSuffixedDouble(str, static_cast<double>(defValue)));
+  return internal::DoubleToInt64Safe(
+      ParseDecimalSuffixedDouble(str, static_cast<double>(defValue)), defValue);
 }
 
 // Also, internally we use a template function, ParseSuffixedNum,
