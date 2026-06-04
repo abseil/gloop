@@ -529,6 +529,10 @@ inline void Decoder::getcn(void* dst, int c, size_t n) {
 }
 
 inline void Decoder::gets(void* dst, size_t n) {
+  if (n == 0) {
+    return;
+  }
+
   size_t len = n - 1;
   DCHECK_GE(limit_, buf_);
   if (n > static_cast<size_t>(1 + limit_ - buf_)) {

@@ -234,6 +234,15 @@ TEST(CoderUnitTEst, TestEncodeDecode) {
   }
 }
 
+TEST(CoderUnitTest, GetsZeroLength) {
+  const char kData[] = "abcdef";
+  Decoder dec(kData, sizeof(kData));
+  char dst[10] = "ZZZZZZZZZ";
+  dec.gets(dst, 0);
+  EXPECT_EQ(dst[0], 'Z');
+  EXPECT_EQ(dec.pos(), 0);
+}
+
 TEST(CoderUnitTest, CreateDecoder) {
   absl::string_view buf = "foo";
   Decoder d(buf);
