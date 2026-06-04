@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <new>
 
@@ -143,6 +144,8 @@ class SwissMemblock final : public strings::MemBlock {
   static std::unique_ptr<MemBlock> Create(size_t length);
 
   static size_t alloc_size(size_t length) {
+    constexpr size_t kHeaderSize = L::Partial(1).Offset<1>();
+    CHECK_LE(length, std::numeric_limits<size_t>::max() - kHeaderSize);
     // alloc_size has to be at least size_t because we use the space to store
     // one size_t value in destructor to allow sized delete.
     return L(1, std::max<size_t>(length, sizeof(size_t))).AllocSize();
