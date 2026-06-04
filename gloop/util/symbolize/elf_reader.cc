@@ -1974,15 +1974,17 @@ std::string ElfReader::GetBuildId() {
       const char* note_name = c_note + kNoteHeaderSize;
       if (kNoteHeaderSize < size && note->n_type == NT_GNU_BUILD_ID &&
           note->n_namesz == 4 && memcmp(note_name, "GNU\0", 4) == 0) {
-        std::string build_id(note->n_descsz * 2, '0');
-        const char hexdigits[] = "0123456789abcdef";
-        // Note data follows name.
-        const char* note_desc = note_name + note->n_namesz;
-        for (int i = 0; i < note->n_descsz; i++) {
-          build_id[i * 2] = hexdigits[(note_desc[i]) >> 4];
-          build_id[i * 2 + 1] = hexdigits[note_desc[i] & 0x0f];
+        if (note->n_descsz <= 64) {
+          std::string build_id(static_cast<size_t>(note->n_descsz) * 2, '0');
+          const char hexdigits[] = "0123456789abcdef";
+          // Note data follows name.
+          const char* note_desc = note_name + note->n_namesz;
+          for (size_t i = 0; i < note->n_descsz; i++) {
+            build_id[i * 2] = hexdigits[(note_desc[i]) >> 4];
+            build_id[i * 2 + 1] = hexdigits[note_desc[i] & 0x0f];
+          }
+          build_ids.push_back(build_id);
         }
-        build_ids.push_back(build_id);
       }
 
       // There could be multiple ELF notes in the .note section.
