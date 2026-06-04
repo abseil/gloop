@@ -264,8 +264,9 @@ struct GCDTestCase {
 };
 
 TEST(MathUtil, GCD) {
-  GCDTestCase testcases[] = {{10, 20, 10}, {27, 8, 1}, {4, 3, 1}, {6, 8, 2},
-                             {5, 0, 5},    {5, 5, 5},  {0, 0, 0}};
+  GCDTestCase testcases[] = {
+      {10, 20, 10}, {27, 8, 1}, {4, 3, 1}, {6, 8, 2},
+      {5, 0, 5},    {5, 5, 5},  {0, 0, 0}, {2147483649U, 3U, 3U}};
   int num_tcs = sizeof(testcases) / sizeof(*testcases);
   for (int i = 0; i < num_tcs; i++) {
     const GCDTestCase& tc = testcases[i];

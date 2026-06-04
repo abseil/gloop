@@ -153,27 +153,35 @@ int MathUtil::RealRootsForQuartic(long double a, long double b, long double c,
 // and assigns a, and b such that a*x + b*y = gcd(x, y).
 unsigned int MathUtil::ExtendedGCD(unsigned int x, unsigned int y, int* a,
                                    int* b) {
-  *a = 1;
-  *b = 0;
-  int c = 0;
-  int d = 1;
+  int64_t local_a = 1;
+  int64_t local_b = 0;
+  int64_t c = 0;
+  int64_t d = 1;
   // before and after each loop:
-  // current_x == a * original_x + b * original_y
+  // current_x == local_a * original_x + local_b * original_y
   // current_y == c * original_x + d * original_y
   while (y != 0) {
-    // div() takes int parameters; there is no version that takes unsigned int
-    div_t r = div(static_cast<int>(x), static_cast<int>(y));
+    int64_t quot = x / y;
+    unsigned int rem = x % y;
     x = y;
-    y = r.rem;
+    y = rem;
 
-    int tmp = c;
-    c = *a - r.quot * c;
-    *a = tmp;
+    int64_t tmp = c;
+    c = local_a - quot * c;
+    local_a = tmp;
 
     tmp = d;
-    d = *b - r.quot * d;
-    *b = tmp;
+    d = local_b - quot * d;
+    local_b = tmp;
   }
+
+  DCHECK_GE(local_a, std::numeric_limits<int>::min());
+  DCHECK_LE(local_a, std::numeric_limits<int>::max());
+  DCHECK_GE(local_b, std::numeric_limits<int>::min());
+  DCHECK_LE(local_b, std::numeric_limits<int>::max());
+
+  *a = static_cast<int>(local_a);
+  *b = static_cast<int>(local_b);
   return x;
 }
 
