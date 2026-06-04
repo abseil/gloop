@@ -37,7 +37,7 @@ struct Response {
 
 class Server {
  public:
-  void StartLookup(Callback1<Response>* cb, int key) {
+  void StartLookup(::util::functional::CallbackFunctor<Response> cb, int key) {
     Response r = {key, std::string()};  // Simply send back the key.
     if (cb) cb->Run(r);                 // let the client run.
   }
