@@ -218,7 +218,7 @@ const char* Varint::Parse32BackwardSlow(const char* ptr, const char* base,
   const char* prev = Skip32BackwardSlow(ptr, base);
   if (prev == nullptr) return nullptr;  // no value before 'ptr'
 
-  Parse32(prev, OUTPUT);
+  if (Parse32(prev, OUTPUT) == nullptr) return nullptr;
   return prev;
 }
 
@@ -229,7 +229,7 @@ const char* Varint::Parse64BackwardSlow(const char* ptr, const char* base,
   const char* prev = Skip64BackwardSlow(ptr, base);
   if (prev == nullptr) return nullptr;  // no value before 'ptr'
 
-  Parse64(prev, OUTPUT);
+  if (Parse64(prev, OUTPUT) == nullptr) return nullptr;
   return prev;
 }
 
