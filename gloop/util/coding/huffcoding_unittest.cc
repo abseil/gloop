@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "absl/log/check.h"
+#include "absl/memory/memory.h"
 #include "absl/random/random.h"
 #include "benchmark/benchmark.h"
 #include "gloop/util/coding/bitcoding.h"
@@ -248,6 +249,20 @@ TEST(HuffCoding, RestoreErrorsZeroLengthSymbol) {
   EXPECT_EQ(
       HuffmanCode::SafeRestore(mutated_zero.data(), mutated_zero.size(), &len),
       nullptr);
+}
+
+TEST(HuffCoding, TableDecoderMaxLenCrash) {
+  std::vector<char> code = MakeSampleCode();
+  int len;
+  auto h = absl::WrapUnique(
+      HuffmanCode::SafeRestore(code.data(), code.size(), &len));
+  ASSERT_NE(h, nullptr);
+  TableEncoder te;
+  h->InitializeEncoder(&te);
+
+  TableDecoder<3> td;
+  EXPECT_DEATH_IF_SUPPORTED(td.InitializeFromEncoder(&te),
+                            "enc_length <= maxlen");
 }
 
 void BM_HuffmanRestore(benchmark::State& b) {

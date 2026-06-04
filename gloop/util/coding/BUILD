@@ -134,6 +134,7 @@ cc_test(
         "//gloop/util/hash",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/memory",
         "@abseil-cpp//absl/random",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

@@ -120,7 +120,6 @@ class TableDecoder {
     // be able to store the largest possible symbol, as well as "maxlen_bits".
     const unsigned int max_symbol = encoder->MaxSymbol();
     DCHECK_GE(elem_bits, BitEncoder::BitsRequired(max_symbol) + maxlen_bits);
-    DCHECK_GE(maxlen_bits, BitEncoder::BitsRequired(maxlen));
 
     // Create decoding table
     memset(table_, 0, sizeof(table_));
@@ -129,12 +128,13 @@ class TableDecoder {
       // with an encoding of "sym".
       uint32_t enc_length = encoder->EncodingLength(sym);
       uint32_t enc = encoder->Encoding(sym);
-      assert(enc_length <= maxlen);
+      CHECK_LE(enc_length, maxlen);
       unsigned int slop = maxlen - enc_length;
       for (uint32_t extra = 0; extra < (1 << slop); extra++) {
         uint32_t pattern = (extra << enc_length) | enc;
-        DCHECK_LT(pattern, (1 << maxlen));
-        DCHECK_EQ(table_[pattern], 0);  // Should be prefix-free codes
+        DCHECK_LT(pattern, static_cast<uint32_t>(1 << maxlen));
+        // Should be prefix-free codes
+        DCHECK_EQ(table_[pattern], static_cast<Elem>(0));
         table_[pattern] = (enc_length << len_shift) | sym;
       }
     }
@@ -200,6 +200,9 @@ class TableDecoder {
   static constexpr unsigned int elem_bits = sizeof(Elem) * 8;
   static constexpr unsigned int len_shift = elem_bits - maxlen_bits;
   static constexpr Elem sym_mask = (1u << len_shift) - 1;
+
+  static_assert(maxlen_bits >= BitEncoder::BitsRequired(maxlen),
+                "maxlen_bits is too small for maxlen");
 
   Elem table_[1 << maxlen];  // The decoding table
 };

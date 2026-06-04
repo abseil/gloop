@@ -135,7 +135,7 @@ class BitEncoder {
   static uint32_t ReverseBits(int n, uint32_t x);
 
   // Returns the number of bits required to store the given number.
-  static unsigned int BitsRequired(uint32_t x);
+  static constexpr unsigned int BitsRequired(uint32_t x);
   static unsigned int BitsRequiredTableDriven(uint32_t x);
   static unsigned int BitsRequired64(uint64_t x);
   static unsigned int BitsRequiredWithRice(int k, uint32_t x);
@@ -625,7 +625,7 @@ inline unsigned int BitEncoder::BitsRequiredTableDriven(uint32_t x) {
 //     some of the benchmarks in bitcoding_unittest on x86, and no slower on
 //     ppc. Since we use (1) to restrict the range of outputs of
 //     CountLeadingZeros() between 0 and 31, this is a valid transformation.
-inline unsigned int BitEncoder::BitsRequired(uint32_t x) {
+constexpr unsigned int BitEncoder::BitsRequired(uint32_t x) {
   return (31 ^ absl::countl_zero(x | 0x1)) + 1;
 }
 
