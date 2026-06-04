@@ -508,5 +508,3 @@ TEST(MTRandomTest, Regression_CloseStringsAreDifferent) {
   EXPECT_EQ(kCount, first.size());
   EXPECT_EQ(2 * kCount, all.size());
 }
-
-}  // namespace
