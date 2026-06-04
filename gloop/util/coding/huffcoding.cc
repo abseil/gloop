@@ -207,6 +207,17 @@ HuffmanCode* HuffmanCode::SafeRestore(const char* buffer, int size,
     return nullptr;
   }
   uint32_t num = d.get32();
+  if (num < 2) {
+    // We require at least 2 symbols:
+    // - If num == 0, TableDecoder::InitializeFromEncoder will calculate
+    //   max_symbol = num - 1 which underflows to UINT_MAX, leading to an
+    //   infinite loop and out-of-bounds memory accesses.
+    // - If num == 1, the Huffman code is incomplete (codespace sum < 1.0),
+    //   leaving "holes" in the TableDecoder table. Probing a hole returns a 0
+    //   entry, causing the decoder to decode symbol 0 while consuming 0 bits,
+    //   resulting in an infinite loop on malformed streams.
+    return nullptr;
+  }
   // Since input may be untrusted, avoid overflow by not using num+4.
   if (d.avail() < num || d.avail() - num < 4) {  // lengths and checksum
     return nullptr;
@@ -214,7 +225,7 @@ HuffmanCode* HuffmanCode::SafeRestore(const char* buffer, int size,
   int* len = new int[num];
   for (uint32_t i = 0; i < num; i++) {
     len[i] = d.get8();
-    if (len[i] > 27) {
+    if (len[i] < 1 || len[i] > 27) {
       delete[] len;
       return nullptr;
     }

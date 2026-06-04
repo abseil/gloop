@@ -131,6 +131,7 @@ cc_test(
         "//gloop:gloop_test_main",
         "//gloop/util/endian",
         "//gloop/util/gtl:unique_array",
+        "//gloop/util/hash",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/random",

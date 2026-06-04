@@ -34,6 +34,7 @@
 #include "gloop/util/coding/tablecoding.h"
 #include "gloop/util/endian/endian.h"
 #include "gloop/util/gtl/unique_array.h"
+#include "gloop/util/hash/hash.h"
 #include "gloop/util/random/acmrandom.h"
 #include "gtest/gtest.h"
 
@@ -181,10 +182,8 @@ std::vector<char> MakeSampleCode() {
 
 namespace {
 
-TEST(HuffCoding, RestoreErrors) {
+TEST(HuffCoding, RestoreErrorsInternalCorruption) {
   std::vector<char> code = MakeSampleCode();
-
-  // Internal corruption.
   for (size_t i = 0; i < code.size(); i++) {
     std::vector<char> mutated = code;
     mutated[i] = code[i] ^ 1;
@@ -192,8 +191,10 @@ TEST(HuffCoding, RestoreErrors) {
     EXPECT_EQ(HuffmanCode::SafeRestore(mutated.data(), mutated.size(), &len),
               nullptr);
   }
+}
 
-  // Truncation.
+TEST(HuffCoding, RestoreErrorsTruncation) {
+  std::vector<char> code = MakeSampleCode();
   std::vector<char> mutated = code;
   while (!mutated.empty()) {
     mutated.pop_back();
@@ -201,13 +202,52 @@ TEST(HuffCoding, RestoreErrors) {
     EXPECT_EQ(HuffmanCode::SafeRestore(mutated.data(), mutated.size(), &len),
               nullptr);
   }
+}
 
-  // Length liable to overflow.
-  mutated = code;
+TEST(HuffCoding, RestoreErrorsLengthOverflow) {
+  std::vector<char> code = MakeSampleCode();
+  std::vector<char> mutated = code;
   LittleEndian::Store32(&mutated[4], 0xffffffffu);
   int len;
   EXPECT_EQ(HuffmanCode::SafeRestore(mutated.data(), mutated.size(), &len),
             nullptr);
+}
+
+TEST(HuffCoding, RestoreErrorsNumZero) {
+  std::vector<char> invalid_code(12);
+  LittleEndian::Store32(&invalid_code[0], 0x7af663fbu);  // kMagicNumber
+  LittleEndian::Store32(&invalid_code[4], 0);            // num = 0
+  uint32_t checksum = HashTo32(invalid_code.data(), 8);
+  LittleEndian::Store32(&invalid_code[8], checksum);
+  int len;
+  EXPECT_EQ(
+      HuffmanCode::SafeRestore(invalid_code.data(), invalid_code.size(), &len),
+      nullptr);
+}
+
+TEST(HuffCoding, RestoreErrorsNumOne) {
+  std::vector<char> invalid_code(13);
+  LittleEndian::Store32(&invalid_code[0], 0x7af663fbu);  // kMagicNumber
+  LittleEndian::Store32(&invalid_code[4], 1);            // num = 1
+  invalid_code[8] = 1;                                   // length = 1
+  uint32_t checksum = HashTo32(invalid_code.data(), 9);
+  LittleEndian::Store32(&invalid_code[9], checksum);
+  int len;
+  EXPECT_EQ(
+      HuffmanCode::SafeRestore(invalid_code.data(), invalid_code.size(), &len),
+      nullptr);
+}
+
+TEST(HuffCoding, RestoreErrorsZeroLengthSymbol) {
+  std::vector<char> code = MakeSampleCode();
+  std::vector<char> mutated_zero = code;
+  mutated_zero[8] = 0;
+  uint32_t checksum = HashTo32(mutated_zero.data(), 14);
+  LittleEndian::Store32(&mutated_zero[14], checksum);
+  int len;
+  EXPECT_EQ(
+      HuffmanCode::SafeRestore(mutated_zero.data(), mutated_zero.size(), &len),
+      nullptr);
 }
 
 void BM_HuffmanRestore(benchmark::State& b) {
