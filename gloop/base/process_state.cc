@@ -292,24 +292,29 @@ static bool ExpandTokens(char* cmd_buffer, size_t buffer_size, const char* pid,
         case 'p': {  // '%p' => <pid>
           const char* arg = (p[1] == 'w') ? invoker : pid;
           size_t arg_len = strlen(arg);
-          if (p - cmd_buffer + arg_len >= buffer_size) {
+          size_t tail_len = strlen(p + 2);
+          if ((p - cmd_buffer) + arg_len + tail_len >= buffer_size) {
             return false;
           }
-          memmove(p + arg_len, p + 2, strlen(p + 2) + 1);
+          memmove(p + arg_len, p + 2, tail_len + 1);
           memcpy(p, arg, arg_len);
+          p += arg_len - 1;
           break;
         }
         case 'f': {  // '%f' => "/proc/<pid>/exe"
           // TODO: is there any advantage to expanding
           // "/proc/<pid>/exe" into real executable name via readlink?
           size_t pid_len = strlen(pid);
-          if (p - cmd_buffer + pid_len + 10 >= buffer_size) {
+          size_t arg_len = pid_len + 10;
+          size_t tail_len = strlen(p + 2);
+          if ((p - cmd_buffer) + arg_len + tail_len >= buffer_size) {
             return false;
           }
-          memmove(p + pid_len + 10, p + 2, strlen(p + 2) + 1);
+          memmove(p + arg_len, p + 2, tail_len + 1);
           memcpy(p, "/proc/", 6);
           memcpy(p + 6, pid, pid_len);
           memcpy(p + 6 + pid_len, "/exe", 4);
+          p += arg_len - 1;
           break;
         }
         case '\0': {

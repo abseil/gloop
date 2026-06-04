@@ -652,4 +652,22 @@ TEST(StackTraceDeathTest, ProtectionKeyViolationDiagnosed) {
   munmap(mem, pagesize);
   pkey_free(pkey);
 }
+
+class InvokeDebuggerWithCommandLongTokensTest
+    : public ::testing::TestWithParam<const char*> {};
+
+TEST_P(InvokeDebuggerWithCommandLongTokensTest, ExpansionOverflow) {
+  // A long command that, when expanded, exceeds the 1024 byte buffer
+  // in InvokeDebuggerWithCommand. It should gracefully fail (return false
+  // from ExpandTokens) and not cause a stack buffer overflow.
+  std::string cmd(1000, 'A');
+  cmd += GetParam();
+  cmd += " INVOKE_DEBUGGER_WAIT_FOR_ATTACH=0";
+  InvokeDebuggerWithCommand(
+      "very_long_invoker_name_to_trigger_expansion_overflow", cmd.c_str());
+}
+
+INSTANTIATE_TEST_SUITE_P(LongTokens, InvokeDebuggerWithCommandLongTokensTest,
+                         testing::Values("%w", "%p", "%f"));
+
 }  // namespace
