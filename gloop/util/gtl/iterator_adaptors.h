@@ -55,6 +55,31 @@ struct Derefencer {
   }
 };
 
+// A helper class to support operator->() for iterators that return
+// non-reference type (value/proxy) elements. It holds the value
+// by value and returns a pointer to its internal storage, ensuring
+// client calls like iter->method() do not trigger address-of-temporary
+// warnings or lead to dangling reference crashes.
+template <typename T>
+class ArrowProxy {
+ public:
+  constexpr explicit ArrowProxy(T val) : val_(std::move(val)) {}
+
+  // &&-qualified, since this class should only ever exist as rvalue.
+  constexpr const T* operator->() const&& ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return &val_;
+  }
+  constexpr T* operator->() && ABSL_ATTRIBUTE_LIFETIME_BOUND { return &val_; }
+
+ private:
+  ArrowProxy(const ArrowProxy&) = delete;
+  ArrowProxy(ArrowProxy&&) = delete;
+  ArrowProxy& operator=(ArrowProxy&&) = delete;
+  ArrowProxy& operator=(const ArrowProxy&) = delete;
+
+  T val_;
+};
+
 // CRTP base class for generating iterator adaptors.
 // `Sub` is the derived type, `Iterator` is the underlying iterator type and
 // `Extractor` is an invokable that takes dereferenced `Iterator` and returns a
@@ -74,7 +99,9 @@ class ABSL_ATTRIBUTE_VIEW ExtractingIteratorBase {
  public:
   using reference = extracted_reference;
   using value_type = std::remove_cv_t<cv_value_type>;
-  using pointer = std::add_pointer_t<cv_value_type>;
+  using pointer = std::conditional_t<std::is_lvalue_reference_v<reference>,
+                                     std::add_pointer_t<cv_value_type>,
+                                     ArrowProxy<cv_value_type>>;
   using difference_type = typename iterator_traits::difference_type;
   using iterator_category =
       std::conditional_t<!std::is_lvalue_reference_v<reference>,
@@ -102,7 +129,13 @@ class ABSL_ATTRIBUTE_VIEW ExtractingIteratorBase {
 
   constexpr reference get() const { return std::invoke(extractor(), *base()); }
   constexpr reference operator*() const { return get(); }
-  constexpr pointer operator->() const { return &get(); }
+  constexpr pointer operator->() const {
+    if constexpr (std::is_lvalue_reference_v<reference>) {
+      return &get();
+    } else {
+      return pointer(get());
+    }
+  }
   constexpr reference operator[](difference_type d) const {
     return *(sub() + d);
   }

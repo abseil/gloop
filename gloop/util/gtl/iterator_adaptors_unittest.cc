@@ -1463,6 +1463,30 @@ TEST_F(IteratorAdaptorTest, ProjectionViewWithLambda) {
   EXPECT_THAT(projection_view(v, std::move(get_b)), ElementsAre(2, 4));
 }
 
+TEST_F(IteratorAdaptorTest, ProjectionViewInputIteratorWithArrow) {
+  struct IntView {
+    explicit IntView(const int* val) : val_(val) {}
+    int get() const { return *val_; }
+
+   private:
+    const int* val_;
+  };
+
+  std::vector<int> v = {1, 2};
+  auto view = projection_view(v, [](const int& val) { return IntView(&val); });
+
+  auto it = view.begin();
+  EXPECT_EQ(it->get(), 1);
+
+  // Mutate the first element of v directly and verify it is reflected through
+  // the proxy.
+  v[0] = 10;
+  EXPECT_EQ(it->get(), 10);
+
+  ++it;
+  EXPECT_EQ(it->get(), 2);
+}
+
 TEST_F(IteratorAdaptorTest, ProjectionViewWithFunction) {
   struct Foo {
     std::string a;
