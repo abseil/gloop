@@ -37,10 +37,13 @@
 #include "gloop/util/gtl/comparator.h"
 #include "gloop/util/gtl/stl_util.h"
 #include "gloop/util/random/mt_random.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace gtl {
 namespace {
+
+using ::testing::ElementsAre;
 
 TEST(HeapQueue, Basic) {
   HeapQueue<std::pair<float, char*> > heap;
@@ -135,6 +138,31 @@ TEST(HeapQueue, Basic) {
   }
   EXPECT_TRUE(q1.empty());
   EXPECT_TRUE(q2.empty());
+}
+
+TEST(HeapQueue, EraseSiftUp) {
+  HeapQueue<int> heap;
+  std::vector<int> v = {100, 20, 90, 17, 18, 88, 89, 1,
+                        2,   3,  4,  50, 60, 70, 80};
+  heap.replace_elements(&v);
+
+  // Erase index 3 (value 17)
+  auto it = heap.begin() + 3;
+  ASSERT_EQ(*it, 17);
+  heap.erase(it);
+
+  // Verify it is still a heap
+  EXPECT_TRUE(std::is_heap(heap.begin(), heap.end(), std::less<int>()));
+
+  // Verify drain order
+  std::vector<int> drained;
+  drained.reserve(heap.size());
+  while (!heap.empty()) {
+    drained.push_back(heap.consume_top());
+  }
+
+  EXPECT_THAT(drained,
+              ElementsAre(100, 90, 89, 88, 80, 70, 60, 50, 20, 18, 4, 3, 2, 1));
 }
 
 TEST(HeapQueue, BasicWithMoveOnly) {

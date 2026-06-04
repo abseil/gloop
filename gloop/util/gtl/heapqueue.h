@@ -315,7 +315,7 @@ void HeapQueue<T, Comparator, Vector>::rebuild() {
   std::make_heap(heap_.begin(), heap_.end(), Comparator());
 }
 
-// Remove a random element from a HeapQueue.
+// Remove an arbitrary element from a HeapQueue.
 template <class T, class Comparator, class Vector>
 void HeapQueue<T, Comparator, Vector>::erase(iterator pos) {
   DCHECK(!heap_.empty());
@@ -324,9 +324,15 @@ void HeapQueue<T, Comparator, Vector>::erase(iterator pos) {
     return;
   }
 
+  size_t i = pos - heap_.begin();
   *pos = std::move(heap_.back());
   heap_.pop_back();
-  push_down_heap(pos - heap_.begin(), heap_.begin(), heap_.end(), Comparator{});
+  if (i > 0 && Comparator()(heap_[(i - 1) / 2], heap_[i])) {
+    // Sift up: std::push_heap on the prefix ending at i.
+    std::push_heap(heap_.begin(), heap_.begin() + i + 1, Comparator());
+  } else {
+    push_down_heap(i, heap_.begin(), heap_.end(), Comparator{});
+  }
 }
 
 template <class T, class Comparator, class Vector>
