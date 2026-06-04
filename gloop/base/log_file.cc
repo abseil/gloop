@@ -144,7 +144,7 @@ class LogFile final {
     old_object_.FlushUnsafe();
   }
   void Write(bool force_flush, time_t timestamp, const char* message,
-             int message_len) ABSL_LOCKS_EXCLUDED(guard_) {
+             size_t message_len) ABSL_LOCKS_EXCLUDED(guard_) {
     absl::MutexLock lock(guard_);
     for (const auto& filter : filters_) {
       if (!filter(nullptr)) return;
@@ -287,7 +287,7 @@ class LogFileSink final : public absl::LogSink, public base_logging::Logger {
 
   // Logger interface
   void Write(bool force_flush, time_t timestamp, const char* message,
-             int message_len) override {
+             size_t message_len) override {
     log_file_->Write(force_flush, timestamp, message, message_len);
   }
   size_t LogSize() override { return log_file_->LogSize(); };

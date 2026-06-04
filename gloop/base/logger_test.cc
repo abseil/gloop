@@ -67,25 +67,25 @@ using ::absl::log_internal::DiedOfFatal;
 // interpret.  These types are distinct and are printed as such in stacktraces.
 class MockInfoLogger : public base::Logger {
  public:
-  MOCK_METHOD(void, Write, (bool, time_t, const char*, int), (override));
+  MOCK_METHOD(void, Write, (bool, time_t, const char*, size_t), (override));
   MOCK_METHOD(void, Flush, (), (override));
   MOCK_METHOD(size_t, LogSize, (), (override));
 };
 class MockWarningLogger : public base::Logger {
  public:
-  MOCK_METHOD(void, Write, (bool, time_t, const char*, int), (override));
+  MOCK_METHOD(void, Write, (bool, time_t, const char*, size_t), (override));
   MOCK_METHOD(void, Flush, (), (override));
   MOCK_METHOD(size_t, LogSize, (), (override));
 };
 class MockErrorLogger : public base::Logger {
  public:
-  MOCK_METHOD(void, Write, (bool, time_t, const char*, int), (override));
+  MOCK_METHOD(void, Write, (bool, time_t, const char*, size_t), (override));
   MOCK_METHOD(void, Flush, (), (override));
   MOCK_METHOD(size_t, LogSize, (), (override));
 };
 class MockFatalLogger : public base::Logger {
  public:
-  MOCK_METHOD(void, Write, (bool, time_t, const char*, int), (override));
+  MOCK_METHOD(void, Write, (bool, time_t, const char*, size_t), (override));
   MOCK_METHOD(void, Flush, (), (override));
   MOCK_METHOD(size_t, LogSize, (), (override));
 };

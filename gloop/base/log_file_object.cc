@@ -78,7 +78,7 @@ LogFileObject::LogFileObject(absl::LogSeverity severity,
 LogFileObject::~LogFileObject() { CloseLogfile(); }
 
 void LogFileObject::Write(bool force_flush, time_t timestamp,
-                          const char* message, int message_len) {
+                          const char* message, size_t message_len) {
   const absl::Time timestamp_as_time = absl::FromTimeT(timestamp);
 
   // We don't log if the base_name_ is "" (which means "don't write")

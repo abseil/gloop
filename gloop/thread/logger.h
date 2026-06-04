@@ -21,6 +21,8 @@
 #ifndef THIRD_PARTY_GLOOP_THREAD_LOGGER_H_
 #define THIRD_PARTY_GLOOP_THREAD_LOGGER_H_
 
+#include <stddef.h>
+
 #include "absl/base/log_severity.h"
 #include "absl/flags/declare.h"
 #include "gloop/base/log_severity.h"
@@ -37,7 +39,7 @@ extern void EnableThreadedLogging(base_logging::LogSeverity max_severity);
 
 // Maximum log message length handled by threaded logging.
 // Larger messages will be silently truncated to this length.
-static const int kMaxLogLength = 512 * 1024;
+inline constexpr size_t kMaxLogLength = 512 * 1024;
 
 }  // namespace threadlogger
 

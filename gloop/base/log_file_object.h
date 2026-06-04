@@ -47,7 +47,7 @@ class LogFileObject {
   ~LogFileObject();
 
   void Write(bool force_flush, time_t timestamp, const char* message,
-             int message_len);
+             size_t message_len);
 
   // Configuration options
   void SetBasename(const char* basename);

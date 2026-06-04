@@ -51,7 +51,7 @@ class Logger {
   // level logging facility.  For example, textual log messages already contain
   // timestamps and the file:linenumber header.
   virtual void Write(bool force_flush, time_t timestamp, const char* message,
-                     int message_len) = 0;
+                     size_t message_len) = 0;
 
   // `Flush` any buffered messages
   virtual void Flush() = 0;

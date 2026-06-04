@@ -52,7 +52,7 @@ class TestLogger : public base::Logger {
       : counter_(0), flush_counter_(0), delivery_thread_(pthread_self()) {}
 
   void Write(bool force_flush, time_t timestamp, const char* message,
-             int message_len) override {
+             size_t message_len) override {
     absl::MutexLock lock(mutex_);
     counter_++;
     delivery_thread_ = pthread_self();
@@ -112,6 +112,8 @@ int main(int argc, char** argv) {
   InitGoogle(argv[0], &argc, &argv, true);
   threadlogger::EnableThreadedLogging(base_logging::WARNING);
 
+  int expected_messages = kNumMessagesToSend;
+
   // Send a couple of flush commands
   absl::FlushLogSinks();
   absl::FlushLogSinks();
@@ -122,11 +124,11 @@ int main(int argc, char** argv) {
   }
 
   // Wait for the messages to be delivered, but time out after 2 sec.
-  CHECK(logger->WaitForLogSizeAtLeast(kNumMessagesToSend, absl::Seconds(2)))
+  CHECK(logger->WaitForLogSizeAtLeast(expected_messages, absl::Seconds(2)))
       << "Log wasn't flushed even after waiting 2 seconds.";
 
   // All messages must have been delivered
-  CHECK_GE(logger->LogSize(), kNumMessagesToSend);
+  CHECK_GE(logger->LogSize(), expected_messages);
   CHECK_GE(logger->flush_counter(), 2);
 
   // Check that last delivery must have been from another thread

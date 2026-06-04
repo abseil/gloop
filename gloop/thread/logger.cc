@@ -59,7 +59,7 @@ namespace {
 // Block size for SimpleBuffer.  If it is too small we may fragment
 // memory.  If it is too big, we may end up wasting memory.
 // The -16 makes the blocks fit nicely in tcmalloc's internal allocations.
-const int kBlockSize = (32 << 10) - 16;
+const size_t kBlockSize = (32 << 10) - 16;
 
 // ------------------------------------------------------------------------
 // A SimpleBuffer is like a simplified IOBuffer; it has only only Read() and
@@ -76,9 +76,9 @@ class SimpleBuffer {
   ~SimpleBuffer() { LOG(FATAL) << "You may not destroy a SimpleBuffer"; }
 
   // put bytes ptr[0, .., len-1] at the end of the buffer.
-  void Write(const void* ptr, int len) {
+  void Write(const void* ptr, size_t len) {
     // If data doesn't fit in last block, add a block that's big enough.
-    if (block_.empty() || len > kBlockSize - block_.back()->used) {
+    if (block_.empty() || block_.back()->used + len > kBlockSize) {
       block_.push_back(static_cast<Block*>(
           malloc(offsetof(Block, data) + std::max(kBlockSize, len))));
       block_.back()->used = 0;
@@ -92,7 +92,7 @@ class SimpleBuffer {
   // Requires that the bytes being read were written in a single Write()
   // operation.  Ensures that the bytes addressed by the return value will be
   // valid until the next Read().
-  char* Read(int len) {
+  char* Read(size_t len) {
     char* result = nullptr;
     if (!block_.empty() && next_read_offset_ == block_.front()->used) {
       free(block_.front());  // block at front is no longer needed
@@ -109,12 +109,12 @@ class SimpleBuffer {
 
  private:
   struct Block {
-    int used;      // number of bytes used in data[]
+    size_t used;   // number of bytes used in data[]
     char data[1];  // size is max(used, kBlockSize); must be last field
   };
   std::deque<Block*> block_;  // The data buffer is composed of this deque of
                               // blocks.
-  int next_read_offset_;  // Offset of first byte of last Read() in block_[0]
+  size_t next_read_offset_;  // Offset of first byte of last Read() in block_[0]
 };
 
 // ------------------------------------------------------------------------
@@ -141,7 +141,7 @@ struct Command {
   base::Logger* logger;
   bool flush;        // Should logger be flushed?
   time_t timestamp;  // Timestamp of this command
-  int length;        // Length of following message
+  size_t length;     // Length of following message
 };
 
 class ThreadLogWrapper : public base::Logger {
@@ -152,9 +152,8 @@ class ThreadLogWrapper : public base::Logger {
   explicit ThreadLogWrapper(base::Logger* logger) : logger_(logger) {}
 
   void Write(bool force_flush, time_t timestamp, const char* message,
-             int message_len) override {
-    // Check message length
-    assert(message_len >= 0);
+             size_t message_len) override {
+    // Bound the message length
     message_len = std::min(message_len, kMaxLogLength);
 
     absl::MutexLock l(pending_lock);
