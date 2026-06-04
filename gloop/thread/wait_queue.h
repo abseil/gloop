@@ -211,6 +211,11 @@ class WaitQueue {
   // Terminate existing and future *blocking* Wait() requests.  Calls to Wait()
   // when the queue is non-empty are non-blocking, and so those are *not*
   // terminated.
+  //
+  // WARNING: Calling this method while there are blocked pushers (or if a
+  // pusher attempts to push after this) will cause the process to CHECK-fail
+  // and crash. Ensure all pushers have finished pushing and joined before
+  // calling StopWaiters() for graceful shutdown.
   void StopWaiters() {
     absl::MutexLock l(busy_);
     stop_requested_ = true;
@@ -239,18 +244,20 @@ class WaitQueue {
     return !q_.empty() || stop_requested_;
   }
   bool ReadyToPush() const ABSL_SHARED_LOCKS_REQUIRED(busy_) {
-    return q_.size() < max_queue_size_;
+    return q_.size() < max_queue_size_ || stop_requested_;
   }
 
   template <typename U>
   void push_internal(U&& x) ABSL_LOCKS_EXCLUDED(busy_) {
     absl::MutexLock l(busy_, absl::Condition(this, &WaitQueue::ReadyToPush));
+    CHECK(!stop_requested_) << "push called or was blocked after StopWaiters()";
     q_.push_back(std::forward<U>(x));
   }
 
   template <typename U>
   bool push_nowait_internal(U&& x) ABSL_LOCKS_EXCLUDED(busy_) {
     absl::MutexLock l(busy_);
+    CHECK(!stop_requested_) << "push_nowait called after StopWaiters()";
     if (ReadyToPush()) {
       q_.push_back(std::forward<U>(x));
       return true;
@@ -262,12 +269,15 @@ class WaitQueue {
   template <typename U>
   void push_front_internal(U&& x) ABSL_LOCKS_EXCLUDED(busy_) {
     absl::MutexLock l(busy_, absl::Condition(this, &WaitQueue::ReadyToPush));
+    CHECK(!stop_requested_)
+        << "push_front called or was blocked after StopWaiters()";
     q_.push_front(std::forward<U>(x));
   }
 
   template <typename U>
   bool push_front_nowait_internal(U&& x) ABSL_LOCKS_EXCLUDED(busy_) {
     absl::MutexLock l(busy_);
+    CHECK(!stop_requested_) << "push_front_nowait called after StopWaiters()";
     if (ReadyToPush()) {
       q_.push_front(std::forward<U>(x));
       return true;

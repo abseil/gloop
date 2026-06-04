@@ -404,4 +404,71 @@ TEST(PrioritizedWaitQueueTest, TestPrioritizedQueuePushManyByMove) {
   ASSERT_FALSE(src_queue.Pop(&item));
 }
 
+TEST(PrioritizedWaitQueueTest, TestPushAfterStopWaitersDeath) {
+  PrioritizedWaitQueue<int> wq;
+  wq.StopWaiters();
+  EXPECT_DEATH_IF_SUPPORTED(wq.push(1),
+                            "push called or was blocked after StopWaiters()");
+}
+
+TEST(PrioritizedWaitQueueTest, TestBlockedPushDeath) {
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        PrioritizedWaitQueue<int> wq;
+        wq.set_max_queue_size(1);
+        wq.push(1);
+
+        ThreadPool pool(1,
+                        ThreadPool::Options{.thread_options = thread::Options(),
+                                            .queue_capacity = 1});
+        absl::Notification push_started;
+        pool.Schedule([&]() {
+          push_started.Notify();
+          wq.push(2);
+        });
+
+        push_started.WaitForNotification();
+        absl::SleepFor(absl::Milliseconds(50));
+
+        wq.StopWaiters();
+        absl::SleepFor(absl::Seconds(2));
+      },
+      "push called or was blocked after StopWaiters()");
+}
+
+TEST(PrioritizedWaitQueueTest, TestPushManyAfterStopWaitersDeath) {
+  PrioritizedWaitQueue<int> wq;
+  wq.StopWaiters();
+  std::vector<int> items{1};
+  EXPECT_DEATH_IF_SUPPORTED(
+      wq.push_many(items.begin(), items.end()),
+      "push_many called or was blocked after StopWaiters()");
+}
+
+TEST(PrioritizedWaitQueueTest, TestBlockedPushManyDeath) {
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        PrioritizedWaitQueue<int> wq;
+        wq.set_max_queue_size(1);
+        wq.push(1);
+
+        ThreadPool pool(1,
+                        ThreadPool::Options{.thread_options = thread::Options(),
+                                            .queue_capacity = 1});
+        absl::Notification push_started;
+        pool.Schedule([&]() {
+          push_started.Notify();
+          std::vector<int> items{2};
+          wq.push_many(items.begin(), items.end());
+        });
+
+        push_started.WaitForNotification();
+        absl::SleepFor(absl::Milliseconds(50));
+
+        wq.StopWaiters();
+        absl::SleepFor(absl::Seconds(2));
+      },
+      "push_many called or was blocked after StopWaiters()");
+}
+
 }  // namespace

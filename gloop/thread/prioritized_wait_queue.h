@@ -123,7 +123,11 @@ class PrioritizedWaitQueue {
     absl::MutexLock l(busy_);
 
     while (first != last) {
-      while (q_.size() >= max_queue_size_) unfull_.Wait(&busy_);
+      while (q_.size() >= max_queue_size_ && !stop_requested_) {
+        unfull_.Wait(&busy_);
+      }
+      CHECK(!stop_requested_)
+          << "push_many called or was blocked after StopWaiters()";
 
       const size_type available = max_queue_size_ - q_.size();
       const size_type remaining = std::distance(first, last);
@@ -175,10 +179,16 @@ class PrioritizedWaitQueue {
   // Terminate existing and future *blocking* Wait() requests.  Calls to Wait()
   // when the queue is non-empty are non-blocking, and so those are *not*
   // terminated.
+  //
+  // WARNING: Calling this method while there are blocked pushers (or if a
+  // pusher attempts to push after this) will cause the process to CHECK-fail
+  // and crash. Ensure all pushers have finished pushing and joined before
+  // calling StopWaiters() for graceful shutdown.
   void StopWaiters() {
     absl::MutexLock l(busy_);
     stop_requested_ = true;
     ready_.SignalAll();
+    unfull_.SignalAll();
   }
 
   // Copy the current contents of the queue into a separate
@@ -209,7 +219,10 @@ class PrioritizedWaitQueue {
   template <typename U>
   void push_internal(U&& x) ABSL_LOCKS_EXCLUDED(busy_) {
     absl::MutexLock l(busy_);
-    while (q_.size() >= max_queue_size_) unfull_.Wait(&busy_);
+    while (q_.size() >= max_queue_size_ && !stop_requested_) {
+      unfull_.Wait(&busy_);
+    }
+    CHECK(!stop_requested_) << "push called or was blocked after StopWaiters()";
     if (q_.empty()) ready_.Signal();
     q_.push(std::forward<U>(x));
   }

@@ -495,4 +495,58 @@ TEST(WaitQueueTest, TestWaitQueueMove) {
   EXPECT_THAT(val, testing::Pointee(5));
 }
 
+TEST(WaitQueueTest, TestPushAfterStopWaitersDeath) {
+  WaitQueue<int> wq;
+  wq.StopWaiters();
+  EXPECT_DEATH_IF_SUPPORTED(wq.push(1),
+                            "push called or was blocked after StopWaiters()");
+}
+
+TEST(WaitQueueTest, TestPushFrontAfterStopWaitersDeath) {
+  WaitQueue<int> wq;
+  wq.StopWaiters();
+  EXPECT_DEATH_IF_SUPPORTED(
+      wq.push_front(1), "push_front called or was blocked after StopWaiters()");
+}
+
+TEST(WaitQueueTest, TestPushNoWaitAfterStopWaitersDeath) {
+  WaitQueue<int> wq;
+  wq.StopWaiters();
+  EXPECT_DEATH_IF_SUPPORTED(
+      wq.push_nowait(1),
+      "push_nowait called or was blocked after StopWaiters()");
+}
+
+TEST(WaitQueueTest, TestPushFrontNoWaitAfterStopWaitersDeath) {
+  WaitQueue<int> wq;
+  wq.StopWaiters();
+  EXPECT_DEATH_IF_SUPPORTED(wq.push_front_nowait(1),
+                            "push_front_nowait called after StopWaiters()");
+}
+
+TEST(WaitQueueTest, TestBlockedPushDeath) {
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        WaitQueue<int> wq;
+        wq.set_max_queue_size(1);
+        wq.push(1);
+
+        ThreadPool pool(1,
+                        ThreadPool::Options{.thread_options = thread::Options(),
+                                            .queue_capacity = 1});
+        absl::Notification push_started;
+        pool.Schedule([&]() {
+          push_started.Notify();
+          wq.push(2);
+        });
+
+        push_started.WaitForNotification();
+        absl::SleepFor(absl::Milliseconds(50));
+
+        wq.StopWaiters();
+        absl::SleepFor(absl::Seconds(2));
+      },
+      "push called or was blocked after StopWaiters()");
+}
+
 }  // namespace
