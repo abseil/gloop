@@ -344,6 +344,8 @@ class CommandLineFlagParser {
 
   // --[flag] name was not registered
   std::map<std::string, std::string> undefined_names_;
+
+  int flagfile_depth_ = 0;
 };
 
 // Snarf an entire file into a C++ std::string.  This is just so that we
@@ -376,11 +378,19 @@ std::string CommandLineFlagParser::ProcessFlagfile(
     absl::Span<const std::string> filename_list, FlagSettingMode set_mode) {
   if (filename_list.empty()) return "";
 
+  if (flagfile_depth_ > 100) {
+    error_flags_["flagfile"] = "ERROR: Unbounded --flagfile recursion\n";
+    return "";
+  }
+  ++flagfile_depth_;
+
   std::string msg;
   for (const std::string& filename : filename_list) {
     const char* file = filename.c_str();
     msg += ProcessOptionsFromString(ReadFileIntoString(file), set_mode, file);
   }
+
+  --flagfile_depth_;
   return msg;
 }
 

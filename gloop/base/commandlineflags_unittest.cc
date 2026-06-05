@@ -513,6 +513,22 @@ TEST_F(FlagFileTest, FailReadFlagsFromString) {
   EXPECT_EQ("initial", absl::GetFlag(FLAGS_test_string));
 }
 
+#if FILESYSTEM_SUPPORTED
+TEST_F(FlagFileTest, UnboundedRecursion) {
+  std::string filename(TmpFile("flagfile_repro_test.txt"));
+  FILE* f = fopen(filename.c_str(), "w");
+  ASSERT_TRUE(f != nullptr);
+  fprintf(f, "--flagfile=%s\n", filename.c_str());
+  fclose(f);
+
+  std::string flags = absl::StrCat("--flagfile=", filename);
+  // This should return gracefully, printing an error internally.
+  EXPECT_FALSE(ReadFlagsFromString(flags, base::GetArgv0(), false));
+
+  unlink(filename.c_str());
+}
+#endif
+
 using SetFlagValueTest = base::FlagTest;
 
 // Tests that flags can be set to ordinary values.
