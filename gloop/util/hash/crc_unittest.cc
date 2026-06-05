@@ -33,6 +33,8 @@
 #include "absl/log/log.h"
 #include "absl/strings/str_format.h"
 #include "benchmark/benchmark.h"
+#include "gloop/base/init_google.h"
+#include "gtest/gtest.h"
 
 ABSL_FLAG(bool, print_output, false, "print CRC debug information");
 
@@ -531,10 +533,52 @@ static void TestRegression() {
   }
 }
 
-int main(int argc, char* argv[]) {
+TEST(CrcTest, NonPositiveLength) {
+  CRC* crcs[] = {
+      CRC::Default(8, 0),  CRC::Default(16, 0),  CRC::Default(32, 0),
+      CRC::Default(64, 0), CRC::Default(128, 0), CRC::Standard(CRC::CRC_32C, 0),
+  };
+
+  const char data[] = "hello";
+
+  for (CRC* crc : crcs) {
+    uint64_t lo, hi;
+    crc->Empty(&lo, &hi);
+    uint64_t expected_lo = lo;
+    uint64_t expected_hi = hi;
+
+    // Extend should not change the CRC and should not crash/hang.
+    crc->Extend(&lo, &hi, data, 0);
+    EXPECT_EQ(lo, expected_lo);
+    EXPECT_EQ(hi, expected_hi);
+
+#ifdef NDEBUG
+    crc->Extend(&lo, &hi, data, -89);
+    EXPECT_EQ(lo, expected_lo);
+    EXPECT_EQ(hi, expected_hi);
+#else
+    EXPECT_DEATH_IF_SUPPORTED(crc->Extend(&lo, &hi, data, -89), "length >= 0");
+#endif
+
+    // ExtendByZeroes should not change the CRC and should not crash/hang.
+    crc->ExtendByZeroes(&lo, &hi, 0);
+    EXPECT_EQ(lo, expected_lo);
+    EXPECT_EQ(hi, expected_hi);
+
+#ifdef NDEBUG
+    crc->ExtendByZeroes(&lo, &hi, -89);
+    EXPECT_EQ(lo, expected_lo);
+    EXPECT_EQ(hi, expected_hi);
+#else
+    EXPECT_DEATH_IF_SUPPORTED(crc->ExtendByZeroes(&lo, &hi, -89),
+                              "length >= 0");
+#endif
+  }
+}
+
+TEST(CrcTest, LegacyTests) {
 #ifdef ABSL_HAVE_MEMORY_SANITIZER
-  printf("PASS\n");
-  return 0;
+  GTEST_SKIP() << "Skipping for MSAN";
 #endif  // ABSL_HAVE_MEMORY_SANITIZER
 
   TestRegression();
@@ -593,7 +637,12 @@ int main(int argc, char* argv[]) {
   TestScramble();
 
   printf("PASS\n");
-  return 0;
+}
+
+int main(int argc, char* argv[]) {
+  testing::InitGoogleTest(&argc, argv);
+
+  return RUN_ALL_TESTS();
 }
 
 // Run a benchmark of *crc on an array of 'n' bytes for 'iters' iterations
