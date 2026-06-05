@@ -48,6 +48,12 @@
 #include "absl/log/internal/globals.h"
 #include "absl/log/log_entry.h"
 
+static std::atomic<bool> g_go_runtime_initialized{false};
+
+extern "C" void base_go_crash_MarkGoRuntimeInitialized() {
+  g_go_runtime_initialized.store(true, std::memory_order_release);
+}
+
 namespace base_logging {
 namespace logging_internal {
 namespace {
