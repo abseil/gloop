@@ -19,6 +19,7 @@
 // clang-format on
 
 #include <cstdint>
+#include <memory>
 
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
@@ -246,6 +247,66 @@ TEST(ProducerConsumerQueueTest, TestTimeout) {
   elapsed = absl::Now() - start;
   EXPECT_LT(elapsed, absl::Milliseconds(1000));
   EXPECT_EQ(item, &item);
+}
+
+// Verify that the consumer does not miss a Put call when it gets coalesced
+// into a single wakeup together with GetWithTimeout timing out.
+TEST(ProducerConsumerQueueTest, TestTimeoutDoesNotLoseWakeups) {
+  int lost_wakeups = 0;
+  // Run multiple iterations to increase the chance of hitting the race
+  // condition. We found it hits the race about 20% of the time, so 100
+  // iterations is plenty to practically guarantee we catch the bug if it
+  // regresses.
+  for (int iter = 0; iter < 100; ++iter) {
+    ProducerConsumerQueue<void*> queue(10);
+
+    class WaiterThread : public Thread {
+     public:
+      ProducerConsumerQueue<void*>* q;
+      int64_t timeout_ms;
+      bool got_item = false;
+      WaiterThread(ProducerConsumerQueue<void*>* q, int64_t timeout_ms)
+          : q(q), timeout_ms(timeout_ms) {
+        SetJoinable(true);
+      }
+      void Run() override {
+        void* item;
+        if (q->GetWithTimeout(&item, timeout_ms)) {
+          if (item == reinterpret_cast<void*>(static_cast<intptr_t>(1))) {
+            got_item = true;
+          }
+        }
+      }
+    };
+
+    // t1 has a very short timeout to race with Put()
+    auto t1 = std::make_unique<WaiterThread>(&queue, 1);
+    // t2 has a longer timeout to catch the item if t1 times out.
+    // If a wakeup is lost, neither will get the item. We use 2000ms to avoid
+    // flakes due to CPU starvation on highly loaded test machines.
+    auto t2 = std::make_unique<WaiterThread>(&queue, 2000);
+
+    t2->Start();
+    t1->Start();
+
+    // Sleep briefly to align Put() with t1's timeout.
+    absl::SleepFor(absl::Milliseconds(1));
+    queue.Put(reinterpret_cast<void*>(static_cast<intptr_t>(1)));
+
+    t1->Join();
+    // Wake up t2 immediately if it's still waiting.
+    if (t1->got_item) {
+      queue.Put(nullptr);
+    }
+    t2->Join();
+
+    if (!t1->got_item && !t2->got_item) {
+      lost_wakeups++;
+      // Break early so the test doesn't take 200 seconds if it's failing.
+      break;
+    }
+  }
+  EXPECT_EQ(lost_wakeups, 0);
 }
 
 }  // namespace thread

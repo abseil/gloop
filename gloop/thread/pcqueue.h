@@ -306,6 +306,12 @@ bool ProducerConsumerQueue<T>::GetWithTimeout(T* result, int64_t ms) {
     do {
       if (self.cv.WaitWithDeadline(&mutex_, deadline)) {
         // Wait timed out.
+        if (count_.load(std::memory_order_relaxed) > 0) {
+          // WaitWithDeadline can return true even if the condition variable
+          // was signalled, if the deadline was also reached. So we need to
+          // check if there is an element in the queue before returning false.
+          break;
+        }
         RemoveWaiter(&self);
         return false;
       }
