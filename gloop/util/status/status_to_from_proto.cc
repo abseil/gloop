@@ -159,6 +159,9 @@ absl::Status MakeStatusFromProtoHelper(const T& proto, Loc loc) {
   if (has_non_message_set_payload) {
     for (const google::protobuf::Any& p :
          message_set.GetExtension(kNonMessageSetPayloadId).payloads()) {
+      if (status_internal::IsStackTracePayloadUrl(p.type_url())) {
+        continue;
+      }
       ret.SetPayload(p.type_url(), absl::Cord(p.value()));
     }
   }

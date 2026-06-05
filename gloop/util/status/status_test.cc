@@ -24,6 +24,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -987,6 +988,39 @@ TEST(Proto, WithBothPayloads) {
                 "test", {{kUrl, absl::Cord(kPayload)}},
                 {GET_SOURCE_LOCATION(4)});
   }
+}
+
+TEST(Proto, FilterStackTracePayloadFromProto) {
+  util::StatusProto proto;
+  proto.set_code(1);
+  proto.set_space("generic");
+  proto.set_message("internal error");
+
+  // Add stack trace payload
+  google::protobuf::Any* any =
+      proto.mutable_message_set()
+          ->MutableExtension(util::NonMessageSetPayload::message_set_extension)
+          ->add_payloads();
+  any->set_type_url(std::string(util::status_internal::kStackTraceUrl));
+  any->set_value("dummy stack trace data");
+
+  // Add another innocent payload
+  google::protobuf::Any* any2 =
+      proto.mutable_message_set()
+          ->MutableExtension(util::NonMessageSetPayload::message_set_extension)
+          ->add_payloads();
+  any2->set_type_url("type.googleapis.com/some.other.Payload");
+  any2->set_value("some other data");
+
+  absl::Status status = util::MakeStatusFromProto(proto);
+
+  // The status should NOT contain the stack trace payload.
+  EXPECT_EQ(status.GetPayload(util::status_internal::kStackTraceUrl),
+            std::nullopt);
+
+  // But it should preserve the other payload.
+  EXPECT_THAT(status.GetPayload("type.googleapis.com/some.other.Payload"),
+              Optional(Eq("some other data")));
 }
 
 TEST(Proto, UnknownSpace) {

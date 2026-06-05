@@ -26,6 +26,7 @@
 // This internal header contains some declarations shared by .cc files within
 // //gloop/util/task.
 
+#include <cstddef>
 #include <string>
 
 #include "absl/status/status.h"
@@ -39,6 +40,16 @@ namespace status_internal {
 inline constexpr absl::string_view kErrorSpaceUrl =
     "type.googleapis.com/util.ErrorSpacePayload";
 inline constexpr absl::string_view kGenericErrorSpaceName = "generic";
+inline constexpr absl::string_view kStackTraceUrl =
+    "AbslStatusStackTracePayload";
+
+inline bool IsStackTracePayloadUrl(absl::string_view type_url) {
+  size_t last_slash = type_url.find_last_of('/');
+  if (last_slash != absl::string_view::npos) {
+    type_url = type_url.substr(last_slash + 1);
+  }
+  return type_url == kStackTraceUrl;
+}
 
 }  // namespace status_internal
 
