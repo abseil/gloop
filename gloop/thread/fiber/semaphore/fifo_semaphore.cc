@@ -64,6 +64,7 @@ class FifoSelectable : public internal::Selectable {
 bool FifoSelectable::Handle(internal::CaseState* const c, const bool enqueue) {
   absl::MutexLock l(*resource_->mu());
   const uintptr_t amount = internal::Amount(c);
+  CHECK_GE(resource_->capacity(), amount);
   if (*resource_->waiters() == nullptr && resource_->available() >= amount) {
     // No waiters ahead of us, and the operation can be performed immediately.
     absl::MutexLock sel_l(c->sel->mu);
