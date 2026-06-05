@@ -345,3 +345,16 @@ TEST(Array3DTest, Int1x1x7) { FullTestArray3D<int>(1, 1, 7); }
 TEST(Array3DTest, Float2x9x1) { FullTestArray3D<float>(2, 9, 1); }
 TEST(Array3DTest, Float7x4x5) { FullTestArray3D<float>(7, 4, 5); }
 TEST(Array3DTest, Double5x8x2) { FullTestArray3D<double>(5, 8, 2); }
+
+TEST(Array3DTest, IntTruncation) {
+  // Test for integer truncation OOB read/write issue (b/519294946).
+  // Using a foreign buffer to avoid allocating 3GB of memory.
+  char dummy_buffer[1];
+  Array3D<char> a(SHARE_WITH_FOREIGN_INSTANCE, 1, 3, 1LL << 30, dummy_buffer);
+
+  // Verify &a(0, 2, 0) does not wrap around due to int truncation.
+  // 2 * (1<<30) = 2^31, which overflows a signed 32-bit int.
+  const char* base = dummy_buffer;
+  const char* expected = base + (2LL << 30);
+  EXPECT_EQ(&a(0, 2, 0), expected);
+}

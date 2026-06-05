@@ -147,7 +147,7 @@ class Array3D {
 
   T* data_;                  // array elements
   T** n2n3_lut_;             // n2n3_lut_[i] points into data_
-  int* n3_lut_;              // n3_lut_(i,j) points into n2n3_lut_
+  PD* n3_lut_;               // n3_lut_(i,j) points into n2n3_lut_
   bool owns_data_;           // own our data_?
   int number_of_followers_;  // incremented by sharing
   bool compatible_leader_;   // true if leader object is an Array3D
@@ -404,17 +404,17 @@ void Array3D<T>::AllocateDataAndLUT(const PD n1, const PD n2, const PD n3) {
 template <class T>
 void Array3D<T>::AllocateLUT(const PD n1, const PD n2, const PD n3) {
   n2n3_lut_ = new T*[n1];
-  n3_lut_ = new int[n2];
+  n3_lut_ = new PD[n2];
   RecalculateLUT(n1, n2, n3);
 }
 
 template <class T>
 void Array3D<T>::RecalculateLUT(const PD n1, const PD n2, const PD n3) {
-  int w = n2 * n3;
-  for (int i = 0; i < n1; ++i) {
+  const PD w = n2 * n3;
+  for (PD i = 0; i < n1; ++i) {
     n2n3_lut_[i] = &data_[i * w];
   }
-  for (int i = 0; i < n2; ++i) {
+  for (PD i = 0; i < n2; ++i) {
     n3_lut_[i] = i * n3;
   }
 }

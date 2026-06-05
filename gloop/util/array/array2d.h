@@ -421,7 +421,7 @@ void Array2D<T>::AllocateLUT(const PD h, const PD w) {
 
 template <class T>
 void Array2D<T>::RecalculateLUT(const PD h, const PD w) {
-  for (int i = 0; i < h; ++i) row_lut_[i] = &data_[i * w];
+  for (PD i = 0; i < h; ++i) row_lut_[i] = &data_[i * w];
 }
 
 template <class T>
