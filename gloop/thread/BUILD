@@ -784,7 +784,6 @@ cc_test(
     name = "port_threadlocal_test",
     size = "small",
     srcs = ["port/threadlocal_test.cc"],
-    copts = ["-Wno-deprecated-volatile"],
     deps = [
         ":thread",
         "@abseil-cpp//absl/functional:bind_front",
