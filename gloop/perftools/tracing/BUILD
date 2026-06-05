@@ -362,6 +362,40 @@ cc_library(
 )
 
 cc_library(
+    name = "scoped_bridge_trace_event_listener",
+    srcs = ["scoped_bridge_trace_event_listener.cc"],
+    hdrs = ["scoped_bridge_trace_event_listener.h"],
+    visibility = [
+        ":internal_visibility",
+    ],
+    deps = [
+        ":multiplex_trace_event_listener",
+        ":trace_event_listener",
+        ":trace_source_location",
+        ":tracing_base",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/log",
+    ],
+)
+
+cc_test(
+    name = "scoped_bridge_trace_event_listener_test",
+    srcs = ["scoped_bridge_trace_event_listener_test.cc"],
+    deps = [
+        ":mock_trace_event_listener",
+        ":scoped_bridge_trace_event_listener",
+        ":trace_event_listener",
+        ":tracing_base",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/log:scoped_mock_log",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "tracing",
     srcs = ["tracing.cc"],
     hdrs = ["tracing.h"],
