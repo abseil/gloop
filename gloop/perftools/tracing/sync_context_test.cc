@@ -318,6 +318,35 @@ TEST(SyncContextValueSemantics, MoveAssign) {
   EXPECT_THAT(context.listener(), Eq(nullptr));
 }
 
+TEST(SyncContextValueSemantics, SelfCopyAssign) {
+  StrictMock<MockTraceEventListener> mock;
+  SyncContext context;
+  context.AddListener(&mock);
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wself-assign-overloaded"
+  context = context;
+#pragma GCC diagnostic pop
+
+  EXPECT_THAT(context.sync_id(), Eq(kMainSyncId));
+  EXPECT_THAT(context.listener(), Eq(&mock));
+  EXPECT_CALL(mock, ReleaseEventListener());
+}
+
+TEST(SyncContextValueSemantics, SelfMoveAssign) {
+  StrictMock<MockTraceEventListener> mock;
+  SyncContext context;
+  context.AddListener(&mock);
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wself-move"
+  context = std::move(context);
+#pragma GCC diagnostic pop
+
+  EXPECT_THAT(context.sync_id(), Eq(kMainSyncId));
+  EXPECT_THAT(context.listener(), Eq(&mock));
+  EXPECT_CALL(mock, ReleaseEventListener());
+}
 TEST(SyncContextValueSemantics, Swap) {
   StrictMock<MockTraceEventListener> mock1, mock2;
   EXPECT_CALL(mock1, GetEventListener(_)).WillOnce(Return(&mock2));

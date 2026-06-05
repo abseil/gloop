@@ -482,6 +482,7 @@ inline SyncContext::SyncContext(const SyncContext& rhs)
     : impl_(rhs.impl_ ? rhs.impl_->Copy() : nullptr) {}
 
 inline SyncContext& SyncContext::operator=(SyncContext&& rhs) noexcept {
+  if (this == &rhs) return *this;
   if (impl_ != nullptr) {
     delete impl_;
   }
@@ -491,6 +492,7 @@ inline SyncContext& SyncContext::operator=(SyncContext&& rhs) noexcept {
 }
 
 inline SyncContext& SyncContext::operator=(const SyncContext& rhs) {
+  if (this == &rhs) return *this;
   if (impl_) delete impl_;
   impl_ = rhs.impl_ ? rhs.impl_->Copy() : nullptr;
   return *this;
