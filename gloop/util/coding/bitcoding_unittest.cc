@@ -517,6 +517,25 @@ TEST(EncodeDecode, VarInt) {
   }
 }
 
+TEST(EncodeDecode, VarIntOversizedShift) {
+  char buf[32] = {};
+  buf[0] = 0xFF;
+  buf[1] = 0xC0;
+  BitDecoder decoder(buf, sizeof(buf));
+  uint32_t val = 0;
+  EXPECT_FALSE(decoder.GetVarInt(4, &val));
+}
+
+TEST(EncodeDecode, VarInt64OversizedShift) {
+  char buf[32] = {};
+  buf[0] = 0xFF;
+  buf[1] = 0xFF;
+  buf[2] = 0xC0;
+  BitDecoder decoder(buf, sizeof(buf));
+  uint64_t val = 0;
+  EXPECT_FALSE(decoder.GetVarInt64(4, &val));
+}
+
 TEST(EncodeDecode, VarInt32B) {
   for (uint32_t i = 0; i < 4; i++) {
     for (uint32_t j = 0; j < 4; j++) {

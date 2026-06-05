@@ -935,7 +935,7 @@ inline bool BitDecoder::GetProgressiveRice64(int k, int u_max, int m,
 
 inline bool BitDecoder::GetVarInt(int log_base, uint32_t* x) {
   uint32_t len = 0, val = 0;
-  if (!GetUnary(&len)) {
+  if (!GetUnary(&len) || len * log_base > 32) {
     return false;
   }
   if (!GetBits(len * log_base, &val)) {
@@ -955,7 +955,7 @@ inline bool BitDecoder::GetVarInt(int log_base, uint32_t* x) {
 inline bool BitDecoder::GetVarInt64(int log_base, uint64_t* x) {
   uint32_t len;
   uint64_t val;
-  if (!GetUnary(&len)) {
+  if (!GetUnary(&len) || len * log_base > 64) {
     return false;
   }
   if (!GetBits64(len * log_base, &val)) {
