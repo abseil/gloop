@@ -107,12 +107,6 @@
 #include "gloop/util/hash/jenkins_lookup2.h"
 #include "gloop/util/hash/string_hash.h"
 
-namespace absl {
-ABSL_NAMESPACE_BEGIN
-class Cord;
-ABSL_NAMESPACE_END
-}  // namespace absl
-
 // TODO: This is one of the legacy hashes, kept here only
 // temporarily for making it easier to remove the physical dependency
 // to legacy_hash.h
