@@ -751,6 +751,7 @@ cc_library(
     hdrs = ["string_hash_map.h"],
     deps = [
         "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:container_memory",
         "@abseil-cpp//absl/container:hash_function_defaults",
         "@abseil-cpp//absl/container:layout",

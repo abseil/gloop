@@ -21,12 +21,14 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_GTL_STRING_HASH_MAP_H_
 #define THIRD_PARTY_GLOOP_UTIL_GTL_STRING_HASH_MAP_H_
 
+#include <cstdint>
 #include <cstring>
 #include <memory>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/optimization.h"
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/hash_function_defaults.h"
 #include "absl/container/internal/layout.h"
@@ -129,6 +131,9 @@ class Node {
   Node(Node&&) = delete;
 
   absl::string_view key() const {
+    // The assume enables the compiler to elide an unnecessary hardening check
+    // from libc++ (http://shortn/_HYJBVTI2oN).
+    ABSL_ASSUME(size_ <= static_cast<size_t>(PTRDIFF_MAX));
     return absl::string_view(data() + NodeOffsets::kKeyOffset, size_);
   }
 
