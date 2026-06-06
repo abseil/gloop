@@ -163,7 +163,7 @@ in6_addr IPAddress::ipv6_address_slowpath() const {
   // scope ID. In this case we must clear that out of our result.
   in6_addr copy = address_.get_ipv6();
 
-  DCHECK(HasCompactScopeId(copy));
+  DCHECK(address_.has_scope());
   copy.s6_addr16[2] = 0;  // clear the scope_id (interface index)
   copy.s6_addr16[3] = 0;
 
@@ -189,6 +189,7 @@ bool IsAnyIPAddress(const IPAddress& ip) {
       return ip.address_.get_ipv4().s_addr == 0;
 
     case IPAddress::Variant::Type::kIpv6: {
+      if (ip.address_.has_scope()) return false;
       // Note that we need our own static variable so it can be optimized
       // away. Using `in6addr_any` won't work.
       static constexpr in6_addr kAnyIPv6 = IN6ADDR_ANY_INIT;
@@ -408,10 +409,7 @@ char* IPAddress::ToCharBuf(char* const buffer) const {
     }
 
     case IPAddress::Variant::Type::kIpv6: {
-      const in6_addr& a = address_.get_ipv6();
-      return ABSL_PREDICT_FALSE(HasCompactScopeId(a))
-                 ? IPv6ToCharBuf(ipv6_address(), buffer)
-                 : IPv6ToCharBuf(a, buffer);
+      return IPv6ToCharBuf(ipv6_address(), buffer);
     }
 
     case IPAddress::Variant::Type::kUninitialized:
@@ -439,8 +437,7 @@ std::string IPAddress::ToPackedString() const {
     }
 
     case IPAddress::Variant::Type::kIpv6: {
-      const in6_addr& a = address_.get_ipv6();
-      if (ABSL_PREDICT_FALSE(HasCompactScopeId(a))) {
+      if (ABSL_PREDICT_FALSE(address_.has_scope())) {
         // Calling ToPackedString() on an IPv6 link-local address is somewhat
         // suspect. When later de-serialized, even on the same machine, there is
         // no inherent guarantee that a given interface index remains valid. For
@@ -454,7 +451,7 @@ std::string IPAddress::ToPackedString() const {
             sizeof(addr6),
         };
       }
-
+      const in6_addr& a = address_.get_ipv6();
       return std::string{
           reinterpret_cast<const char*>(&a),
           sizeof(a),
@@ -1141,13 +1138,15 @@ absl::weak_ordering ThreeWayCompare(const IPAddress& lhs,
       // Fast path: if the bytes are equal, then we have our answer no matter
       // what the addresses are.
       if (r == 0) {
-        return absl::weak_ordering::equivalent;
+        if (a.has_scope() == b.has_scope()) {
+          return absl::weak_ordering::equivalent;
+        }
+        return ThreeWayCompare_SlowPath(lhs, rhs);
       }
 
       // Fast and common path; if we know there are no compact scope IDs
       // involved, then the numeric comparison gives us our answer.
-      if (ABSL_PREDICT_TRUE(!IPAddress::MayUseCompactScopeIds(addr_a) &&
-                            !IPAddress::MayUseCompactScopeIds(addr_b))) {
+      if (ABSL_PREDICT_TRUE(!a.has_scope() && !b.has_scope())) {
         return r < 0 ? absl::weak_ordering::less : absl::weak_ordering::greater;
       }
 

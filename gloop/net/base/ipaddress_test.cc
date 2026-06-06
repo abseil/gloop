@@ -1253,6 +1253,30 @@ TEST(IPAddressTest, IPv6LinkLocal) {
   EXPECT_EQ(fe80_2.ToPackedString(), fe80_2_if22.ToPackedString());
 }
 
+TEST(IPAddressTest, IPv6ScopeIdCompactSafety) {
+  using ::absl_testing::StatusIs;
+
+  // Repro b/519294482
+  EXPECT_NE(StringToIPAddressOrDie("fe80:0:1::2"),
+            StringToIPAddressOrDie("fe80::2"));
+  EXPECT_NE(StringToIPAddressOrDie("ff02:0:1::2"),
+            StringToIPAddressOrDie("ff02::2"));
+
+  // Verify that we cannot assign a scope ID to these addresses because they
+  // cannot be compactly stored without stomping.
+  const IPAddress fe80_0_1_2 = StringToIPAddressOrDie("fe80:0:1::2");
+  EXPECT_THAT(MakeIPAddressWithScopeId(fe80_0_1_2.ipv6_address(), 5),
+              StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(StringToIPAddressWithOptionalScope("fe80:0:1::2%5"),
+              StatusIs(absl::StatusCode::kInvalidArgument));
+
+  const IPAddress ff02_0_1_2 = StringToIPAddressOrDie("ff02:0:1::2");
+  EXPECT_THAT(MakeIPAddressWithScopeId(ff02_0_1_2.ipv6_address(), 5),
+              StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(StringToIPAddressWithOptionalScope("ff02:0:1::2%5"),
+              StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
 // Test case shamelessly lifted from:
 //
 //     http://en.wikipedia.org/wiki/6to4#Address_block_allocation
