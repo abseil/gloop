@@ -1888,6 +1888,10 @@ CRC* CRC::New(uint64_t lo, uint64_t hi, int degree, size_t roll_length) {
 // This Concat implementation works for arbitrary polynomials.
 void CRC::Concat(uint64_t* pxlo, uint64_t* pxhi, uint64_t ylo, uint64_t yhi,
                  int64_t ylen) {
+  DCHECK_GE(ylen, 0);
+  if (ylen <= 0) {
+    return;
+  }
   // https://en.wikipedia.org/wiki/Mathematics_of_cyclic_redundancy_checks
   // The CRC of a message M is the remainder of polynomial divison modulo G,
   // where the coefficient arithmetic is performed modulo 2 (so +/- are XOR):

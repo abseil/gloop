@@ -573,6 +573,21 @@ TEST(CrcTest, NonPositiveLength) {
     EXPECT_DEATH_IF_SUPPORTED(crc->ExtendByZeroes(&lo, &hi, -89),
                               "length >= 0");
 #endif
+
+    // Concat should not change the CRC and should not crash/hang when
+    // ylen <= 0.
+    crc->Concat(&lo, &hi, 12345, 67890, 0);
+    EXPECT_EQ(lo, expected_lo);
+    EXPECT_EQ(hi, expected_hi);
+
+#ifdef NDEBUG
+    crc->Concat(&lo, &hi, 12345, 67890, -89);
+    EXPECT_EQ(lo, expected_lo);
+    EXPECT_EQ(hi, expected_hi);
+#else
+    EXPECT_DEATH_IF_SUPPORTED(crc->Concat(&lo, &hi, 12345, 67890, -89),
+                              "ylen >= 0");
+#endif
   }
 }
 
