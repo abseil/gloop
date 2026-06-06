@@ -138,18 +138,18 @@ bool FlushDone(int64_t* ptr_to_flush_number) {
 
 // header of command sent to logging thread
 struct Command {
-  base::Logger* logger;
+  base_logging::Logger* logger;
   bool flush;        // Should logger be flushed?
   time_t timestamp;  // Timestamp of this command
   size_t length;     // Length of following message
 };
 
-class ThreadLogWrapper : public base::Logger {
+class ThreadLogWrapper : public base_logging::Logger {
  private:
-  base::Logger* logger_;
+  base_logging::Logger* logger_;
 
  public:
-  explicit ThreadLogWrapper(base::Logger* logger) : logger_(logger) {}
+  explicit ThreadLogWrapper(base_logging::Logger* logger) : logger_(logger) {}
 
   void Write(bool force_flush, time_t timestamp, const char* message,
              size_t message_len) override {
@@ -206,7 +206,7 @@ class LoggingThread : public Thread {
   virtual void Run();
 };
 
-base::Logger* NewThreadedLogWrapper(base::Logger* logger) {
+base_logging::Logger* NewThreadedLogWrapper(base_logging::Logger* logger) {
   return new ThreadLogWrapper(logger);
 }
 
@@ -331,7 +331,10 @@ void EnableThreadedLogging(base_logging::LogSeverity max_severity) {
     }
     for (base_logging::LogSeverity s = end_severity; s < end_severity_requested;
          ++s) {
-      base::SetLogger(s, NewThreadedLogWrapper(base::GetLogger(s)));
+      base_logging::logging_internal::SetLogger(
+          static_cast<absl::LogSeverity>(s),
+          NewThreadedLogWrapper(
+              base_logging::GetLogger(static_cast<absl::LogSeverity>(s))));
     }
     end_severity = end_severity_requested;
   }

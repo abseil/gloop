@@ -45,6 +45,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+namespace base_logging {
 namespace {
 using ::absl::log_internal::LoggingEnabledAt;
 using ::absl::log_internal::WriteToStderr;
@@ -65,25 +66,25 @@ using ::absl::log_internal::DiedOfFatal;
 #if GLOOP_INTERNAL_PROD_LOGGING
 // With more than one mocker of the same type, test failure messages are hard to
 // interpret.  These types are distinct and are printed as such in stacktraces.
-class MockInfoLogger : public base::Logger {
+class MockInfoLogger : public Logger {
  public:
   MOCK_METHOD(void, Write, (bool, time_t, const char*, size_t), (override));
   MOCK_METHOD(void, Flush, (), (override));
   MOCK_METHOD(size_t, LogSize, (), (override));
 };
-class MockWarningLogger : public base::Logger {
+class MockWarningLogger : public Logger {
  public:
   MOCK_METHOD(void, Write, (bool, time_t, const char*, size_t), (override));
   MOCK_METHOD(void, Flush, (), (override));
   MOCK_METHOD(size_t, LogSize, (), (override));
 };
-class MockErrorLogger : public base::Logger {
+class MockErrorLogger : public Logger {
  public:
   MOCK_METHOD(void, Write, (bool, time_t, const char*, size_t), (override));
   MOCK_METHOD(void, Flush, (), (override));
   MOCK_METHOD(size_t, LogSize, (), (override));
 };
-class MockFatalLogger : public base::Logger {
+class MockFatalLogger : public Logger {
  public:
   MOCK_METHOD(void, Write, (bool, time_t, const char*, size_t), (override));
   MOCK_METHOD(void, Flush, (), (override));
@@ -93,10 +94,10 @@ class MockFatalLogger : public base::Logger {
 class LoggerTest : public Test {
  protected:
   LoggerTest()
-      : original_info_logger_(base::GetLogger(absl::LogSeverity::kInfo)),
-        original_warning_logger_(base::GetLogger(absl::LogSeverity::kWarning)),
-        original_error_logger_(base::GetLogger(absl::LogSeverity::kError)),
-        original_fatal_logger_(base::GetLogger(absl::LogSeverity::kFatal)) {
+      : original_info_logger_(GetLogger(absl::LogSeverity::kInfo)),
+        original_warning_logger_(GetLogger(absl::LogSeverity::kWarning)),
+        original_error_logger_(GetLogger(absl::LogSeverity::kError)),
+        original_fatal_logger_(GetLogger(absl::LogSeverity::kFatal)) {
     absl::SetFlag(&FLAGS_logtostderr, false);
 
     info_logger_ = new StrictMock<MockInfoLogger>;
@@ -112,16 +113,20 @@ class LoggerTest : public Test {
       delete fatal_logger_;
       return;
     }
-    base::SetLogger(absl::LogSeverity::kInfo, original_info_logger_);
-    base::SetLogger(absl::LogSeverity::kWarning, original_warning_logger_);
-    base::SetLogger(absl::LogSeverity::kError, original_error_logger_);
-    base::SetLogger(absl::LogSeverity::kFatal, original_fatal_logger_);
+    logging_internal::SetLogger(absl::LogSeverity::kInfo,
+                                original_info_logger_);
+    logging_internal::SetLogger(absl::LogSeverity::kWarning,
+                                original_warning_logger_);
+    logging_internal::SetLogger(absl::LogSeverity::kError,
+                                original_error_logger_);
+    logging_internal::SetLogger(absl::LogSeverity::kFatal,
+                                original_fatal_logger_);
   }
   void ActivateMockLoggers() {
-    base::SetLogger(absl::LogSeverity::kInfo, info_logger_);
-    base::SetLogger(absl::LogSeverity::kWarning, warning_logger_);
-    base::SetLogger(absl::LogSeverity::kError, error_logger_);
-    base::SetLogger(absl::LogSeverity::kFatal, fatal_logger_);
+    logging_internal::SetLogger(absl::LogSeverity::kInfo, info_logger_);
+    logging_internal::SetLogger(absl::LogSeverity::kWarning, warning_logger_);
+    logging_internal::SetLogger(absl::LogSeverity::kError, error_logger_);
+    logging_internal::SetLogger(absl::LogSeverity::kFatal, fatal_logger_);
     mocks_activated_ = true;
   }
 
@@ -129,10 +134,10 @@ class LoggerTest : public Test {
   StrictMock<MockWarningLogger>* warning_logger_;
   StrictMock<MockErrorLogger>* error_logger_;
   StrictMock<MockFatalLogger>* fatal_logger_;
-  base::Logger* original_info_logger_;
-  base::Logger* original_warning_logger_;
-  base::Logger* original_error_logger_;
-  base::Logger* original_fatal_logger_;
+  Logger* original_info_logger_;
+  Logger* original_warning_logger_;
+  Logger* original_error_logger_;
+  Logger* original_fatal_logger_;
   bool mocks_activated_ = false;
 };
 #if GTEST_HAS_DEATH_TEST
@@ -187,10 +192,11 @@ TEST_F(LoggerTest, FlushesFatal) {
   FlushLogFiles(absl::LogSeverity::kFatal);
 }
 TEST_F(LoggerTest, Nullptr) {
-  base_logging::EnableLogToFiles(false);
+  EnableLogToFiles(false);
   FlushLogFiles(absl::LogSeverity::kInfo);
-  base_logging::EnableLogToFiles(true);
+  EnableLogToFiles(true);
 }
 #endif  // GLOOP_INTERNAL_PROD_LOGGING
 
 }  // namespace
+}  // namespace base_logging

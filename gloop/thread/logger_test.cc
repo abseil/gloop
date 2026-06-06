@@ -46,7 +46,7 @@ static const int kNumMessagesToSend = 100;
 
 // Special testing logger that counts messages and can be delayed
 // by testing code.
-class TestLogger : public base::Logger {
+class TestLogger : public base_logging::Logger {
  public:
   TestLogger()
       : counter_(0), flush_counter_(0), delivery_thread_(pthread_self()) {}
@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
   TestLogger* logger = new TestLogger;
 
   // SetLogger takes ownership of logger.
-  base::SetLogger(base_logging::INFO, logger);
+  base_logging::logging_internal::SetLogger(absl::LogSeverity::kInfo, logger);
 
   InitGoogle(argv[0], &argc, &argv, true);
   threadlogger::EnableThreadedLogging(base_logging::WARNING);

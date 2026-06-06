@@ -137,8 +137,7 @@ namespace logging_internal {
 // TODO: Delete this method. It is only used by the bridge.
 // If new LogFile sink is created, it is automatically registered in the global
 // sinks list.
-std::shared_ptr<absl::LogSink> GetLogFileSink(absl::LogSeverity severity,
-                                              bool create);
+std::shared_ptr<absl::LogSink> GetLogFileSink(absl::LogSeverity severity);
 }  // namespace logging_internal
 
 // Registers default log file sinks, if no custom registered before.

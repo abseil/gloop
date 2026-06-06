@@ -20,6 +20,8 @@
 
 #include "gloop/base/log_file.h"
 
+#include "gloop/base/config.h"
+
 #if GLOOP_INTERNAL_PROD_LOGGING
 
 #include <cassert>
@@ -316,11 +318,10 @@ static std::shared_ptr<absl::LogSink> GetLogFileSinkLocked(
   return *sink;
 }
 
-std::shared_ptr<absl::LogSink> GetLogFileSink(absl::LogSeverity severity,
-                                              bool create)
+std::shared_ptr<absl::LogSink> GetLogFileSink(absl::LogSeverity severity)
     ABSL_LOCKS_EXCLUDED(log_file_sinks_guard) {
   absl::MutexLock lock(log_file_sinks_guard);
-  return GetLogFileSinkLocked(severity, create);
+  return GetLogFileSinkLocked(severity, /*create=*/true);
 }
 }  // namespace logging_internal
 

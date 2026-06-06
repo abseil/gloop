@@ -64,12 +64,12 @@ void SaveBorrowedReference(std::shared_ptr<absl::LogSink> sink)
   (*borrowed_sink_references)[sink.get()] = sink;
 }
 
-using BorrowedLoggerReferences = absl::flat_hash_set<base::Logger*>;
+using BorrowedLoggerReferences = absl::flat_hash_set<Logger*>;
 ABSL_CONST_INIT BorrowedLoggerReferences* borrowed_logger_references
     ABSL_GUARDED_BY(borrowed_references_guard)
         ABSL_PT_GUARDED_BY(borrowed_references_guard) = nullptr;
 
-void SaveBorrowedReference(base::Logger* logger)
+void SaveBorrowedReference(Logger* logger)
     ABSL_LOCKS_EXCLUDED(borrowed_references_guard) {
   absl::MutexLock lock(borrowed_references_guard);
   if (!borrowed_logger_references) {
@@ -141,7 +141,6 @@ class LogFileSinkToLoggerBridge final : public absl::LogSink {
 
 }  // namespace
 
-namespace logging_internal {
 // Returns currently active Logger or LogFileSink for specified `severity`. If
 // create is false, it may return nullptr, if no Logger/LogFileSink were
 // registered before by calls to SetLogger or InitializeLogFileSinks.
@@ -149,8 +148,9 @@ namespace logging_internal {
 // was created via the call to SetLogger, we return underlying Logger pointer.
 // Otherwise we return LogFileSink, which is expected to implement the Logger
 // interface.
-base::Logger* GetLogger(absl::LogSeverity severity, bool create) {
-  std::shared_ptr<absl::LogSink> log_file = GetLogFileSink(severity, create);
+Logger* GetLogger(absl::LogSeverity severity) {
+  std::shared_ptr<absl::LogSink> log_file =
+      logging_internal::GetLogFileSink(severity);
   if (!log_file) return nullptr;
   auto* bridge = dynamic_cast<LogFileSinkToLoggerBridge*>(log_file.get());
   if (bridge != nullptr) {
@@ -164,7 +164,8 @@ base::Logger* GetLogger(absl::LogSeverity severity, bool create) {
   assert(logger != nullptr);
   return logger;
 }
-}  // namespace logging_internal
+
+namespace logging_internal {
 
 // Sets `logger` to represent a currently active LogFileSink
 // If `logger` is nullptr, we replace the current LogFileSink with nullptr,
@@ -173,6 +174,7 @@ base::Logger* GetLogger(absl::LogSeverity severity, bool create) {
 // for it and use it to set the current LogFileSink. Otherwise we create a new
 // LogFileSinkToLoggerBridge, which will refer to the specified `logger`.
 // Note that bridge does not own the logger instance, but only points to it.
+// A logger instance may only be registered once per severity.
 void SetLogger(absl::LogSeverity severity, Logger* logger) {
   if (logger == nullptr) {
     base_logging::ReplaceLogFileSink(severity,
@@ -189,5 +191,7 @@ void SetLogger(absl::LogSeverity severity, Logger* logger) {
   ReplaceLogFileSink(
       severity, std::make_shared<LogFileSinkToLoggerBridge>(severity, logger));
 }
+
+}  // namespace logging_internal
 }  // namespace base_logging
 #endif  // GLOOP_INTERNAL_PROD_LOGGING

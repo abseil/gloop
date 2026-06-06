@@ -64,44 +64,16 @@ class Logger {
   virtual void UnusedKeyMethod();  // <link>
 };
 
+namespace logging_internal {
+void SetLogger(absl::LogSeverity severity, Logger* logger);
+}  // namespace logging_internal
+
 // Get the `Logger` for the specified severity level.  The logger remains the
 // property of the logging module and should not be deleted by the caller.
 // Thread-safe.
-namespace logging_internal {
-Logger* GetLogger(absl::LogSeverity severity, bool create = true);
-}  // namespace logging_internal
-inline Logger* GetLogger(absl::LogSeverity severity) {
-  return logging_internal::GetLogger(severity, true);
-}
-inline Logger* GetLogger(base_logging::LogSeverity severity) {
-  return GetLogger(static_cast<absl::LogSeverity>(severity));
-}
-// Set the `Logger` for the specified severity level.  The logger becomes the
-// property of the logging module and should not be deleted by the caller.
-// Thread-safe.
-void SetLogger(absl::LogSeverity severity, Logger* logger);
-inline void SetLogger(base_logging::LogSeverity severity, Logger* logger) {
-  SetLogger(static_cast<absl::LogSeverity>(severity), logger);
-}
+Logger* GetLogger(absl::LogSeverity severity);
+
 }  // namespace base_logging
-
-// deprecated aliases (to be deleted)
-namespace base {
-using Logger = base_logging::Logger;
-inline Logger* GetLogger(absl::LogSeverity severity) {
-  return base_logging::GetLogger(severity);
-}
-inline Logger* GetLogger(base_logging::LogSeverity severity) {
-  return base_logging::GetLogger(static_cast<absl::LogSeverity>(severity));
-}
-inline void SetLogger(absl::LogSeverity severity, Logger* logger) {
-  base_logging::SetLogger(severity, logger);
-}
-inline void SetLogger(base_logging::LogSeverity severity, Logger* logger) {
-  base_logging::SetLogger(static_cast<absl::LogSeverity>(severity), logger);
-}
-
-}  // namespace base
 
 #endif  // GLOOP_INTERNAL_PROD_LOGGING
 
