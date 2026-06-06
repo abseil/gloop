@@ -513,6 +513,26 @@ TEST_F(FlagFileTest, FailReadFlagsFromString) {
   EXPECT_EQ("initial", absl::GetFlag(FLAGS_test_string));
 }
 
+TEST_F(FlagFileTest, NonExistentFlagFileNotFatal) {
+  // If errors_are_fatal is false, it should return false but not crash.
+  EXPECT_FALSE(ReadFlagsFromString(
+      "--flagfile=/nonexistent_dir_for_repro/definitely_not_here.flags",
+      base::GetArgv0(),
+      /*errors_are_fatal=*/false));
+}
+
+#if GTEST_HAS_DEATH_TEST
+TEST_F(ReadFlagsFromStringDeathTest, NonExistentFlagFileFatal) {
+  // If errors_are_fatal is true, it should crash.
+  EXPECT_DEATH_IF_SUPPORTED(
+      ReadFlagsFromString(
+          "--flagfile=/nonexistent_dir_for_repro/definitely_not_here.flags",
+          base::GetArgv0(),
+          /*errors_are_fatal=*/true),
+      "Failed to open flagfile");
+}
+#endif
+
 #if FILESYSTEM_SUPPORTED
 TEST_F(FlagFileTest, UnboundedRecursion) {
   std::string filename(TmpFile("flagfile_repro_test.txt"));

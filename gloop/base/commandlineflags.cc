@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cerrno>
 #include <cstdlib>
 #include <functional>
 #include <iostream>
@@ -48,6 +49,7 @@
 #include "absl/base/no_destructor.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
+#include "absl/cleanup/cleanup.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/flags/commandlineflag.h"
 #include "absl/flags/config.h"
@@ -76,6 +78,7 @@
 #include "absl/types/span.h"
 #include "gloop/base/config.h"
 #include "gloop/base/logging_extensions.h"
+#include "gloop/base/strerror.h"
 
 #if GOOGLE_HAVE_FNMATCH
 #include <fnmatch.h>
@@ -352,26 +355,29 @@ class CommandLineFlagParser {
 // can do all the I/O in one place and not worry about it everywhere.
 // Plus, it's convenient to have the whole file contents at hand.
 // Adds a newline at the end of the file.
-#define PFATAL(s) \
-  do {            \
-    perror(s);    \
-    exit(1);      \
-  } while (0)
-
-static std::string ReadFileIntoString(const char* filename) {
+static bool ReadFileIntoString(const char* filename, std::string* out_or_err) {
   const int kBufSize = 8092;
   char buffer[kBufSize];
-  std::string s;
   FILE* fp = fopen(filename, "r");
-  if (!fp) PFATAL(filename);
+  if (!fp) {
+    *out_or_err = base::StrError(errno);
+    return false;
+  }
+  auto fcleanup = absl::MakeCleanup([fp] { fclose(fp); });
+  out_or_err->clear();
   size_t n;
   while ((n = fread(buffer, 1, kBufSize, fp)) > 0) {
-    if (ferror(fp)) PFATAL(filename);
-    s.append(buffer, n);
+    if (ferror(fp)) {
+      *out_or_err = base::StrError(errno);
+      return false;
+    }
+    out_or_err->append(buffer, n);
   }
-  if (ferror(fp)) PFATAL(filename);
-  fclose(fp);
-  return s;
+  if (ferror(fp)) {
+    *out_or_err = base::StrError(errno);
+    return false;
+  }
+  return true;
 }
 
 std::string CommandLineFlagParser::ProcessFlagfile(
@@ -387,7 +393,14 @@ std::string CommandLineFlagParser::ProcessFlagfile(
   std::string msg;
   for (const std::string& filename : filename_list) {
     const char* file = filename.c_str();
-    msg += ProcessOptionsFromString(ReadFileIntoString(file), set_mode, file);
+    std::string content_or_err;
+    if (!ReadFileIntoString(file, &content_or_err)) {
+      error_flags_[filename] = absl::StrFormat(
+          "%sFailed to open flagfile %s: %s\n", kError, file, content_or_err);
+      continue;
+    }
+    absl::StrAppend(&msg,
+                    ProcessOptionsFromString(content_or_err, set_mode, file));
   }
 
   --flagfile_depth_;
