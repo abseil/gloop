@@ -32,6 +32,8 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_GTL_VALUE_OR_DIE_H_
 #define THIRD_PARTY_GLOOP_UTIL_GTL_VALUE_OR_DIE_H_
 
+#include <type_traits>
+
 #include "absl/base/attributes.h"
 #include "absl/base/optimization.h"
 #include "absl/status/status.h"
@@ -45,47 +47,43 @@ namespace internal_value_or_die {
 ABSL_ATTRIBUTE_NORETURN void DieBecauseEmptyValue(
     absl::SourceLocation loc, const absl::Status* status = nullptr);
 
-// SFINAE helper to detect instances of StatusOr<T>.
-template <int&... kDoNotSpecify, typename T>
-void IsStatusOr(const absl::StatusOr<T>&);
-template <int&... kDoNotSpecify, typename T>
-void IsStatusOr(const absl::StatusOr<T&>&) = delete;
-
-template <int&... kDoNotSpecify, typename T>
-void IsStatusOrRef(const absl::StatusOr<T&>&);
+// SFINAE helper that checks whether StatusOr<T>'s T satisfies the given Trait.
+template <template <class> class Trait, class T>
+Trait<T> IsStatusOrOf(const absl::StatusOr<T>&);
 
 }  // namespace internal_value_or_die
 
-template <
-    int&... kDoNotSpecify, typename T,
-    typename = decltype(internal_value_or_die::IsStatusOr(std::declval<T>()))>
-decltype(auto) ValueOrDie(
-    T&& value ABSL_ATTRIBUTE_LIFETIME_BOUND,
-    absl::SourceLocation loc = absl::SourceLocation::current()) {
+template <int&... kDoNotSpecify, typename T>
+std::enable_if_t<decltype(internal_value_or_die::IsStatusOrOf<std::is_object>(
+                     std::declval<T>()))::value,
+                 decltype(*std::declval<T>())>
+ValueOrDie(T&& value ABSL_ATTRIBUTE_LIFETIME_BOUND,
+           absl::SourceLocation loc = absl::SourceLocation::current()) {
   if (ABSL_PREDICT_FALSE(!value.ok())) {
     internal_value_or_die::DieBecauseEmptyValue(loc, &value.status());
   }
   return *std::forward<T>(value);
 }
 
-// As above, for the StatusOr<T&>, where we don't use LIFETIME_BOUND.
-template <int&... kDoNotSpecify, typename T,
-          decltype(internal_value_or_die::IsStatusOrRef(std::declval<T>()))* =
-              nullptr>
-decltype(auto) ValueOrDie(
-    T&& value, absl::SourceLocation loc = absl::SourceLocation::current()) {
+// As above, but without ABSL_ATTRIBUTE_LIFETIME_BOUND.
+template <int&... kDoNotSpecify, typename T>
+std::enable_if_t<decltype(internal_value_or_die::IsStatusOrOf<
+                          std::is_reference>(std::declval<T>()))::value,
+                 decltype(*std::declval<T>())>
+ValueOrDie(T&& value,
+           absl::SourceLocation loc = absl::SourceLocation::current()) {
   if (ABSL_PREDICT_FALSE(!value.ok())) {
     internal_value_or_die::DieBecauseEmptyValue(loc, &value.status());
   }
   return *std::forward<T>(value);
 }
 
-template <int&... kDoNotSpecify, typename T,
-          typename = decltype(*std::declval<T>()),
-          decltype(static_cast<bool>(std::declval<T>())) = true>
-decltype(auto) ValueOrDie(
-    T&& value ABSL_ATTRIBUTE_LIFETIME_BOUND,
-    absl::SourceLocation loc = absl::SourceLocation::current()) {
+template <int&... kDoNotSpecify, typename T>
+std::enable_if_t<
+    std::is_object_v<decltype(static_cast<bool>(std::declval<T>()))>,
+    decltype(*std::declval<T>())>
+ValueOrDie(T&& value ABSL_ATTRIBUTE_LIFETIME_BOUND,
+           absl::SourceLocation loc = absl::SourceLocation::current()) {
   if (ABSL_PREDICT_FALSE(!value)) {
     internal_value_or_die::DieBecauseEmptyValue(loc);
   }
@@ -93,9 +91,8 @@ decltype(auto) ValueOrDie(
 }
 
 template <int&... kDoNotSpecify, typename T>
-decltype(auto) ValueOrDie(
-    T* value ABSL_ATTRIBUTE_LIFETIME_BOUND,
-    absl::SourceLocation loc = absl::SourceLocation::current()) {
+T& ValueOrDie(T* value ABSL_ATTRIBUTE_LIFETIME_BOUND,
+              absl::SourceLocation loc = absl::SourceLocation::current()) {
   if (ABSL_PREDICT_FALSE(!value)) {
     internal_value_or_die::DieBecauseEmptyValue(loc);
   }
