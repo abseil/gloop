@@ -506,11 +506,17 @@ TEST_F(FlagFileTest, FailReadFlagsFromString) {
       "-test_double=illegal\n");
 
   EXPECT_FALSE(ReadFlagsFromString(flags, base::GetArgv0(),
-                                   // errors are fatal
-                                   false));
+                                   /*errors_are_fatal=*/false));
 
   EXPECT_EQ(119, absl::GetFlag(FLAGS_test_int32));
   EXPECT_EQ("initial", absl::GetFlag(FLAGS_test_string));
+}
+
+TEST_F(FlagFileTest, ReadFlagsFromStringEdgeCases) {
+  EXPECT_TRUE(ReadFlagsFromString("--", "/a/b", /*errors_are_fatal=*/false));
+  EXPECT_TRUE(ReadFlagsFromString("-", "/a/b", /*errors_are_fatal=*/false));
+  EXPECT_TRUE(ReadFlagsFromString("--=", "/a/b", /*errors_are_fatal=*/false));
+  EXPECT_TRUE(ReadFlagsFromString("-=x", "/a/b", /*errors_are_fatal=*/false));
 }
 
 TEST_F(FlagFileTest, NonExistentFlagFileNotFatal) {

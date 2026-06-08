@@ -233,7 +233,7 @@ static absl::CommandLineFlag* SplitArgument(const char* arg, std::string* key,
     // The one exception is if 1) the flag-name is 'nox', 2) there
     // exists a flag named 'x', and 3) 'x' is a boolean flag.
     // In that case, we want to return flag 'x'.
-    if (!(flag_name[0] == 'n' && flag_name[1] == 'o')) {
+    if (!absl::StartsWith(flag_name, "no")) {
       // flag-name is not 'nox', so we're not in the exception case.
       *error_message =
           absl::StrFormat("%sUnknown command line flag '%s'\n", kError, *key);
