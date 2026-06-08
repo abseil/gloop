@@ -203,11 +203,6 @@ inline bool safe_strtou64(absl::string_view text, uint64_t* value) {
   return absl::SimpleAtoi(text, value);
 }
 
-ABSL_DEPRECATE_AND_INLINE()
-inline bool safe_strtosize_t(absl::string_view text, size_t* value) {
-  return absl::SimpleAtoi(text, value);
-}
-
 // Converts a fingerprint to 16 hex digits.
 std::string FpToString(Fprint fp);
 
