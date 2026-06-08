@@ -29,6 +29,7 @@
 #include <sys/types.h>
 
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <memory>
 #include <string>
@@ -174,7 +175,13 @@ bool NSSInfo<Data, UserKey, Key, LookupFn>::Lookup(const UserKey& key) {
       // lookups sometimes involves significant disk I/O, if the
       // buffer is less than 512 KB, we grow by 8X (1 KB, 8 KB, 64K, 512 KB).
       // Thereafter, we just double in size (1 MB, 2 MB, etc.).
-      rec->buffer.resize((bufsize < 524288) ? (bufsize * 8) : (bufsize * 2));
+      const int growth_factor = bufsize < (512 << 10) ? 8 : 2;
+      if (bufsize >= std::numeric_limits<int>::max() / growth_factor) {
+        // Keep the error and avoid integer overflow or unbounded memory growth
+        break;
+      }
+
+      rec->buffer.resize(bufsize * growth_factor);
     }
   } while (!res);
 

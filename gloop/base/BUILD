@@ -1902,6 +1902,20 @@ cc_test(
     ],
 )
 
+cc_test(
+    name = "nsscache_getgrnam_unittest",
+    size = "medium",
+    srcs = [
+        "nsscache_getgrnam_unittest.cc",
+    ],
+    deps = [
+        ":nsscache",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 cc_library(
     name = "logging",
     srcs = ["logging.cc"],
