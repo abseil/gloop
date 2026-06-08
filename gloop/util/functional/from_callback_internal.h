@@ -154,7 +154,7 @@ struct CallbackTypeImpl<R> {
 
 template <typename A1>
 struct CallbackTypeImpl<void, A1> {
-  using type = Callback1<A1>;
+  using type = internal::Callback<void, A1>;
 };
 
 template <typename R, typename A1>
