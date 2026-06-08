@@ -175,56 +175,6 @@ cc_binary(
     "clone",
 ]]
 
-# Use list comprehension to create multiple cc_test targets.
-[cc_test(
-    name = "subprocess_unittest_" + subprocess_fork_method + "_static",
-    size = "large",
-    srcs = ["subprocess_unittest.cc"],
-    args = ["--subprocess_fork_method=" + subprocess_fork_method],
-    data = [
-        ":subprocess_unittest_helper",
-    ],
-    features = ["fully_static_link"],
-    linkstatic = 1,
-    tags = ["nosan"],
-    deps = [
-        ":process",
-        "//gloop:gloop_test_main",
-        "//gloop/base:callback",
-        "//gloop/base:file_toc",
-        "//gloop/base:linux_syscall_support",
-        "//gloop/base:logging_extensions",
-        "//gloop/base:strerror",
-        "//gloop/base:sysinfo",
-        "//gloop/base:time_support",
-        "//gloop/base:walltime",
-        "//gloop/thread",
-        "//gloop/thread/fiber",
-        "//gloop/thread/fiber:fiber-options",
-        "//gloop/thread/fiber:fifolifo-schedulers",
-        "//gloop/thread/fiber:select",
-        "//gloop/util/functional:from_callback",
-        "//gloop/util/functional:to_callback",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/cleanup",
-        "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/functional:bind_front",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:status_matchers",
-        "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/strings:str_format",
-        "@abseil-cpp//absl/synchronization",
-        "@abseil-cpp//absl/time",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
-    ],
-) for subprocess_fork_method in [
-    "fork",
-    "clone",
-]]
-
 cc_test(
     name = "subprocess_signal_test",
     size = "small",
