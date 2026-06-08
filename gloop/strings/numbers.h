@@ -316,10 +316,27 @@ bool ParseLeadingBoolValue(absl::string_view str, bool deflt);
 // return value of 0 indicates an error.
 size_t u64tostr_base36(uint64_t number, size_t buf_size, char* buffer);
 
+// Parses a string representation of a 64-bit unsigned integer, optionally
+// followed by a size suffix ('K', 'M', 'G', 'T', case-insensitive).  These are
+// binary sizes, based on powers of 1024 (equivalent to KiB, MiB, GiB, TiB).
+//
+// Returns the parsed and scaled value, or std::nullopt if the string is empty,
+// contains invalid characters, has trailing characters after the suffix, or if
+// the value overflows.
+//
+// New users should prefer //gloop/util/units/bytes.h instead, which handles
+// both binary and decimal units and differentiates more clearly between the
+// two.
+std::optional<uint64_t> AtoiKMGT(absl::string_view s);
+
 // Converts the given string representation into a 64-bit unsigned integer
 // value similar to `atoi(s)`, except `s` may refer to metric size suffixes for
-// kilo, mega, giga, and tera. (E.g. 16k", "32M", "2G", "4t").
+// kilo, mega, giga, and tera. (E.g. "16k", "32M", "2G", "4t").
+//
+// Deprecated. Use AtoiKMGT or //gloop/util/units/bytes.h instead.
+ABSL_DEPRECATED("Use AtoiKMGT instead")
 uint64_t atoi_kmgt(const char* s);
+ABSL_DEPRECATED("Use AtoiKMGT instead")
 inline uint64_t atoi_kmgt(const std::string& s) { return atoi_kmgt(s.c_str()); }
 
 // Converts an integer to a string. Truncates values to K, G, M or T as

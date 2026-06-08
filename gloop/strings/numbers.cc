@@ -30,6 +30,7 @@
 #include <ctime>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "absl/base/internal/raw_logging.h"
@@ -638,6 +639,47 @@ int64_t ParseLeadingDec64Value(absl::string_view str, int64_t deflt) {
 
 uint64_t ParseLeadingUDec64Value(absl::string_view str, uint64_t deflt) {
   return ParseLeadingUDec64Value(ZeroTerminated(str), deflt);
+}
+
+std::optional<uint64_t> AtoiKMGT(absl::string_view s) {
+  s = absl::StripAsciiWhitespace(s);
+  if (s.empty()) return std::nullopt;
+
+  uint64_t scale = 1;
+  char suffix = s.back();
+  absl::string_view number_part = s;
+
+  if (!absl::ascii_isdigit(suffix)) {
+    suffix = absl::ascii_toupper(suffix);
+    switch (suffix) {
+      case 'K':
+        scale = uint64_t{1} << 10;
+        break;
+      case 'M':
+        scale = uint64_t{1} << 20;
+        break;
+      case 'G':
+        scale = uint64_t{1} << 30;
+        break;
+      case 'T':
+        scale = uint64_t{1} << 40;
+        break;
+      default:
+        return std::nullopt;
+    }
+    number_part.remove_suffix(1);
+  }
+
+  uint64_t n;
+  if (!absl::SimpleAtoi(number_part, &n)) {
+    return std::nullopt;
+  }
+
+  if (scale > 1 && n > std::numeric_limits<uint64_t>::max() / scale) {
+    return std::nullopt;
+  }
+
+  return n * scale;
 }
 
 uint64_t atoi_kmgt(const char* s) {

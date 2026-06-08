@@ -38,6 +38,7 @@
 #include <ctime>
 #include <ios>
 #include <limits>
+#include <optional>
 #include <random>
 #include <string>
 #include <vector>
@@ -52,6 +53,7 @@
 #include "absl/strings/string_view.h"
 #include "gloop/base/fprint.h"
 #include "gloop/strings/numbers_test_common.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace strings {
@@ -60,6 +62,8 @@ namespace {
 
 // Run all ParseDoubleRange() tests. Otherwise runs a few.
 const bool all_parserange_tests = false;
+
+using ::testing::Optional;
 
 }  // namespace
 
@@ -2456,6 +2460,38 @@ TEST_F(SimpleDtoaTest, SimpleFtoa) {
   TestFtoaRoundTrip(std::numeric_limits<float>::infinity(), 3);
   TestFtoaRoundTrip(-std::numeric_limits<float>::infinity(), 3);
   TestFtoaRoundTrip(std::numeric_limits<float>::quiet_NaN(), 3);
+}
+
+TEST(Numbers, TestAtoiKMGT) {
+  // Valid inputs
+  EXPECT_THAT(AtoiKMGT("321k"), Optional(uint64_t{321} << 10));
+  EXPECT_THAT(AtoiKMGT("321m"), Optional(uint64_t{321} << 20));
+  EXPECT_THAT(AtoiKMGT("321g"), Optional(uint64_t{321} << 30));
+  EXPECT_THAT(AtoiKMGT("321t"), Optional(uint64_t{321} << 40));
+
+  EXPECT_THAT(AtoiKMGT("123K"), Optional(uint64_t{123} << 10));
+  EXPECT_THAT(AtoiKMGT("123M"), Optional(uint64_t{123} << 20));
+  EXPECT_THAT(AtoiKMGT("123G"), Optional(uint64_t{123} << 30));
+  EXPECT_THAT(AtoiKMGT("123T"), Optional(uint64_t{123} << 40));
+
+  EXPECT_THAT(AtoiKMGT("321"), Optional(321));
+  EXPECT_THAT(AtoiKMGT(" 321K "), Optional(uint64_t{321} << 10));
+  EXPECT_THAT(AtoiKMGT("0"), Optional(0));
+
+  // Invalid inputs
+  EXPECT_EQ(AtoiKMGT(""), std::nullopt);
+  EXPECT_EQ(AtoiKMGT("  "), std::nullopt);
+  EXPECT_EQ(AtoiKMGT("321x"), std::nullopt);
+  EXPECT_EQ(AtoiKMGT("321Kx"), std::nullopt);
+  EXPECT_EQ(AtoiKMGT("321xK"), std::nullopt);
+  EXPECT_EQ(AtoiKMGT("abc"), std::nullopt);
+  EXPECT_EQ(AtoiKMGT("-321K"), std::nullopt);
+  EXPECT_EQ(AtoiKMGT("321.5K"), std::nullopt);
+
+  // Overflow cases
+  EXPECT_EQ(AtoiKMGT("18446744073709551616"), std::nullopt);
+  EXPECT_EQ(AtoiKMGT("18446744073709551T"), std::nullopt);
+  EXPECT_EQ(AtoiKMGT("999999999999999999999K"), std::nullopt);
 }
 
 TEST(Numbers, TestFunctionsMovedOverFromStrutilUnittestMain) {
