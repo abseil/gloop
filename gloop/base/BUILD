@@ -2055,6 +2055,7 @@ cc_library(
         "//gloop/base:__subpackages__",
         "//gloop/thread:__pkg__",
         "//gloop/util/status:__pkg__",
+        "//platforms/helper/conduit:__pkg__",
     ],
     deps = [
         ":config",
