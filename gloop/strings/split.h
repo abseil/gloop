@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/nullability.h"
 #include "absl/strings/charset.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
@@ -268,8 +269,8 @@ bool SplitRange(absl::string_view rangestr, int32_t* from, int32_t* to);
 //    A convenience wrapper around SplitCSVLineWithDelimiter which uses
 //    ',' as the delimiter.
 //
-void SplitCSVLine(char* line, std::vector<char*>* cols);
-void SplitCSVLineWithDelimiter(char* line, char delimiter,
+void SplitCSVLine(char* absl_nonnull line, std::vector<char*>* cols);
+void SplitCSVLineWithDelimiter(char* absl_nonnull line, char delimiter,
                                std::vector<char*>* cols);
 // SplitCSVLine string wrapper that internally makes a copy of string line.
 void SplitCSVLineWithDelimiterForStrings(absl::string_view line, char delimiter,

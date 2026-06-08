@@ -45,6 +45,7 @@
 #include "absl/log/log.h"
 #include "absl/strings/charset.h"
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "gloop/strings/numbers.h"
 #include "gmock/gmock.h"
@@ -700,6 +701,14 @@ TEST(OldSplit, SplitCSVLineWithDelimiter) {
   ASSERT_STREQ(str_answer_vector[1].c_str(), "x");
   ASSERT_STREQ(str_answer_vector[2].c_str(), "Buchheit, Paul");
   ASSERT_STREQ(str_answer_vector[3].c_str(), "string with \" quote in it");
+}
+
+TEST(OldSplit, SplitCSVLineWithDelimiterForStringsEmbeddedNUL) {
+  std::string nul_char(1, '\0');
+  std::vector<std::string> cols;
+  SplitCSVLineWithDelimiterForStrings(absl::StrCat("a,b", nul_char, ",c"), ',',
+                                      &cols);
+  EXPECT_EQ(cols.size(), 3);
 }
 
 TEST(OldSplit, SplitCSVLine) {

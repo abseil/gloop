@@ -34,6 +34,7 @@
 #include <vector>
 
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/nullability.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/strings/ascii.h"
@@ -314,9 +315,9 @@ bool SplitStringIntoKeyValuePairs(
   return success;
 }
 
-void SplitCSVLineWithDelimiter(char* line, char delimiter,
-                               std::vector<char*>* cols) {
-  char* end_of_line = line + strlen(line);
+static void SplitCSVLineWithDelimiterImpl(char* line, char* end_of_line,
+                                          char delimiter,
+                                          std::vector<char*>* cols) {
   char* end;
   char* start;
 
@@ -337,11 +338,13 @@ void SplitCSVLineWithDelimiter(char* line, char delimiter,
       }
       // All characters after the closing quote and before the comma
       // are ignored.
-      line = strchr(line, delimiter);
+      line = const_cast<char*>(std::char_traits<char>::find(
+          line, static_cast<size_t>(end_of_line - line), delimiter));
       if (!line) line = end_of_line;
     } else {
       start = line;
-      line = strchr(line, delimiter);
+      line = const_cast<char*>(std::char_traits<char>::find(
+          line, static_cast<size_t>(end_of_line - line), delimiter));
       if (!line) line = end_of_line;
       // Skip all trailing whitespace, unless said whitespace is the delimiter.
       for (end = line; end > start; --end) {
@@ -362,7 +365,13 @@ void SplitCSVLineWithDelimiter(char* line, char delimiter,
   }
 }
 
-void SplitCSVLine(char* line, std::vector<char*>* cols) {
+void SplitCSVLineWithDelimiter(char* absl_nonnull line, char delimiter,
+                               std::vector<char*>* cols) {
+  return SplitCSVLineWithDelimiterImpl(line, line + strlen(line), delimiter,
+                                       cols);
+}
+
+void SplitCSVLine(char* absl_nonnull line, std::vector<char*>* cols) {
   SplitCSVLineWithDelimiter(line, ',', cols);
 }
 
@@ -370,13 +379,13 @@ void SplitCSVLineWithDelimiterForStrings(absl::string_view line, char delimiter,
                                          std::vector<std::string>* cols) {
   // Unfortunately, the interface requires char*, which requires copying the
   // string.
-  char* cline = strndup_with_new(line.data(), line.size());
+  std::string cline(line);
   std::vector<char*> v;
-  SplitCSVLineWithDelimiter(cline, delimiter, &v);
+  SplitCSVLineWithDelimiterImpl(cline.data(), cline.data() + cline.size(),
+                                delimiter, &v);
   for (char* str : v) {
     cols->push_back(str);
   }
-  delete[] cline;
 }
 
 // Constants for ClipString()

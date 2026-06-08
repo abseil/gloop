@@ -644,6 +644,7 @@ cc_library(
         ":util",
         "//gloop:enforce_gloop_support",
         "//gloop/base:strtoint",
+        "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
