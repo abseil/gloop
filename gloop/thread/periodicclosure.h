@@ -151,6 +151,8 @@ class PeriodicClosure {
   //
   // Calling RunNow() multiple times from different threads will cause all
   // callers to block until a single run has both started and finished.
+  //
+  // Must not be called after or concurrently with Stop().
   void RunNow() { ForceRunInternal(true); }
 
   // Non-blocking version of RunNow(): ensures, that a new run of the closure

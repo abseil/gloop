@@ -384,6 +384,7 @@ cc_test(
     srcs = ["periodicclosure_test.cc"],
     deps = [
         ":periodicclosure",
+        ":thread",
         "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/util/callback:blocking_callback",

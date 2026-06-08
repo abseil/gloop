@@ -97,6 +97,8 @@ bool PeriodicClosure::QuitOrForceRun() const {
 // Used with Condition() to wait for a given "target_run" to complete.
 // L >= mutex_
 bool PeriodicClosure::ForceRunDone(int64_t target_run) const {
+  CHECK(thread_ != nullptr)
+      << "PeriodicClosure stopped while RunNow() was waiting";
   return finished_runs_ >= target_run;
 }
 

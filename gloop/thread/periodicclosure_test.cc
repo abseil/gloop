@@ -21,14 +21,18 @@
 #include "gloop/thread/periodicclosure.h"
 
 #include <functional>
+#include <memory>
 #include <vector>
 
 #include "absl/functional/bind_front.h"
 #include "absl/synchronization/mutex.h"
+#include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
 #include "absl/time/simulated_clock.h"
 #include "absl/time/time.h"
 #include "gloop/base/callback.h"
+#include "gloop/thread/thread.h"
+#include "gloop/thread/thread_options.h"
 #include "gloop/util/callback/blocking_callback.h"
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
@@ -327,6 +331,50 @@ TEST(PeriodicClosureDeathTest, DoubleStop) {
   ASSERT_DEATH(pc.Stop(), ".* not running");
 }
 #endif  // GTEST_HAS_DEATH_TEST
+
+#if GTEST_HAS_DEATH_TEST
+void RunNowStopRaceInChild() {
+  absl::Notification inside_callback;
+
+  PeriodicClosure pc(
+      [&inside_callback]() {
+        inside_callback.Notify();
+        // Block forever so RunNow() can never finish cleanly.
+        // This guarantees that Stop() will always overlap with RunNow().
+        absl::Notification block_forever;
+        block_forever.WaitForNotification();
+      },
+      absl::Milliseconds(100));
+
+  pc.Start();
+
+  // Wait until the callback has started to ensure pc is fully running.
+  inside_callback.WaitForNotification();
+
+  auto run_now_thread = std::make_unique<ClosureThread>(
+      Options(), "run_now", [&pc]() { pc.RunNow(); });
+  run_now_thread->SetJoinable(true);
+  run_now_thread->Start();
+
+  auto stop_thread = std::make_unique<ClosureThread>(Options(), "stop",
+                                                     [&pc]() { pc.Stop(); });
+  stop_thread->SetJoinable(true);
+  stop_thread->Start();
+
+  run_now_thread->Join();
+  stop_thread->Join();
+}
+
+TEST(PeriodicClosureDeathTest, RunNowStopRace) {
+  // This tests a mis-use of the PeriodicClosure API, which we want to
+  // consistently CHECK-fail under. RunNow() and Stop() should not be called
+  // concurrently. The previous behavior could hang forever though, which is
+  // much worse for debuggability.
+  EXPECT_DEATH(
+      RunNowStopRaceInChild(),
+      "PeriodicClosure stopped while RunNow|PeriodicClosure not Start");
+}
+#endif
 
 }  // namespace
 }  // namespace thread
