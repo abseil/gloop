@@ -149,13 +149,13 @@ TEST(TracingBase, StreamMsgFlags) {
 
 TEST(TracingBase, UseRegionsReflectsFlag) {
   // Default
-  EXPECT_FALSE(internal::UseRegions());
-
-  absl::SetFlag(&FLAGS_dapper_pe_use_regions, true);
   EXPECT_TRUE(internal::UseRegions());
 
   absl::SetFlag(&FLAGS_dapper_pe_use_regions, false);
   EXPECT_FALSE(internal::UseRegions());
+
+  absl::SetFlag(&FLAGS_dapper_pe_use_regions, true);
+  EXPECT_TRUE(internal::UseRegions());
 }
 
 }  // namespace

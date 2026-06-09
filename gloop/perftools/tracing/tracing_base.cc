@@ -125,14 +125,14 @@ bool barrier_salt_init = [] {
 }();
 
 // TODO: b/414786755 - remove
-ABSL_CONST_INIT std::atomic<bool> use_regions{false};
+ABSL_CONST_INIT std::atomic<bool> use_regions{true};
 ABSL_CONST_INIT thread_local TracePerThreadData per_thread{kNoSyncId, nullptr};
 }  // namespace internal
 
 }  // namespace perftools::tracing
 
 // TODO: b/414786755 - remove
-ABSL_FLAG(bool, dapper_pe_use_regions, false,
+ABSL_FLAG(bool, dapper_pe_use_regions, true,
           "Use BEGIN_REGION/END_REGION events")
     .OnUpdate([] {
       perftools::tracing::internal::use_regions.store(
