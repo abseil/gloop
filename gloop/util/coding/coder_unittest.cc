@@ -234,15 +234,6 @@ TEST(CoderUnitTEst, TestEncodeDecode) {
   }
 }
 
-TEST(CoderUnitTest, GetsZeroLength) {
-  const char kData[] = "abcdef";
-  Decoder dec(kData, sizeof(kData));
-  char dst[10] = "ZZZZZZZZZ";
-  dec.gets(dst, 0);
-  EXPECT_EQ(dst[0], 'Z');
-  EXPECT_EQ(dec.pos(), 0);
-}
-
 TEST(CoderUnitTest, CreateDecoder) {
   absl::string_view buf = "foo";
   Decoder d(buf);
@@ -335,6 +326,25 @@ TEST(CoderDeathTest, Hardening) {
   EXPECT_DEATH(d.getdouble(), "");
   EXPECT_DEATH(d.skip(1), "");
   EXPECT_DEATH(d.skip(-1), "");
+}
+
+// Regression test for BUG=511890193: Decoder::gets(dst, 0) used to silently
+// return; the fix replaces that silent guard with ABSL_HARDENING_ASSERT(n > 0)
+// so misuse fails loudly instead of underflowing `n - 1` to SIZE_MAX and
+// triggering a wild write at dst[SIZE_MAX].
+TEST(CoderDeathTest, GetsZeroLengthHardening) {
+  bool is_hardened = false;
+  ABSL_HARDENING_ASSERT([&is_hardened]() {
+    is_hardened = true;
+    return true;
+  }());
+  if (!is_hardened) {
+    GTEST_SKIP() << "This test requires ABSL_HARDENING_ASSERT is enabled";
+  }
+  const char kData[] = "abcdef";
+  Decoder d(kData, sizeof(kData));
+  char dst[10];
+  EXPECT_DEATH(d.gets(dst, 0), "");
 }
 #endif  // GTEST_HAS_DEATH_TEST
 
