@@ -4,6 +4,7 @@
 
 #include "absl/status/status.h"
 #include "example/example.pb.h"
+#include "gloop/base/strtoint.h"
 #include "gloop/net/base/ipaddress.h"
 #include "gloop/util/math/mathutil.h"
 #include "gloop/util/status/codes.pb.h"
@@ -36,7 +37,8 @@ std::string GetExampleMessage() {
          ", util::StatusToString(status): " + util::StatusToString(status) +
          ", net_base::IPAddress::Loopback6(): " +
          net_base::IPAddress::Loopback6().ToString() +
-         ", MathUtil::kPi: " + std::to_string(MathUtil::kPi);
+         ", MathUtil::kPi: " + std::to_string(MathUtil::kPi) +
+         ", atoi32(): " + std::to_string(atoi32("64"));
 }
 
 }  // namespace examples

@@ -44,7 +44,6 @@ cc_test(
     deps = [
         ":effective_user_id",
         "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

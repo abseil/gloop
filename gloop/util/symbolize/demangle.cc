@@ -36,8 +36,9 @@
 #endif
 
 #include <stdlib.h>
+
 #if HAS_CXA_DEMANGLE
-#include <cxxabi.h>
+#include <cxxabi.h>  // IWYU pragma: keep
 
 #include <string>
 #endif
@@ -45,6 +46,7 @@
 #include "absl/debugging/internal/demangle_rust.h"
 
 namespace util {
+
 static bool DemangleRustSymbol(const char* mangled, std::string* out) {
   char buf[2048];
   using absl::debugging_internal::DemangleRustSymbolEncoding;

@@ -68,7 +68,6 @@ cc_library(
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base:callback",
-        "//gloop/base:context",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",

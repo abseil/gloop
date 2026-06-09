@@ -16,6 +16,7 @@ cc_library(
     deps = [
         ":example_cc_proto",
         "@abseil-cpp//absl/status",
+        "@gloop//gloop/base:strtoint",
         "@gloop//gloop/net/base:ipaddress",
         "@gloop//gloop/util/math:mathutil",
         "@gloop//gloop/util/status",
@@ -32,7 +33,6 @@ cc_test(
     srcs = ["example_test.cc"],
     deps = [
         ":example_lib",
-        "@gloop//gloop/base:config",
         "@googletest//:gtest_main",
     ],
 )

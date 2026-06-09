@@ -154,8 +154,8 @@ cc_library(
         "//gloop/thread/fiber:__subpackages__",
     ],
     deps = [
+        ":sysinfo",
         "//gloop:enforce_gloop_support",
-        "//gloop/base:sysinfo",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
@@ -1150,7 +1150,7 @@ sh_test(
     size = "small",
     srcs = ["sysinfo_errorlog_unittest.sh"],
     data = [
-        "//gloop/base:sysinfo_unittest",
+        ":sysinfo_unittest",
     ],
 )
 
@@ -2209,7 +2209,6 @@ cc_test(
     size = "small",
     srcs = ["varsetter_test.cc"],
     deps = [
-        ":init_google",
         ":varsetter",
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/flags:flag",
@@ -2366,8 +2365,8 @@ cc_library(
         ":sysinfo",
         ":tracing_types",
         ":walltime",
+        ":xray_tracing_annotations",
         "//gloop:enforce_gloop_support",
-        "//gloop/base:xray_tracing_annotations",
         "//gloop/base/internal:effective_user_id",
         "//gloop/base/time:time_unix_nanos",
         "//gloop/perftools/tracing",
