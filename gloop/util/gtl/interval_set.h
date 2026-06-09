@@ -101,7 +101,7 @@ class IntervalSet {
   typedef Interval<T> value_type;
 
  private:
-  static_assert(std::is_copy_assignable<T>::value,
+  static_assert(std::is_copy_assignable_v<T>,
                 "IntervalSet requires a copy-assignable type");
 
   template <class U>
@@ -1200,10 +1200,9 @@ auto IntervalSetUnion(const Container& c) {
 template <typename Container, typename T>
 void AddIntsToIntervalSet(const Container& ints_arg,
                           ::gtl::IntervalSet<T>& set) {
-  static_assert(std::is_integral<T>::value,
-                "The type T must be an integral type.");
+  static_assert(std::is_integral_v<T>, "The type T must be an integral type.");
 
-  static_assert(std::is_same<T, typename Container::value_type>::value,
+  static_assert(std::is_same_v<T, typename Container::value_type>,
                 "Input container and interval must contain the same type.");
 
   auto start = ints_arg.begin();

@@ -160,7 +160,7 @@ template <template <typename> typename PredT, typename TupleT>
 bool AllSatisfyTuple;
 template <template <typename> typename PredT, typename... ArgT>
 constexpr bool AllSatisfyTuple<PredT, std::tuple<ArgT...>> =
-    std::conjunction<PredT<ArgT>...>::value;
+    std::conjunction_v<PredT<ArgT>...>;
 
 // Access the type of the tuple of an extendable type of `ExtensionT`.
 //

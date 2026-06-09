@@ -139,8 +139,8 @@ class LockFreeHashMap
   // deleted, returns 1, otherwise 0.
   // TODO: upgrade erase(k) from int to size_t.
   int erase(const Key& key) { return static_cast<int>(Base::erase(key)); }
-  template <class K, typename = typename std::enable_if<
-                         Base::supports_heterogeneous::value, K>::type>
+  template <class K,
+            typename = std::enable_if_t<Base::supports_heterogeneous::value, K>>
   int erase(const K& key) {
     return static_cast<int>(Base::erase(key));
   }
@@ -208,8 +208,8 @@ class LockFreeHashMap
   Value& operator[](Key&& key) {
     return try_emplace(std::move(key)).first->second;
   }
-  template <typename K, typename = typename std::enable_if<
-                            Base::supports_heterogeneous::value, K>::type>
+  template <typename K,
+            typename = std::enable_if_t<Base::supports_heterogeneous::value, K>>
   Value& operator[](K&& k) {
     return try_emplace(std::forward<K>(k)).first->second;
   }

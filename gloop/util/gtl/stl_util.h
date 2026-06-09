@@ -606,8 +606,9 @@ void STLSetDifference(const In1& a, const In2& b, Out* out, Compare compare) {
 // overload resolution if 'out' is a function pointer, gracefully forcing
 // the 3-argument overload that treats the third argument as a comparator.
 template <typename In1, typename In2, typename Out>
-typename std::enable_if<!std::is_function<Out>::value, void>::type
-STLSetDifference(const In1& a, const In2& b, Out* out) {
+std::enable_if_t<!std::is_function_v<Out>, void> STLSetDifference(const In1& a,
+                                                                  const In2& b,
+                                                                  Out* out) {
   STLSetDifference(a, b, out, std::less<>{});
 }
 // Explicit comparator, explicit return type.
@@ -668,8 +669,9 @@ void STLSetUnion(const In1& a, const In2& b, Out* out, Compare compare) {
 // overload resolution if 'out' is a function pointer, gracefully forcing
 // the 3-argument overload that treats the third argument as a comparator.
 template <typename In1, typename In2, typename Out>
-typename std::enable_if<!std::is_function<Out>::value, void>::type STLSetUnion(
-    const In1& a, const In2& b, Out* out) {
+std::enable_if_t<!std::is_function_v<Out>, void> STLSetUnion(const In1& a,
+                                                             const In2& b,
+                                                             Out* out) {
   return STLSetUnion(a, b, out, std::less<>{});
 }
 template <typename Out, typename In1, typename In2, typename Compare>
@@ -728,8 +730,8 @@ void STLSetSymmetricDifference(const In1& a, const In2& b, Out* out,
 // overload resolution if 'out' is a function pointer, gracefully forcing
 // the 3-argument overload that treats the third argument as a comparator.
 template <typename In1, typename In2, typename Out>
-typename std::enable_if<!std::is_function<Out>::value, void>::type
-STLSetSymmetricDifference(const In1& a, const In2& b, Out* out) {
+std::enable_if_t<!std::is_function_v<Out>, void> STLSetSymmetricDifference(
+    const In1& a, const In2& b, Out* out) {
   return STLSetSymmetricDifference(a, b, out, std::less<>{});
 }
 template <typename Out, typename In1, typename In2, typename Compare>
@@ -864,8 +866,8 @@ void STLSetIntersection(const In1& a, const In2& b, Out* out, Compare compare) {
 // overload resolution if 'out' is a function pointer, gracefully forcing
 // the 3-argument overload that treats the third argument as a comparator.
 template <typename In1, typename In2, typename Out>
-typename std::enable_if<!std::is_function<Out>::value, void>::type
-STLSetIntersection(const In1& a, const In2& b, Out* out) {
+std::enable_if_t<!std::is_function_v<Out>, void> STLSetIntersection(
+    const In1& a, const In2& b, Out* out) {
   return STLSetIntersection(a, b, out, std::less<>{});
 }
 template <typename Out, typename In1, typename In2, typename Compare>

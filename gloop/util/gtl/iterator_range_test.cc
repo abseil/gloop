@@ -78,9 +78,9 @@ TEST(IteratorRange, MultimapMakeRange) {
 
 TEST(IteratorRange, IteratorMemberTypeIsSameAsOnePassedIn) {
   std::vector<int> v = {0, 2, 3, 4};
-  static_assert(::std::is_same<typename decltype(gtl::make_range(
-                                   v.begin(), v.end()))::iterator,
-                               std::vector<int>::iterator>::value,
+  static_assert(::std::is_same_v<typename decltype(gtl::make_range(
+                                     v.begin(), v.end()))::iterator,
+                                 std::vector<int>::iterator>,
                 "iterator_range::iterator type is not the same as the type of "
                 "the underlying iterator");
 }

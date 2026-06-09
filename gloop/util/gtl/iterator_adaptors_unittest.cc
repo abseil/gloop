@@ -759,13 +759,13 @@ TEST_F(IteratorAdaptorTest, ValueViewOfValueView) {
       value_view_map_int_pair_int_str_type;
 
   static_assert(
-      (std::is_same<pair_int_str,
-                    value_view_map_int_pair_int_str_type::value_type>::value),
+      (std::is_same_v<pair_int_str,
+                      value_view_map_int_pair_int_str_type::value_type>),
       "value_view_value_type_");
 
   typedef value_view_t<value_view_map_int_pair_int_str_type> view_view_type;
 
-  static_assert((std::is_same<std::string, view_view_type::value_type>::value),
+  static_assert((std::is_same_v<std::string, view_view_type::value_type>),
                 "view_view_type_");
 
   value_view_map_int_pair_int_str_type vv = value_view(my_map);
@@ -1345,11 +1345,11 @@ TEST_F(IteratorAdaptorTest, IteratorPtrConstConversions) {
 TEST_F(IteratorAdaptorTest, IteratorPtrDeepConst) {
   typedef std::vector<int*> PtrsToMutable;
   typedef gtl::iterator_ptr<PtrsToMutable::const_iterator> ConstIter;
-  EXPECT_TRUE((std::is_same<ConstIter::reference, const int&>::value));
+  EXPECT_TRUE((std::is_same_v<ConstIter::reference, const int&>));
   EXPECT_TRUE(IsConst<ConstIter::reference>::value);
 
   typedef gtl::iterator_ptr<PtrsToMutable::iterator> Iter;
-  EXPECT_TRUE((std::is_same<Iter::reference, int&>::value));
+  EXPECT_TRUE((std::is_same_v<Iter::reference, int&>));
   EXPECT_FALSE(IsConst<Iter::reference>::value);
 }
 

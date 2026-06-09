@@ -171,24 +171,24 @@ TEST(FlatMapTest, DefaultIsValid) {
 }
 
 TEST(FlatMapTest, MovableNoExcept) {
-  EXPECT_TRUE((std::is_nothrow_move_constructible<flat_map<int, int>>::value));
-  EXPECT_TRUE((std::is_nothrow_move_assignable<flat_map<int, int>>::value));
+  EXPECT_TRUE((std::is_nothrow_move_constructible_v<flat_map<int, int>>));
+  EXPECT_TRUE((std::is_nothrow_move_assignable_v<flat_map<int, int>>));
 
   struct LessWithThrowingCopy : std::less<int> {
     LessWithThrowingCopy(const LessWithThrowingCopy&) {}
   };
-  EXPECT_TRUE((std::is_nothrow_move_constructible<
-               flat_map<int, int, LessWithThrowingCopy>>::value));
+  EXPECT_TRUE((std::is_nothrow_move_constructible_v<
+               flat_map<int, int, LessWithThrowingCopy>>));
 
   using NoClearNoExceptCopy = std::array<std::pair<int, int>, 3>;
-  EXPECT_TRUE((std::is_nothrow_move_constructible<
-               flat_map<int, int, std::less<>, NoClearNoExceptCopy>>::value));
+  EXPECT_TRUE((std::is_nothrow_move_constructible_v<
+               flat_map<int, int, std::less<>, NoClearNoExceptCopy>>));
 
   struct NoClearThrowingCopy : std::array<std::pair<int, int>, 3> {
     NoClearThrowingCopy(const NoClearThrowingCopy&) {}
   };
-  EXPECT_TRUE((std::is_nothrow_move_constructible<
-               flat_map<int, int, std::less<>, NoClearThrowingCopy>>::value));
+  EXPECT_TRUE((std::is_nothrow_move_constructible_v<
+               flat_map<int, int, std::less<>, NoClearThrowingCopy>>));
 }
 
 TEST(FlatMapTest, RangeAndListConstruction) {

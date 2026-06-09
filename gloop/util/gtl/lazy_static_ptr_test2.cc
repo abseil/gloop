@@ -116,16 +116,16 @@ TEST(LazyStaticPtr, Simple) {
   EXPECT_EQ(b1->a1, "b1.1");
   EXPECT_EQ(b1->a2, 1);
 
-  static_assert((std::is_same<const Blob&, decltype(*b2)>::value),
+  static_assert((std::is_same_v<const Blob&, decltype(*b2)>),
                 "b2_is_not_const");
-  static_assert((std::is_same<Blob&, decltype(*b1)>::value), "b1_is_not_Blob");
+  static_assert((std::is_same_v<Blob&, decltype(*b1)>), "b1_is_not_Blob");
 
   // Check the element_type typedef.
-  static_assert((std::is_same<LazyStaticPtr<Blob>::element_type, Blob>::value),
+  static_assert((std::is_same_v<LazyStaticPtr<Blob>::element_type, Blob>),
                 "element_type_wrong");
-  static_assert((std::is_same<LazyStaticPtr<const Blob>::element_type,
-                              const Blob>::value),
-                "const_element_type_wrong");
+  static_assert(
+      (std::is_same_v<LazyStaticPtr<const Blob>::element_type, const Blob>),
+      "const_element_type_wrong");
 
   // These won't compile: *b2 is const as we've just checked:
   // (*b2).a1 = "b2.1";

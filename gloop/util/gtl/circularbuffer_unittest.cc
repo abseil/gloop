@@ -538,7 +538,7 @@ TEST_F(CircularBufferTest, MoveAssign) {
 
 template <size_t size, size_t alignment>
 void TestAligned() {
-  using aligned_struct = typename std::aligned_storage<size, alignment>::type;
+  using aligned_struct = std::aligned_storage_t<size, alignment>;
 
   CircularBuffer<aligned_struct> cb(1);
   cb.push_back({});

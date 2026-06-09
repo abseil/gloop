@@ -268,9 +268,9 @@ TYPED_TEST_SUITE(MapViewTest, MapTypes);
 TYPED_TEST(MapViewTest, HandlesOverloadSets) {
   TypeParam m = {};
   using MV = ViewType<TypeParam>;
-  EXPECT_TRUE((std::is_convertible<const TypeParam&, MV>::value));
+  EXPECT_TRUE((std::is_convertible_v<const TypeParam&, MV>));
   EXPECT_FALSE(
-      (std::is_convertible<const TypeParam&, MapView<double, double>>::value));
+      (std::is_convertible_v<const TypeParam&, MapView<double, double>>));
   Overloaded(m);  // compiles :)
 }
 

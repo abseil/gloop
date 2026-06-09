@@ -149,18 +149,19 @@ TEST(ValueType, Get) {
 
   static_assert(std::tuple_size<string_hash_map<int>::value_type>::value == 2,
                 "std::tuple_size is not specialized");
-  static_assert(std::is_same<typename std::tuple_element<
-                                 0, string_hash_map<int>::value_type>::type,
-                             absl::string_view>::value,
+  static_assert(std::is_same_v<typename std::tuple_element<
+                                   0, string_hash_map<int>::value_type>::type,
+                               absl::string_view>,
                 "std::tuple_element<0> is not specialized");
-  static_assert(std::is_same<typename std::tuple_element<
-                                 1, string_hash_map<int>::value_type>::type,
-                             int>::value,
+  static_assert(std::is_same_v<typename std::tuple_element<
+                                   1, string_hash_map<int>::value_type>::type,
+                               int>,
                 "std::tuple_element<1> is not specialized");
-  static_assert(std::is_same<typename std::tuple_element<
-                                 1, string_hash_map<double>::value_type>::type,
-                             double>::value,
-                "std::tuple_element<1> is not specialized");
+  static_assert(
+      std::is_same_v<typename std::tuple_element<
+                         1, string_hash_map<double>::value_type>::type,
+                     double>,
+      "std::tuple_element<1> is not specialized");
 }
 
 TEST(ValueType, Compare) {

@@ -338,15 +338,15 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
   bool empty() const { return size() == 0; }
 
   iterator find(const key_type& key) { return FindInternal(key); }
-  template <class K, typename = typename std::enable_if<
-                         supports_heterogeneous::value, K>::type>
+  template <class K,
+            typename = std::enable_if_t<supports_heterogeneous::value, K>>
   iterator find(const K& key) {
     return FindInternal(key);
   }
 
   const_iterator find(const key_type& key) const { return FindInternal(key); }
-  template <class K, typename = typename std::enable_if<
-                         supports_heterogeneous::value, K>::type>
+  template <class K,
+            typename = std::enable_if_t<supports_heterogeneous::value, K>>
   const_iterator find(const K& key) const {
     return FindInternal(key);
   }
@@ -382,8 +382,7 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
     return TryEmplaceInternal(std::move(k), std::forward<Args>(args)...);
   }
   template <typename K, typename... Args,
-            typename =
-                typename std::enable_if<supports_heterogeneous::value, K>::type>
+            typename = std::enable_if_t<supports_heterogeneous::value, K>>
   std::pair<iterator, bool> try_emplace(K&& k, Args&&... args) {
     return TryEmplaceInternal(std::forward<K>(k), std::forward<Args>(args)...);
   }
@@ -395,8 +394,8 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
   }
 
   size_t erase(const key_type& key) { return EraseInternal(key); }
-  template <class K, typename = typename std::enable_if<
-                         supports_heterogeneous::value, K>::type>
+  template <class K,
+            typename = std::enable_if_t<supports_heterogeneous::value, K>>
   size_t erase(const K& key) {
     return EraseInternal(key);
   }
@@ -404,8 +403,8 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
   std::pair<iterator, iterator> equal_range(const key_type& key) {
     return EqualRangeInternal(key);
   }
-  template <class K, typename = typename std::enable_if<
-                         supports_heterogeneous::value, K>::type>
+  template <class K,
+            typename = std::enable_if_t<supports_heterogeneous::value, K>>
   std::pair<iterator, iterator> equal_range(const K& key) {
     return EqualRangeInternal(key);
   }
@@ -414,8 +413,8 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
       const key_type& key) const {
     return EqualRangeInternal(key);
   }
-  template <class K, typename = typename std::enable_if<
-                         supports_heterogeneous::value, K>::type>
+  template <class K,
+            typename = std::enable_if_t<supports_heterogeneous::value, K>>
   std::pair<const_iterator, const_iterator> equal_range(const K& key) const {
     return EqualRangeInternal(key);
   }
@@ -538,8 +537,8 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
 
   size_t HashKey(const key_type& key) const { return GetHashFunction()(key); }
 
-  template <class K, typename = typename std::enable_if<
-                         supports_heterogeneous::value, K>::type>
+  template <class K,
+            typename = std::enable_if_t<supports_heterogeneous::value, K>>
   size_t HashKey(const K& key) const {
     return GetHashFunction()(key);
   }

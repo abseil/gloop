@@ -233,8 +233,8 @@ TYPED_TEST_SUITE(SetViewTest, SetTypes);
 TYPED_TEST(SetViewTest, HandlesOverloadSets) {
   TypeParam m = {};
   using SV = ViewType<TypeParam>;
-  EXPECT_TRUE((std::is_convertible<const TypeParam&, SV>::value));
-  EXPECT_FALSE((std::is_convertible<const TypeParam&, SetView<double>>::value));
+  EXPECT_TRUE((std::is_convertible_v<const TypeParam&, SV>));
+  EXPECT_FALSE((std::is_convertible_v<const TypeParam&, SetView<double>>));
   Overloaded(m);  // compiles :)
 }
 

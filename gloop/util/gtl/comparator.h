@@ -58,11 +58,11 @@ struct Has3wayCompare : std::false_type {};
 template <typename Cmp, typename T1, typename T2>
 struct Has3wayCompare<
     Cmp, T1, T2,
-    typename std::enable_if<
-        std::is_same<int, decltype(std::declval<const Cmp&>().Compare(
-                              std::declval<const T1&>(),
-                              std::declval<const T2&>()))>::value,
-        void>::type> : std::true_type {};
+    std::enable_if_t<
+        std::is_same_v<int, decltype(std::declval<const Cmp&>().Compare(
+                                std::declval<const T1&>(),
+                                std::declval<const T2&>()))>,
+        void>> : std::true_type {};
 
 // Returning +/-1 is often more efficient, but we don't want callers to depend
 // on specific positive/negative values.

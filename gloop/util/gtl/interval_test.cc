@@ -102,9 +102,8 @@ TEST(IntervalConstructorTest, ImplicitConversion) {
     int value;
   };
 
-  static_assert(std::is_convertible<int, WrappedInt>::value, "");
-  static_assert(std::is_constructible<Interval<WrappedInt>, int, int>::value,
-                "");
+  static_assert(std::is_convertible_v<int, WrappedInt>, "");
+  static_assert(std::is_constructible_v<Interval<WrappedInt>, int, int>, "");
 
   Interval<WrappedInt> i(10, 20);
   EXPECT_EQ(10, i.start().value);
@@ -142,16 +141,16 @@ TEST(Interval, ConstructorsCopyAndClear) {
 template <typename T, typename U>
 bool MakeIntervalReturnsInt(T&& t, U&& u) {
   auto res = MakeInterval(std::forward<T>(t), std::forward<U>(u));
-  return std::is_same<gtl::Interval<int>, decltype(res)>::value;
+  return std::is_same_v<gtl::Interval<int>, decltype(res)>;
 }
 
 TEST(Interval, MakeInterval) {
   static_assert(
-      std::is_same<gtl::Interval<int>, decltype(MakeInterval(0, 3))>::value,
+      std::is_same_v<gtl::Interval<int>, decltype(MakeInterval(0, 3))>,
       "Type is deduced incorrectly.");
-  static_assert(std::is_same<gtl::Interval<double>,
-                             decltype(MakeInterval(0., 3.))>::value,
-                "Type is deduced incorrectly.");
+  static_assert(
+      std::is_same_v<gtl::Interval<double>, decltype(MakeInterval(0., 3.))>,
+      "Type is deduced incorrectly.");
 
   EXPECT_EQ(MakeInterval(0., 3.), Interval<double>(0, 3));
 
