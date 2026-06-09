@@ -181,6 +181,9 @@ class BatchedTraceContext;
 namespace statsrequest {
 class Request;
 class RequestzState;
+namespace internal {
+class UnrefNoDeleteHelper;
+}  // namespace internal
 }  // namespace statsrequest
 
 namespace base {
@@ -1291,6 +1294,11 @@ class Tracer {
     NotifyTraceConsumers();
     Unref(this);
   }
+
+  friend class ::statsrequest::internal::UnrefNoDeleteHelper;
+
+  std::unique_ptr<Tracer> UnrefNoDelete(void* owner);
+  std::unique_ptr<Tracer> UnrefSlowNoDelete() ABSL_ATTRIBUTE_COLD;
 
   // Slow path for Unref(), which calls OnRefCountZero() if no stop
   // time has been set.

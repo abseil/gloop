@@ -142,12 +142,11 @@ Tracer::~Tracer() {
                  "Deleting a Tracer with a non-zero refcount");
 }
 
-void Tracer::UnrefSlow() {
+std::unique_ptr<Tracer> Tracer::UnrefSlowNoDelete() {
   // If the request previously had its unref_time set, assume it was
   // already logged and entered into the history.
   if (has_unref_time()) {
-    delete this;
-    return;
+    return std::unique_ptr<Tracer>(this);
   }
 
   // Checking has_stop_time() first avoids needlessly reading the clock when we
@@ -165,7 +164,7 @@ void Tracer::UnrefSlow() {
   if (notify != nullptr && notify->TakeOwnershipBeforeDestroy(this)) {
     // The receiver revived the Tracer. It now owns the Tracer, so the Tracer
     // may be deleted at any moment. It is no longer safe to access this Tracer.
-    return;
+    return nullptr;
   }
 
   // This is the finish of a referenced Tracer's "ordinary" life span.
@@ -174,6 +173,17 @@ void Tracer::UnrefSlow() {
   // so that the next time the reference count falls to zero, the
   // object will be deleted in the branch above.
   OnRefCountZero();
+  return nullptr;
+}
+
+void Tracer::UnrefSlow() { UnrefSlowNoDelete(); }
+
+std::unique_ptr<Tracer> Tracer::UnrefNoDelete(void* owner) {
+  tracker_.Unref(owner);
+  if (ref_count_.fetch_sub(1, std::memory_order_acq_rel) - 1 == 0) {
+    return UnrefSlowNoDelete();
+  }
+  return nullptr;
 }
 
 bool Tracer::NotifyBeforeDestroy(TracerNotification* new_notify,
