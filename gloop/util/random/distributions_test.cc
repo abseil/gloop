@@ -108,6 +108,22 @@ TEST_F(DistributionsTest, YuleSimonOverloads) {
   util_random::YuleSimon<uint64_t>(absl::InsecureBitGen());
 }
 
+TEST_F(DistributionsTest, SmallPrimeOverloads) {
+  absl::InsecureBitGen gen;
+
+  util_random::SmallPrime<int>(gen);
+  util_random::SmallPrime<int>(gen, 3, 100);
+  util_random::SmallPrime<int8_t>(gen, 3, 100);
+  util_random::SmallPrime<int16_t>(gen, 3, 100);
+  util_random::SmallPrime<uint16_t>(gen, 3, 100);
+  util_random::SmallPrime<int32_t>(gen, 3, 1 << 10);
+  util_random::SmallPrime<uint32_t>(gen, 3, 1 << 10);
+  util_random::SmallPrime<int64_t>(gen, 3, 1 << 10);
+  util_random::SmallPrime<uint64_t>(gen, 3, 1 << 10);
+
+  util_random::SmallPrime<uint64_t>(absl::InsecureBitGen(), 3, 1 << 10);
+}
+
 TEST(MockDistributions, Examples) {
   absl::MockingBitGen gen;
 
@@ -120,6 +136,11 @@ TEST(MockDistributions, Examples) {
   EXPECT_CALL(util_random::MockSkewedLow<int>(), Call(gen, 1, 10000, 3))
       .WillOnce(::testing::Return(1221));
   EXPECT_EQ(1221, util_random::SkewedLow<int>(gen, 1, 10000, 3));
+
+  EXPECT_NE(7, util_random::SmallPrime<int>(gen, 3, 1000));
+  EXPECT_CALL(util_random::MockSmallPrime<int>(), Call(gen, 3, 1000))
+      .WillOnce(::testing::Return(7));
+  EXPECT_EQ(7, util_random::SmallPrime<int>(gen, 3, 1000));
 }
 
 }  // namespace

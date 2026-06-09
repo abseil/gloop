@@ -82,3 +82,28 @@ cc_test(
         "@googletest//:gtest",
     ],
 )
+
+cc_library(
+    name = "small_prime_distribution",
+    hdrs = ["small_prime_distribution.h"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/random:distributions",
+        "@abseil-cpp//absl/random/internal:iostream_state_saver",
+    ],
+)
+
+cc_test(
+    name = "small_prime_distribution_test",
+    srcs = ["small_prime_distribution_test.cc"],
+    deps = [
+        ":small_prime_distribution",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/random",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)

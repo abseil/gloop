@@ -63,6 +63,7 @@ cc_library(
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/util/random/internal:skewed_low_distribution",
+        "//gloop/util/random/internal:small_prime_distribution",
         "//gloop/util/random/internal:yule_simon_distribution",
         "@abseil-cpp//absl/meta:type_traits",
         "@abseil-cpp//absl/random/internal:distribution_caller",
@@ -127,7 +128,9 @@ cc_library(
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/util/random/internal:skewed_low_distribution",
+        "//gloop/util/random/internal:small_prime_distribution",
         "//gloop/util/random/internal:yule_simon_distribution",
+        "@abseil-cpp//absl/log:absl_check",
         "@abseil-cpp//absl/random:mocking_bit_gen",
         "@abseil-cpp//absl/random/internal:mock_overload_set",
     ],

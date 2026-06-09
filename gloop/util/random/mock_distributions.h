@@ -47,12 +47,25 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_RANDOM_MOCK_DISTRIBUTIONS_H_
 #define THIRD_PARTY_GLOOP_UTIL_RANDOM_MOCK_DISTRIBUTIONS_H_
 
+#include <cstdint>
+
+#include "absl/log/absl_check.h"
 #include "absl/random/internal/mock_overload_set.h"
 #include "absl/random/mocking_bit_gen.h"
 #include "gloop/util/random/internal/skewed_low_distribution.h"
+#include "gloop/util/random/internal/small_prime_distribution.h"
 #include "gloop/util/random/internal/yule_simon_distribution.h"
 
 namespace util_random {
+
+template <typename IntType>
+struct SmallPrimeValidator {
+  static void Validate(IntType result, IntType lo, IntType hi) {
+    ABSL_CHECK(result >= lo && result <= hi);
+    ABSL_CHECK(small_prime_distribution_internal::IsPrime(
+        static_cast<uint64_t>(result)));
+  }
+};
 
 // -----------------------------------------------------------------------------
 // util_random::MockSkewedLow
@@ -103,6 +116,32 @@ template <typename IntType>
 using MockYuleSimon = absl::random_internal::MockOverloadSet<
     util_random::yule_simon_distribution<IntType>,
     IntType(absl::MockingBitGen&, double)>;
+
+// -----------------------------------------------------------------------------
+// util_random::MockSmallPrime
+// -----------------------------------------------------------------------------
+//
+// Matches calls to util_random::SmallPrime.
+//
+// `util_random::MockSmallPrime` is a class template used in conjunction with
+// Googletest's `ON_CALL()` and `EXPECT_CALL()` macros. To use it,
+// default-construct an instance of it inside `ON_CALL()` or `EXPECT_CALL()`,
+// and use `Call(...)` the same way one would define mocks on a
+// Googletest `MockFunction()`.
+//
+// Example:
+//
+//  absl::MockingBitGen mock;
+//  EXPECT_CALL(util_random::MockSmallPrime<int>(), Call(mock, 2, 1000))
+//     .WillOnce(Return(7));
+//  auto x = util_random::SmallPrime<int>(mock, 2, 1000);
+//  assert(x == 7)
+//
+template <typename IntType>
+using MockSmallPrime = absl::random_internal::MockOverloadSetWithValidator<
+    util_random::small_prime_distribution<IntType>,
+    SmallPrimeValidator<IntType>,
+    IntType(absl::MockingBitGen&, IntType, IntType)>;
 
 }  // namespace util_random
 

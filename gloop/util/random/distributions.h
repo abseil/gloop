@@ -30,6 +30,8 @@
 //      based on the skewed_low_distribution type.
 //   * `util_random::YuleSimon` for discrete probability distributions skewed
 //      based on the yule_simon_distribution type.
+//   * `util_random::SmallPrime` for discrete probability distributions
+//      generating prime numbers based on the small_prime_distribution type.
 //
 // Prefer use of these distribution function classes over manual construction of
 // your own distribution classes, as it allows library maintainers greater
@@ -38,10 +40,13 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_RANDOM_DISTRIBUTIONS_H_
 #define THIRD_PARTY_GLOOP_UTIL_RANDOM_DISTRIBUTIONS_H_
 
+#include <limits>
+
 #include "absl/meta/type_traits.h"
 #include "absl/random/internal/distribution_caller.h"  // IWYU pragma: export
 #include "absl/random/internal/traits.h"
 #include "gloop/util/random/internal/skewed_low_distribution.h"
+#include "gloop/util/random/internal/small_prime_distribution.h"
 #include "gloop/util/random/internal/yule_simon_distribution.h"
 
 namespace util_random {
@@ -53,6 +58,10 @@ namespace util_random {
 // Produces an integral number according to the skewed_low_distribution in
 // the closed interval [lo..hi]. `T` must be an integral type, but may be
 // inferred from the types of `lo` and `hi`.
+//
+// Requires:
+// * `hi` must be greater than or equal to `lo`.
+// * `base` must be greater than 1.
 //
 // Example:
 //
@@ -79,7 +88,10 @@ IntType SkewedLow(URBG&& urbg,  // NOLINT(runtime/references)
 // -----------------------------------------------------------------------------
 //
 // `util_random::YuleSimon` produces discrete probabilities skewed based on an
-// existing  prior distribution. `T` must be an integral type.
+// existing prior distribution. `T` must be an integral type.
+//
+// Requires:
+// * `a` must be greater than 1.0.
 //
 // See https://en.wikipedia.org/wiki/Yule%E2%80%93Simon_distribution
 //
@@ -101,6 +113,40 @@ IntType YuleSimon(URBG&& urbg,  // NOLINT(runtime/references)
 
   return absl::random_internal::DistributionCaller<gen_t>::template Call<
       distribution_t>(&urbg, a);
+}
+
+// -----------------------------------------------------------------------------
+// util_random::SmallPrime<T>(urbg, lo, hi)
+// -----------------------------------------------------------------------------
+//
+// Produces a "small" (up to 64 bit) prime number in the closed interval
+// [lo..hi]. `T` must be an integral type, but may be inferred from the types of
+// `lo` and `hi`.
+//
+// Requires:
+// * `lo` must be greater than or equal to 2.
+// * `hi` must be greater than or equal to `lo`.
+// * the closed range [`lo`, `hi`] must contain at least one prime.
+// * `T` must be an integral type up to 64 bits.
+//
+// Example:
+//
+//   util_random::SharedBitGen bitgen;
+//   ...
+//   int v = util_random::SmallPrime(bitgen, 2, 1000);
+//
+template <typename IntType, typename URBG>
+IntType SmallPrime(URBG&& urbg, IntType lo = 2,
+                   IntType hi = (std::numeric_limits<IntType>::max)()) {
+  static_assert(absl::random_internal::IsIntegral<IntType>::value,
+                "Template-argument 'IntType' must be an integral type, in "
+                "util_random::SmallPrime<IntType, URBG>(...)");
+
+  using gen_t = absl::decay_t<URBG>;
+  using distribution_t = util_random::small_prime_distribution<IntType>;
+
+  return absl::random_internal::DistributionCaller<gen_t>::template Call<
+      distribution_t>(&urbg, lo, hi);
 }
 
 }  // namespace util_random
