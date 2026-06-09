@@ -49,6 +49,15 @@ TEST(SharedBitGenTest, CompatibleWithStdDistributions) {
   static_cast<void>(std::bernoulli_distribution(0.2)(bitgen));
 }
 
+TEST(SharedBitGenTest, InsecureBitGen) {
+  SharedInsecureBitGen bitgen;
+
+  absl::Uniform(bitgen, 0, 100);
+  absl::Uniform(bitgen, 0.5, 0.7);
+  absl::Poisson<uint32_t>(bitgen);
+  absl::Exponential<float>(bitgen);
+}
+
 template <typename Engine, typename Dist, typename... Args>
 void BM_Distribution(benchmark::State& state, Args&&... args) {
   using value_type = typename Dist::result_type;
@@ -93,6 +102,23 @@ BENCHMARK_TEMPLATE(BM_Distribution, util_random::SharedBitGen,
 BENCHMARK_TEMPLATE(BM_ConstructGenerate, SharedBitGen)->ThreadRange(1, 32);
 BENCHMARK_TEMPLATE(BM_ConstructGenerate, absl::BitGen)->ThreadRange(1, 32);
 BENCHMARK_TEMPLATE(BM_ConstructGenerate, util_random::SharedBitGen)
+    ->ThreadRange(1, 32);
+
+BENCHMARK_TEMPLATE(BM_Distribution, SharedInsecureBitGen,
+                   absl::uniform_real_distribution<double>)
+    ->ThreadRange(1, 32);
+BENCHMARK_TEMPLATE(BM_Distribution, SharedInsecureBitGen,
+                   absl::uniform_int_distribution<uint64_t>)
+    ->ThreadRange(1, 32);
+
+BENCHMARK_TEMPLATE(BM_Distribution, absl::InsecureBitGen,
+                   absl::uniform_real_distribution<double>);
+BENCHMARK_TEMPLATE(BM_Distribution, absl::InsecureBitGen,
+                   absl::uniform_int_distribution<uint64_t>);
+
+BENCHMARK_TEMPLATE(BM_ConstructGenerate, SharedInsecureBitGen)
+    ->ThreadRange(1, 32);
+BENCHMARK_TEMPLATE(BM_ConstructGenerate, absl::InsecureBitGen)
     ->ThreadRange(1, 32);
 
 }  // namespace
