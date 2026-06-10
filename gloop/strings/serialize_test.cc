@@ -466,4 +466,17 @@ void BM_OrderedStringFromInt64(benchmark::State& state) {
 }
 BENCHMARK(BM_OrderedStringFromInt64);
 
+TEST(SerializeDeathTest, KeyToUintUndersized) {
+  // Test KeyToUint32 with 3 bytes (needs 4)
+  EXPECT_DEATH(KeyToUint32("123"),
+               "Check failed: key.size\\(\\) (==|>=) sizeof\\(value\\)");
+  // Test KeyToUint64 with 7 bytes (needs 8)
+  EXPECT_DEATH(KeyToUint64("1234567"),
+               "Check failed: key.size\\(\\) (==|>=) sizeof\\(value\\)");
+  // Test KeyToUint128 with 15 bytes (needs 16)
+  EXPECT_DEATH(
+      KeyToUint128("123456789012345"),
+      "Check failed: key.size\\(\\) (==|>=) sizeof\\(v0\\) \\+ sizeof\\(v1\\)");
+}
+
 }  // namespace strings

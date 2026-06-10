@@ -131,6 +131,7 @@ inline void KeyFromUint128(absl::uint128 fp, std::string* key) {
 inline uint32_t KeyToUint32(absl::string_view key) {
   uint32_t value;
   DCHECK_EQ(key.size(), sizeof(value));
+  CHECK_GE(key.size(), sizeof(value));
   memcpy(&value, key.data(), sizeof(value));
   if constexpr (absl::endian::native != absl::endian::big) {
     value = absl::byteswap(value);
@@ -143,6 +144,7 @@ inline uint32_t KeyToUint32(absl::string_view key) {
 inline uint64_t KeyToUint64(absl::string_view key) {
   uint64_t value;
   DCHECK_EQ(key.size(), sizeof(value));
+  CHECK_GE(key.size(), sizeof(value));
   memcpy(&value, key.data(), sizeof(value));
   if constexpr (absl::endian::native != absl::endian::big) {
     value = absl::byteswap(value);
@@ -155,6 +157,7 @@ inline uint64_t KeyToUint64(absl::string_view key) {
 inline absl::uint128 KeyToUint128(absl::string_view key) {
   uint64_t v0, v1;
   DCHECK_EQ(key.size(), sizeof(v0) + sizeof(v1));
+  CHECK_GE(key.size(), sizeof(v0) + sizeof(v1));
   memcpy(&v0, key.data(), sizeof(v0));
   memcpy(&v1, key.data() + sizeof(v0), sizeof(v1));
   if constexpr (absl::endian::native != absl::endian::big) {
