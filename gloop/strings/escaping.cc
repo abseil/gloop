@@ -192,23 +192,61 @@ absl::string_view::size_type BackslashUnescapedFind(
       src, [&delims](unsigned char c) { return delims.contains(c); });
 }
 
-ptrdiff_t EscapeStrForCSV(const char* absl_nonnull src, char* absl_nonnull dest,
-                          ptrdiff_t dest_len) {
-  ptrdiff_t used = 0;
+static ptrdiff_t EscapeStrForCSV(absl::string_view src,
+                                 char* dest_not_nul_terminated,
+                                 ptrdiff_t dest_len) {
+  size_t used = 0;
 
-  while (true) {
-    if (*src == '\0' && used < dest_len) {
-      dest[used] = '\0';
-      return used;
+  size_t i = 0;
+
+  while (i < src.size()) {
+    const char ch = src[i++];
+    const bool repeats = ch == '"';
+
+    if (used + static_cast<int>(repeats) >= dest_len) {
+      return -1;
     }
 
-    if (used + 1 >= dest_len)  // +1 because we might require two characters
-      return -1;
+    dest_not_nul_terminated[used++] = ch;
 
-    if (*src == '"') dest[used++] = '"';
-
-    dest[used++] = *src++;
+    if (repeats) {
+      dest_not_nul_terminated[used++] = ch;
+    }
   }
+
+  return static_cast<ptrdiff_t>(used);
+}
+
+std::string QuoteStrForCSV(absl::string_view src) {
+  std::string result;
+  absl::StringResizeAndOverwrite(
+      result, src.size() * 2 + 2,
+      [src, quote = src.find_first_of("\",\r\n") != absl::string_view::npos](
+          char* buffer, ptrdiff_t buffer_size) {
+        ptrdiff_t used = 0;
+        if (quote) {
+          buffer[used++] = '"';
+        }
+        used += EscapeStrForCSV(src, buffer + used, buffer_size - used);
+        if (quote) {
+          buffer[used++] = '"';
+        }
+        return used;
+      });
+  return result;
+}
+
+ptrdiff_t EscapeStrForCSV(const char* absl_nonnull src, char* absl_nonnull dest,
+                          ptrdiff_t dest_len) {
+  const ptrdiff_t used =
+      EscapeStrForCSV(absl::string_view(src), dest, dest_len);
+
+  if (used < 0 || used >= dest_len) {
+    return -1;
+  }
+
+  dest[used] = '\0';
+  return used;
 }
 
 static unsigned int HexDigitToInt(char c) {

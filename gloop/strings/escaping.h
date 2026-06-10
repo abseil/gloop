@@ -257,10 +257,24 @@ inline std::string BackslashUnescape(absl::string_view src,
 //
 // Example:
 //
-//   [some "string" to test] --> [some ""string"" to test]
+//   [some "string" to test] --> "[some ""string"" to test]"
 // ----------------------------------------------------------------------
+[[deprecated("Use the QuoteStrForCSV() instead.")]]
 ptrdiff_t EscapeStrForCSV(const char* absl_nonnull src, char* absl_nonnull dest,
                           ptrdiff_t dest_len);
+
+// ----------------------------------------------------------------------
+// QuoteStrForCSV()
+//
+// Escapes the quotes in 'src' by doubling them, possibly surrounding the whole
+// string with quotes. This is necessary for generating CSV files (see
+// SplitCSVLine).
+//
+// Example:
+//
+//   [some "string" to test] --> "[some ""string"" to test]"
+// ----------------------------------------------------------------------
+std::string QuoteStrForCSV(absl::string_view src);
 
 // ----------------------------------------------------------------------
 // LegacyBase64EscapeWithoutPadding()
