@@ -24,8 +24,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <optional>
 #include <string>
+#include <thread>  // NOLINT(build/c++11)
 #include <utility>
 
 #include "absl/container/flat_hash_set.h"
@@ -260,4 +262,79 @@ TEST(ThreadPoolTest, OneThreadRunsClosuresFIFO) {
       count++;
     });
   }
+}
+
+// BUG=515095429
+//
+// Regression test for a use-after-free in ~ThreadPool() on a
+// bounded-capacity pool: a producer parked in ThreadPool::Put() on
+// wait_nonfull_ was never told the pool was shutting down. With the
+// fix, ~ThreadPool() signals wait_nonfull_ and Put() rechecks
+// stopping_, so parked producers wake up and bail out of Put()
+// without touching the destroyed mutex.
+//
+// This test arranges for a producer to be parked in Put() with the
+// pool's single worker held off-duty, then starts destruction. With
+// the fix, the destructor itself wakes the producer (before any
+// worker drains the queue), so producer_returned fires while the
+// worker is still blocked. Without the fix, the producer can only be
+// woken by a worker dequeueing — which cannot happen until we release
+// the worker — so producer_returned will not be set during the
+// destructor's head start.
+TEST(ThreadPoolTest, DestructorWakesProducersBlockedInPut) {
+  absl::Notification worker_started;
+  absl::Notification worker_may_finish;
+  absl::Notification producer_at_put;
+  absl::Notification producer_returned;
+  absl::Notification destructor_check_done;
+
+  auto pool = std::make_unique<ThreadPool>(
+      /*num_threads=*/1, ThreadPool::Options{.queue_capacity = 1});
+
+  // Occupy the single worker so the queue cannot be drained while we
+  // set up the test.
+  pool->Schedule([&] {
+    worker_started.Notify();
+    worker_may_finish.WaitForNotification();
+  });
+  worker_started.WaitForNotification();
+
+  // Fill the queue (capacity == 1) so a subsequent Schedule() blocks
+  // on wait_nonfull_ inside Put().
+  pool->Schedule([] {});
+
+  // Producer thread: this Schedule() must park in Put() because the
+  // queue is at capacity and the worker is busy.
+  std::thread producer([&] {
+    producer_at_put.Notify();
+    pool->Schedule([] {});
+    producer_returned.Notify();
+  });
+
+  producer_at_put.WaitForNotification();
+  // Give the producer time to actually enter wait_nonfull_.Wait().
+  absl::SleepFor(absl::Milliseconds(200));
+
+  // The releaser checks that the destructor woke the producer on its
+  // own — i.e. without the worker draining anything — then releases
+  // the worker so the destructor's queue-empty wait can complete.
+  std::thread releaser([&] {
+    // Generous head start: the fix runs SignalAll() on wait_nonfull_
+    // synchronously inside ~ThreadPool(), so the producer should
+    // already be unblocked well within this window.
+    absl::SleepFor(absl::Seconds(1));
+    EXPECT_TRUE(producer_returned.HasBeenNotified())
+        << "Producer remained parked in Put() while ~ThreadPool() ran; "
+           "the destructor did not wake wait_nonfull_. See "
+           "b/515095429.";
+    destructor_check_done.Notify();
+    worker_may_finish.Notify();
+  });
+
+  pool.reset();  // Triggers ~ThreadPool().
+
+  destructor_check_done.WaitForNotification();
+  releaser.join();
+  producer.join();
+  EXPECT_TRUE(producer_returned.HasBeenNotified());
 }
