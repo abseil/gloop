@@ -178,6 +178,10 @@ ThreadPool::~ThreadPool() {
     for (Waiter& waiter : waiters_) {
       waiter.cv.Signal();
     }
+    // Wake any producer threads blocked in Put() waiting for room in a
+    // bounded queue so they can observe `stopping_` and bail out before
+    // the ThreadPool (and its mutex) is destroyed.
+    wait_nonfull_.SignalAll();
     // Wait until the queue is empty. This implies no new threads will be
     // spawned, and all existing threads are exiting.
     auto queue_empty = [this]() ABSL_SHARED_LOCKS_REQUIRED(mutex_) {
@@ -246,10 +250,14 @@ void ThreadPool::Put(absl_nonnull absl::AnyInvocable<void() &&>&& callback) {
   DCHECK(!stopping_) << "Callback added after destructor started";
   if (ABSL_PREDICT_FALSE(stopping_)) return;
   if (IsLimitedCapacity()) {
-    while (queue_.size() >= capacity_) {
+    while (queue_.size() >= capacity_ && !stopping_) {
       wait_nonfull_.Wait(&mutex_);
     }
   }
+  // Recheck stopping_ after waking from wait_nonfull_, which the destructor
+  // signals during shutdown; without this the pool object can be destroyed
+  // before InternalPut() runs, causing a use-after-free on mutex_.
+  if (ABSL_PREDICT_FALSE(stopping_)) return;
   InternalPut(std::move(callback));
 }
 
