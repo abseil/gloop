@@ -227,6 +227,18 @@ TEST(JoinCSVLineWithDelimiter, Basics) {
   test_vector.push_back("spaces");
   JoinCSVLineWithDelimiter(test_vector, ' ', &answer_string);
   EXPECT_EQ(answer_string, "\"this example\" \"  uses \" spaces");
+  test_vector.clear();
+  answer_string.clear();
+
+  test_vector.push_back(absl::StrCat("a\"", std::string(1, '\0'), "bcd"));
+  test_vector.push_back(
+      absl::StrCat("hello ", std::string(2, '\0'), "\" world\""));
+  JoinCSVLineWithDelimiter(test_vector, ' ', &answer_string);
+  EXPECT_EQ(answer_string,
+            absl::StrCat("\"a\"\"", std::string(1, '\0'), "bcd\" \"hello ",
+                         std::string(2, '\0'), "\"\" world\"\"\""));
+  test_vector.clear();
+  answer_string.clear();
 }
 
 TEST(LegacyFormatter, FormatterAPI) {
