@@ -83,17 +83,8 @@ BENCHMARK_TEMPLATE(BM_Distribution, absl::BitGen,
 BENCHMARK_TEMPLATE(BM_Distribution, absl::BitGen,
                    absl::uniform_int_distribution<uint64_t>);
 
-BENCHMARK_TEMPLATE(BM_Distribution, util_random::SharedBitGen,
-                   absl::uniform_real_distribution<double>)
-    ->ThreadRange(1, 32);
-BENCHMARK_TEMPLATE(BM_Distribution, util_random::SharedBitGen,
-                   absl::uniform_int_distribution<uint64_t>)
-    ->ThreadRange(1, 32);
-
 BENCHMARK_TEMPLATE(BM_ConstructGenerate, SharedBitGen)->ThreadRange(1, 32);
 BENCHMARK_TEMPLATE(BM_ConstructGenerate, absl::BitGen)->ThreadRange(1, 32);
-BENCHMARK_TEMPLATE(BM_ConstructGenerate, util_random::SharedBitGen)
-    ->ThreadRange(1, 32);
 
 }  // namespace
 }  // namespace util_random
