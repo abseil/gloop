@@ -122,6 +122,10 @@ const size_t BaseArena::kDefaultAlignment;
 
 BaseArena::BaseArena(char* first, const size_t orig_block_size,
                      bool align_to_page)
+    : BaseArena(first, orig_block_size, orig_block_size, align_to_page) {}
+
+BaseArena::BaseArena(char* first, const size_t first_block_size,
+                     const size_t orig_block_size, bool align_to_page)
     : remaining_(0),
       block_size_(nallocx(orig_block_size, 0)),
       freestart_(nullptr),  // set for real in Reset()
@@ -145,7 +149,7 @@ BaseArena::BaseArena(char* first, const size_t orig_block_size,
     CHECK(!page_aligned_ ||
           (reinterpret_cast<uintptr_t>(first) & (kPageSize - 1)) == 0);
     first_blocks_[0].mem = first;
-    first_blocks_[0].size = orig_block_size;
+    first_blocks_[0].size = first_block_size;
   } else {
     if (page_aligned_) {
       // Make sure the blocksize is page multiple, as we need to end on a page
@@ -223,7 +227,7 @@ void BaseArena::Reset() {
   ASAN_POISON_MEMORY_REGION(freestart_, remaining_);
 #endif
 
-  ARENASET(status_.bytes_allocated_ = block_size_);
+  ARENASET(status_.bytes_allocated_ = first_blocks_[0].size);
 
   // There is no guarantee the first block is properly aligned, so
   // enforce that now.

@@ -280,6 +280,8 @@
 class BaseArena {
  protected:  // You can't make an arena directly; only a subclass of one
   BaseArena(char* first_block, const size_t block_size, bool align_to_page);
+  BaseArena(char* first_block, const size_t first_block_size,
+            const size_t block_size, bool align_to_page);
 
  public:
   virtual ~BaseArena();
@@ -431,6 +433,9 @@ class UnsafeArena : public BaseArena {
       : BaseArena(first_block, block_size, false) {}
   UnsafeArena(char* first_block, const size_t block_size, bool align)
       : BaseArena(first_block, block_size, align) {}
+  UnsafeArena(char* first_block, const size_t first_block_size,
+              const size_t block_size)
+      : BaseArena(first_block, first_block_size, block_size, false) {}
 
   char* Alloc(const size_t size) {
     return reinterpret_cast<char*>(GetMemory(size, 1));

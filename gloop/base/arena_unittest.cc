@@ -1149,6 +1149,29 @@ TEST(ArenaTest, TestPoison) {
   delete[] buffer;
 }
 
+TEST(ArenaTest, TestDifferentSizes) {
+  alignas(BaseArena::kDefaultAlignment) char buffer[128];
+  // 128 bytes inline block, 1024 bytes subsequent blocks.
+  UnsafeArena arena(buffer, sizeof(buffer), size_t{1024});
+
+  // Allocate 100 bytes (fits in first block)
+  char* p1 = arena.Alloc(100);
+  EXPECT_TRUE(p1 >= buffer && p1 < buffer + 128);
+  EXPECT_EQ(1, arena.block_count());
+
+  // Allocate another 100 bytes (exceeds first block capacity)
+  // This should trigger allocation of a subsequent block of size 1024 bytes.
+  char* p2 = arena.Alloc(100);
+  EXPECT_TRUE(p2 < buffer || p2 >= buffer + 128);
+  EXPECT_EQ(2, arena.block_count());
+  // The second block should have size 1024 bytes (or close to it)
+  // Let's verify by allocating up to 800 bytes from the new block
+  char* p3 = arena.Alloc(800);
+  EXPECT_NE(nullptr, p3);
+  // It should fit in the second block without creating a 3rd block
+  EXPECT_EQ(2, arena.block_count());
+}
+
 //------------------------------------------------------------------------
 
 #if defined(GOOGLE_PROTECTABLE_UNSAFE_ARENA_SUPPORTED)
