@@ -594,17 +594,17 @@ struct Impl : private Compare {
   }
   // We always copy Compare; moving it could leave 'other' in an invalid state.
   constexpr Impl(Impl&& other) noexcept(
-      std::is_nothrow_copy_constructible_v<Compare> &&
-      (has_clear<Rep>::value ? std::is_nothrow_move_constructible_v<Rep>
-                             : std::is_nothrow_copy_constructible_v<Rep>))
+      std::is_nothrow_copy_constructible<Compare>::value &&
+      (has_clear<Rep>::value ? std::is_nothrow_move_constructible<Rep>::value
+                             : std::is_nothrow_copy_constructible<Rep>::value))
       : Compare(other.cmp()),  // NOLINT misc-move-constructor-init
         rep(MoveIf(has_clear<Rep>(), &other.rep)) {
     ClearIf(has_clear<Rep>(), &other.rep);
   }
   Impl& operator=(Impl&& other) noexcept(
-      std::is_nothrow_copy_assignable_v<Compare> &&
-      (has_clear<Rep>::value ? std::is_nothrow_move_assignable_v<Rep>
-                             : std::is_nothrow_copy_assignable_v<Rep>)) {
+      std::is_nothrow_copy_assignable<Compare>::value &&
+      (has_clear<Rep>::value ? std::is_nothrow_move_assignable<Rep>::value
+                             : std::is_nothrow_copy_assignable<Rep>::value)) {
     Compare::operator=(other.cmp());
     rep = MoveIf(has_clear<Rep>(), &other.rep);
     ClearIf(has_clear<Rep>(), &other.rep);

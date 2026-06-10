@@ -91,7 +91,7 @@ constexpr bool SameReturnTypesImpl(static_int<0>) {
 }
 template <typename Target, typename F, int From>
 constexpr bool SameReturnTypesImpl(static_int<1>) {
-  return std::is_same_v<Target, ReturnType<F, From>>;
+  return std::is_same<Target, ReturnType<F, From>>::value;
 }
 template <typename Target, typename F, int From, int N>
 constexpr bool SameReturnTypesImpl(static_int<N>) {
@@ -106,10 +106,11 @@ constexpr bool SameReturnTypes() {
 // Returns true if ReturnType<F, From + Is> are all the same as Target.
 template <typename Target, typename F, int From, int... Is>
 constexpr bool SameReturnTypesImpl(absl::integer_sequence<int, Is...>) {
-  return std::is_same_v<
+  return std::is_same<
       absl::integer_sequence<bool, (true || Is)...>,
       absl::integer_sequence<
-          bool, std::is_same<Target, ReturnType<F, From + Is>>::value...>>;
+          bool,
+          std::is_same<Target, ReturnType<F, From + Is>>::value...>>::value;
 }
 template <typename Target, typename F, int From, int N>
 constexpr bool SameReturnTypes() {

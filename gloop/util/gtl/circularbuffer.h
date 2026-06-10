@@ -356,18 +356,18 @@ template <typename T>
 template <bool IsConst>
 class CircularBuffer<T>::Iterator {
  private:
-  typedef std::conditional_t<IsConst, const CircularBuffer, CircularBuffer>
-      container_type;
+  typedef typename std::conditional<IsConst, const CircularBuffer,
+                                    CircularBuffer>::type container_type;
 
  public:
   typedef std::random_access_iterator_tag iterator_category;
-  typedef std::remove_cv_t<T> value_type;
-  typedef std::conditional_t<IsConst, typename container_type::const_pointer,
-                             typename container_type::pointer>
-      pointer;
-  typedef std::conditional_t<IsConst, typename container_type::const_reference,
-                             typename container_type::reference>
-      reference;
+  typedef typename std::remove_cv<T>::type value_type;
+  typedef
+      typename std::conditional<IsConst, typename container_type::const_pointer,
+                                typename container_type::pointer>::type pointer;
+  typedef typename std::conditional<
+      IsConst, typename container_type::const_reference,
+      typename container_type::reference>::type reference;
   typedef typename container_type::size_type size_type;
   typedef typename container_type::difference_type difference_type;
 

@@ -146,8 +146,9 @@ class Interval {
       : start_(start), limit_(limit) {}
 
   template <typename U1, typename U2,
-            typename = std::enable_if_t<std::is_convertible_v<U1, T> &&
-                                        std::is_convertible_v<U2, T>>>
+            typename = typename std::enable_if<
+                std::is_convertible<U1, T>::value &&
+                std::is_convertible<U2, T>::value>::type>
   constexpr Interval(U1&& start, U2&& limit)
       : start_(std::forward<U1>(start)), limit_(std::forward<U2>(limit)) {}
 
@@ -345,8 +346,8 @@ Interval(T&&, U&&) -> Interval<std::decay_t<T>>;
 // An old-fashioned way to deduce the value type. Use class template argument
 // deduction in new code.
 template <int&... ExplicitParameterBarrier, typename T, typename U,
-          absl::enable_if_t<std::is_same_v<absl::decay_t<T>, absl::decay_t<U>>,
-                            int> = 0>
+          absl::enable_if_t<
+              std::is_same<absl::decay_t<T>, absl::decay_t<U>>::value, int> = 0>
 ABSL_DEPRECATE_AND_INLINE()
 Interval<absl::decay_t<T>> MakeInterval(T&& lhs, U&& rhs) {
   return Interval<absl::decay_t<T>>(std::forward<T>(lhs), std::forward<U>(rhs));

@@ -556,7 +556,7 @@ class AssociateView<K, V, AlsoSupportsLookupWith<Keys...>>::iterator {
   // Used to store the type-erased iterator.
   union IterStorage {
     // Used for iterators that are smaller than kInlineIterSize.
-    std::aligned_storage_t<kInlineIterSize> small_value;
+    typename std::aligned_storage<kInlineIterSize>::type small_value;
 
     // Used for allocated storage for iterators that are larger than
     // kInlineIterSize.

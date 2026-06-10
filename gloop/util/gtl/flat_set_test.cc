@@ -154,8 +154,8 @@ TEST(FlatSetTest, EmplaceDoesNotConfuseConstructors) {
 }
 
 TEST(FlatSetTest, MovableNoExcept) {
-  EXPECT_TRUE(std::is_nothrow_move_constructible_v<flat_set<int>>);
-  EXPECT_TRUE(std::is_nothrow_move_assignable_v<flat_set<int>>);
+  EXPECT_TRUE(std::is_nothrow_move_constructible<flat_set<int>>::value);
+  EXPECT_TRUE(std::is_nothrow_move_assignable<flat_set<int>>::value);
 }
 
 TEST(FlatSetTest, RangeAndListConstruction) {

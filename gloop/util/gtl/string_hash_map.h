@@ -119,7 +119,7 @@ namespace internal_string_hash_map {
 template <class Value>
 class Node {
  public:
-  static_assert(!std::is_reference_v<Value>, "");
+  static_assert(!std::is_reference<Value>::value, "");
 
   using first_type = absl::string_view;
   using second_type = Value;

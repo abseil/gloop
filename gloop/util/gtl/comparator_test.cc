@@ -428,8 +428,8 @@ TEST(ReverseTest, CompareWorks) {
 TEST(OrderByPropertyTest, OrderByIsSmall) {
   const auto extractor = Second();
   const auto comparator = Greater();
-  static_assert(std::is_empty_v<Second>, "Second is not empty.");
-  static_assert(std::is_empty_v<Greater>, "Greater is not empty.");
+  static_assert(std::is_empty<Second>::value, "Second is not empty.");
+  static_assert(std::is_empty<Greater>::value, "Greater is not empty.");
   static_assert(
       sizeof(std::tuple<Second, Greater>) < sizeof(Second) + sizeof(Greater),
       "std::tuple<Second, Greater> doesn't seem to use EBCO.");
