@@ -79,10 +79,12 @@ using ::testing::AllOf;
 using ::testing::Eq;
 using ::testing::Ge;
 using ::testing::Gt;
+using ::testing::IsNull;
 using ::testing::Le;
 using ::testing::Lt;
 using ::testing::NiceMock;
 using ::testing::Not;
+using ::testing::NotNull;
 using ::testing::Optional;
 using ::testing::Ref;
 
@@ -158,12 +160,15 @@ class TestTracer : public Tracer {
   using base::Tracer::kInitiatorValueMask;
   using base::Tracer::kNotSampled;
   using base::Tracer::kTraceInitiatingSpan;
+  using base::Tracer::Ref;
   using base::Tracer::set_initiator_id;
   using base::Tracer::set_tracer_attributes;
   using base::Tracer::SetStartTime;
   using base::Tracer::SetStartTimeNow;
   using base::Tracer::SetUnrefTime;
   using base::Tracer::SetUnrefTimeNow;
+  using base::Tracer::Unref;
+  using base::Tracer::UnrefNoDelete;
   using base::Tracer::UpdateMask;
 
   // Sets the printed_formatted flag if we're given the right
@@ -512,6 +517,48 @@ TEST(Tracer, InitiatorIdOfChildTrace) {
   EXPECT_EQ(tracer.initiator_id(), kInitiatorBits |
                                        TestTracer::kTraceInitiatingSpan |
                                        TestTracer::kInitiatedByLinkContexts);
+}
+
+TEST(Tracer, UnrefNoDeleteRefcountGreaterThanOne) {
+  bool deleted = false;
+  TestTracer* tracer = new TestTracer(&deleted);
+  tracer->SetStartTimeNow();
+
+  int owners[2] = {0, 0};
+  void* owner1 = &owners[0];
+  void* owner2 = &owners[1];
+
+  tracer->Ref(owner1);
+  tracer->Ref(owner2);
+
+  std::unique_ptr<Tracer> returned_tracer = tracer->UnrefNoDelete(owner1);
+
+  EXPECT_THAT(returned_tracer, IsNull());
+  EXPECT_FALSE(deleted);
+  EXPECT_THAT(tracer->RefCountForTesting(), Eq(1));
+
+  tracer->Unref(owner2);
+  EXPECT_TRUE(deleted);
+}
+
+TEST(Tracer, UnrefNoDeleteRefcountEqualsOneWithUnrefTime) {
+  bool deleted = false;
+  TestTracer* tracer = new TestTracer(&deleted);
+  tracer->SetStartTimeNow();
+
+  int owner_val = 0;
+  void* owner = &owner_val;
+  tracer->Ref(owner);
+  tracer->SetUnrefTimeNow();
+
+  std::unique_ptr<Tracer> returned_tracer = tracer->UnrefNoDelete(owner);
+
+  ASSERT_THAT(returned_tracer, NotNull());
+  EXPECT_THAT(returned_tracer.get(), Eq(tracer));
+  EXPECT_FALSE(deleted);
+
+  returned_tracer.reset();
+  EXPECT_TRUE(deleted);
 }
 
 void BM_ElapsedSeconds(benchmark::State& state) {

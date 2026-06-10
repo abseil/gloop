@@ -1127,12 +1127,19 @@ class Tracer {
     ref_count_.fetch_add(1, std::memory_order_relaxed);
   }
 
-  void Unref(void* owner) {
+  // Decrements the reference count. Returns a unique_ptr to the tracer if this
+  // was the last reference and the tracer is ready to be destroyed. Returns
+  // nullptr otherwise. Protected: only derived tracer implementations can call
+  // this.
+  std::unique_ptr<Tracer> UnrefNoDelete(void* owner) {
     tracker_.Unref(owner);
     if (ref_count_.fetch_sub(1, std::memory_order_acq_rel) - 1 == 0) {
-      UnrefSlow();
+      return UnrefSlow();
     }
+    return nullptr;
   }
+
+  void Unref(void* owner) { UnrefNoDelete(owner); }
 
   void SwapRefOwner(void* old_owner, void* new_owner) {
     tracker_.Ref(new_owner);
@@ -1293,8 +1300,9 @@ class Tracer {
   }
 
   // Slow path for Unref(), which calls OnRefCountZero() if no stop
-  // time has been set.
-  void UnrefSlow() ABSL_ATTRIBUTE_COLD;
+  // time has been set. Returns a unique_ptr to the tracer if it is ready
+  // to be deallocated.
+  std::unique_ptr<Tracer> UnrefSlow() ABSL_ATTRIBUTE_COLD;
 
   // Attributes of this trace span.
   uint64_t span_id_ = 0;
