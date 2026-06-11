@@ -87,7 +87,7 @@ struct set_difference<int_pack<>, B> : int_pack<> {};
 // T must be a tuple type. Returns a subset of T with Nth element being equal to
 // the Is[N]th element of the original tuple.
 template <class T, ::size_t... Is>
-auto slice_pack(T&& t, int_pack<Is...>)
+constexpr auto slice_pack(T&& t, int_pack<Is...>)
     -> decltype(slice<Is...>(::std::forward<T>(t))) {
   return slice<Is...>(::std::forward<T>(t));
 }
@@ -95,7 +95,7 @@ auto slice_pack(T&& t, int_pack<Is...>)
 // T must be a tuple type and Is must be an instance of int_pack<>.
 // Returns a subset of T with all elements with indices in Is removed.
 template <class Is, class T>
-auto erase_pack(T&& t) -> decltype(slice_pack(
+constexpr auto erase_pack(T&& t) -> decltype(slice_pack(
     ::std::forward<T>(t),
     typename set_difference<typename make_int_pack<0, size<T>::value>::type,
                             Is>::type())) {
@@ -124,8 +124,9 @@ struct negate {
 //   tuple<int> b = erase<0, 2>(a);  // Remove elements 0 and 2.
 //   assert(b == make_tuple(42));
 template <::size_t... Is, class T>
-auto erase(T&& t) -> decltype(internal_erase::erase_pack<int_pack<Is...>>(
-    ::std::forward<T>(t))) {
+constexpr auto erase(T&& t)
+    -> decltype(internal_erase::erase_pack<int_pack<Is...>>(
+        ::std::forward<T>(t))) {
   return internal_erase::erase_pack<int_pack<Is...>>(::std::forward<T>(t));
 }
 
@@ -137,7 +138,7 @@ auto erase(T&& t) -> decltype(internal_erase::erase_pack<int_pack<Is...>>(
 //   tuple<int> b = erase_range<1, 4>(a);  // Remove elements [1, 4).
 //   assert(b == make_tuple(42));
 template <::size_t I, ::size_t J, class T>
-auto erase_range(T&& t)
+constexpr auto erase_range(T&& t)
     -> decltype(internal_erase::erase_pack<typename make_int_pack<I, J>::type>(
         ::std::forward<T>(t))) {
   return internal_erase::erase_pack<typename make_int_pack<I, J>::type>(
@@ -162,7 +163,7 @@ auto erase_range(T&& t)
 //   tuple<char, int32> q = erase_if_index<even_and_big>(t);
 //   assert(q == make_tuple('A', 42));
 template <class Predicate, class T>
-auto erase_if_index(T&& t)
+constexpr auto erase_if_index(T&& t)
     -> decltype(filter_index<internal_erase::negate<Predicate>>(
         ::std::forward<T>(t))) {
   return filter_index<internal_erase::negate<Predicate>>(::std::forward<T>(t));
@@ -182,7 +183,7 @@ auto erase_if_index(T&& t)
 //   tuple<char> q = erase_if<big>(t);
 //   assert(q == make_tuple('A'));
 template <class Predicate, class T>
-auto erase_if(T&& t)
+constexpr auto erase_if(T&& t)
     -> decltype(erase_if_index<ignore_predicate_index<Predicate>>(
         ::std::forward<T>(t))) {
   return erase_if_index<ignore_predicate_index<Predicate>>(

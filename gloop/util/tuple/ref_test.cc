@@ -83,6 +83,13 @@ TEST_F(Ref, ConstRef) {
   EXPECT_EQ(&get<0>(q), &get<0>(tuple::ref(q)));
 }
 
+TEST_F(Ref, Constexpr) {
+  static constexpr std::tuple<int> in(42);
+  constexpr auto out = tuple::ref(in);
+  static constexpr int n = 42;
+  static_assert(out == std::tie(n));
+}
+
 }  // namespace
 }  // namespace tuple
 }  // namespace util

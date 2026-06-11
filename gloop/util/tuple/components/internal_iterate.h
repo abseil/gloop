@@ -46,14 +46,14 @@ namespace internal_iterate {
 
 // Call f<start + i> for all i in the std::integer_sequence.
 template <size_t start, class F, size_t... index>
-void iterate_index_fold_base(const F& f,
-                             std::integer_sequence<size_t, index...>) {
+constexpr void iterate_index_fold_base(
+    const F& f, std::integer_sequence<size_t, index...>) {
   (f.template operator()<start + index>(), ...);
 }
 
 // Equivalent to f<start>(), f<start + 1>(), ... f<start + N - 1>().
 template <size_t start, size_t N, class F>
-void iterate_index_fold(const F& f) {
+constexpr void iterate_index_fold(const F& f) {
   // As of 2024-05-16, clang throws an error if the fold expression has more
   // than 256 terms. See also https://github.com/llvm/llvm-project/issues/48973.
   // We leave ourselves some headroom by splitting at 128 instead.
@@ -81,7 +81,7 @@ void iterate_index_fold(const F& f) {
 template <::size_t N>
 struct index_folder {
   template <::size_t I, class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(index_folder<N - 9>().template operator()<I + 9>(
           f,
           f.template operator()<I + 8>(
@@ -103,7 +103,7 @@ struct index_folder {
 template <>
 struct index_folder<0> {
   template <::size_t I, class F, class S>
-  S&& operator()(const F& f, S&& s) const {
+  constexpr S&& operator()(const F& f, S&& s) const {
     return ::std::forward<S>(s);
   }
 };
@@ -111,7 +111,7 @@ struct index_folder<0> {
 template <>
 struct index_folder<1> {
   template <::size_t I, class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(f.template operator()<I>(::std::forward<S>(s))) {
     return f.template operator()<I>(::std::forward<S>(s));
   }
@@ -120,7 +120,7 @@ struct index_folder<1> {
 template <>
 struct index_folder<2> {
   template <::size_t I, class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(f.template operator()<I + 1>(
           f.template operator()<I>(::std::forward<S>(s)))) {
     return f.template operator()<I + 1>(
@@ -131,7 +131,7 @@ struct index_folder<2> {
 template <>
 struct index_folder<3> {
   template <::size_t I, class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(f.template operator()<I + 2>(f.template operator()<I + 1>(
           f.template operator()<I>(::std::forward<S>(s))))) {
     return f.template operator()<I + 2>(f.template operator()<I + 1>(
@@ -142,7 +142,7 @@ struct index_folder<3> {
 template <>
 struct index_folder<4> {
   template <::size_t I, class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(f.template operator()<I + 3>(
           f.template operator()<I + 2>(f.template operator()<I + 1>(
               f.template operator()<I>(::std::forward<S>(s)))))) {
@@ -155,7 +155,7 @@ struct index_folder<4> {
 template <>
 struct index_folder<5> {
   template <::size_t I, class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(f.template operator()<I + 4>(f.template operator()<I + 3>(
           f.template operator()<I + 2>(f.template operator()<I + 1>(
               f.template operator()<I>(::std::forward<S>(s))))))) {
@@ -168,7 +168,7 @@ struct index_folder<5> {
 template <>
 struct index_folder<6> {
   template <::size_t I, class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(f.template operator()<I + 5>(
           f.template operator()<I + 4>(f.template operator()<I + 3>(
               f.template operator()<I + 2>(f.template operator()<I + 1>(
@@ -183,7 +183,7 @@ struct index_folder<6> {
 template <>
 struct index_folder<7> {
   template <::size_t I, class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(f.template operator()<I + 6>(f.template operator()<I + 5>(
           f.template operator()<I + 4>(f.template operator()<I + 3>(
               f.template operator()<I + 2>(f.template operator()<I + 1>(
@@ -198,7 +198,7 @@ struct index_folder<7> {
 template <>
 struct index_folder<8> {
   template <::size_t I, class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(f.template operator()<I + 7>(
           f.template operator()<I + 6>(f.template operator()<I + 5>(
               f.template operator()<I + 4>(f.template operator()<I + 3>(
@@ -215,7 +215,7 @@ struct index_folder<8> {
 template <>
 struct index_folder<9> {
   template <::size_t I, class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(f.template operator()<I + 8>(f.template operator()<I + 7>(
           f.template operator()<I + 6>(f.template operator()<I + 5>(
               f.template operator()<I + 4>(f.template operator()<I + 3>(
@@ -238,8 +238,9 @@ struct index_folder<9> {
 template <::size_t N>
 struct folder {
   template <class F, class S>
-  auto operator()(const F& f, S&& s) const -> decltype(folder<N - 9>()(
-      f, f(f(f(f(f(f(f(f(f(::std::forward<S>(s)))))))))))) {
+  constexpr auto operator()(const F& f, S&& s) const
+      -> decltype(folder<N - 9>()(
+          f, f(f(f(f(f(f(f(f(f(::std::forward<S>(s)))))))))))) {
     return folder<N - 9>()(f, f(f(f(f(f(f(f(f(f(::std::forward<S>(s)))))))))));
   }
 };
@@ -247,7 +248,7 @@ struct folder {
 template <>
 struct folder<0> {
   template <class F, class S>
-  S&& operator()(const F& f, S&& s) const {
+  constexpr S&& operator()(const F& f, S&& s) const {
     return ::std::forward<S>(s);
   }
 };
@@ -255,7 +256,7 @@ struct folder<0> {
 template <>
 struct folder<1> {
   template <class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(f(::std::forward<S>(s))) {
     return f(::std::forward<S>(s));
   }
@@ -264,7 +265,7 @@ struct folder<1> {
 template <>
 struct folder<2> {
   template <class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(f(f(::std::forward<S>(s)))) {
     return f(f(::std::forward<S>(s)));
   }
@@ -273,7 +274,7 @@ struct folder<2> {
 template <>
 struct folder<3> {
   template <class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(f(f(f(::std::forward<S>(s))))) {
     return f(f(f(::std::forward<S>(s))));
   }
@@ -282,7 +283,7 @@ struct folder<3> {
 template <>
 struct folder<4> {
   template <class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(f(f(f(f(::std::forward<S>(s)))))) {
     return f(f(f(f(::std::forward<S>(s)))));
   }
@@ -291,7 +292,7 @@ struct folder<4> {
 template <>
 struct folder<5> {
   template <class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(f(f(f(f(f(::std::forward<S>(s))))))) {
     return f(f(f(f(f(::std::forward<S>(s))))));
   }
@@ -300,7 +301,7 @@ struct folder<5> {
 template <>
 struct folder<6> {
   template <class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(f(f(f(f(f(f(::std::forward<S>(s)))))))) {
     return f(f(f(f(f(f(::std::forward<S>(s)))))));
   }
@@ -309,7 +310,7 @@ struct folder<6> {
 template <>
 struct folder<7> {
   template <class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(f(f(f(f(f(f(f(::std::forward<S>(s))))))))) {
     return f(f(f(f(f(f(f(::std::forward<S>(s))))))));
   }
@@ -318,7 +319,7 @@ struct folder<7> {
 template <>
 struct folder<8> {
   template <class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(f(f(f(f(f(f(f(f(::std::forward<S>(s)))))))))) {
     return f(f(f(f(f(f(f(f(::std::forward<S>(s)))))))));
   }
@@ -327,7 +328,7 @@ struct folder<8> {
 template <>
 struct folder<9> {
   template <class F, class S>
-  auto operator()(const F& f, S&& s) const
+  constexpr auto operator()(const F& f, S&& s) const
       -> decltype(f(f(f(f(f(f(f(f(f(::std::forward<S>(s))))))))))) {
     return f(f(f(f(f(f(f(f(f(::std::forward<S>(s))))))))));
   }

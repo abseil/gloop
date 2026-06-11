@@ -70,7 +70,7 @@ namespace internal_for_each {
 template <class T, class F>
 struct value_op {
   template <::size_t N>
-  void operator()() const {
+  constexpr void operator()() const {
     f.template operator()<N>(get<N>(::std::forward<T>(t)));
   }
   T&& t;
@@ -80,7 +80,7 @@ struct value_op {
 template <class T, class F>
 struct type_op {
   template <::size_t N>
-  void operator()() const {
+  constexpr void operator()() const {
     f.template operator()<N, typename element<N, T>::type>();
   }
   const F& f;
@@ -89,24 +89,24 @@ struct type_op {
 }  // namespace internal_for_each
 
 template <class T, class F>
-void for_each_index(const F& f, T&& t) {
+constexpr void for_each_index(const F& f, T&& t) {
   ::util::tuple::iterate_index<size<T>::value>(
       internal_for_each::value_op<T, F>{::std::forward<T>(t), f});
 }
 
 template <class T, class F>
-void for_each(const F& f, T&& t) {
+constexpr void for_each(const F& f, T&& t) {
   ::util::tuple::for_each_index(ignore_index(&f), ::std::forward<T>(t));
 }
 
 template <class T, class F>
-void for_each_index(const F& f) {
+constexpr void for_each_index(const F& f) {
   ::util::tuple::iterate_index<size<T>::value>(
       internal_for_each::type_op<T, F>{f});
 }
 
 template <class T, class F>
-void for_each(const F& f) {
+constexpr void for_each(const F& f) {
   ::util::tuple::for_each_index<T>(ignore_index_no_args(&f));
 }
 

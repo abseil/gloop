@@ -168,6 +168,16 @@ TEST(ForEach, OrderWithLargeTuple) {
   EXPECT_THAT(dst, ::testing::ContainerEq(src));
 }
 
+TEST(ForEach, Constexpr) {
+  constexpr int sum = []() {
+    auto t = std::make_tuple(1, 2, 3);
+    int s = 0;
+    for_each([&](int val) { s += val; }, t);
+    return s;
+  }();
+  static_assert(sum == 6);
+}
+
 }  // namespace
 }  // namespace tuple
 }  // namespace util

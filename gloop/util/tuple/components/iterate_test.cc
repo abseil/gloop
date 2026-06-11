@@ -201,6 +201,27 @@ TEST(IterateVoid, Functional) {
   EXPECT_EQ(11, DoIncrement<11>());
 }
 
+struct ConstexprIterateIndexF {
+  template <size_t I>
+  constexpr int operator()(int state) const {
+    return state + I;
+  }
+};
+
+TEST(Iterate, Constexpr) {
+  constexpr auto r_2 = iterate<2>([](auto n) { return n + 1; }, 0);
+  static_assert(r_2 == 2);
+
+  constexpr auto r_20 = iterate<20>([](auto n) { return n + 1; }, 0);
+  static_assert(r_20 == 20);
+
+  constexpr auto r_index_2 = iterate_index<2>(ConstexprIterateIndexF(), 0);
+  static_assert(r_index_2 == 1);
+
+  constexpr auto r_index_20 = iterate_index<20>(ConstexprIterateIndexF(), 0);
+  static_assert(r_index_20 == 190);
+}
+
 }  // namespace
 }  // namespace tuple
 }  // namespace util

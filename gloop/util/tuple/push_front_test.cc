@@ -64,6 +64,12 @@ TEST_F(PushFrontRef, ConstRef) {
   EXPECT_EQ(&cx, &get<0>(t));
 }
 
+TEST_F(PushFront, Constexpr) {
+  constexpr auto in = std::make_tuple(42);
+  constexpr auto out = push_front(in, 24);
+  static_assert(out == std::make_tuple(24, 42));
+}
+
 }  // namespace
 }  // namespace tuple
 }  // namespace util

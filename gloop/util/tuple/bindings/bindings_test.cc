@@ -84,5 +84,14 @@ TEST(Fields, Works) {
   }
 }
 
+TEST(Fields, Constexpr) {
+  struct S {
+    int a;
+  };
+  static constexpr S s{42};
+  constexpr auto t = bindings_traits_with_size<S, 1>::field_refs(s);
+  static_assert(std::get<0>(t) == 42);
+}
+
 }  // namespace
 }  // namespace util::tuple::bindings

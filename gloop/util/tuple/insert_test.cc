@@ -182,6 +182,12 @@ TEST_F(InsertTuple, InsertReference) {
   EXPECT_EQ(&x, &get<0>(t));
 }
 
+TEST_F(Insert, Constexpr) {
+  constexpr auto in = std::make_tuple(42);
+  constexpr auto out = insert<0>(in, 24);
+  static_assert(out == std::make_tuple(24, 42));
+}
+
 }  // namespace
 }  // namespace tuple
 }  // namespace util

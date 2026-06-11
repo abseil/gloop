@@ -151,6 +151,12 @@ TEST_F(EraseIf, Functional) {
   EXPECT_EQ(make_tuple(a), erase_if<Negative>(make_tuple(x, a, y)));
 }
 
+TEST_F(Erase, Constexpr) {
+  constexpr auto in = std::make_tuple(42, 'A');
+  constexpr auto out = erase<0>(in);
+  static_assert(out == std::make_tuple('A'));
+}
+
 }  // namespace
 }  // namespace tuple
 }  // namespace util

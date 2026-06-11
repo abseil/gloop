@@ -71,7 +71,8 @@ template <class T, class Is>
 struct get_indirected {
   // Returns the Is[I]th element of the tuple.
   template <::size_t I, class R>
-  decltype(get<nth<I, Is>::value>(::std::declval<T>())) operator()() const {
+  constexpr decltype(get<nth<I, Is>::value>(::std::declval<T>())) operator()()
+      const {
     return get<nth<I, Is>::value>(::std::forward<T>(t));
   }
   T&& t;
@@ -81,7 +82,7 @@ struct get_indirected {
 // Returns a subset of T with Nth element being equal to the Is[N]th element
 // of the original tuple.
 template <class Is, class T>
-typename result<T, Is>::type slice_pack(T&& t) {
+constexpr typename result<T, Is>::type slice_pack(T&& t) {
   get_indirected<T, Is> op = {::std::forward<T>(t)};
   return generate_index<typename result<T, Is>::type>(op);
 }
@@ -98,8 +99,9 @@ typename result<T, Is>::type slice_pack(T&& t) {
 //   tuple<int, string> b = slice<0, 2>(a);  // Select 0th and 2nd elements.
 //   assert(b == make_tuple(42, "hello"));
 template <::size_t... Is, class T>
-auto slice(T&& t) -> decltype(internal_slice::slice_pack<int_pack<Is...>>(
-    ::std::forward<T>(t))) {
+constexpr auto slice(T&& t)
+    -> decltype(internal_slice::slice_pack<int_pack<Is...>>(
+        ::std::forward<T>(t))) {
   return internal_slice::slice_pack<int_pack<Is...>>(::std::forward<T>(t));
 }
 
@@ -112,7 +114,7 @@ auto slice(T&& t) -> decltype(internal_slice::slice_pack<int_pack<Is...>>(
 //   tuple<int, char, string> b = slice_range<0, 3>(a);  // Select [0, 3).
 //   assert(b == make_tuple(42, 'A', "hello"));
 template <::size_t I, ::size_t J, class T>
-auto slice_range(T&& t)
+constexpr auto slice_range(T&& t)
     -> decltype(internal_slice::slice_pack<typename make_int_pack<I, J>::type>(
         ::std::forward<T>(t))) {
   return internal_slice::slice_pack<typename make_int_pack<I, J>::type>(

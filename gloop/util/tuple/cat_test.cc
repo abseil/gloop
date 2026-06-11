@@ -66,6 +66,13 @@ TEST_F(Cat, ExplicitTag) {
             cat<std_tuple_tag>(make_pair(a, b), make_tuple(c)));
 }
 
+TEST_F(Cat, Constexpr) {
+  constexpr auto in1 = std::make_tuple(42);
+  constexpr auto in2 = std::make_tuple('A');
+  constexpr auto out = cat(in1, in2);
+  static_assert(out == std::make_tuple(42, 'A'));
+}
+
 }  // namespace
 }  // namespace tuple
 }  // namespace util

@@ -161,7 +161,7 @@ generate_index(const F& f) {
 //   tuple<int, double> t = generate<tuple<int, double>>(InitWith42());
 //
 template <class T, class F>
-T generate(const F& f) {
+constexpr T generate(const F& f) {
   return generate_index<T>(ignore_index_no_args(&f));
 }
 

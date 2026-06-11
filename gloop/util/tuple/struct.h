@@ -474,7 +474,7 @@ struct HashCombine {
 };
 
 template <class Map, class Element, class T>
-auto get_field(T&& t)
+constexpr auto get_field(T&& t)
     -> decltype(tuple::get<internal_intrinsics::index_of<Element, Map>{}>(
         std::forward<T>(t))) {
   return tuple::get<internal_intrinsics::index_of<Element, Map>{}>(
@@ -486,7 +486,7 @@ auto get_field(T&& t)
 namespace internal_struct_adl_barrier {
 
 template <class T, char... Chars>
-auto get_field(compile_string<Chars...>, T&& t)
+constexpr auto get_field(compile_string<Chars...>, T&& t)
     -> decltype(internal_struct::get_field<
                 typename intrinsics<typename tag<T>::type>::CompileStringMap,
                 compile_string<Chars...>>(std::forward<T>(t))) {
@@ -500,10 +500,10 @@ auto get_field(compile_string<Chars...>, T&& t)
 namespace internal_struct {
 
 template <class Struct>
-void Build(Struct* s) {}
+constexpr void Build(Struct* s) {}
 
 template <class Struct, class Field, class Expr, class... Ts>
-void Build(Struct* s, Field f, Expr&& expr, Ts&&... ts) {
+constexpr void Build(Struct* s, Field f, Expr&& expr, Ts&&... ts) {
   internal_struct_adl_barrier::get_field(f, *s) = std::forward<Expr>(expr);
   internal_struct::Build(s, std::forward<Ts>(ts)...);
 }
@@ -526,7 +526,7 @@ constexpr bool CheckTypes(std::false_type) {
 namespace internal_struct_adl_barrier {
 
 template <class Struct, class... Ts>
-Struct Build(Struct s, Ts&&... ts) {
+constexpr Struct Build(Struct s, Ts&&... ts) {
   internal_struct::Build(&s, std::forward<Ts>(ts)...);
   return s;
 }

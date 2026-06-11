@@ -36,21 +36,21 @@ namespace {
 
 struct ByIndexGenerator {
   template <::size_t I>
-  ::size_t operator()() const {
+  constexpr ::size_t operator()() const {
     return I;
   }
 };
 
 struct ByTypeGenerator {
   template <class T>
-  ::size_t operator()() const {
+  constexpr ::size_t operator()() const {
     return sizeof(T);
   }
 };
 
 struct ByIndexAndTypeGenerator {
   template <::size_t I, class T>
-  ::size_t operator()() const {
+  constexpr ::size_t operator()() const {
     return I;
   }
 };
@@ -83,6 +83,12 @@ TEST(Generate, ArrayByTagAndIndex) {
 TEST(Generate, ArrayByType) {
   typedef std::array<::size_t, 2> A;
   EXPECT_EQ((A{{8, 8}}), generate<A>(ByTypeGenerator()));
+}
+
+TEST(Generate, Constexpr) {
+  constexpr std::pair<int32_t, int64_t> p =
+      generate<std::pair<int32_t, int64_t>>(ByTypeGenerator());
+  static_assert(p == std::pair<int32_t, int64_t>{4, 8});
 }
 
 }  // namespace

@@ -153,15 +153,16 @@ constexpr typename assemble<Tag>::type zip() {
 // The same as zip<Tag>(ref(args)...). In other words, creates a tuple of
 // tuples of references.
 template <class Tag, class... Ts>
-decltype(zip<Tag>(::util::tuple::ref<Tag>(::std::declval<Ts>())...)) zip_ref(
-    Ts&&... ts) {
+constexpr decltype(zip<Tag>(::util::tuple::ref<Tag>(::std::declval<Ts>())...))
+zip_ref(Ts&&... ts) {
   return zip<Tag>(::util::tuple::ref<Tag>(::std::forward<Ts>(ts))...);
 }
 
 // The same as zip(ref(args)...). In other words, creates a tuple of tuples of
 // references.
 template <class... Ts>
-decltype(zip(::util::tuple::ref(::std::declval<Ts>())...)) zip_ref(Ts&&... ts) {
+constexpr decltype(zip(::util::tuple::ref(::std::declval<Ts>())...)) zip_ref(
+    Ts&&... ts) {
   return zip(::util::tuple::ref(::std::forward<Ts>(ts))...);
 }
 

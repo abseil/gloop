@@ -43,6 +43,12 @@ TEST_F(Back, Const) {
   EXPECT_EQ(&::std::get<1>(t), p);
 }
 
+TEST_F(Back, Constexpr) {
+  constexpr std::tuple<int, char> t(42, 'A');
+  constexpr char r = back(t);
+  static_assert(r == 'A');
+}
+
 }  // namespace
 }  // namespace tuple
 }  // namespace util

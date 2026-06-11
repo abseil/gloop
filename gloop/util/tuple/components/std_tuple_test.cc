@@ -139,6 +139,12 @@ TEST(StdTuple, HasAllElements) {
   EXPECT_TRUE(has_all_elements<D>::value);
 }
 
+TEST(StdTuple, Constexpr) {
+  constexpr T t{42, 'A'};
+  static_assert(util::tuple::get<0>(t) == 42);
+  static_assert(util::tuple::get<1>(t) == 'A');
+}
+
 }  // namespace
 }  // namespace tuple
 }  // namespace util

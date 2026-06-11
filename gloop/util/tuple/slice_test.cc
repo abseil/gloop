@@ -115,6 +115,12 @@ TEST_F(SliceRange, NonConst) {
   EXPECT_EQ(&a, &get<0>(q));
 }
 
+TEST_F(Slice, Constexpr) {
+  constexpr auto in = std::make_tuple(42, 'A');
+  constexpr auto out = slice<1>(in);
+  static_assert(out == std::make_tuple('A'));
+}
+
 }  // namespace
 }  // namespace tuple
 }  // namespace util

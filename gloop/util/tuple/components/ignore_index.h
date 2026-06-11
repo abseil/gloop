@@ -48,8 +48,8 @@ const F& mk_dependent();
 
 template <class F>
 struct ignore_index_no_args_t {
-  ignore_index_no_args_t() : f_(nullptr) {}
-  explicit ignore_index_no_args_t(const F* f) : f_(*f) {}
+  constexpr ignore_index_no_args_t() : f_(nullptr) {}
+  constexpr explicit ignore_index_no_args_t(const F* f) : f_(*f) {}
 
   // We can't just put these two methods in ignore_index_t because GCC
   // has a tendency to instantiate functions as soon as all template parameters
@@ -70,13 +70,14 @@ struct ignore_index_no_args_t {
   //   F f;
   //   util::tuple::for_each(std::ref(f), std::make_tuple(0));
   template <::size_t N>
-  decltype(internal_ignore_index::mk_dependent<N, F>()()) operator()() const {
+  constexpr decltype(internal_ignore_index::mk_dependent<N, F>()()) operator()()
+      const {
     return f_();
   }
 
   template <::size_t N, class T>
-  decltype(internal_ignore_index::mk_dependent<N, F>()
-               .template operator()<T>()) operator()() const {
+  constexpr decltype(internal_ignore_index::mk_dependent<N, F>()
+                         .template operator()<T>()) operator()() const {
     return f_.template operator()<T>();
   }
 
@@ -86,11 +87,12 @@ struct ignore_index_no_args_t {
 
 template <class F>
 struct ignore_index_t {
-  ignore_index_t() : f_(nullptr) {}
-  explicit ignore_index_t(const F* f) : f_(*f) {}
+  constexpr ignore_index_t() : f_(nullptr) {}
+  constexpr explicit ignore_index_t(const F* f) : f_(*f) {}
 
   template <::size_t N, class... Ts>
-  decltype(internal_ignore_index::mk_dependent<N, F>()(::std::declval<Ts>()...))
+  constexpr decltype(internal_ignore_index::mk_dependent<N, F>()(
+      ::std::declval<Ts>()...))
   operator()(Ts&&... ts) const {
     return f_(::std::forward<Ts>(ts)...);
   }
@@ -100,12 +102,12 @@ struct ignore_index_t {
 };
 
 template <class F>
-ignore_index_no_args_t<F> ignore_index_no_args(F* f) {
+constexpr ignore_index_no_args_t<F> ignore_index_no_args(F* f) {
   return ignore_index_no_args_t<F>(f);
 }
 
 template <class F>
-ignore_index_t<F> ignore_index(F* f) {
+constexpr ignore_index_t<F> ignore_index(F* f) {
   return ignore_index_t<F>(f);
 }
 

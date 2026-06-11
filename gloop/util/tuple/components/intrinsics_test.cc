@@ -60,7 +60,7 @@ struct intrinsics<TagS> {
   };
 
   template <::size_t N, class T>
-  static int get(T&& t) {
+  static constexpr int get(T&& t) {
     static_assert(::std::is_same<typename ::std::decay<T>::type, S>::value,
                   "Wrong template argument");
     return N;
@@ -252,6 +252,12 @@ TEST(Intrinsics, HasAllElements) {
   EXPECT_FALSE(has_all_elements<S>::value);
   // Defines the has_all_elements intrinsic.
   EXPECT_TRUE(has_all_elements<Q>::value);
+}
+
+TEST(Intrinsics, Constexpr) {
+  constexpr S s = {};
+  static_assert(util::tuple::get<0>(s) == 0);
+  static_assert(index_of<std::integral_constant<int, 0>, S>() == 0);
 }
 
 }  // namespace

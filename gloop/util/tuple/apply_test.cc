@@ -171,4 +171,13 @@ TEST(IsApplicable, _) {
   }
 }
 
+TEST(ApplyConstexpr, Constexpr) {
+  constexpr auto minus = [](auto a, auto b) { return a - b; };
+  constexpr int r = util::tuple::apply(minus, std::make_tuple(3, 2));
+  static_assert(r == 1);
+  constexpr bool b =
+      util::tuple::is_applicable<decltype(minus), std::tuple<int, int>>();
+  static_assert(b);
+}
+
 }  // namespace

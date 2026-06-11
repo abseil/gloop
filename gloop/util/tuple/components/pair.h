@@ -74,13 +74,13 @@ struct intrinsics<pair_tag> {
   using size = ::std::integral_constant<::size_t, 2>;
 
   template <::size_t N, class T>
-  static decltype(::std::get<N>(::std::declval<T>())) get(T&& t) {
+  static constexpr decltype(::std::get<N>(::std::declval<T>())) get(T&& t) {
     return ::std::get<N>(::std::forward<T>(t));
   }
 
   // std::get() is lacking an overload for const rvalues. We fix this oversight.
   template <::size_t N, class T>
-  static const typename element<N, T>::type&& get(const T&& t) {
+  static constexpr const typename element<N, T>::type&& get(const T&& t) {
     return ::std::forward<const typename element<N, T>::type>(
         ::std::get<N>(::std::move(t)));
   }

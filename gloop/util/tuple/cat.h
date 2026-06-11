@@ -141,7 +141,7 @@ struct result
 template <class... Ts>
 struct getter {
   template <::size_t I, class T>
-  auto operator()() const -> decltype(get<pos<I, Ts...>::inner>(
+  constexpr auto operator()() const -> decltype(get<pos<I, Ts...>::inner>(
       get<pos<I, Ts...>::outer>(::std::declval<::std::tuple<Ts&&...>>()))) {
     typedef pos<I, Ts...> p;
     return get<p::inner>(get<p::outer>(std::move(t)));
@@ -154,15 +154,15 @@ struct getter {
 
 // Constructs a tuple that is a concatenation of all tuples passed as arguments.
 template <class Tag, class... Ts>
-typename internal_cat::result<Tag, Ts...>::type cat(Ts&&... ts) {
+constexpr typename internal_cat::result<Tag, Ts...>::type cat(Ts&&... ts) {
   ::std::tuple<Ts&&...> t(::std::forward<Ts>(ts)...);
   internal_cat::getter<Ts...> op = {t};
   return generate_index<typename internal_cat::result<Tag, Ts...>::type>(op);
 }
 
 template <class T, class... Ts>
-typename internal_cat::result<typename tag<T>::type, T, Ts...>::type cat(
-    T&& t, Ts&&... ts) {
+constexpr typename internal_cat::result<typename tag<T>::type, T, Ts...>::type
+cat(T&& t, Ts&&... ts) {
   return cat<typename tag<T>::type>(::std::forward<T>(t),
                                     ::std::forward<Ts>(ts)...);
 }

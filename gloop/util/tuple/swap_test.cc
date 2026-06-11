@@ -68,6 +68,16 @@ TEST(Swap, TwoElements) {
   EXPECT_EQ(::std::make_tuple(42, 0.5), q);
 }
 
+TEST(Swap, Constexpr) {
+  constexpr auto r = []() {
+    auto t = std::make_tuple(42);
+    auto q = std::make_tuple(24);
+    util::tuple::swap(t, q);
+    return t;
+  }();
+  static_assert(r == std::make_tuple(24));
+}
+
 }  // namespace
 }  // namespace tuple
 }  // namespace util

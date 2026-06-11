@@ -39,7 +39,8 @@ namespace util {
 namespace tuple {
 
 template <class T>
-auto back(T&& t) -> decltype(get<size<T>::value - 1>(::std::forward<T>(t))) {
+constexpr auto back(T&& t)
+    -> decltype(get<size<T>::value - 1>(::std::forward<T>(t))) {
   return get<size<T>::value - 1>(::std::forward<T>(t));
 }
 

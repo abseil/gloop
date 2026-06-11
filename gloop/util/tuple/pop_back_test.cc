@@ -53,6 +53,11 @@ TEST_F(PopBack, Copy) {
   auto q = pop_back(t);
   EXPECT_NE(&get<0>(q), &get<0>(t));
 }
+TEST_F(PopBack, Constexpr) {
+  constexpr auto in = std::make_tuple(42, 'A');
+  constexpr auto out = pop_back(in);
+  static_assert(out == std::make_tuple(42));
+}
 
 }  // namespace
 }  // namespace tuple

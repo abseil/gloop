@@ -73,7 +73,7 @@ struct filter_indices<Pred, T, int_pack<I, Is...>> {
 };
 
 template <class T, ::size_t... Is>
-auto slice_pack(T&& t, int_pack<Is...> is)
+constexpr auto slice_pack(T&& t, int_pack<Is...> is)
     -> decltype(slice<Is...>(::std::forward<T>(t))) {
   return slice<Is...>(::std::forward<T>(t));
 }
@@ -98,7 +98,7 @@ auto slice_pack(T&& t, int_pack<Is...> is)
 //   tuple<int64> q = filter_index<even_and_big>(t);
 //   assert(q == make_tuple(24));
 template <class Predicate, class T>
-auto filter_index(T&& t) -> decltype(internal_filter::slice_pack(
+constexpr auto filter_index(T&& t) -> decltype(internal_filter::slice_pack(
     ::std::forward<T>(t),
     typename internal_filter::filter_indices<
         Predicate, T,
@@ -124,8 +124,9 @@ auto filter_index(T&& t) -> decltype(internal_filter::slice_pack(
 //   tuple<int32, int64> q = filter<big>(t);
 //   assert(q == make_tuple(42, 24));
 template <class Predicate, class T>
-auto filter(T&& t) -> decltype(filter_index<ignore_predicate_index<Predicate>>(
-    ::std::forward<T>(t))) {
+constexpr auto filter(T&& t)
+    -> decltype(filter_index<ignore_predicate_index<Predicate>>(
+        ::std::forward<T>(t))) {
   return filter_index<ignore_predicate_index<Predicate>>(::std::forward<T>(t));
 }
 

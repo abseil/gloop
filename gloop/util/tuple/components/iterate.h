@@ -57,7 +57,7 @@ namespace tuple {
 // iterate_index<N>(f, val) is equivalent to
 // f.operator()<N-1>(...f.operator()<1>(f.operator()<0>(val))...).
 template <::size_t N, class F, class S>
-auto iterate_index(const F& f, S&& state)
+constexpr auto iterate_index(const F& f, S&& state)
     -> decltype(internal_iterate::index_folder<N>().template operator()<0>(
         f, ::std::forward<S>(state))) {
   return ::util::tuple::internal_iterate::index_folder<N>()
@@ -67,7 +67,7 @@ auto iterate_index(const F& f, S&& state)
 // iterate<N>(f, val) is equivalent to f(...f(f(val))...) where f() is called N
 // times.
 template <::size_t N, class F, class S>
-auto iterate(const F& f, S&& state)
+constexpr auto iterate(const F& f, S&& state)
     -> decltype(internal_iterate::folder<N>()(f, ::std::forward<S>(state))) {
   return ::util::tuple::internal_iterate::folder<N>()(f,
                                                       ::std::forward<S>(state));
@@ -75,13 +75,13 @@ auto iterate(const F& f, S&& state)
 
 // iterate_index<N>(f) is equivalent to f<0>(), f<1>(), ..., f<N-1>().
 template <::size_t N, class F>
-void iterate_index(const F& f) {
+constexpr void iterate_index(const F& f) {
   ::util::tuple::internal_iterate::iterate_index_fold<0, N>(f);
 }
 
 // iterate<N>(f) is equivalent to f(), f(), ..., f().
 template <::size_t N, class F>
-void iterate(const F& f) {
+constexpr void iterate(const F& f) {
   ::util::tuple::iterate_index<N>(ignore_index_no_args(&f));
 }
 

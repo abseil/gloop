@@ -68,13 +68,13 @@ namespace internal_apply {
 // without notice.
 
 template <class Args, ::size_t... Is>
-auto do_apply(Args&& args, int_pack<Is...> indices)
+constexpr auto do_apply(Args&& args, int_pack<Is...> indices)
     -> decltype(std::invoke(get<Is>(::std::forward<Args>(args))...)) {
   return std::invoke(get<Is>(::std::forward<Args>(args))...);
 }
 
 template <class Args>
-auto apply_impl(Args&& args) -> decltype(internal_apply::do_apply(
+constexpr auto apply_impl(Args&& args) -> decltype(internal_apply::do_apply(
     ::std::forward<Args>(args), make_int_pack<0, size<Args>::value>())) {
   return internal_apply::do_apply(::std::forward<Args>(args),
                                   make_int_pack<0, size<Args>::value>());
@@ -92,10 +92,11 @@ constexpr bool is_applicable_impl(std::index_sequence<Is...>) {
 // apply(a1, ..., aN, make_tuple(b1, ..., bM)) is equivalent to
 // std::invoke(a1, ..., aN, b1, ..., bM).
 template <class... Args>
-auto apply(Args&&... args) -> decltype(internal_apply::apply_impl(tuple::cat(
-    tuple::pop_back(::std::forward_as_tuple(::std::forward<Args>(args)...)),
-    tuple::ref<std_tuple_tag>(tuple::back(
-        ::std::forward_as_tuple(::std::forward<Args>(args)...)))))) {
+constexpr auto apply(Args&&... args)
+    -> decltype(internal_apply::apply_impl(tuple::cat(
+        tuple::pop_back(::std::forward_as_tuple(::std::forward<Args>(args)...)),
+        tuple::ref<std_tuple_tag>(tuple::back(
+            ::std::forward_as_tuple(::std::forward<Args>(args)...)))))) {
   return internal_apply::apply_impl(tuple::cat(
       tuple::pop_back(::std::forward_as_tuple(::std::forward<Args>(args)...)),
       tuple::ref<std_tuple_tag>(tuple::back(

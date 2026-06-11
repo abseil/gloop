@@ -141,6 +141,13 @@ TEST_F(ZipRef, ZipStructs) {
   EXPECT_EQ(&s.x, &get<1>(get<0>(t)));
 }
 
+TEST_F(Zip, Constexpr) {
+  constexpr auto in1 = std::make_tuple(42);
+  constexpr auto in2 = std::make_tuple('A');
+  constexpr auto out = zip(in1, in2);
+  static_assert(out == std::make_tuple(std::make_tuple(42, 'A')));
+}
+
 }  // namespace
 }  // namespace tuple
 }  // namespace util

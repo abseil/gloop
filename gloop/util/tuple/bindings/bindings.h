@@ -102,51 +102,51 @@ struct ref {
 };
 
 template <class T>
-T& remove_cv(T& val) {
+constexpr T& remove_cv(T& val) {
   return val;
 }
 
 template <class T>
-T& remove_cv(const T& val) {
+constexpr T& remove_cv(const T& val) {
   return const_cast<T&>(val);
 }
 
 template <class T>
-T& remove_cv(volatile T& val) {
+constexpr T& remove_cv(volatile T& val) {
   return const_cast<T&>(val);
 }
 
 template <class T>
-T& remove_cv(const volatile T& val) {
+constexpr T& remove_cv(const volatile T& val) {
   return const_cast<T&>(val);
 }
 
 template <class Aggregate, class Field, class T>
-auto make_ref(T& val) {
+constexpr auto make_ref(T& val) {
   using R = typename copy_qualifiers<Aggregate&&, Field>::type;
   return ref<Field, R>{static_cast<R>(val)};
 }
 
 template <class T>
-auto get_fields_impl(T&& t, std::integral_constant<size_t, 0>) {
+constexpr auto get_fields_impl(T&& t, std::integral_constant<size_t, 0>) {
   return std::make_tuple();
 }
 
 template <class T>
-auto get_fields_impl(T&& t, std::integral_constant<size_t, 1>) {
+constexpr auto get_fields_impl(T&& t, std::integral_constant<size_t, 1>) {
   auto&& [_1] = internal::remove_cv(std::forward<T>(t));
   return std::make_tuple(internal::make_ref<T, decltype(_1)>(_1));
 }
 
 template <class T>
-auto get_fields_impl(T&& t, std::integral_constant<size_t, 2>) {
+constexpr auto get_fields_impl(T&& t, std::integral_constant<size_t, 2>) {
   auto&& [_1, _2] = internal::remove_cv(std::forward<T>(t));
   return std::make_tuple(internal::make_ref<T, decltype(_1)>(_1),
                          internal::make_ref<T, decltype(_2)>(_2));
 }
 
 template <class T>
-auto get_fields_impl(T&& t, std::integral_constant<size_t, 3>) {
+constexpr auto get_fields_impl(T&& t, std::integral_constant<size_t, 3>) {
   auto&& [_1, _2, _3] = internal::remove_cv(std::forward<T>(t));
   return std::make_tuple(internal::make_ref<T, decltype(_1)>(_1),
                          internal::make_ref<T, decltype(_2)>(_2),
@@ -154,7 +154,7 @@ auto get_fields_impl(T&& t, std::integral_constant<size_t, 3>) {
 }
 
 template <class T>
-auto get_fields_impl(T&& t, std::integral_constant<size_t, 4>) {
+constexpr auto get_fields_impl(T&& t, std::integral_constant<size_t, 4>) {
   auto&& [_1, _2, _3, _4] = internal::remove_cv(std::forward<T>(t));
   return std::make_tuple(internal::make_ref<T, decltype(_1)>(_1),
                          internal::make_ref<T, decltype(_2)>(_2),
@@ -163,7 +163,7 @@ auto get_fields_impl(T&& t, std::integral_constant<size_t, 4>) {
 }
 
 template <class T>
-auto get_fields_impl(T&& t, std::integral_constant<size_t, 5>) {
+constexpr auto get_fields_impl(T&& t, std::integral_constant<size_t, 5>) {
   auto&& [_1, _2, _3, _4, _5] = internal::remove_cv(std::forward<T>(t));
   return std::make_tuple(internal::make_ref<T, decltype(_1)>(_1),
                          internal::make_ref<T, decltype(_2)>(_2),
@@ -173,7 +173,7 @@ auto get_fields_impl(T&& t, std::integral_constant<size_t, 5>) {
 }
 
 template <class T>
-auto get_fields_impl(T&& t, std::integral_constant<size_t, 6>) {
+constexpr auto get_fields_impl(T&& t, std::integral_constant<size_t, 6>) {
   auto&& [_1, _2, _3, _4, _5, _6] = internal::remove_cv(std::forward<T>(t));
   return std::make_tuple(internal::make_ref<T, decltype(_1)>(_1),
                          internal::make_ref<T, decltype(_2)>(_2),
@@ -184,7 +184,7 @@ auto get_fields_impl(T&& t, std::integral_constant<size_t, 6>) {
 }
 
 template <class T>
-auto get_fields_impl(T&& t, std::integral_constant<size_t, 7>) {
+constexpr auto get_fields_impl(T&& t, std::integral_constant<size_t, 7>) {
   auto&& [_1, _2, _3, _4, _5, _6, _7] = internal::remove_cv(std::forward<T>(t));
   return std::make_tuple(internal::make_ref<T, decltype(_1)>(_1),
                          internal::make_ref<T, decltype(_2)>(_2),
@@ -196,7 +196,7 @@ auto get_fields_impl(T&& t, std::integral_constant<size_t, 7>) {
 }
 
 template <class T>
-auto get_fields_impl(T&& t, std::integral_constant<size_t, 8>) {
+constexpr auto get_fields_impl(T&& t, std::integral_constant<size_t, 8>) {
   auto&& [_1, _2, _3, _4, _5, _6, _7, _8] =
       internal::remove_cv(std::forward<T>(t));
   return std::make_tuple(internal::make_ref<T, decltype(_1)>(_1),
@@ -210,7 +210,7 @@ auto get_fields_impl(T&& t, std::integral_constant<size_t, 8>) {
 }
 
 template <class T>
-auto get_fields_impl(T&& t, std::integral_constant<size_t, 9>) {
+constexpr auto get_fields_impl(T&& t, std::integral_constant<size_t, 9>) {
   auto&& [_1, _2, _3, _4, _5, _6, _7, _8, _9] =
       internal::remove_cv(std::forward<T>(t));
   return std::make_tuple(internal::make_ref<T, decltype(_1)>(_1),
@@ -225,7 +225,7 @@ auto get_fields_impl(T&& t, std::integral_constant<size_t, 9>) {
 }
 
 template <class T>
-auto get_fields_impl(T&& t, std::integral_constant<size_t, 10>) {
+constexpr auto get_fields_impl(T&& t, std::integral_constant<size_t, 10>) {
   auto&& [_1, _2, _3, _4, _5, _6, _7, _8, _9, _10] =
       internal::remove_cv(std::forward<T>(t));
   return std::make_tuple(internal::make_ref<T, decltype(_1)>(_1),
@@ -241,7 +241,7 @@ auto get_fields_impl(T&& t, std::integral_constant<size_t, 10>) {
 }
 
 template <class T>
-auto get_fields_impl(T&& t, std::integral_constant<size_t, 11>) {
+constexpr auto get_fields_impl(T&& t, std::integral_constant<size_t, 11>) {
   auto&& [_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11] =
       internal::remove_cv(std::forward<T>(t));
   return std::make_tuple(internal::make_ref<T, decltype(_1)>(_1),
@@ -258,7 +258,7 @@ auto get_fields_impl(T&& t, std::integral_constant<size_t, 11>) {
 }
 
 template <class T>
-auto get_fields_impl(T&& t, std::integral_constant<size_t, 12>) {
+constexpr auto get_fields_impl(T&& t, std::integral_constant<size_t, 12>) {
   auto&& [_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12] =
       internal::remove_cv(std::forward<T>(t));
   return std::make_tuple(internal::make_ref<T, decltype(_1)>(_1),
@@ -276,7 +276,7 @@ auto get_fields_impl(T&& t, std::integral_constant<size_t, 12>) {
 }
 
 template <class T>
-auto get_fields_impl(T&& t, std::integral_constant<size_t, 13>) {
+constexpr auto get_fields_impl(T&& t, std::integral_constant<size_t, 13>) {
   auto&& [_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13] =
       internal::remove_cv(std::forward<T>(t));
   return std::make_tuple(internal::make_ref<T, decltype(_1)>(_1),
@@ -295,7 +295,7 @@ auto get_fields_impl(T&& t, std::integral_constant<size_t, 13>) {
 }
 
 template <class T>
-auto get_fields_impl(T&& t, std::integral_constant<size_t, 14>) {
+constexpr auto get_fields_impl(T&& t, std::integral_constant<size_t, 14>) {
   auto&& [_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14] =
       internal::remove_cv(std::forward<T>(t));
   return std::make_tuple(internal::make_ref<T, decltype(_1)>(_1),
@@ -315,7 +315,7 @@ auto get_fields_impl(T&& t, std::integral_constant<size_t, 14>) {
 }
 
 template <class T>
-auto get_fields_impl(T&& t, std::integral_constant<size_t, 15>) {
+constexpr auto get_fields_impl(T&& t, std::integral_constant<size_t, 15>) {
   auto&& [_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15] =
       internal::remove_cv(std::forward<T>(t));
   return std::make_tuple(internal::make_ref<T, decltype(_1)>(_1),
@@ -336,7 +336,7 @@ auto get_fields_impl(T&& t, std::integral_constant<size_t, 15>) {
 }
 
 template <class T>
-auto get_fields_impl(T&& t, std::integral_constant<size_t, 16>) {
+constexpr auto get_fields_impl(T&& t, std::integral_constant<size_t, 16>) {
   auto&& [_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15,
           _16] = internal::remove_cv(std::forward<T>(t));
   return std::make_tuple(internal::make_ref<T, decltype(_1)>(_1),
@@ -358,12 +358,12 @@ auto get_fields_impl(T&& t, std::integral_constant<size_t, 16>) {
 }
 
 template <class T, size_t N>
-auto get_fields_impl(T&&, std::integral_constant<size_t, N>) {
+constexpr auto get_fields_impl(T&&, std::integral_constant<size_t, N>) {
   return std::make_tuple();
 }
 
 template <class... Ts, size_t... Is>
-auto unpack(std::tuple<Ts...>&& t, absl::index_sequence<Is...>) {
+constexpr auto unpack(std::tuple<Ts...>&& t, absl::index_sequence<Is...>) {
   return std::forward_as_tuple(std::get<Is>(std::move(t)).get()...);
 }
 
@@ -392,13 +392,13 @@ struct bindings_traits_with_size {
   using field_types =
       typename internal::field_types_impl<Tr, num_bindings_t>::type;
   template <class A>
-  static auto field_refs(A&& a) {
+  static constexpr auto field_refs(A&& a) {
     auto fs = internal::get_fields_impl(std::forward<A>(a), num_bindings_t{});
     return internal::unpack(std::move(fs),
                             absl::make_index_sequence<num_bindings_t::value>{});
   }
   template <class A>
-  static field_types fields(A&& a) {
+  static constexpr field_types fields(A&& a) {
     return field_refs(std::forward<A>(a));
   }
 };

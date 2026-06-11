@@ -41,7 +41,7 @@ namespace util {
 namespace tuple {
 
 template <class T>
-auto pop_back(T&& t)
+constexpr auto pop_back(T&& t)
     -> decltype(erase<size<T>::value - 1>(::std::forward<T>(t))) {
   return erase<size<T>::value - 1>(::std::forward<T>(t));
 }

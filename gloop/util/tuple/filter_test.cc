@@ -68,6 +68,13 @@ TEST_F(Filter, Functional) {
   EXPECT_EQ(make_tuple(a), filter<NonNegative>(make_tuple(x, a, y)));
 }
 
+TEST_F(Filter, Constexpr) {
+  constexpr auto in = std::make_tuple(std::integral_constant<int, 42>{},
+                                      std::integral_constant<int, -1>{});
+  constexpr auto out = filter<NonNegative>(in);
+  static_assert(std::tuple_size<decltype(out)>::value == 1);
+}
+
 }  // namespace
 }  // namespace tuple
 }  // namespace util

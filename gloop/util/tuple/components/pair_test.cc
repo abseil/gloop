@@ -94,6 +94,12 @@ TEST(Pair, HasAllElements) {
   EXPECT_TRUE(has_all_elements<D>::value);
 }
 
+TEST(Pair, Constexpr) {
+  constexpr P p{42, 'A'};
+  static_assert(util::tuple::get<0>(p) == 42);
+  static_assert(util::tuple::get<1>(p) == 'A');
+}
+
 }  // namespace
 }  // namespace tuple
 }  // namespace util

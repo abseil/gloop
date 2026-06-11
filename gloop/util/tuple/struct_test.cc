@@ -523,6 +523,11 @@ TEST_F(AdaptStruct, HasAllElements) {
   EXPECT_TRUE(has_all_elements<SixtyThree>::value);
 }
 
+TEST_F(AdaptStruct, Constexpr) {
+  constexpr NonConstAndConst s = Build(NonConstAndConst{}, TUPLE_FIELD(n), 17);
+  static_assert(get_field(TUPLE_FIELD(n), s) == 17);
+}
+
 }  // namespace adapt_struct
 
 namespace define_op {

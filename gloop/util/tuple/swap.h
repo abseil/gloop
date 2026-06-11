@@ -49,7 +49,7 @@ namespace internal_swap {
 
 struct elem_swap {
   template <class Pair>
-  void operator()(const Pair& p) const {
+  constexpr void operator()(const Pair& p) const {
     using ::std::swap;
     swap(get<0>(p), get<1>(p));
   }
@@ -64,7 +64,7 @@ namespace adl_barrier_swap {
 
 // Swaps two tuples.
 template <class T>
-void swap(T& lhs, T& rhs) noexcept {
+constexpr void swap(T& lhs, T& rhs) noexcept {
   for_each(internal_swap::elem_swap(),
            zip(tuple::ref<std_tuple_tag>(lhs), tuple::ref<std_tuple_tag>(rhs)));
 }
