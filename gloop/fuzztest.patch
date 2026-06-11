@@ -1,0 +1,16 @@
+diff --git fuzztest/fuzzing_bit_gen.h fuzztest/fuzzing_bit_gen.h
+index 780360b..49f3832 100644
+--- fuzztest/fuzzing_bit_gen.h
++++ fuzztest/fuzzing_bit_gen.h
+@@ -25,2 +25,3 @@
+ #include "absl/numeric/int128.h"
++#include "absl/random/mocking_access.h"
+ #include "absl/random/bit_gen_ref.h"
+@@ -101,6 +102,3 @@ class FuzzingBitGen {
+ 
+-  template <typename>
+-  friend struct ::absl::random_internal::DistributionCaller;  // for InvokeMock
+-  friend class ::absl::random_internal::MockHelpers;          // for InvokeMock
+-  friend class ::absl::BitGenRef;                             // for InvokeMock
++  friend class ::absl::RandomMockingAccess;                             // for InvokeMock
+ };

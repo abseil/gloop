@@ -30,6 +30,7 @@
 #include "absl/strings/str_join.h"
 #include "absl/types/span.h"
 #include "benchmark/benchmark.h"
+#include "fuzztest/fuzztest.h"
 #include "gtest/gtest.h"
 
 namespace {
@@ -196,6 +197,49 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Values(KendallsTau::InputOrdering::kUnsorted,
                     KendallsTau::InputOrdering::kSortedByX,
                     KendallsTau::InputOrdering::kSortedByXThenY));
+
+void AlgorithmsAreConsistent(const std::vector<double>& input) {
+  const int size = input.size() / 2;
+  const absl::Span<const double> x = absl::MakeSpan(input.data(), size);
+  const absl::Span<const double> y = absl::MakeSpan(input.data() + size, size);
+  const auto brute_force_result =
+      KendallsTau::Make(x, y, KendallsTau::Algorithm::kBruteForce);
+  const auto knight_result =
+      KendallsTau::Make(x, y, KendallsTau::Algorithm::kKnight);
+  EXPECT_EQ(brute_force_result, knight_result)
+      << " for input x=" << absl::StrJoin(x, ",")
+      << " y=" << absl::StrJoin(y, ",");
+}
+FUZZ_TEST(KendallsTauFuzzTest, AlgorithmsAreConsistent)
+    .WithDomains(
+        fuzztest::VectorOf(fuzztest::InRange(0.0, 10.0)).WithMaxSize(16));
+
+void DropIsConsistent(const std::vector<double>& input) {
+  const int size = input.size() / 2;
+  const absl::Span<const double> x = absl::MakeSpan(input.data(), size);
+  const absl::Span<const double> y = absl::MakeSpan(input.data() + size, size);
+
+  for (int k = 1; k < size - 1; ++k) {
+    // `DropFront()`.
+    EXPECT_EQ(KendallsTau::Make(x, y).DropFront(
+                  x, y, k, KendallsTau::InputOrdering::kUnsorted),
+              KendallsTau::Make(x.subspan(k), y.subspan(k),
+                                KendallsTau::Algorithm::kBruteForce))
+        << " for input x=" << absl::StrJoin(x, ",")
+        << " y=" << absl::StrJoin(y, ",") << " k=" << k;
+
+    // `DropBack()`.
+    EXPECT_EQ(KendallsTau::Make(x, y).DropBack(
+                  x, y, k, KendallsTau::InputOrdering::kUnsorted),
+              KendallsTau::Make(x.subspan(0, size - k), y.subspan(0, size - k),
+                                KendallsTau::Algorithm::kBruteForce))
+        << " for input x=" << absl::StrJoin(x, ",")
+        << " y=" << absl::StrJoin(y, ",") << " k=" << k;
+  }
+}
+FUZZ_TEST(KendallsTauFuzzTest, DropIsConsistent)
+    .WithDomains(
+        fuzztest::VectorOf(fuzztest::InRange(0.0, 10.0)).WithMaxSize(16));
 
 // 60 random numbers generated for x and y.
 // We need to use the exact same vectors for all three benchmarks below,

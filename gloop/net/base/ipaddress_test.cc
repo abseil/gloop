@@ -78,6 +78,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/compare.h"
 #include "absl/types/source_location.h"
+#include "fuzztest/fuzztest.h"
 #include "gloop/strings/host_port.h"
 #include "gloop/util/endian/endian.h"
 #include "gmock/gmock.h"

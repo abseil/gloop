@@ -30,6 +30,7 @@
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
+#include "fuzztest/fuzztest.h"
 #include "gloop/util/hash/hash.h"
 #include "gloop/util/hash/murmur.h"
 #include "gtest/gtest.h"
@@ -49,6 +50,15 @@ TEST(LegacyHashCord, CordFunctions) {
   EXPECT_EQ(HashTo32(str), util_hash::HashCordTo32(fragmented_cord));
   EXPECT_EQ(HashTo32(""), util_hash::HashCordTo32(absl::Cord()));
 }
+
+void StringHashEquivalentToCordHash(const std::vector<std::string>& fragments) {
+  const std::string str = absl::StrJoin(fragments, "");
+  const absl::Cord cord = absl::MakeFragmentedCord(fragments);
+  EXPECT_EQ(HashTo32(str), util_hash::HashCordTo32(cord));
+  EXPECT_EQ(Fingerprint(str), util_hash::FingerprintCord(cord));
+  EXPECT_EQ(util_hash::MurmurHash64(str), util_hash::MurmurHash64(cord));
+}
+FUZZ_TEST(LegacyHashCord, StringHashEquivalentToCordHash);
 
 static void GrowCord(absl::Cord* c, int n) {
   for (int i = 0; i < n; i++) {

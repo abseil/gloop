@@ -45,10 +45,78 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "benchmark/benchmark.h"
+#include "fuzztest/fuzztest.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace strings {
+
+void TestUint32ToKeyAndBack(absl::Span<const uint32_t> input) {
+  std::vector<uint32_t> vals;
+  std::vector<std::string> keys;
+  for (const uint32_t u32 : input) {
+    vals.push_back(u32);
+    keys.push_back(Uint32ToKey(u32));
+  }
+  std::sort(vals.begin(), vals.end());
+  std::sort(keys.begin(), keys.end());
+  ASSERT_EQ(vals.size(), keys.size());
+  for (int i = 0; i < vals.size(); i++) {
+    EXPECT_EQ(KeyToUint32(keys[i]), vals[i]);
+    EXPECT_EQ(KeyToUint32(Uint32ToKey(vals[i])), vals[i]);
+  }
+}
+FUZZ_TEST(FuzzKeyFromUint32, TestUint32ToKeyAndBack)
+    .WithDomains(fuzztest::Arbitrary<std::vector<uint32_t>>().WithMinSize(32));
+
+void TestUint64ToKeyAndBack(absl::Span<const uint64_t> input) {
+  std::vector<uint64_t> vals;
+  std::vector<std::string> keys;
+  for (const uint64_t u64 : input) {
+    vals.push_back(u64);
+    keys.push_back(Uint64ToKey(u64));
+  }
+  std::sort(vals.begin(), vals.end());
+  std::sort(keys.begin(), keys.end());
+  ASSERT_EQ(vals.size(), keys.size());
+  for (int i = 0; i < vals.size(); i++) {
+    EXPECT_EQ(KeyToUint64(keys[i]), vals[i]);
+    EXPECT_EQ(KeyToUint64(Uint64ToKey(vals[i])), vals[i]);
+  }
+}
+FUZZ_TEST(FuzzKeyFromUint64, TestUint64ToKeyAndBack)
+    .WithDomains(fuzztest::Arbitrary<std::vector<uint64_t>>().WithMinSize(32));
+
+void TestUint128ToKeyAndBack(
+    absl::Span<const std::pair<uint64_t, uint64_t>> input) {
+  std::vector<absl::uint128> vals;
+  std::vector<std::string> keys;
+  for (const auto& pair : input) {
+    absl::uint128 u128 = absl::MakeUint128(pair.first, pair.second);
+    vals.push_back(u128);
+    keys.push_back(Uint128ToKey(u128));
+  }
+  std::sort(vals.begin(), vals.end());
+  std::sort(keys.begin(), keys.end());
+  ASSERT_EQ(vals.size(), keys.size());
+  for (int i = 0; i < vals.size(); i++) {
+    EXPECT_EQ(KeyToUint128(keys[i]), vals[i]);
+    EXPECT_EQ(KeyToUint128(Uint128ToKey(vals[i])), vals[i]);
+  }
+}
+FUZZ_TEST(FuzzKeyFromUint128, TestUint128ToKeyAndBack)
+    .WithDomains(
+        fuzztest::Arbitrary<std::vector<std::pair<uint64_t, uint64_t>>>()
+            .WithMinSize(32));
+
+void TestInt128ToKeyAndBack(std::pair<int64_t, uint64_t> input) {
+  const absl::int128 i128 = absl::MakeInt128(input.first, input.second);
+  const std::string key = Int128ToKey(i128);
+  const absl::int128 value = KeyToInt128(key);
+  EXPECT_EQ(value, i128);
+}
+FUZZ_TEST(FuzzKeyFromInt128, TestInt128ToKeyAndBack)
+    .WithDomains(fuzztest::Arbitrary<std::pair<int64_t, uint64_t>>());
 
 TEST(Serialize, DoubleToKeyGolden) {
   const struct {
@@ -84,6 +152,47 @@ TEST(Serialize, DoubleToKeyGolden) {
   }
 }
 
+void TestKeyFromDouble(absl::Span<const double> input) {
+  std::vector<double> vals;
+  std::vector<std::string> keys;
+  std::string key;
+
+  for (const double value : input) {
+    KeyFromDouble(value, &key);
+    vals.push_back(value);
+    keys.push_back(key);
+  }
+
+  // Our KeyFromDouble function keys special values as follows:
+  //
+  // -inf as\000\020\000\000\000\000\000\000
+  // inf as \377\360\000\000\000\000\000\000
+  // nan as \377\370\000\000\000\000\000\000
+  //
+  // So we have to sort the values such that nan is greater than +infinity.
+  std::sort(vals.begin(), vals.end(), [](const double a, const double b) {
+    if (std::isnan(a) && std::isnan(b)) {
+      return false;
+    }
+    if (std::isnan(b)) {
+      return true;
+    }
+    if (std::isnan(a)) {
+      return false;
+    }
+    return a < b;
+  });
+  std::sort(keys.begin(), keys.end());
+
+  ASSERT_EQ(vals.size(), keys.size());
+  for (int i = 0; i < vals.size(); i++) {
+    EXPECT_THAT(KeyToDouble(keys[i]), ::testing::NanSensitiveDoubleEq(vals[i]));
+    EXPECT_EQ(keys[i], DoubleToKey(vals[i])) << vals[i];
+  }
+}
+FUZZ_TEST(FuzzKeyFromDouble, TestKeyFromDouble)
+    .WithDomains(fuzztest::Arbitrary<std::vector<double>>());
+
 TEST(Serialize, FloatToKeyGolden) {
   const struct {
     float input;
@@ -116,6 +225,132 @@ TEST(Serialize, FloatToKeyGolden) {
     EXPECT_EQ(testcase.input, KeyToFloat(str));
   }
 }
+
+void TestKeyFromFloat(absl::Span<const float> input) {
+  std::vector<float> vals;
+  std::vector<std::string> keys;
+  for (const float value : input) {
+    vals.push_back(value);
+    keys.push_back(FloatToKey(value));
+  }
+
+  // Again sort so that nan is bigger than everything.
+  std::sort(vals.begin(), vals.end(), [](const float a, const float b) {
+    if (std::isnan(a) && std::isnan(b)) {
+      return false;
+    }
+    if (std::isnan(b)) {
+      return true;
+    }
+    if (std::isnan(a)) {
+      return false;
+    }
+    return a < b;
+  });
+
+  std::sort(keys.begin(), keys.end());
+  ASSERT_EQ(vals.size(), keys.size());
+  for (int i = 0; i < vals.size(); i++) {
+    EXPECT_THAT(KeyToFloat(keys[i]), ::testing::NanSensitiveFloatEq(vals[i]));
+    EXPECT_EQ(keys[i], FloatToKey(vals[i]));
+  }
+}
+FUZZ_TEST(FuzzKeyFromFloat, TestKeyFromFloat)
+    .WithDomains(fuzztest::Arbitrary<std::vector<float>>());
+
+void TestInt32ToKeyAndBack(absl::Span<const int32_t> input) {
+  std::vector<int32_t> vals;
+  std::vector<std::string> as_string;
+  std::vector<std::string> as_increasing;
+  std::vector<std::string> as_decreasing;
+
+  for (const int32_t value : input) {
+    vals.push_back(value);
+    std::string s;
+    s = Int32ToKey(value);
+    as_string.push_back(s);
+    EXPECT_EQ(s, Int32ToKey(value));
+    s = Int32ToOrderedString(value);
+    as_increasing.push_back(s);
+    EXPECT_EQ(s, Int32ToOrderedString(value));
+    ReverseOrderedStringFromInt32(value, &s);
+    as_decreasing.push_back(s);
+    EXPECT_EQ(s, Int32ToReverseOrderedString(value));
+  }
+
+  ASSERT_EQ(vals.size(), as_string.size());
+  ASSERT_EQ(vals.size(), as_increasing.size());
+  ASSERT_EQ(vals.size(), as_decreasing.size());
+  for (int i = 0; i < vals.size(); ++i) {
+    EXPECT_EQ(KeyToInt32(as_string[i]), vals[i]);
+    EXPECT_EQ(OrderedStringToInt32(as_increasing[i]), vals[i]);
+    EXPECT_EQ(ReverseOrderedStringToInt32(as_decreasing[i]), vals[i]);
+  }
+  std::sort(vals.begin(), vals.end());
+  std::sort(as_increasing.begin(), as_increasing.end());
+  for (int i = 0; i < vals.size(); ++i) {
+    EXPECT_EQ(OrderedStringToInt32(as_increasing[i]), vals[i]);
+  }
+  std::sort(vals.begin(), vals.end(), std::greater<int32_t>());
+  std::sort(as_decreasing.begin(), as_decreasing.end());
+  for (int i = 0; i < vals.size(); ++i) {
+    EXPECT_EQ(ReverseOrderedStringToInt32(as_decreasing[i]), vals[i]);
+  }
+  for (int i = 1; i < vals.size(); i++) {
+    EXPECT_LE(OrderedStringToInt32(as_increasing[i - 1]),
+              OrderedStringToInt32(as_increasing[i]));
+    EXPECT_GE(ReverseOrderedStringToInt32(as_decreasing[i - 1]),
+              ReverseOrderedStringToInt32(as_decreasing[i]));
+  }
+}
+FUZZ_TEST(FuzzKeyFromInt32, TestInt32ToKeyAndBack)
+    .WithDomains(fuzztest::Arbitrary<std::vector<int32_t>>());
+
+void TestInt64ToKeyAndBack(absl::Span<const int64_t> input) {
+  std::vector<int64_t> vals;
+  std::vector<std::string> as_string;
+  std::vector<std::string> as_increasing;
+  std::vector<std::string> as_decreasing;
+
+  for (const int64_t value : input) {
+    vals.push_back(value);
+    std::string s;
+    s = Int64ToKey(value);
+    EXPECT_EQ(s, Int64ToKey(value));
+    as_string.push_back(s);
+    s = Int64ToOrderedString(value);
+    as_increasing.push_back(s);
+    EXPECT_EQ(s, Int64ToOrderedString(value));
+    ReverseOrderedStringFromInt64(value, &s);
+    as_decreasing.push_back(s);
+    EXPECT_EQ(s, Int64ToReverseOrderedString(value));
+  }
+  ASSERT_EQ(vals.size(), as_string.size());
+  ASSERT_EQ(vals.size(), as_increasing.size());
+  for (int i = 0; i < vals.size(); ++i) {
+    EXPECT_EQ(KeyToInt64(as_string[i]), vals[i]);
+    EXPECT_EQ(OrderedStringToInt64(as_increasing[i]), vals[i]);
+    EXPECT_EQ(ReverseOrderedStringToInt64(as_decreasing[i]), vals[i]);
+  }
+  std::sort(vals.begin(), vals.end());
+  std::sort(as_increasing.begin(), as_increasing.end());
+  for (int i = 0; i < vals.size(); ++i) {
+    EXPECT_EQ(OrderedStringToInt64(as_increasing[i]), vals[i]);
+  }
+  std::sort(vals.begin(), vals.end(), std::greater<int64_t>());
+  std::sort(as_decreasing.begin(), as_decreasing.end());
+  for (int i = 0; i < vals.size(); ++i) {
+    EXPECT_EQ(ReverseOrderedStringToInt64(as_decreasing[i]), vals[i]);
+  }
+  for (int i = 1; i < vals.size(); i++) {
+    EXPECT_LE(OrderedStringToInt64(as_increasing[i - 1]),
+              OrderedStringToInt64(as_increasing[i]));
+    EXPECT_GE(ReverseOrderedStringToInt64(as_increasing[i - 1]),
+              ReverseOrderedStringToInt64(as_increasing[i]));
+  }
+}
+FUZZ_TEST(FuzzKeyFromInt64, TestInt64ToKeyAndBack)
+    .WithDomains(fuzztest::Arbitrary<std::vector<int64_t>>());
 
 TEST(Serialize, FloatEncodings) {
   double d1 = 2.718;

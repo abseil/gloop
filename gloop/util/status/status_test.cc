@@ -43,6 +43,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
 #include "benchmark/benchmark.h"
+#include "fuzztest/fuzztest.h"
 #include "gloop/util/status/error_space.h"
 #include "gloop/util/status/non_message_set_payload.pb.h"
 #include "gloop/util/status/status.pb.h"
@@ -1933,6 +1934,13 @@ TEST(StatusFuzz, VarintEncodingWithBadLimit) {
   const util::ErrorSpace* space = util::RetrieveErrorSpace(status);
   EXPECT_EQ(space, util::CanonicalErrorSpace());
 }
+
+static void StatusErrorSpaceParserDoesNotCrash(absl::string_view payload) {
+  absl::Status status = absl::CancelledError();
+  status.SetPayload(util::status_internal::kErrorSpaceUrl, absl::Cord(payload));
+  benchmark::DoNotOptimize(util::RetrieveErrorCode(status));
+}
+FUZZ_TEST(StatusFuzz, StatusErrorSpaceParserDoesNotCrash);
 
 static void BM_StatusCreateDestroy(benchmark::State& state) {
   for (auto _ : state) {

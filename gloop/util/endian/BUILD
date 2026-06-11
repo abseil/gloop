@@ -74,3 +74,20 @@ cc_test(
         "@googletest//:gtest",
     ],
 )
+
+cc_test(
+    name = "endian_fuzz_test",
+    srcs = ["endian_fuzz_test.cc"],
+    # Use sharding to avoid timing out when the test runs in fuzzing-mode on guitar.
+    # TODO: remove this once the guitar project can use test_sharding_strategy.
+    shard_count = 25,
+    deps = [
+        ":endian",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/numeric:int128",
+        "@fuzztest//fuzztest",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)

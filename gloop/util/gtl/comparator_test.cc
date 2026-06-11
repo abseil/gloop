@@ -45,6 +45,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
+#include "fuzztest/fuzztest.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -1181,6 +1182,52 @@ TEST(NanFirstTest, NanFirstCompareAndCallOpAreTheSameFloat) {
     }
   }
 }
+
+void NanFirstCompareAndCallOpAreTheSameDouble(double a, double b) {
+  NanFirstCompareAndCallOpAreTheSame<NanFirstLess>(a, b);
+  NanFirstCompareAndCallOpAreTheSame<NanFirstGreater>(a, b);
+}
+FUZZ_TEST(NanFirstTest, NanFirstCompareAndCallOpAreTheSameDouble);
+
+void NanFirstCompareAndCallOpAreTheSameFloat(float a, float b) {
+  NanFirstCompareAndCallOpAreTheSame<NanFirstLess>(a, b);
+  NanFirstCompareAndCallOpAreTheSame<NanFirstGreater>(a, b);
+}
+FUZZ_TEST(NanFirstTest, NanFirstCompareAndCallOpAreTheSameFloat);
+
+template <bool less, typename T>
+void NanFirstCorrectlySortsNumbers(const std::vector<T>& test) {
+  std::vector<T> actual = test;
+  std::sort(actual.begin(), actual.end(),
+            std::conditional_t<less, NanFirstLess, NanFirstGreater>());
+  std::vector<T> expected;
+  for (auto x : test) {
+    if (std::isnan(x)) expected.push_back(x);
+  }
+  size_t num_nans = expected.size();
+  for (auto x : test) {
+    if (!std::isnan(x)) expected.push_back(x);
+  }
+  std::sort(expected.begin() + num_nans, expected.end(),
+            std::conditional_t<less, std::less<T>, std::greater<T>>());
+  if constexpr (std::is_same_v<T, double>) {
+    EXPECT_THAT(actual, Pointwise(NanSensitiveDoubleEq(), expected));
+  } else {
+    EXPECT_THAT(actual, Pointwise(NanSensitiveFloatEq(), expected));
+  }
+}
+
+void NanFirstCorrectlySortsNumbersDouble(const std::vector<double>& test) {
+  NanFirstCorrectlySortsNumbers<false>(test);
+  NanFirstCorrectlySortsNumbers<true>(test);
+}
+FUZZ_TEST(NanFirstTest, NanFirstCorrectlySortsNumbersDouble);
+
+void NanFirstCorrectlySortsNumbersFloat(const std::vector<float>& test) {
+  NanFirstCorrectlySortsNumbers<false>(test);
+  NanFirstCorrectlySortsNumbers<true>(test);
+}
+FUZZ_TEST(NanFirstTest, NanFirstCorrectlySortsNumbersFloat);
 
 TEST(VariousComparatorsTest, Constexpr) {
   struct S {

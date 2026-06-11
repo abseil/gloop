@@ -23,8 +23,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <ios>
+#include <string>
 
 #include "absl/base/macros.h"
 #include "absl/container/fixed_array.h"
@@ -33,6 +35,7 @@
 #include "absl/log/log.h"
 #include "absl/strings/str_format.h"
 #include "benchmark/benchmark.h"
+#include "fuzztest/fuzztest.h"
 #include "gloop/base/init_google.h"
 #include "gtest/gtest.h"
 
@@ -752,3 +755,130 @@ BENCHMARK(BM_Crc64Zeroes)->Arg((64 << 20) - 1);
 BENCHMARK(BM_Crc128Zeroes)->Range(2, 16 << 20);
 BENCHMARK(BM_Crc128Zeroes)->Arg((1 << 16) - 1);
 BENCHMARK(BM_Crc128Zeroes)->Arg((64 << 20) - 1);
+
+// ---------------------------------------------------------------------------
+// Fuzz tests for the Gloop CRC library.
+// ---------------------------------------------------------------------------
+
+namespace {
+
+void ExtendNeverCrashes32(const std::string& data) {
+  CRC* crc = CRC::Default(32, 0);
+  uint64_t lo, hi;
+  crc->Empty(&lo, &hi);
+  crc->Extend(&lo, &hi, data.data(), static_cast<int64_t>(data.size()));
+}
+FUZZ_TEST(CrcFuzzTest, ExtendNeverCrashes32);
+
+void ExtendNeverCrashes64(const std::string& data) {
+  CRC* crc = CRC::Default(64, 0);
+  uint64_t lo, hi;
+  crc->Empty(&lo, &hi);
+  crc->Extend(&lo, &hi, data.data(), static_cast<int64_t>(data.size()));
+}
+FUZZ_TEST(CrcFuzzTest, ExtendNeverCrashes64);
+
+void ConcatAlgebraicProperty(const std::string& a, const std::string& b) {
+  CRC* crc = CRC::Default(32, 0);
+
+  uint64_t ab_lo, ab_hi;
+  crc->Empty(&ab_lo, &ab_hi);
+  crc->Extend(&ab_lo, &ab_hi, a.data(), static_cast<int64_t>(a.size()));
+  crc->Extend(&ab_lo, &ab_hi, b.data(), static_cast<int64_t>(b.size()));
+
+  uint64_t a_lo, a_hi;
+  crc->Empty(&a_lo, &a_hi);
+  crc->Extend(&a_lo, &a_hi, a.data(), static_cast<int64_t>(a.size()));
+
+  uint64_t b_lo, b_hi;
+  crc->Empty(&b_lo, &b_hi);
+  crc->Extend(&b_lo, &b_hi, b.data(), static_cast<int64_t>(b.size()));
+
+  crc->Concat(&a_lo, &a_hi, b_lo, b_hi, static_cast<int64_t>(b.size()));
+
+  EXPECT_EQ(ab_lo, a_lo);
+  EXPECT_EQ(ab_hi, a_hi);
+}
+FUZZ_TEST(CrcFuzzTest, ConcatAlgebraicProperty);
+
+static constexpr size_t kRollLength = 8;
+
+void RollSlidingWindowCorrectness(const std::string& data) {
+  if (data.size() <= kRollLength) return;
+
+  CRC* crc = CRC::Default(32, kRollLength);
+
+  uint64_t roll_lo, roll_hi;
+  crc->Empty(&roll_lo, &roll_hi);
+  crc->Extend(&roll_lo, &roll_hi, data.data(),
+              static_cast<int64_t>(kRollLength));
+
+  for (size_t i = kRollLength; i < data.size(); ++i) {
+    uint8_t o_byte = static_cast<uint8_t>(data[i - kRollLength]);
+    uint8_t i_byte = static_cast<uint8_t>(data[i]);
+    crc->Roll(&roll_lo, &roll_hi, o_byte, i_byte);
+
+    uint64_t expected_lo, expected_hi;
+    crc->Empty(&expected_lo, &expected_hi);
+    crc->Extend(&expected_lo, &expected_hi, data.data() + i - kRollLength + 1,
+                static_cast<int64_t>(kRollLength));
+
+    EXPECT_EQ(expected_lo, roll_lo);
+    EXPECT_EQ(expected_hi, roll_hi);
+  }
+}
+FUZZ_TEST(CrcFuzzTest, RollSlidingWindowCorrectness);
+
+void ScrambleUnscrambleRoundtrip(uint64_t lo, uint64_t hi) {
+  CRC* crc = CRC::Default(64, 0);
+  hi = 0;
+
+  uint64_t orig_lo = lo;
+  uint64_t orig_hi = hi;
+
+  crc->Scramble(&lo, &hi);
+  crc->Unscramble(&lo, &hi);
+
+  EXPECT_EQ(orig_lo, lo);
+  EXPECT_EQ(orig_hi, hi);
+}
+FUZZ_TEST(CrcFuzzTest, ScrambleUnscrambleRoundtrip);
+
+void ScrambleUnscrambleRoundtrip32(uint64_t lo) {
+  CRC* crc = CRC::Default(32, 0);
+  lo &= 0xFFFFFFFF;
+  uint64_t hi = 0;
+
+  uint64_t orig_lo = lo;
+
+  crc->Scramble(&lo, &hi);
+  crc->Unscramble(&lo, &hi);
+
+  EXPECT_EQ(orig_lo, lo);
+  EXPECT_EQ(hi, uint64_t{0});
+}
+FUZZ_TEST(CrcFuzzTest, ScrambleUnscrambleRoundtrip32);
+
+void ExtendByZeroesEquivalence(const std::string& prefix, uint16_t num_zeroes) {
+  CRC* crc = CRC::Default(32, 0);
+
+  uint64_t ext_lo, ext_hi;
+  crc->Empty(&ext_lo, &ext_hi);
+  crc->Extend(&ext_lo, &ext_hi, prefix.data(),
+              static_cast<int64_t>(prefix.size()));
+  const std::string zeroes(num_zeroes, '\0');
+  crc->Extend(&ext_lo, &ext_hi, zeroes.data(),
+              static_cast<int64_t>(zeroes.size()));
+
+  uint64_t ebz_lo, ebz_hi;
+  crc->Empty(&ebz_lo, &ebz_hi);
+  crc->Extend(&ebz_lo, &ebz_hi, prefix.data(),
+              static_cast<int64_t>(prefix.size()));
+  crc->ExtendByZeroes(&ebz_lo, &ebz_hi, static_cast<int64_t>(num_zeroes));
+
+  EXPECT_EQ(ext_lo, ebz_lo);
+  EXPECT_EQ(ext_hi, ebz_hi);
+}
+FUZZ_TEST(CrcFuzzTest, ExtendByZeroesEquivalence);
+
+}  // namespace

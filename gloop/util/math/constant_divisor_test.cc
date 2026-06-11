@@ -29,6 +29,7 @@
 #include "absl/random/distributions.h"
 #include "absl/random/random.h"
 #include "benchmark/benchmark.h"
+#include "fuzztest/fuzztest.h"
 #include "gtest/gtest.h"
 
 ABSL_FLAG(int32_t, random_iterations, 100000,
@@ -143,6 +144,16 @@ TYPED_TEST(ConstantDivisorTest, Bugs) {
     EXPECT_EQ(2072455839, TypeParam(2).div(4144911678));
   }
 }
+
+void WorksCorrectly(uint64_t n, uint64_t d) {
+  ConstantDivisor<uint64_t> divisor(d);
+  EXPECT_EQ(divisor.div(n), n / d);
+  EXPECT_EQ(divisor.mod(n), n % d);
+}
+FUZZ_TEST(ConstantDivisorTest, WorksCorrectly)
+    .WithDomains(
+        fuzztest::NonZero<uint64_t>(),
+        fuzztest::InRange<uint64_t>(2, std::numeric_limits<uint64_t>::max()));
 
 // Choose a random value of type T, biased towards smaller values.
 template <typename T>

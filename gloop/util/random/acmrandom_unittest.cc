@@ -37,6 +37,7 @@
 #include "absl/log/log.h"
 #include "absl/strings/str_format.h"
 #include "benchmark/benchmark.h"
+#include "fuzztest/fuzztest.h"
 #include "gloop/util/math/mathutil.h"
 #include "gtest/gtest.h"
 
@@ -279,3 +280,41 @@ static void BM_ACMHostnamePidTimeSeed(benchmark::State& state) {
   VLOG(2) << r;
 }
 BENCHMARK(BM_ACMHostnamePidTimeSeed);
+
+// ---------------------------------------------------------------------------
+// Fuzz tests for ACMRandom.
+// ---------------------------------------------------------------------------
+
+namespace {
+
+void ACMRandomNextIsInRange(int32_t seed) {
+  ACMRandom rng(seed);
+  for (int i = 0; i < 100; ++i) {
+    int32_t val = rng.Next();
+    EXPECT_GE(val, 1);
+    EXPECT_LE(val, 2147483646);  // M - 1 = 2^31 - 2
+  }
+}
+FUZZ_TEST(RandomFuzzTest, ACMRandomNextIsInRange);
+
+void ACMRandomUnbiasedUniformIsInRange(int32_t seed, int32_t n) {
+  ACMRandom rng(seed);
+  for (int i = 0; i < 50; ++i) {
+    int32_t val = rng.UnbiasedUniform(n);
+    EXPECT_GE(val, 0);
+    EXPECT_LT(val, n);
+  }
+}
+FUZZ_TEST(RandomFuzzTest, ACMRandomUnbiasedUniformIsInRange)
+    .WithDomains(fuzztest::Arbitrary<int32_t>(),
+                 fuzztest::InRange(1, 2147483645));
+
+void ACMRandomRand32NeverCrashes(int32_t seed) {
+  ACMRandom rng(seed);
+  for (int i = 0; i < 100; ++i) {
+    rng.Rand32();
+  }
+}
+FUZZ_TEST(RandomFuzzTest, ACMRandomRand32NeverCrashes);
+
+}  // namespace

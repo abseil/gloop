@@ -43,11 +43,18 @@
 #include "absl/log/log.h"
 #include "absl/numeric/int128.h"
 #include "benchmark/benchmark.h"
+#include "fuzztest/fuzztest.h"
 #include "gloop/util/math/mathlimits.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace {
+
+using ::fuzztest::InRange;
+using ::fuzztest::Just;
+using ::fuzztest::NonNegative;
+using ::fuzztest::Positive;
+using ::fuzztest::StructOf;
 
 using ::testing::Eq;
 
@@ -3737,5 +3744,66 @@ void BM_FloorOfPercentage_int16(benchmark::State& state) {
   BM_CeilOrFloorOfPercentage<int16_t, false>(state);
 }
 BENCHMARK(BM_FloorOfPercentage_int16);
+
+template <typename IntegralType>
+struct MulDivInstance {
+  IntegralType a;
+  IntegralType b;
+  IntegralType d;
+};
+
+template <typename IntegralType>
+auto SafeMulDivInstance() {
+  // A safe MulDiv invocation has parameters (a, b, d) such that:
+  //   1. a,b >= 0,
+  //   2. d > 0, and
+  //   3. floor(a*b/d) does not overflow IntegralType (e.g., a*b/d < maxint+1).
+  // We ensure this by restricting b to the range [0, ((maxint+1)*d - 1)/a].
+  return fuzztest::FlatMap(
+      [](IntegralType a, IntegralType d) {
+        if (a == 0) {
+          return StructOf<MulDivInstance<IntegralType>>(
+              Just(a), NonNegative<IntegralType>(), Just(d));
+        }
+
+        constexpr auto kPosMaxInt =
+            static_cast<absl::int128>(std::numeric_limits<IntegralType>::max());
+        const absl::int128 max_numerator =
+            (kPosMaxInt + 1) * static_cast<absl::int128>(d) - 1;
+        const auto max_b = static_cast<IntegralType>(
+            std::clamp(max_numerator / a, absl::int128{0}, kPosMaxInt));
+        return StructOf<MulDivInstance<IntegralType>>(
+            Just(a), InRange(IntegralType{0}, static_cast<IntegralType>(max_b)),
+            Just(d));
+      },
+      NonNegative<IntegralType>(), Positive<IntegralType>());
+}
+
+template <typename IntegralType>
+void CheckMulDiv(MulDivInstance<IntegralType> instance) {
+  const auto& [a, b, d] = instance;
+  const absl::int128 numerator =
+      static_cast<absl::int128>(a) * static_cast<absl::int128>(b);
+  const absl::int128 denominator = static_cast<absl::int128>(d);
+
+  MathUtil::DivisionResult<IntegralType> result = MathUtil::MulDiv(a, b, d);
+  EXPECT_EQ(result.quotient, numerator / denominator);
+  EXPECT_EQ(result.remainder, numerator % denominator);
+}
+
+constexpr auto& FuzzMulDiv_int8 = CheckMulDiv<int8_t>;
+FUZZ_TEST(MathUtil, FuzzMulDiv_int8).WithDomains(SafeMulDivInstance<int8_t>());
+
+constexpr auto& FuzzMulDiv_int16 = CheckMulDiv<int16_t>;
+FUZZ_TEST(MathUtil, FuzzMulDiv_int16)
+    .WithDomains(SafeMulDivInstance<int16_t>());
+
+constexpr auto& FuzzMulDiv_int32 = CheckMulDiv<int32_t>;
+FUZZ_TEST(MathUtil, FuzzMulDiv_int32)
+    .WithDomains(SafeMulDivInstance<int32_t>());
+
+constexpr auto& FuzzMulDiv_int64 = CheckMulDiv<int64_t>;
+FUZZ_TEST(MathUtil, FuzzMulDiv_int64)
+    .WithDomains(SafeMulDivInstance<int64_t>());
 
 }  // namespace

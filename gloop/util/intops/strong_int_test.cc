@@ -39,6 +39,7 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
+#include "fuzztest/fuzztest.h"
 #include "gloop/base/uword.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -304,6 +305,73 @@ TYPED_TEST(StrongIntTest, TestAbslParseFlagRangeLimits) {
   EXPECT_FALSE(absl::ParseFlag(min_minus_one, &t, &error));
   EXPECT_THAT(error, AllOf(HasSubstr(min_minus_one), HasSubstr(T::TypeName())));
 }
+
+template <typename T>
+static void ParseFlagFuzzTester(typename T::ValueType value) {
+  std::string str = absl::StrCat(value);
+
+  T old_value(value);
+  T new_value;
+  std::string error;
+  EXPECT_TRUE(absl::ParseFlag(str, &new_value, &error));
+  EXPECT_EQ(old_value, new_value);
+  EXPECT_EQ(absl::UnparseFlag(new_value), str);
+}
+
+void ParseFlagFuzzTesterInt8(int8_t value) {
+  ParseFlagFuzzTester<StrongInt8>(value);
+}
+FUZZ_TEST(ParseFlagRoundTrip, ParseFlagFuzzTesterInt8);
+
+void ParseFlagFuzzTesterInt16(int16_t value) {
+  ParseFlagFuzzTester<StrongInt16>(value);
+}
+FUZZ_TEST(ParseFlagRoundTrip, ParseFlagFuzzTesterInt16);
+
+void ParseFlagFuzzTesterUInt16(uint16_t value) {
+  ParseFlagFuzzTester<StrongUInt16>(value);
+}
+FUZZ_TEST(ParseFlagRoundTrip, ParseFlagFuzzTesterUInt16);
+
+void ParseFlagFuzzTesterInt32(int32_t value) {
+  ParseFlagFuzzTester<StrongInt32>(value);
+}
+FUZZ_TEST(ParseFlagRoundTrip, ParseFlagFuzzTesterInt32);
+
+void ParseFlagFuzzTesterInt64(int64_t value) {
+  ParseFlagFuzzTester<StrongInt64>(value);
+}
+FUZZ_TEST(ParseFlagRoundTrip, ParseFlagFuzzTesterInt64);
+
+void ParseFlagFuzzTesterUInt32(uint32_t value) {
+  ParseFlagFuzzTester<StrongUInt32>(value);
+}
+FUZZ_TEST(ParseFlagRoundTrip, ParseFlagFuzzTesterUInt32);
+
+void ParseFlagFuzzTesterUInt64(uint64_t value) {
+  ParseFlagFuzzTester<StrongUInt64>(value);
+}
+FUZZ_TEST(ParseFlagRoundTrip, ParseFlagFuzzTesterUInt64);
+
+void ParseFlagFuzzTesterUWordt(uword_t value) {
+  ParseFlagFuzzTester<StrongUWordt>(value);
+}
+FUZZ_TEST(ParseFlagRoundTrip, ParseFlagFuzzTesterUWordt);
+
+void ParseFlagFuzzTesterLong(long value) {  // NOLINT
+  ParseFlagFuzzTester<StrongLong>(value);
+}
+FUZZ_TEST(ParseFlagRoundTrip, ParseFlagFuzzTesterLong);
+
+void ParseFlagFuzzTesterUInt128(absl::uint128 value) {
+  ParseFlagFuzzTester<StrongUInt128>(value);
+}
+FUZZ_TEST(ParseFlagRoundTrip, ParseFlagFuzzTesterUInt128);
+
+void ParseFlagFuzzTesterInt128(absl::int128 value) {
+  ParseFlagFuzzTester<StrongInt128>(value);
+}
+FUZZ_TEST(ParseFlagRoundTrip, ParseFlagFuzzTesterInt128);
 
 namespace {
 struct PositiveValidator {

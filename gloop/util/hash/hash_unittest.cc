@@ -63,12 +63,16 @@
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "fuzztest/fuzztest.h"
 #include "gloop/util/hash/builtin_type_hash.h"
+#include "gloop/util/hash/city.h"
 #include "gloop/util/hash/farmhash.h"
+#include "gloop/util/hash/fingerprint2011.h"
 #include "gloop/util/hash/hasher.h"
 #include "gloop/util/hash/jenkins.h"
 #include "gloop/util/hash/jenkins_lookup2.h"
 #include "gloop/util/hash/legacy_hash.h"
+#include "gloop/util/hash/murmur.h"
 #include "gloop/util/hash/string_hash.h"
 #include "gloop/util/random/acmrandom.h"
 #include "gtest/gtest.h"
@@ -1072,3 +1076,72 @@ TEST(Hash, UtilHash_Hash_Permutations) {
 }
 
 TEST(Hash, UtilHash_Hash_DoesntCopy) { ::util_hash::Hash(NotCopyable()); }
+
+// ---------------------------------------------------------------------------
+// Fuzz tests for the Gloop hash library.
+// Covers MurmurHash, Fingerprint2011, Jenkins, CityHash, Fingerprint, and
+// streaming APIs (MurmurCat, Hasher32).
+// ---------------------------------------------------------------------------
+
+void MurmurHash64WithSeedNeverCrashes(const std::string& data, uint64_t seed) {
+  util_hash::MurmurHash64WithSeed(data, seed);
+}
+FUZZ_TEST(HashFuzz, MurmurHash64WithSeedNeverCrashes);
+
+void MurmurCatRoundtrip(const std::string& data, uint64_t seed) {
+  uint64_t expected = util_hash::MurmurHash64WithSeed(data, seed);
+
+  util_hash::MurmurCat cat;
+  cat.Init(seed, data.size());
+  cat.Append(data);
+  uint64_t actual = cat.GetHash();
+
+  EXPECT_EQ(expected, actual);
+}
+FUZZ_TEST(HashFuzz, MurmurCatRoundtrip);
+
+void Fingerprint2011NeverCrashesAndNeverReturns0Or1(const std::string& data) {
+  uint64_t result = Fingerprint2011(absl::string_view(data));
+  EXPECT_GE(result, uint64_t{2}) << "Fingerprint2011 must never return 0 or 1";
+}
+FUZZ_TEST(HashFuzz, Fingerprint2011NeverCrashesAndNeverReturns0Or1);
+
+void FingerprintCat2011NeverReturns0Or1(uint64_t fp1, uint64_t fp2) {
+  uint64_t result = FingerprintCat2011(fp1, fp2);
+  EXPECT_GE(result, uint64_t{2})
+      << "FingerprintCat2011 must never return 0 or 1";
+}
+FUZZ_TEST(HashFuzz, FingerprintCat2011NeverReturns0Or1);
+
+void Hash32StringWithSeedNeverCrashes(const std::string& data, uint32_t seed) {
+  Hash32StringWithSeed(absl::string_view(data), seed);
+}
+FUZZ_TEST(HashFuzz, Hash32StringWithSeedNeverCrashes);
+
+void FingerprintNeverCrashesAndNeverReturns0Or1(const std::string& data) {
+  uint64_t result = Fingerprint(absl::string_view(data));
+  EXPECT_GE(result, uint64_t{2})
+      << "Fingerprint must never return 0 or 1 for string input";
+}
+FUZZ_TEST(HashFuzz, FingerprintNeverCrashesAndNeverReturns0Or1);
+
+void CityHash64NeverCrashes(const std::string& data) {
+  util_hash::CityHash64(data);
+}
+FUZZ_TEST(HashFuzz, CityHash64NeverCrashes);
+
+void CityHash32NeverCrashes(const std::string& data) {
+  util_hash::CityHash32(data);
+}
+FUZZ_TEST(HashFuzz, CityHash32NeverCrashes);
+
+void Hasher32Roundtrip(const std::string& data, uint32_t seed) {
+  uint32_t expected = Hash32StringWithSeed(absl::string_view(data), seed);
+
+  Hasher32 hasher(seed);
+  hasher.AddString(data);
+  uint32_t actual = hasher.Result();
+
+  EXPECT_EQ(expected, actual);
+}
+FUZZ_TEST(HashFuzz, Hasher32Roundtrip);

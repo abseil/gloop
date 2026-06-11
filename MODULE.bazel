@@ -47,3 +47,36 @@ local_path_override(
     module_name = "gloop_examples",
     path = "gloop/examples",
 )
+
+# Dev dependencies required for fuzz testing.
+# fuzztest is the main library. brotli, snappy, highwayhash, aspect_bazel_lib,
+# aspect_rules_esbuild, and rules_swift are transitive dependencies of fuzztest
+# (or its dependencies like riegeli/protobuf) that must be declared here
+# to ensure compatibility with Bazel 9.
+
+bazel_dep(name = "fuzztest", version = "20260219.0", dev_dependency = True)
+
+# TODO Fuzztest patch is required for Abseil compatibility in OSS.
+git_override(
+    module_name = "fuzztest",
+    commit = "1401ec33761985cc3f6ee41cc49fb135e1d34f39",
+    patches = ["//gloop:fuzztest.patch"],
+    remote = "https://github.com/google/fuzztest",
+)
+
+# rules_swift override is required to resolve compatibility level conflict
+# between flatbuffers (requires level 2) and bazel_tools (requires level 3).
+bazel_dep(name = "rules_swift", version = "3.1.2", dev_dependency = True)
+single_version_override(
+    module_name = "rules_swift",
+    version = "3.1.2",
+)
+
+# The following transitive dependencies are declared directly to force minimum
+# versions that are compatible with Bazel 9 (e.g., resolving issues with
+# deprecated features like incompatible_use_toolchain_transition).
+bazel_dep(name = "brotli", version = "1.2.0.bcr.1", dev_dependency = True)
+bazel_dep(name = "aspect_bazel_lib", version = "2.22.5", dev_dependency = True)
+bazel_dep(name = "aspect_rules_esbuild", version = "0.26.0", dev_dependency = True)
+bazel_dep(name = "snappy", version = "1.2.2.bcr.3", dev_dependency = True)
+bazel_dep(name = "highwayhash", version = "0.0.0-20240305-5ad3bf8.bcr.1", dev_dependency = True)

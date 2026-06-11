@@ -33,6 +33,8 @@
 #include "absl/base/config.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/str_format.h"
+#include "fuzztest/fuzztest.h"
+#include "gloop/util/gtl/float128_fuzztest_domain.h"
 #include "gloop/util/gtl/float128_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -40,6 +42,10 @@
 namespace gtl {
 namespace {
 
+using ::fuzztest::Arbitrary;
+using ::fuzztest::Filter;
+using ::fuzztest::Finite;
+using ::fuzztest::InRange;
 using ::testing::Gt;
 using ::testing::IsNan;
 using ::testing::NanSensitiveDoubleEq;
@@ -145,12 +151,20 @@ TEST(Float128ConversionTest, IntRoundTrips) {
             std::numeric_limits<int>::max());
 }
 
+void IntRoundTripsFuzz(int x) { EXPECT_EQ(static_cast<int>(Float128(x)), x); }
+FUZZ_TEST(Float128ConversionTest, IntRoundTripsFuzz);
+
 TEST(Float128ConversionTest, UnsignedIntRoundTrips) {
   EXPECT_EQ(static_cast<unsigned int>(Float128(0U)), 0U);
   EXPECT_EQ(static_cast<unsigned int>(
                 Float128(std::numeric_limits<unsigned int>::max())),
             std::numeric_limits<unsigned int>::max());
 }
+
+void UnsignedIntRoundTripsFuzz(unsigned int x) {
+  EXPECT_EQ(static_cast<unsigned int>(Float128(x)), x);
+}
+FUZZ_TEST(Float128ConversionTest, UnsignedIntRoundTripsFuzz);
 
 TEST(Float128ConversionTest, LongRoundTrips) {
   EXPECT_EQ(static_cast<long>(Float128(std::numeric_limits<long>::lowest())),
@@ -160,12 +174,22 @@ TEST(Float128ConversionTest, LongRoundTrips) {
             std::numeric_limits<long>::max());
 }
 
+void LongRoundTripsFuzz(long x) {
+  EXPECT_EQ(static_cast<long>(Float128(x)), x);
+}
+FUZZ_TEST(Float128ConversionTest, LongRoundTripsFuzz);
+
 TEST(Float128ConversionTest, UnsignedLongRoundTrips) {
   EXPECT_EQ(static_cast<unsigned long>(Float128(0UL)), 0UL);
   EXPECT_EQ(static_cast<unsigned long>(
                 Float128(std::numeric_limits<unsigned long>::max())),
             std::numeric_limits<unsigned long>::max());
 }
+
+void UnsignedLongRoundTripsFuzz(unsigned long x) {
+  EXPECT_EQ(static_cast<unsigned long>(Float128(x)), x);
+}
+FUZZ_TEST(Float128ConversionTest, UnsignedLongRoundTripsFuzz);
 
 TEST(Float128ConversionTest, LongLongRoundTrips) {
   EXPECT_EQ(static_cast<long long>(
@@ -177,12 +201,22 @@ TEST(Float128ConversionTest, LongLongRoundTrips) {
       std::numeric_limits<long long>::max());
 }
 
+void LongLongRoundTripsFuzz(long long x) {
+  EXPECT_EQ(static_cast<long long>(Float128(x)), x);
+}
+FUZZ_TEST(Float128ConversionTest, LongLongRoundTripsFuzz);
+
 TEST(Float128ConversionTest, UnsignedLongLongRoundTrips) {
   EXPECT_EQ(static_cast<unsigned long long>(Float128(0ULL)), 0ULL);
   EXPECT_EQ(static_cast<unsigned long long>(
                 Float128(std::numeric_limits<unsigned long long>::max())),
             std::numeric_limits<unsigned long long>::max());
 }
+
+void UnsignedLongLongRoundTripsFuzz(unsigned long long x) {
+  EXPECT_EQ(static_cast<unsigned long long>(Float128(x)), x);
+}
+FUZZ_TEST(Float128ConversionTest, UnsignedLongLongRoundTripsFuzz);
 
 TEST(Float128ConversionTest, Int128RoundTrips) {
 #ifdef ABSL_HAVE_INTRINSIC_INT128
@@ -241,6 +275,21 @@ TEST(Float128ConversionTest, FloatRoundTrips) {
       static_cast<float>(Float128(std::numeric_limits<float>::quiet_NaN()))));
 }
 
+template <typename T>
+auto NonNan() {
+  if constexpr (std::is_same_v<T, Float128>) {
+    return Filter([](Float128 x) { return !isnan(x); }, ArbitraryFloat128());
+  } else {
+    return Filter([](T x) { return !std::isnan(x); }, Arbitrary<T>());
+  }
+}
+
+void FloatRoundTripsFuzz(float x) {
+  EXPECT_EQ(static_cast<float>(Float128(x)), x);
+}
+FUZZ_TEST(Float128ConversionTest, FloatRoundTripsFuzz)
+    .WithDomains(NonNan<float>());
+
 TEST(Float128ConversionTest, DoubleRoundTrips) {
   EXPECT_EQ(
       static_cast<double>(Float128(-std::numeric_limits<double>::infinity())),
@@ -254,6 +303,12 @@ TEST(Float128ConversionTest, DoubleRoundTrips) {
   EXPECT_TRUE(std::isnan(
       static_cast<double>(Float128(std::numeric_limits<double>::quiet_NaN()))));
 }
+
+void DoubleRoundTripsFuzz(double x) {
+  EXPECT_EQ(static_cast<double>(Float128(x)), x);
+}
+FUZZ_TEST(Float128ConversionTest, DoubleRoundTripsFuzz)
+    .WithDomains(NonNan<double>());
 
 TEST(Float128ConversionTest, LongDoubleRoundTrips) {
   EXPECT_EQ(static_cast<long double>(
@@ -300,6 +355,11 @@ TEST(Float128FormatTest, VSpecifier) {
   Float128 x = 1234.56789;
   EXPECT_EQ(absl::StrFormat("%v", x), absl::StrFormat("%g", x));
 }
+
+void PrintfDoubleAsFloat128(double x) {
+  EXPECT_EQ(absl::StrFormat("%.15g", Float128(x)), absl::StrFormat("%.15g", x));
+}
+FUZZ_TEST(Float128FormatTest, PrintfDoubleAsFloat128);
 
 TEST(Float128StreamTest, Flags) {
   EXPECT_EQ(
@@ -353,6 +413,7 @@ void StreamDoubleAsFloat128(double x) {
           .str(),
       (std::ostringstream() << std::fixed << std::setprecision(15) << x).str());
 }
+FUZZ_TEST(Float128StreamTest, StreamDoubleAsFloat128);
 
 TEST(Float128StreamTest, StreamDoubleAsFloat128RegressionNoTruncation) {
   StreamDoubleAsFloat128(-10195112285.535555);
@@ -404,6 +465,40 @@ TEST(Float128AssignmentTest, Double) {
 // NOLINTEND(runtime/int)
 // NOLINTEND(google-runtime-int)
 
+// Arithmetic is mostly tested via fuzz testing (property-based testing over the
+// domain of `Float128`s). Explicit tests are included as necessary to verify
+
+void UnaryAdditionIsIdentity(Float128 x) {
+  EXPECT_THAT(+x, NanSensitiveFloat128Eq(x));
+}
+FUZZ_TEST(Float128ArithmeticTest, UnaryAdditionIsIdentity)
+    .WithDomains(ArbitraryFloat128());
+
+void NegationChangesSignButNotValue(Float128 x) {
+  EXPECT_NE(signbit(x), signbit(-x));
+  EXPECT_THAT(fabs(x), NanSensitiveFloat128Eq(fabs(-x)));
+}
+FUZZ_TEST(Float128ArithmeticTest, NegationChangesSignButNotValue)
+    .WithDomains(ArbitraryFloat128());
+
+void AdditionCommutative(Float128 x, Float128 y) {
+  EXPECT_THAT(x + y, NanSensitiveFloat128Eq(y + x));
+}
+FUZZ_TEST(Float128ArithmeticTest, AdditionCommutative)
+    .WithDomains(ArbitraryFloat128(), ArbitraryFloat128());
+
+void SubtractionAnticommutative(Float128 x, Float128 y) {
+  EXPECT_THAT(x - y, NanSensitiveFloat128Eq(-(y - x)));
+}
+FUZZ_TEST(Float128ArithmeticTest, SubtractionAnticommutative)
+    .WithDomains(ArbitraryFloat128(), ArbitraryFloat128());
+
+void MultiplicationCommutative(Float128 x, Float128 y) {
+  EXPECT_THAT(x * y, NanSensitiveFloat128Eq(y * x));
+}
+FUZZ_TEST(Float128ArithmeticTest, MultiplicationCommutative)
+    .WithDomains(ArbitraryFloat128(), ArbitraryFloat128());
+
 // Fuzz-testing division is hard, so just do a quick check to make sure we get
 // something reasonable.
 TEST(Float128ArithmeticTest, ExactDivision) {
@@ -416,6 +511,290 @@ TEST(Float128ArithmeticTest, UnaryOperationsPropagateNan) {
   EXPECT_TRUE(isnan(-std::numeric_limits<Float128>::quiet_NaN()));
   EXPECT_TRUE(isnan(-std::numeric_limits<Float128>::signaling_NaN()));
 }
+
+void ArithmeticPropagatesNan(Float128 x) {
+  constexpr Float128 quiet_nan = std::numeric_limits<Float128>::quiet_NaN();
+  constexpr Float128 signaling_nan =
+      std::numeric_limits<Float128>::signaling_NaN();
+
+  EXPECT_TRUE(isnan(x + quiet_nan));
+  EXPECT_TRUE(isnan(quiet_nan + x));
+  EXPECT_TRUE(isnan(x - quiet_nan));
+  EXPECT_TRUE(isnan(quiet_nan - x));
+  EXPECT_TRUE(isnan(x * quiet_nan));
+  EXPECT_TRUE(isnan(quiet_nan * x));
+  EXPECT_TRUE(isnan(x / quiet_nan));
+  EXPECT_TRUE(isnan(quiet_nan / x));
+
+  EXPECT_TRUE(isnan(x + signaling_nan));
+  EXPECT_TRUE(isnan(signaling_nan + x));
+  EXPECT_TRUE(isnan(x - signaling_nan));
+  EXPECT_TRUE(isnan(signaling_nan - x));
+  EXPECT_TRUE(isnan(x * signaling_nan));
+  EXPECT_TRUE(isnan(signaling_nan * x));
+  EXPECT_TRUE(isnan(x / signaling_nan));
+  EXPECT_TRUE(isnan(signaling_nan / x));
+}
+FUZZ_TEST(Float128ArithmeticTest, ArithmeticPropagatesNan)
+    .WithDomains(ArbitraryFloat128());
+
+void DoubleConversionCommutesWithArithmetic(double x, double y) {
+  Float128 fx = x, fy = y;
+  EXPECT_THAT(static_cast<double>(+fx), NanSensitiveDoubleEq(x));
+  EXPECT_THAT(static_cast<double>(-fx), NanSensitiveDoubleEq(-x));
+  EXPECT_THAT(static_cast<double>(fx + fy), NanSensitiveDoubleEq(x + y));
+  EXPECT_THAT(static_cast<double>(fx - fy), NanSensitiveDoubleEq(x - y));
+  EXPECT_THAT(static_cast<double>(fx * fy), NanSensitiveDoubleEq(x * y));
+  EXPECT_THAT(static_cast<double>(fx / fy), NanSensitiveDoubleEq(x / y));
+}
+FUZZ_TEST(Float128ArithmeticTest, DoubleConversionCommutesWithArithmetic);
+
+void ModifyingOperatorsMatchNonModifyingOperators(const Float128 x,
+                                                  const Float128 y) {
+  Float128 modified_x = x;
+  EXPECT_THAT(modified_x += y, NanSensitiveFloat128Eq(x + y));
+  EXPECT_THAT(modified_x, NanSensitiveFloat128Eq(x + y));
+
+  modified_x = x;
+  EXPECT_THAT(modified_x -= y, NanSensitiveFloat128Eq(x - y));
+  EXPECT_THAT(modified_x, NanSensitiveFloat128Eq(x - y));
+
+  modified_x = x;
+  EXPECT_THAT(modified_x *= y, NanSensitiveFloat128Eq(x * y));
+  EXPECT_THAT(modified_x, NanSensitiveFloat128Eq(x * y));
+
+  modified_x = x;
+  EXPECT_THAT(modified_x /= y, NanSensitiveFloat128Eq(x / y));
+  EXPECT_THAT(modified_x, NanSensitiveFloat128Eq(x / y));
+}
+FUZZ_TEST(Float128ArithmeticTest, ModifyingOperatorsMatchNonModifyingOperators)
+    .WithDomains(ArbitraryFloat128(), ArbitraryFloat128());
+
+void IncrementMatchesModifyingAddition(const Float128 x) {
+  Float128 modified_x = x;
+  EXPECT_THAT(++modified_x, NanSensitiveFloat128Eq(x + 1.0));
+  EXPECT_THAT(modified_x, NanSensitiveFloat128Eq(x + 1.0));
+
+  modified_x = x;
+  EXPECT_THAT(modified_x++, NanSensitiveFloat128Eq(x));
+  EXPECT_THAT(modified_x, NanSensitiveFloat128Eq(x + 1.0));
+}
+FUZZ_TEST(Float128ArithmeticTest, IncrementMatchesModifyingAddition)
+    .WithDomains(ArbitraryFloat128());
+
+void DecrementMatchesModifyingSubtraction(const Float128 x) {
+  Float128 modified_x = x;
+  EXPECT_THAT(--modified_x, NanSensitiveFloat128Eq(x - 1.0));
+  EXPECT_THAT(modified_x, NanSensitiveFloat128Eq(x - 1.0));
+
+  modified_x = x;
+  EXPECT_THAT(modified_x--, NanSensitiveFloat128Eq(x));
+  EXPECT_THAT(modified_x, NanSensitiveFloat128Eq(x - 1.0));
+}
+FUZZ_TEST(Float128ArithmeticTest, DecrementMatchesModifyingSubtraction)
+    .WithDomains(ArbitraryFloat128());
+
+void SameSignedAdditionPreservesSign(Float128 x, Float128 y) {
+  EXPECT_EQ(signbit(x + copysign(y, x)), signbit(x));
+}
+FUZZ_TEST(Float128ArithmeticTest, SameSignedAdditionPreservesSign)
+    .WithDomains(ArbitraryFloat128(), ArbitraryFloat128());
+
+void MultiplicationHandlesSignsCorrectly(Float128 x, Float128 y) {
+  EXPECT_EQ(signbit(x * y), signbit(x) ^ signbit(y));
+}
+FUZZ_TEST(Float128ArithmeticTest, MultiplicationHandlesSignsCorrectly)
+    .WithDomains(FiniteFloat128(), FiniteFloat128());
+
+// Relations are mostly tested via fuzz testing (property-based testing over the
+// domain of `Float128`s). Explicit tests are included as necessary to verify
+// that some relations correspond to real-world expectations (e.g., that < and >
+// are not swapped).
+
+// `operator==` is an equivalence relation (transitive, symmetric, and
+// reflexive).
+
+void EqualTransitive(Float128 x, Float128 y, Float128 z) {
+  // This is the logical implication x = y ∧ y = z ⇒ x = z. It is an
+  // implication, rather than an equivalence, because the converse is not
+  // universally true (consider x = 0.0, y = 1.0, z = -0.0).
+  EXPECT_TRUE(!(x == y && y == z) || x == z);
+}
+FUZZ_TEST(Float128RelationTest, EqualTransitive)
+    .WithDomains(ArbitraryFloat128(), ArbitraryFloat128(), ArbitraryFloat128());
+
+void EqualSymmetric(Float128 x, Float128 y) { EXPECT_EQ(x == y, y == x); }
+FUZZ_TEST(Float128RelationTest, EqualSymmetric)
+    .WithDomains(ArbitraryFloat128(), ArbitraryFloat128());
+
+void EqualReflexive(Float128 x) { EXPECT_TRUE(x == x); }
+FUZZ_TEST(Float128RelationTest, EqualReflexive).WithDomains(NonNan<Float128>());
+
+// `operator!=` is symmetric and irreflexive.
+
+void NotEqualSymmetric(Float128 x, Float128 y) { EXPECT_EQ(x != y, y != x); }
+FUZZ_TEST(Float128RelationTest, NotEqualSymmetric)
+    .WithDomains(ArbitraryFloat128(), ArbitraryFloat128());
+
+void NotEqualIrreflexive(Float128 x) { EXPECT_FALSE(x != x); }
+FUZZ_TEST(Float128RelationTest, NotEqualIrreflexive)
+    .WithDomains(NonNan<Float128>());
+
+// `operator>` is a strict partial order (transitive, asymmetric, and
+// irreflexive).
+
+void GreaterThanTransitive(Float128 x, Float128 y, Float128 z) {
+  EXPECT_TRUE(!(x > y && y > z) || x > z);  // x > y ∧ y > z ⇒ x > z
+}
+FUZZ_TEST(Float128RelationTest, GreaterThanTransitive)
+    .WithDomains(ArbitraryFloat128(), ArbitraryFloat128(), ArbitraryFloat128());
+
+void GreaterThanAsymmetric(Float128 x, Float128 y) {
+  EXPECT_TRUE(!(x > y) || !(y > x));  // x > y ⇒ ¬(y > x)
+}
+FUZZ_TEST(Float128RelationTest, GreaterThanAsymmetric)
+    .WithDomains(NonNan<Float128>(), NonNan<Float128>());
+
+void GreaterThanIrreflexive(Float128 x) { EXPECT_FALSE(x > x); }
+FUZZ_TEST(Float128RelationTest, GreaterThanIrreflexive)
+    .WithDomains(ArbitraryFloat128());
+
+// `operator>=` is a nonstrict partial order (transitive, antisymmetric, and
+// reflexive).
+
+void GreaterThanOrEqualToTransitive(Float128 x, Float128 y, Float128 z) {
+  EXPECT_TRUE(!(x >= y && y >= z) || x >= z);  // x ≥ y ∧ y ≥ z ⇒ x ≥ z
+}
+FUZZ_TEST(Float128RelationTest, GreaterThanOrEqualToTransitive)
+    .WithDomains(ArbitraryFloat128(), ArbitraryFloat128(), ArbitraryFloat128());
+
+void GreaterThanOrEqualToAntisymmetric(Float128 x, Float128 y) {
+  EXPECT_EQ(x >= y && y >= x, x == y);
+}
+FUZZ_TEST(Float128RelationTest, GreaterThanOrEqualToAntisymmetric)
+    .WithDomains(NonNan<Float128>(), NonNan<Float128>());
+
+void GreaterThanOrEqualToReflexive(Float128 x) { EXPECT_TRUE(x >= x); }
+FUZZ_TEST(Float128RelationTest, GreaterThanOrEqualToReflexive)
+    .WithDomains(NonNan<Float128>());
+
+// `operator<` is a strict partial order (transitive, asymmetric, and
+// irreflexive).
+
+void LessThanTransitive(Float128 x, Float128 y, Float128 z) {
+  EXPECT_TRUE(!(x < y && y < z) || x < z);  // x < y ∧ y < z ⇒ x < z
+}
+FUZZ_TEST(Float128RelationTest, LessThanTransitive)
+    .WithDomains(ArbitraryFloat128(), ArbitraryFloat128(), ArbitraryFloat128());
+
+void LessThanAsymmetric(Float128 x, Float128 y) {
+  EXPECT_TRUE(!(x < y) || !(y < x));  // x < y ⇒ ¬(y < x)
+}
+FUZZ_TEST(Float128RelationTest, LessThanAsymmetric)
+    .WithDomains(NonNan<Float128>(), NonNan<Float128>());
+
+void LessThanIrreflexive(Float128 x) { EXPECT_FALSE(x < x); }
+FUZZ_TEST(Float128RelationTest, LessThanIrreflexive)
+    .WithDomains(ArbitraryFloat128());
+
+// `operator<=` is a nonstrict partial order (transitive, antisymmetric, and
+// reflexive).
+
+void LessThanOrEqualToTransitive(Float128 x, Float128 y, Float128 z) {
+  EXPECT_TRUE(!(x <= y && y <= z) || x <= z);  // x ≤ y ∧ y ≤ z ⇒ x ≤ z
+}
+FUZZ_TEST(Float128RelationTest, LessThanOrEqualToTransitive)
+    .WithDomains(ArbitraryFloat128(), ArbitraryFloat128(), ArbitraryFloat128());
+
+void LessThanOrEqualToAntisymmetric(Float128 x, Float128 y) {
+  EXPECT_EQ(x <= y && y <= x, x == y);
+}
+FUZZ_TEST(Float128RelationTest, LessThanOrEqualToAntisymmetric)
+    .WithDomains(NonNan<Float128>(), NonNan<Float128>());
+
+void LessThanOrEqualToReflexive(Float128 x) { EXPECT_TRUE(x <= x); }
+FUZZ_TEST(Float128RelationTest, LessThanOrEqualToReflexive)
+    .WithDomains(NonNan<Float128>());
+
+// `operator==` and `operator!=` are exclusive, even in the case of NaNs.
+void EqualXorNotEqual(Float128 x, Float128 y) { EXPECT_NE(x == y, x != y); }
+FUZZ_TEST(Float128RelationTest, EqualXorNotEqual)
+    .WithDomains(ArbitraryFloat128(), ArbitraryFloat128());
+
+// `operator>` and `operator<=` are exclusive, except in the case of NaNs.
+void GreaterThanXorLessThanOrEqualTo(Float128 x, Float128 y) {
+  EXPECT_NE(x > y, x <= y);
+}
+FUZZ_TEST(Float128RelationTest, GreaterThanXorLessThanOrEqualTo)
+    .WithDomains(NonNan<Float128>(), NonNan<Float128>());
+
+// `operator<` and `operator>=` are exclusive, except in the case of NaNs.
+void LessThanXorGreaterThanOrEqualTo(Float128 x, Float128 y) {
+  EXPECT_NE(x < y, x >= y);
+}
+FUZZ_TEST(Float128RelationTest, LessThanXorGreaterThanOrEqualTo)
+    .WithDomains(NonNan<Float128>(), NonNan<Float128>());
+
+// Nonstrict orders are supersets of strict orders.
+
+void GreaterThanImpliesGreaterThanOrEqualTo(Float128 x, Float128 y) {
+  EXPECT_TRUE(!(x > y) || x >= y);  // x > y ⇒ x ≥ y
+}
+FUZZ_TEST(Float128RelationTest, GreaterThanImpliesGreaterThanOrEqualTo)
+    .WithDomains(ArbitraryFloat128(), ArbitraryFloat128());
+
+void LessThanImpliesLessThanOrEqualTo(Float128 x, Float128 y) {
+  EXPECT_TRUE(!(x < y) || x <= y);  // x < y ⇒ x ≤ y
+}
+FUZZ_TEST(Float128RelationTest, LessThanImpliesLessThanOrEqualTo)
+    .WithDomains(ArbitraryFloat128(), ArbitraryFloat128());
+
+// Except for NaNs, the `Float128` domain is totally ordered. In other words,
+// given any two non-NaN `Float128`s x and y, exactly one of x < y, x = y, and
+// x > y holds.
+void TotallyOrdered(Float128 x, Float128 y) {
+  EXPECT_TRUE((x < y && !(x == y) && !(x > y)) ||
+              (!(x < y) && x == y && !(x > y)) ||
+              (!(x < y) && !(x == y) && x > y));
+}
+FUZZ_TEST(Float128RelationTest, TotallyOrdered)
+    .WithDomains(NonNan<Float128>(), NonNan<Float128>());
+
+// `operator<=>` matches the behavior of the other operators.
+void SpaceshipConsistentWithOtherOperators(Float128 x, Float128 y) {
+  if (std::partial_ordering order = x <=> y;
+      order == std::partial_ordering::less) {
+    EXPECT_FALSE(x == y);
+    EXPECT_TRUE(x != y);
+    EXPECT_FALSE(x > y);
+    EXPECT_FALSE(x >= y);
+    EXPECT_TRUE(x < y);
+    EXPECT_TRUE(x <= y);
+  } else if (order == std::partial_ordering::equivalent) {
+    EXPECT_TRUE(x == y);
+    EXPECT_FALSE(x != y);
+    EXPECT_FALSE(x > y);
+    EXPECT_TRUE(x >= y);
+    EXPECT_FALSE(x < y);
+    EXPECT_TRUE(x <= y);
+  } else if (order == std::partial_ordering::greater) {
+    EXPECT_FALSE(x == y);
+    EXPECT_TRUE(x != y);
+    EXPECT_TRUE(x > y);
+    EXPECT_TRUE(x >= y);
+    EXPECT_FALSE(x < y);
+    EXPECT_FALSE(x <= y);
+  } else if (order == std::partial_ordering::unordered) {
+    EXPECT_FALSE(x == y);
+    EXPECT_TRUE(x != y);
+    EXPECT_FALSE(x > y);
+    EXPECT_FALSE(x >= y);
+    EXPECT_FALSE(x < y);
+    EXPECT_FALSE(x <= y);
+  }
+}
+FUZZ_TEST(Float128RelationTest, SpaceshipConsistentWithOtherOperators)
+    .WithDomains(ArbitraryFloat128(), ArbitraryFloat128());
 
 // This test checks that operator< does the right thing; if it passes, the tests
 // above imply the other operators also do the right thing.
@@ -436,6 +815,18 @@ TEST(Float128RelationTest, LessThanIsCorrectlyOrdered) {
 TEST(Float128RelationTest, ZeroEqualsNegativeZero) {
   EXPECT_TRUE(Float128(0.0) == Float128(-0.0));
 }
+
+void ConversionFromDoublePreservesRelations(double x, double y) {
+  Float128 fx = x, fy = y;
+  EXPECT_EQ(x == y, fx == fy);
+  EXPECT_EQ(x != y, fx != fy);
+  EXPECT_EQ(x > y, fx > fy);
+  EXPECT_EQ(x < y, fx < fy);
+  EXPECT_EQ(x >= y, fx >= fy);
+  EXPECT_EQ(x <= y, fx <= fy);
+  EXPECT_EQ(x <=> y, fx <=> fy);
+}
+FUZZ_TEST(Float128RelationTest, ConversionFromDoublePreservesRelations);
 
 // NaN behavior is unusual enough that it merits its own set of tests. Some of
 // these tests overlap with tests above, but having NaN behavior tested
@@ -476,6 +867,52 @@ TEST(Float128RelationTest, NanComparesFalseWithNan) {
   EXPECT_FALSE(quiet_nan <= signaling_nan);
   EXPECT_FALSE(signaling_nan <= quiet_nan);
 }
+
+void NothingEqualsNan(Float128 x) {
+  constexpr Float128 quiet_nan = std::numeric_limits<Float128>::quiet_NaN();
+  constexpr Float128 signaling_nan =
+      std::numeric_limits<Float128>::signaling_NaN();
+
+  EXPECT_FALSE(x == quiet_nan);
+  EXPECT_FALSE(quiet_nan == x);
+  EXPECT_FALSE(x == signaling_nan);
+  EXPECT_FALSE(signaling_nan == x);
+
+  EXPECT_TRUE(x != quiet_nan);
+  EXPECT_TRUE(quiet_nan != x);
+  EXPECT_TRUE(x != signaling_nan);
+  EXPECT_TRUE(signaling_nan != x);
+}
+FUZZ_TEST(Float128RelationTest, NothingEqualsNan)
+    .WithDomains(ArbitraryFloat128());
+
+void NothingIsOrderedWithNan(Float128 x) {
+  constexpr Float128 quiet_nan = std::numeric_limits<Float128>::quiet_NaN();
+  constexpr Float128 signaling_nan =
+      std::numeric_limits<Float128>::signaling_NaN();
+
+  EXPECT_FALSE(x > quiet_nan);
+  EXPECT_FALSE(quiet_nan > x);
+  EXPECT_FALSE(x > signaling_nan);
+  EXPECT_FALSE(signaling_nan > x);
+
+  EXPECT_FALSE(x >= quiet_nan);
+  EXPECT_FALSE(quiet_nan >= x);
+  EXPECT_FALSE(x >= signaling_nan);
+  EXPECT_FALSE(signaling_nan >= x);
+
+  EXPECT_FALSE(x < quiet_nan);
+  EXPECT_FALSE(quiet_nan < x);
+  EXPECT_FALSE(x < signaling_nan);
+  EXPECT_FALSE(signaling_nan < x);
+
+  EXPECT_FALSE(x <= quiet_nan);
+  EXPECT_FALSE(quiet_nan <= x);
+  EXPECT_FALSE(x <= signaling_nan);
+  EXPECT_FALSE(signaling_nan <= x);
+}
+FUZZ_TEST(Float128RelationTest, NothingIsOrderedWithNan)
+    .WithDomains(ArbitraryFloat128());
 
 TEST(Float128ClassifyTest, Zero) {
   EXPECT_EQ(fpclassify(Float128(0.0)), FP_ZERO);
@@ -574,10 +1011,242 @@ TEST(Float128ClassifyTest, Nan) {
       signbit(Float128(std::numeric_limits<Float128>::signaling_NaN())));
 }
 
+void ConversionFromDoublePreservesClass(double x) {
+  EXPECT_EQ(fpclassify(Float128(x)), std::fpclassify(x));
+  EXPECT_EQ(isfinite(Float128(x)), std::isfinite(x));
+  EXPECT_EQ(isinf(Float128(x)), std::isinf(x));
+  EXPECT_EQ(isnan(Float128(x)), std::isnan(x));
+  EXPECT_EQ(isnormal(Float128(x)), std::isnormal(x));
+  EXPECT_EQ(signbit(Float128(x)), std::signbit(x));
+}
+FUZZ_TEST(Float128ClassifyTest, ConversionFromDoublePreservesClass);
+
+void FabsPreservesMagnitudeAndMakesNonnegative(Float128 x) {
+  EXPECT_THAT(fabs(x), NanSensitiveFloat128Eq(signbit(x) ? -x : x));
+}
+FUZZ_TEST(Float128FunctionTest, FabsPreservesMagnitudeAndMakesNonnegative)
+    .WithDomains(ArbitraryFloat128());
+
+void FabsBehavesLikeStdFabs(double x) {
+  EXPECT_THAT(static_cast<double>(fabs(Float128(x))),
+              NanSensitiveDoubleEq(std::fabs(x)));
+}
+FUZZ_TEST(Float128FunctionTest, FabsBehavesLikeStdFabs);
+
+void FmodBehavesLikeStdFmod(double x, double y) {
+  EXPECT_THAT(static_cast<double>(fmod(Float128(x), Float128(y))),
+              NanSensitiveDoubleEq(std::fmod(x, y)));
+}
+FUZZ_TEST(Float128FunctionTest, FmodBehavesLikeStdFmod);
+
+void RemainderBehavesLikeStdRemainder(double x, double y) {
+  EXPECT_THAT(static_cast<double>(remainder(Float128(x), Float128(y))),
+              NanSensitiveDoubleEq(std::remainder(x, y)));
+}
+FUZZ_TEST(Float128FunctionTest, RemainderBehavesLikeStdRemainder);
+
+void RemquoBehavesLikeStdRemquo(double x, double y) {
+  int float128_quotient = 0, double_quotient = 0;
+  EXPECT_THAT(
+      static_cast<double>(remquo(Float128(x), Float128(y), &float128_quotient)),
+      NanSensitiveDoubleEq(std::remquo(x, y, &double_quotient)));
+  EXPECT_EQ(float128_quotient, double_quotient);
+}
+FUZZ_TEST(Float128FunctionTest, RemquoBehavesLikeStdRemquo);
+
+void FmaBehavesLikeStdFma(double x, double y, double z) {
+  EXPECT_THAT(static_cast<double>(fma(Float128(x), Float128(y), Float128(z))),
+              NanSensitiveDoubleEq(std::fma(x, y, z)));
+}
+FUZZ_TEST(Float128FunctionTest, FmaBehavesLikeStdFma);
+
+void FmaxBehavesLikeStdFmax(double x, double y) {
+  EXPECT_THAT(static_cast<double>(fmax(Float128(x), Float128(y))),
+              NanSensitiveDoubleEq(std::fmax(x, y)));
+}
+FUZZ_TEST(Float128FunctionTest, FmaxBehavesLikeStdFmax);
+
+void FmaxBehavesLikeStdFmin(double x, double y) {
+  EXPECT_THAT(static_cast<double>(fmin(Float128(x), Float128(y))),
+              NanSensitiveDoubleEq(std::fmin(x, y)));
+}
+FUZZ_TEST(Float128FunctionTest, FmaxBehavesLikeStdFmin);
+
+void FdimBehavesLikeStdFdim(double x, double y) {
+  EXPECT_THAT(static_cast<double>(fdim(Float128(x), Float128(y))),
+              NanSensitiveDoubleEq(std::fdim(x, y)));
+}
+FUZZ_TEST(Float128FunctionTest, FdimBehavesLikeStdFdim);
+
 TEST(Float128FunctionTest, NanGeneratesNan) {
   EXPECT_TRUE(isnan(nan("")));
   EXPECT_THAT(static_cast<double>(nan("")), IsNan());
 }
+
+void ExpBehavesLikeStdExp(double x) {
+  EXPECT_THAT(static_cast<double>(exp(Float128(x))),
+              NanSensitiveDoubleEq(std::exp(x)));
+}
+FUZZ_TEST(Float128FunctionTest, ExpBehavesLikeStdExp);
+
+void Exp2BehavesLikeStdExp2(double x) {
+  EXPECT_THAT(static_cast<double>(exp2(Float128(x))),
+              NanSensitiveDoubleEq(std::exp2(x)));
+}
+FUZZ_TEST(Float128FunctionTest, Exp2BehavesLikeStdExp2);
+
+void Expm1BehavesLikeStdExpm1(double x) {
+  EXPECT_THAT(static_cast<double>(expm1(Float128(x))),
+              NanSensitiveDoubleEq(std::expm1(x)));
+}
+FUZZ_TEST(Float128FunctionTest, Expm1BehavesLikeStdExpm1);
+
+void LogBehavesLikeStdLog(double x) {
+  EXPECT_THAT(static_cast<double>(log(Float128(x))),
+              NanSensitiveDoubleEq(std::log(x)));
+}
+FUZZ_TEST(Float128FunctionTest, LogBehavesLikeStdLog);
+
+void Log10BehavesLikeStdLog10(double x) {
+  EXPECT_THAT(static_cast<double>(log10(Float128(x))),
+              NanSensitiveDoubleEq(std::log10(x)));
+}
+FUZZ_TEST(Float128FunctionTest, Log10BehavesLikeStdLog10);
+
+void Log2BehavesLikeStdLog2(double x) {
+  EXPECT_THAT(static_cast<double>(log2(Float128(x))),
+              NanSensitiveDoubleEq(std::log2(x)));
+}
+FUZZ_TEST(Float128FunctionTest, Log2BehavesLikeStdLog2);
+
+void Log1pBehavesLikeStdLog1p(double x) {
+  EXPECT_THAT(static_cast<double>(log1p(Float128(x))),
+              NanSensitiveDoubleEq(std::log1p(x)));
+}
+FUZZ_TEST(Float128FunctionTest, Log1pBehavesLikeStdLog1p);
+
+void SqrtBehavesLikeStdSqrt(double x) {
+  EXPECT_THAT(static_cast<double>(sqrt(Float128(x))),
+              NanSensitiveDoubleEq(std::sqrt(x)));
+}
+FUZZ_TEST(Float128FunctionTest, SqrtBehavesLikeStdSqrt);
+
+void CbrtBehavesLikeStdCbrt(double x) {
+  EXPECT_THAT(static_cast<double>(cbrt(Float128(x))),
+              NanSensitiveDoubleEq(std::cbrt(x)));
+}
+FUZZ_TEST(Float128FunctionTest, CbrtBehavesLikeStdCbrt);
+
+void PowBehavesLikeStdPow(double x, double y) {
+  EXPECT_THAT(static_cast<double>(pow(Float128(x), Float128(y))),
+              NanSensitiveDoubleEq(std::pow(x, y)));
+}
+FUZZ_TEST(Float128FunctionTest, PowBehavesLikeStdPow);
+
+void AcoshBehavesLikeStdAcosh(double x) {
+  EXPECT_THAT(static_cast<double>(acosh(Float128(x))),
+              NanSensitiveDoubleEq(std::acosh(x)));
+}
+FUZZ_TEST(Float128FunctionTest, AcoshBehavesLikeStdAcosh)
+    .WithDomains(InRange(1.0, std::numeric_limits<double>::max()));
+
+void AsinhBehavesLikeStdAsinh(double x) {
+  EXPECT_THAT(static_cast<double>(asinh(Float128(x))),
+              NanSensitiveDoubleEq(std::asinh(x)));
+}
+FUZZ_TEST(Float128FunctionTest, AsinhBehavesLikeStdAsinh);
+
+void AtanhBehavesLikeStdAtanh(double x) {
+  EXPECT_THAT(static_cast<double>(atanh(Float128(x))),
+              NanSensitiveDoubleEq(std::atanh(x)));
+}
+FUZZ_TEST(Float128FunctionTest, AtanhBehavesLikeStdAtanh)
+    .WithDomains(InRange(-1.0, 1.0));
+
+void CosBehavesLikeStdCos(double x) {
+  EXPECT_THAT(static_cast<double>(cos(Float128(x))),
+              NanSensitiveDoubleEq(std::cos(x)));
+}
+FUZZ_TEST(Float128FunctionTest, CosBehavesLikeStdCos);
+
+void SinBehavesLikeStdSin(double x) {
+  EXPECT_THAT(static_cast<double>(sin(Float128(x))),
+              NanSensitiveDoubleEq(std::sin(x)));
+}
+FUZZ_TEST(Float128FunctionTest, SinBehavesLikeStdSin);
+
+void TanBehavesLikeStdTan(double x) {
+  EXPECT_THAT(static_cast<double>(tan(Float128(x))),
+              NanSensitiveDoubleEq(std::tan(x)));
+}
+FUZZ_TEST(Float128FunctionTest, TanBehavesLikeStdTan);
+
+void CeilBehavesLikeStdCeil(double x) {
+  EXPECT_THAT(static_cast<double>(ceil(Float128(x))),
+              NanSensitiveDoubleEq(std::ceil(x)));
+}
+FUZZ_TEST(Float128FunctionTest, CeilBehavesLikeStdCeil);
+
+void FloorBehavesLikeStdFloor(double x) {
+  EXPECT_THAT(static_cast<double>(floor(Float128(x))),
+              NanSensitiveDoubleEq(std::floor(x)));
+}
+FUZZ_TEST(Float128FunctionTest, FloorBehavesLikeStdFloor);
+
+void TruncBehavesLikeStdTrunc(double x) {
+  EXPECT_THAT(static_cast<double>(trunc(Float128(x))),
+              NanSensitiveDoubleEq(std::trunc(x)));
+}
+FUZZ_TEST(Float128FunctionTest, TruncBehavesLikeStdTrunc);
+
+// We need to test functions like `lrint` and `llrint` that are defined to
+// return `long` and `long long`.
+// NOLINTBEGIN(google-runtime-int)
+// NOLINTBEGIN(runtime/int)
+
+void RoundBehavesLikeStdRound(double x) {
+  EXPECT_THAT(static_cast<double>(round(Float128(x))),
+              NanSensitiveDoubleEq(std::round(x)));
+}
+FUZZ_TEST(Float128FunctionTest, RoundBehavesLikeStdRound);
+
+void LroundBehavesLikeStdLround(double x) {
+  EXPECT_EQ(lround(Float128(x)), std::lround(x));
+}
+FUZZ_TEST(Float128FunctionTest, LroundBehavesLikeStdLround)
+    .WithDomains(
+        InRange(std::nextafter(std::numeric_limits<long>::lowest(), 0.0),
+                std::nextafter(std::numeric_limits<long>::max(), 0.0)));
+
+void LlroundBehavesLikeStdLlround(double x) {
+  EXPECT_EQ(llround(Float128(x)), std::llround(x));
+}
+FUZZ_TEST(Float128FunctionTest, LlroundBehavesLikeStdLlround)
+    .WithDomains(
+        InRange(std::nextafter(std::numeric_limits<long long>::lowest(), 0.0),
+                std::nextafter(std::numeric_limits<long long>::max(), 0.0)));
+
+void RintBehavesLikeStdRint(double x) {
+  EXPECT_THAT(static_cast<double>(rint(Float128(x))),
+              NanSensitiveDoubleEq(std::rint(x)));
+}
+FUZZ_TEST(Float128FunctionTest, RintBehavesLikeStdRint);
+
+void LrintBehavesLikeStdLrint(double x) {
+  EXPECT_EQ(lrint(Float128(x)), std::lrint(x));
+}
+FUZZ_TEST(Float128FunctionTest, LrintBehavesLikeStdLrint)
+    .WithDomains(
+        InRange(std::nextafter(std::numeric_limits<long>::lowest(), 0.0),
+                std::nextafter(std::numeric_limits<long>::max(), 0.0)));
+
+void LlrintBehavesLikeStdLlrint(double x) {
+  EXPECT_EQ(llrint(Float128(x)), std::llrint(x));
+}
+FUZZ_TEST(Float128FunctionTest, LlrintBehavesLikeStdLlrint)
+    .WithDomains(
+        InRange(std::nextafter(std::numeric_limits<long long>::lowest(), 0.0),
+                std::nextafter(std::numeric_limits<long long>::max(), 0.0)));
 
 // NOLINTEND(runtime/int)
 // NOLINTEND(google-runtime-int)
@@ -611,6 +1280,54 @@ TEST(Float128FunctionTest, FrexpNan) {
   EXPECT_TRUE(
       isnan(frexp(std::numeric_limits<Float128>::quiet_NaN(), &exponent)));
 }
+
+void FrexpBehavesLikeStdFrexp(double x) {
+  int quad_exponent, double_exponent;
+  EXPECT_THAT(static_cast<double>(frexp(Float128(x), &quad_exponent)),
+              NanSensitiveDoubleEq(std::frexp(x, &double_exponent)));
+  EXPECT_EQ(quad_exponent, double_exponent);
+}
+FUZZ_TEST(Float128Functiontest, FrexpBehavesLikeStdFrexp)
+    .WithDomains(Finite<double>());
+
+void LdexpBehavesLikeStdLdexp(double x, int exponent) {
+  EXPECT_THAT(static_cast<double>(ldexp(Float128(x), exponent)),
+              NanSensitiveDoubleEq(std::ldexp(x, exponent)));
+}
+FUZZ_TEST(Float128Functiontest, LdexpBehavesLikeStdLdexp);
+
+void ModfBehavesLikeStdModf(double x) {
+  Float128 quad_integral_part = 0;
+  double double_integral_part = 0;
+  EXPECT_THAT(static_cast<double>(modf(Float128(x), &quad_integral_part)),
+              NanSensitiveDoubleEq(std::modf(x, &double_integral_part)));
+  EXPECT_THAT(static_cast<double>(quad_integral_part),
+              NanSensitiveDoubleEq(double_integral_part));
+}
+FUZZ_TEST(Float128Functiontest, ModfBehavesLikeStdModf);
+
+void IlogbBehavesLikeStdIlogb(double x) {
+  EXPECT_EQ(ilogb(Float128(x)), std::ilogb(x));
+}
+FUZZ_TEST(Float128Functiontest, IlogbBehavesLikeStdIlogb);
+
+void LogbBehavesLikeStdLogb(double x) {
+  EXPECT_THAT(static_cast<double>(logb(Float128(x))),
+              NanSensitiveDoubleEq(std::logb(x)));
+}
+FUZZ_TEST(Float128Functiontest, LogbBehavesLikeStdLogb);
+
+void NextafterBehavesLikeStdNextafter(double from, double to) {
+  EXPECT_THAT(static_cast<double>(nextafter(Float128(from), Float128(to))),
+              NanSensitiveDoubleEq(std::nextafter(from, to)));
+}
+FUZZ_TEST(Float128Functiontest, NextafterBehavesLikeStdNextafter);
+
+void CopysignBehavesLikeStdCopysign(double x, double y) {
+  EXPECT_THAT(static_cast<double>(copysign(Float128(x), Float128(y))),
+              NanSensitiveDoubleEq(std::copysign(x, y)));
+}
+FUZZ_TEST(Float128FunctionTest, CopysignBehavesLikeStdCopysign);
 
 }  // namespace
 

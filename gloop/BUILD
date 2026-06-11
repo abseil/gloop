@@ -91,6 +91,7 @@ cc_library(
     deps = [
         ":enforce_gloop_support",
         "//gloop/base:init_google",
+        "@fuzztest//fuzztest:init_fuzztest",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest_for_library",
     ],

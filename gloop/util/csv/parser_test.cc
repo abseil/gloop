@@ -37,6 +37,7 @@
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
+#include "fuzztest/fuzztest.h"
 #include "gloop/strings/bytestream.h"
 #include "gloop/strings/numbers.h"
 #include "gloop/strings/split.h"
@@ -725,5 +726,44 @@ BENCHMARK(BM_ParseFile)->Range(1, 1 << 20);
 
 // Microbenchmark for parsing a multi-line File from memory using
 // FileLineReader
+
+void FuzzParser(absl::string_view csv_input, char delim, Parser::Mode mode) {
+  Parser parser(std::make_unique<ArrayByteSource>(csv_input), delim, mode);
+  int64_t record_order = 0;
+  bool last_was_error = false;
+  for (const Record& rec : parser) {
+    EXPECT_FALSE(last_was_error);
+    EXPECT_EQ(rec.number(), record_order);
+    ++record_order;
+    if (!rec.status().ok()) {
+      EXPECT_EQ(rec.status().code(), absl::StatusCode::kInternal);
+      last_was_error = true;
+      continue;
+    }
+    const std::vector<std::string> fields_copy = rec.fields();
+    const std::vector<std::string> fields_move = std::move(rec).fields();
+    EXPECT_EQ(fields_copy, fields_move);
+  }
+}
+
+FUZZ_TEST(ParserFuzzer, FuzzParser)
+    .WithDomains(fuzztest::Arbitrary<absl::string_view>(),
+                 fuzztest::Arbitrary<char>(),
+                 fuzztest::Arbitrary<Parser::Mode>())
+    .WithSeeds({{kMultTable, ',', Parser::Mode::RFC4180},
+                {kMultTableTabs, '\t', Parser::Mode::MYSQL_ESCAPING},
+                {kMultTableTabs, '\t', Parser::Mode::MYSQL_ESCAPING},
+                {kCsvEmptyLeadingLines, ',', Parser::Mode::RFC4180},
+                {kQuoteInField, ',', Parser::Mode::RFC4180},
+                {kNewlineFileContent, ',', Parser::Mode::RFC4180},
+                {kNewlineFileContent1, ',', Parser::Mode::RFC4180},
+                {kNewlineFileContent2, ',', Parser::Mode::RFC4180},
+                {kMissingNewlineContent, ',', Parser::Mode::RFC4180},
+                {kQuotedNewlineContent, ',', Parser::Mode::RFC4180},
+                {kVariableFields, ',', Parser::Mode::RFC4180},
+                {kQuotedQuotes, ',', Parser::Mode::RFC4180},
+                {kMisc, ',', Parser::Mode::RFC4180},
+                {absl::string_view("a,\0;'", 5), '\0',
+                 Parser::Mode::LITERAL_QUOTES}});
 
 }  // namespace

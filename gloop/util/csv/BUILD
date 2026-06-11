@@ -59,6 +59,7 @@ cc_test(
         "@abseil-cpp//absl/status:status_matchers",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
+        "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

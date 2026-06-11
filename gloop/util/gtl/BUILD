@@ -71,6 +71,7 @@ cc_test(
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
+        "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -1070,13 +1071,27 @@ cc_test(
     shard_count = 50,
     deps = [
         ":float128",
+        ":float128_fuzztest_domain",
         ":float128_matchers",
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings:str_format",
+        "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "float128_fuzztest_domain",
+    testonly = 1,
+    hdrs = ["float128_fuzztest_domain.h"],
+    deps = [
+        ":float128",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/numeric:int128",
+        "@fuzztest//fuzztest",
     ],
 )
 

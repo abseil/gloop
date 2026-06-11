@@ -33,6 +33,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "fuzztest/fuzztest.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -144,6 +145,80 @@ INSTANTIATE_TEST_SUITE_P(, ParsedProcessStatInvalidTest,
                                          "987654322 )Wrong (order( 333 12",
                                          "987654323 )Wrong )order( 333 12",
                                          "123 No parens at all 4 5 6"));
+
+struct IntFieldChoice {
+  bool as_signed;
+  int field_idx;
+};
+// Fuzzer smoke test for parsing field given by `field_ids` from `line`.
+void SmokeParsedProcessStatFields(
+    std::string line, const std::vector<IntFieldChoice>& field_ids) {
+  std::string trimmed(absl::StripAsciiWhitespace(line));
+  ParsedProcessStat stat(std::move(line));
+  ParsedProcessStat parsed_trimmed(std::move(trimmed));
+  for (IntFieldChoice choice : field_ids) {
+    if (choice.as_signed) {
+      auto signed_field = stat.GetSignedIntField(choice.field_idx);
+      auto signed_field_from_trimmed =
+          parsed_trimmed.GetSignedIntField(choice.field_idx);
+
+      ASSERT_THAT(signed_field.status().code(),
+                  Eq(signed_field_from_trimmed.status().code()));
+      EXPECT_THAT(signed_field.status(),
+                  Not(StatusIs(absl::StatusCode::kInternal)));
+      if (signed_field.ok()) {
+        EXPECT_THAT(*signed_field, Eq(*signed_field_from_trimmed));
+      }
+    } else {
+      auto unsigned_field = stat.GetUnsignedIntField(choice.field_idx);
+      auto unsigned_field_from_trimmed =
+          parsed_trimmed.GetUnsignedIntField(choice.field_idx);
+
+      ASSERT_THAT(unsigned_field.status().code(),
+                  Eq(unsigned_field_from_trimmed.status().code()));
+      EXPECT_THAT(unsigned_field.status(),
+                  Not(StatusIs(absl::StatusCode::kInternal)));
+      if (unsigned_field.ok()) {
+        EXPECT_THAT(*unsigned_field, Eq(*unsigned_field_from_trimmed));
+      }
+    }
+  }
+}
+
+// Fuzzer smoke test for parsing comm and state fields from `line`.
+// For every `true` in `comm_fields` tries to read a comm field, for every
+// `false` a state field.
+void SmokeParsedProcessStat(std::string line,
+                            const std::vector<bool>& comm_fields) {
+  std::string trimmed(absl::StripAsciiWhitespace(line));
+  ParsedProcessStat stat(std::move(line));
+  ParsedProcessStat parsed_trimmed(std::move(trimmed));
+  for (bool choose_comm : comm_fields) {
+    if (choose_comm) {
+      auto comm = stat.GetComm();
+      auto comm_from_trimmed = parsed_trimmed.GetComm();
+
+      ASSERT_THAT(comm.status().code(), Eq(comm_from_trimmed.status().code()));
+      EXPECT_THAT(comm.status(), Not(StatusIs(absl::StatusCode::kInternal)));
+      if (comm.ok()) {
+        EXPECT_THAT(*comm, Eq(*comm_from_trimmed));
+      }
+    } else {
+      auto state = stat.GetState();
+      auto state_from_trimmed = parsed_trimmed.GetState();
+
+      ASSERT_THAT(state.status().code(),
+                  Eq(state_from_trimmed.status().code()));
+      EXPECT_THAT(state.status(), Not(StatusIs(absl::StatusCode::kInternal)));
+      if (state.ok()) {
+        EXPECT_THAT(*state, Eq(*state_from_trimmed));
+      }
+    }
+  }
+}
+
+FUZZ_TEST(ParseProcStatFuzzer, SmokeParsedProcessStatFields);
+FUZZ_TEST(ParseProcStatFuzzer, SmokeParsedProcessStat);
 
 }  // namespace
 }  // namespace base

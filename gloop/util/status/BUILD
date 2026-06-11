@@ -244,6 +244,7 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:source_location",
+        "@fuzztest//fuzztest",
         "@gloop//gloop/util/status:status_cc_proto",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

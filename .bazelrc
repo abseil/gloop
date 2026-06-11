@@ -15,7 +15,7 @@ build --copt=-funsigned-char --host_copt=-funsigned-char
 build --copt=-fno-omit-frame-pointer
 
 # Disable warnings from dependencies.
-build --per_file_copt=-external/.*@-Wno-thread-safety-analysis,-Wno-character-conversion
+build --per_file_copt=-external/.*@-Wno-thread-safety-analysis,-Wno-character-conversion,-Wno-unused-function
 build --host_per_file_copt=-external/.*@-Wno-deprecated-declarations
 
 # Enable all recommended warnings by default, and treat them as errors.
@@ -104,3 +104,6 @@ build:remote-arm --config=remote-base
 build:remote-arm --extra_execution_platforms=//gloop:rbe-arm
 build:remote-arm --host_platform=//gloop:rbe-arm
 build:remote-arm --platforms=//gloop:rbe-arm
+
+# Fuzzing configuration.
+try-import %workspace%/fuzztest.bazelrc

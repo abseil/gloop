@@ -25,6 +25,7 @@
 
 #include "absl/base/macros.h"
 #include "absl/container/btree_set.h"
+#include "fuzztest/fuzztest.h"
 #include "gloop/util/random/random_base_testutils.h"
 #include "gtest/gtest.h"
 
@@ -508,5 +509,47 @@ TEST(MTRandomTest, Regression_CloseStringsAreDifferent) {
   EXPECT_EQ(kCount, first.size());
   EXPECT_EQ(2 * kCount, all.size());
 }
+
+// ---------------------------------------------------------------------------
+// Fuzz tests for MTRandom.
+// ---------------------------------------------------------------------------
+
+void MTRandomStringConstructionNeverCrashes(const std::string& seed) {
+  MTRandom rng(seed);
+  for (int i = 0; i < 10; ++i) {
+    rng.Rand32();
+  }
+}
+FUZZ_TEST(RandomFuzzTest, MTRandomStringConstructionNeverCrashes)
+    .WithDomains(fuzztest::Arbitrary<std::string>().WithMinSize(1));
+
+void MTRandomRandNeverCrashes(uint32_t seed) {
+  MTRandom rng(seed);
+  for (int i = 0; i < 50; ++i) {
+    rng.Rand32();
+    rng.Rand64();
+  }
+}
+FUZZ_TEST(RandomFuzzTest, MTRandomRandNeverCrashes);
+
+void RandFloatIsInRange(uint32_t seed) {
+  MTRandom rng(seed);
+  for (int i = 0; i < 100; ++i) {
+    float val = rng.RandFloat();
+    EXPECT_GE(val, 0.0f);
+    EXPECT_LT(val, 1.0f);
+  }
+}
+FUZZ_TEST(RandomFuzzTest, RandFloatIsInRange);
+
+void RandDoubleIsInRange(uint32_t seed) {
+  MTRandom rng(seed);
+  for (int i = 0; i < 100; ++i) {
+    double val = rng.RandDouble();
+    EXPECT_GE(val, 0.0);
+    EXPECT_LT(val, 1.0);
+  }
+}
+FUZZ_TEST(RandomFuzzTest, RandDoubleIsInRange);
 
 }  // namespace

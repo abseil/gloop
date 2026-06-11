@@ -163,6 +163,7 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/strings:string_view",
+        "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

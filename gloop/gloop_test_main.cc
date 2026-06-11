@@ -22,6 +22,7 @@
 #include <cstdlib>
 
 #include "benchmark/benchmark.h"
+#include "fuzztest/init_fuzztest.h"
 #include "gloop/base/init_google.h"
 #include "gtest/gtest.h"
 
@@ -38,6 +39,9 @@ GTEST_API_ int main(int argc, char** argv) {
     benchmark::RunSpecifiedBenchmarks();
     exit(0);
   }
+
+  fuzztest::ParseAbslFlags(argc, argv);
+  fuzztest::InitFuzzTest(&argc, &argv);
 
   return RUN_ALL_TESTS();
 }
