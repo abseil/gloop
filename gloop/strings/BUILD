@@ -192,6 +192,19 @@ cc_test(
     ],
 )
 
+cc_test(
+    name = "escaping_fuzz_test",
+    srcs = ["escaping_fuzz_test.cc"],
+    deps = [
+        ":escaping",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/strings",
+        "@fuzztest//fuzztest",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 cc_library(
     name = "hex_ascii_dump",
     srcs = ["hex_ascii_dump.cc"],

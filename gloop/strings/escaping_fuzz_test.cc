@@ -18,21 +18,33 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-#include <stddef.h>
-#include <stdint.h>
-#include <string.h>
-
+#include <cstring>
 #include <memory>
+#include <string>
 
+#include "absl/strings/match.h"
+#include "fuzztest/fuzztest.h"
 #include "gloop/strings/escaping.h"
+#include "gtest/gtest.h"
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+namespace strings {
+namespace {
+
+void FuzzUnescapeCEscapeSequences(const std::string& s) {
+  // UnescapeCEscapeSequences reads until null terminator.
+  // We ensure the input string does not contain embedded nulls so that
+  // the entire string is processed.
+  if (absl::StrContains(s, '\0')) return;
+
   // By using carefully allocated char* instead of ::string, we increase the
   // ability to detect accessing past the end of the buffer with short strings.
-  auto src = std::make_unique<char[]>(size + 1);
-  memcpy(src.get(), data, size);
-  src[size] = '\0';
-  auto dst = std::make_unique<char[]>(size + 1);
-  strings::UnescapeCEscapeSequences(src.get(), dst.get());
-  return 0;
+  auto src = std::make_unique<char[]>(s.size() + 1);
+  memcpy(src.get(), s.data(), s.size());
+  src[s.size()] = '\0';
+  auto dst = std::make_unique<char[]>(s.size() + 1);
+  UnescapeCEscapeSequences(src.get(), dst.get());
 }
+FUZZ_TEST(EscapingFuzz, FuzzUnescapeCEscapeSequences);
+
+}  // namespace
+}  // namespace strings

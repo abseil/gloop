@@ -311,3 +311,17 @@ cc_library(
     ],
     deps = ["//gloop:enforce_gloop_support"],
 )
+
+cc_test(
+    name = "elf_reader_fuzzer",
+    srcs = ["elf_reader_fuzzer.cc"],
+    deps = [
+        ":elf_reader",
+        ":symbolize",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/strings",
+        "@fuzztest//fuzztest",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
