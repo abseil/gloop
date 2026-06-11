@@ -305,6 +305,11 @@ class Interval {
                                                 std::declval<const U&>())>
   friend constexpr bool operator<(const Interval& a,
                                   const Interval<key_arg<U>>& b) {
+    bool a_empty = !(a.start() < a.limit());
+    bool b_empty = !(b.start() < b.limit());
+    if (a_empty && b_empty) return false;
+    if (a_empty) return true;
+    if (b_empty) return false;
     return a.start() < b.start() ||
            (!(b.start() < a.start()) && b.limit() < a.limit());
   }
