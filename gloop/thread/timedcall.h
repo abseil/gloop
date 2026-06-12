@@ -30,7 +30,6 @@
 
 namespace timed_call_internal {
 
-// Hook to allow overriding TimedCall usage with eventmanager::Default().
 void TimedCallRunAt(WallTime deadline, absl::AnyInvocable<void() &&> f);
 
 }  // namespace timed_call_internal
