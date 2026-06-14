@@ -28,13 +28,6 @@
 #include "gloop/base/walltime.h"
 #include "gloop/util/gtl/intrusive_heap.h"
 
-namespace timed_call_internal {
-
-// Hook to allow overriding TimedCall usage with eventmanager::Default().
-void TimedCallRunAt(WallTime deadline, absl::AnyInvocable<void() &&> f);
-
-}  // namespace timed_call_internal
-
 // TimedCall runs a procedure at a given time within one of its internal
 // threads, without depending on selectservers or subclassing.
 //
@@ -208,8 +201,6 @@ class TimedCall {
   void Initialize();            // common code for constructors
   void Remove(int flags);       // remove from timer queue;
 
-  friend void ::timed_call_internal::TimedCallRunAt(
-      WallTime deadline, absl::AnyInvocable<void() &&> f);
   friend struct TimedCallCompare;
   friend struct TimedCallLinkAccess;
 };
