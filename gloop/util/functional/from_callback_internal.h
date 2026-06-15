@@ -41,6 +41,14 @@
 #include "gloop/util/refcount/compact_reference_counted.h"
 #include "gloop/util/refcount/reffed_ptr.h"
 
+namespace testing {
+
+// Forward declaration to set up inlining on conversion.
+template <typename F>
+class MockCallback;
+
+}  // namespace testing
+
 namespace util {
 namespace functional {
 namespace internal {
@@ -279,6 +287,14 @@ class ABSL_NULLABILITY_COMPATIBLE ResultCallbackFunctorImpl
       CallbackType* cb)
       : Base(cb ? Impl(::util::functional::FromCallbackWithOwnership(cb))
                 : Impl()) {}
+
+  // Converting constructor to change MockCallback usage to not rely on callback
+  // inheritance.
+  template <typename F>
+  ABSL_DEPRECATE_AND_INLINE()
+  ResultCallbackFunctorImpl(  // NOLINT(google-explicit-constructor)
+      ::testing::MockCallback<F>* cb)
+      : ResultCallbackFunctorImpl(std::ref(*cb)) {}
 
   // NOLINTNEXTLINE(google-explicit-constructor)
   ResultCallbackFunctorImpl(std::nullptr_t) : Base() {}
