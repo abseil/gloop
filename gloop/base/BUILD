@@ -725,6 +725,22 @@ cc_test(
 )
 
 cc_test(
+    name = "percpu_fork_test",
+    size = "large",
+    srcs = ["percpu_fork_test.cc"],
+    linkstatic = 1,
+    deps = [
+        "//gloop/base:percpu",
+        "//gloop/base:raw_logging",
+        "//gloop/thread:thread_control",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@tcmalloc//tcmalloc/internal:linux_syscall_support",
+    ],
+)
+
+cc_test(
     name = "percpu_handle_early_test",
     srcs = ["percpu_handle_early_test.cc"],
     linkstatic = 1,
