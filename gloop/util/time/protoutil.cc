@@ -80,9 +80,15 @@ absl::Status EncodeGoogleApiProto(absl::Duration d,
                                   google::protobuf::Duration* proto) {
   // s and n may both be negative, per the Duration proto spec.
   const int64_t s = absl::IDivDuration(d, absl::Seconds(1), &d);
+  if (s < -315576000000 || s > 315576000000) {
+    return absl::InvalidArgumentError(absl::StrCat("seconds=", s));
+  }
   const int64_t n = absl::IDivDuration(d, absl::Nanoseconds(1), &d);
+  if (n < -999999999 || n > 999999999) {
+    return absl::InvalidArgumentError(absl::StrCat("nanos=", n));
+  }
   proto->set_seconds(s);
-  proto->set_nanos(n);
+  proto->set_nanos(static_cast<int32_t>(n));
   return Validate(*proto);
 }
 
@@ -96,8 +102,15 @@ absl::StatusOr<google::protobuf::Timestamp> EncodeGoogleApiProto(absl::Time t) {
 absl::Status EncodeGoogleApiProto(absl::Time t,
                                   google::protobuf::Timestamp* proto) {
   const int64_t s = absl::ToUnixSeconds(t);
+  if (s < -62135596800 || s > 253402300799) {
+    return absl::InvalidArgumentError(absl::StrCat("seconds=", s));
+  }
+  const int64_t n = (t - absl::FromUnixSeconds(s)) / absl::Nanoseconds(1);
+  if (n < 0 || n > 999999999) {
+    return absl::InvalidArgumentError(absl::StrCat("nanos=", n));
+  }
   proto->set_seconds(s);
-  proto->set_nanos((t - absl::FromUnixSeconds(s)) / absl::Nanoseconds(1));
+  proto->set_nanos(static_cast<int32_t>(n));
   return Validate(*proto);
 }
 
