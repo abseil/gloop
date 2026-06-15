@@ -53,10 +53,10 @@ int Sum(int a, int b) { return a + b; }
 
 TEST(FunctorToCallback, Examples) {
   Closure* a = ToCallback(Nop);
-  Callback1<int>* b = ToCallback(Nop1);
+  ::util::functional::CallbackFunctor<int> b = ToCallback(Nop1);
   Closure* c = ToCallback(std::bind(Nop));
   Closure* d = ToCallback(std::bind(Nop1, 42));
-  Callback1<int>* e = ToCallback(std::bind(Nop1, _1));
+  ::util::functional::CallbackFunctor<int> e = ToCallback(std::bind(Nop1, _1));
   struct M {
     void member_nop() {}
   };
@@ -69,7 +69,8 @@ TEST(FunctorToCallback, Examples) {
     int operator()() { return 1; }
   };
   ::util::functional::ResultCallbackFunctor<int> i = ToCallback(F());
-  Callback1<std::string>* j = ToCallback([](std::string x) { LOG(INFO) << x; });
+  ::util::functional::CallbackFunctor<std::string> j =
+      ToCallback([](std::string x) { LOG(INFO) << x; });
   Closure* k = ToCallback(std::function<void()>());
   void (*null_function_ptr)() = nullptr;
   Closure* l = ToCallback(null_function_ptr);
@@ -316,7 +317,8 @@ TEST(FunctorToCallback, ForwardByValue) {
     static void F(std::vector<int> v) { v.push_back(4); }  // Called by value.
   };
 
-  Callback1<std::vector<int>&>* cb = ToCallback(Helper::F);
+  ::util::functional::CallbackFunctor<std::vector<int>&> cb =
+      ToCallback(Helper::F);
   std::vector<int> v = {1, 2, 3};
   cb->Run(v);
   EXPECT_THAT(v, ElementsAre(1, 2, 3));

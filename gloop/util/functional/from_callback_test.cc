@@ -46,9 +46,9 @@ int Sum(int a, int b) { return a + b; }
 TEST(CallbackToFunctor, Examples) {
   // Example 1
   Closure* a = ::util::functional::ToCallback([] { Nop1(2); });
-  Callback1<int>* b = ToCallback(Nop1);
-  Callback1<int>* c = ToPermanentCallback(Nop1);
-  Callback1<int>* d = ToCallback(Nop1);
+  ::util::functional::CallbackFunctor<int> b = ToCallback(Nop1);
+  ::util::functional::CallbackFunctor<int> c = ToPermanentCallback(Nop1);
+  ::util::functional::CallbackFunctor<int> d = ToCallback(Nop1);
 
   std::function<void()> f_a = FromCallback(a);
   std::function<void(int)> f_b = FromCallback(b);
@@ -59,16 +59,14 @@ TEST(CallbackToFunctor, Examples) {
   f_b(3);
   f_c(4);
   f_c(5);
-
-  delete c;  // Permanent.
-  delete d;  // Never executed.
 }
 
 TEST(CallbackToFunctor, ConvertsToFunction) {
   std::function<void()> a =
       FromCallback(::util::functional::ToCallback<Closure>(Nop));
-  std::function<void(int)> b =
-      FromCallback(::util::functional::ToCallback<Callback1<int>>(Nop1));
+  std::function<void(int)> b = FromCallback(
+      ::util::functional::ToCallback<::util::functional::CallbackFunctor<int>>(
+          Nop1));
   std::function<int(int, int)> c = FromCallback(
       ::util::functional::ToCallback<
           util::functional::ResultCallbackFunctor<int, int, int>>(Sum));
@@ -206,7 +204,7 @@ static int IntNop5(std::string a, float b, int c, int d, int e) { return 0; }
 TEST(CallbackToFunctor, ConvertTemporaryCallbackPreboundAndVariableArgs) {
   ::util::functional::CallbackFunctor<int, int> cb2 =
       ::util::functional::ToCallback(absl::bind_front(Nop5, "", 0.0, 0));
-  Callback1<int>* cb1 =
+  ::util::functional::CallbackFunctor<int> cb1 =
       ::util::functional::ToCallback(absl::bind_front(Nop5, "", 0.0, 0, 0));
   Closure* cb0 =
       ::util::functional::ToCallback(absl::bind_front(Nop5, "", 0.0, 0, 0, 0));
@@ -234,8 +232,9 @@ TEST(CallbackToFunctor, ConvertPermanentCallbackPreboundAndVariableArgs) {
   ::util::functional::CallbackFunctor<int, int> cb2 =
       ::util::functional::ToPermanentCallback(
           absl::bind_front(Nop5, "", 0.0, 0));
-  Callback1<int>* cb1 = ::util::functional::ToPermanentCallback(
-      absl::bind_front(Nop5, "", 0.0, 0, 0));
+  ::util::functional::CallbackFunctor<int> cb1 =
+      ::util::functional::ToPermanentCallback(
+          absl::bind_front(Nop5, "", 0.0, 0, 0));
   Closure* cb0 = ::util::functional::ToPermanentCallback(
       absl::bind_front(Nop5, "", 0.0, 0, 0, 0));
 
@@ -243,7 +242,6 @@ TEST(CallbackToFunctor, ConvertPermanentCallbackPreboundAndVariableArgs) {
   FromCallback(cb1)(0);
   FromCallback(cb0)();
 
-  delete cb1;
   delete cb0;
 }
 
