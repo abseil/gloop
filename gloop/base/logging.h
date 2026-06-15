@@ -46,6 +46,7 @@
 #ifndef THIRD_PARTY_GLOOP_BASE_LOGGING_H_
 #define THIRD_PARTY_GLOOP_BASE_LOGGING_H_
 
+// IWYU pragma: begin_exports
 // IWYU pragma: begin_keep
 #include "absl/base/log_severity.h"
 #include "absl/log/check.h"
@@ -54,6 +55,7 @@
 #include "absl/log/globals.h"
 #include "absl/log/log.h"
 // IWYU pragma: end_keep
+// IWYU pragma: end_exports
 
 namespace base_logging {
 
