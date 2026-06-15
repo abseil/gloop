@@ -989,18 +989,37 @@ class SysTopology::TopologySorter {
       VLOG(4) << "Got gt: " << gt << " and lt: " << lt;
     }
     // Is the last cpu offline.
-    if (last_cpu_id < ti_.cpus.size()) {
+    if (static_cast<size_t>(last_cpu_id + 1) != ti_.cpus.size()) {
       offline_cpu = true;
     }
     // Topology ordering does not match when it has cpus offline.
     if (!offline_cpu) {
-      CHECK(!(lt && gt)) << "Impossible topology ordering: level " << l1.name
-                         << " vs " << l2.name;
+      if (lt && gt) {
+        LOG(WARNING) << "Impossible topology ordering: level " << l1.name
+                     << " vs " << l2.name << ". Using fallback ordering.";
+        int size1 = GetTotalSize(l1);
+        int size2 = GetTotalSize(l2);
+        if (size1 != size2) {
+          return size1 < size2;
+        }
+        return l1.name < l2.name;
+      }
     }
     return lt;
   }
 
  private:
+  int GetTotalSize(const LevelInfo& l) const {
+    int total = 0;
+    for (const auto& ci : ti_.cpus) {
+      auto it = ci.siblings.find(l.name);
+      if (it != ci.siblings.end()) {
+        total += CpuSetCountCpus(it->second);
+      }
+    }
+    return total;
+  }
+
   const TopologyInfo& ti_;
 };
 
