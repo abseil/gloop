@@ -86,8 +86,6 @@ build flags:
 -   `-fno-exceptions` - C++ exceptions are not supported in Gloop code
 -   `-funsigned-char` - The char type is assumed to be unsigned
 
---------------------------------------------------------------------------------
-
 ## Contact
 
 If you encounter problems or have questions, please contact the maintainers of
