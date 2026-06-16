@@ -134,7 +134,7 @@ class HTTPTraceInfo;
 class LinkContextsImpl;
 class LinkedTraceSpan;
 class NoopMetadataTracer;
-class RequestTraceSpanTraits;
+class LocalTraceSpanTraits;
 class RpcTraceSpanState;
 class SharedFateAccess;
 class SimpleTraceSpanTraits;
@@ -1175,7 +1175,7 @@ class Tracer {
   friend class perftools::tracing::TraceBuffer;
   friend class perftools::tracing::TraceStreamer;
   // Need access to set_span_type().
-  friend class perftools::tracing::RequestTraceSpanTraits;
+  friend class perftools::tracing::LocalTraceSpanTraits;
   friend class perftools::tracing::RpcTraceSpanState;
   friend class perftools::tracing::SimpleTraceSpanTraits;
   // Allow NoopMetadataTracer to set initiator_id and
