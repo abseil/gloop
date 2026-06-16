@@ -17,7 +17,7 @@ index cc60d224..e83fa2f6 100644
 +    commit = "8eead4aaf1eb3685921b09e4fc03a69a31e35d53",
 +)
 diff --git absl/base/BUILD.bazel absl/base/BUILD.bazel
-index 6ade1488..2f84caad 100644
+index 53bac42e..6dda4fff 100644
 --- absl/base/BUILD.bazel
 +++ absl/base/BUILD.bazel
 @@ -57,6 +57,7 @@ cc_library(
@@ -28,7 +28,15 @@ index 6ade1488..2f84caad 100644
      ],
      deps = [":config"],
  )
-@@ -131,6 +132,7 @@ cc_library(
+@@ -89,6 +90,7 @@ cc_library(
+     visibility = [
+         "//absl:__subpackages__",
+         "//absl:friends",
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
+     deps = [
+         ":config",
+@@ -150,6 +152,7 @@ cc_library(
      visibility = [
          "//absl:__subpackages__",
          "//absl:friends",
@@ -36,7 +44,7 @@ index 6ade1488..2f84caad 100644
      ],
      deps = [
          ":atomic_hook",
-@@ -156,6 +158,7 @@ cc_library(
+@@ -175,6 +178,7 @@ cc_library(
      visibility = [
          "//absl:friends",
          "//absl/base:__pkg__",
@@ -44,7 +52,7 @@ index 6ade1488..2f84caad 100644
      ],
      deps = [
          ":base_internal",
-@@ -186,6 +189,7 @@ cc_library(
+@@ -205,6 +209,7 @@ cc_library(
      visibility = [
          "//absl:__subpackages__",
          "//absl:friends",
@@ -52,7 +60,7 @@ index 6ade1488..2f84caad 100644
      ],
      deps = [
          ":base_internal",
-@@ -268,6 +272,7 @@ cc_library(
+@@ -287,6 +292,7 @@ cc_library(
      visibility = [
          "//absl:__subpackages__",
          "//absl:friends",
@@ -60,7 +68,7 @@ index 6ade1488..2f84caad 100644
      ],
      deps = [
          ":config",
-@@ -448,6 +453,7 @@ cc_library(
+@@ -467,6 +473,7 @@ cc_library(
      visibility = [
          "//absl:__subpackages__",
          "//absl:friends",
@@ -68,7 +76,7 @@ index 6ade1488..2f84caad 100644
      ],
      deps = [
          ":config",
-@@ -462,6 +468,7 @@ cc_library(
+@@ -481,6 +488,7 @@ cc_library(
      visibility = [
          "//absl:__subpackages__",
          "//absl:friends",
@@ -76,7 +84,7 @@ index 6ade1488..2f84caad 100644
      ],
  )
  
-@@ -544,6 +551,7 @@ cc_library(
+@@ -563,6 +571,7 @@ cc_library(
      visibility = [
          "//absl:friends",
          "//absl/base:__pkg__",
@@ -84,7 +92,7 @@ index 6ade1488..2f84caad 100644
      ],
      deps = [
          ":base",
-@@ -579,6 +587,7 @@ cc_library(
+@@ -598,6 +607,7 @@ cc_library(
      visibility = [
          "//absl:__subpackages__",
          "//absl:friends",
@@ -92,7 +100,7 @@ index 6ade1488..2f84caad 100644
      ],
      deps = [
          ":base",
-@@ -850,6 +859,7 @@ cc_library(
+@@ -869,6 +879,7 @@ cc_library(
      visibility = [
          "//absl:__subpackages__",
          "//absl:friends",
@@ -100,7 +108,7 @@ index 6ade1488..2f84caad 100644
      ],
      deps = [
          ":config",
-@@ -949,6 +959,7 @@ cc_library(
+@@ -968,6 +979,7 @@ cc_library(
      visibility = [
          "//absl:__subpackages__",
          "//absl:friends",
@@ -108,7 +116,7 @@ index 6ade1488..2f84caad 100644
      ],
      deps = [
          ":config",
-@@ -1010,6 +1021,7 @@ cc_library(
+@@ -1029,6 +1041,7 @@ cc_library(
      visibility = [
          "//absl:__subpackages__",
          "//absl:friends",
@@ -116,7 +124,7 @@ index 6ade1488..2f84caad 100644
      ],
      deps = [
          ":config",
-@@ -1040,6 +1052,7 @@ cc_library(
+@@ -1059,6 +1072,7 @@ cc_library(
      visibility = [
          "//absl:__subpackages__",
          "//absl:friends",
@@ -125,10 +133,10 @@ index 6ade1488..2f84caad 100644
      deps = [
          "//absl/base:config",
 diff --git absl/container/BUILD.bazel absl/container/BUILD.bazel
-index e748f04c..51c7951c 100644
+index a386a537..bd6df665 100644
 --- absl/container/BUILD.bazel
 +++ absl/container/BUILD.bazel
-@@ -229,6 +229,7 @@ cc_library(
+@@ -231,6 +231,7 @@ cc_library(
      visibility = [
          "//absl:__subpackages__",
          "//absl:friends",
@@ -136,7 +144,7 @@ index e748f04c..51c7951c 100644
      ],
      deps = ["//absl/types:compare"],
  )
-@@ -446,6 +447,7 @@ cc_library(
+@@ -448,6 +449,7 @@ cc_library(
      linkopts = ABSL_DEFAULT_LINKOPTS,
      visibility = [
          "//absl:friends",
@@ -144,7 +152,7 @@ index e748f04c..51c7951c 100644
      ],
      deps = [
          ":common",
-@@ -947,6 +949,7 @@ cc_library(
+@@ -949,6 +951,7 @@ cc_library(
      linkopts = ABSL_DEFAULT_LINKOPTS,
      visibility = [
          "//absl:friends",
@@ -152,7 +160,7 @@ index e748f04c..51c7951c 100644
          "//absl/container:__pkg__",
      ],
      deps = [
-@@ -965,6 +968,7 @@ cc_library(
+@@ -967,6 +970,7 @@ cc_library(
      linkopts = ABSL_DEFAULT_LINKOPTS,
      visibility = [
          "//absl:friends",
@@ -160,7 +168,7 @@ index e748f04c..51c7951c 100644
          "//absl/container:__pkg__",
      ],
      deps = [
-@@ -982,6 +986,7 @@ cc_library(
+@@ -984,6 +988,7 @@ cc_library(
      linkopts = ABSL_DEFAULT_LINKOPTS,
      visibility = [
          "//absl:friends",
@@ -168,7 +176,7 @@ index e748f04c..51c7951c 100644
          "//absl/container:__pkg__",
      ],
      deps = [
-@@ -999,6 +1004,7 @@ cc_library(
+@@ -1001,6 +1006,7 @@ cc_library(
      linkopts = ABSL_DEFAULT_LINKOPTS,
      visibility = [
          "//absl:friends",
@@ -176,7 +184,7 @@ index e748f04c..51c7951c 100644
          "//absl/container:__pkg__",
      ],
      deps = [
-@@ -1018,6 +1024,7 @@ cc_library(
+@@ -1020,6 +1026,7 @@ cc_library(
      linkopts = ABSL_DEFAULT_LINKOPTS,
      visibility = [
          "//absl:friends",
@@ -184,7 +192,7 @@ index e748f04c..51c7951c 100644
          "//absl/container:__pkg__",
      ],
      deps = [
-@@ -1034,6 +1041,7 @@ cc_library(
+@@ -1036,6 +1043,7 @@ cc_library(
      linkopts = ABSL_DEFAULT_LINKOPTS,
      visibility = [
          "//absl:friends",
@@ -192,7 +200,7 @@ index e748f04c..51c7951c 100644
          "//absl/container:__pkg__",
      ],
      deps = [
-@@ -1050,6 +1058,7 @@ cc_library(
+@@ -1052,6 +1060,7 @@ cc_library(
      linkopts = ABSL_DEFAULT_LINKOPTS,
      visibility = [
          "//absl:friends",
@@ -200,7 +208,7 @@ index e748f04c..51c7951c 100644
          "//absl/container:__pkg__",
      ],
      deps = [
-@@ -1067,6 +1076,7 @@ cc_library(
+@@ -1069,6 +1078,7 @@ cc_library(
      linkopts = ABSL_DEFAULT_LINKOPTS,
      visibility = [
          "//absl:friends",
@@ -208,7 +216,7 @@ index e748f04c..51c7951c 100644
          "//absl/container:__pkg__",
      ],
      deps = [
-@@ -1246,6 +1256,7 @@ cc_library(
+@@ -1248,6 +1258,7 @@ cc_library(
      linkopts = ABSL_DEFAULT_LINKOPTS,
      visibility = [
          "//absl:friends",
@@ -293,7 +301,7 @@ index b5ecb7f7..c7163a6d 100644
      ],
      deps = [
 diff --git absl/log/internal/BUILD.bazel absl/log/internal/BUILD.bazel
-index 0344b56d..a787ab35 100644
+index bc473308..53bce896 100644
 --- absl/log/internal/BUILD.bazel
 +++ absl/log/internal/BUILD.bazel
 @@ -27,6 +27,7 @@ load(
@@ -310,9 +318,9 @@ index 0344b56d..a787ab35 100644
          "//absl/log:__pkg__",
 +        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
      ],
-     deps = [
-         "//absl/base:config",
-@@ -126,6 +128,7 @@ cc_library(
+     deps = ["//absl/base:config"],
+ )
+@@ -123,6 +125,7 @@ cc_library(
          ":internal_users",
          "//absl:friends",
          "//absl/status:__pkg__",
@@ -320,7 +328,7 @@ index 0344b56d..a787ab35 100644
      ],
      deps = [
          "//absl/flags:flag",
-@@ -161,6 +164,7 @@ cc_library(
+@@ -158,6 +161,7 @@ cc_library(
      visibility = [
          "//absl:friends",
          "//absl/log:__pkg__",
@@ -328,7 +336,7 @@ index 0344b56d..a787ab35 100644
      ],
      deps = [
          "//absl/base:config",
-@@ -194,6 +198,7 @@ cc_library(
+@@ -191,6 +195,7 @@ cc_library(
      visibility = [
          "//absl:friends",
          "//absl/log:__pkg__",
@@ -336,7 +344,7 @@ index 0344b56d..a787ab35 100644
      ],
      deps = [
          ":append_truncated",
-@@ -313,6 +318,7 @@ cc_library(
+@@ -310,6 +315,7 @@ cc_library(
      visibility = [
          ":internal_users",
          ":structured_proto_users",
@@ -344,7 +352,7 @@ index 0344b56d..a787ab35 100644
      ],
      deps = [
          ":log_message",
-@@ -387,6 +393,7 @@ cc_library(
+@@ -384,6 +390,7 @@ cc_library(
      visibility = [
          ":internal_users",
          ":structured_proto_users",
@@ -352,7 +360,7 @@ index 0344b56d..a787ab35 100644
      ],
      deps = [
          ":globals",
-@@ -408,6 +415,7 @@ cc_library(
+@@ -405,6 +412,7 @@ cc_library(
      visibility = [
          ":internal_users",
          ":structured_proto_users",
@@ -360,7 +368,7 @@ index 0344b56d..a787ab35 100644
      ],
      deps = [
          ":test_helpers",
-@@ -473,6 +481,7 @@ cc_library(
+@@ -470,6 +478,7 @@ cc_library(
          "//absl:friends",
          "//absl/log:__subpackages__",
          "//absl/status:__pkg__",
@@ -368,7 +376,7 @@ index 0344b56d..a787ab35 100644
      ],
      deps = [
          ":fnmatch",
-@@ -570,6 +579,7 @@ cc_library(
+@@ -567,6 +576,7 @@ cc_library(
      visibility = [
          "//absl:__subpackages__",
          "//absl:friends",
@@ -437,19 +445,17 @@ index 56377ed1..c229570a 100644
  
  package(
 diff --git absl/strings/BUILD.bazel absl/strings/BUILD.bazel
-index 805cfc28..d0d3ee30 100644
+index def78d53..70449873 100644
 --- absl/strings/BUILD.bazel
 +++ absl/strings/BUILD.bazel
-@@ -436,7 +436,8 @@ cc_library(
+@@ -435,6 +435,7 @@ cc_library(
+     visibility = [
          "//absl:friends",
          "//absl/status:__pkg__",
-         "//visibility:private",
--    ],
-+       "@do_not_use_for_gloop_visibility_only//:__subpackages__",
-+     ],
++        "@do_not_use_for_gloop_visibility_only//:__subpackages__",
+     ],
      deps = [
          ":string_view",
-         "//absl/base:config",
 @@ -1599,6 +1600,7 @@ cc_library(
      visibility = [
          "//absl:__subpackages__",
