@@ -40,6 +40,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/mutex.h"
 #include "gloop/util/symbolize/symbol_map_sink.h"
 
 namespace util {
@@ -252,6 +253,8 @@ class ElfReader {
 
   std::unique_ptr<ElfReaderImpl<Elf32>> impl32_;
   std::unique_ptr<ElfReaderImpl<Elf64>> impl64_;
+
+  mutable absl::Mutex mutex_;
 };
 
 }  // namespace util

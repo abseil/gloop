@@ -79,6 +79,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/mutex.h"
 #include "gloop/base/commandlineflags.h"
 #include "gloop/base/port.h"  // IWYU pragma: keep
 #include "gloop/util/symbolize/symbol_map_sink.h"
@@ -1735,6 +1736,7 @@ bool ElfReader::IsElf32File() const { return impl32_ != nullptr; }
 bool ElfReader::IsElf64File() const { return impl64_ != nullptr; }
 
 uint64_t ElfReader::GetEntryPoint() {
+  absl::MutexLock lock(&mutex_);
   if (IsElf32File()) {
     return GetImpl32()->GetEntryPoint();
   } else if (IsElf64File()) {
@@ -1747,6 +1749,7 @@ uint64_t ElfReader::GetEntryPoint() {
 void ElfReader::AddSymbols(internal::SymbolMapSink* symbols,
                            uint64_t mem_offset, uint64_t file_offset,
                            uint64_t length) {
+  absl::MutexLock lock(&mutex_);
   if (fd_ < 0) return;
   // TODO: Actually use the information about file offset and
   // the length of the mapped section. On some machines the data
@@ -1766,7 +1769,7 @@ void ElfReader::AddSymbols(internal::SymbolMapSink* symbols,
     if (!impl->GetSymbolPositions(symbols, SHT_SYMTAB, mem_offset,
                                   file_offset)) {
       if (absl::GetFlag(FLAGS_elfreader_process_dynsyms) &&
-          !IsRelocatableFile()) {
+          impl->FileType() != ET_REL) {
         impl->GetSymbolPositions(symbols, SHT_DYNSYM, mem_offset, file_offset);
       }
     }
@@ -1776,7 +1779,7 @@ void ElfReader::AddSymbols(internal::SymbolMapSink* symbols,
     if (!impl->GetSymbolPositions(symbols, SHT_SYMTAB, mem_offset,
                                   file_offset)) {
       if (absl::GetFlag(FLAGS_elfreader_process_dynsyms) &&
-          !IsRelocatableFile()) {
+          impl->FileType() != ET_REL) {
         impl->GetSymbolPositions(symbols, SHT_DYNSYM, mem_offset, file_offset);
       }
     }
@@ -1786,12 +1789,13 @@ void ElfReader::AddSymbols(internal::SymbolMapSink* symbols,
 }
 
 void ElfReader::VisitSymbols(ElfReader::SymbolSink* sink) {
+  absl::MutexLock lock(&mutex_);
   if (IsElf32File()) {
     auto* const impl = GetImpl32();
     impl->VisitRelocationEntries();
     impl->VisitSymbols(SHT_SYMTAB, sink);
     if (absl::GetFlag(FLAGS_elfreader_process_dynsyms) &&
-        !IsRelocatableFile()) {
+        impl->FileType() != ET_REL) {
       impl->VisitSymbols(SHT_DYNSYM, sink);
     }
   } else if (IsElf64File()) {
@@ -1799,13 +1803,14 @@ void ElfReader::VisitSymbols(ElfReader::SymbolSink* sink) {
     impl->VisitRelocationEntries();
     impl->VisitSymbols(SHT_SYMTAB, sink);
     if (absl::GetFlag(FLAGS_elfreader_process_dynsyms) &&
-        !IsRelocatableFile()) {
+        impl->FileType() != ET_REL) {
       impl->VisitSymbols(SHT_DYNSYM, sink);
     }
   }
 }
 
 uint64_t ElfReader::VaddrOfFirstLoadSegment() {
+  absl::MutexLock lock(&mutex_);
   if (IsElf32File()) {
     return GetImpl32()->VaddrOfFirstLoadSegment();
   } else if (IsElf64File()) {
@@ -1816,6 +1821,7 @@ uint64_t ElfReader::VaddrOfFirstLoadSegment() {
 }
 
 std::vector<ElfReader::SegmentInfo> ElfReader::GetSegmentInfo() {
+  absl::MutexLock lock(&mutex_);
   if (IsElf32File()) {
     return GetImpl32()->GetSegmentInfo();
   } else if (IsElf64File()) {
@@ -1826,6 +1832,7 @@ std::vector<ElfReader::SegmentInfo> ElfReader::GetSegmentInfo() {
 }
 
 const char* ElfReader::GetSectionName(int shndx) {
+  absl::MutexLock lock(&mutex_);
   if (shndx < 0) return nullptr;
   if (IsElf32File()) {
     auto* impl = GetImpl32();
@@ -1841,6 +1848,7 @@ const char* ElfReader::GetSectionName(int shndx) {
 }
 
 uint64_t ElfReader::GetNumSections() {
+  absl::MutexLock lock(&mutex_);
   if (IsElf32File()) {
     return GetImpl32()->GetNumSections();
   } else if (IsElf64File()) {
@@ -1851,6 +1859,7 @@ uint64_t ElfReader::GetNumSections() {
 }
 
 const char* ElfReader::GetSectionByIndex(int shndx, size_t* size) {
+  absl::MutexLock lock(&mutex_);
   if (IsElf32File()) {
     return GetImpl32()->GetSectionContentsByIndex(shndx, size);
   } else if (IsElf64File()) {
@@ -1861,6 +1870,7 @@ const char* ElfReader::GetSectionByIndex(int shndx, size_t* size) {
 }
 
 int ElfReader::GetSectionIndexByType(uint32_t type, int start_index) {
+  absl::MutexLock lock(&mutex_);
   if (IsElf32File()) {
     return GetImpl32()->GetSectionIndexByType(type, start_index);
   } else if (IsElf64File()) {
@@ -1871,6 +1881,7 @@ int ElfReader::GetSectionIndexByType(uint32_t type, int start_index) {
 }
 
 int ElfReader::GetSectionIndexByName(const absl::string_view section_name) {
+  absl::MutexLock lock(&mutex_);
   if (IsElf32File()) {
     return GetImpl32()->GetSectionIndexByName(section_name);
   } else if (IsElf64File()) {
@@ -1882,6 +1893,7 @@ int ElfReader::GetSectionIndexByName(const absl::string_view section_name) {
 
 const char* ElfReader::GetSectionByName(const absl::string_view section_name,
                                         size_t* size) {
+  absl::MutexLock lock(&mutex_);
   if (IsElf32File()) {
     return GetImpl32()->GetSectionContentsByName(section_name, size);
   } else if (IsElf64File()) {
@@ -1893,6 +1905,7 @@ const char* ElfReader::GetSectionByName(const absl::string_view section_name,
 
 const char* ElfReader::GetSectionInfoByName(
     const absl::string_view section_name, SectionInfo* info) {
+  absl::MutexLock lock(&mutex_);
   if (IsElf32File()) {
     return GetImpl32()->GetSectionInfoByName(section_name, info, true);
   } else if (IsElf64File()) {
@@ -1904,6 +1917,7 @@ const char* ElfReader::GetSectionInfoByName(
 
 std::optional<ElfReader::SectionInfo> ElfReader::GetSectionInfoByName(
     const absl::string_view section_name) {
+  absl::MutexLock lock(&mutex_);
   SectionInfo info{};
   if (IsElf32File()) {
     GetImpl32()->GetSectionInfoByName(section_name, &info, false);
@@ -1919,6 +1933,7 @@ std::optional<ElfReader::SectionInfo> ElfReader::GetSectionInfoByName(
 }
 
 const char* ElfReader::GetSectionInfoByIndex(int shndx, SectionInfo* info) {
+  absl::MutexLock lock(&mutex_);
   if (IsElf32File()) {
     return GetImpl32()->GetSectionInfoByIndex(shndx, info, true);
   } else if (IsElf64File()) {
@@ -1930,6 +1945,7 @@ const char* ElfReader::GetSectionInfoByIndex(int shndx, SectionInfo* info) {
 
 std::optional<ElfReader::SectionInfo> ElfReader::GetSectionInfoByIndex(
     int shndx) {
+  absl::MutexLock lock(&mutex_);
   SectionInfo info{};
   if (IsElf32File()) {
     GetImpl32()->GetSectionInfoByIndex(shndx, &info, false);
@@ -1945,6 +1961,7 @@ std::optional<ElfReader::SectionInfo> ElfReader::GetSectionInfoByIndex(
 }
 
 std::optional<uint64_t> ElfReader::GetSectionHeaderOffset() {
+  absl::MutexLock lock(&mutex_);
   if (IsElf32File()) {
     return GetImpl32()->GetSectionHeaderOffset();
   } else if (IsElf64File()) {
@@ -1956,15 +1973,16 @@ std::optional<uint64_t> ElfReader::GetSectionHeaderOffset() {
 // Note: Elf64_Nhdr and Elf32_Nhdr are actually exactly the same, so rather
 // than doing dispatch to 32 or 64 bit implementation (which would result in
 // repeating identical code), we cheat with ElfW(Nhdr).
-std::string ElfReader::GetBuildId() {
-  std::vector<std::string> build_ids;
+template <typename ElfArch>
+static void GetBuildIdsFromImpl(ElfReaderImpl<ElfArch>* impl,
+                                std::vector<std::string>& build_ids) {
   static constexpr size_t kNoteHeaderSize = sizeof(ElfW(Nhdr));
   static constexpr auto round_up_to_4 = [](size_t sz) { return (sz + 3) & ~3; };
 
-  for (int nindex = GetSectionIndexByType(SHT_NOTE, 0); nindex >= 0;
-       nindex = GetSectionIndexByType(SHT_NOTE, nindex + 1)) {
+  for (int nindex = impl->GetSectionIndexByType(SHT_NOTE, 0); nindex >= 0;
+       nindex = impl->GetSectionIndexByType(SHT_NOTE, nindex + 1)) {
     size_t size;
-    const char* c_note = GetSectionByIndex(nindex, &size);
+    const char* c_note = impl->GetSectionContentsByIndex(nindex, &size);
     if (c_note == nullptr) continue;
 
     const char* c_note_end = c_note + size;
@@ -1998,6 +2016,16 @@ std::string ElfReader::GetBuildId() {
                 round_up_to_4(note->n_descsz);
     }
   }
+}
+
+std::string ElfReader::GetBuildId() {
+  absl::MutexLock lock(&mutex_);
+  std::vector<std::string> build_ids;
+  if (IsElf32File()) {
+    GetBuildIdsFromImpl(GetImpl32(), build_ids);
+  } else if (IsElf64File()) {
+    GetBuildIdsFromImpl(GetImpl64(), build_ids);
+  }
 
   switch (build_ids.size()) {
     case 0:
@@ -2013,6 +2041,7 @@ std::string ElfReader::GetBuildId() {
 }
 
 int ElfReader::FileType() {
+  absl::MutexLock lock(&mutex_);
   if (IsElf32File()) {
     return GetImpl32()->FileType();
   } else if (IsElf64File()) {
@@ -2028,6 +2057,7 @@ bool ElfReader::IsRelocatableFile() { return FileType() == ET_REL; }
 bool ElfReader::IsCoreFile() { return FileType() == ET_CORE; }
 
 bool ElfReader::HasSymbolNames() {
+  absl::MutexLock lock(&mutex_);
   if (IsElf32File()) {
     return GetImpl32()->HasSymbolNames();
   } else if (IsElf64File()) {
