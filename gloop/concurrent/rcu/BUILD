@@ -132,14 +132,35 @@ cc_library(
 )
 
 cc_library(
+    name = "pile",
+    srcs = ["pile.cc"],
+    hdrs = ["pile.h"],
+    visibility = [
+        "//gloop/concurrent/rcu:__subpackages__",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "//gloop/base:percpu",
+        "//gloop/base:scoped_sigmask",
+        "//gloop/base:signal_util_subtle",
+        "//gloop/util/atomic_danger",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:malloc_internal",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/debugging:leak_check",
+        "@abseil-cpp//absl/numeric:bits",
+        "@tcmalloc//tcmalloc/internal:sysinfo",
+    ],
+)
+
+cc_library(
     name = "rcu",
     srcs = [
-        "pile.cc",
         "rcu.cc",
         "rcu-impl.inc",
     ],
     hdrs = [
-        "pile.h",
         "rcu.h",
     ],
     visibility = [
@@ -148,20 +169,15 @@ cc_library(
     ],
     deps = [
         ":llist",
+        ":pile",
         "//gloop:enforce_gloop_support",
         "//gloop/base:percpu",
-        "//gloop/base:scoped_sigmask",
-        "//gloop/base:signal_util_subtle",
         "//gloop/base:spinlock",
         "//gloop/base/scheduling:scheduling_mode",
-        "//gloop/util/atomic_danger",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:malloc_internal",
-        "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/debugging:leak_check",
-        "@abseil-cpp//absl/numeric:bits",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/time",
         "@tcmalloc//tcmalloc:malloc_extension",
