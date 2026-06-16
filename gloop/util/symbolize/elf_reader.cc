@@ -1970,6 +1970,11 @@ std::string ElfReader::GetBuildId() {
     const char* c_note_end = c_note + size;
     while (c_note + kNoteHeaderSize < c_note_end) {
       const auto* note = reinterpret_cast<const ElfW(Nhdr)*>(c_note);
+      if (kNoteHeaderSize + static_cast<uint64_t>(note->n_namesz) +
+              note->n_descsz >
+          static_cast<size_t>(c_note_end - c_note)) {
+        break;
+      }
       // Name immediately follows the note.
       const char* note_name = c_note + kNoteHeaderSize;
       if (kNoteHeaderSize < size && note->n_type == NT_GNU_BUILD_ID &&
