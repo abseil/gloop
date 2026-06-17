@@ -140,6 +140,7 @@ TEST(UniqueArrayTest, CtorFromRawPointerWithZeroSize) {
 TEST(UniqueArrayTest, CtorFromRawPointerFailsWithBadSize) {
 #if !defined(NDEBUG) || ABSL_OPTION_HARDENED
   std::vector<int>* raw = new std::vector<int>[kArraySize];
+  absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
   EXPECT_DEATH(UniqueArray<std::vector<int>> buffer(raw, kArraySize + 1), "");
   delete[] raw;
 #endif
@@ -389,6 +390,7 @@ TEST(UniqueArrayTest, SupportsArrayWithKnownBoundAsElement) {
 
   // Test hardening
 #if !defined(NDEBUG) || ABSL_OPTION_HARDENED
+  absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
   EXPECT_DEATH([[maybe_unused]] int result = buffer[kArraySize][0], "");
 #endif
 }
@@ -448,6 +450,7 @@ TEST(UniqueArrayTest, ResetWithRawPointerFailsWithBadSize) {
   UniqueArray<std::vector<int>> buffer;
 #if !defined(NDEBUG) || ABSL_OPTION_HARDENED
   std::vector<int>* raw = new std::vector<int>[kArraySize];
+  absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
   EXPECT_DEATH(buffer.reset(raw, kArraySize + 1), "");
   delete[] raw;
 #endif
