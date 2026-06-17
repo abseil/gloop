@@ -102,7 +102,7 @@ cc_test(
     size = "small",
     timeout = "moderate",
     srcs = ["bitcoding_unittest.cc"],
-    visibility = ["//devtools/crosstool/perflab/benchmarks:__pkg__"],
+    visibility = ["//visibility:private"],
     deps = [
         ":coding",
         "//gloop:gloop_test_main",
