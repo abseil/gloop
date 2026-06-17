@@ -73,12 +73,7 @@ class PermanentEvent : public internal::Selectable {
     // its own deletion.
     lock_.lock();
     DCHECK(enqueued_list_ == nullptr);
-#if defined(ABSL_HAVE_THREAD_SANITIZER)
-    // This is normally superfluous (and omitting it saves enough cycles that we
-    // care) but as of 2026Q1 omitting the unlock confuses TSAN's lock
-    // accounting in detect_deadlocks mode, at least when running with Python.
     lock_.unlock();
-#endif
   }
 
   PermanentEvent(const PermanentEvent&) = delete;
