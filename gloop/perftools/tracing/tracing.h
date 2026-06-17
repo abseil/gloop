@@ -91,15 +91,13 @@ void TraceObserved(const void* object,
 // `sequence` contains the sequence number for the message if it is part of
 // a streaming request or response, or `kNoMsgSequence` if this message is
 // a unary RPC request or response for which we record no sequence number.
-void TraceSend(StringRef label, MsgOrigin origin, MsgId id,
-               MsgSequence sequence = kNoMsgSequence);
+void TraceSend(StringRef label, MsgOrigin origin, MsgId id);
 
 // Emits the `OnTraceReceive()` event if the current thread is traced.
 // `sequence` contains the sequence number for the message if it is part of
 // a streaming request or response, or `kNoMsgSequence` if this message is
 // a unary RPC request or response for which we record no sequence number.
-void TraceReceive(StringRef label, MsgOrigin origin, MsgId id,
-                  MsgSequence sequence = kNoMsgSequence);
+void TraceReceive(StringRef label, MsgOrigin origin, MsgId id);
 
 // Emits the `OnTraceSessionStart()` event if the current thread is traced.
 // This event is emitted for session based protocols such as streaming RPCs.
@@ -240,14 +238,12 @@ inline void TraceObserved(const void* object, StringRef label) {
   core::TraceObserved(object, label);
 }
 
-inline void TraceSend(StringRef label, MsgOrigin origin, MsgId id,
-                      MsgSequence sequence) {
-  core::TraceSend(label, origin, id, sequence);
+inline void TraceSend(StringRef label, MsgOrigin origin, MsgId id) {
+  core::TraceSend(label, origin, id);
 }
 
-inline void TraceReceive(StringRef label, MsgOrigin origin, MsgId id,
-                         MsgSequence sequence) {
-  core::TraceReceive(label, origin, id, sequence);
+inline void TraceReceive(StringRef label, MsgOrigin origin, MsgId id) {
+  core::TraceReceive(label, origin, id);
 }
 
 inline void TraceSessionStart(StringRef label, MsgId id, EndPoint end_point) {

@@ -155,14 +155,12 @@ class Mux final : public TraceEventListener {
     RDispatch(&TraceEventListener::OnTraceEndRegion);
   }
 
-  void OnTraceSend(StringRef label, MsgOrigin origin, MsgId id,
-                   MsgSequence sequence) final {
-    Dispatch(&TraceEventListener::OnTraceSend, label, origin, id, sequence);
+  void OnTraceSend(StringRef label, MsgOrigin origin, MsgId id) final {
+    Dispatch(&TraceEventListener::OnTraceSend, label, origin, id);
   }
 
-  void OnTraceReceive(StringRef label, MsgOrigin origin, MsgId id,
-                      MsgSequence sequence) final {
-    Dispatch(&TraceEventListener::OnTraceReceive, label, origin, id, sequence);
+  void OnTraceReceive(StringRef label, MsgOrigin origin, MsgId id) final {
+    Dispatch(&TraceEventListener::OnTraceReceive, label, origin, id);
   }
 
   void OnTraceSessionStart(StringRef label, MsgId id,

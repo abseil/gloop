@@ -61,15 +61,13 @@ void TraceSignal(const void* barrier, StringRef label);
 // `sequence` contains the sequence number for the message if it is part of
 // a streaming request or response, or `kNoMsgSequence` if this message is
 // a unary RPC request or response for which we record no sequence number.
-void TraceSend(StringRef label, MsgOrigin origin, MsgId id,
-               MsgSequence sequence);
+void TraceSend(StringRef label, MsgOrigin origin, MsgId id);
 
 // Emits the `OnTraceReceive()` event if the current thread is traced.
 // `sequence` contains the sequence number for the message if it is part of
 // a streaming request or response, or `kNoMsgSequence` if this message is
 // a unary RPC request or response for which we record no sequence number.
-void TraceReceive(StringRef label, MsgOrigin origin, MsgId id,
-                  MsgSequence sequence);
+void TraceReceive(StringRef label, MsgOrigin origin, MsgId id);
 
 // Emits the `OnTraceSessionStart()` event if the current thread is traced.
 // See documentation in the public API in 'tracing.h' for more details.
@@ -154,17 +152,15 @@ inline void TraceSignal(const void* barrier, StringRef label) {
   }
 }
 
-inline void TraceSend(StringRef label, MsgOrigin origin, MsgId id,
-                      MsgSequence sequence) {
+inline void TraceSend(StringRef label, MsgOrigin origin, MsgId id) {
   if (auto* listener = internal::active_event_listener()) {
-    listener->OnTraceSend(label, origin, id, sequence);
+    listener->OnTraceSend(label, origin, id);
   }
 }
 
-inline void TraceReceive(StringRef label, MsgOrigin origin, MsgId id,
-                         MsgSequence sequence) {
+inline void TraceReceive(StringRef label, MsgOrigin origin, MsgId id) {
   if (auto* listener = internal::active_event_listener()) {
-    listener->OnTraceReceive(label, origin, id, sequence);
+    listener->OnTraceReceive(label, origin, id);
   }
 }
 

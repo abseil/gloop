@@ -104,10 +104,8 @@ TEST(TraceEventListener, InvokeAllEvents) {
   listener.OnTraceObserved(BarrierId{3412442}, "Peekaboo");
   listener.OnTraceSignal(BarrierId{7648223}, "Ping");
 
-  listener.OnTraceSend("Send it!", MsgOrigin::kClient, MsgId{3332},
-                       MsgSequence{1});
-  listener.OnTraceReceive("Send it!", MsgOrigin::kServer, MsgId{3332},
-                          MsgSequence{1});
+  listener.OnTraceSend("Send it!", MsgOrigin::kClient, MsgId{3332});
+  listener.OnTraceReceive("Send it!", MsgOrigin::kServer, MsgId{3332});
 
   listener.OnTraceSessionStart("Start Client", MsgId{842},
                                EndPoint::kStreamingClient);

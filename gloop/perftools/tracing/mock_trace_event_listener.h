@@ -62,8 +62,8 @@ class MockTraceEventListener : public TraceEventListener {
   MOCK_METHOD(void, OnTraceObserved, (BarrierId, StringRef));
   MOCK_METHOD(void, OnTraceSignal, (BarrierId, StringRef));
 
-  MOCK_METHOD(void, OnTraceSend, (StringRef, MsgOrigin, MsgId, MsgSequence));
-  MOCK_METHOD(void, OnTraceReceive, (StringRef, MsgOrigin, MsgId, MsgSequence));
+  MOCK_METHOD(void, OnTraceSend, (StringRef, MsgOrigin, MsgId));
+  MOCK_METHOD(void, OnTraceReceive, (StringRef, MsgOrigin, MsgId));
 
   MOCK_METHOD(void, OnTraceSessionStart, (StringRef, MsgId, EndPoint));
   MOCK_METHOD(void, OnTraceSessionEnd, (StringRef, MsgId, EndPoint));

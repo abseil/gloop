@@ -275,21 +275,10 @@ TEST(TracingApiTest, TraceScopedSuspend) {
 TEST(TracingApiTest, TraceSendReceiveDefaultSequence) {
   StrictMock<MockTraceEventListener> mock;
   WithListener with(&mock);
-  EXPECT_CALL(mock, OnTraceSend(Eq("Send it"), MsgOrigin::kClient, 12345,
-                                kNoMsgSequence));
+  EXPECT_CALL(mock, OnTraceSend(Eq("Send it"), MsgOrigin::kClient, 12345));
   TraceSend("Send it", MsgOrigin::kClient, 12345);
-  EXPECT_CALL(mock, OnTraceReceive(Eq("Got it"), MsgOrigin::kClient, 12345,
-                                   kNoMsgSequence));
+  EXPECT_CALL(mock, OnTraceReceive(Eq("Got it"), MsgOrigin::kClient, 12345));
   TraceReceive("Got it", MsgOrigin::kClient, 12345);
-}
-
-TEST(TracingApiTest, TraceSendReceiveWithSequence) {
-  StrictMock<MockTraceEventListener> mock;
-  WithListener with(&mock);
-  EXPECT_CALL(mock, OnTraceSend(Eq("Send it"), MsgOrigin::kClient, 12345, 7));
-  TraceSend("Send it", MsgOrigin::kClient, 12345, 7);
-  EXPECT_CALL(mock, OnTraceReceive(Eq("Got it"), MsgOrigin::kClient, 12345, 7));
-  TraceReceive("Got it", MsgOrigin::kClient, 12345, 7);
 }
 
 TEST(TracingApiTest, TraceStartEndSession) {

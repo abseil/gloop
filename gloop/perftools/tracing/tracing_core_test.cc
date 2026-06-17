@@ -77,8 +77,8 @@ TEST(TracingCore, ApiWithoutActiveSync) {
   TraceContinue(BarrierId{123});
   TraceObserved(BarrierId{123}, "Peekaboo");
   TraceSignal(BarrierId{123}, "Ping");
-  TraceSend("Send it", MsgOrigin::kClient, MsgId{3232}, MsgSequence{1});
-  TraceReceive("praise", MsgOrigin::kServer, MsgId{3232}, MsgSequence{1});
+  TraceSend("Send it", MsgOrigin::kClient, MsgId{3232});
+  TraceReceive("praise", MsgOrigin::kServer, MsgId{3232});
   TraceSessionStart("Start", MsgId{842}, EndPoint::kStreamingClient);
   TraceSessionEnd("End", MsgId{842}, EndPoint::kStreamingServer);
   TraceStreamingSend(MsgOrigin::kClient, MsgId{842}, MsgSequence{0},
@@ -107,10 +107,10 @@ TEST(TracingCore, ApiWithActiveSync) {
   EXPECT_CALL(mock, OnTraceObserved(BarrierId{123}, Eq("Peekaboo")));
   EXPECT_CALL(mock, OnTraceSignal(BarrierId{123}, Eq("Ping")));
 
-  EXPECT_CALL(mock, OnTraceSend(Eq("Send it"), MsgOrigin::kClient, MsgId{3232},
-                                MsgSequence{1}));
-  EXPECT_CALL(mock, OnTraceReceive(Eq("praise"), MsgOrigin::kServer,
-                                   MsgId{3232}, MsgSequence{1}));
+  EXPECT_CALL(mock,
+              OnTraceSend(Eq("Send it"), MsgOrigin::kClient, MsgId{3232}));
+  EXPECT_CALL(mock,
+              OnTraceReceive(Eq("praise"), MsgOrigin::kServer, MsgId{3232}));
 
   EXPECT_CALL(mock, OnTraceSessionStart(Eq("Start"), MsgId{842},
                                         EndPoint::kStreamingClient));
@@ -144,8 +144,8 @@ TEST(TracingCore, ApiWithActiveSync) {
   TraceObserved(BarrierId{123}, "Peekaboo");
   TraceSignal(BarrierId{123}, "Ping");
 
-  TraceSend("Send it", MsgOrigin::kClient, MsgId{3232}, MsgSequence{1});
-  TraceReceive("praise", MsgOrigin::kServer, MsgId{3232}, MsgSequence{1});
+  TraceSend("Send it", MsgOrigin::kClient, MsgId{3232});
+  TraceReceive("praise", MsgOrigin::kServer, MsgId{3232});
 
   TraceSessionStart("Start", MsgId{842}, EndPoint::kStreamingClient);
   TraceSessionEnd("End", MsgId{842}, EndPoint::kStreamingServer);

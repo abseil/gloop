@@ -40,10 +40,8 @@ void TraceEventListener::OnTraceWait(BarrierId, StringRef) {}
 void TraceEventListener::OnTraceContinue(BarrierId) {}
 void TraceEventListener::OnTraceObserved(BarrierId, StringRef) {}
 void TraceEventListener::OnTraceSignal(BarrierId, StringRef) {}
-void TraceEventListener::OnTraceSend(StringRef, MsgOrigin, MsgId, MsgSequence) {
-}
-void TraceEventListener::OnTraceReceive(StringRef, MsgOrigin, MsgId,
-                                        MsgSequence) {}
+void TraceEventListener::OnTraceSend(StringRef, MsgOrigin, MsgId) {}
+void TraceEventListener::OnTraceReceive(StringRef, MsgOrigin, MsgId) {}
 void TraceEventListener::OnTraceSessionStart(StringRef, MsgId, EndPoint) {}
 void TraceEventListener::OnTraceSessionEnd(StringRef, MsgId, EndPoint) {}
 void TraceEventListener::OnTraceStreamingSend(MsgOrigin, MsgId, MsgSequence,

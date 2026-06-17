@@ -266,10 +266,8 @@ class TraceEventListener {
   // Messages do not necessarily have to be actual messages sent over the wire:
   // some applications may emit send and receive events to force causality in
   // complex processes where automatically recording causality is infeasible.
-  virtual void OnTraceSend(StringRef label, MsgOrigin origin, MsgId id,
-                           MsgSequence seq);
-  virtual void OnTraceReceive(StringRef label, MsgOrigin origin, MsgId id,
-                              MsgSequence seq);
+  virtual void OnTraceSend(StringRef label, MsgOrigin origin, MsgId id);
+  virtual void OnTraceReceive(StringRef label, MsgOrigin origin, MsgId id);
 
   // `SessionStart()` and `SessionFinish()` events are emitted when client and
   // server sessions start and finish for some given client/server session.
