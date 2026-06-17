@@ -28,6 +28,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/internal/hardening.h"
 #include "absl/base/optimization.h"
 #include "absl/base/options.h"
 #include "absl/strings/str_cat.h"
@@ -255,6 +256,7 @@ TEST(UniqueArrayTest, CtorFromUniquePtrFailsWithBadSize) {
 #if !defined(NDEBUG) || ABSL_OPTION_HARDENED
   auto ptr =
       std::unique_ptr<std::vector<int>[]>(new std::vector<int>[kArraySize]);
+  absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
   EXPECT_DEATH(
       UniqueArray<std::vector<int>> buffer(std::move(ptr), kArraySize + 1), "");
 #endif
@@ -362,6 +364,7 @@ TEST(UniqueArrayTest, AssignmentFromNullPointer) {
 TEST(UniqueArrayTest, HardenedIndexing) {
 #if !defined(NDEBUG) || ABSL_OPTION_HARDENED
   auto buffer = MakeUniqueArray<int>(kArraySize);
+  absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
   EXPECT_DEATH([[maybe_unused]] int result = buffer[kArraySize], "");
 #endif
 }

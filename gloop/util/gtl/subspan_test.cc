@@ -22,6 +22,7 @@
 
 #include <stddef.h>
 
+#include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
 #include "absl/types/any_span.h"
 #include "gmock/gmock.h"
@@ -49,6 +50,7 @@ TEST(SubspanTest, Subspan) {
   EXPECT_THAT(gtl::Subspan(span, 1, AnyIntSpan::npos), ElementsAre(1, 2));
 #if GTEST_HAS_DEATH_TEST
   if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
     EXPECT_DEATH(gtl::Subspan(span, 0, 4), "");
     EXPECT_DEATH(gtl::Subspan(span, 3, 1), "");
     EXPECT_DEATH(gtl::Subspan(span, 4, AnyIntSpan::npos), "");
@@ -66,6 +68,7 @@ TEST(SubspanTest, SubspanOrTruncate) {
               ElementsAre(2));
 #if GTEST_HAS_DEATH_TEST
   if (IsHardened()) {
+    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
     EXPECT_DEATH(gtl::SubspanOrTruncate(span, 4, AnyIntSpan::npos), "");
     EXPECT_DEATH(gtl::SubspanOrTruncate(span, AnyIntSpan::npos, 0), "");
     EXPECT_DEATH(
