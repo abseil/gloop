@@ -94,7 +94,7 @@ ABSL_FLAG(
 namespace base {
 
 // Async signal-safe - usable in signal handlers.
-void DebugWriteToStderr(const char* data, void* unused) {
+void DebugWriteToStderr(const char* data, void*) {
   absl::raw_log_internal::AsyncSignalSafeWriteError(data, strlen(data));
 }
 
@@ -454,20 +454,20 @@ void DumpRegisterContext(void* const vuc, DebugWriter* writer,
       // Wrap at 80 characters.
       const size_t buf_len = strlen(buf);
       if (line_len + 1 + buf_len >= 80) {
-        strcpy(line + line_len, "\n");
+        strncpy(line + line_len, "\n", 2);
         writer(line, writer_arg);
 
-        strcpy(line, " ");
+        strncpy(line, " ", 2);
         line_len = 1;
       }
 
-      strcpy(line + line_len, " ");
+      strncpy(line + line_len, " ", 2);
       line_len += 1;
       memcpy(line + line_len, buf, buf_len + 1);
       line_len += buf_len;
     }
 
-    strcpy(line + line_len, "\n");
+    strncpy(line + line_len, "\n", 2);
     writer(line, writer_arg);
   }
 #else
@@ -500,7 +500,7 @@ void DumpAddressMap(DebugWriter* writer, void* writer_arg) {
   char* out_buffer;
   char* dir;
   ProcMapsIterator::Buffer* maps_buffer;
-  static const size_t kOutBufSize = PATH_MAX + 250;
+  static const size_t kOutBufSize = ProcMapsIterator::Buffer::kBufSize + 64;
 
   if (InFailureSignalHandler()) {
     // We're in a signal handler so we may not have much stack space,
@@ -556,9 +556,12 @@ void DumpAddressMap(DebugWriter* writer, void* writer_arg) {
         if (nullptr == ptr) ptr = strstr(filename, "-opt/");
         if (nullptr != ptr) {
           char* end = ptr + strlen("-XXX");
-          if (memcmp(dir, filename, end - filename)) {
-            strncpy(dir, filename, end - filename);
-            dir[end - filename] = '\0';
+          const size_t prefix_len = static_cast<size_t>(end - filename);
+          const size_t copy_len =
+              prefix_len < kOutBufSize - 1 ? prefix_len : kOutBufSize - 1;
+          if (memcmp(dir, filename, copy_len)) {
+            memcpy(dir, filename, copy_len);
+            dir[copy_len] = '\0';
             snprintf(out_buffer, kOutBufSize, "  build=%s\n", dir);
             writer(out_buffer, writer_arg);
           }
@@ -566,18 +569,18 @@ void DumpAddressMap(DebugWriter* writer, void* writer_arg) {
         }
 
         // Print out the mapping, with the file offset if nonzero.
-        int n = sprintf(out_buffer, "  %08llx-%08llx: %s",
-                        static_cast<unsigned long long>(begin),  // NOLINT
-                        static_cast<unsigned long long>(end),    // NOLINT
-                        filename);
+        int n = snprintf(out_buffer, kOutBufSize, "  %08llx-%08llx: %s",
+                         static_cast<unsigned long long>(begin),  // NOLINT
+                         static_cast<unsigned long long>(end),    // NOLINT
+                         filename);
         if (pos == 0) {
           // Append a newline.
           out_buffer[n] = '\n';
           out_buffer[++n] = '\0';
         } else {
           // Append offset.
-          sprintf(out_buffer + n, " (@%llx)\n",
-                  static_cast<unsigned long long>(pos));  // NOLINT
+          snprintf(out_buffer + n, kOutBufSize - n, " (@%llx)\n",
+                   static_cast<unsigned long long>(pos));  // NOLINT
         }
         writer(out_buffer, writer_arg);
       }
