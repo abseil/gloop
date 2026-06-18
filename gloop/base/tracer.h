@@ -867,6 +867,13 @@ class Tracer {
     return const_cast<Tracer*>(this)->GetTypedAnnotationMap();
   }
 
+  // Invokes `callback` with a buffer of at least `min_size` bytes to serialize
+  // KVA offload annotations. Returns true if written successfully.
+  virtual bool InvokeKvaWriteCallback(
+      int min_size, absl::FunctionRef<int(absl::Span<char>)> callback) {
+    return false;
+  }
+
   // Attach |c| to the list of TraceConsumers associated with this tracer
   // instance. Once the Tracer object loses all of its references, each
   // attached TraceConsumer will have an opportunity to inspect the Tracer and
