@@ -163,6 +163,24 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "cord_bytestream_test",
+    srcs = ["cord_bytestream_test.cc"],
+    deps = [
+        ":bytestream",
+        ":cord_bytestream",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:cord_test_helpers",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 cc_library(
     name = "escaping",
     srcs = ["escaping.cc"],
