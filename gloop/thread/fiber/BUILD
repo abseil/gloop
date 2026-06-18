@@ -534,6 +534,45 @@ cc_test(
 )
 
 cc_library(
+    name = "priority_admission_scheduler",
+    srcs = ["priority_admission_scheduler.cc"],
+    hdrs = ["priority_admission_scheduler.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "//gloop/base:raw_logging",
+        "//gloop/base/scheduling",
+        "//gloop/base/scheduling:low-level-support",
+        "//gloop/thread/fiber:scheduler_types",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/container:fixed_array",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:vlog_is_on",
+    ],
+)
+
+cc_test(
+    name = "priority_admission_scheduler_test",
+    srcs = ["priority_admission_scheduler_test.cc"],
+    flaky = True,  # TODO: b/195688344 - Tricky to fix.
+    deps = [
+        ":priority_admission_scheduler",
+        "//gloop:gloop_test_main",
+        "//gloop/base/scheduling",
+        "//gloop/thread/fiber",
+        "//gloop/thread/fiber:fiber-options",
+        "//gloop/thread/fiber:fifolifo-schedulers",
+        "//gloop/thread/fiber:select",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "select",
     srcs = ["select.cc"],
     hdrs = ["select.h"],
