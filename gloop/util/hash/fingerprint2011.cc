@@ -42,6 +42,7 @@
 #include "absl/base/prefetch.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
+#include "gloop/strings/cord_bytestream.h"
 #include "gloop/util/endian/endian.h"  // for LittleEndian
 #include "gloop/util/hash/murmur.h"    // for MurmurHash64WithSeed
 
@@ -181,6 +182,40 @@ static inline uint64_t Fingerprint2011Helper(const char* s, size_t len) {
                    HashLen16(v.second, w.second) + x);
 }
 
+static inline uint64_t Fingerprint2011Helper(const absl::Cord& s) {
+  char buffer[64];
+  strings::CordReader reader(s);
+  uint64_t x;
+  reader.ReadN(sizeof(x), buffer);
+  x = LittleEndian::Load64(buffer);
+
+  reader.Reset(s);
+  reader.Skip(s.size() - 64);
+  reader.ReadN(64, buffer);
+
+  uint64_t y;
+  uint64_t z;
+  std::pair<uint64_t, uint64_t> v;
+  std::pair<uint64_t, uint64_t> w;
+  Fingerprint2011HelperTail(buffer, 64, s.size(), &v, &w, &x, &y, &z);
+
+  // Decrease len to the nearest multiple of 64, and operate on 64-byte chunks.
+  size_t len = (s.size() - 1) & ~static_cast<size_t>(63);
+  reader.Reset(s);
+  do {
+    if (reader.Peek().size() >= 64) {
+      Fingerprint2011Helper64Bytes(reader.Peek().data(), &x, &y, &z, &v, &w);
+      reader.Skip(64);
+    } else {
+      reader.ReadN(64, buffer);
+      Fingerprint2011Helper64Bytes(buffer, &x, &y, &z, &v, &w);
+    }
+    len -= 64;
+  } while (len != 0);
+  return HashLen16(HashLen16(v.first, w.first) + ShiftMix(y) * k1 + z,
+                   HashLen16(v.second, w.second) + x);
+}
+
 uint64_t Fingerprint2011(absl::string_view sv) {
   const char* s = sv.data();
   size_t len = sv.size();
@@ -196,7 +231,22 @@ uint64_t Fingerprint2011(absl::string_view sv) {
 }
 
 uint64_t Fingerprint2011(const absl::Cord& s) {
-  return Fingerprint2011(absl::Cord(s).Flatten());
+  if (s.size() <= 64) {
+    return Fingerprint2011(absl::Cord(s).Flatten());
+  }
+  uint64_t u, v;
+  char buffer[sizeof(u)];
+  strings::CordReader reader(s);
+  reader.ReadN(sizeof(u), buffer);
+  u = LittleEndian::Load64(buffer);
+  reader.Skip(s.size() - 16);
+  reader.ReadN(sizeof(u), buffer);
+  v = LittleEndian::Load64(buffer);
+
+  uint64_t result = Fingerprint2011Helper(s);
+  result = HashLen16(result + v, u);
+  return ABSL_PREDICT_TRUE(result >= 2) ? result
+                                        : result + ~static_cast<uint64_t>(1);
 }
 
 uint64_t FingerprintCat2011(uint64_t fp1, uint64_t fp2) {

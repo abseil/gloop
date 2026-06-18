@@ -314,6 +314,7 @@ cc_library(
     deps = [
         ":murmur",
         "//gloop:enforce_gloop_support",
+        "//gloop/strings:cord_bytestream",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:prefetch",

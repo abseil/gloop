@@ -148,10 +148,18 @@ cc_test(
 
 cc_library(
     name = "cord_bytestream",
+    srcs = ["cord_bytestream.cc"],
     hdrs = ["cord_bytestream.h"],
     deps = [
+        ":bytestream",
         "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/numeric:bits",
         "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:string_view",
     ],
 )
 
