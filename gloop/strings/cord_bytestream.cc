@@ -44,15 +44,52 @@ ABSL_FLAG(int, copy_sharing_threshold, 512,
 
 namespace strings {
 
+CordByteSink::~CordByteSink() { Flush(); }
+
+void CordByteSink::Append(const char* data, size_t n) {
+  while (n > 0) {
+    if (buffer_.available().empty()) {
+      Flush();
+      if (n >= absl::CordBuffer::kDefaultLimit) {
+        dest_->Append(absl::string_view(data, n));
+        return;
+      }
+      buffer_ = dest_->GetAppendBuffer(absl::CordBuffer::kDefaultLimit);
+    }
+    size_t to_copy = (std::min)(n, buffer_.available().size());
+    memcpy(buffer_.available().data(), data, to_copy);
+    buffer_.IncreaseLengthBy(to_copy);
+    data += to_copy;
+    n -= to_copy;
+  }
+}
+
+void CordByteSink::Flush() {
+  if (buffer_.length() > 0) {
+    if (buffer_.length() <= absl::cord_internal::kMaxBytesToCopy) {
+      dest_->Append(absl::string_view(buffer_.data(), buffer_.length()));
+      buffer_.SetLength(0);
+    } else {
+      dest_->Append(std::move(buffer_));
+    }
+  }
+}
+
 void CordByteSink::AppendExternalMemory(
     absl::string_view data, void* absl_nullable arg,
     void (*absl_nonnull releaser)(void* absl_nullable)) {
+  Flush();
   dest_->Append(
       absl::MakeCordFromExternal(data, [arg, releaser]() { releaser(arg); }));
 }
 
 size_t CordByteSink::MinAppendExternalMemoryLength() const {
   return absl::cord_internal::kMaxBytesToCopy + 1;
+}
+
+absl::Cord* CordByteSink::cord() {
+  Flush();
+  return dest_;
 }
 
 strings::TypeId CordByteSink::GetTypeId() const {

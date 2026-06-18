@@ -29,6 +29,7 @@
 #include "absl/base/optimization.h"
 #include "absl/numeric/bits.h"
 #include "absl/strings/cord.h"
+#include "absl/strings/cord_buffer.h"
 #include "absl/strings/string_view.h"
 #include "gloop/strings/bytestream.h"
 
@@ -37,12 +38,11 @@ namespace strings {
 class CordByteSink final : public ByteSink {
  public:
   explicit CordByteSink(absl::Cord* absl_nonnull dest) : dest_(dest) {}
+  ~CordByteSink() override;
   CordByteSink(const CordByteSink&) = delete;
   CordByteSink& operator=(const CordByteSink&) = delete;
 
-  void Append(const char* absl_nonnull data, size_t n) override {
-    dest_->Append(absl::string_view(data, n));
-  }
+  void Append(const char* absl_nonnull data, size_t n) override;
 
   void AppendExternalMemory(
       absl::string_view data, void* absl_nullable arg,
@@ -52,10 +52,13 @@ class CordByteSink final : public ByteSink {
 
   strings::TypeId GetTypeId() const override;
 
-  absl::Cord* absl_nonnull cord() { return dest_; }
+  void Flush() override;
+
+  absl::Cord* absl_nonnull cord();
 
  private:
   absl::Cord* absl_nonnull dest_;
+  absl::CordBuffer buffer_;
 };
 
 // A CordReader yields the sequence of bytes that make up the

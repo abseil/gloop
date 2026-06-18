@@ -144,6 +144,7 @@ class SinkAdapator {
   virtual strings::ByteSink* Sink() = 0;
   virtual void Clear() = 0;
   virtual void CheckContents(const std::string& expected) const = 0;
+  virtual void Flush() {}
 };
 
 // Test CopyTo to supplied sink.
@@ -178,6 +179,7 @@ static void RandomCopyToTest(SinkAdapator* sink) {
         n = 1;
       }
       reader.CopyTo(sink->Sink(), n);
+      sink->Flush();
     }
     ASSERT_EQ(length, sink->Length());
     sink->CheckContents(input);
@@ -217,6 +219,7 @@ TEST(CordByteStream, CopyReaderRandomToCordByteSink) {
     void CheckContents(const std::string& expected) const override {
       EXPECT_EQ(expected, std::string(cord_));
     }
+    void Flush() override { sink_.Flush(); }
   };
   CordSink sink;
   RandomCopyToTest(&sink);
@@ -265,8 +268,10 @@ static void TestReader(RandomEngine* rng, int iters) {
         // Run CopyTo
         absl::Cord dest;
         size_t N = absl::Uniform<size_t>(*rng, 0, r.Available());
-        strings::CordByteSink sink(&dest);
-        r.CopyTo(&sink, N);
+        {
+          strings::CordByteSink sink(&dest);
+          r.CopyTo(&sink, N);
+        }
         VLOG(1) << "CopyTo: " << N;
         ASSERT_EQ(absl::Cord(absl::string_view(s.data() + expected_offset, N)),
                   dest);
@@ -428,8 +433,10 @@ TEST(CordByteStream, ByteSinkSource) {
   absl::Cord c("foo");
 
   // Test Cord as ByteSink
-  strings::CordByteSink sink(&c);
-  sink.Append("bar", 3);
+  {
+    strings::CordByteSink sink(&c);
+    sink.Append("bar", 3);
+  }
   ASSERT_EQ(c, absl::Cord("foobar"));
 
   // Test CordReader as ByteSource
@@ -610,8 +617,10 @@ TEST(CordByteStream, CopyCordToCordRandom) {
       size_t m = absl::Uniform<size_t>(rng, 0, reader.Available());
       VLOG(1) << "Skip " << n << " bytes; read " << m << " bytes";
       absl::Cord dst;
-      strings::CordByteSink sink(&dst);
-      reader.CopyTo(&sink, m);
+      {
+        strings::CordByteSink sink(&dst);
+        reader.CopyTo(&sink, m);
+      }
       ASSERT_EQ(dst,
                 absl::Cord(absl::string_view(expected.data() + offset, m)));
       --remaining;
