@@ -21,6 +21,7 @@
 #ifndef THIRD_PARTY_GLOOP_BASE_SIGNAL_UTIL_SUBTLE_H_
 #define THIRD_PARTY_GLOOP_BASE_SIGNAL_UTIL_SUBTLE_H_
 
+#ifdef __linux__
 #include <poll.h>  // IWYU pragma: keep
 #include <sched.h>
 #include <signal.h>
@@ -409,4 +410,5 @@ class ScopedAffinityMask {
 }  // namespace internal
 }  // namespace base
 
+#endif  // __linux__
 #endif  // THIRD_PARTY_GLOOP_BASE_SIGNAL_UTIL_SUBTLE_H_

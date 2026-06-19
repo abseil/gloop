@@ -20,6 +20,7 @@
 
 #include "gloop/base/signal_util_subtle.h"
 
+#ifdef __linux__
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -336,3 +337,4 @@ bool ScopedAffinityMask::Tampered() {
 
 }  // namespace internal
 }  // namespace base
+#endif  // __linux__
