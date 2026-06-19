@@ -276,6 +276,7 @@ char* LineReader::Next(int* error) {
   return OutputLine(end);
 }
 
+#if defined(__linux__)
 std::vector<int> AllowedCpus() {
   // We have no need for dynamically sized sets (currently >1024 CPUs for glibc)
   // at the present time.  We could change this in the future.
@@ -333,6 +334,19 @@ bool ScopedAffinityMask::Tampered() {
                  "unable to get cpu affinity");
   return !CPU_EQUAL(&current_cpus, &specified_cpus_);  // Mismatch => modified.
 }
+#elif defined(__APPLE__)
+std::vector<int> AllowedCpus() {
+  int n = sysconf(_SC_NPROCESSORS_ONLN);
+  if (n < 1) n = 1;
+  std::vector<int> result(n);
+  for (int i = 0; i < n; i++) {
+    result[i] = i;
+  }
+  return result;
+}
+#else
+std::vector<int> AllowedCpus() { return {0}; }
+#endif
 
 }  // namespace internal
 }  // namespace base

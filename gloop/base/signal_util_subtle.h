@@ -203,6 +203,7 @@ class ScopedSigaction {
 };
 
 // Timers that run for the length of this object's existence.
+#if defined(__linux__)
 class ScopedPosixTimer {
  public:
   // Constructors added to this class on-demand, contributions welcome.
@@ -241,6 +242,18 @@ class ScopedPosixTimer {
  private:
   timer_t t_;
 };
+#else
+class ScopedPosixTimer {
+ public:
+  enum TimerType {
+    OneShot = 1,
+    Repeated = 2,
+  };
+  ScopedPosixTimer(TimerType t, ::absl::Duration interval, clockid_t clock,
+                   int sig) {}
+  ~ScopedPosixTimer() {}
+};
+#endif
 
 // Read variable width={1,2,4,8} bytes from *ptr.  No other widths are
 // supported.  Optimal when width is not known at compile time.
@@ -382,6 +395,7 @@ std::vector<int> AllowedCpus();
 // restore the original affinity mask on destruction.
 //
 // REQUIRES: For test-use only.  Do not use this in production code.
+#if defined(__linux__)
 class ScopedAffinityMask {
  public:
   // When racing with an external restriction that has a zero-intersection with
@@ -405,6 +419,14 @@ class ScopedAffinityMask {
  private:
   cpu_set_t original_cpus_, specified_cpus_;
 };
+#else
+class ScopedAffinityMask {
+ public:
+  explicit ScopedAffinityMask(std::vector<int> allowed_cpus) {}
+  ~ScopedAffinityMask() {}
+  bool Tampered() { return false; }
+};
+#endif
 
 }  // namespace internal
 }  // namespace base
