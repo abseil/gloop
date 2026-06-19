@@ -90,7 +90,7 @@ cc_library(
 cc_library(
     name = "internal_accumulate",
     textual_hdrs = ["internal_accumulate.h"],
-    visibility = [":util-tuple"],
+    visibility = ["//visibility:private"],
     deps = [
         ":intrinsics",
         "//gloop:enforce_gloop_support",
