@@ -91,6 +91,27 @@ TEST_F(RcuTest, IndependentDomains) {
   d2.Synchronize();
 }
 
+TEST_F(RcuTest, DomainSchedulerFairness) {
+  rcu::Domain d1, d2;
+
+  // Permanently pin Domain d1 by holding an active reader lock on it.
+  // Located on the stack, it will be naturally released at the end of the test.
+  rcu::ReaderLockHolder holder(&d1);
+
+  // Register an asynchronous callback on Domain d2.
+  absl::Notification callback_ran;
+  d2.Call([&callback_ran]() { callback_ran.Notify(); });
+
+  // Wait for the callback on d2 to be executed by Gloop's background thread.
+  // Under the old code (starvation bug), this will hang indefinitely.
+  // We use a 5-second timeout to fail cleanly if starved.
+  bool completed =
+      callback_ran.WaitForNotificationWithTimeout(absl::Seconds(5));
+
+  EXPECT_TRUE(completed)
+      << "Domain d2's callbacks were starved by pinned Domain d1!";
+}
+
 TEST_F(RcuTest, CallIsAsync) {
   absl::Notification n;
   {
