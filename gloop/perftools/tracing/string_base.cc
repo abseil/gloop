@@ -50,8 +50,9 @@ absl::string_view StringBase::InternString(absl::string_view s) {
   }
 
   // Create a heap allocated entry
-  char* p = static_cast<char*>(::operator new(s.size()));
-  memcpy(p, s.data(), s.size());
+  char* p = static_cast<char*>(::operator new(s.size() + 1));
+  if (!s.empty()) memcpy(p, s.data(), s.size());
+  p[s.size()] = '\0';
   s = absl::string_view(p, s.size());
 
   // Insert synchronized: we may have a benign race.
@@ -68,8 +69,9 @@ StringBase::Raw StringBase::Raw::CreateValue(absl::string_view s) {
   // We use explicit calls to ::new and sized ::delete as the standard
   // defaults to plain deletes for new T[] / delete[] if T is a trivial
   // type: https://en.cppreference.com/w/cpp/memory/new/operator_delete
-  char* d = static_cast<char*>(::operator new(s.size()));
+  char* d = static_cast<char*>(::operator new(s.size() + 1));
   if (!s.empty()) memcpy(d, s.data(), s.size());
+  d[s.size()] = '\0';
   return Raw{Value(d), Metadata(ContentType::kDynamic, s.size())};
 }
 
@@ -83,7 +85,7 @@ void StringBase::Raw::DeleteValue(Raw raw) noexcept {
   DCHECK_EQ(raw.metadata.type, ContentType::kDynamic);
   auto* p = const_cast<char*>(raw.value.str);
 #if defined(__cpp_sized_deallocation)
-  ::operator delete(p, raw.metadata.length_or_id);
+  ::operator delete(p, raw.metadata.length_or_id + 1);
 #else
   ::operator delete(p);
 #endif
