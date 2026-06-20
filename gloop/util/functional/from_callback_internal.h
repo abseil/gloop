@@ -38,6 +38,7 @@
 #include "gloop/base/callback-types.h"
 #include "gloop/util/functional/to_callback_internal.h"  // IWYU pragma: export
 #include "gloop/util/functional/to_shared_function.h"
+#include "gloop/util/functional/with_context.h"
 #include "gloop/util/refcount/compact_reference_counted.h"
 #include "gloop/util/refcount/reffed_ptr.h"
 
@@ -300,14 +301,15 @@ class ABSL_NULLABILITY_COMPATIBLE ResultCallbackFunctorImpl
   ResultCallbackFunctorImpl(std::nullptr_t) : Base() {}
   ResultCallbackFunctorImpl() : Base() {}
 
-  // Converting constructor from a call to ToCallback.
+  // Converting constructor from a call to ToCallback. This binds the current
+  // context as conversion to the callback type historically would.
   template <typename Functor, typename = std::enable_if_t<IsCallable<
                                   FunctorRef</*Permanent=*/false, Functor>,
                                   R(Args...)>()>>
   ResultCallbackFunctorImpl(  // NOLINT(google-explicit-constructor)
       FunctorCallbackBinder<Functor, /*Permanent=*/false> binder)
-      : ResultCallbackFunctorImpl(
-            static_cast<CallbackType*>(std::move(binder))) {}
+      : ResultCallbackFunctorImpl(::util::functional::WithCurrentContext(
+            static_cast<Functor&&>(std::move(binder)))) {}
 
   // Converting constructor from a call to ToPermanentCallback. Note that the
   // callbacks it would construct have no custom behavior, so we just unwrap the

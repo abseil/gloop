@@ -59,6 +59,7 @@ cc_library(
     deps = [
         ":to_callback",
         ":to_shared_function",
+        ":with_context",
         "//gloop:enforce_gloop_support",
         "//gloop/base:callback-types",
         "//gloop/base:context",
