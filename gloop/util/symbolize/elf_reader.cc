@@ -65,6 +65,7 @@
 #include <cerrno>
 #include <cstdint>
 #include <memory>
+#include <new>
 #include <optional>
 #include <string>
 #include <utility>
@@ -415,7 +416,25 @@ class ElfSectionReader {
     auto data_length = section_size_ - sizeof(chdr);
     uLongf uncompressed_size = chdr.ch_size;
 
-    contents_ = new char[chdr.ch_size];
+    if (chdr.ch_size >= kSectionSizeMax) {
+      LOG(ERROR) << "Decompressed section size " << chdr.ch_size
+                 << " is too large (limit " << kSectionSizeMax << ")";
+      return false;
+    }
+    // Avoid resource exhaustion from highly compressed bogus data.
+    // 100x compression ratio is extremely high for legitimate ELF sections.
+    if (data_length > 0 && chdr.ch_size / 100 > data_length) {
+      LOG(ERROR) << "Bogus compression ratio: decompressed=" << chdr.ch_size
+                 << ", compressed=" << data_length;
+      return false;
+    }
+
+    contents_ = new (std::nothrow) char[chdr.ch_size];
+    if (contents_ == nullptr) {
+      LOG(ERROR) << "Failed to allocate memory for decompressed section ("
+                 << chdr.ch_size << " bytes)";
+      return false;
+    }
     section_size_ = chdr.ch_size;
     delete_contents_ = true;
 
@@ -1217,7 +1236,8 @@ class ElfReaderImpl {
     // direction of iteration.
     for (int k = GetNumSections() - 1; k >= 0; --k) {
       const char* name = GetSectionName(section_headers_[k].sh_name);
-      if (strncmp(name, ".debug", strlen(".debug")) == 0) return true;
+      if (name != nullptr && strncmp(name, ".debug", strlen(".debug")) == 0)
+        return true;
     }
     return false;
   }
