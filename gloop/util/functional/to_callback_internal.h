@@ -162,6 +162,13 @@ class FunctorCallbackBinder {
                              perftools::tracing::TraceSourceLocation::current())
       : functor_(std::move(functor)), label_(std::move(label)) {}
 
+  // FunctorCallbackBinder is neither copyable nor movable. It must be
+  // immediately converted to a callback or back to the original functor.
+  FunctorCallbackBinder(const FunctorCallbackBinder&) = delete;
+  FunctorCallbackBinder& operator=(const FunctorCallbackBinder&) = delete;
+  FunctorCallbackBinder(FunctorCallbackBinder&& other) = delete;
+  FunctorCallbackBinder& operator=(FunctorCallbackBinder&& other) = delete;
+
   // Requested conversions are valid only if:
   // a) We are converting to a known Callback type.
   // b) The signature of that type is compatible with the functor we're binding.

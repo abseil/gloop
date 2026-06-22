@@ -305,7 +305,7 @@ class ABSL_NULLABILITY_COMPATIBLE ResultCallbackFunctorImpl
                                   FunctorRef</*Permanent=*/false, Functor>,
                                   R(Args...)>()>>
   ResultCallbackFunctorImpl(  // NOLINT(google-explicit-constructor)
-      FunctorCallbackBinder<Functor, /*Permanent=*/false> binder)
+      FunctorCallbackBinder<Functor, /*Permanent=*/false>&& binder)
       : ResultCallbackFunctorImpl(
             static_cast<CallbackType*>(std::move(binder))) {}
 
@@ -316,7 +316,7 @@ class ABSL_NULLABILITY_COMPATIBLE ResultCallbackFunctorImpl
             typename = std::enable_if_t<IsCallable<
                 FunctorRef</*Permanent=*/true, Functor>, R(Args...)>()>>
   ResultCallbackFunctorImpl(  // NOLINT(google-explicit-constructor)
-      FunctorCallbackBinder<Functor, /*Permanent=*/true> binder)
+      FunctorCallbackBinder<Functor, /*Permanent=*/true>&& binder)
       : ResultCallbackFunctorImpl(static_cast<Functor&&>(std::move(binder))) {}
 
   // ResultCallbackFunctorImpl is copyable and movable.

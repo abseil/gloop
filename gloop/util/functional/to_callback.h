@@ -129,7 +129,8 @@ template <typename CallbackType, typename Functor,
 CallbackType* ToCallback(
     Functor&& functor, perftools::tracing::StringLabel label =
                            perftools::tracing::TraceSourceLocation::current()) {
-  return ToCallback(std::forward<Functor>(functor), std::move(label));
+  return internal::ToCallbackResult<Functor>(std::forward<Functor>(functor),
+                                             std::move(label));
 }
 
 // Variant of ToPermanentCallback that allows the specification of the
@@ -140,7 +141,26 @@ template <typename CallbackType, typename Functor,
           typename Enabler = std::enable_if_t<
               std::is_base_of_v<::base::internal::CallbackBase, CallbackType>>>
 CallbackType* ToPermanentCallback(Functor&& functor) {
-  return ToPermanentCallback(std::forward<Functor>(functor));
+  return internal::ToPermanentCallbackResult<Functor>(
+      std::forward<Functor>(functor));
+}
+
+// Variant of ToCallback that eagerly converts to Closure, to mitigate issues
+// with late conversion in bind_front.
+template <typename Functor>
+  requires(std::is_void_v<std::invoke_result_t<Functor>>)
+Closure* ToCallback(Functor&& functor,
+                    perftools::tracing::StringLabel label =
+                        perftools::tracing::TraceSourceLocation::current()) {
+  return ToCallback<Closure>(std::forward<Functor>(functor), std::move(label));
+}
+
+// Variant of ToPermanentCallback that eagerly converts to Closure, to mitigate
+// issues with late conversion in bind_front.
+template <typename Functor>
+  requires(std::is_void_v<std::invoke_result_t<Functor>>)
+Closure* ToPermanentCallback(Functor&& functor) {
+  return ToPermanentCallback<Closure>(std::forward<Functor>(functor));
 }
 
 }  // namespace functional
