@@ -73,21 +73,24 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_FUNCTIONAL_TO_CALLBACK_H_
 #define THIRD_PARTY_GLOOP_UTIL_FUNCTIONAL_TO_CALLBACK_H_
 
+#include <concepts>
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/macros.h"
 #include "gloop/base/callback-types.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
+#include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback_internal.h"  // IWYU pragma: export
+#include "gloop/util/functional/with_context.h"
 
 namespace util {
 namespace functional {
 
-// Returns a Closure/Callback object that calls "functor(...)" whenever
-// its Run() method is called. The result is suitable for passing to
-// any API that expects a NewCallback() result. In particular, the
-// result:
+// Returns a Closure that calls "functor()" whenever its Run() method is called.
+// The result is suitable for passing to any API that expects a NewCallback()
+// result. In particular, the result:
 //   (a) Stores a copy of the current base::Context (see base/context.h)
 //   (b) Calls "functor(...)" under the stored base::Context when
 //       the result's Run method is called.
@@ -96,16 +99,21 @@ namespace functional {
 // Example:
 //   Closure* c = ToCallback([] { sleep(1); });
 template <typename Functor>
-internal::ToCallbackResult<Functor> ToCallback(
-    Functor&& functor, perftools::tracing::StringLabel label =
-                           perftools::tracing::TraceSourceLocation::current()) {
-  return internal::ToCallbackResult<Functor>(std::forward<Functor>(functor),
-                                             std::move(label));
+  requires(std::is_void_v<std::invoke_result_t<Functor>>)
+Closure* ToCallback(Functor&& functor,
+                    perftools::tracing::StringLabel label =
+                        perftools::tracing::TraceSourceLocation::current()) {
+  if (internal::IsEmpty(functor)) {
+    return nullptr;
+  }
+  return new internal::FunctorClosure</*Permanent=*/false,
+                                      std::decay_t<Functor>>(
+      std::forward<Functor>(functor), std::move(label));
 }
 
-// Returns a Closure/Callback object that calls "functor(..)" whenever
-// its Run() method is called.  The result is suitable for passing to
-// any API that expects a NewPermanentCallback().
+// Returns a Closure that calls "functor()" whenever its Run() method is called.
+// The result is suitable for passing to any API that expects a
+// NewPermanentCallback().
 //
 // Note that unlike ToCallback(), the returned object does not delete
 // itself after being run, and does not capture the current base::Context.
@@ -113,19 +121,23 @@ internal::ToCallbackResult<Functor> ToCallback(
 // Example:
 //   Closure* c = ToPermanentCallback([] { sleep(1); });
 template <typename Functor>
-internal::ToPermanentCallbackResult<Functor> ToPermanentCallback(
-    Functor&& functor) {
-  return internal::ToPermanentCallbackResult<Functor>(
-      std::forward<Functor>(functor));
+  requires(std::is_void_v<std::invoke_result_t<Functor>>)
+Closure* ToPermanentCallback(
+    Functor&& functor, perftools::tracing::StringLabel label =
+                           perftools::tracing::TraceSourceLocation::current()) {
+  if (internal::IsEmpty(functor)) {
+    return nullptr;
+  }
+  return new internal::FunctorClosure</*Permanent=*/true,
+                                      std::decay_t<Functor>>(
+      std::forward<Functor>(functor), std::move(label));
 }
 
 // Variant of ToCallback that allows the specification of the
-// exact callback type (useful when the type cannot be inferred).
+// exact callback type.
 //
 // E.g. std::unique_ptr<Closure> closure(ToCallback<Closure>(...));
-template <typename CallbackType, typename Functor,
-          typename Enabler = std::enable_if_t<
-              std::is_base_of_v<::base::internal::CallbackBase, CallbackType>>>
+template <std::same_as<Closure> CallbackType, typename Functor>
 CallbackType* ToCallback(
     Functor&& functor, perftools::tracing::StringLabel label =
                            perftools::tracing::TraceSourceLocation::current()) {
@@ -133,14 +145,46 @@ CallbackType* ToCallback(
 }
 
 // Variant of ToPermanentCallback that allows the specification of the
-// exact callback type (useful when the type cannot be inferred).
+// exact callback type.
 //
 // E.g. std::unique_ptr<Closure> closure(ToPermanentCallback<Closure>(...));
-template <typename CallbackType, typename Functor,
-          typename Enabler = std::enable_if_t<
-              std::is_base_of_v<::base::internal::CallbackBase, CallbackType>>>
-CallbackType* ToPermanentCallback(Functor&& functor) {
+template <std::same_as<Closure> CallbackType, typename Functor>
+Closure* ToPermanentCallback(Functor&& functor) {
   return ToPermanentCallback(std::forward<Functor>(functor));
+}
+
+// Overload from legacy calls to ToCallback.
+template <typename Functor>
+  requires(!std::invocable<Functor> ||
+           !std::is_void_v<std::invoke_result_t<Functor>>)
+ABSL_DEPRECATE_AND_INLINE()
+auto ToCallback(Functor&& functor) {
+  return ::util::functional::WithCurrentContext(std::forward<Functor>(functor));
+}
+
+// Overload from legacy calls to ToPermanentCallback.
+template <typename Functor>
+  requires(!std::invocable<Functor> ||
+           !std::is_void_v<std::invoke_result_t<Functor>>)
+ABSL_DEPRECATE_AND_INLINE()
+auto&& ToPermanentCallback(Functor&& functor) {
+  return std::forward<Functor>(functor);
+}
+
+// Overload from legacy calls to ToCallback.
+template <typename CallbackType, typename Functor>
+  requires internal::IsResultCallbackFunctor<CallbackType>
+ABSL_DEPRECATE_AND_INLINE()
+CallbackType ToCallback(Functor&& functor) {
+  return ::util::functional::ToCallback(std::forward<Functor>(functor));
+}
+
+// Overload from legacy calls to ToPermanentCallback.
+template <typename CallbackType, typename Functor>
+  requires internal::IsResultCallbackFunctor<CallbackType>
+ABSL_DEPRECATE_AND_INLINE()
+CallbackType ToPermanentCallback(Functor&& functor) {
+  return std::forward<Functor>(functor);
 }
 
 }  // namespace functional
