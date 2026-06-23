@@ -80,13 +80,4 @@ class Closure : public ::base::internal::CallbackBase {
   using ::base::internal::CallbackBase::CallbackBase;
 };
 
-template <class A1>
-class Callback1 : public ::base::internal::CallbackBase {
- public:
-  virtual void Run(A1) = 0;
-
- protected:
-  using ::base::internal::CallbackBase::CallbackBase;
-};
-
 #endif  // THIRD_PARTY_GLOOP_BASE_CALLBACK_TYPES_H_
