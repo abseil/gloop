@@ -39,6 +39,7 @@
 #include "absl/log/log.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
+#include "gloop/base/config.h"
 #include "gloop/base/log_file.h"
 #include "gloop/base/log_file_flags.h"
 #include "gloop/base/logging_extensions.h"

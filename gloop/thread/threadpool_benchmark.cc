@@ -27,9 +27,6 @@
 
 #include "absl/base/optimization.h"
 #include "absl/flags/flag.h"
-#include "absl/functional/bind_front.h"
-#include "absl/log/check.h"
-#include "absl/log/initialize.h"
 #include "absl/synchronization/barrier.h"
 #include "absl/synchronization/blocking_counter.h"
 #include "benchmark/benchmark.h"
@@ -38,9 +35,6 @@
 #include "gloop/base/log_file_flags.h"
 #include "gloop/thread/executor.h"
 #include "gloop/thread/threadpool.h"
-#include "gloop/util/functional/from_callback.h"
-#include "gloop/util/functional/to_callback.h"
-#include "gloop/util/gtl/stl_util.h"
 
 namespace {
 

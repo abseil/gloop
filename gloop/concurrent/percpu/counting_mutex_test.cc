@@ -35,7 +35,6 @@
 #include <variant>
 #include <vector>
 
-#include "absl/base/log_severity.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/flags/flag.h"

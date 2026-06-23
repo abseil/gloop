@@ -24,8 +24,8 @@
 
 #include "absl/base/const_init.h"
 #include "absl/base/thread_annotations.h"
-#include "absl/log/log.h"
 #include "absl/log/log_sink.h"
+#include "gloop/base/config.h"
 
 #if GLOOP_INTERNAL_PROD_LOGGING
 

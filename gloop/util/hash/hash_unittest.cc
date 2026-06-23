@@ -57,8 +57,6 @@
 #include "absl/container/node_hash_map.h"
 #include "absl/log/log.h"
 #include "absl/numeric/int128.h"
-#include "absl/strings/cord.h"
-#include "absl/strings/cord_test_helpers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"

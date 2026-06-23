@@ -25,7 +25,6 @@
 #include <vector>
 
 #include "absl/base/call_once.h"
-#include "absl/base/config.h"
 #include "absl/base/no_destructor.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/sysinfo.h"

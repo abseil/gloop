@@ -36,7 +36,6 @@
 #include "absl/strings/str_format.h"
 #include "benchmark/benchmark.h"
 #include "fuzztest/fuzztest.h"
-#include "gloop/base/init_google.h"
 #include "gtest/gtest.h"
 
 ABSL_FLAG(bool, print_output, false, "print CRC debug information");

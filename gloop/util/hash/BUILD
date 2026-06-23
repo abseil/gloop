@@ -216,8 +216,6 @@ cc_test(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/strings:cord",
-        "@abseil-cpp//absl/strings:cord_test_helpers",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
         "@fuzztest//fuzztest",
@@ -455,7 +453,6 @@ cc_test(
     srcs = ["crc_unittest.cc"],
     deps = [
         ":crc",
-        "//gloop/base:init_google",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/flags:flag",

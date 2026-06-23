@@ -28,9 +28,9 @@
 #include "absl/base/const_init.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/flags/flag.h"
-#include "absl/log/log.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/types/span.h"
+#include "gloop/base/config.h"
 #include "gloop/base/internal/temp_directories.h"
 #include "gloop/base/log_file_flags.h"
 

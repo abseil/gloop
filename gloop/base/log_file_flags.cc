@@ -30,7 +30,6 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/marshalling.h"
 #include "absl/log/globals.h"
-#include "absl/log/log.h"
 #include "absl/strings/string_view.h"
 #include "gloop/base/config.h"
 

@@ -37,7 +37,6 @@
 #include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
-#include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
@@ -49,6 +48,7 @@
 #include "gloop/thread/thread_options.h"
 #include "gloop/thread/wait_state.h"
 #include "gloop/thread/watchdog.h"
+#include "gloop/util/functional/to_callback.h"
 #include "gloop/util/intops/saturated_cast.h"
 
 #if THREAD_HAVE_ALTERNATE_THREAD_POOL

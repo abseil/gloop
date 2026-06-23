@@ -54,6 +54,7 @@
 #include "gloop/base/walltime.h"
 #include "gloop/perftools/tracing/test_only_access.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
+#include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
 #include "gloop/util/refcount/blocking_refcount.h"
 #include "gmock/gmock.h"

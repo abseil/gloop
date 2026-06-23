@@ -20,6 +20,8 @@
 
 #include "gloop/base/log_file_object.h"
 
+#include "gloop/base/config.h"
+
 #if GLOOP_INTERNAL_PROD_LOGGING
 
 #include <fcntl.h>
@@ -44,7 +46,6 @@
 #include "absl/base/thread_annotations.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/internal/program_name.h"
-#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/time/clock.h"

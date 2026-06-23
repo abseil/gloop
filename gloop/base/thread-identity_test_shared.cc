@@ -26,7 +26,6 @@
 #include <stdio.h>
 
 #include "absl/base/internal/thread_identity.h"
-#include "absl/log/check.h"
 #include "absl/synchronization/internal/create_thread_identity.h"
 
 // We use a define so that this file can be built both as the test and as a
@@ -48,6 +47,7 @@ extern "C" void* ExportableGetOrCreateCurrentThreadIdentity() {
 #else
 // When built as thread-identity_test_shared
 
+#include "absl/log/check.h"
 #include "gtest/gtest.h"
 
 static const char* so_relative_path =
