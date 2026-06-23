@@ -183,9 +183,9 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/meta:type_traits",
     ],
 )
 

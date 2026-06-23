@@ -26,9 +26,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
-#include "absl/meta/type_traits.h"
 
 namespace util {
 namespace functional {
@@ -37,9 +35,8 @@ namespace internal {
 // Encapsulates a functor and whether it was called or not.
 template <class Functor>
 struct CalledState {
-  template <class... Args>
-  explicit CalledState(int dummy, Args&&... args)  // NOLINT
-      : functor(absl::bind_front(std::forward<Args>(args)...)) {}
+  template <class F>
+  explicit CalledState(F&& f) : functor(std::forward<F>(f)) {}
 
   std::atomic<bool> called{false};
   Functor functor;
@@ -58,20 +55,22 @@ struct CheckCalledState : public CalledState<Functor> {
 
 // Encapsulates a Functor state giving it shared semantics and forwards
 // operator() const to operator() &&.
-template <class Functor, class State>
+template <class State>
 class SharedCallWrapperAtMostOnce {
  public:
   // The int is to limit overtriggering and to ensure that the copy/move
   // constructors are called when we want to copy/move, rather than this one.
-  template <class... Args>
-  explicit SharedCallWrapperAtMostOnce(int dummy, Args&&... args)  // NOLINT
-      : internal_(std::make_shared<State>(0, std::forward<Args>(args)...)) {}
+  template <class Functor>
+  explicit SharedCallWrapperAtMostOnce(int dummy, Functor&& functor)  // NOLINT
+      : internal_(
+            std::shared_ptr<State>(new State(std::forward<Functor>(functor)))) {
+  }
 
   // We use the std::void_t and decltype(auto) to avoid having the
   // decltype() expression of the return type as part of the mangled name.
   template <class... Args,
-            typename = std::void_t<
-                decltype(std::declval<Functor>()(std::declval<Args>()...))>>
+            typename = std::enable_if_t<std::is_invocable_v<
+                decltype(std::declval<State>().functor), Args...>>>
   decltype(auto) operator()(Args&&... args) const {  // NOLINT
     const bool called =
         internal_->called.exchange(true, std::memory_order_relaxed);

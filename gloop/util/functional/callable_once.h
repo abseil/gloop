@@ -158,34 +158,39 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_FUNCTIONAL_CALLABLE_ONCE_H_
 #define THIRD_PARTY_GLOOP_UTIL_FUNCTIONAL_CALLABLE_ONCE_H_
 
+#include <type_traits>
+
+#include "absl/base/macros.h"
 #include "absl/functional/bind_front.h"
 #include "gloop/util/functional/callable_once_internal.h"  // IWYU pragma: export
 
 namespace util {
 namespace functional {
 
-template <class... Args>
+template <class Functor>
 using CallAtMostOnceT =
     ::util::functional::internal::SharedCallWrapperAtMostOnce<
-        decltype(absl::bind_front(std::declval<Args>()...)),
-        ::util::functional::internal::CalledState<decltype(absl::bind_front(
-            std::declval<Args>()...))>>;
+        ::util::functional::internal::CalledState<std::decay_t<Functor>>>;
 
 template <typename Functor>
 CallAtMostOnceT<Functor> CallAtMostOnce(Functor&& functor) {
   return CallAtMostOnceT<Functor>(0, std::forward<Functor>(functor));
 }
 
-template <class... Args>
+template <class Functor>
 using CallExactlyOnceT =
     ::util::functional::internal::SharedCallWrapperAtMostOnce<
-        decltype(absl::bind_front(std::declval<Args>()...)),
-        ::util::functional::internal::CheckCalledState<
-            decltype(absl::bind_front(std::declval<Args>()...))>>;
+        ::util::functional::internal::CheckCalledState<std::decay_t<Functor>>>;
+
+template <class Functor>
+CallExactlyOnceT<Functor> CallExactlyOnce(Functor&& functor) {
+  return CallExactlyOnceT<Functor>(0, std::forward<Functor>(functor));
+}
 
 template <class... Args>
-CallExactlyOnceT<Args...> CallExactlyOnce(Args&&... args) {  // NOLINT
-  return CallExactlyOnceT<Args...>(0, std::forward<Args>(args)...);
+ABSL_DEPRECATE_AND_INLINE()
+decltype(auto) CallExactlyOnce(Args&&... args) {
+  return CallExactlyOnce(absl::bind_front(std::forward<Args>(args)...));
 }
 
 }  // namespace functional
