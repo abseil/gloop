@@ -23,6 +23,7 @@
 #ifndef STRINGS_HEX_ASCII_DUMP_H__
 #define STRINGS_HEX_ASCII_DUMP_H__
 
+#include <cstdint>
 #include <string>
 
 #include "absl/strings/string_view.h"
@@ -52,7 +53,7 @@ std::string StringToHexASCIIDump(absl::string_view in_buffer);
 // "0x0180:  0090 69bd 5400 000d 610f 0189 0800 4500  ..i.T...a.....E.\n"
 // "0x0190:  001c fb98 4000 4001 7e18 d8ef 2301 455d  ....@.@.~...#.E]\n"
 // "0x01A0:  7fe2 0800 6bcb 0bc6 806e                 ....k....n\n"
-std::string StringToHexASCIIDumpAtOffset(int offset,
+std::string StringToHexASCIIDumpAtOffset(uint64_t offset,
                                          absl::string_view in_buffer);
 
 // Parse a string containing a hex+ASCII dump in the style of
