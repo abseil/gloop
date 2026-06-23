@@ -1,0 +1,8 @@
+// Dummy protobuf used in cpu_set_test.
+edition = "2024";
+
+package util_os_core;
+
+message TestProto {
+  repeated uint64 cpus = 1 [features.repeated_field_encoding = EXPANDED];
+}
