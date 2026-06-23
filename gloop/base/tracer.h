@@ -148,6 +148,7 @@ class StringHashInitiatorAccess;
 class TraceBuffer;
 class TraceBufferIterator;
 class TraceBufferLockedIterator;
+class DapperPELogger;
 class TraceConsumerManager;
 class TracerCpuProfileAccess;
 class TraceDecimationApi;
@@ -1183,6 +1184,8 @@ class Tracer {
   // Need access to add_child()/num_children().
   friend class perftools::tracing::TraceBuffer;
   friend class perftools::tracing::TraceStreamer;
+  // Need access to add_child()/kTraceMask/initiator_id bits
+  friend class perftools::tracing::DapperPELogger;
   // Need access to set_span_type().
   friend class perftools::tracing::LocalTraceSpanTraits;
   friend class perftools::tracing::RpcTraceSpanState;
