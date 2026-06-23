@@ -136,8 +136,6 @@
 #include "gloop/thread/fiber/selectables.h"
 #include "gloop/util/gtl/intrusive_list.h"
 
-ABSL_DECLARE_FLAG(bool, fiber_inherit_scheduler_in_dfs);
-
 namespace thread {
 
 namespace subtle {

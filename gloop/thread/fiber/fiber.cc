@@ -73,13 +73,6 @@ ABSL_FLAG(
     "If true, cancel the dynamic fiber if it exists on thread exit if it is "
     "not already joinable. This flag is intended for rollback only-");
 
-// TODO: Remove after soaking.
-ABSL_FLAG(
-    bool, fiber_inherit_scheduler_in_dfs, true,
-    "If true, inherit the current scheduler in a `DistinctFiberScope`. When "
-    "false, child fibers created in the `DistinctFiberScope` will run in a new "
-    "scheduler in the default domain. This is here for ease of rollback only.");
-
 // Implementation notes:
 //
 // Locking:
@@ -695,9 +688,7 @@ static Scheduler* GetCurrentScheduler() {
 DistinctFiberScope::DistinctFiberScope(const FiberOptions& options)
     : outer_(*GetPerThreadFiberPtr()),
       inner_(TreeOptions{}.set_fiber_options(options).set_scheduler(
-          absl::GetFlag(FLAGS_fiber_inherit_scheduler_in_dfs)
-              ? GetCurrentScheduler()
-              : nullptr)) {
+          GetCurrentScheduler())) {
   *GetPerThreadFiberPtr() = &inner_.GetFiber();
 }
 

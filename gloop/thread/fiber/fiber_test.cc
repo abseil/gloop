@@ -1282,37 +1282,6 @@ TEST_F(FiberTest, DistinctFiberScopeInheritsScheduler) {
   }}.Join();
 }
 
-TEST_F(FiberTest, DistinctFiberScopeDoesNotInheritScheduler_FlagDisabled) {
-  absl::SetFlag(&FLAGS_fiber_inherit_scheduler_in_dfs, false);
-  // Bounce to a child fiber to get on the default domain.
-  Fiber{[] {
-    auto custom_domain = thread::CreateCustomDomain({.name = "custom"});
-    base::scheduling::Scheduler* custom_scheduler =
-        thread::NewRootFIFOScheduler(custom_domain.get());
-
-    ASSERT_NE(custom_domain.get(), thread::DefaultDomain());
-
-    Fiber{Fiber::RootFiber{}, TreeOptions().set_scheduler(custom_scheduler),
-          [&] {
-            ASSERT_EQ(base::scheduling::Domain::CurrentDomain(),
-                      custom_domain.get());
-
-            DistinctFiberScopeTest scope;
-
-            Fiber child([&] {
-              EXPECT_EQ(base::scheduling::Domain::CurrentDomain(),
-                        thread::DefaultDomain());
-            });
-            child.Join();
-          }}
-        .Join();
-
-    custom_scheduler->Orphan();
-    ASSERT_EQ(base::scheduling::Domain::CurrentDomain(),
-              thread::DefaultDomain());
-  }}.Join();
-}
-
 TEST_F(FiberTest, IsFiber) {
   std::atomic<bool> first_call_ok{false};
   std::atomic<bool> second_call_ok{false};
