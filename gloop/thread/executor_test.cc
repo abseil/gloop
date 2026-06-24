@@ -145,12 +145,11 @@ TEST_P(AddCancellableTest, CancelledDuringDelay) {
   absl::Notification n;
   // 3 minutes so the unit test times out before this call.
   AddCancellableHelper(executor_, absl::Minutes(3), [&n] { n.Notify(); }, &h);
-  Closure* cb = nullptr;
+  Closure* cb;
   bool cancelled = Cancel(h, absl::ZeroDuration(), &cb);
   EXPECT_TRUE(cancelled);
-  EXPECT_NE(cb, nullptr);
+  EXPECT_EQ(cb, nullptr);
   EXPECT_FALSE(n.HasBeenNotified());
-  delete cb;
 }
 
 TEST_P(AddCancellableTest, PropagatesContextToTask) {
@@ -258,8 +257,7 @@ TEST_P(AddCancellableTest, MultipleCancellations) {
 
   Closure* cb;
   EXPECT_TRUE(Cancel(h, absl::ZeroDuration(), &cb));
-  EXPECT_NE(cb, nullptr);
-  delete cb;
+  EXPECT_EQ(cb, nullptr);
   EXPECT_FALSE(n.HasBeenNotified());
 
   EXPECT_TRUE(Cancel(h, absl::ZeroDuration(), &cb));
@@ -318,17 +316,13 @@ TEST(AddCancellableAt, ClosureWrapsAnyInvocable) {
 
   // Schedule the callback to run in a while so we get a chance to cancel it,
   // and cancel it immediately.
-  Closure* cb = nullptr;
+  Closure* cb;
   AddCancellableAt(
       &executor, absl::Now() + absl::Hours(10), [&] { done.Notify(); }, &h);
   ASSERT_TRUE(Cancel(h, absl::ZeroDuration(), &cb));
 
   ASSERT_FALSE(done.HasBeenNotified());
-  ASSERT_NE(cb, nullptr);
-
-  // Now run the closure and verify that it wraps our original callback.
-  cb->Run();
-  EXPECT_TRUE(done.HasBeenNotified());
+  ASSERT_EQ(cb, nullptr);
 }
 
 // Verify that a scheduled AnyInvocable can run to completion.
@@ -365,16 +359,12 @@ TEST(AddCancellable, ClosureWrapsAnyInvocable) {
 
   // Schedule the callback to run in a while so we get a chance to cancel it,
   // and cancel it immediately.
-  Closure* cb = nullptr;
+  Closure* cb;
   AddCancellable(&executor, absl::Hours(10), [&] { done.Notify(); }, &h);
   ASSERT_TRUE(Cancel(h, absl::ZeroDuration(), &cb));
 
   ASSERT_FALSE(done.HasBeenNotified());
-  ASSERT_NE(cb, nullptr);
-
-  // Now run the closure and verify that it wraps our original callback.
-  cb->Run();
-  EXPECT_TRUE(done.HasBeenNotified());
+  ASSERT_EQ(cb, nullptr);
 }
 
 // Verify that the overload of Cancel that doesn't return a callback via pointer

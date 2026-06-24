@@ -306,6 +306,13 @@ ABSL_DEPRECATED("Use the AnyInvocable-accepting overload instead.")
 void AddCancellableAt(Executor* executor, absl::Time when, Closure* closure,
                       ExecutorHandle* handle);
 
+// As above, except deletes the closure instead of returning it when
+// successfully cancelled.
+//
+// NOTE: this function doesn't distinguish between repeatable (permanent) and
+// non-permanent callbacks. It deletes whatever the other overload returns.
+bool Cancel(ExecutorHandle handle, absl::Duration timeout);
+
 // Attempt to cancel the closure associated with the handle.  If the
 // closure is currently running, waits up to timeout for it to finish.  You
 // can pass timeout==absl::InfiniteDuration() if you want to wait without a
@@ -324,14 +331,12 @@ void AddCancellableAt(Executor* executor, absl::Time when, Closure* closure,
 // previous Cancel(), or the handle may be invalid).
 //
 // REQUIRES: cb_ptr != nullptr
-bool Cancel(ExecutorHandle handle, absl::Duration timeout, Closure** cb_ptr);
-
-// As above, except deletes the closure instead of returning it when
-// successfully cancelled.
-//
-// NOTE: this function doesn't distinguish between repeatable (permanent) and
-// non-permanent callbacks. It deletes whatever the other overload returns.
-bool Cancel(ExecutorHandle handle, absl::Duration timeout);
+ABSL_DEPRECATE_AND_INLINE()
+inline bool Cancel(ExecutorHandle handle, absl::Duration timeout,
+                   Closure** cb_ptr) {
+  *cb_ptr = nullptr;
+  return Cancel(handle, timeout);
+}
 
 // --------------------------------------------------------
 // Implementation/internal details.  Clients should ignore.

@@ -569,8 +569,7 @@ void AddCancellableAt(Executor* executor, absl::Time when, Closure* closure,
   executor->ScheduleAt(when, std::move(cancellable_callable));
 }
 
-bool Cancel(ExecutorHandle handle, absl::Duration timeout, Closure** cb_ptr) {
-  *cb_ptr = nullptr;
+bool Cancel(ExecutorHandle handle, absl::Duration timeout) {
   int s;
   uint64_t shard_key;
   ExecutorInternal::Decode(handle, &s, &shard_key);
@@ -598,8 +597,8 @@ bool Cancel(ExecutorHandle handle, absl::Duration timeout, Closure** cb_ptr) {
             return true;
           },
           [&](Unstarted us) {
-            // The closure hasn't yet started running: cancel it.
-            *cb_ptr = us.closure;
+            // The closure hasn't yet started running: delete it.
+            delete us.closure;
             *closure_state = Cancelled{};
             return true;
           },
@@ -623,15 +622,6 @@ bool Cancel(ExecutorHandle handle, absl::Duration timeout, Closure** cb_ptr) {
           },
       },
       *closure_state);
-}
-
-bool Cancel(ExecutorHandle handle, absl::Duration timeout) {
-  Closure* c = nullptr;
-
-  // If the closure was cancelled successfully, delete it before returning.
-  absl::Cleanup d = [&] { delete c; };
-
-  return Cancel(handle, timeout, &c);
 }
 
 }  // namespace thread
