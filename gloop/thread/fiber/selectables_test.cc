@@ -385,7 +385,7 @@ static void BM_SelectPermOrCancel(benchmark::State& state) {
     thread::Select({event.OnEvent(), OnCancel()});
   }
 }
-BENCHMARK(BM_SelectPermOrCancel);
+BENCHMARK(BM_SelectPermOrCancel)->ThreadRange(1, 16);
 
 static void BM_SelectManyCases(benchmark::State& state) {
   std::vector<PermanentEvent> events(state.range(0));
@@ -398,7 +398,7 @@ static void BM_SelectManyCases(benchmark::State& state) {
     thread::Select(cases);
   }
 }
-BENCHMARK(BM_SelectManyCases)->Arg(10)->Arg(100)->Arg(1000);
+BENCHMARK(BM_SelectManyCases)->Arg(10)->Arg(100)->Arg(1000)->ThreadRange(1, 16);
 
 // Benchmarks
 // . PermanentEvent + concurrent notification?
