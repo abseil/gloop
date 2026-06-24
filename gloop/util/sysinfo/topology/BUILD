@@ -14,19 +14,110 @@
 
 load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 package(
     default_applicable_licenses = ["//gloop:license"],
     default_visibility = ["//visibility:public"],
 )
 
-proto_library(
-    name = "topology_proto",
-    srcs = ["topology.proto"],
-    option_deps = ["@protobuf//:cpp_features_proto"],
+cc_library(
+    name = "affinity",
+    srcs = ["affinity.cc"],
+    hdrs = ["affinity.h"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "//gloop/util/os/core:cpu_set",
+        "@abseil-cpp//absl/log",
+    ],
+)
+
+cc_library(
+    name = "topology",
+    srcs = [
+        "topology.cc",
+        "topology_converter.cc",
+    ],
+    hdrs = [
+        "topology.h",
+        "topology_converter.h",
+    ],
+    deps = [
+        ":affinity",
+        ":topology_cc_proto",
+        "//gloop:enforce_gloop_support",
+        "//gloop/base:commandlineflags",
+        "//gloop/base:sysinfo",
+        "//gloop/strings:split",
+        "//gloop/testing/production_stub:testvalue",
+        "//gloop/util/gtl:container_logging",
+        "//gloop/util/os/core:cpu_set",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:cpu_detect",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/types:span",
+        "@re2",
+    ],
+)
+
+cc_test(
+    name = "topology_unittest",
+    timeout = "long",
+    srcs = ["topology_unittest.cc"],
+    data = [
+    ],
+    linkstatic = 1,
+    deps = [
+        ":topology",
+        "//gloop/base:init_google",
+        "//gloop/base:log_file_flags",
+        "//gloop/base:sysinfo",
+        "//gloop/testing/production_stub:testvalue",
+        "//gloop/util/os/core:cpu_set",
+        "//gloop/util/os/core:cpu_set_test_util",
+        "@abseil-cpp//absl/base:cpu_detect",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:flags",
+        "@abseil-cpp//absl/strings",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+        "@re2",
+    ],
 )
 
 cc_proto_library(
     name = "topology_cc_proto",
     deps = [":topology_proto"],
+)
+
+cc_library(
+    name = "topology_mock",
+    testonly = 1,
+    hdrs = ["topology_mock.h"],
+    copts = ["-Wthread-safety"],
+    deps = [
+        ":topology",
+        "//gloop:enforce_gloop_support",
+        "//gloop/base:sysinfo",
+        "@abseil-cpp//absl/base:cpu_detect",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest_for_library",
+    ],
+)
+
+proto_library(
+    name = "topology_proto",
+    srcs = ["topology.proto"],
+    option_deps = ["@protobuf//:cpp_features_proto"],
 )
