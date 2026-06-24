@@ -48,6 +48,7 @@
 #include "absl/flags/flag.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/functional/bind_front.h"
+#include "absl/functional/function_ref.h"
 #include "absl/log/check.h"
 #include "absl/log/globals.h"
 #include "absl/log/log.h"
@@ -106,6 +107,9 @@ class DeprecatedSingleThreadedTest {
 };
 
 namespace {
+
+using ::testing::Contains;
+using ::testing::IsSupersetOf;
 
 // The timeout used for Thread_ForEach() and Thread_ProcessStackTraces()
 // invocations.  We choose a conservative value, higher than the default
@@ -995,205 +999,203 @@ TEST(ThreadTest, CheckRegisterExternalThread) {
       ThreadCollector::ThreadTids(GetTID(), pthread_self())));
 }
 
-struct CheckProcessStackTracesData {
-  ThreadCollector* filter_collector = nullptr;
-  ThreadCollector* process_trace_collector = nullptr;
-  ThreadCollector* process_thread_collector = nullptr;
-  ThreadCollector::ThreadTids* self = nullptr;
-  LiveThreadTestThread* t1 = nullptr;
-  LiveThreadTestThread* t2 = nullptr;
-  LiveThreadTestThread* t3 = nullptr;
+// RAII helper to make sure we clean up a test thread.
+class ThreadScopedGuard final {
+ public:
+  ThreadScopedGuard() : thread_(nullptr) {}
+  explicit ThreadScopedGuard(LiveThreadTestThread* thread) : thread_(thread) {}
+  ThreadScopedGuard(const ThreadScopedGuard&) = delete;
+  ThreadScopedGuard& operator=(const ThreadScopedGuard&) = delete;
+  ThreadScopedGuard& operator=(ThreadScopedGuard&& other) noexcept {
+    if (this != &other) {
+      Reset();
+      thread_ = std::exchange(other.thread_, nullptr);
+    }
+    return *this;
+  }
+
+  ~ThreadScopedGuard() { Reset(); }
+
+  void Reset() {
+    if (thread_ != nullptr) {
+      thread_->controller_.Stop();
+      thread_->Join();
+      thread_ = nullptr;
+    }
+  }
+
+ private:
+  LiveThreadTestThread* thread_;
 };
 
-// Helper to retry stack extraction since it can time out under heavy load.
-static void RetryOnDrop(CheckProcessStackTracesData* data,
-                        std::function<int()> fn) {
-  auto reset = [](ThreadCollector* c) {
-    if (c != nullptr) {
-      c->Reset();
+class ProcessStackTracesTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    if (!ShouldRunSignalTest(
+            testing::UnitTest::GetInstance()->current_test_info()->name())) {
+      GTEST_SKIP() << "Skipping signal test; preconditions not met.";
     }
-  };
 
-  const int kMaxAttempts = 5;
-  for (int i = 0; i < kMaxAttempts; i++) {
-    reset(data->filter_collector);
-    reset(data->process_trace_collector);
-    reset(data->process_thread_collector);
+    t1_.Start();
+    guard1_ = ThreadScopedGuard(&t1_);
 
-    const int dropped = fn();
-    if (dropped == 0) {
+    t2_.Start();
+    guard2_ = ThreadScopedGuard(&t2_);
+
+    t3_.Start();
+    guard3_ = ThreadScopedGuard(&t3_);
+
+    t1_.controller_.WaitUntilStarted();
+    t2_.controller_.WaitUntilStarted();
+    t3_.controller_.WaitUntilStarted();
+  }
+
+  void TearDown() override {
+    if (!ShouldRunSignalTest(
+            testing::UnitTest::GetInstance()->current_test_info()->name())) {
       return;
     }
-    LOG(INFO) << "Dropped " << dropped << " threads";
-    // Wait a little in case we are competing with some bursty cpu load.
-    absl::SleepFor(absl::Milliseconds(100));
+
+    // Explicitly trigger cleanups to stop and join the threads.
+    guard3_.Reset();
+    guard2_.Reset();
+    guard1_.Reset();
+
+    // Post-condition: Verify that only the main thread is active
+    // after teardown.
+    RetryOnDrop([this] {
+      Thread_ProcessStackTracesArg arg;
+      arg.filter = &filter_collector_.FalseAdd;
+      arg.filter_arg = &filter_collector_;
+      arg.per_thread_timeout_ms = kPerThreadTimeoutMs;
+
+      return Thread_ProcessStackTraces(arg);
+    });
+
+    EXPECT_EQ(filter_collector_.Count(), kBaselineThreads);
+    EXPECT_THAT(filter_collector_.ThreadIds(), Contains(self_));
   }
-  LOG(WARNING) << "Could not avoid dropped stack trace in " << kMaxAttempts
-               << " attempts";
+
+  ThreadCollector filter_collector_{16};
+  ThreadCollector process_trace_collector_{16};
+  ThreadCollector process_thread_collector_{16};
+  ThreadCollector::ThreadTids self_{GetTID(), pthread_self()};
+
+  // Note: The thread objects must be declared BEFORE the guard objects.
+  // C++ destroys members in the reverse order of their declaration.
+  // This ensures guards are destroyed first (stopping and joining the
+  // threads) while the thread objects are still fully alive,
+  // preventing use-after-free during fixture destruction.
+  LiveThreadTestThread t1_;
+  LiveThreadTestThread t2_;
+  LiveThreadTestThread t3_;
+
+  ThreadScopedGuard guard1_;
+  ThreadScopedGuard guard2_;
+  ThreadScopedGuard guard3_;
+
+  void RetryOnDrop(absl::FunctionRef<int()> fn) {
+    const int kMaxAttempts = 5;
+    for (int i = 0; i < kMaxAttempts; i++) {
+      filter_collector_.Reset();
+      process_trace_collector_.Reset();
+      process_thread_collector_.Reset();
+
+      const int dropped = fn();
+      if (dropped == 0) {
+        return;
+      }
+      VLOG(1) << "Dropped " << dropped << " threads";
+      // Wait a little in case we are competing with some bursty cpu load.
+      absl::SleepFor(absl::Milliseconds(100));
+    }
+    LOG(WARNING) << "Could not avoid dropped stack trace in " << kMaxAttempts
+                 << " attempts";
+  }
+};
+
+TEST_F(ProcessStackTracesTest, SingleThreadActive) {
+  // This test intentionally has an empty body to serve as an integration
+  // canary, validating that the SetUp and TearDown lifecycle starts and
+  // stops threads correctly in isolation without any extra test logic.
 }
 
-// CheckSingleThreadActive verifies that Thread_ProcessStackTraces sees
-// only one active thread at this point in time.
-static void CheckSingleThreadActive(CheckProcessStackTracesData* data) {
-  RetryOnDrop(data, [data] {
+TEST_F(ProcessStackTracesTest, FilterDropsAll) {
+  RetryOnDrop([this] {
     Thread_ProcessStackTracesArg arg;
-    arg.filter = &data->filter_collector->FalseAdd;
-    arg.filter_arg = data->filter_collector;
-    arg.per_thread_timeout_ms = kPerThreadTimeoutMs;
-
-    return Thread_ProcessStackTraces(arg);
-  });
-
-  EXPECT_EQ(kBaselineThreads, data->filter_collector->Count());
-  EXPECT_THAT(data->filter_collector->ThreadIds(),
-              testing::Contains(*data->self));
-}
-
-// CheckFilterDropsAll verifies that Thread_ProcessStackTracesArg called with
-// a filter that excludes all threads doesn't execute any other callbacks.
-static void CheckFilterDropsAll(CheckProcessStackTracesData* data) {
-  RetryOnDrop(data, [data] {
-    Thread_ProcessStackTracesArg arg;
-    arg.filter = &data->filter_collector->FalseAdd;
-    arg.filter_arg = data->filter_collector;
-    arg.process_trace = &data->process_thread_collector->AddStackTrace;
-    arg.process_trace_arg = data->process_thread_collector;
+    arg.filter = &filter_collector_.FalseAdd;
+    arg.filter_arg = &filter_collector_;
+    arg.process_trace = &process_trace_collector_.AddStackTrace;
+    arg.process_trace_arg = &process_trace_collector_;
     arg.process_thread =
-        &data->process_trace_collector->AddStackTraceLiveThreadState;
-    arg.process_thread_arg = data->process_trace_collector;
+        &process_thread_collector_.AddStackTraceLiveThreadState;
+    arg.process_thread_arg = &process_thread_collector_;
     arg.per_thread_timeout_ms = kPerThreadTimeoutMs;
 
     return Thread_ProcessStackTraces(arg);
   });
 
-  EXPECT_EQ(0, data->process_trace_collector->Count());
-  EXPECT_EQ(0, data->process_thread_collector->Count());
-  EXPECT_EQ(kBaselineThreads + 3, data->filter_collector->Count());
+  EXPECT_EQ(process_trace_collector_.Count(), 0);
+  EXPECT_EQ(process_thread_collector_.Count(), 0);
+  EXPECT_EQ(filter_collector_.Count(), kBaselineThreads + 3);
   EXPECT_THAT(
-      data->filter_collector->ThreadIds(),
-      testing::IsSupersetOf({*data->self, data->t1->ThreadId(),
-                             data->t2->ThreadId(), data->t3->ThreadId()}));
+      filter_collector_.ThreadIds(),
+      IsSupersetOf({self_, t1_.ThreadId(), t2_.ThreadId(), t3_.ThreadId()}));
 }
 
-// CheckAllProcessStackTracesExecute verifies that all 3 possible
-// callbacks for Thread_ProcessStackTraces execute: filter, process_trace and
-// process_thread.
-static void CheckAllProcessStackTracesExecute(
-    CheckProcessStackTracesData* data) {
-  RetryOnDrop(data, [data] {
+TEST_F(ProcessStackTracesTest, AllCallbacksExecute) {
+  RetryOnDrop([this] {
     Thread_ProcessStackTracesArg arg;
-    arg.filter = &data->filter_collector->TrueAdd;
-    arg.filter_arg = data->filter_collector;
-    arg.process_trace = &data->process_thread_collector->AddStackTrace;
-    arg.process_trace_arg = data->process_thread_collector;
+    arg.filter = &filter_collector_.TrueAdd;
+    arg.filter_arg = &filter_collector_;
+    arg.process_trace = &process_trace_collector_.AddStackTrace;
+    arg.process_trace_arg = &process_trace_collector_;
     arg.process_thread =
-        &data->process_trace_collector->AddStackTraceLiveThreadState;
-    arg.process_thread_arg = data->process_trace_collector;
+        &process_thread_collector_.AddStackTraceLiveThreadState;
+    arg.process_thread_arg = &process_thread_collector_;
     arg.per_thread_timeout_ms = kPerThreadTimeoutMs;
 
     return Thread_ProcessStackTraces(arg);
   });
 
   constexpr int kExpectedThreads = kBaselineThreads + 3;
-  EXPECT_EQ(kExpectedThreads, data->process_trace_collector->Count());
-  EXPECT_EQ(kExpectedThreads, data->process_thread_collector->Count());
-  EXPECT_EQ(kExpectedThreads, data->filter_collector->Count());
+  EXPECT_EQ(process_trace_collector_.Count(), kExpectedThreads);
+  EXPECT_EQ(process_thread_collector_.Count(), kExpectedThreads);
+  EXPECT_EQ(filter_collector_.Count(), kExpectedThreads);
   EXPECT_THAT(
-      data->filter_collector->ThreadIds(),
-      testing::IsSupersetOf({*data->self, data->t1->ThreadId(),
-                             data->t2->ThreadId(), data->t3->ThreadId()}));
+      filter_collector_.ThreadIds(),
+      IsSupersetOf({self_, t1_.ThreadId(), t2_.ThreadId(), t3_.ThreadId()}));
   EXPECT_THAT(
-      data->process_trace_collector->ThreadIds(),
-      testing::IsSupersetOf({*data->self, data->t1->ThreadId(),
-                             data->t2->ThreadId(), data->t3->ThreadId()}));
+      process_trace_collector_.ThreadIds(),
+      IsSupersetOf({self_, t1_.ThreadId(), t2_.ThreadId(), t3_.ThreadId()}));
   EXPECT_THAT(
-      data->process_thread_collector->ThreadIds(),
-      testing::IsSupersetOf({*data->self, data->t1->ThreadId(),
-                             data->t2->ThreadId(), data->t3->ThreadId()}));
+      process_thread_collector_.ThreadIds(),
+      IsSupersetOf({self_, t1_.ThreadId(), t2_.ThreadId(), t3_.ThreadId()}));
 }
 
-// CheckNoFilterProcessStackTracesExecute verifies that with no filter
-// both process_trace and process_thread execute as expected.
-void CheckNoFilterProcessStackTracesExecute(CheckProcessStackTracesData* data) {
-  RetryOnDrop(data, [data] {
+TEST_F(ProcessStackTracesTest, NoFilterExecutesBoth) {
+  RetryOnDrop([this] {
     Thread_ProcessStackTracesArg arg;
-    arg.process_trace = &data->process_thread_collector->AddStackTrace;
-    arg.process_trace_arg = data->process_thread_collector;
+    arg.process_trace = &process_trace_collector_.AddStackTrace;
+    arg.process_trace_arg = &process_trace_collector_;
     arg.process_thread =
-        &data->process_trace_collector->AddStackTraceLiveThreadState;
-    arg.process_thread_arg = data->process_trace_collector;
+        &process_thread_collector_.AddStackTraceLiveThreadState;
+    arg.process_thread_arg = &process_thread_collector_;
     arg.per_thread_timeout_ms = kPerThreadTimeoutMs;
 
     return Thread_ProcessStackTraces(arg);
   });
 
-  const int kExpectedThreads = kBaselineThreads + 3;
-  EXPECT_EQ(kExpectedThreads, data->process_trace_collector->Count());
-  EXPECT_EQ(kExpectedThreads, data->process_thread_collector->Count());
-  EXPECT_EQ(0, data->filter_collector->Count());
+  constexpr int kExpectedThreads = kBaselineThreads + 3;
+  EXPECT_EQ(process_trace_collector_.Count(), kExpectedThreads);
+  EXPECT_EQ(process_thread_collector_.Count(), kExpectedThreads);
+  EXPECT_EQ(filter_collector_.Count(), 0);
   EXPECT_THAT(
-      data->process_trace_collector->ThreadIds(),
-      testing::IsSupersetOf({*data->self, data->t1->ThreadId(),
-                             data->t2->ThreadId(), data->t3->ThreadId()}));
+      process_trace_collector_.ThreadIds(),
+      IsSupersetOf({self_, t1_.ThreadId(), t2_.ThreadId(), t3_.ThreadId()}));
   EXPECT_THAT(
-      data->process_thread_collector->ThreadIds(),
-      testing::IsSupersetOf({*data->self, data->t1->ThreadId(),
-                             data->t2->ThreadId(), data->t3->ThreadId()}));
-}
-
-TEST(ThreadTest, CheckProcessStackTraces) {
-  if (!ShouldRunSignalTest("CheckProcessStackTraces")) {
-    return;
-  }
-
-  // 6 threads max in this test.
-  ThreadCollector filter_collector(6);
-  ThreadCollector process_trace_collector(6);
-  ThreadCollector process_thread_collector(6);
-  ThreadCollector::ThreadTids self(GetTID(), pthread_self());
-
-  CheckProcessStackTracesData data;
-  data.self = &self;
-  data.filter_collector = &filter_collector;
-  data.process_trace_collector = &process_trace_collector;
-  data.process_thread_collector = &process_thread_collector;
-
-  // Basic sanity: we believe we start out with one thread active, try
-  // to process it but filter it out.
-  CheckSingleThreadActive(&data);
-
-  // Add the threads we'll use for this test.
-  LiveThreadTestThread t1, t2, t3;
-  data.t1 = &t1;
-  data.t2 = &t2;
-  data.t3 = &t3;
-  t1.Start();
-  t2.Start();
-  t3.Start();
-
-  t1.controller_.WaitUntilStarted();
-  t2.controller_.WaitUntilStarted();
-  t3.controller_.WaitUntilStarted();
-
-  // Next verify filter drops all threads.
-  CheckFilterDropsAll(&data);
-
-  // Now check all 3 (filter, process_trace, process_thread) run.
-  CheckAllProcessStackTracesExecute(&data);
-
-  // Finally verify with no filter set both process_trace and process_thread
-  // execute.
-  CheckNoFilterProcessStackTracesExecute(&data);
-
-  t1.controller_.Stop();
-  t2.controller_.Stop();
-  t3.controller_.Stop();
-  t1.Join();
-  t2.Join();
-  t3.Join();
-
-  // We should be back to one thread active.
-  CheckSingleThreadActive(&data);
+      process_thread_collector_.ThreadIds(),
+      IsSupersetOf({self_, t1_.ThreadId(), t2_.ThreadId(), t3_.ThreadId()}));
 }
 
 constexpr uint64_t kMaxFunctionSize = 0x80;
