@@ -1,0 +1,91 @@
+edition = "2024";
+
+package util.sysinfo.topology;
+
+import option "google/protobuf/cpp_features.proto";
+
+option features.(pb.cpp).string_type = STRING;
+option features.repeated_field_encoding = EXPANDED;
+option features.utf8_validation = NONE;
+
+// The messages described in this file are the exact proto counter parts to
+// their definitions in
+// https://github.com/abseil/gloop/tree/main/gloop/util/sysinfo/topology/topology.h.
+// They are used to export a TopologyInfo to a proto.
+
+message CpuInfo {
+  message Parent {
+    string level = 1;
+    int64 id = 2;
+  }
+
+  message Sibling {
+    string level = 1;
+    repeated uint64 cpu_mask = 2;
+  }
+
+  int64 id = 1;
+  repeated Parent parent = 2;
+  repeated Sibling sibling = 3;
+}
+
+message LevelInfo {
+  enum Mode {
+    option features.(pb.cpp).enum_name_uses_string_view = false;
+    option features.enum_type = CLOSED;
+
+    CPUID = 0;
+    CHILDMAP = 1;
+    PARENTMAP = 2;
+    SIBLINGSMAP = 3;
+  }
+
+  message Child {
+    int64 id = 1;
+    repeated uint64 cpu_mask = 2;
+  }
+
+  Mode mode = 1;
+  string name = 2;
+  repeated Child child = 3;
+}
+
+message MemInfo {
+  int64 id = 1;
+  int64 node = 2;
+  int64 size_kb = 3;
+}
+
+message CacheInfo {
+  string type = 1;
+  int32 level = 2;
+  int32 size_kb = 3;
+}
+
+message TopologyInfo {
+  message Distance {
+    message Set {
+      repeated uint64 cpu_mask = 1;
+    }
+
+    int64 id = 1;
+    repeated Set distance = 2;
+  }
+
+  message MaxPhysNodeDistance {
+    message Map {
+      int64 id = 1;
+      int64 distance = 2;
+    }
+
+    int64 id = 1;
+    repeated Map distance = 2;
+  }
+
+  repeated LevelInfo level = 1;
+  repeated CpuInfo cpu = 2;
+  repeated MemInfo mem = 3;
+  repeated CacheInfo cache = 4;
+  repeated Distance distance = 5;
+  repeated MaxPhysNodeDistance maxphysnode_distance = 6;
+}
