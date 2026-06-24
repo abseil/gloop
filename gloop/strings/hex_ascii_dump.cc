@@ -25,6 +25,8 @@
 #include <string.h>
 
 #include <algorithm>
+#include <cstdint>
+#include <limits>
 #include <string>
 #include <utility>
 
@@ -46,7 +48,7 @@ std::string StringToHexASCIIDump(absl::string_view in_buffer) {
   return StringToHexASCIIDumpAtOffset(0, in_buffer);
 }
 
-std::string StringToHexASCIIDumpAtOffset(int offset,
+std::string StringToHexASCIIDumpAtOffset(uint64_t offset,
                                          absl::string_view in_buffer) {
   const char* buf = in_buffer.data();
   int bytes_remaining = in_buffer.size();
@@ -54,7 +56,11 @@ std::string StringToHexASCIIDumpAtOffset(int offset,
   const char* p = buf;
   while (bytes_remaining > 0) {
     const int line_bytes = std::min(bytes_remaining, kBytesPerLine);
-    absl::StrAppendFormat(&s, "0x%04x:  ", offset);  // Do the line header
+    if (offset >= std::numeric_limits<uint32_t>::max()) {
+      absl::StrAppendFormat(&s, "0x%08x:  ", offset);
+    } else {
+      absl::StrAppendFormat(&s, "0x%04x:  ", offset);
+    }
     for (int i = 0; i < kBytesPerLine; ++i) {
       if (i < line_bytes) {
         absl::StrAppendFormat(&s, "%02x", p[i]);
