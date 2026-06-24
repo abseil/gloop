@@ -37,6 +37,7 @@
 //
 // (It would usually be inconvenient to Join() within the loop body as this
 // could potentially prevent new work from being admitted.)
+
 #ifndef THIRD_PARTY_GLOOP_THREAD_FIBER_BUNDLE_H_
 #define THIRD_PARTY_GLOOP_THREAD_FIBER_BUNDLE_H_
 
@@ -45,8 +46,6 @@
 #include <type_traits>
 #include <utility>
 
-#include "absl/log/check.h"
-#include "gloop/base/context.h"
 #include "gloop/thread/fiber/channel.h"
 #include "gloop/thread/fiber/fiber.h"
 #include "gloop/thread/fiber/select.h"
@@ -93,7 +92,7 @@ class Bundle {
   // Fiber descendants.
   template <typename F, typename = std::invoke_result_t<F>>
   void Add(F&& f) {
-    AddImpl(MakeInvocable(std::forward<F>(f)));
+    AddImpl(std::forward<F>(f));
   }
 
   // Join all fibers, and any descendants, belonging to this bundle.  Returns
