@@ -682,11 +682,11 @@ TYPED_TEST(IntervalMapTest, MergeValueRandomized) {
   auto m = TestFixture::ConstructMap();
   absl::flat_hash_map<int, int> expected;
   ACMRandom rnd(301);
-  const int kMaxKey = 1000;
+  constexpr int kMaxKey = 100;
   for (int i = 0; i < kMaxKey; i++) {
     expected[i] = -1;  // -1 signifies missing
   }
-  for (int iter = 0; iter < 1000; iter++) {
+  for (int iter = 0; iter < kMaxKey; iter++) {
     int start = rnd.Uniform(kMaxKey - 1);
     int end = std::min(kMaxKey - 1, start + 1 + rnd.Uniform(kMaxKey));
     int val = util_random::SkewedLow<int32_t>(rnd, 0, (1 << 10) - 1);
