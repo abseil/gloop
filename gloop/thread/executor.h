@@ -333,6 +333,23 @@ bool Cancel(ExecutorHandle handle, absl::Duration timeout, Closure** cb_ptr);
 // non-permanent callbacks. It deletes whatever the other overload returns.
 bool Cancel(ExecutorHandle handle, absl::Duration timeout);
 
+// An alias for the common case of cancelling without potentially blocking for
+// the closure to finish.
+inline bool TryCancel(ExecutorHandle handle) {
+  // Break into a variable to prevent inlining with the below overload.
+  absl::Duration timeout = absl::ZeroDuration();
+  return Cancel(handle, timeout);
+}
+
+#if ABSL_HAVE_ATTRIBUTE(enable_if)
+ABSL_DEPRECATE_AND_INLINE()
+inline bool Cancel(ExecutorHandle handle, absl::Duration timeout)
+    __attribute__((enable_if(timeout <= absl::ZeroDuration(),
+                             "Use TryCancel instead."))) {
+  return TryCancel(handle);
+}
+#endif  // ABSL_HAVE_ATTRIBUTE(enable_if)
+
 // --------------------------------------------------------
 // Implementation/internal details.  Clients should ignore.
 class InlineExecutorInternal {
