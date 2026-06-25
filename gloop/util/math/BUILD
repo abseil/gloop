@@ -71,7 +71,6 @@ cc_test(
         ":fastmath",
         ":mathutil",
         "//gloop:gloop_test_main",
-        "//gloop/base:timer",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings",

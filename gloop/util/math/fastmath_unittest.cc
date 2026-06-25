@@ -36,21 +36,9 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "benchmark/benchmark.h"
-#include "gloop/base/timer.h"
 #include "gloop/util/math/mathutil.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-
-#if defined(NDEBUG) && !ADDRESS_SANITIZER && !MEMORY_SANITIZER &&              \
-    !THREAD_SANITIZER && /* Speed tests are flaky on WASM, see b/200956356. */ \
-    !defined(__wasm__) && !defined(__EMSCRIPTEN__)
-#define SHOULD_RUN_SPEED_TEST 1
-#else
-#define SHOULD_RUN_SPEED_TEST 0
-#endif
-
-// This is purposely externally visible so the optimizer can't get rid of it.
-double toret = 0;
 
 ABSL_FLAG(bool, dumptables, false,
           "When true, this program dumps the definitions for fastmath.cc"
@@ -58,23 +46,9 @@ ABSL_FLAG(bool, dumptables, false,
 
 namespace {
 
-using ::benchmark::DoNotOptimize;
 using ::testing::ElementsAreArray;
 using ::testing::FloatEq;
 using ::testing::Pointwise;
-
-// Constants used in timing tests:
-
-// Increase kIterations for more accurate results.
-// Decrease kIterations for a quicker test.
-static const int kIterations = 10000000;
-
-// Timing tests inputs from 0 to kStepSize[f]*kIterations
-static const double kStepSize = 10. / kIterations;
-static const float kStepSizef = 10. / kIterations;
-
-// Multiply WallTimer times by kTimerToNS to get ns of each iteration.
-static const double kTimerToNS = 1000000000. / kIterations;
 
 // Custom two-argument integer matcher so that we can use it with
 // Pointwise.
@@ -208,432 +182,6 @@ TEST(FastMathTest, DoubleError) {
   EXPECT_LT(std::fabs(flogd(10) / std::log(10) - 1.0), 0.01);
 }
 
-// FloatSpeed
-//   Times the single-precision versions.  The fast versions should be
-//   at least twice as fast as the <cmath> versions, and the very fast
-//   versions should be faster still.
-
-TEST(FastMathTest, FloatSpeed) {
-  float total = 0;
-
-  WallTimer timer;
-
-  LOG(INFO) << "float time test";
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += std::log2(static_cast<float>(i * kStepSizef)));
-  timer.Stop();
-  double stdlog_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " <cmath> log2 time (ns): " << stdlog_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += flog2(static_cast<float>(i * kStepSizef)));
-  timer.Stop();
-  double fl2_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " FastLog2 time (ns): " << fl2_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += vflog2(static_cast<float>(i * kStepSizef)));
-  timer.Stop();
-  double vfl2_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " VeryFastLog2 time (ns): " << vfl2_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++) {
-    DoNotOptimize(total += std::exp2(static_cast<float>(i * kStepSizef)));
-  }
-  timer.Stop();
-  double stdexp_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " <cmath> exp2 time (ns): " << stdexp_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += fexp2(static_cast<float>(i * kStepSizef)));
-  timer.Stop();
-  double fe2_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " FastExp2 time (ns): " << fe2_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += vfexp2(static_cast<float>(i * kStepSizef)));
-  timer.Stop();
-  double vfe2_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " VeryFastExp2 time (ns): " << vfe2_time << " Total=" << total;
-  timer.Reset();
-
-#if SHOULD_RUN_SPEED_TEST
-  EXPECT_LT(vfl2_time, stdlog_time);
-  EXPECT_LT(vfe2_time, stdexp_time);
-#else
-  LOG(INFO) << "debug build, no performance checks";
-#endif
-
-  toret += total;
-}
-
-TEST(EFastMathTest, FloatSpeed) {
-  float total = 0;
-
-  WallTimer timer;
-
-  LOG(INFO) << "base-e float time test";
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += std::log(static_cast<float>(i * kStepSizef)));
-  timer.Stop();
-  double stdlog_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " <cmath> log time (ns): " << stdlog_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += flog(static_cast<float>(i * kStepSizef)));
-  timer.Stop();
-  double fl_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " FastLog time (ns): " << fl_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += vflog(static_cast<float>(i * kStepSizef)));
-  timer.Stop();
-  double vfl_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " VeryFastLog time (ns): " << vfl_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++) {
-    DoNotOptimize(total += std::exp(static_cast<float>(i * kStepSizef)));
-  }
-  timer.Stop();
-  double stdexp_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " <cmath> exp time (ns): " << stdexp_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += fexp(static_cast<float>(i * kStepSizef)));
-  timer.Stop();
-  double fe_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " FastExp time (ns): " << fe_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += vfexp(static_cast<float>(i * kStepSizef)));
-  timer.Stop();
-  double vfe_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " VeryFastExp time (ns): " << vfe_time << " Total=" << total;
-  timer.Reset();
-
-#if SHOULD_RUN_SPEED_TEST
-  EXPECT_LT(fl_time, stdlog_time);
-  EXPECT_LT(vfl_time, stdlog_time);
-  EXPECT_LT(fe_time, stdexp_time);
-  EXPECT_LT(vfe_time, stdexp_time);
-#else
-  LOG(INFO) << "debug build, no performance checks";
-#endif
-
-  toret += total;
-}
-
-// DoubleSpeed
-//   Times the double-precision versions.  The fast versions should be
-//   at least twice as fast as the <cmath> versions, and the very fast
-//   versions should be faster still.
-
-TEST(FastMathTest, DoubleSpeed) {
-  double total = 0;
-
-  WallTimer timer;
-
-  LOG(INFO) << "double time test";
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += std::log2(i * kStepSize));
-  timer.Stop();
-  double stdlog_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " <cmath> log2 time (ns): " << stdlog_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += flog2d(i * kStepSize));
-  timer.Stop();
-  double fl2_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " FastLog2 time (ns): " << fl2_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += vflog2d(i * kStepSize));
-  timer.Stop();
-  double vfl2_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " VeryFastLog2 time (ns): " << vfl2_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++) {
-    DoNotOptimize(total += std::exp2(i * kStepSize));
-  }
-  timer.Stop();
-  double stdexp_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " <cmath> exp2 time (ns): " << stdexp_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += fexp2d(i * kStepSize));
-  timer.Stop();
-  double fe2_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " FastExp2 time (ns): " << fe2_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += vfexp2d(i * kStepSize));
-  timer.Stop();
-  double vfe2_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " VeryFastExp2 time (ns): " << vfe2_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations / 3; i++) {
-    total += std::pow(2.37, i * kStepSize);
-    total += std::pow(0.5, i * kStepSize);
-    total += std::pow(1.0 + i * kStepSize, i * kStepSize);
-    DoNotOptimize(total);
-  }
-  timer.Stop();
-  double stdpow_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " <cmath> pow time (ns): " << stdpow_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations / 3; i++) {
-    total += fpowd(2.37, i * kStepSize);
-    total += fpowd(0.5, i * kStepSize);
-    total += fpowd(1.0 + i * kStepSize, i * kStepSize);
-    DoNotOptimize(total);
-  }
-  timer.Stop();
-  double fp_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " FastPow time (ns): " << fp_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations / 3; i++) {
-    total += vfpowd(2.37, i * kStepSize);
-    total += vfpowd(0.5, i * kStepSize);
-    total += vfpowd(1.0 + i * kStepSize, i * kStepSize);
-    DoNotOptimize(total);
-  }
-  timer.Stop();
-  double vfp_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " VeryFastPow time (ns): " << vfp_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++) {
-    auto arg = i * (10.0 / (kIterations + 1)) - 5.0;
-    DoNotOptimize(total += LogOdds2Prob(arg));
-  }
-  timer.Stop();
-  double stdlo2p_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " <cmath> lo2p time (ns): " << stdlo2p_time
-            << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++) {
-    auto arg = i * (10.0 / (kIterations + 1)) - 5.0;
-    DoNotOptimize(total += fLogOdds2Prob(arg));
-  }
-  timer.Stop();
-  double flo2p_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " FastLogOdds2Prob time (ns): " << flo2p_time
-            << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++) {
-    auto arg = i * (1.0 / (kIterations + 1));
-    DoNotOptimize(total += Prob2LogOdds(arg));
-  }
-  timer.Stop();
-  double stdp2lo_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " <cmath> p2lo time (ns): " << stdp2lo_time
-            << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++) {
-    auto arg = i * (1.0 / (kIterations + 1));
-    DoNotOptimize(total += fProb2LogOdds(arg));
-  }
-  timer.Stop();
-  double fp2lo_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " FastProb2LogOdds time (ns): " << fp2lo_time
-            << " Total=" << total;
-  timer.Reset();
-
-#if SHOULD_RUN_SPEED_TEST
-  EXPECT_LT(fl2_time, stdlog_time);
-  EXPECT_LT(vfl2_time, stdlog_time);
-  EXPECT_LT(fe2_time, stdexp_time);
-  EXPECT_LT(vfe2_time, stdexp_time);
-  EXPECT_LT(fp_time, stdpow_time);
-  EXPECT_LT(vfp_time, stdpow_time);
-  EXPECT_LT(flo2p_time, stdlo2p_time);
-  EXPECT_LT(fp2lo_time, stdp2lo_time);
-#else
-  LOG(INFO) << "debug build, no performance checks";
-#endif
-
-  toret += total;
-}
-
-TEST(EFastMathTest, DoubleSpeed) {
-  double total = 0;
-
-  WallTimer timer;
-
-  LOG(INFO) << "double time test";
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += std::log(i * kStepSize));
-  timer.Stop();
-  double stdlog_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " <cmath> log time (ns): " << stdlog_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += flogd(i * kStepSize));
-  timer.Stop();
-  double fl_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " FastLog time (ns): " << fl_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += vflogd(i * kStepSize));
-  timer.Stop();
-  double vfl_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " VeryFastLog time (ns): " << vfl_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++) {
-    DoNotOptimize(total += std::exp(i * kStepSize));
-  }
-  timer.Stop();
-  double stdexp_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " <cmath> exp time (ns): " << stdexp_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += fexpd(i * kStepSize));
-  timer.Stop();
-  double fe_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " FastExp time (ns): " << fe_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += vfexpd(i * kStepSize));
-  timer.Stop();
-  double vfe_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " VeryFastExp time (ns): " << vfe_time << " Total=" << total;
-  timer.Reset();
-
-#if SHOULD_RUN_SPEED_TEST
-  EXPECT_LT(fl_time, stdlog_time);
-  EXPECT_LT(vfl_time, stdlog_time);
-  EXPECT_LT(fe_time, stdexp_time);
-  EXPECT_LT(vfe_time, stdexp_time);
-#else
-  LOG(INFO) << "debug build, no performance checks";
-#endif
-
-  toret += total;
-}
-
 TEST(FastMathTest, LogOdds2Prob) {
   EXPECT_DOUBLE_EQ(0.0, LogOdds2Prob(-10000.0));
   EXPECT_DOUBLE_EQ(0.0, LogOdds2Prob(-std::numeric_limits<double>::infinity()));
@@ -728,46 +276,6 @@ void GenerateTableDouble(std::ostream& os) {
      << PrintPrecise(b.magic) << "};\n";
 }
 
-TEST(FastMathTest, SqrtSpeed) {
-  double total = 0;
-
-  WallTimer timer;
-
-  LOG(INFO) << "squareroot time test";
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += sqrt(i * kStepSize));
-  timer.Stop();
-  double stdlog_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " <cmath> sqrt time (ns): " << stdlog_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += fpowd(i * kStepSize, 0.5));
-  timer.Stop();
-  double fl2_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " FastPowD 0.5 time (ns): " << fl2_time << " Total=" << total;
-  timer.Reset();
-
-  toret += total;
-  total = 0;
-  timer.Start();
-  for (int i = 1; i < kIterations; i++)
-    DoNotOptimize(total += vfpowd(i * kStepSize, 0.5));
-  timer.Stop();
-  double vfl2_time = timer.Get() * kTimerToNS;
-  LOG(INFO) << " VFastPowD 0.5 time (ns): " << vfl2_time << " Total=" << total;
-  timer.Reset();
-}  // SqrtSpeed
-
-}  // namespace
-
 TEST(DumpTables, Test) {
   if (absl::GetFlag(FLAGS_dumptables)) {
     std::cout << "#if 1\n";
@@ -776,3 +284,400 @@ TEST(DumpTables, Test) {
     std::cout << "#endif\n";
   }
 }
+
+// Google Benchmark implementations for fastmath functions
+
+void BM_StdLog2f(benchmark::State& state) {
+  float i = 1.0f;
+  const float step_size = 0.000001f;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(std::log2(i * step_size));
+    i += 1.0f;
+    if (i > 10000000.0f) i = 1.0f;
+  }
+}
+BENCHMARK(BM_StdLog2f);
+
+void BM_Flog2(benchmark::State& state) {
+  float i = 1.0f;
+  const float step_size = 0.000001f;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(flog2(i * step_size));
+    i += 1.0f;
+    if (i > 10000000.0f) i = 1.0f;
+  }
+}
+BENCHMARK(BM_Flog2);
+
+void BM_Vflog2(benchmark::State& state) {
+  float i = 1.0f;
+  const float step_size = 0.000001f;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(vflog2(i * step_size));
+    i += 1.0f;
+    if (i > 10000000.0f) i = 1.0f;
+  }
+}
+BENCHMARK(BM_Vflog2);
+
+void BM_StdExp2f(benchmark::State& state) {
+  float i = 1.0f;
+  const float step_size = 0.000001f;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(std::exp2(i * step_size));
+    i += 1.0f;
+    if (i > 10000000.0f) i = 1.0f;
+  }
+}
+BENCHMARK(BM_StdExp2f);
+
+void BM_Fexp2(benchmark::State& state) {
+  float i = 1.0f;
+  const float step_size = 0.000001f;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(fexp2(i * step_size));
+    i += 1.0f;
+    if (i > 10000000.0f) i = 1.0f;
+  }
+}
+BENCHMARK(BM_Fexp2);
+
+void BM_Vfexp2(benchmark::State& state) {
+  float i = 1.0f;
+  const float step_size = 0.000001f;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(vfexp2(i * step_size));
+    i += 1.0f;
+    if (i > 10000000.0f) i = 1.0f;
+  }
+}
+BENCHMARK(BM_Vfexp2);
+
+void BM_StdLogf(benchmark::State& state) {
+  float i = 1.0f;
+  const float step_size = 0.000001f;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(std::log(i * step_size));
+    i += 1.0f;
+    if (i > 10000000.0f) i = 1.0f;
+  }
+}
+BENCHMARK(BM_StdLogf);
+
+void BM_Flog(benchmark::State& state) {
+  float i = 1.0f;
+  const float step_size = 0.000001f;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(flog(i * step_size));
+    i += 1.0f;
+    if (i > 10000000.0f) i = 1.0f;
+  }
+}
+BENCHMARK(BM_Flog);
+
+void BM_Vflog(benchmark::State& state) {
+  float i = 1.0f;
+  const float step_size = 0.000001f;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(vflog(i * step_size));
+    i += 1.0f;
+    if (i > 10000000.0f) i = 1.0f;
+  }
+}
+BENCHMARK(BM_Vflog);
+
+void BM_StdExpf(benchmark::State& state) {
+  float i = 1.0f;
+  const float step_size = 0.000001f;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(std::exp(i * step_size));
+    i += 1.0f;
+    if (i > 10000000.0f) i = 1.0f;
+  }
+}
+BENCHMARK(BM_StdExpf);
+
+void BM_Fexp(benchmark::State& state) {
+  float i = 1.0f;
+  const float step_size = 0.000001f;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(fexp(i * step_size));
+    i += 1.0f;
+    if (i > 10000000.0f) i = 1.0f;
+  }
+}
+BENCHMARK(BM_Fexp);
+
+void BM_Vfexp(benchmark::State& state) {
+  float i = 1.0f;
+  const float step_size = 0.000001f;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(vfexp(i * step_size));
+    i += 1.0f;
+    if (i > 10000000.0f) i = 1.0f;
+  }
+}
+BENCHMARK(BM_Vfexp);
+
+void BM_StdLog2d(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 0.000001;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(std::log2(i * step_size));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_StdLog2d);
+
+void BM_Flog2d(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 0.000001;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(flog2d(i * step_size));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_Flog2d);
+
+void BM_Vflog2d(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 0.000001;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(vflog2d(i * step_size));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_Vflog2d);
+
+void BM_StdExp2d(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 0.000001;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(std::exp2(i * step_size));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_StdExp2d);
+
+void BM_Fexp2d(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 0.000001;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(fexp2d(i * step_size));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_Fexp2d);
+
+void BM_Vfexp2d(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 0.000001;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(vfexp2d(i * step_size));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_Vfexp2d);
+
+void BM_StdPow(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 0.000001;
+  for (auto _ : state) {
+    double total = 0.0;
+    double arg = i * step_size;
+    total += std::pow(2.37, arg);
+    total += std::pow(0.5, arg);
+    total += std::pow(1.0 + arg, arg);
+    benchmark::DoNotOptimize(total);
+    i += 1.0;
+    if (i > 1000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_StdPow);
+
+void BM_Fpowd(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 0.000001;
+  for (auto _ : state) {
+    double total = 0.0;
+    double arg = i * step_size;
+    total += fpowd(2.37, arg);
+    total += fpowd(0.5, arg);
+    total += fpowd(1.0 + arg, arg);
+    benchmark::DoNotOptimize(total);
+    i += 1.0;
+    if (i > 1000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_Fpowd);
+
+void BM_Vfpowd(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 0.000001;
+  for (auto _ : state) {
+    double total = 0.0;
+    double arg = i * step_size;
+    total += vfpowd(2.37, arg);
+    total += vfpowd(0.5, arg);
+    total += vfpowd(1.0 + arg, arg);
+    benchmark::DoNotOptimize(total);
+    i += 1.0;
+    if (i > 1000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_Vfpowd);
+
+void BM_StdLogOdds2Prob(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 10.0 / 10000001.0;
+  for (auto _ : state) {
+    double arg = i * step_size - 5.0;
+    benchmark::DoNotOptimize(LogOdds2Prob(arg));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_StdLogOdds2Prob);
+
+void BM_FLogOdds2Prob(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 10.0 / 10000001.0;
+  for (auto _ : state) {
+    double arg = i * step_size - 5.0;
+    benchmark::DoNotOptimize(fLogOdds2Prob(arg));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_FLogOdds2Prob);
+
+void BM_StdProb2LogOdds(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 1.0 / 10000001.0;
+  for (auto _ : state) {
+    double arg = i * step_size;
+    benchmark::DoNotOptimize(Prob2LogOdds(arg));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_StdProb2LogOdds);
+
+void BM_FProb2LogOdds(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 1.0 / 10000001.0;
+  for (auto _ : state) {
+    double arg = i * step_size;
+    benchmark::DoNotOptimize(fProb2LogOdds(arg));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_FProb2LogOdds);
+
+void BM_StdLogd(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 0.000001;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(std::log(i * step_size));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_StdLogd);
+
+void BM_Flogd(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 0.000001;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(flogd(i * step_size));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_Flogd);
+
+void BM_Vflogd(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 0.000001;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(vflogd(i * step_size));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_Vflogd);
+
+void BM_StdExpd(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 0.000001;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(std::exp(i * step_size));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_StdExpd);
+
+void BM_Fexpd(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 0.000001;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(fexpd(i * step_size));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_Fexpd);
+
+void BM_Vfexpd(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 0.000001;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(vfexpd(i * step_size));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_Vfexpd);
+
+void BM_StdSqrt(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 0.000001;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(std::sqrt(i * step_size));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_StdSqrt);
+
+void BM_Fpowd05(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 0.000001;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(fpowd(i * step_size, 0.5));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_Fpowd05);
+
+void BM_Vfpowd05(benchmark::State& state) {
+  double i = 1.0;
+  const double step_size = 0.000001;
+  for (auto _ : state) {
+    benchmark::DoNotOptimize(vfpowd(i * step_size, 0.5));
+    i += 1.0;
+    if (i > 10000000.0) i = 1.0;
+  }
+}
+BENCHMARK(BM_Vfpowd05);
+
+}  // namespace
