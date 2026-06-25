@@ -20,10 +20,9 @@
 
 #include "gloop/thread/fiber/select.h"
 
-#include <atomic>
 #include <cstdint>
 
-#include "absl/base/call_once.h"
+#include "absl/base/no_destructor.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/container/fixed_array.h"
@@ -32,34 +31,29 @@
 #include "absl/synchronization/mutex.h"
 #include "absl/time/clock_interface.h"
 #include "absl/time/time.h"
+#include "gloop/concurrent/percpu/object.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/tracing.h"
+#include "gloop/util/random/shared_bit_gen.h"
 
 namespace thread {
-
-// TODO: if we ever see contention on last_rand32 we'll want to make this
-// per-thread or per-cpu.
-static std::atomic<int32_t> last_rand32;
-static absl::once_flag init_rand32_once;
-
-static void InitRand32() {
-  // GoogleOnceInit is an acquire barrier on remote-cpus.
-  uint32_t seed = absl::Uniform<uint32_t>(absl::BitGen());
-  // Avoid 0 which generates a sequence of 0s.
-  if (seed == 0) seed = 1;
-  last_rand32.store(seed, std::memory_order_release);
-}
 
 // Pseudo-random number generator using Linear Shift Feedback Register (LSFB)
 static uint32_t Rand32() {
   // Primitive polynomial: x^32+x^22+x^2+x^1+1
   static const uint32_t poly = (1 << 22) | (1 << 2) | (1 << 1) | (1 << 0);
+  static absl::NoDestructor<concurrent::percpu::PerCpu<int32_t>> last_rand32;
 
-  absl::call_once(init_rand32_once, InitRand32);
-  uint32_t r = last_rand32.load(std::memory_order_relaxed);
+  auto ptr = last_rand32->get();  // lock is held until `ptr` goes out of scope.
+  uint32_t r = *ptr;
+  if (ABSL_PREDICT_FALSE(r == 0)) {
+    r = absl::Uniform<uint32_t>(util_random::SharedBitGen());
+    // Avoid 0 which generates a sequence of 0s.
+    if (r == 0) r = 1;
+  }
   r = (r << 1) ^
       ((static_cast<int32_t>(r) >> 31) & poly);  // shift sign-extends
-  last_rand32.store(r, std::memory_order_relaxed);
+  *ptr = r;
   return r;
 }
 
