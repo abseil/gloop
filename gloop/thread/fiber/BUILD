@@ -325,17 +325,22 @@ cc_test(
     ],
 )
 
-cc_test(
-    name = "pthread-domain_test",
-    srcs = ["pthread-domain_test.cc"],
-    deps = [
-        ":fiber",
-        "//gloop:gloop_test_main",
-        "//gloop/base/scheduling:domain-test",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
-    ],
-)
+[
+    cc_test(
+        name = "pthread-domain" + suffix + "_test",
+        srcs = ["pthread-domain_test.cc"],
+        deps = [
+            ":fiber",
+            "//gloop:gloop_test_main",
+            "//gloop/base/scheduling:domain-test",
+            "@google_benchmark//:benchmark",
+            "@googletest//:gtest",
+        ] + add_deps,
+    )
+    for suffix, add_deps in [
+        ("", []),
+    ]
+]
 
 cc_test(
     name = "sleep_test",

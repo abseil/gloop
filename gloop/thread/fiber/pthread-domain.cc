@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <ctime>
 
+#include "absl/base/internal/low_level_scheduling.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/flags/flag.h"
 #include "absl/strings/str_cat.h"
@@ -257,6 +258,9 @@ void PthreadDomain::ResumeAdditionalSchedulable(Schedulable* additional) {
 }
 
 bool PthreadDomain::BlockCurrent(Schedulable* current, KernelTimeout t) {
+  // Disable scheduling in the case the OS semaphore implementation tries
+  // to cooperate and calls Start/FinishPotentiallyBlockingRegion.
+  absl::base_internal::SchedulingGuard::ScopedDisable sd;
   int rc;
   do {
     if (t.has_timeout()) {
