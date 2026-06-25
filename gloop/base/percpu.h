@@ -652,6 +652,9 @@ inline int CompareAndSwapCheckUnsafe(int target_cpu, std::atomic<int64_t>* p,
                                      int64_t old_val, int64_t new_val,
                                      std::atomic<int64_t>* check_ptr,
                                      int64_t check_val) {
+  ABSL_RAW_CHECK(reinterpret_cast<uintptr_t>(p) % 8 == 0, "p is misaligned");
+  ABSL_RAW_CHECK(reinterpret_cast<uintptr_t>(check_ptr) % 8 == 0,
+                 "check_ptr is misaligned");
   TSANMemoryBarrierOn(p);
   return RseqFunction_PerCpuCmpxchgCheck64(
       RseqAbi(), target_cpu, atomic_danger::CastToIntegral(p), old_val, new_val,
