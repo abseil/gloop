@@ -228,9 +228,7 @@ cc_library(
     name = "stringification_tests",
     testonly = True,
     hdrs = ["stringification_tests.h"],
-    visibility = [
-        "//gloop/util/gtl/extend:__subpackages__",
-    ],
+    visibility = ["//gloop/util/gtl/extend:__subpackages__"],
     deps = [
         ":equality",
         ":extend",
