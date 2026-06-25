@@ -38,7 +38,7 @@
 
 namespace thread {
 
-// Pseudo-random number generator using Linear Shift Feedback Register (LSFB)
+// Pseudo-random number generator using Linear Shift Feedback Register (LSFR)
 static uint32_t Rand32() {
   // Primitive polynomial: x^32+x^22+x^2+x^1+1
   static const uint32_t poly = (1 << 22) | (1 << 2) | (1 << 1) | (1 << 0);
@@ -123,10 +123,17 @@ int SelectUntil(absl::Clock* clock, absl::Time deadline, const CaseArray& cases,
   if (num_cases > 0) {
     case_states[0].index = 0;
   }
-  for (int i = 1; i < num_cases; i++) {
-    int swap = Rand32() % (i + 1);
-    case_states[i].index = case_states[swap].index;
-    case_states[swap].index = i;
+  if (num_cases > 1) {
+    uint32_t rnd = Rand32();
+    for (int i = 1; i < num_cases; i++) {
+      // Use a 32-bit linear congruential generator to pick indices at random.
+      // Using a generator from https://oeis.org/A152960
+      int swap = rnd % (i + 1);
+      rnd = 134775813U * rnd + 1U;
+
+      case_states[i].index = case_states[swap].index;
+      case_states[swap].index = i;
+    }
   }
 
   bool blocking = deadline != absl::InfinitePast();
