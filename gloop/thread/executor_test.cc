@@ -27,8 +27,6 @@
 #include <vector>
 
 #include "absl/cleanup/cleanup.h"
-#include "absl/flags/declare.h"
-#include "absl/flags/flag.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
@@ -52,8 +50,6 @@
 #include "gloop/util/functional/to_callback.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-
-ABSL_DECLARE_FLAG(bool, thread_executor_checkfail_on_permanent_callbacks);
 
 namespace thread_internal {
 thread::Executor* DefaultThreadPoolExecutor();
@@ -586,26 +582,6 @@ TEST_P(AddCancellableTest, CallbackIsDeletedIfExecutorDropsScheduledInvocable) {
   EXPECT_TRUE(destructor_called);
 }
 
-TEST_P(AddCancellableTest,
-       PermanentCallbackIsNotDeletedIfExecutorDropsScheduledInvocable) {
-  if (!GetParam().use_legacy_callback) {
-    GTEST_SKIP()
-        << "Repeatable callback tests don't make sense with AnyInvocable";
-    return;
-  }
-  // TODO: replace the permanent callback in this test with a
-  // non-permanent one or delete this once we remove the flag
-  absl::SetFlag(&FLAGS_thread_executor_checkfail_on_permanent_callbacks, false);
-
-  DoNothingExecutor executor;
-  bool destructor_called;
-  auto callback = std::make_unique<TestClosure>(&destructor_called, true);
-  ExecutorHandle handle;
-  AddCancellableHelperWithRepeatableCallback(&executor, absl::ZeroDuration(),
-                                             callback.get(), &handle);
-  EXPECT_FALSE(destructor_called);
-}
-
 TEST_P(AddCancellableTest, ExecutorDeletesWithoutRunning) {
   // This test uses an executor that captures callbacks but doesn't execute
   // them. It adds cancellable callbacks to the executor and then/ tests from
@@ -849,18 +825,18 @@ class BenchmarkExecutor : public Executor {
 constexpr int kBatchSize = 100;
 
 static void BM_AddCancellable(benchmark::State& state) {
-  // TODO: replace the permanent callback in this test with a
-  // non-permanent one or delete this once we remove the flag
-  absl::SetFlag(&FLAGS_thread_executor_checkfail_on_permanent_callbacks, false);
-
   std::vector<Closure*> add_after_closures;
   add_after_closures.reserve(kBatchSize);
   BenchmarkExecutor executor(&add_after_closures);
-  Closure* cb = util::functional::ToPermanentCallback(Nothing);
   while (state.KeepRunningBatch(kBatchSize)) {
     for (int i = 0; i < kBatchSize; i++) {
+      // Add the cancellable callback with a non-zero delay to avoid the
+      // optimized absl::ZeroDuration() overload (http://shortn/_GPkyw8iANb).
+      //
+      // TODO: revisit this and consider benchmarking both
+      // overloads.
       ExecutorHandle handle;
-      AddCancellable(&executor, absl::ZeroDuration(), cb, &handle);
+      AddCancellable(&executor, absl::Milliseconds(1), [] {}, &handle);
     }
     // Run all the closures to clean up (do not time it).
     state.PauseTiming();
@@ -872,28 +848,28 @@ static void BM_AddCancellable(benchmark::State& state) {
     state.ResumeTiming();
   }
   state.SetItemsProcessed(state.iterations());
-  delete cb;
 }
 BENCHMARK(BM_AddCancellable)->ThreadRange(1, 16);
 
 static void BM_Cancel(benchmark::State& state) {
-  // TODO: replace the permanent callback in this test with a
-  // non-permanent one or delete this once we remove the flag
-  absl::SetFlag(&FLAGS_thread_executor_checkfail_on_permanent_callbacks, false);
-
   std::vector<Closure*> add_after_closures;
   add_after_closures.reserve(kBatchSize);
   BenchmarkExecutor executor(&add_after_closures);
-  Closure* cb = util::functional::ToPermanentCallback(Nothing);
   while (state.KeepRunningBatch(kBatchSize)) {
     for (int i = 0; i < kBatchSize; i++) {
       // Prepare a closure to cancel (do not time it).
       state.PauseTiming();
+
+      // Add the cancellable callback with a non-zero delay to avoid the
+      // optimized absl::ZeroDuration() overload (http://shortn/_GPkyw8iANb).
+      //
+      // TODO: revisit this and consider benchmarking both
+      // overloads.
       ExecutorHandle handle;
-      AddCancellable(&executor, absl::ZeroDuration(), cb, &handle);
+      AddCancellable(&executor, absl::Milliseconds(1), [] {}, &handle);
+
       state.ResumeTiming();
-      Closure* cb;
-      Cancel(handle, absl::ZeroDuration(), &cb);
+      TryCancel(handle);
     }
     // Run all the closures to clean up (do not time it).
     state.PauseTiming();
@@ -905,25 +881,24 @@ static void BM_Cancel(benchmark::State& state) {
     state.ResumeTiming();
   }
   state.SetItemsProcessed(state.iterations());
-  delete cb;
 }
 BENCHMARK(BM_Cancel)->ThreadRange(1, 16);
 
 static void BM_RunUncancelledClosures(benchmark::State& state) {
-  // TODO: replace the permanent callback in this test with a
-  // non-permanent one or delete this once we remove the flag
-  absl::SetFlag(&FLAGS_thread_executor_checkfail_on_permanent_callbacks, false);
-
   std::vector<Closure*> add_after_closures;
   add_after_closures.reserve(kBatchSize);
   BenchmarkExecutor executor(&add_after_closures);
-  Closure* cb = util::functional::ToPermanentCallback(Nothing);
   while (state.KeepRunningBatch(kBatchSize)) {
     // Prepare a batch of cancellable closures to run (do not time it).
     state.PauseTiming();
     for (int i = 0; i < kBatchSize; i++) {
+      // Add the cancellable callback with a non-zero delay to avoid the
+      // optimized absl::ZeroDuration() overload (http://shortn/_GPkyw8iANb).
+      //
+      // TODO: revisit this and consider benchmarking both
+      // overloads.
       ExecutorHandle handle;
-      AddCancellable(&executor, absl::ZeroDuration(), cb, &handle);
+      AddCancellable(&executor, absl::Milliseconds(1), [] {}, &handle);
     }
     state.ResumeTiming();
     for (int i = 0; i < kBatchSize; ++i) {
@@ -934,27 +909,26 @@ static void BM_RunUncancelledClosures(benchmark::State& state) {
   }
 
   state.SetItemsProcessed(state.iterations());
-  delete cb;
 }
 BENCHMARK(BM_RunUncancelledClosures)->ThreadRange(1, 16);
 
 static void BM_RunCancelledClosures(benchmark::State& state) {
-  // TODO: replace the permanent callback in this test with a
-  // non-permanent one or delete this once we remove the flag
-  absl::SetFlag(&FLAGS_thread_executor_checkfail_on_permanent_callbacks, false);
-
   std::vector<Closure*> add_after_closures;
   add_after_closures.reserve(kBatchSize);
   BenchmarkExecutor executor(&add_after_closures);
-  Closure* cb = util::functional::ToPermanentCallback(Nothing);
   while (state.KeepRunningBatch(kBatchSize)) {
     // Prepare a batch of cancellable closures to run (do not time it).
     state.PauseTiming();
     for (int i = 0; i < kBatchSize; i++) {
+      // Add the cancellable callback with a non-zero delay to avoid the
+      // optimized absl::ZeroDuration() overload (http://shortn/_GPkyw8iANb).
+      //
+      // TODO: revisit this and consider benchmarking both
+      // overloads.
       ExecutorHandle handle;
-      AddCancellable(&executor, absl::ZeroDuration(), cb, &handle);
-      Closure* cb;
-      Cancel(handle, absl::ZeroDuration(), &cb);
+      AddCancellable(&executor, absl::Milliseconds(1), [] {}, &handle);
+
+      TryCancel(handle);
     }
     CHECK_EQ(kBatchSize, add_after_closures.size());
     state.ResumeTiming();
@@ -964,7 +938,6 @@ static void BM_RunCancelledClosures(benchmark::State& state) {
     add_after_closures.clear();
   }
   state.SetItemsProcessed(state.iterations());
-  delete cb;
 }
 BENCHMARK(BM_RunCancelledClosures)->ThreadRange(1, 16);
 

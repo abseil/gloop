@@ -33,7 +33,6 @@
 #include "absl/base/call_once.h"
 #include "absl/base/const_init.h"
 #include "absl/base/nullability.h"
-#include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/container/flat_hash_map.h"
@@ -41,7 +40,6 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
-#include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/clock.h"
@@ -82,13 +80,6 @@ ABSL_FLAG(
     "\"eventmanager2\". Supported values are \"threadpool\" and "
     "\"eventmanager2\". Explicit calls to "
     "thread::Executor::SetDefaultExecutor() override this flag.");
-
-// TODO: delete this flag once all users have been migrated to
-// AnyInvocable-accepting overloads of AddCancellable and AddCancellableAt.
-ABSL_FLAG(
-    bool, thread_executor_checkfail_on_permanent_callbacks, true,
-    "If true (default), AddCancellable and AddCancellableAt will check if the "
-    "provided Closure is permanent and abort the program if it is. ");
 
 namespace thread_internal {
 
@@ -490,12 +481,8 @@ void AddCancellable(Executor* executor, absl::Duration delay,
 
 void AddCancellable(Executor* executor, absl::Duration delay, Closure* closure,
                     ExecutorHandle* handle) {
-  if (ABSL_PREDICT_FALSE(closure->IsRepeatable())) {
-    CHECK(
-        !absl::GetFlag(FLAGS_thread_executor_checkfail_on_permanent_callbacks))
-        << "AddCancellable only accepts non-permanent Callbacks. See "
-           "http://b/494604538 for a workaround and leave a comment.";
-  }
+  CHECK(!closure->IsRepeatable())
+      << "AddCancellable only accepts non-permanent callbacks";
 
   auto cancellable_callable = MakeCancellableCallable(closure, handle);
 
@@ -525,12 +512,8 @@ void AddCancellableAt(Executor* executor, absl::Time when,
 
 void AddCancellableAt(Executor* executor, absl::Time when, Closure* closure,
                       ExecutorHandle* handle) {
-  if (ABSL_PREDICT_FALSE(closure->IsRepeatable())) {
-    CHECK(
-        !absl::GetFlag(FLAGS_thread_executor_checkfail_on_permanent_callbacks))
-        << "AddCancellableAt only accepts non-permanent Callbacks. See "
-           "http://b/494604538 for a workaround and leave a comment.";
-  }
+  CHECK(!closure->IsRepeatable())
+      << "AddCancellableAt only accepts non-permanent callbacks";
 
   auto cancellable_callable = MakeCancellableCallable(closure, handle);
 
