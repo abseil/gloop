@@ -297,6 +297,32 @@ static void BM_AddAll(benchmark::State& state) {
 }
 BENCHMARK(BM_AddAll)->Range(64, 8192);
 
+void DuplicateRemoveTest() {
+  AdjustablePriorityQueue<TestElement> pq;
+  TestElement elem1;
+  elem1.priority = 10.0;
+  pq.Add(&elem1);
+
+  TestElement elem2;
+  elem2.priority = 20.0;
+  pq.Add(&elem2);
+
+  CHECK_EQ(pq.Size(), 2);
+  pq.Remove(&elem1);
+  CHECK_EQ(pq.Size(), 1);
+  CHECK(!pq.Contains(&elem1));
+
+  // Reproduce b/526462472: removing or updating priority of an element not in
+  // the queue safely returns early without out-of-bounds writes to elems_[-1].
+  pq.Remove(&elem1);
+  CHECK_EQ(pq.Size(), 1);
+
+  elem1.priority = 30.0;
+  pq.NoteChangedPriority(&elem1);
+  CHECK_EQ(pq.Size(), 1);
+  CHECK(pq.Contains(&elem2));
+}
+
 int main(int argc, char* argv[]) {
   InitGoogle(argv[0], &argc, &argv, true);
   if (!benchmark::GetBenchmarkFilter().empty()) {
@@ -304,6 +330,7 @@ int main(int argc, char* argv[]) {
     exit(0);
   }
 
+  DuplicateRemoveTest();
   ACMRandom r(314159);
   int num_tests = 5;
   for (int test_num = 0; test_num < num_tests; ++test_num) {

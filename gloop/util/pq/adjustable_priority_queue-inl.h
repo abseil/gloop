@@ -101,6 +101,9 @@ void AdjustablePriorityQueue<T, C, I>::Add(T* val) {
 
 template <class T, class C, class I>
 void AdjustablePriorityQueue<T, C, I>::NoteChangedPriority(T* val) {
+  if (IsEmpty() || !Contains(val)) {
+    return;
+  }
   AQPSetHeapIndex<T, C, I> imanip(this);
   LowerPriorityThan<T, C> lower_priority(&c_);
   const ssize_t i = imanip_.GetHeapIndex(*val);
@@ -119,6 +122,9 @@ void AdjustablePriorityQueue<T, C, I>::NoteChangedPriority(T* val) {
 
 template <class T, class C, class I>
 void AdjustablePriorityQueue<T, C, I>::Remove(T* val) {
+  if (IsEmpty() || !Contains(val)) {
+    return;
+  }
   const ssize_t end = elems_.size() - 1;
   const ssize_t i = imanip_.GetHeapIndex(*val);
   DCHECK_EQ(elems_[i], val);
