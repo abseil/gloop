@@ -132,15 +132,15 @@ TEST(MockDistributions, Examples) {
       .WillOnce(::testing::Return(10010));
   EXPECT_EQ(util_random::YuleSimon<int>(gen, 2.0), 10010);
 
-  EXPECT_NE(1221, util_random::SkewedLow<int>(gen, 1, 10000, 3));
-  EXPECT_CALL(util_random::MockSkewedLow<int>(), Call(gen, 1, 10000, 3))
-      .WillOnce(::testing::Return(1221));
-  EXPECT_EQ(1221, util_random::SkewedLow<int>(gen, 1, 10000, 3));
+  EXPECT_NE(99221, util_random::SkewedLow<int>(gen, 1, 100000, 3));
+  EXPECT_CALL(util_random::MockSkewedLow<int>(), Call(gen, 1, 100000, 3))
+      .WillOnce(::testing::Return(99221));
+  EXPECT_EQ(99221, util_random::SkewedLow<int>(gen, 1, 100000, 3));
 
-  EXPECT_NE(7, util_random::SmallPrime<int>(gen, 3, 1000));
-  EXPECT_CALL(util_random::MockSmallPrime<int>(), Call(gen, 3, 1000))
-      .WillOnce(::testing::Return(7));
-  EXPECT_EQ(7, util_random::SmallPrime<int>(gen, 3, 1000));
+  EXPECT_NE(999983, util_random::SmallPrime<int>(gen, 3, 1000000));
+  EXPECT_CALL(util_random::MockSmallPrime<int>(), Call(gen, 3, 1000000))
+      .WillOnce(::testing::Return(999983));
+  EXPECT_EQ(999983, util_random::SmallPrime<int>(gen, 3, 1000000));
 }
 
 }  // namespace
