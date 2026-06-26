@@ -116,6 +116,29 @@ cc_test(
 )
 
 cc_library(
+    name = "compressed_tuple",
+    hdrs = ["compressed_tuple.h"],
+    deps = [
+        ":intrinsics",
+        "//gloop:enforce_gloop_support",
+        "//gloop/util/gtl:compressed_tuple",
+    ],
+)
+
+cc_test(
+    name = "compressed_tuple_test",
+    srcs = ["compressed_tuple_test.cc"],
+    deps = [
+        ":compressed_tuple",
+        ":intrinsics",
+        "//gloop:gloop_test_main",
+        "//gloop/util/gtl:compressed_tuple",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "internal_iterate",
     textual_hdrs = ["internal_iterate.h"],
     deps = [

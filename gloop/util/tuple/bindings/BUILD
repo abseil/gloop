@@ -48,3 +48,30 @@ cc_test(
         "@googletest//:gtest",
     ],
 )
+
+cc_library(
+    name = "tuplify",
+    hdrs = ["tuplify.h"],
+    visibility = [
+        "//gloop/util/tuple/bindings:__subpackages__",
+    ],
+    deps = [
+        ":bindings",
+        "//gloop:enforce_gloop_support",
+        "//gloop/util/tuple:intrinsics",
+    ],
+)
+
+cc_test(
+    name = "tuplify_test",
+    srcs = ["tuplify_test.cc"],
+    deps = [
+        ":tuplify",
+        "//gloop:gloop_test_main",
+        "//gloop/util/tuple:intrinsics",
+        "//gloop/util/tuple:streamable",
+        "//gloop/util/tuple:struct",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)

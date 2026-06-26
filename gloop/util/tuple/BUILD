@@ -634,3 +634,413 @@ cc_library(
         "//gloop/util/tuple/components:dump_vars",
     ],
 )
+
+cc_library(
+    name = "all_of",
+    hdrs = ["all_of.h"],
+    deps = [
+        ":accumulate",
+        "//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "all_of_test",
+    size = "small",
+    srcs = ["all_of_test.cc"],
+    deps = [
+        ":all_of",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "any_of",
+    hdrs = ["any_of.h"],
+    deps = [
+        ":accumulate",
+        "//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "any_of_test",
+    size = "small",
+    srcs = ["any_of_test.cc"],
+    deps = [
+        ":any_of",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "compressed_tuple",
+    hdrs = ["compressed_tuple.h"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "//gloop/util/tuple/components:compressed_tuple",
+    ],
+)
+
+cc_library(
+    name = "construct",
+    hdrs = ["construct.h"],
+    deps = [
+        ":apply",
+        "//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "construct_test",
+    size = "small",
+    srcs = ["construct_test.cc"],
+    deps = [
+        ":construct",
+        ":test_util",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "find",
+    hdrs = ["find.h"],
+    deps = [
+        ":find_if",
+        "//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
+    name = "find_if",
+    hdrs = ["find_if.h"],
+    deps = [
+        ":array",
+        ":intrinsics",
+        ":pair",
+        ":std_tuple",
+        "//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "find_test",
+    size = "small",
+    srcs = ["find_test.cc"],
+    deps = [
+        ":find",
+        ":test_util",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "find_if_test",
+    size = "small",
+    srcs = ["find_if_test.cc"],
+    deps = [
+        ":find_if",
+        ":test_util",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "front",
+    hdrs = ["front.h"],
+    deps = [
+        ":array",
+        ":intrinsics",
+        ":pair",
+        ":std_tuple",
+        "//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "front_test",
+    size = "small",
+    srcs = ["front_test.cc"],
+    deps = [
+        ":front",
+        ":test_util",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "fuse",
+    hdrs = ["fuse.h"],
+    deps = [
+        ":apply",
+        "//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "fuse_test",
+    size = "small",
+    srcs = ["fuse_test.cc"],
+    deps = [
+        ":fuse",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "join",
+    hdrs = ["join.h"],
+    deps = [
+        ":array",
+        ":cat",
+        ":int_pack",
+        ":intrinsics",
+        ":pair",
+        ":std_tuple",
+        "//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "join_test",
+    size = "small",
+    srcs = ["join_test.cc"],
+    deps = [
+        ":join",
+        ":pair",
+        ":test_util",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "none_of",
+    hdrs = ["none_of.h"],
+    deps = [
+        ":accumulate",
+        "//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "none_of_test",
+    size = "small",
+    srcs = ["none_of_test.cc"],
+    deps = [
+        ":none_of",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "pop_front",
+    hdrs = ["pop_front.h"],
+    deps = [
+        ":erase",
+        "//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "pop_front_test",
+    size = "small",
+    srcs = ["pop_front_test.cc"],
+    deps = [
+        ":pop_front",
+        ":test_util",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "push_back",
+    hdrs = ["push_back.h"],
+    deps = [
+        ":insert",
+        ":intrinsics",
+        "//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "push_back_test",
+    size = "small",
+    srcs = ["push_back_test.cc"],
+    deps = [
+        ":push_back",
+        ":test_util",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "reverse",
+    hdrs = ["reverse.h"],
+    deps = [
+        ":array",
+        ":generate",
+        ":intrinsics",
+        ":pair",
+        ":std_tuple",
+        "//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "reverse_test",
+    size = "small",
+    srcs = ["reverse_test.cc"],
+    deps = [
+        ":reverse",
+        ":test_util",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "rotate",
+    hdrs = ["rotate.h"],
+    deps = [
+        ":cat",
+        ":intrinsics",
+        ":slice",
+        "//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "rotate_test",
+    size = "small",
+    srcs = ["rotate_test.cc"],
+    deps = [
+        ":matchers",
+        ":pair",
+        ":rotate",
+        ":test_util",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "string_hash_map",
+    hdrs = ["string_hash_map.h"],
+    deps = [
+        ":intrinsics",
+        "//gloop:enforce_gloop_support",
+        "//gloop/util/gtl:string_hash_map",
+        "@abseil-cpp//absl/strings:string_view",
+    ],
+)
+
+cc_test(
+    name = "string_hash_map_test",
+    size = "small",
+    srcs = ["string_hash_map_test.cc"],
+    deps = [
+        ":intrinsics",
+        ":string_hash_map",
+        "//gloop:gloop_test_main",
+        "//gloop/util/gtl:string_hash_map",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "transform",
+    hdrs = ["transform.h"],
+    deps = [
+        ":array",
+        ":generate",
+        ":ignore_index",
+        ":intrinsics",
+        ":pair",
+        ":std_tuple",
+        "//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "transform_test",
+    size = "small",
+    srcs = ["transform_test.cc"],
+    deps = [
+        ":std_tuple",
+        ":test_util",
+        ":transform",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "unfuse",
+    hdrs = ["unfuse.h"],
+    deps = ["//gloop:enforce_gloop_support"],
+)
+
+cc_test(
+    name = "unfuse_test",
+    size = "small",
+    srcs = ["unfuse_test.cc"],
+    deps = [
+        ":unfuse",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "unref",
+    hdrs = ["unref.h"],
+    deps = [
+        ":array",
+        ":generate",
+        ":intrinsics",
+        ":pair",
+        ":std_tuple",
+        "//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "unref_test",
+    size = "small",
+    srcs = ["unref_test.cc"],
+    deps = [
+        ":test_util",
+        ":unref",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
