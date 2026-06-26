@@ -91,6 +91,79 @@ TEST_F(RcuTest, IndependentDomains) {
   d2.Synchronize();
 }
 
+TEST_F(RcuTest, DomainSchedulerFairness) {
+  rcu::Domain d1, d2;
+
+  // Permanently pin Domain d1 by holding an active reader lock on it.
+  // Located on the stack, it will be naturally released at the end of the test.
+  rcu::ReaderLockHolder holder(&d1);
+
+  // Register a dummy callback on d1.
+  // Because d1 is pinned, this callback can never complete.
+  // This forces d1 to remain stuck in Gloop's active background domains list.
+  d1.Call([]() {});
+
+  // Sleep for 100ms on the main thread to guarantee that the cleanup thread
+  // has woken up, popped d1, and entered the spinning starvation loop before
+  // we register any callbacks on d2.
+  absl::SleepFor(absl::Milliseconds(100));
+
+  // Register an asynchronous callback on Domain d2.
+  absl::Notification callback_ran;
+  d2.Call([&callback_ran]() { callback_ran.Notify(); });
+
+  // Wait for the callback on d2 to be executed by the cleanup thread.
+  // Under the old code (starvation bug), this will hang indefinitely.
+  // We use a 30-second timeout to fail cleanly if starved.
+  bool completed =
+      callback_ran.WaitForNotificationWithTimeout(absl::Seconds(30));
+
+  EXPECT_TRUE(completed)
+      << "Domain d2's callbacks were starved by pinned Domain d1!";
+}
+
+TEST_F(RcuTest, MultipleQueueCallsOnBlockedDomain) {
+  rcu::Domain d1;
+  std::atomic<int> callback_count{0};
+
+  // Block d1
+  auto holder = std::make_unique<rcu::ReaderLockHolder>(&d1);
+
+  // Call Call() multiple times while blocked.
+  // We sleep between calls to allow the cleanup thread to pop the domain
+  // and reset the queued_for_run_ flag, forcing duplicates in buggy code.
+  const int kNumCalls = 10;
+  for (int i = 0; i < kNumCalls; ++i) {
+    d1.Call([&callback_count]() {
+      callback_count.fetch_add(1, std::memory_order_relaxed);
+    });
+    absl::SleepFor(absl::Milliseconds(5));
+  }
+
+  // Under buggy code, the domain is duplicated in the active list, so
+  // num_queues_ (which tracks active queues) will be equal to kNumCalls (10).
+  // Under fixed code, duplicates are discarded and num_queues_ is decremented
+  // back, so it should be exactly 1 (for the single active queue).
+  EXPECT_EQ(rcu::DomainTestPeer::num_queues(&d1), 1)
+      << "Duplicates were queued! num_queues should be 1.";
+
+  // Verify callbacks haven't run yet
+  EXPECT_EQ(callback_count.load(std::memory_order_relaxed), 0);
+
+  // Unblock d1
+  holder.reset();
+
+  // Wait for all callbacks to complete.
+  // They should all run.
+  absl::Time deadline = absl::Now() + absl::Seconds(5);
+  while (callback_count.load(std::memory_order_relaxed) < kNumCalls &&
+         absl::Now() < deadline) {
+    absl::SleepFor(absl::Milliseconds(10));
+  }
+
+  EXPECT_EQ(callback_count.load(std::memory_order_relaxed), kNumCalls);
+}
+
 TEST_F(RcuTest, CallIsAsync) {
   absl::Notification n;
   {
