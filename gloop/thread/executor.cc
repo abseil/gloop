@@ -28,17 +28,17 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <variant>
 
 #include "absl/base/attributes.h"
 #include "absl/base/call_once.h"
 #include "absl/base/const_init.h"
-#include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
-#include "absl/base/thread_annotations.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/flags/flag.h"
 #include "absl/functional/any_invocable.h"
+#include "absl/functional/overload.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/memory/memory.h"
@@ -328,13 +328,23 @@ class ExecutorInternal {
 
 namespace {
 
-typedef absl::flat_hash_map<uint64_t, Closure* absl_nullable* absl_nonnull>
-    Table;
-struct Shard {
-  absl::Mutex mu;
-  Table table;
-  uint64_t next_key = 1;
+struct Shard;  // Per-shard state
+
+// A closure that has already been cancelled.
+struct Cancelled {};
+
+// A closure that hasn't yet been cancelled or started running.
+struct Unstarted {
+  Closure* closure;
+  base::Context context;
 };
+
+// A closure that has already started running.
+struct Started {};
+
+// The state of a closure that can be cancelled if it hasn't yet started
+// running.
+using ClosureState = std::variant<Cancelled, Unstarted, Started>;
 
 // An object that wraps a closure that can be cancelled using Cancel, that
 // provides a cancellation-aware operator() and destructor.
@@ -363,8 +373,15 @@ class CancelWrapper {
   // Key in shard->table
   uint64_t shard_key_;
 
-  // The wrapped closure.
-  Closure* absl_nullable closure_ ABSL_GUARDED_BY(shard_->mu);
+  // The state of the wrapped closure.
+  ClosureState closure_state_;
+};
+
+typedef absl::flat_hash_map<uint64_t, ClosureState*> Table;
+struct Shard {
+  absl::Mutex mu;
+  Table table;
+  uint64_t next_key = 1;
 };
 
 static absl::once_flag once;
@@ -390,9 +407,9 @@ static void SwitchToRandomShard(ThreadState* const t) {
 }
 
 CancelWrapper::CancelWrapper(Closure* const closure,
-                             ExecutorHandle* const handle)
-    : closure_(closure) {
+                             ExecutorHandle* const handle) {
   absl::call_once(once, InitShards);
+  closure_state_ = Unstarted{.closure = closure};
 
   // Try using the last shard used by this thread and acquiring the lock
   // immediately.
@@ -408,7 +425,7 @@ CancelWrapper::CancelWrapper(Closure* const closure,
   shard_->mu.AssertHeld();
 
   shard_key_ = shard_->next_key++;
-  shard_->table[shard_key_] = &closure_;
+  shard_->table[shard_key_] = &closure_state_;
   ExecutorInternal::Encode(ts->shard, shard_key_, handle);
   shard_->mu.unlock();
 }
@@ -419,18 +436,25 @@ void CancelWrapper::operator()() && {
   // libraries, e.g. http://shortn/_FG1ZkRX6Jt).
   absl::Cleanup delete_this = [&] { delete this; };
 
-  // Take the closure to prepare to run it.
-  Closure* closure = [this]() {
-    absl::MutexLock lock(shard_->mu);
-    return std::exchange(closure_, nullptr);
-  }();
+  shard_->mu.lock();
+  Unstarted* const us = std::get_if<Unstarted>(&closure_state_);
 
-  // If the closure is not present (i.e. it has been cancelled or has already
-  // started), or if the scheduled closure was null, there's nothing to run.
-  if (closure == nullptr) {
+  // If the closure is not in the `Unstarted` state (i.e. it has been cancelled
+  // or has already started), or if the scheduled closure was null, there's
+  // nothing to run.
+  if (us == nullptr || us->closure == nullptr) {
+    shard_->mu.unlock();
     return;
   }
 
+  // Prepare to run the closure after releasing the lock and update its state to
+  // reflect that.
+  Closure* closure = us->closure;
+  base::Context context = us->context;
+  closure_state_ = Started{};
+  shard_->mu.unlock();
+
+  base::WithContext with_context(context);
   closure->Run();
 }
 
@@ -443,8 +467,9 @@ CancelWrapper::~CancelWrapper() {
   //
   // NOTE: Repeatable callbacks are not owned and their creator is responsible
   // for deleting them (http://shortn/_Ybi0q3b9w6).
-  if (closure_ != nullptr && !closure_->IsRepeatable()) {
-    to_delete.reset(closure_);
+  if (Unstarted* const us = std::get_if<Unstarted>(&closure_state_);
+      us != nullptr && !us->closure->IsRepeatable()) {
+    to_delete = absl::WrapUnique(us->closure);
   }
 
   shard_->table.erase(shard_key_);
@@ -557,32 +582,47 @@ bool Cancel(ExecutorHandle handle, absl::Duration timeout, Closure** cb_ptr) {
 
   Table::iterator iter = shard->table.find(shard_key);
 
-  // If the closure already finished running, if it got cancelled, or
-  // if it was never registered to begin with, there's nothing for us to do.
+  // Has the closure either finished running already, or was never registered
+  // to begin with?
   if (iter == shard->table.end()) {
     return true;
   }
 
-  if (Closure*& closure = *iter->second) {
-    // The closure hasn't yet started running: cancel it.
-    *cb_ptr = std::exchange(closure, nullptr);
-    shard->table.erase(iter);
-    return true;
-  }
+  ClosureState* const closure_state = iter->second;
 
-  // The closure has already started running and a non-positive timeout means
-  // we can't wait for it to finish running.
-  if (timeout <= absl::ZeroDuration()) {
-    return false;
-  }
+  return std::visit(
+      absl::Overload{
+          [](Cancelled) {
+            // The closure has already been cancelled: there's nothing left for
+            // us to do.
+            return true;
+          },
+          [&](Unstarted us) {
+            // The closure hasn't yet started running: cancel it.
+            *cb_ptr = us.closure;
+            *closure_state = Cancelled{};
+            return true;
+          },
+          [&](Started) {
+            // The closure has already started running: wait to see if it'll
+            // finish before the timeout expires, if it hasn't already expired.
+            if (timeout <= absl::ZeroDuration()) {
+              return false;
+            }
 
-  // Wait until either the timeout expires, or the closure finishes running and
-  // erases the entry from shard->table.
-  auto finished_running = [shard, shard_key] {
-    return shard->table.find(shard_key) == shard->table.end();
-  };
-  return shard->mu.AwaitWithTimeout(absl::Condition(&finished_running),
-                                    timeout);
+            // Wait until either the timeout expires, or the closure finishes
+            // running and erases the entry from shard->table.
+            auto finished_running = [shard, shard_key] {
+              return shard->table.find(shard_key) == shard->table.end();
+            };
+            shard->mu.AwaitWithTimeout(absl::Condition(&finished_running),
+                                       timeout);
+
+            // Has the closure finished running before the timeout has expired?
+            return shard->table.find(shard_key) == shard->table.end();
+          },
+      },
+      *closure_state);
 }
 
 bool Cancel(ExecutorHandle handle, absl::Duration timeout) {
