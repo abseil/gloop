@@ -126,6 +126,10 @@ class Message;
 }  // namespace protobuf
 }  // namespace google
 
+namespace absl {
+class BitGenRef;
+}
+
 namespace perftools::tracing {
 
 class SharedFateBitAccess;
@@ -169,6 +173,8 @@ struct TestOnlyAccess;
 
 bool Sample(TraceContext* tc);
 void EnableSpeculativeTracing(TraceContext* tc);
+bool MaybeConvertToSpeculative(double speculative_conversion_probability,
+                               absl::BitGenRef rng, TraceContext* tc);
 
 }  // namespace perftools::tracing
 
@@ -1171,6 +1177,9 @@ class Tracer {
   friend struct perftools::tracing::logging::TraceRecordGenerator;
   friend bool perftools::tracing::Sample(TraceContext* tc);
   friend void perftools::tracing::EnableSpeculativeTracing(TraceContext* tc);
+  friend bool perftools::tracing::MaybeConvertToSpeculative(
+      double speculative_conversion_probability, absl::BitGenRef rng,
+      TraceContext* tc);
   // Need access to add_child()/num_children().
   friend class perftools::tracing::TraceBuffer;
   friend class perftools::tracing::TraceStreamer;
