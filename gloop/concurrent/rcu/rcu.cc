@@ -462,7 +462,7 @@ void* run_domain_callbacks_thread(void*) {
     // We will interact with the memory allocator during cleanups.
     tcmalloc::MallocExtension::MarkThreadBusy();
 
-    while (AddNewDomains(&domains) || !domains.empty()) {
+    while (!domains.empty() || AddNewDomains(&domains)) {
       unfinished.clear();
       for (auto d : domains) {
         if (!RunDomain(d)) unfinished.push_back(d);
