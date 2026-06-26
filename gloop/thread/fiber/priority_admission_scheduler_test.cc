@@ -21,6 +21,7 @@
 #include "gloop/thread/fiber/priority_admission_scheduler.h"
 
 #include <atomic>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <vector>
@@ -73,7 +74,7 @@ bool FinishedOrTimedOut(thread::Fiber* fiber) {
 //   in some specific way.
 // TODO: use admission limit to make everything event based.
 void Spin(const std::atomic<bool>& exit) {
-  [[maybe_unused]] int spin = 0;
+  [[maybe_unused]] uint64_t spin = 0;
   while (!exit.load(std::memory_order_relaxed)) ++spin;
 }
 
