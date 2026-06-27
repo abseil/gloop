@@ -31,7 +31,7 @@ GTEST_API_ int main(int argc, char** argv) {
                                     /*remove_flags=*/true);
   testing::InitGoogleTest(&argc, argv);
 
-  printf("Running main() from %s\n", __FILE__);
+  printf("Running 2main() from %s\n", __FILE__);
 
   // TODO Use benchmark::RunSpecifiedBenchmarksThenExit() once
   // the migration is complete.
