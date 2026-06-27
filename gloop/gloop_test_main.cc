@@ -26,6 +26,8 @@
 #include "gloop/base/init_google.h"
 #include "gtest/gtest.h"
 
+// rebuild
+
 GTEST_API_ int main(int argc, char** argv) {
   InitGoogleExceptChangeRootAndUser(/*usage=*/nullptr, &argc, &argv,
                                     /*remove_flags=*/true);
