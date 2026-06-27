@@ -26,9 +26,8 @@
 #include "absl/log/check.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
-#include "gloop/base/callback.h"
 
-BlockingClosure::BlockingClosure(Closure* closure)
+BlockingClosure::BlockingClosure(::util::functional::CallbackFunctor<> closure)
     : closure_(closure),
       repeatable_(closure ? closure->IsRepeatable() : true) {}
 

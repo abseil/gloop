@@ -70,10 +70,12 @@
 #include <cstdint>
 
 #include "absl/base/casts.h"
+#include "absl/base/nullability.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
 #include "gloop/base/callback.h"
+#include "gloop/util/functional/from_callback.h"
 
 class BlockingClosure : public Closure {
  public:
@@ -84,7 +86,7 @@ class BlockingClosure : public Closure {
   // pointer.  So if it's possible that 'closure' will never be called or you're
   // using a permanent closure, you should arrange for the closure to be
   // deleted.
-  explicit BlockingClosure(Closure* closure);
+  explicit BlockingClosure(::util::functional::CallbackFunctor<> closure);
 
   // Create a no-op blocking closure.  This is identical to
   // BlockingClosure(NewPermanentCallback(&DoNothing)) except you
@@ -159,7 +161,8 @@ class BlockingClosure : public Closure {
   bool NumCalledCondition(int expected_count) const
       ABSL_SHARED_LOCKS_REQUIRED(&done_lock_);
 
-  Closure* closure_;  // The user provided Closure (may be NULL)
+  // The user provided Closure
+  absl_nullable ::util::functional::CallbackFunctor<> closure_;
 
   mutable absl::Mutex done_lock_;  // Protect the state below
   // How many times Run() has been called
