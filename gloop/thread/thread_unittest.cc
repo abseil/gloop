@@ -28,17 +28,27 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#ifndef __Fuchsia__
+#include <sys/resource.h>
+#endif
+
 #include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <memory>
+#include <optional>
+#include <ostream>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/base/log_severity.h"
+#include "absl/base/no_destructor.h"
 #include "absl/base/optimization.h"
+#include "absl/base/thread_annotations.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/flags/declare.h"
@@ -59,9 +69,11 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
+#include "benchmark/benchmark.h"
 #include "gloop/base/callback.h"
 #include "gloop/base/config.h"
 #include "gloop/base/context.h"
+#include "gloop/base/googleinit.h"
 #include "gloop/base/init_google.h"
 #include "gloop/base/port.h"
 #include "gloop/base/raw_logging.h"
@@ -69,7 +81,6 @@
 #include "gloop/base/sysinfo.h"
 #include "gloop/base/timer.h"
 #include "gloop/base/tracecontext.h"
-#include "gloop/thread/config.h"
 #include "gloop/thread/fiber/fiber.h"
 #include "gloop/thread/thread-internal.h"
 #include "gloop/thread/thread_control.h"
@@ -80,7 +91,6 @@
 #include "gloop/util/gtl/container_logging.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "re2/re2.h"
 
 #ifdef THREAD_HAVE_IOPRIORITY
 #include "gloop/util/priority/io-priority.h"
@@ -110,7 +120,14 @@ class DeprecatedSingleThreadedTest {
 namespace {
 
 using ::testing::Contains;
+using ::testing::ContainsRegex;
+using ::testing::ExplainMatchResult;
+using ::testing::HasSubstr;
+using ::testing::IsEmpty;
 using ::testing::IsSupersetOf;
+using ::testing::Not;
+using ::testing::NotNull;
+using ::testing::UnorderedElementsAreArray;
 
 // The timeout used for Thread_ForEach() and Thread_ProcessStackTraces()
 // invocations.  We choose a conservative value, higher than the default
@@ -118,18 +135,18 @@ using ::testing::IsSupersetOf;
 constexpr int kPerThreadTimeoutMs = 100;
 
 void TestCallback(Thread* thd) {
-  sleep(2);
-  printf("[2sec sleep done] ");
+  absl::SleepFor(absl::Seconds(2));
+  VLOG(1) << "[2sec sleep done]";
 }
 
 void TestClosure() {
-  sleep(2);
-  printf("[2sec sleep done] ");
+  absl::SleepFor(absl::Seconds(2));
+  VLOG(1) << "[2sec sleep done]";
 }
 
-static void IncrementMe(int* x) { ++*x; }
+void IncrementMe(int* x) { ++*x; }
 
-static void DieHorribly() {
+void DieHorribly() {
 #if AVOID_TRACECONTEXT
   static const char* status_string = "Hi, mom!";
   base::WithThreadStatus trace_status_switcher(status_string);
@@ -180,7 +197,7 @@ TEST(ThreadTest, CheckClosureThread) {
   int y(3);
   ClosureThread t([&y] { IncrementMe(&y); });
   t.SetJoinable(true);
-  CHECK_EQ(y, 3);
+  EXPECT_EQ(y, 3);
   t.Start();
 
   if (absl::GetFlag(FLAGS_crashme)) {
@@ -192,18 +209,17 @@ TEST(ThreadTest, CheckClosureThread) {
   }
 
   t.Join();
-  CHECK_EQ(y, 4);
+  EXPECT_EQ(y, 4);
 
   // now with options and name:
-  static const char* kNamePrefix = "ClosureTest";
-  thread::Options options;
-  ClosureThread t1(options, kNamePrefix, [&y] { IncrementMe(&y); });
+  const char* kNamePrefix = "ClosureTest";
+  ClosureThread t1(thread::Options(), kNamePrefix, [&y] { IncrementMe(&y); });
   t1.SetJoinable(true);
-  CHECK_EQ(y, 4);
+  EXPECT_EQ(y, 4);
   t1.Start();
-  CHECK_EQ(t1.name_prefix(), kNamePrefix);
+  EXPECT_EQ(t1.name_prefix(), kNamePrefix);
   t1.Join();
-  CHECK_EQ(y, 5);
+  EXPECT_EQ(y, 5);
 }
 
 TEST(ThreadTest, ClosureThreadFunctor) {
@@ -251,22 +267,21 @@ TEST(ThreadTest, CheckMemberThread) {
   MemberThread<MemberThreadChecker> t1(&checker,
                                        &MemberThreadChecker::IncrementCounter);
   t1.SetJoinable(true);
-  CHECK_EQ(checker.Counter(), 0);
+  EXPECT_EQ(checker.Counter(), 0);
   t1.Start();
   t1.Join();
-  CHECK_EQ(checker.Counter(), 1);
+  EXPECT_EQ(checker.Counter(), 1);
 
   // now with options and name:
-  static const char* kNamePrefix = "MemberTest";
-  thread::Options options;
-  MemberThread<MemberThreadChecker> t2(options, kNamePrefix, &checker,
+  const char* kNamePrefix = "MemberTest";
+  MemberThread<MemberThreadChecker> t2(thread::Options(), kNamePrefix, &checker,
                                        &MemberThreadChecker::IncrementCounter);
   t2.SetJoinable(true);
-  CHECK_EQ(checker.Counter(), 1);
+  EXPECT_EQ(checker.Counter(), 1);
   t2.Start();
-  CHECK_EQ(t2.name_prefix(), kNamePrefix);
+  EXPECT_EQ(t2.name_prefix(), kNamePrefix);
   t2.Join();
-  CHECK_EQ(checker.Counter(), 2);
+  EXPECT_EQ(checker.Counter(), 2);
 }
 
 TEST(ThreadTest, CheckDetachableThread) {
@@ -313,31 +328,39 @@ TEST(ThreadTest, StackAndGuardSizeOptions) {
 
 class TidTestThread : public Thread {
  public:
-  void Run() override { CHECK_EQ(tid(), pthread_self()); }
+  TidTestThread() : pthread_val_(0) {}
+
+  void Run() override { pthread_val_ = pthread_self(); }
+
+  pthread_t pthread_val() const { return pthread_val_; }
+
+ private:
+  pthread_t pthread_val_;
 };
 
 TEST(ThreadTest, CheckChildTid) {
   for (int i = 0; i < 5000; ++i) {
-    TidTestThread* thread = new TidTestThread();
-    thread->SetJoinable(true);
-    thread->Start();
-    thread->Join();
-    delete thread;
+    TidTestThread thread;
+    thread.SetJoinable(true);
+    thread.Start();
+    thread.Join();
+    EXPECT_EQ(thread.tid(), thread.pthread_val())
+        << "Mismatch occurred at iteration: " << i;
     //  Yield whenever i+1 is a power of 2.
     if ((i & (i + 1)) == 0) sched_yield();
   }
 }
 
-static bool ShouldRunSignalTest(const char* testname) {
+bool ShouldRunSignalTest() {
   if (!absl::debugging_internal::StackTraceWorksForTest()) {
-    LOG(WARNING) << "Skipping " << testname
-                 << " because stack traces are not expected to work in tests.";
+    LOG(WARNING)
+        << "Skipping because stack traces are not expected to work in tests.";
     return false;
   }
 #ifdef ABSL_HAVE_THREAD_SANITIZER
   // TODO: Re-enable after fixing signal handler problems with test.
-  LOG(WARNING) << "Skipping " << testname
-               << " due to unreliable signal delivery (see b/62138055).";
+  LOG(WARNING)
+      << "Skipping due to unreliable signal delivery (see b/62138055).";
   return false;
 #else
   // ShouldInstallDefaultSignalHandler returns false if there is already a
@@ -355,8 +378,7 @@ static bool ShouldRunSignalTest(const char* testname) {
   sigaction(GOOGLE_OBSCURE_SIGNAL, &sa_prev, nullptr);
 
   LOG_IF(WARNING, !ok)
-      << testname
-      << " requires \"-install_signal_handlers=true\" and "
+      << "Requires \"-install_signal_handlers=true\" and "
          "\"-install_named_signal_handlers=stackdump\"; skipping";
   return ok;
 #endif  // ABSL_HAVE_THREAD_SANITIZER
@@ -367,16 +389,16 @@ TEST(ThreadTest, CheckOptions) {
 
   opt.set_joinable(false);
   opt.set_stack_size(17);
-  CHECK_EQ(opt.joinable(), false);
-  CHECK_EQ(opt.stack_size(), 17);
+  EXPECT_FALSE(opt.joinable());
+  EXPECT_EQ(opt.stack_size(), 17);
 
   opt.set_joinable(true).set_stack_size(18);
-  CHECK_EQ(opt.joinable(), true);
-  CHECK_EQ(opt.stack_size(), 18);
+  EXPECT_TRUE(opt.joinable());
+  EXPECT_EQ(opt.stack_size(), 18);
 
   opt.set_io_priority(2, 6);
-  CHECK_EQ(opt.io_class(), 2);
-  CHECK_EQ(opt.io_priority_level(), 6);
+  EXPECT_EQ(opt.io_class(), 2);
+  EXPECT_EQ(opt.io_priority_level(), 6);
 }
 
 class TestThreadStackWriter : public ThreadStackWriter {
@@ -399,7 +421,7 @@ const int kThreads = 100;
 // Wait ensures the threads started below in CheckThreadSignalSafeDumpStacks
 // have predictable behavior. 2 Barriers are used to coordinate startup and
 // shutdown.
-static void Wait(absl::Barrier* started, absl::Barrier* done) {
+void Wait(absl::Barrier* started, absl::Barrier* done) {
   started->Block();
   done->Block();
 }
@@ -408,15 +430,23 @@ TEST(ThreadTest, CheckThreadSignalSafeDumpStacks) {
   // Fire up a set number of threads which wait
   // to indicate they're started and then wait again
   // before exiting.
-  std::list<std::unique_ptr<Thread>> li;
+  std::vector<std::unique_ptr<Thread>> li;
+  li.reserve(kThreads);
   absl::Barrier started(kThreads + 1);
   absl::Barrier done(kThreads + 1);
+  absl::Cleanup cleanup = [&] {
+    // Unblock all the threads and then join each for cleanup.
+    done.Block();
+    for (auto& thr : li) {
+      thr->Join();
+    }
+    li.clear();
+  };
   for (int i = 0; i < kThreads; ++i) {
-    thread::Options options;
-    options.set_joinable(true);
-    std::unique_ptr<Thread> thr(
-        new ClosureThread(options, absl::StrFormat("dumpthread-%d", i),
-                          absl::bind_front(Wait, &started, &done)));
+    auto thr = std::make_unique<ClosureThread>(
+        thread::Options().set_joinable(true),
+        absl::StrFormat("dumpthread-%d", i),
+        absl::bind_front(Wait, &started, &done));
     thr->Start();
     li.push_back(std::move(thr));
   }
@@ -433,19 +463,12 @@ TEST(ThreadTest, CheckThreadSignalSafeDumpStacks) {
   std::string dump = writer.String();
   for (int i = 0; i < kThreads; ++i) {
     std::string name = absl::StrFormat("(name: dumpthread-%d", i);
-    CHECK_NE(std::string::npos, dump.find(name))
+    EXPECT_THAT(dump, HasSubstr(name))
         << "Looking for thread signature: " << name;
   }
 
-  CHECK_NE(std::string::npos, dump.find("--- Memory map: ---"))
+  EXPECT_THAT(dump, HasSubstr("--- Memory map: ---"))
       << "Looking for '--- Memory map: ---' in output";
-
-  // Unblock all the threads and then join each for cleanup.
-  done.Block();
-  for (int i = 0; i < kThreads; ++i, li.pop_front()) {
-    std::unique_ptr<Thread> thr(std::move(li.front()));
-    thr->Join();
-  }
 }
 
 #endif  // !__APPLE__ && !__ANDROID__
@@ -562,14 +585,15 @@ TYPED_TEST(PeriodicThreadTest, CheckPeriodicThreads) {
 class ThreadCollector {
  public:
   struct ThreadTids {
-    pid_t os_tid;
-    pthread_t pthread_tid;
+    pid_t os_tid = 0;
+    pthread_t pthread_tid = 0;
 
-    ThreadTids(pid_t os_tid, pthread_t pthread_tid)
-        : os_tid(os_tid), pthread_tid(pthread_tid) {}
-    bool operator==(const ThreadTids& rhs) const {
-      // Can't use =default for C++17 users.
-      return os_tid == rhs.os_tid && pthread_tid == rhs.pthread_tid;
+    bool operator==(const ThreadTids& rhs) const = default;
+
+    [[maybe_unused]] friend void PrintTo(const ThreadTids& tids,
+                                         std::ostream* os) {
+      *os << "{os_tid: " << tids.os_tid << ", pthread_tid: " << tids.pthread_tid
+          << "}";
     }
   };
 
@@ -629,10 +653,10 @@ class ThreadCollector {
     }
 
     const void* pc_buffer[1];
-    CHECK_EQ(0, StackTrace_GetPCs(trace, -1, nullptr));
-    CHECK_EQ(0, StackTrace_GetPCs(trace, 0, nullptr));
+    EXPECT_EQ(StackTrace_GetPCs(trace, -1, nullptr), 0);
+    EXPECT_EQ(StackTrace_GetPCs(trace, 0, nullptr), 0);
     // There should always be at least one frame in the trace!
-    CHECK_EQ(1, StackTrace_GetPCs(trace, 1, pc_buffer));
+    EXPECT_EQ(StackTrace_GetPCs(trace, 1, pc_buffer), 1);
     Add(arg, thread, false /* not async-signal-safe */);
   }
 
@@ -654,29 +678,10 @@ class ThreadCollector {
   int Count() const { return tids_.size(); }
 
   const std::vector<ThreadTids>& ThreadIds() const { return tids_; }
-
-  bool ContainsThread(const ThreadTids& tids) const {
-    // Linear search, but we don't have large numbers of threads.
-    for (const ThreadTids& my_tids : tids_) {
-      if (tids == my_tids) return true;
-    }
-    return false;
+  const std::vector<std::string>& NamePrefixes() const {
+    return name_prefixes_;
   }
-
-  bool ContainsNamePrefix(absl::string_view name_prefix) const {
-    for (absl::string_view my_name_prefix : name_prefixes_) {
-      if (name_prefix == my_name_prefix) return true;
-    }
-    return false;
-  }
-
-  bool ContainsNamedThread(const ThreadTids& tids,
-                           absl::string_view name) const {
-    for (size_t i = 0; i < tids_.size(); ++i) {
-      if (tids_[i] == tids && names_[i] == name) return true;
-    }
-    return false;
-  }
+  const std::vector<std::string>& Names() const { return names_; }
 
  private:
   std::vector<ThreadTids> tids_;
@@ -684,16 +689,23 @@ class ThreadCollector {
   std::vector<std::string> names_;
 };
 
+MATCHER_P2(ContainsNamedThread, tids, name, "") {
+  const auto& tids_list = arg.ThreadIds();
+  const auto& names_list = arg.Names();
+  const size_t limit = std::min(tids_list.size(), names_list.size());
+  for (size_t i = 0; i < limit; ++i) {
+    if (tids_list[i] == tids && names_list[i] == name) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Class that implements a simple state machine for use in testing the
 // LiveThread interfaces and registration of external threads.
 class LiveThreadTestController {
  public:
-  LiveThreadTestController()
-      : started_(false),
-        registered_(false),
-        stop_(false),
-        register_(false),
-        thread_tids_(0, 0) {}
+  LiveThreadTestController() = default;
 
   // This type is neither copyable nor movable.
   LiveThreadTestController(const LiveThreadTestController&) = delete;
@@ -706,17 +718,14 @@ class LiveThreadTestController {
   //     WaitForRegisterCommand / MarkAsRegistered
   //   WaitForStopCommand
   //   </pre>
-  //
-  // All require L < mu_
   void MarkAsStarted() {
-    absl::MutexLock l(mu_);
     thread_tids_.os_tid = GetTID();
     thread_tids_.pthread_tid = pthread_self();
-    started_ = true;
+    started_.Notify();
   }
-  void WaitForRegisterCommand() { WaitForVar(&register_); }
-  void MarkAsRegistered() { SetVar(&registered_); }
-  void WaitForStopCommand() { WaitForVar(&stop_); }
+  void WaitForRegisterCommand() { register_.WaitForNotification(); }
+  void MarkAsRegistered() { registered_.Notify(); }
+  void WaitForStopCommand() { stop_.WaitForNotification(); }
 
   // Steps in the parent thread:
   //   <pre>
@@ -727,72 +736,56 @@ class LiveThreadTestController {
   //   Stop
   //   (join)
   //   </pre>
-  //
-  // All require L < mu_
-  void WaitUntilStarted() { WaitForVar(&started_); }
-  void Register() { SetVar(&register_); }
-  void WaitUntilRegistered() { WaitForVar(&registered_); }
-  void Stop() { SetVar(&stop_); }
+  void WaitUntilStarted() { started_.WaitForNotification(); }
+  void Register() { register_.Notify(); }
+  void WaitUntilRegistered() { registered_.WaitForNotification(); }
+  void Stop() {
+    if (!stop_.HasBeenNotified()) {
+      stop_.Notify();
+    }
+  }
 
   // Get this thread's TID (same value ::GetTID()'s return when called
   // in this thread).
-  //
-  // L < mu_
   ThreadCollector::ThreadTids GetThreadTids() {
-    absl::MutexLock l(mu_);
-    CHECK(started_);
+    CHECK(started_.HasBeenNotified());
     return thread_tids_;
   }
 
  private:
-  absl::Mutex mu_;   // protects all of the variables below.
-  bool started_;     // has started?           (under mu_)
-  bool registered_;  // has been registered?   (under mu_)
-  bool stop_;        // should stop.           (under mu_)
-  bool register_;    // should register.       (under mu_)
+  absl::Notification started_;
+  absl::Notification registered_;
+  absl::Notification stop_;
+  absl::Notification register_;
 
-  // Thread's TIDs.  Set at startup.  (under mu_)
+  // Thread's TIDs.  Set at startup.
   ThreadCollector::ThreadTids thread_tids_;
-
-  // L < mu_
-  void SetVar(bool* var) {
-    absl::MutexLock lock(mu_);
-    *var = true;
-  }
-
-  // L < mu_
-  void WaitForVar(bool* var) {
-    absl::MutexLock lock(mu_);
-    mu_.Await(absl::Condition(var));
-  }
 };
 
 class LiveThreadTestThread : public Thread {
  public:
   LiveThreadTestController controller_;
+  ThreadCollector::ThreadTids actual_;
+  ThreadCollector::ThreadTids expected_;
 
-  LiveThreadTestThread() : tids_(GetTID(), pthread_self()) {
-    SetJoinable(true);
-  }
+  LiveThreadTestThread() { SetJoinable(true); }
 
   void Run() override {
-    CHECK_EQ(GetTID(), LiveThread_OS_TID(Thread_GetMyLiveThread()));
-    CHECK_EQ(pthread_self(), LiveThread_Pthread_TID(Thread_GetMyLiveThread()));
-    // Reset to the real values now that we're inside the thread.
-    tids_ = ThreadCollector::ThreadTids(GetTID(), pthread_self());
+    actual_ = ThreadCollector::ThreadTids(GetTID(), pthread_self());
+    expected_ = ThreadCollector::ThreadTids(
+        LiveThread_OS_TID(Thread_GetMyLiveThread()),
+        LiveThread_Pthread_TID(Thread_GetMyLiveThread()));
+
     controller_.MarkAsStarted();
     controller_.WaitForStopCommand();
   }
 
-  ThreadCollector::ThreadTids ThreadId() const { return tids_; }
-
- private:
-  ThreadCollector::ThreadTids tids_;
+  ThreadCollector::ThreadTids ThreadId() const { return actual_; }
 };
 
 TEST(ThreadTest, CheckForEach) {
-  if (!ShouldRunSignalTest("CheckForEach")) {
-    return;
+  if (!ShouldRunSignalTest()) {
+    GTEST_SKIP() << "Skipping signal test because preconditions are not met.";
   }
 
   // 6 threads max in this test.
@@ -812,7 +805,7 @@ TEST(ThreadTest, CheckForEach) {
           if (dropped == 0) {
             return;
           }
-          LOG(INFO) << "Dropped " << dropped << " threads";
+          VLOG(1) << "Dropped " << dropped << " threads";
           // Wait a little in case we are competing with some bursty cpu load.
           absl::SleepFor(absl::Milliseconds(100));
         }
@@ -824,18 +817,34 @@ TEST(ThreadTest, CheckForEach) {
   for_each_collector.Reset();
   thread_foreach(&for_each_collector.FalseAdd, &for_each_collector, nullptr,
                  nullptr, kPerThreadTimeoutMs);
-  CHECK_EQ(kBaselineThreads, for_each_collector.Count());
-  CHECK(for_each_collector.ContainsThread(
-      ThreadCollector::ThreadTids(GetTID(), pthread_self())));
+  ASSERT_EQ(for_each_collector.Count(), kBaselineThreads);
+  ASSERT_THAT(for_each_collector.ThreadIds(),
+              Contains(ThreadCollector::ThreadTids(GetTID(), pthread_self())));
 
   LiveThreadTestThread t1, t2, t3;
   t1.Start();
+  absl::Cleanup cleanup1 = [&t1] {
+    t1.controller_.Stop();
+    t1.Join();
+  };
   t2.Start();
+  absl::Cleanup cleanup2 = [&t2] {
+    t2.controller_.Stop();
+    t2.Join();
+  };
   t3.Start();
+  absl::Cleanup cleanup3 = [&t3] {
+    t3.controller_.Stop();
+    t3.Join();
+  };
 
   t1.controller_.WaitUntilStarted();
   t2.controller_.WaitUntilStarted();
   t3.controller_.WaitUntilStarted();
+
+  EXPECT_EQ(t1.actual_, t1.expected_);
+  EXPECT_EQ(t2.actual_, t2.expected_);
+  EXPECT_EQ(t3.actual_, t3.expected_);
 
   // Verify that all threads are now running, without running anything
   // in their contexts.
@@ -844,13 +853,14 @@ TEST(ThreadTest, CheckForEach) {
   thread_foreach(&for_each_collector.FalseAdd, &for_each_collector,
                  &in_each_collector.AddInTarget, &in_each_collector,
                  kPerThreadTimeoutMs /* should be unused */);
-  CHECK_EQ(kBaselineThreads + 3, for_each_collector.Count());
-  CHECK(for_each_collector.ContainsThread(
-      ThreadCollector::ThreadTids(GetTID(), pthread_self())));
-  CHECK(for_each_collector.ContainsThread(t1.controller_.GetThreadTids()));
-  CHECK(for_each_collector.ContainsThread(t2.controller_.GetThreadTids()));
-  CHECK(for_each_collector.ContainsThread(t3.controller_.GetThreadTids()));
-  CHECK_EQ(0, in_each_collector.Count());
+  EXPECT_EQ(for_each_collector.Count(), kBaselineThreads + 3);
+  EXPECT_THAT(
+      for_each_collector.ThreadIds(),
+      IsSupersetOf({ThreadCollector::ThreadTids(GetTID(), pthread_self()),
+                    t1.controller_.GetThreadTids(),
+                    t2.controller_.GetThreadTids(),
+                    t3.controller_.GetThreadTids()}));
+  ASSERT_EQ(in_each_collector.Count(), 0);
 
   // Verify that all threads are now running, and run a function in
   // their contexts.
@@ -859,47 +869,44 @@ TEST(ThreadTest, CheckForEach) {
   thread_foreach(&for_each_collector.TrueAdd, &for_each_collector,
                  &in_each_collector.AddInTarget, &in_each_collector,
                  kPerThreadTimeoutMs);
-  CHECK_EQ(kBaselineThreads + 3, for_each_collector.Count());
-  CHECK(for_each_collector.ContainsThread(
-      ThreadCollector::ThreadTids(GetTID(), pthread_self())));
-  CHECK(for_each_collector.ContainsThread(t1.controller_.GetThreadTids()));
-  CHECK(for_each_collector.ContainsThread(t2.controller_.GetThreadTids()));
-  CHECK(for_each_collector.ContainsThread(t3.controller_.GetThreadTids()));
-  EXPECT_THAT(for_each_collector.ThreadIds(),
-              testing::ContainerEq(in_each_collector.ThreadIds()));
+  EXPECT_EQ(for_each_collector.Count(), kBaselineThreads + 3);
+  EXPECT_THAT(
+      for_each_collector.ThreadIds(),
+      IsSupersetOf({ThreadCollector::ThreadTids(GetTID(), pthread_self()),
+                    t1.controller_.GetThreadTids(),
+                    t2.controller_.GetThreadTids(),
+                    t3.controller_.GetThreadTids()}));
+  EXPECT_EQ(for_each_collector.ThreadIds(), in_each_collector.ThreadIds());
 
   // Same, but run a function by using a NULL for_each function.
   // Reuses contents of for_each_collector from above.
   in_each_collector.Reset();
   thread_foreach(nullptr, nullptr, &in_each_collector.AddInTarget,
                  &in_each_collector, kPerThreadTimeoutMs);
-  EXPECT_THAT(in_each_collector.ThreadIds(),
-              testing::ContainerEq(for_each_collector.ThreadIds()));
+  EXPECT_EQ(in_each_collector.ThreadIds(), for_each_collector.ThreadIds());
 
-  t1.controller_.Stop();
-  t2.controller_.Stop();
-  t1.Join();
-  t2.Join();
+  std::move(cleanup1).Invoke();
+  std::move(cleanup2).Invoke();
 
   // Verify that only two threads are now running
   for_each_collector.Reset();
   thread_foreach(&for_each_collector.FalseAdd, &for_each_collector, nullptr,
                  nullptr, kPerThreadTimeoutMs);
-  CHECK_EQ(kBaselineThreads + 1, for_each_collector.Count());
-  CHECK(for_each_collector.ContainsThread(
-      ThreadCollector::ThreadTids(GetTID(), pthread_self())));
-  CHECK(for_each_collector.ContainsThread(t3.controller_.GetThreadTids()));
+  EXPECT_EQ(for_each_collector.Count(), kBaselineThreads + 1);
+  EXPECT_THAT(
+      for_each_collector.ThreadIds(),
+      IsSupersetOf({ThreadCollector::ThreadTids(GetTID(), pthread_self()),
+                    t3.controller_.GetThreadTids()}));
 
-  t3.controller_.Stop();
-  t3.Join();
+  std::move(cleanup3).Invoke();
 
   // We should be back to one thread active.
   for_each_collector.Reset();
   thread_foreach(&for_each_collector.FalseAdd, &for_each_collector, nullptr,
                  nullptr, kPerThreadTimeoutMs);
-  CHECK_EQ(kBaselineThreads, for_each_collector.Count());
-  CHECK(for_each_collector.ContainsThread(
-      ThreadCollector::ThreadTids(GetTID(), pthread_self())));
+  EXPECT_EQ(for_each_collector.Count(), kBaselineThreads);
+  EXPECT_THAT(for_each_collector.ThreadIds(),
+              Contains(ThreadCollector::ThreadTids(GetTID(), pthread_self())));
 }
 
 // Special Thread_ForEach for_each function used by
@@ -909,8 +916,8 @@ TEST(ThreadTest, CheckForEach) {
 // This violates the interface spec for Thread_ForEach, but is safe in
 // the current implementation and is needed to make this test
 // deterministic.
-static bool StopTestThreadFromForEach(void* testthreadv,
-                                      const LiveThread* target_thread) {
+bool StopTestThreadFromForEach(void* testthreadv,
+                               const LiveThread* target_thread) {
   LiveThreadTestThread* testthread =
       static_cast<LiveThreadTestThread*>(testthreadv);
 
@@ -939,13 +946,18 @@ static bool StopTestThreadFromForEach(void* testthreadv,
 // commits Thread_ForEach to try to run the in_each function in that
 // thread's context.
 TEST(ThreadTest, CheckInEachWhileExiting) {
-  if (!ShouldRunSignalTest("CheckInEachWhileExiting")) {
-    return;
+  if (!ShouldRunSignalTest()) {
+    GTEST_SKIP() << "Skipping signal test because preconditions are not met.";
   }
 
   LiveThreadTestThread t;
   t.Start();
+  absl::Cleanup cleanup = [&t] {
+    t.controller_.Stop();
+    t.Join();
+  };
   t.controller_.WaitUntilStarted();
+  EXPECT_EQ(t.actual_, t.expected_);
 
   ThreadCollector collector(4);
   collector.Reset();
@@ -954,26 +966,26 @@ TEST(ThreadTest, CheckInEachWhileExiting) {
       Thread_ForEach(StopTestThreadFromForEach, &t, &collector.AddInTarget,
                      &collector, kPerThreadTimeoutMs);
   // Could not collect from 't', since it has started to exit.
-  CHECK_EQ(1, num_fails);
+  EXPECT_EQ(num_fails, 1);
 
   // Verify that only non-exiting threads were collected.
-  CHECK_EQ(kBaselineThreads, collector.Count());
-  CHECK(collector.ContainsThread(
-      ThreadCollector::ThreadTids(GetTID(), pthread_self())));
-
-  t.Join();
+  EXPECT_EQ(collector.Count(), kBaselineThreads);
+  EXPECT_THAT(collector.ThreadIds(),
+              Contains(ThreadCollector::ThreadTids(GetTID(), pthread_self())));
 }
 
-static void* ExternalThreadMain(void* arg) {
+void* ExternalThreadMain(void* arg) {
   LiveThreadTestController* controller =
       static_cast<LiveThreadTestController*>(arg);
 
   controller->MarkAsStarted();
-  CHECK_EQ(static_cast<LiveThread*>(nullptr), Thread_GetMyLiveThread());
+  // Use CHECK to immediately abort on unexpected failures in background
+  // threads.
+  CHECK_EQ(Thread_GetMyLiveThread(), nullptr);
 
   controller->WaitForRegisterCommand();
   Thread_RegisterExternalThread("example");
-  CHECK_NE(static_cast<LiveThread*>(nullptr), Thread_GetMyLiveThread());
+  CHECK_NE(Thread_GetMyLiveThread(), nullptr);
   CHECK_EQ(GetTID(), LiveThread_OS_TID(Thread_GetMyLiveThread()));
   CHECK_EQ(pthread_self(), LiveThread_Pthread_TID(Thread_GetMyLiveThread()));
   controller->MarkAsRegistered();
@@ -990,15 +1002,14 @@ TEST(ThreadTest, CheckRegisterExternalThread) {
   for_each_collector.Reset();
   Thread_ForEach(&for_each_collector.FalseAdd, &for_each_collector, nullptr,
                  nullptr, kPerThreadTimeoutMs);
-  CHECK_EQ(kBaselineThreads, for_each_collector.Count());
-  CHECK(for_each_collector.ContainsThread(
-      ThreadCollector::ThreadTids(GetTID(), pthread_self())));
+  EXPECT_EQ(for_each_collector.Count(), kBaselineThreads);
+  EXPECT_THAT(for_each_collector.ThreadIds(),
+              Contains(ThreadCollector::ThreadTids(GetTID(), pthread_self())));
 
   LiveThreadTestController controller;
   pthread_t thread;
-  CHECK_EQ(0,
-           pthread_create(&thread, nullptr, ExternalThreadMain, &controller));
-
+  ASSERT_EQ(pthread_create(&thread, nullptr, ExternalThreadMain, &controller),
+            0);
   controller.WaitUntilStarted();
 
   // Still only one thread (external threads aren't registered
@@ -1006,9 +1017,9 @@ TEST(ThreadTest, CheckRegisterExternalThread) {
   for_each_collector.Reset();
   Thread_ForEach(&for_each_collector.FalseAdd, &for_each_collector, nullptr,
                  nullptr, kPerThreadTimeoutMs);
-  CHECK_EQ(kBaselineThreads, for_each_collector.Count());
-  CHECK(for_each_collector.ContainsThread(
-      ThreadCollector::ThreadTids(GetTID(), pthread_self())));
+  EXPECT_EQ(for_each_collector.Count(), kBaselineThreads);
+  EXPECT_THAT(for_each_collector.ThreadIds(),
+              Contains(ThreadCollector::ThreadTids(GetTID(), pthread_self())));
 
   controller.Register();
   controller.WaitUntilRegistered();
@@ -1017,21 +1028,22 @@ TEST(ThreadTest, CheckRegisterExternalThread) {
   for_each_collector.Reset();
   Thread_ForEach(&for_each_collector.FalseAdd, &for_each_collector, nullptr,
                  nullptr, kPerThreadTimeoutMs);
-  CHECK_EQ(kBaselineThreads + 1, for_each_collector.Count());
-  CHECK(for_each_collector.ContainsThread(
-      ThreadCollector::ThreadTids(GetTID(), pthread_self())));
-  CHECK(for_each_collector.ContainsThread(controller.GetThreadTids()));
+  EXPECT_EQ(for_each_collector.Count(), kBaselineThreads + 1);
+  EXPECT_THAT(
+      for_each_collector.ThreadIds(),
+      IsSupersetOf({ThreadCollector::ThreadTids(GetTID(), pthread_self()),
+                    controller.GetThreadTids()}));
 
   controller.Stop();
-  CHECK_EQ(0, pthread_join(thread, nullptr));
+  EXPECT_EQ(pthread_join(thread, nullptr), 0);
 
   // Back to only one thread (external thread unregistered on exit).
   for_each_collector.Reset();
   Thread_ForEach(&for_each_collector.FalseAdd, &for_each_collector, nullptr,
                  nullptr, kPerThreadTimeoutMs);
-  CHECK_EQ(kBaselineThreads, for_each_collector.Count());
-  CHECK(for_each_collector.ContainsThread(
-      ThreadCollector::ThreadTids(GetTID(), pthread_self())));
+  EXPECT_EQ(for_each_collector.Count(), kBaselineThreads);
+  EXPECT_THAT(for_each_collector.ThreadIds(),
+              Contains(ThreadCollector::ThreadTids(GetTID(), pthread_self())));
 }
 
 // RAII helper to make sure we clean up a test thread.
@@ -1066,8 +1078,7 @@ class ThreadScopedGuard final {
 class ProcessStackTracesTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    if (!ShouldRunSignalTest(
-            testing::UnitTest::GetInstance()->current_test_info()->name())) {
+    if (!ShouldRunSignalTest()) {
       GTEST_SKIP() << "Skipping signal test; preconditions not met.";
     }
 
@@ -1083,11 +1094,14 @@ class ProcessStackTracesTest : public ::testing::Test {
     t1_.controller_.WaitUntilStarted();
     t2_.controller_.WaitUntilStarted();
     t3_.controller_.WaitUntilStarted();
+
+    ASSERT_EQ(t1_.actual_, t1_.expected_);
+    ASSERT_EQ(t2_.actual_, t2_.expected_);
+    ASSERT_EQ(t3_.actual_, t3_.expected_);
   }
 
   void TearDown() override {
-    if (!ShouldRunSignalTest(
-            testing::UnitTest::GetInstance()->current_test_info()->name())) {
+    if (!ShouldRunSignalTest()) {
       return;
     }
 
@@ -1247,7 +1261,8 @@ ABSL_ATTRIBUTE_NOINLINE void InnermostFrame() {
     }
   }
 
-  EXPECT_EQ(sum, 0);
+  // Executed in background test thread, EXPECT_EQ is not safe.
+  CHECK_EQ(sum, 0);
 }
 
 // Must be less than kMaxFunctionSize bytes
@@ -1266,7 +1281,7 @@ class StackTraceTestThread : public Thread {
 struct CollectedStack {
   std::string thread_name;
   std::vector<const void*> pcs;
-  uint64_t trace_id;
+  uint64_t trace_id = 0;
 };
 
 constexpr int kMaxCollectedFrames = 100;
@@ -1304,7 +1319,7 @@ const CollectedStack* FindThreadStack(absl::Span<const CollectedStack> stacks,
                                       absl::string_view thread_name_prefix) {
   const CollectedStack* thread_stack = nullptr;
   for (const auto& stack : stacks) {
-    if (stack.thread_name.find(thread_name_prefix) == 0) {
+    if (absl::StartsWith(stack.thread_name, thread_name_prefix)) {
       EXPECT_EQ(thread_stack, nullptr)
           << "Multiple threads with prefix " << thread_name_prefix << " found";
       thread_stack = &stack;
@@ -1321,29 +1336,27 @@ bool FrameInFunction(const void* pc, const void* function) {
 }
 
 MATCHER_P(FrameInFunctionMatcher, address,
-          "is in function " + testing::PrintToString(address)) {
+          absl::StrCat("is in function ", testing::PrintToString(address))) {
   return FrameInFunction(arg, reinterpret_cast<void*>(address));
 }
 
 TEST(ThreadTest, ProcessStackTracesCorrectStacks) {
-  if (!ShouldRunSignalTest("ProcessStackTracesCorrectStacks")) {
-    return;
+  if (!ShouldRunSignalTest()) {
+    GTEST_SKIP() << "Skipping signal test because preconditions are not met.";
   }
 #if defined(ABSL_HAVE_MEMORY_SANITIZER)
   // TODO - Fix this test to work with MSAN.
   GTEST_SKIP() << "Skipping test because it doesn't work MSAN.";
 #endif
 
-  thread::Options options;
-  options.set_joinable(true);
-  StackTraceTestThread t(options, "cpu_busy");
+  StackTraceTestThread t(thread::Options().set_joinable(true), "cpu_busy");
   t.Start();
   absl::SleepFor(absl::Milliseconds(50));
   std::vector<CollectedStack> stacks = CollectStacks();
   t.Join();
 
   const CollectedStack* main_stack = FindThreadStack(stacks, "main");
-  ASSERT_NE(main_stack, nullptr);
+  ASSERT_THAT(main_stack, NotNull());
   ASSERT_GE(main_stack->pcs.size(), 1);
   EXPECT_THAT(main_stack->pcs[0], FrameInFunctionMatcher(&DoProcessStackTraces))
       << "Complete stack is " << gtl::LogContainer(main_stack->pcs);
@@ -1373,22 +1386,38 @@ TEST(ThreadTest, ProcessStackTracesCorrectStacks) {
   }
 }
 
-static std::string ExpectedThreadName(absl::string_view prefix, pid_t pid) {
+std::string ExpectedThreadName(absl::string_view prefix, pid_t pid) {
   return absl::StrFormat("%s/%d", prefix, static_cast<int64_t>(pid));
 }
 
 TEST(ThreadTest, CheckThreadNameMain) {
-  CHECK_STREQ("main", LiveThread_NamePrefix(Thread_GetMyLiveThread()));
-  CHECK_STREQ(ExpectedThreadName("main", GetTID()).c_str(),
-              LiveThread_Name(Thread_GetMyLiveThread()));
+  EXPECT_STREQ(LiveThread_NamePrefix(Thread_GetMyLiveThread()), "main");
+  EXPECT_EQ(LiveThread_Name(Thread_GetMyLiveThread()),
+            ExpectedThreadName("main", GetTID()));
 }
 
-TEST(ThreadTest, CheckThreadNameUnnamed) {
+using ThreadNameTest = testing::TestWithParam<std::optional<std::string>>;
+
+INSTANTIATE_TEST_SUITE_P(
+    , ThreadNameTest, testing::Values(std::nullopt, "B0_b"),
+    [](const testing::TestParamInfo<std::optional<std::string>>& info) {
+      return info.param.value_or("nullopt");
+    });
+
+TEST_P(ThreadNameTest, CheckThreadName) {
+  const std::optional<std::string>& custom_prefix = GetParam();
   LiveThreadTestThread t1;
-  // We do not set the thread's name before starting it.
+  if (custom_prefix.has_value()) {
+    t1.SetNamePrefix(*custom_prefix);
+  }
 
   t1.Start();
+  absl::Cleanup cleanup = [&t1] {
+    t1.controller_.Stop();
+    t1.Join();
+  };
   t1.controller_.WaitUntilStarted();
+  EXPECT_EQ(t1.actual_, t1.expected_);
 
   ThreadCollector collector(4);
 
@@ -1399,84 +1428,71 @@ TEST(ThreadTest, CheckThreadNameUnnamed) {
   Thread_ProcessStackTraces(arg);
 
   constexpr int kExpectedThreads = kBaselineThreads + 1;
-  CHECK_EQ(kExpectedThreads, collector.Count());
-  CHECK(collector.ContainsNamePrefix("main"));
-  CHECK(collector.ContainsNamedThread(
-      ThreadCollector::ThreadTids(GetTID(), pthread_self()),
-      ExpectedThreadName("main", GetTID())));
-  constexpr absl::string_view kThreadNamePrefix =
+  EXPECT_EQ(collector.Count(), kExpectedThreads);
+  EXPECT_THAT(collector.NamePrefixes(), Contains("main"));
+
+  ThreadCollector::ThreadTids main_tids(GetTID(), pthread_self());
+  EXPECT_THAT(collector, ContainsNamedThread(
+                             main_tids, ExpectedThreadName("main", GetTID())));
+
+  constexpr absl::string_view kDefaultThreadNamePrefix =
       "gloop_thread_thread_unittest";
-  CHECK(collector.ContainsNamePrefix(kThreadNamePrefix));
-  CHECK(collector.ContainsNamedThread(
-      t1.controller_.GetThreadTids(),
-      ExpectedThreadName(kThreadNamePrefix,
-                         t1.controller_.GetThreadTids().os_tid)));
 
-  t1.controller_.Stop();
-  t1.Join();
+  const std::string expected_prefix =
+      custom_prefix.value_or(std::string(kDefaultThreadNamePrefix));
+
+  EXPECT_THAT(collector.NamePrefixes(), Contains(expected_prefix));
+  EXPECT_THAT(collector,
+              ContainsNamedThread(
+                  t1.controller_.GetThreadTids(),
+                  ExpectedThreadName(expected_prefix,
+                                     t1.controller_.GetThreadTids().os_tid)));
 }
 
-TEST(ThreadTest, SanitizeThreadNamePrefix) {
-  std::vector<std::pair<std::string, std::string>> before_after{
-      {"", ""},
-      {"2abc", "_abc"},
-      {"!@#$%^&*()", "__________"},
-      {"2foo☺*&^%$#(@)!", "_foo_____________"},
-      {"abc.def#ghi", "abc_def_ghi"},
-      {"123-abc", "_23-abc"},
-  };
-  for (const auto& [before, after] : before_after) {
-    EXPECT_EQ(thread::SanitizeThreadNamePrefix(before), after);
-  }
+using SanitizeThreadNamePrefixTest =
+    testing::TestWithParam<std::tuple<std::string, std::string, std::string>>;
+
+TEST_P(SanitizeThreadNamePrefixTest, SanitizesCorrectly) {
+  const auto& [name, before, after] = GetParam();
+  EXPECT_EQ(thread::SanitizeThreadNamePrefix(before), after);
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    , SanitizeThreadNamePrefixTest,
+    testing::ValuesIn(
+        std::vector<std::tuple<std::string, std::string, std::string>>{
+            {"Empty", "", ""},
+            {"Alphanumeric", "2abc", "_abc"},
+            {"SpecialCharacters", "!@#$%^&*()", "__________"},
+            {"MixedPadding", "2foo☺*&^%$#(@)!", "_foo_____________"},
+            {"MixedGaps", "abc.def#ghi", "abc_def_ghi"},
+            {"Dash", "123-abc", "_23-abc"},
+        }),
+    [](const testing::TestParamInfo<
+        std::tuple<std::string, std::string, std::string>>& info) {
+      return std::get<0>(info.param);
+    });
 
 using IsValidThreadNamePrefixTest =
-    testing::TestWithParam<std::pair<std::string, bool>>;
+    testing::TestWithParam<std::tuple<std::string, std::string, bool>>;
 
 TEST_P(IsValidThreadNamePrefixTest, Test) {
-  const auto& [prefix, expected] = GetParam();
+  const auto& [name, prefix, expected] = GetParam();
   EXPECT_EQ(thread::IsValidThreadNamePrefix(prefix), expected);
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    IsValidThreadNamePrefixTestInst, IsValidThreadNamePrefixTest,
-    testing::ValuesIn(std::vector<std::pair<std::string, bool>>{
-        {"ValidPrefix", true},
-        {"valid-prefix_123", true},
-        {"", true},
-        {"1Invalid", false},
-        {"invalid.prefix", false},
-        {"invalid space", false},
-    }));
-
-TEST(ThreadTest, CheckThreadNameNamed) {
-  LiveThreadTestThread t1;
-  t1.SetNamePrefix("B0_b");
-
-  t1.Start();
-  t1.controller_.WaitUntilStarted();
-
-  ThreadCollector collector(4);
-
-  Thread_ProcessStackTracesArg arg;
-  arg.filter = &collector.FalseAdd;
-  arg.filter_arg = &collector;
-  arg.per_thread_timeout_ms = kPerThreadTimeoutMs;
-  Thread_ProcessStackTraces(arg);
-  constexpr int kExpectedThreads = kBaselineThreads + 1;
-  CHECK_EQ(kExpectedThreads, collector.Count());
-  CHECK(collector.ContainsNamePrefix("main"));
-  CHECK(collector.ContainsNamedThread(
-      ThreadCollector::ThreadTids(GetTID(), pthread_self()),
-      ExpectedThreadName("main", GetTID())));
-  CHECK(collector.ContainsNamePrefix("B0_b"));
-  CHECK(collector.ContainsNamedThread(
-      t1.controller_.GetThreadTids(),
-      ExpectedThreadName("B0_b", t1.controller_.GetThreadTids().os_tid)));
-
-  t1.controller_.Stop();
-  t1.Join();
-}
+    , IsValidThreadNamePrefixTest,
+    testing::ValuesIn(std::vector<std::tuple<std::string, std::string, bool>>{
+        {"ValidPrefix", "ValidPrefix", true},
+        {"ValidPrefixWithNumbers", "valid-prefix_123", true},
+        {"EmptyPrefix", "", true},
+        {"InvalidPrefix", "1Invalid", false},
+        {"InvalidPrefixWithDot", "invalid.prefix", false},
+        {"InvalidPrefixWithSpace", "invalid space", false},
+    }),
+    [](const testing::TestParamInfo<std::tuple<std::string, std::string, bool>>&
+           info) { return std::get<0>(info.param); });
 
 // Helper thread for CheckTraceContextThreadStatusRace.  See
 // description in that function for information about what we're
@@ -1490,6 +1506,8 @@ class ThreadStatusRaceHelper : public Thread {
   void Run() override {
     const char* status_string = "foo";
     int page_size = getpagesize();
+    // Background thread infrastructure verification: abort instantly if
+    // allocations or syscalls fail.
     CHECK_GT(page_size, strlen(status_string));
 
     // Get a page, and put our status string in it.  We use mmap
@@ -1538,8 +1556,8 @@ class NullThreadStackWriter : public ThreadStackWriter {
 };
 
 TEST(ThreadTest, CheckTraceContextThreadStatusRace) {
-  if (!ShouldRunSignalTest("CheckTraceContextThreadStatusRace")) {
-    return;
+  if (!ShouldRunSignalTest()) {
+    GTEST_SKIP() << "Skipping signal test because preconditions are not met.";
   }
 
   // This code tests for a race condition that could occur with the
@@ -1566,24 +1584,29 @@ TEST(ThreadTest, CheckTraceContextThreadStatusRace) {
 
   ThreadStatusRaceHelper helper_thread;
   helper_thread.Start();
+  absl::Cleanup cleanup = [&helper_thread] {
+    helper_thread.controller_.Stop();
+    helper_thread.Join();
+  };
   helper_thread.controller_.WaitUntilStarted();
 
   NullThreadStackWriter writer;
   Thread_ExtractStacks(&writer);
-
-  helper_thread.controller_.Stop();
-  helper_thread.Join();
 }
 
 TEST(ThreadTest, CheckStatusFilledForThreadProcessStackTraces) {
-  if (!ShouldRunSignalTest("CheckStatusFilledForThread_ProcessStackTraces")) {
-    return;
+  if (!ShouldRunSignalTest()) {
+    GTEST_SKIP() << "Skipping signal test because preconditions are not met.";
   }
 
   // Reuse ThreadStatusRaceHelper since it sets a status so can verify
   // access.
   ThreadStatusRaceHelper helper_thread;
   helper_thread.Start();
+  absl::Cleanup cleanup = [&helper_thread] {
+    helper_thread.controller_.Stop();
+    helper_thread.Join();
+  };
   helper_thread.controller_.WaitUntilStarted();
 
   bool got_status = false;
@@ -1591,7 +1614,7 @@ TEST(ThreadTest, CheckStatusFilledForThreadProcessStackTraces) {
     if (state.thread_status != nullptr) {
       *static_cast<bool*>(arg) = true;  // Sets got_status
       // Make sure it's a valid and accessible pointer.
-      LOG(INFO) << "Thread status: " << state.thread_status;
+      VLOG(1) << "Thread status: " << state.thread_status;
     }
   };
 
@@ -1612,49 +1635,78 @@ TEST(ThreadTest, CheckStatusFilledForThreadProcessStackTraces) {
   }
   EXPECT_TRUE(got_status) << "Did not get thread status after " << kMaxAttempts
                           << " attempts";
-
-  helper_thread.controller_.Stop();
-  helper_thread.Join();
 }
 
 class SigIgnoreTestThread : public Thread {
  public:
   LiveThreadTestController controller_;
+  ThreadCollector::ThreadTids actual_;
+  ThreadCollector::ThreadTids expected_;
+  int sigemptyset_res_ = -1;
+  int sigaddset_res_ = -1;
+  int pthread_sigmask_block_res_ = -1;
+  int sigismember_res_ = -1;
+  int pthread_sigmask_unblock_res_ = -1;
 
   SigIgnoreTestThread() { SetJoinable(true); }
 
   void Run() override {
-    CHECK_EQ(GetTID(), LiveThread_OS_TID(Thread_GetMyLiveThread()));
-    CHECK_EQ(pthread_self(), LiveThread_Pthread_TID(Thread_GetMyLiveThread()));
+    actual_ = ThreadCollector::ThreadTids(GetTID(), pthread_self());
+    expected_ = ThreadCollector::ThreadTids(
+        LiveThread_OS_TID(Thread_GetMyLiveThread()),
+        LiveThread_Pthread_TID(Thread_GetMyLiveThread()));
+
     // Disable the signals so this can't receive.
     sigset_t mask_to_block, orig_mask;
-    CHECK_EQ(0, sigemptyset(&mask_to_block));
-    CHECK_EQ(0, sigaddset(&mask_to_block, GOOGLE_OBSCURE_SIGNAL));
-    CHECK_EQ(0, pthread_sigmask(SIG_BLOCK, &mask_to_block, &orig_mask));
-    CHECK_EQ(0, sigismember(&orig_mask, GOOGLE_OBSCURE_SIGNAL));
+    sigemptyset_res_ = sigemptyset(&mask_to_block);
+    sigaddset_res_ = sigaddset(&mask_to_block, GOOGLE_OBSCURE_SIGNAL);
+    pthread_sigmask_block_res_ =
+        pthread_sigmask(SIG_BLOCK, &mask_to_block, &orig_mask);
+    sigismember_res_ = sigismember(&orig_mask, GOOGLE_OBSCURE_SIGNAL);
 
     controller_.MarkAsStarted();
 
     controller_.WaitForStopCommand();
-    CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &mask_to_block, &orig_mask));
+    pthread_sigmask_unblock_res_ =
+        pthread_sigmask(SIG_UNBLOCK, &mask_to_block, &orig_mask);
   }
 };
 
-static void DoNothing(void* arg, const LiveThreadState& state) {}
+void DoNothing(void* arg, const LiveThreadState& state) {}
 
 TEST(ThreadTest, CheckThreadProcessStackTracesSigSafe) {
   LiveThreadTestThread t1, t2, t3;
   t1.Start();
+  absl::Cleanup cleanup1 = [&t1] {
+    t1.controller_.Stop();
+    t1.Join();
+  };
   t2.Start();
+  absl::Cleanup cleanup2 = [&t2] {
+    t2.controller_.Stop();
+    t2.Join();
+  };
   t3.Start();
+  absl::Cleanup cleanup3 = [&t3] {
+    t3.controller_.Stop();
+    t3.Join();
+  };
 
   t1.controller_.WaitUntilStarted();
   t2.controller_.WaitUntilStarted();
   t3.controller_.WaitUntilStarted();
 
+  EXPECT_EQ(t1.actual_, t1.expected_);
+  EXPECT_EQ(t2.actual_, t2.expected_);
+  EXPECT_EQ(t3.actual_, t3.expected_);
+
   // Create a new thread that blocks the signal
   SigIgnoreTestThread t4;
   t4.Start();
+  absl::Cleanup cleanup4 = [&t4] {
+    t4.controller_.Stop();
+    t4.Join();
+  };
   t4.controller_.WaitUntilStarted();
 
   Thread_ProcessStackTracesArg arg;
@@ -1664,94 +1716,129 @@ TEST(ThreadTest, CheckThreadProcessStackTracesSigSafe) {
   arg.per_thread_timeout_ms = kPerThreadTimeoutMs;
 
   // At least one always fails
-  CHECK_GE(Thread_ProcessStackTraces(arg), 1);
+  EXPECT_GE(Thread_ProcessStackTraces(arg), 1);
 
-  t4.controller_.Stop();
-  t4.Join();
+  std::move(cleanup4).Invoke();
+
+  EXPECT_EQ(t4.actual_, t4.expected_);
+  EXPECT_EQ(t4.sigemptyset_res_, 0);
+  EXPECT_EQ(t4.sigaddset_res_, 0);
+  EXPECT_EQ(t4.pthread_sigmask_block_res_, 0);
+  EXPECT_EQ(t4.sigismember_res_, 0);
+  EXPECT_EQ(t4.pthread_sigmask_unblock_res_, 0);
 
   // Should be 0 but could be higher under load so avoid flakes.
-  CHECK_GE(Thread_ProcessStackTraces(arg), 0);
-
-  t1.controller_.Stop();
-  t2.controller_.Stop();
-  t3.controller_.Stop();
-  t1.Join();
-  t2.Join();
-  t3.Join();
+  EXPECT_GE(Thread_ProcessStackTraces(arg), 0);
 }
 
-static void NullFuncInTarget(void* arg, ucontext_t* uc,
-                             const LiveThread* thread) {}
+void NullFuncInTarget(void* arg, ucontext_t* uc, const LiveThread* thread) {}
 
 TEST(ThreadTest, CheckInEachSignalDisabled) {
-  if (!ShouldRunSignalTest("CheckInEachSignalDisabled")) {
-    return;
+  if (!ShouldRunSignalTest()) {
+    GTEST_SKIP() << "Skipping signal test because preconditions are not met.";
   }
 
   sigset_t mask_to_block, orig_mask;
-  CHECK_EQ(0, sigemptyset(&mask_to_block));
-  CHECK_EQ(0, sigaddset(&mask_to_block, GOOGLE_OBSCURE_SIGNAL));
-  CHECK_EQ(0, pthread_sigmask(SIG_BLOCK, &mask_to_block, &orig_mask));
-  CHECK_EQ(0, sigismember(&orig_mask, GOOGLE_OBSCURE_SIGNAL));
+  EXPECT_EQ(sigemptyset(&mask_to_block), 0);
+  EXPECT_EQ(sigaddset(&mask_to_block, GOOGLE_OBSCURE_SIGNAL), 0);
+  EXPECT_EQ(pthread_sigmask(SIG_BLOCK, &mask_to_block, &orig_mask), 0);
+  EXPECT_EQ(sigismember(&orig_mask, GOOGLE_OBSCURE_SIGNAL), 0);
 
   // We assume that there is only one Thread running -- the main
   // thread.
-  CHECK_EQ(1, Thread_ForEach(nullptr, nullptr, NullFuncInTarget, nullptr,
-                             kPerThreadTimeoutMs));
+  EXPECT_EQ(Thread_ForEach(nullptr, nullptr, NullFuncInTarget, nullptr,
+                           kPerThreadTimeoutMs),
+            1);
 
-  CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &mask_to_block, &orig_mask));
+  EXPECT_EQ(pthread_sigmask(SIG_UNBLOCK, &mask_to_block, &orig_mask), 0);
 
   // Make sure Thread_ForEach works again, after unblocking the signal.
-  CHECK_EQ(0, Thread_ForEach(nullptr, nullptr, NullFuncInTarget, nullptr,
-                             kPerThreadTimeoutMs));
+  EXPECT_EQ(Thread_ForEach(nullptr, nullptr, NullFuncInTarget, nullptr,
+                           kPerThreadTimeoutMs),
+            0);
 }
 
-static void BenchmarkNullInEach() {
-  if (!ShouldRunSignalTest("BenchmarkNullInEach")) {
+constexpr int kNumNullInEachThreads = 50;
+
+class NullInEachManager {
+ public:
+  NullInEachManager() : should_run_(ShouldRunSignalTest()) {}
+
+  static void Setup(const benchmark::State& state) {
+    Instance().SetupImpl(state);
+  }
+
+  static void Teardown(const benchmark::State& state) {
+    Instance().TeardownImpl(state);
+  }
+
+  static bool ShouldRun() { return Instance().should_run_; }
+
+ private:
+  static NullInEachManager& Instance() {
+    static absl::NoDestructor<NullInEachManager> instance;
+    return *instance;
+  }
+
+  void SetupImpl(const benchmark::State& state) {
+    absl::MutexLock lock(mu_);
+    if (!should_run_) return;
+    TeardownImplLocked();
+
+    threads_.reserve(kNumNullInEachThreads);
+    absl::Cleanup cleanup = [this] {
+      mu_.AssertHeld();
+      TeardownImplLocked();
+    };
+
+    for (int i = 0; i < kNumNullInEachThreads; ++i) {
+      threads_.push_back(std::make_unique<LiveThreadTestThread>());
+      threads_.back()->Start();
+      threads_.back()->controller_.WaitUntilStarted();
+    }
+    std::move(cleanup).Cancel();
+
+    Thread_ForEach(nullptr, nullptr, NullFuncInTarget, nullptr,
+                   kPerThreadTimeoutMs);
+  }
+
+  void TeardownImpl(const benchmark::State& state) {
+    absl::MutexLock lock(mu_);
+    TeardownImplLocked();
+  }
+
+  void TeardownImplLocked() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mu_) {
+    for (auto& thread : threads_) {
+      thread->controller_.Stop();
+      thread->Join();
+    }
+    threads_.clear();
+  }
+
+  const bool should_run_;
+  absl::Mutex mu_;
+  std::vector<std::unique_ptr<LiveThreadTestThread>> threads_
+      ABSL_GUARDED_BY(mu_);
+};
+
+static void BM_NullInEach(benchmark::State& state) {
+  if (!NullInEachManager::ShouldRun()) {
     return;
   }
-
-  const int num_threads = 50;
-  std::unique_ptr<LiveThreadTestThread[]> threads(
-      new LiveThreadTestThread[num_threads]);
-  const int num_iterations = 100;
-
-  // Thread_ForEach is best-effort, so tolerate 5% error.
-  const int allowed_failures = (num_threads * num_iterations) / 20;
-  int failures = 0;
-
-  LOG(INFO) << "Benchmarking NullInEach with " << num_threads << " threads";
-
-  for (int i = 0; i < num_threads; ++i) {
-    threads[i].Start();
-    threads[i].controller_.WaitUntilStarted();
-  }
-
-  // This is just intended to be a rough number.
-  failures += Thread_ForEach(nullptr, nullptr, NullFuncInTarget, nullptr,
-                             kPerThreadTimeoutMs);
-  absl::Time start_time = absl::Now();
-  for (int i = 0; i < num_iterations; ++i) {
+  int64_t failures = 0;
+  for (auto _ : state) {
     failures += Thread_ForEach(nullptr, nullptr, NullFuncInTarget, nullptr,
                                kPerThreadTimeoutMs);
   }
-  absl::Time end_time = absl::Now();
-
-  CHECK_LE(failures, allowed_failures)
-      << "from " << num_iterations << " iterations with " << num_threads
-      << " threads live";
-
-  for (int i = 0; i < num_threads; ++i) {
-    threads[i].controller_.Stop();
-    threads[i].Join();
-  }
-
-  LOG(INFO) << "NullInEach: "
-            << (uint64_t)(1e9 *
-                          ((absl::ToDoubleSeconds(end_time - start_time)) /
-                           (num_threads * num_iterations)))
-            << " ns per thread\n";
+  // Thread_ForEach is best-effort, so tolerate 5% error.
+  EXPECT_LE(failures, (kNumNullInEachThreads * state.iterations()) / 20)
+      << "from " << state.iterations() << " iterations with "
+      << kNumNullInEachThreads << " threads live";
 }
+
+BENCHMARK(BM_NullInEach)
+    ->Setup(NullInEachManager::Setup)
+    ->Teardown(NullInEachManager::Teardown);
 
 // -----------------------------------------------------------------
 // Stack trace testing code
@@ -1816,8 +1903,7 @@ void SaveStackTraceDump(std::string* str) {
 
 TEST(ThreadTest, CheckSelfStack) {
   if (!absl::debugging_internal::StackTraceWorksForTest()) {
-    LOG(WARNING) << "Skip because stack traces are not expected to work.";
-    return;
+    GTEST_SKIP() << "Skipping because stack traces are not expected to work.";
   }
   void* pc = RecursiveCallPC();
   std::string dump;
@@ -1825,14 +1911,12 @@ TEST(ThreadTest, CheckSelfStack) {
 
   // Since we line-wrap the pcs, there must be some line that
   // contains the recursive call pc more than once.
-  CHECK(RE2::PartialMatch(dump, absl::StrFormat(" %p +%p", pc, pc)))
-      << pc << " in " << dump;
+  EXPECT_THAT(dump, ContainsRegex(absl::StrFormat(" %p +%p", pc, pc)));
 }
 
 TEST(ThreadTest, CheckOtherStack) {
   if (!absl::debugging_internal::StackTraceWorksForTest()) {
-    LOG(WARNING) << "Skip because stack traces are not expected to work.";
-    return;
+    GTEST_SKIP() << "Skipping because stack traces are not expected to work.";
   }
   std::string dump;
 
@@ -1844,36 +1928,30 @@ TEST(ThreadTest, CheckOtherStack) {
   }
 
   void* pc = RecursiveCallPC();
-  CHECK(RE2::PartialMatch(dump, absl::StrFormat(" %p +%p", pc, pc)))
-      << pc << " in " << dump;
+  EXPECT_THAT(dump, ContainsRegex(absl::StrFormat(" %p +%p", pc, pc)));
 
   // Must contain a creator: entry
-  CHECK(RE2::PartialMatch(dump, "creator:")) << dump;
+  EXPECT_THAT(dump, HasSubstr("creator:"));
 }
 
 TEST(ThreadTest, CheckStackLineWrap) {
   if (!absl::debugging_internal::StackTraceWorksForTest()) {
-    LOG(WARNING) << "Skip because stack traces are not expected to work.";
-    return;
+    GTEST_SKIP() << "Skipping because stack traces are not expected to work.";
   }
   void* pc = RecursiveCallPC();
   std::string dump;
   Recurse(100, [&dump] { SaveStackTraceDump(&dump); });
-  std::vector<std::string> lines =
-      absl::StrSplit(dump, '\n', absl::SkipEmpty());
-
-  // Every line that contains "pc" must be at most 80 chars in length
-  for (size_t i = 0; i < lines.size(); i++) {
-    if (RE2::PartialMatch(lines[i], absl::StrFormat(" %p ", pc))) {
-      CHECK_LE(lines[i].size(), 80) << lines[i];
+  const std::string pc_pattern = absl::StrFormat(" %p ", pc);
+  for (absl::string_view line : absl::StrSplit(dump, '\n', absl::SkipEmpty())) {
+    if (absl::StrContains(line, pc_pattern)) {
+      EXPECT_LE(line.size(), 80) << line;
     }
   }
 }
 
 TEST(ThreadTest, CheckStackTop) {
   if (!absl::debugging_internal::StackTraceWorksForTest()) {
-    LOG(WARNING) << "Skip because stack traces are not expected to work.";
-    return;
+    GTEST_SKIP() << "Skipping because stack traces are not expected to work.";
   }
   StackContents stack;
   // Construct a stack trace that will be filled with our known PC.
@@ -1900,8 +1978,7 @@ TEST(ThreadTest, CheckStackTop) {
 
 TEST(ThreadTest, CheckThreadNotesInStack) {
   if (!absl::debugging_internal::StackTraceWorksForTest()) {
-    LOG(WARNING) << "Skip because stack traces are not expected to work.";
-    return;
+    GTEST_SKIP() << "Skipping because stack traces are not expected to work.";
   }
 
   std::string dump;
@@ -1910,7 +1987,7 @@ TEST(ThreadTest, CheckThreadNotesInStack) {
     Recurse(100, [&dump] { SaveStackTraceDump(&dump); });
   }
 
-  EXPECT_THAT(dump, testing::HasSubstr("note: test_note\n"));
+  EXPECT_THAT(dump, HasSubstr("note: test_note\n"));
 }
 
 #if !PORTABLE_BASE
@@ -1929,11 +2006,11 @@ TEST(ThreadTest, DumpGilHolder) {
 
   gil_held.store(false);
   SaveStackTraceDump(&dump);
-  EXPECT_THAT(dump, Not(testing::HasSubstr("python_gil: held")));
+  EXPECT_THAT(dump, Not(HasSubstr("python_gil: held")));
 
   gil_held.store(true);
   SaveStackTraceDump(&dump);
-  EXPECT_THAT(dump, testing::HasSubstr("python_gil: held"));
+  EXPECT_THAT(dump, HasSubstr("python_gil: held"));
 }
 
 #endif
@@ -1944,27 +2021,27 @@ TEST(ThreadTest, DebugNameNotInsideFiber) {
                     "execute inside fiber.";
   }
   const LiveThread* thread = Thread_GetMyLiveThread();
-  ASSERT_TRUE(thread != nullptr);
+  ASSERT_THAT(thread, NotNull());
 
   const char* thread_name = LiveThread_Name(thread);
-  ASSERT_TRUE(thread_name != nullptr);
+  ASSERT_THAT(thread_name, NotNull());
 
-  EXPECT_THAT(thread::DebugName(), testing::HasSubstr(thread_name));
+  EXPECT_THAT(thread::DebugName(), HasSubstr(thread_name));
 }
 
 TEST(ThreadTest, DebugNameInsideFiber) {
   const char* kFiberName = "test_fiber_name";
-  thread::Fiber f(
-      thread::FiberOptions().SetInternedName(kFiberName), [kFiberName] {
-        const LiveThread* thread = Thread_GetMyLiveThread();
-        ASSERT_TRUE(thread != nullptr);
+  thread::Fiber f(thread::FiberOptions().SetInternedName(kFiberName),
+                  [kFiberName] {
+                    const LiveThread* thread = Thread_GetMyLiveThread();
+                    ASSERT_THAT(thread, NotNull());
 
-        const char* thread_name = LiveThread_Name(thread);
-        ASSERT_TRUE(thread_name != nullptr);
+                    const char* thread_name = LiveThread_Name(thread);
+                    ASSERT_THAT(thread_name, NotNull());
 
-        EXPECT_THAT(thread::DebugName(), testing::HasSubstr(thread_name));
-        EXPECT_THAT(thread::DebugName(), testing::HasSubstr(kFiberName));
-      });
+                    EXPECT_THAT(thread::DebugName(), HasSubstr(thread_name));
+                    EXPECT_THAT(thread::DebugName(), HasSubstr(kFiberName));
+                  });
   f.Join();
 }
 
@@ -1973,15 +2050,61 @@ void ListOneNote(void* arg, absl::string_view note) {
   v->push_back(std::string(note));
 }
 
-void ExpectNotes(const LiveThread* thread,
-                 absl::Span<const std::string> expectation) {
-  EXPECT_THAT(LiveThread_GetNotes(thread),
-              testing::UnorderedElementsAreArray(expectation));
+MATCHER_P(NotesAreImpl, expectation, "") {
+  auto expected_matcher = UnorderedElementsAreArray(expectation);
+  if (!ExplainMatchResult(expected_matcher, LiveThread_GetNotes(arg),
+                          result_listener)) {
+    *result_listener << " (GetNotes mismatch)";
+    return false;
+  }
 
   std::vector<std::string> notes;
-  EXPECT_TRUE(LiveThread_ForEachNoteAsyncSignalSafe(thread, nullptr,
-                                                    ListOneNote, &notes));
-  EXPECT_THAT(notes, testing::UnorderedElementsAreArray(expectation));
+  if (!LiveThread_ForEachNoteAsyncSignalSafe(arg, nullptr, ListOneNote,
+                                             &notes)) {
+    *result_listener << "LiveThread_ForEachNoteAsyncSignalSafe failed";
+    return false;
+  }
+  if (!ExplainMatchResult(expected_matcher, notes, result_listener)) {
+    *result_listener << " (ForEachNoteAsyncSignalSafe mismatch)";
+    return false;
+  }
+  return true;
+}
+
+inline auto NotesAre(std::vector<std::string> expectation) {
+  return NotesAreImpl(std::move(expectation));
+}
+
+TEST(ThreadTest, NotesEmpty) {
+  const LiveThread* thread = Thread_GetMyLiveThread();
+  EXPECT_THAT(thread, NotesAre({}));
+}
+
+TEST(ThreadTest, NotesSingle) {
+  const LiveThread* thread = Thread_GetMyLiveThread();
+  thread::Note note1("Note1");
+  EXPECT_THAT(thread, NotesAre({"Note1"}));
+}
+
+TEST(ThreadTest, NotesMultiple) {
+  const LiveThread* thread = Thread_GetMyLiveThread();
+  thread::Note note2("Note2");
+  thread::Note note3("Note3");
+  EXPECT_THAT(thread, NotesAre({"Note2", "Note3"}));
+}
+
+TEST(ThreadTest, NotesFromMovedString) {
+  const LiveThread* thread = Thread_GetMyLiveThread();
+  std::string s("Note4");
+  thread::Note note4(std::move(s));
+  EXPECT_THAT(thread, NotesAre({"Note4"}));
+}
+
+TEST(ThreadTest, NotesFromStringView) {
+  const LiveThread* thread = Thread_GetMyLiveThread();
+  absl::string_view s = "Note5";
+  thread::Note note5(s);
+  EXPECT_THAT(thread, NotesAre({"Note5"}));
 }
 
 void ReetrantNoteReader(void* arg, absl::string_view note) {
@@ -1991,34 +2114,8 @@ void ReetrantNoteReader(void* arg, absl::string_view note) {
       thread, nullptr, ReetrantNoteReader, nullptr));
 }
 
-TEST(ThreadTest, Notes) {
+TEST(ThreadTest, NotesReentrantReader) {
   const LiveThread* thread = Thread_GetMyLiveThread();
-
-  ExpectNotes(thread, {});
-
-  {
-    thread::Note note1("Note1");
-    ExpectNotes(thread, {"Note1"});
-  }
-
-  {
-    thread::Note note2("Note2");
-    thread::Note note3("Note3");
-    ExpectNotes(thread, {"Note2", "Note3"});
-  }
-
-  {
-    std::string s("Note4");
-    thread::Note note4(std::move(s));
-    ExpectNotes(thread, {"Note4"});
-  }
-
-  {
-    absl::string_view s = "Note5";
-    thread::Note note5(s);
-    ExpectNotes(thread, {"Note5"});
-  }
-
   EXPECT_TRUE(LiveThread_ForEachNoteAsyncSignalSafe(
       thread, nullptr, ReetrantNoteReader, nullptr));
 }
@@ -2070,14 +2167,13 @@ TEST(ThreadTest, SkipNotes) {
   arg.process_trace = [](void* arg, const LiveThread* thread,
                          const StackTrace* trace) {
     auto* tester = static_cast<ThreadSkipNotesTester*>(arg);
-    CHECK_EQ(thread, tester->self_);
+    EXPECT_EQ(thread, tester->self_);
 
     if (trace != nullptr) {
       // Make sure we do get the notes in this case.
       auto notes_for_trace = LiveThread_GetNotesForTrace(thread, trace);
       EXPECT_FALSE(notes_for_trace.notes_changed_since_stack_trace);
-      EXPECT_THAT(notes_for_trace.notes,
-                  testing::UnorderedElementsAreArray({"Note1"}));
+      EXPECT_THAT(notes_for_trace.notes, UnorderedElementsAreArray({"Note1"}));
 
       auto fn = [](void* arg, absl::string_view note) {};
       EXPECT_TRUE(
@@ -2092,7 +2188,7 @@ TEST(ThreadTest, SkipNotes) {
       // Now we should see the notes change.
       auto notes_for_trace = LiveThread_GetNotesForTrace(thread, trace);
       EXPECT_TRUE(notes_for_trace.notes_changed_since_stack_trace);
-      EXPECT_THAT(notes_for_trace.notes, testing::IsEmpty());
+      EXPECT_THAT(notes_for_trace.notes, IsEmpty());
 
       auto fn = [](void* arg, absl::string_view note) {};
       EXPECT_FALSE(
@@ -2197,8 +2293,7 @@ TEST(ThreadDeathTest, SetJoinableAfterStartCrashes) {
 ABSL_DECLARE_FLAG(bool, watch_pthread_manager);
 ABSL_DECLARE_FLAG(bool, watch_thread_liveness);
 
-int main(int argc, char** argv) {
-  // Disable background threads so we know how many threads exist.
+REGISTER_MODULE_INITIALIZER(thread_unittest_pre_init, {
   DeprecatedSingleThreadedTest::AvoidBackgroundThreads();
 
 #if defined(__ANDROID__) || defined(__APPLE__)
@@ -2213,13 +2308,7 @@ int main(int argc, char** argv) {
 #endif
 
   absl::SetStderrThreshold(absl::LogSeverityAtLeast::kInfo);
-#ifndef GTEST_GOOGLE3_MODE_
-  testing::InitGoogleTest(&argc, argv);
-#else
-  InitGoogle(argv[0], &argc, &argv, true);
-#endif  // !GTEST_GOOGLE3_MODE_
+});
 
-  BenchmarkNullInEach();
-
-  return RUN_ALL_TESTS();
-}
+REGISTER_MODULE_INITIALIZER_SEQUENCE(thread_unittest_pre_init,
+                                     command_line_flags_parsing);

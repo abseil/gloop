@@ -571,13 +571,14 @@ cc_test(
         "thread_unittest.cc",
     ],
     deps = [
-        ":config",
         ":thread",
         ":thread-internal",
         ":thread_control",
+        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/base:config",
         "//gloop/base:context",
+        "//gloop/base:googleinit",
         "//gloop/base:init_google",
         "//gloop/base:port",
         "//gloop/base:raw_logging",
@@ -595,6 +596,7 @@ cc_test(
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/debugging:stacktrace",
         "@abseil-cpp//absl/flags:flag",
@@ -611,7 +613,6 @@ cc_test(
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-        "@re2",
     ] + select({
         "//conditions:default": [
             "//gloop/util/priority:io-priority",
