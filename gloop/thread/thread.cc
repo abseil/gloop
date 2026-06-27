@@ -138,7 +138,7 @@
 #include "gloop/util/gtl/intrusive_list.h"
 #include "tcmalloc/malloc_extension.h"
 
-#if defined(__linux__) && !defined(__ANDROID__)
+#ifdef THREAD_HAVE_IOPRIORITY
 #include "gloop/util/priority/io-priority.h"
 #endif
 
@@ -660,7 +660,7 @@ void Thread::Start(absl::SourceLocation loc) {
       if (options_.sched_priority() < 0) {
         sched_param.sched_priority = sched_get_priority_max(SCHED_FIFO) - 1;
       } else {
-#if defined(__linux__) && !defined(__ANDROID__)
+#ifdef THREAD_HAVE_IOPRIORITY
         // pthread_attr_setinheritsched call below is needed for the
         // sched policy and priority to work in ThreadTest.SchedPriority
         // test in thread_unittest.cc (when it is run manually as root).
@@ -1419,7 +1419,7 @@ void* Thread::ThreadBody(void* arg) {
   }
 #endif  // defined(__Fuchsia__)
 
-#if defined(__linux__) && !defined(__ANDROID__)
+#ifdef THREAD_HAVE_IOPRIORITY
   int io_priority_level = this_thread->options_.io_priority_level();
   IOPriorityClass io_class =
       static_cast<IOPriorityClass>(this_thread->options_.io_class());

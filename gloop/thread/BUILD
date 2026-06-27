@@ -612,7 +612,11 @@ cc_test(
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@re2",
-    ],
+    ] + select({
+        "//conditions:default": [
+            "//gloop/util/priority:io-priority",
+        ],
+    }),
 )
 
 cc_library(

@@ -28,16 +28,13 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <functional>
-#include <list>
-#include <memory>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/base/log_severity.h"
@@ -84,6 +81,10 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "re2/re2.h"
+
+#ifdef THREAD_HAVE_IOPRIORITY
+#include "gloop/util/priority/io-priority.h"
+#endif
 
 #if !PORTABLE_BASE
 #define AVOID_TRACECONTEXT 1
@@ -274,6 +275,40 @@ TEST(ThreadTest, CheckDetachableThread) {
                       [&notification] { notification.Notify(); });
   notification.WaitForNotification();
   WaitForDetachedThreadsToExit();
+}
+
+TEST(ThreadTest, StartDetachedThreadWithCustomOptions) {
+  absl::Notification notify;
+  StartDetachedThread(
+      // Arbitrary custom options.
+      thread::Options().set_joinable(false).set_stack_size(1024 * 1024),
+      "custom_detached", [&notify] { notify.Notify(); });
+  notify.WaitForNotification();
+  WaitForDetachedThreadsToExit();
+}
+
+TEST(ThreadTest, DetachedThreadPreservesContext) {
+  absl::Notification notify;
+  {
+    base::WithThreadStatus wts("banana");
+    StartDetachedThread("ctx_detached", [&notify] {
+      EXPECT_STREQ(base::CurrentThreadStatus(), "banana");
+      notify.Notify();
+    });
+  }
+  notify.WaitForNotification();
+  WaitForDetachedThreadsToExit();
+}
+
+TEST(ThreadTest, StackAndGuardSizeOptions) {
+  thread::Options options;
+  options.set_joinable(true);
+  options.set_stack_size(65536);  // 64KB custom stack size
+  options.set_guard_size(4096);   // 4KB custom guard size
+
+  ClosureThread t(options, "CustomStackGuardThread", [] {});
+  t.Start();
+  t.Join();
 }
 
 class TidTestThread : public Thread {
@@ -1386,11 +1421,33 @@ TEST(ThreadTest, SanitizeThreadNamePrefix) {
       {"", ""},
       {"2abc", "_abc"},
       {"!@#$%^&*()", "__________"},
-      {"2foo☺*&^%$#(@)!", "_foo_____________"}};
+      {"2foo☺*&^%$#(@)!", "_foo_____________"},
+      {"abc.def#ghi", "abc_def_ghi"},
+      {"123-abc", "_23-abc"},
+  };
   for (const auto& [before, after] : before_after) {
     EXPECT_EQ(thread::SanitizeThreadNamePrefix(before), after);
   }
 }
+
+using IsValidThreadNamePrefixTest =
+    testing::TestWithParam<std::pair<std::string, bool>>;
+
+TEST_P(IsValidThreadNamePrefixTest, Test) {
+  const auto& [prefix, expected] = GetParam();
+  EXPECT_EQ(thread::IsValidThreadNamePrefix(prefix), expected);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    IsValidThreadNamePrefixTestInst, IsValidThreadNamePrefixTest,
+    testing::ValuesIn(std::vector<std::pair<std::string, bool>>{
+        {"ValidPrefix", true},
+        {"valid-prefix_123", true},
+        {"", true},
+        {"1Invalid", false},
+        {"invalid.prefix", false},
+        {"invalid space", false},
+    }));
 
 TEST(ThreadTest, CheckThreadNameNamed) {
   LiveThreadTestThread t1;
@@ -2049,6 +2106,90 @@ TEST(ThreadTest, SkipNotes) {
   tester.Join();
 }
 
+#ifndef __Fuchsia__
+TEST(ThreadTest, NicePriorityAppliedToOS) {
+  const int parent_nice = getpriority(PRIO_PROCESS, 0);
+  const int kNiceIncrement = 2;
+
+  thread::Options options;
+  options.set_nice_priority_level(kNiceIncrement);
+  options.set_joinable(true);
+
+  int child_nice = -1;
+  ClosureThread t(options, "nice_thread",
+                  [&child_nice] { child_nice = getpriority(PRIO_PROCESS, 0); });
+  t.Start();
+  t.Join();
+
+  EXPECT_EQ(child_nice, std::min(19, parent_nice + kNiceIncrement));
+}
+#endif
+
+#ifdef THREAD_HAVE_IOPRIORITY
+TEST(ThreadTest, IOPriorityAppliedToThread) {
+  thread::Options options;
+  options.set_io_priority(2, 5);
+  options.set_joinable(true);
+
+  int child_io_class = -1;
+  int child_io_level = -1;
+
+  ClosureThread t(options, "io_prio_thread", [&] {
+    util::GetIOPriority(GetTID(), &child_io_class, &child_io_level);
+  });
+  t.Start();
+  t.Join();
+
+  EXPECT_EQ(child_io_class, 2);
+  EXPECT_EQ(child_io_level, 5);
+}
+#endif
+
+TEST(ThreadTest, RegisterExitHandlerTest) {
+  static std::atomic<bool> g_exit_handler_called{false};
+  g_exit_handler_called.store(false);
+  Thread::RegisterExitHandler([]() { g_exit_handler_called.store(true); });
+
+  ClosureThread thread(thread::Options().set_joinable(true),
+                       "ExitHandlerTestThread",
+                       []() { pthread_exit(nullptr); });
+  thread.Start();
+  thread.Join();
+
+  EXPECT_TRUE(g_exit_handler_called.load());
+}
+
+TEST(ThreadDeathTest, DoubleStartCrashes) {
+  ClosureThread t([] {});
+  t.SetJoinable(true);
+  t.Start();
+  EXPECT_DEATH_IF_SUPPORTED(t.Start(), "Thread is not restartable");
+  t.Join();
+}
+
+TEST(ThreadDeathTest, SetNamePrefixAfterStartCrashes) {
+  ClosureThread t([] {});
+  t.SetJoinable(true);
+  t.Start();
+  EXPECT_DEATH_IF_SUPPORTED(t.SetNamePrefix("NewPrefix"),
+                            "Only call SetNamePrefix");
+  t.Join();
+}
+
+TEST(ThreadDeathTest, SetNamePrefixInvalidCharacterCrashes) {
+  ClosureThread t([] {});
+  EXPECT_DEATH_IF_SUPPORTED(t.SetNamePrefix("1Invalid"),
+                            "contains a disallowed character");
+}
+
+TEST(ThreadDeathTest, SetJoinableAfterStartCrashes) {
+  ClosureThread t([] {});
+  t.SetJoinable(true);
+  t.Start();
+  EXPECT_DEATH_IF_SUPPORTED(t.SetJoinable(false), "Only call SetJoinable");
+  t.Join();
+}
+
 }  // namespace
 
 // We want to test thread watchers and watchdogs for mobile platforms regardless
@@ -2072,7 +2213,11 @@ int main(int argc, char** argv) {
 #endif
 
   absl::SetStderrThreshold(absl::LogSeverityAtLeast::kInfo);
+#ifndef GTEST_GOOGLE3_MODE_
+  testing::InitGoogleTest(&argc, argv);
+#else
   InitGoogle(argv[0], &argc, &argv, true);
+#endif  // !GTEST_GOOGLE3_MODE_
 
   BenchmarkNullInEach();
 
