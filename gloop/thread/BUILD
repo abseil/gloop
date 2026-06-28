@@ -937,14 +937,18 @@ cc_test(
     deps = [
         ":simple_weighted_semaphore",
         ":thread",
-        "//gloop/base:init_google",
-        "//gloop/util/random:acmrandom",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/functional:bind_front",
+        "//gloop:gloop_test_main",
+        "//gloop/util/random:shared_bit_gen",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/random",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_matchers",
+        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
     ],
 )
 
