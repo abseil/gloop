@@ -239,11 +239,14 @@ TEST_P(SymbolMapTest, IteratorWithPositionMiddle) {
 TEST_P(SymbolMapTest, SelfSymbosArePresent) {
   const SymbolMap& symbol_map = SymbolMap::GetCached();
   const auto p_foo = reinterpret_cast<uint64_t>(&Foo);
-  EXPECT_TRUE(
-      absl::StartsWith(symbol_map.GetSymbolAtPosition(p_foo), "_ZL3Foov"));
+  const char* const foo_name = symbol_map.GetSymbolAtPosition(p_foo);
+  ASSERT_FALSE(foo_name == nullptr);
+  EXPECT_TRUE(absl::StartsWith(foo_name, "_ZL3Foov"));
+
   const auto p_bar = reinterpret_cast<uint64_t>(&Bar);
-  EXPECT_TRUE(
-      absl::StartsWith(symbol_map.GetSymbolAtPosition(p_bar), "_ZL3Barv"));
+  const char* const bar_name = symbol_map.GetSymbolAtPosition(p_bar);
+  ASSERT_FALSE(bar_name == nullptr);
+  EXPECT_TRUE(absl::StartsWith(bar_name, "_ZL3Barv"));
 }
 
 TEST_P(SymbolMapTest, NumberOfSymbols) {
