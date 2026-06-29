@@ -20,39 +20,55 @@
 
 #include "gloop/base/googleinit.h"
 
-#include <stdio.h>
-
 #include <cstdint>
 #include <string>
-#include <thread>
+#include <thread>  // NOLINT(build/c++11)
 #include <vector>
 
-#include "absl/base/macros.h"
+#include "absl/base/log_severity.h"
+#include "absl/base/no_destructor.h"
 #include "absl/flags/flag.h"
-#include "absl/functional/bind_front.h"
-#include "absl/log/check.h"
+#include "absl/log/scoped_mock_log.h"
 #include "absl/strings/str_format.h"
+#include "absl/strings/string_view.h"
 #include "gloop/base/init_google.h"
-#include "gloop/base/log_file_flags.h"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+
+// interaction with flags parsing:
+ABSL_FLAG(int32_t, g_init_check_1, 0, "for the unittest");
+ABSL_FLAG(int32_t, g_init_check_2, 0, "for the unittest");
+
+namespace {
+
+using ::absl::ScopedMockLog;
+using ::testing::_;
+using ::testing::ElementsAreArray;
+using ::testing::HasSubstr;
+using ::testing::IsEmpty;
 
 // ========================================================================= //
 
-static std::vector<std::string> lex_init_order;
+absl::NoDestructor<std::vector<std::string>> lex_init_order;
 
-REGISTER_GOOGLE_INITIALIZER(lex_order, C, { lex_init_order.push_back("C"); });
+REGISTER_GOOGLE_INITIALIZER(lex_order, C, { lex_init_order->push_back("C"); });
 
-REGISTER_GOOGLE_INITIALIZER(lex_order, A, { lex_init_order.push_back("A"); });
+REGISTER_GOOGLE_INITIALIZER(lex_order, A, { lex_init_order->push_back("A"); });
 
-REGISTER_GOOGLE_INITIALIZER(lex_order, A0, { lex_init_order.push_back("A0"); });
+REGISTER_GOOGLE_INITIALIZER(lex_order, A0,
+                            { lex_init_order->push_back("A0"); });
 
-REGISTER_GOOGLE_INITIALIZER(lex_order, B, { lex_init_order.push_back("B"); });
+REGISTER_GOOGLE_INITIALIZER(lex_order, B, { lex_init_order->push_back("B"); });
 
-REGISTER_GOOGLE_INITIALIZER(lex_order, Xc, { lex_init_order.push_back("Xc"); });
+REGISTER_GOOGLE_INITIALIZER(lex_order, Xc,
+                            { lex_init_order->push_back("Xc"); });
 REGISTER_GOOGLE_INITIALIZER_SEQUENCE(lex_order, Xc, A);
 
-REGISTER_GOOGLE_INITIALIZER(lex_order, Xa, { lex_init_order.push_back("Xa"); });
+REGISTER_GOOGLE_INITIALIZER(lex_order, Xa,
+                            { lex_init_order->push_back("Xa"); });
 
-REGISTER_GOOGLE_INITIALIZER(lex_order, Xb, { lex_init_order.push_back("Xb"); });
+REGISTER_GOOGLE_INITIALIZER(lex_order, Xb,
+                            { lex_init_order->push_back("Xb"); });
 
 // tests that using several REGISTER_GOOGLE_INITIALIZER_SEQUENCE
 // in one macro works:
@@ -64,29 +80,34 @@ REGISTER_2_INITIALIZER_SEQUENCES_(lex_order, Xa, Xb, A);
 
 // ========================================================================= //
 
-static std::vector<std::string> init_order;
+absl::NoDestructor<std::vector<std::string>> init_order;
 
 // ========================================================================= //
 
-REGISTER_MODULE_INITIALIZER(D, { init_order.push_back("D"); });
+REGISTER_MODULE_INITIALIZER(D, { init_order->push_back("D"); });
 DECLARE_MODULE_INITIALIZER(B);
 REGISTER_MODULE_INITIALIZER_SEQUENCE(D, B);
 
 REGISTER_MODULE_INITIALIZER(B, {
-  init_order.push_back("B.1");
+  init_order->push_back("B.1");
   REQUIRE_MODULE_INITIALIZED(A);
-  init_order.push_back("B.2");
+  init_order->push_back("B.2");
   REQUIRE_MODULE_INITIALIZED(D);
-  init_order.push_back("B.3");
+  init_order->push_back("B.3");
 });
 
 REGISTER_MODULE_INITIALIZER(A, {
-  init_order.push_back("A.1");
+  init_order->push_back("A.1");
   REQUIRE_MODULE_INITIALIZED(C);
-  init_order.push_back("A.2");
+  init_order->push_back("A.2");
 });
 
-REGISTER_MODULE_INITIALIZER(C, { init_order.push_back("C"); });
+REGISTER_MODULE_INITIALIZER(C, { init_order->push_back("C"); });
+
+DECLARE_MODULE_INITIALIZER(linked_module);
+REGISTER_MODULE_INITIALIZER(linked_module,
+                            { init_order->push_back("linked"); });
+REQUIRE_MODULE_LINKED(linked_module);
 
 // ========================================================================= //
 
@@ -98,7 +119,7 @@ REGISTER_MODULE_INITIALIZER(C, { init_order.push_back("C"); });
 DECLARE_MODULE_INITIALIZER(F);
 
 // user's .cc:
-REGISTER_MODULE_INITIALIZER(0_U, { init_order.push_back("0_U"); });
+REGISTER_MODULE_INITIALIZER(0_U, { init_order->push_back("0_U"); });
 REGISTER_MODULE_INITIALIZER_SEQUENCE(F, 0_U);
 
 // factory's .h:
@@ -106,32 +127,28 @@ DECLARE_MODULE_INITIALIZER(F);
 DECLARE_MODULE_INITIALIZER(FI);
 
 // factory impl's .cc:
-REGISTER_MODULE_INITIALIZER(1_R, { init_order.push_back("1_R"); });
-REGISTER_MODULE_INITIALIZER(2_R, { init_order.push_back("2_R"); });
+REGISTER_MODULE_INITIALIZER(1_R, { init_order->push_back("1_R"); });
+REGISTER_MODULE_INITIALIZER(2_R, { init_order->push_back("2_R"); });
 REGISTER_MODULE_INITIALIZER_SEQUENCE_3(FI, 1_R, F);
 REGISTER_MODULE_INITIALIZER_SEQUENCE_3(FI, 2_R, F);
 
 // factory's .cc:
-REGISTER_MODULE_INITIALIZER(FI, { init_order.push_back("FI"); });
-REGISTER_MODULE_INITIALIZER(F, { init_order.push_back("F"); });
+REGISTER_MODULE_INITIALIZER(FI, { init_order->push_back("FI"); });
+REGISTER_MODULE_INITIALIZER(F, { init_order->push_back("F"); });
 REGISTER_MODULE_INITIALIZER_SEQUENCE(FI, F);
 
 // ========================================================================= //
 
-// interaction with flags parsing:
-ABSL_FLAG(int32_t, g_init_check_1, 0, "for the unittest");
-ABSL_FLAG(int32_t, g_init_check_2, 0, "for the unittest");
-
 REGISTER_MODULE_INITIALIZER(use_flag, {
-  init_order.push_back(absl::StrFormat("use_flag:%d,%d",
-                                       absl::GetFlag(FLAGS_g_init_check_1),
-                                       absl::GetFlag(FLAGS_g_init_check_2)));
+  init_order->push_back(absl::StrFormat("use_flag:%d,%d",
+                                        absl::GetFlag(FLAGS_g_init_check_1),
+                                        absl::GetFlag(FLAGS_g_init_check_2)));
 });
 
 REGISTER_MODULE_INITIALIZER(xset_flag, {
-  init_order.push_back(absl::StrFormat("set_flag:%d,%d",
-                                       absl::GetFlag(FLAGS_g_init_check_1),
-                                       absl::GetFlag(FLAGS_g_init_check_2)));
+  init_order->push_back(absl::StrFormat("set_flag:%d,%d",
+                                        absl::GetFlag(FLAGS_g_init_check_1),
+                                        absl::GetFlag(FLAGS_g_init_check_2)));
   absl::SetFlag(&FLAGS_g_init_check_1, 1);
   absl::SetFlag(&FLAGS_g_init_check_2, 2);
 });
@@ -139,22 +156,22 @@ REGISTER_MODULE_INITIALIZER(xset_flag, {
 REGISTER_MODULE_INITIALIZER_SEQUENCE(xset_flag, command_line_flags_parsing);
 // ========================================================================= //
 
-static std::vector<std::string> thread_order;
+absl::NoDestructor<std::vector<std::string>> thread_order;
 
 #define REGISTER_INIT_DEP(type1, name1, type2, name2) \
   REGISTER_GOOGLE_INITIALIZER(type1, name1, {         \
     std::this_thread::yield();                        \
-    thread_order.push_back(#type1 #name1 "{");        \
+    thread_order->push_back(#type1 #name1 "{");       \
     std::this_thread::yield();                        \
     REQUIRE_GOOGLE_INITIALIZED(type2, name2);         \
     std::this_thread::yield();                        \
-    thread_order.push_back(#type1 #name1 "}");        \
+    thread_order->push_back(#type1 #name1 "}");       \
     std::this_thread::yield();                        \
   });
 
 REGISTER_GOOGLE_INITIALIZER(T0, A, {
   std::this_thread::yield();
-  thread_order.push_back("T0A");
+  thread_order->push_back("T0A");
 });
 
 // These also test that one can call REQUIRE_GOOGLE_INITIALIZED
@@ -171,7 +188,7 @@ REGISTER_INIT_DEP(T2, C, T2, D)
 REGISTER_INIT_DEP(T2, D, T2, E)
 REGISTER_INIT_DEP(T2, E, T0, A)
 
-static void T1Init(int i) {
+void T1Init(int i) {
   std::this_thread::yield();
   if (i % 2) {
     RUN_GOOGLE_INITIALIZERS(T1);
@@ -179,7 +196,7 @@ static void T1Init(int i) {
     REQUIRE_GOOGLE_INITIALIZED(T1, A);
   }
 }
-static void T2Init(int i) {
+void T2Init(int i) {
   std::this_thread::yield();
   if (i % 2) {
     REQUIRE_GOOGLE_INITIALIZED(T2, C);
@@ -192,20 +209,22 @@ static void T2Init(int i) {
 // from many threads at once.
 void RunInThreads(void (*body)(int i)) {
   std::vector<std::thread> threads;
+  threads.reserve(50);
   for (int i = 0; i < 50; ++i) {
-    threads.emplace_back(absl::bind_front(body, i));
+    threads.emplace_back([body, i]() { body(i); });
   }
   for (std::thread& thread : threads) {
     thread.join();
   }
 }
 
-void RunThreadTest() {
+TEST(GoogleInitTest, MultiThreadedConcurrency) {
+  ASSERT_THAT(*thread_order, IsEmpty());
   RunInThreads(T1Init);
   RunInThreads(T2Init);
 
   // clang-format off
-  const char* golden_thread_order[] = {
+  constexpr absl::string_view golden_thread_order[] = {
     "T1A{", "T0A", "T1A}",
     "T1B{",
        "T1C{", "T1C}",
@@ -225,56 +244,117 @@ void RunThreadTest() {
   };
   // clang-format on
 
-  CHECK_EQ(thread_order.size(), ABSL_ARRAYSIZE(golden_thread_order));
-  for (size_t i = 0; i < thread_order.size(); ++i) {
-    CHECK_EQ(thread_order[i], golden_thread_order[i]);
-  }
+  EXPECT_THAT(*thread_order, ElementsAreArray(golden_thread_order));
 }
 
-// ========================================================================= //
-
-int main(int argc, char** argv) {
-  absl::SetFlag(&FLAGS_logtostderr, true);
-
-  std::vector<char*> my_argv(argv, argv + argc);
-  char arg[] = "--g_init_check_2=2";
-  my_argv.push_back(arg);
-  argc += 1;
-  argv = &(my_argv[0]);
-  InitGoogle(argv[0], &argc, &argv, true);
-
+TEST(GoogleInitTest, ModuleInitialization) {
   // clang-format off
-  const char* golden_order[] = {
+  constexpr absl::string_view golden_order[] = {
     "set_flag:0,0",
     "FI", "1_R", "2_R", "F", "0_U",
     "A.1", "C", "A.2", "D", "B.1", "B.2", "B.3",
+    "linked",
     "use_flag:1,2",
   };
   // clang-format on
 
-  CHECK_EQ(init_order.size(), ABSL_ARRAYSIZE(golden_order));
-  for (size_t i = 0; i < init_order.size(); ++i) {
-    CHECK_EQ(init_order[i], golden_order[i]);
-  }
+  EXPECT_THAT(*init_order, ElementsAreArray(golden_order));
+}
 
+TEST(GoogleInitTest, LexicographicalInitialization) {
+  ASSERT_THAT(*lex_init_order, IsEmpty());
   // test implicit lexicographic order:
-
   RUN_GOOGLE_INITIALIZERS(lex_order);
 
   // clang-format off
-  const char* golden_lex_order[] = {
+  constexpr absl::string_view golden_lex_order[] = {
     "Xa", "Xb", "Xc",
     "A", "A0", "B", "C",
   };
   // clang-format on
 
-  CHECK_EQ(lex_init_order.size(), ABSL_ARRAYSIZE(golden_lex_order));
-  for (size_t i = 0; i < lex_init_order.size(); ++i) {
-    CHECK_EQ(lex_init_order[i], golden_lex_order[i]);
-  }
-
-  RunThreadTest();
-
-  fprintf(stdout, "PASS\n");
-  return 0;
+  EXPECT_THAT(*lex_init_order, ElementsAreArray(golden_lex_order));
 }
+
+TEST(GoogleInitTest, RunNonExistentType) {
+  RUN_GOOGLE_INITIALIZERS(non_existent_type);
+}
+
+TEST(GoogleInitTest, RepeatedDependency) {
+  ScopedMockLog log;
+  EXPECT_CALL(log, Log(absl::LogSeverity::kError, _,
+                       HasSubstr("Repeated dependency declaration")))
+      .Times(1);
+  log.StartCapturingLogs();
+
+  GoogleInitializer init1(::base::internal::LiteralTag{}, "dup_dep_type",
+                          "init1", []() {});
+  GoogleInitializer init2(::base::internal::LiteralTag{}, "dup_dep_type",
+                          "init2", []() {});
+
+  // First dependency declaration.
+  [[maybe_unused]] GoogleInitializer::DependencyRegisterer registerer1(
+      ::base::internal::LiteralTag{}, "dup_dep_type", "init2", &init2,
+      GoogleInitializer::Dependency(::base::internal::LiteralTag{}, "init1",
+                                    &init1));
+
+  // Second (repeated) dependency declaration - triggers warning.
+  [[maybe_unused]] GoogleInitializer::DependencyRegisterer registerer2(
+      ::base::internal::LiteralTag{}, "dup_dep_type", "init2", &init2,
+      GoogleInitializer::Dependency(::base::internal::LiteralTag{}, "init1",
+                                    &init1));
+}
+
+TEST(GoogleInitTest, RegisterTooLate) {
+  ScopedMockLog log;
+  EXPECT_CALL(log, Log(absl::LogSeverity::kError, _, HasSubstr("too late")))
+      .Times(1);
+  log.StartCapturingLogs();
+
+  // 1. Register an initializer for a new type.
+  [[maybe_unused]] GoogleInitializer init1(::base::internal::LiteralTag{},
+                                           "too_late_type", "init1", []() {});
+
+  // 2. Run the initializers for this type.
+  RUN_GOOGLE_INITIALIZERS(too_late_type);
+
+  // 3. Try to register another initializer of the same type after execution.
+  [[maybe_unused]] GoogleInitializer init2(::base::internal::LiteralTag{},
+                                           "too_late_type", "init2", []() {});
+}
+
+TEST(GoogleInitDeathTest, CycleDetection) {
+  EXPECT_DEATH(
+      {
+        GoogleInitializer init1(::base::internal::LiteralTag{}, "cycle_type",
+                                "init1", []() {});
+        GoogleInitializer init2(::base::internal::LiteralTag{}, "cycle_type",
+                                "init2", []() {});
+
+        [[maybe_unused]] GoogleInitializer::DependencyRegisterer registerer1(
+            ::base::internal::LiteralTag{}, "cycle_type", "init2", &init2,
+            GoogleInitializer::Dependency(::base::internal::LiteralTag{},
+                                          "init1", &init1));
+
+        [[maybe_unused]] GoogleInitializer::DependencyRegisterer registerer2(
+            ::base::internal::LiteralTag{}, "cycle_type", "init1", &init1,
+            GoogleInitializer::Dependency(::base::internal::LiteralTag{},
+                                          "init2", &init2));
+
+        RUN_GOOGLE_INITIALIZERS(cycle_type);
+      },
+      "Cycle involving initializer");
+}
+
+TEST(GoogleInitDeathTest, DuplicateInitializerName) {
+  EXPECT_DEATH(
+      {
+        [[maybe_unused]] GoogleInitializer init1(
+            ::base::internal::LiteralTag{}, "dup_name_type", "init", []() {});
+        [[maybe_unused]] GoogleInitializer init2(
+            ::base::internal::LiteralTag{}, "dup_name_type", "init", []() {});
+      },
+      "There is more than one initializer with name 'init'");
+}
+
+}  // namespace

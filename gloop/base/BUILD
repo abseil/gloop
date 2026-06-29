@@ -1805,15 +1805,19 @@ cc_test(
     name = "googleinit_unittest",
     size = "small",
     srcs = ["googleinit_unittest.cc"],
+    args = ["--g_init_check_2=2"],
     deps = [
         ":googleinit",
         ":init_google",
-        ":log_file_flags",
-        "@abseil-cpp//absl/base:core_headers",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:log_severity",
+        "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/functional:bind_front",
-        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:scoped_mock_log",
         "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
     ],
 )
 
