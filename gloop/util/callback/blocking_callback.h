@@ -100,6 +100,9 @@ class BlockingClosure : public Closure {
   // Run the closure and signal anyone waiting.
   void Run() override ABSL_LOCKS_EXCLUDED(&done_lock_);
 
+  // Run the closure and signal anyone waiting.
+  void operator()() ABSL_LOCKS_EXCLUDED(&done_lock_) { Run(); }
+
   // Wait for the callback to be run.  Note that these calls will return
   // immediately after this closure has been invoked.
   void Wait() const ABSL_LOCKS_EXCLUDED(&done_lock_);

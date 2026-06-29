@@ -41,6 +41,9 @@
 #include "gloop/util/refcount/compact_reference_counted.h"
 #include "gloop/util/refcount/reffed_ptr.h"
 
+// Forward declaration to set up inlining on conversion.
+class BlockingClosure;
+
 namespace testing {
 
 // Forward declaration to set up inlining on conversion.
@@ -295,6 +298,15 @@ class ABSL_NULLABILITY_COMPATIBLE ResultCallbackFunctorImpl
   ResultCallbackFunctorImpl(  // NOLINT(google-explicit-constructor)
       ::testing::MockCallback<F>* cb)
       : ResultCallbackFunctorImpl(std::ref(*cb)) {}
+
+  // Converting constructor to change BlockingClosure usage to not rely on
+  // callback inheritance.
+  template <typename C, typename = std::enable_if_t<std::conjunction_v<
+                            std::is_same<CallbackType, Closure>,
+                            std::is_same<C, BlockingClosure>>>>
+  ABSL_DEPRECATE_AND_INLINE()
+  ResultCallbackFunctorImpl(C* c)  // NOLINT(google-explicit-constructor)
+      : ResultCallbackFunctorImpl(std::ref(*c)) {}
 
   // NOLINTNEXTLINE(google-explicit-constructor)
   ResultCallbackFunctorImpl(std::nullptr_t) : Base() {}
