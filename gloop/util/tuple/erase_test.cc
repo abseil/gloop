@@ -74,6 +74,13 @@ TEST_F(Erase, NonConst) {
   EXPECT_EQ(&b, &get<0>(q));
 }
 
+TEST_F(Erase, Constexpr) {
+  constexpr ::std::tuple<int, char, double> kTuple(42, 'A', 2.5);
+  constexpr auto kErased = erase<1>(kTuple);
+  constexpr ::std::tuple<int, double> kExpected(42, 2.5);
+  EXPECT_EQ(kExpected, kErased);
+}
+
 class EraseRange : public TestValues {};
 
 TEST_F(EraseRange, NoOp) {
@@ -116,6 +123,13 @@ TEST_F(EraseRange, NonConst) {
   EXPECT_EQ(&b, &get<0>(q));
 }
 
+TEST_F(EraseRange, Constexpr) {
+  constexpr ::std::tuple<int, char, double> kTuple(42, 'A', 2.5);
+  constexpr auto kErased = erase_range<0, 2>(kTuple);
+  constexpr ::std::tuple<double> kExpected(2.5);
+  EXPECT_EQ(kExpected, kErased);
+}
+
 class EraseIfIndex : public TestValues {};
 
 struct IndexNeValue {
@@ -134,6 +148,15 @@ TEST_F(EraseIfIndex, Functional) {
   EXPECT_EQ(make_tuple(b), erase_if_index<IndexNeValue>(make_tuple(x, b, y)));
 }
 
+TEST_F(EraseIfIndex, Constexpr) {
+  constexpr auto kTuple = make_tuple(::std::integral_constant<::size_t, 0>{},
+                                     ::std::integral_constant<::size_t, 5>{});
+  constexpr auto kErased = erase_if_index<IndexNeValue>(kTuple);
+  constexpr auto kExpected =
+      make_tuple(::std::integral_constant<::size_t, 0>{});
+  EXPECT_EQ(kExpected, kErased);
+}
+
 class EraseIf : public TestValues {};
 
 struct Negative {
@@ -149,6 +172,14 @@ TEST_F(EraseIf, Functional) {
   EXPECT_EQ(make_tuple(a), erase_if<Negative>(make_tuple(a, x)));
   EXPECT_EQ(make_tuple(a, b), erase_if<Negative>(make_tuple(a, x, b)));
   EXPECT_EQ(make_tuple(a), erase_if<Negative>(make_tuple(x, a, y)));
+}
+
+TEST_F(EraseIf, Constexpr) {
+  constexpr auto kTuple = make_tuple(::std::integral_constant<int, -1>{},
+                                     ::std::integral_constant<int, 42>{});
+  constexpr auto kErased = erase_if<Negative>(kTuple);
+  constexpr auto kExpected = make_tuple(::std::integral_constant<int, 42>{});
+  EXPECT_EQ(kExpected, kErased);
 }
 
 }  // namespace

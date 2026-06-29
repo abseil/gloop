@@ -73,6 +73,13 @@ TEST_F(Insert, InsertValue) {
   EXPECT_NE(&x, &get<0>(t));
 }
 
+TEST_F(Insert, Constexpr) {
+  constexpr ::std::tuple<int> kTuple(42);
+  constexpr auto kInserted = insert<1>(kTuple, 'A');
+  constexpr ::std::tuple<int, char> kExpected(42, 'A');
+  EXPECT_EQ(kExpected, kInserted);
+}
+
 class InsertRef : public TestValues {};
 
 TEST_F(InsertRef, ToEmpty) {
@@ -129,6 +136,15 @@ TEST_F(InsertRef, ConstRef) {
 
 #endif
 
+TEST_F(InsertRef, Constexpr) {
+  static constexpr int kVal = 10;
+  constexpr ::std::tuple<int> kTuple(42);
+  constexpr auto kInserted = insert_ref<0>(kTuple, kVal);
+  constexpr ::std::tuple<const int&, int> kExpected(kVal, 42);
+  EXPECT_EQ(kExpected, kInserted);
+  static_assert(&get<0>(kInserted) == &kVal, "Should be reference");
+}
+
 class InsertTuple : public TestValues {};
 
 TEST_F(InsertTuple, ToEmpty) {
@@ -180,6 +196,14 @@ TEST_F(InsertTuple, InsertValue) {
 TEST_F(InsertTuple, InsertReference) {
   ::std::tuple<X&> t = insert_tuple<0>(make_tuple(), ::std::tie(x));
   EXPECT_EQ(&x, &get<0>(t));
+}
+
+TEST_F(InsertTuple, Constexpr) {
+  constexpr ::std::tuple<int> kTuple1(42);
+  constexpr ::std::tuple<char, double> kTuple2('A', 2.5);
+  constexpr auto kInserted = insert_tuple<1>(kTuple1, kTuple2);
+  constexpr ::std::tuple<int, char, double> kExpected(42, 'A', 2.5);
+  EXPECT_EQ(kExpected, kInserted);
 }
 
 }  // namespace

@@ -263,6 +263,7 @@ cc_library(
     hdrs = ["filter.h"],
     deps = [
         ":array",
+        ":ignore_index",
         ":int_pack",
         ":intrinsics",
         ":pair",

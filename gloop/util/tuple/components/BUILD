@@ -30,6 +30,18 @@ cc_library(
     deps = ["//gloop:enforce_gloop_support"],
 )
 
+cc_test(
+    name = "ignore_index_test",
+    size = "small",
+    srcs = ["ignore_index_test.cc"],
+    deps = [
+        ":ignore_index",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 cc_library(
     name = "intrinsics",
     hdrs = ["intrinsics.h"],

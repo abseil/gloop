@@ -76,7 +76,7 @@ struct get_impl;
 template <::size_t N, ::size_t I>
 struct get_impl<kBefore, N, I> {
   template <class T, class U>
-  auto operator()(T&& t, U&& u) const
+  constexpr auto operator()(T&& t, U&& u) const
       -> decltype(get<I>(::std::forward<T>(t))) {
     return get<I>(::std::forward<T>(t));
   }
@@ -85,7 +85,7 @@ struct get_impl<kBefore, N, I> {
 template <::size_t N, ::size_t I>
 struct get_impl<kMiddle, N, I> {
   template <class T, class U>
-  auto operator()(T&& t, U&& u) const
+  constexpr auto operator()(T&& t, U&& u) const
       -> decltype(get<I - N>(::std::forward<U>(u))) {
     return get<I - N>(::std::forward<U>(u));
   }
@@ -94,7 +94,7 @@ struct get_impl<kMiddle, N, I> {
 template <::size_t N, ::size_t I>
 struct get_impl<kAfter, N, I> {
   template <class T, class U>
-  auto operator()(T&& t, U&& u) const
+  constexpr auto operator()(T&& t, U&& u) const
       -> decltype(get<I - size<U>::value>(::std::forward<T>(t))) {
     return get<I - size<U>::value>(::std::forward<T>(t));
   }
@@ -106,10 +106,10 @@ struct get_impl<kAfter, N, I> {
 template <::size_t N, class T, class U>
 struct getter {
   template <::size_t I, class R>
-  decltype(get_impl<(I < N)                    ? kBefore
-                    : (I < N + size<U>::value) ? kMiddle
-                                               : kAfter,
-                    N, I>()(::std::declval<T>(), ::std::declval<U>()))
+  constexpr decltype(get_impl<(I < N)                    ? kBefore
+                              : (I < N + size<U>::value) ? kMiddle
+                                                         : kAfter,
+                              N, I>()(::std::declval<T>(), ::std::declval<U>()))
   operator()() const {
     return get_impl<(I < N)                    ? kBefore
                     : (I < N + size<U>::value) ? kMiddle
@@ -130,8 +130,9 @@ struct getter {
 //   tuple<int> b;
 //   tuple<string, int> b = insert_impl<0, tuple<string>>(a, tie(s));
 template <::size_t N, class E, class T, class V>
-decltype(cat(slice_range<0, N>(::std::declval<T>()), ::std::declval<E>(),
-             slice_range<N, size<T>::value>(::std::declval<T>())))
+constexpr decltype(cat(slice_range<0, N>(::std::declval<T>()),
+                       ::std::declval<E>(),
+                       slice_range<N, size<T>::value>(::std::declval<T>())))
 insert_impl(T&& t, V&& v) {
   // We use this cat(...) formula only to compute the type of the result.
   // We could also return cat(...) here and the value would be correct,
@@ -147,7 +148,7 @@ insert_impl(T&& t, V&& v) {
 
 // Inserts copy of the objects at the given position in the tuple.
 template <::size_t N, class... V, class T>
-auto insert(T&& t, V&&... v)
+constexpr auto insert(T&& t, V&&... v)
     -> decltype(internal_insert::insert_impl<
                 N, ::std::tuple<typename ::std::decay<V>::type...>>(
         ::std::forward<T>(t),
@@ -159,7 +160,7 @@ auto insert(T&& t, V&&... v)
 
 // Inserts references to the object at the given position in the tuple.
 template <::size_t N, class... V, class T>
-auto insert_ref(T&& t, V&&... v)
+constexpr auto insert_ref(T&& t, V&&... v)
     -> decltype(internal_insert::insert_impl<N, ::std::tuple<V&&...>>(
         ::std::forward<T>(t),
         ::std::forward_as_tuple(::std::forward<V>(v)...))) {
@@ -169,7 +170,7 @@ auto insert_ref(T&& t, V&&... v)
 
 // Inserts all elements from tuple U at the given position in tuple T.
 template <::size_t N, class U, class T>
-auto insert_tuple(T&& t, U&& u)
+constexpr auto insert_tuple(T&& t, U&& u)
     -> decltype(internal_insert::insert_impl<N, U>(::std::forward<T>(t),
                                                    ::std::forward<U>(u))) {
   return internal_insert::insert_impl<N, U>(::std::forward<T>(t),

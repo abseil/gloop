@@ -41,14 +41,14 @@ namespace util {
 namespace tuple {
 
 template <class V, class T>
-auto push_back(T&& t, V&& v)
+constexpr auto push_back(T&& t, V&& v)
     -> decltype(insert<size<T>::value>(::std::forward<T>(t),
                                        ::std::forward<V>(v))) {
   return insert<size<T>::value>(::std::forward<T>(t), ::std::forward<V>(v));
 }
 
 template <class V, class T>
-auto push_back_ref(T&& t, V&& v)
+constexpr auto push_back_ref(T&& t, V&& v)
     -> decltype(insert_ref<size<T>::value>(::std::forward<T>(t),
                                            ::std::forward<V>(v))) {
   return insert_ref<size<T>::value>(::std::forward<T>(t), ::std::forward<V>(v));

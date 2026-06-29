@@ -54,6 +54,13 @@ TEST_F(PopFront, Copy) {
   EXPECT_NE(&get<0>(q), &get<1>(t));
 }
 
+TEST_F(PopFront, Constexpr) {
+  constexpr tuple<int, char> kTuple(42, 'A');
+  constexpr auto kPopped = pop_front(kTuple);
+  constexpr tuple<char> kExpected('A');
+  EXPECT_EQ(kExpected, kPopped);
+}
+
 }  // namespace
 }  // namespace tuple
 }  // namespace util

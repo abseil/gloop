@@ -18,32 +18,35 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Function template pop_front() returns a copy of the tuple without the
-// first element. The type type of the Nth element in the resulting tuple is the
-// same as the (N+1)th element in the original tuple.
-//
-//   tuple<char, int, string> a('A', 42, "hello");
-//   tuple<int, string> b = pop_front(a);
-//   assert(b == make_tuple(42, "hello");
+#include "gloop/util/tuple/components/ignore_index.h"
 
-#ifndef THIRD_PARTY_GLOOP_UTIL_TUPLE_POP_FRONT_H_
-#define THIRD_PARTY_GLOOP_UTIL_TUPLE_POP_FRONT_H_
-
-#include <stddef.h>
-
-#include <utility>
-
-#include "gloop/util/tuple/erase.h"
+#include "gtest/gtest.h"
 
 namespace util {
 namespace tuple {
+namespace {
 
-template <class T>
-constexpr auto pop_front(T&& t) -> decltype(erase<0>(::std::forward<T>(t))) {
-  return erase<0>(::std::forward<T>(t));
+struct AddOne {
+  constexpr int operator()(int x) const { return x + 1; }
+};
+
+struct GetFortyTwo {
+  constexpr int operator()() const { return 42; }
+};
+
+static constexpr AddOne kAddOne;
+static constexpr GetFortyTwo kGetFortyTwo;
+
+TEST(IgnoreIndexTest, Constexpr) {
+  constexpr auto ignored = ignore_index(&kAddOne);
+  constexpr int res1 = ignored.template operator()<0>(10);
+  EXPECT_EQ(11, res1);
+
+  constexpr auto ignored_no_args = ignore_index_no_args(&kGetFortyTwo);
+  constexpr int res2 = ignored_no_args.template operator()<0>();
+  EXPECT_EQ(42, res2);
 }
 
+}  // namespace
 }  // namespace tuple
 }  // namespace util
-
-#endif  // THIRD_PARTY_GLOOP_UTIL_TUPLE_POP_FRONT_H_

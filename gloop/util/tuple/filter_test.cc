@@ -68,6 +68,23 @@ TEST_F(Filter, Functional) {
   EXPECT_EQ(make_tuple(a), filter<NonNegative>(make_tuple(x, a, y)));
 }
 
+TEST_F(FilterIndex, Constexpr) {
+  constexpr auto kTuple = make_tuple(::std::integral_constant<::size_t, 0>{},
+                                     ::std::integral_constant<::size_t, 5>{});
+  constexpr auto kFiltered = filter_index<IndexEqualsValue>(kTuple);
+  constexpr auto kExpected =
+      make_tuple(::std::integral_constant<::size_t, 0>{});
+  EXPECT_EQ(kExpected, kFiltered);
+}
+
+TEST_F(Filter, Constexpr) {
+  constexpr auto kTuple = make_tuple(::std::integral_constant<int, -1>{},
+                                     ::std::integral_constant<int, 42>{});
+  constexpr auto kFiltered = filter<NonNegative>(kTuple);
+  constexpr auto kExpected = make_tuple(::std::integral_constant<int, 42>{});
+  EXPECT_EQ(kExpected, kFiltered);
+}
+
 }  // namespace
 }  // namespace tuple
 }  // namespace util

@@ -55,21 +55,21 @@ struct GetRef {
 
 struct GetVal {
   template <class T>
-  T operator()(const T& val) const {
+  constexpr T operator()(const T& val) const {
     return val;
   }
 };
 
 struct GetTypeVal {
   template <class T>
-  int operator()() const {
+  constexpr int operator()() const {
     return T::value;
   }
 };
 
 // The important part is that it's a free function. That's what we want to test.
 template <class T>
-T Identity(const T& t) {
+constexpr T Identity(const T& t) {
   return t;
 }
 
@@ -92,6 +92,18 @@ TEST_F(Transform, WithTypes) {
   EXPECT_EQ(make_tuple(), transform<tuple<>>(GetTypeVal()));
   EXPECT_EQ(make_tuple(1), transform<tuple<B>>(GetTypeVal()));
   EXPECT_EQ(make_tuple(1, 2), (transform<tuple<B, C>>(GetTypeVal())));
+}
+
+TEST_F(Transform, Constexpr) {
+  constexpr tuple<int, char> kTuple(42, 'A');
+  constexpr auto kTransformed = transform(GetVal(), kTuple);
+  EXPECT_EQ(kTuple, kTransformed);
+}
+
+TEST_F(Transform, ConstexprGenerator) {
+  constexpr auto kTransformed = transform<tuple<B, C>>(GetTypeVal());
+  constexpr auto kExpected = make_tuple(1, 2);
+  EXPECT_EQ(kExpected, kTransformed);
 }
 
 TEST_F(Transform, NonConstRef) {
@@ -139,7 +151,7 @@ TEST_F(Transform, FreeFunction) {
 
 struct MakePair {
   template <::size_t N, class T>
-  std::pair<int, T> operator()(const T& val) const {
+  constexpr std::pair<int, T> operator()(const T& val) const {
     return {N, val};
   }
 };
@@ -160,7 +172,7 @@ TEST_F(TransformIndex, WithValues) {
 
 struct MakeTypePair {
   template <::size_t N, class T>
-  std::pair<int, int> operator()() const {
+  constexpr std::pair<int, int> operator()() const {
     return {N, T::value};
   }
 };
@@ -177,6 +189,19 @@ TEST_F(TransformIndex, WithTypes) {
             transform_index<tuple<B>>(MakeTypePair()));
   EXPECT_EQ(make_tuple(make_pair(0, 1), make_pair(1, 2)),
             (transform_index<tuple<B, C>>(MakeTypePair())));
+}
+
+TEST_F(TransformIndex, Constexpr) {
+  constexpr tuple<char, double> kTuple('A', 2.5);
+  constexpr auto kTransformed = transform_index(MakePair(), kTuple);
+  constexpr auto kExpected = make_tuple(make_pair(0, 'A'), make_pair(1, 2.5));
+  EXPECT_EQ(kExpected, kTransformed);
+}
+
+TEST_F(TransformIndex, ConstexprGenerator) {
+  constexpr auto kTransformed = transform_index<tuple<B, C>>(MakeTypePair());
+  constexpr auto kExpected = make_tuple(make_pair(0, 1), make_pair(1, 2));
+  EXPECT_EQ(kExpected, kTransformed);
 }
 
 }  // namespace

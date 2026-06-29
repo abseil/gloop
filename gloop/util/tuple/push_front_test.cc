@@ -45,6 +45,13 @@ TEST_F(PushFront, InsertValue) {
   EXPECT_NE(&x, &get<0>(t));
 }
 
+TEST_F(PushFront, Constexpr) {
+  constexpr ::std::tuple<int> kTuple(42);
+  constexpr auto kPushed = push_front(kTuple, 'A');
+  constexpr ::std::tuple<char, int> kExpected('A', 42);
+  EXPECT_EQ(kExpected, kPushed);
+}
+
 class PushFrontRef : public TestValues {};
 
 TEST_F(PushFrontRef, Push) {
@@ -62,6 +69,15 @@ TEST_F(PushFrontRef, ConstRef) {
   const X& cx = x;
   ::std::tuple<const X&> t = push_front_ref(make_tuple(), cx);
   EXPECT_EQ(&cx, &get<0>(t));
+}
+
+TEST_F(PushFrontRef, Constexpr) {
+  static constexpr int kVal = 10;
+  constexpr ::std::tuple<int> kTuple(42);
+  constexpr auto kPushed = push_front_ref(kTuple, kVal);
+  constexpr ::std::tuple<const int&, int> kExpected(kVal, 42);
+  EXPECT_EQ(kExpected, kPushed);
+  static_assert(&get<0>(kPushed) == &kVal, "Should be reference");
 }
 
 }  // namespace

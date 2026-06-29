@@ -70,7 +70,7 @@ namespace internal_transform {
 template <class F, class T>
 struct by_value_generator {
   template <::size_t N>
-  decltype(::std::declval<const F&>().template operator()<N>(
+  constexpr decltype(::std::declval<const F&>().template operator()<N>(
       get<N>(::std::declval<T>()))) operator()() const {
     return f.template operator()<N>(get<N>(::std::forward<T>(t)));
   }
@@ -81,8 +81,9 @@ struct by_value_generator {
 template <class F, class T>
 struct by_type_generator {
   template <::size_t N>
-  decltype(::std::declval<const F&>().template
-           operator()<N, typename element<N, T>::type>()) operator()() const {
+  constexpr decltype(::std::declval<const F&>().template
+                     operator()<N, typename element<N, T>::type>()) operator()()
+      const {
     return f.template operator()<N, typename element<N, T>::type>();
   }
   const F& f;
@@ -104,7 +105,7 @@ struct by_type_generator {
 // The category of the resulting tuple can be either specified explicitly
 // or inferred from the input tuple.
 template <class Tag, class T, class F>
-decltype(generate_index<Tag, size<T>::value>(
+constexpr decltype(generate_index<Tag, size<T>::value>(
     ::std::declval<internal_transform::by_value_generator<F, T>>()))
 transform_index(const F& f, T&& t) {
   return generate_index<Tag, size<T>::value>(
@@ -112,7 +113,7 @@ transform_index(const F& f, T&& t) {
 }
 
 template <class T, class F>
-auto transform_index(const F& f, T&& t)
+constexpr auto transform_index(const F& f, T&& t)
     -> decltype(transform_index<typename tag<T>::type>(f,
                                                        ::std::forward<T>(t))) {
   return transform_index<typename tag<T>::type>(f, ::std::forward<T>(t));
@@ -126,14 +127,15 @@ auto transform_index(const F& f, T&& t)
 //     R operator()() const;
 //   };
 template <class Tag, class T, class F>
-decltype(generate_index<Tag, size<T>::value>(
+constexpr decltype(generate_index<Tag, size<T>::value>(
     ::std::declval<internal_transform::by_type_generator<F, T>>()))
 transform_index(const F& f) {
   return generate_index<Tag, size<T>::value>(
       internal_transform::by_type_generator<F, T>{f});
 }
 template <class T, class F>
-decltype(transform_index<typename tag<T>::type, T>(::std::declval<const F&>()))
+constexpr decltype(transform_index<typename tag<T>::type, T>(
+    ::std::declval<const F&>()))
 transform_index(const F& f) {
   return transform_index<typename tag<T>::type, T>(f);
 }
@@ -146,12 +148,12 @@ transform_index(const F& f) {
 //     R operator()(const T& element) const;
 //   };
 template <class Tag, class T, class F>
-auto transform(const F& f, T&& t)
+constexpr auto transform(const F& f, T&& t)
     -> decltype(transform_index<Tag>(ignore_index(&f), ::std::forward<T>(t))) {
   return transform_index<Tag>(ignore_index(&f), ::std::forward<T>(t));
 }
 template <class T, class F>
-auto transform(const F& f, T&& t)
+constexpr auto transform(const F& f, T&& t)
     -> decltype(transform_index(ignore_index(&f), ::std::forward<T>(t))) {
   return transform_index(ignore_index(&f), ::std::forward<T>(t));
 }
@@ -164,13 +166,14 @@ auto transform(const F& f, T&& t)
 //     R operator()() const;
 //   };
 template <class Tag, class T, class F>
-decltype(transform_index<Tag, T>(
+constexpr decltype(transform_index<Tag, T>(
     ignore_index_no_args(::std::declval<const F*>())))
 transform(const F& f) {
   return transform_index<Tag, T>(ignore_index_no_args(&f));
 }
 template <class T, class F>
-decltype(transform_index<T>(ignore_index_no_args(::std::declval<const F*>())))
+constexpr decltype(transform_index<T>(
+    ignore_index_no_args(::std::declval<const F*>())))
 transform(const F& f) {
   return transform_index<T>(ignore_index_no_args(&f));
 }

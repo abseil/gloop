@@ -73,6 +73,13 @@ TEST_F(Slice, NonConst) {
   EXPECT_EQ(&a, &get<0>(q));
 }
 
+TEST_F(Slice, Constexpr) {
+  constexpr ::std::tuple<int, char, double> kTuple(42, 'A', 2.5);
+  constexpr auto kSliced = slice<0, 2>(kTuple);
+  constexpr ::std::tuple<int, double> kExpected(42, 2.5);
+  EXPECT_EQ(kExpected, kSliced);
+}
+
 class SliceRange : public TestValues {};
 
 TEST_F(SliceRange, Empty) {
@@ -113,6 +120,13 @@ TEST_F(SliceRange, NonConst) {
   ::std::tuple<A&, B&> t(a, b);
   ::std::tuple<A&> q = slice_range<0, 1>(t);
   EXPECT_EQ(&a, &get<0>(q));
+}
+
+TEST_F(SliceRange, Constexpr) {
+  constexpr ::std::tuple<int, char, double> kTuple(42, 'A', 2.5);
+  constexpr auto kSliced = slice_range<1, 3>(kTuple);
+  constexpr ::std::tuple<char, double> kExpected('A', 2.5);
+  EXPECT_EQ(kExpected, kSliced);
 }
 
 }  // namespace
