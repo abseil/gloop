@@ -192,7 +192,7 @@ TEST(CallbackToFunctor, FromCallbackIsRepeatable) {
   int total1 = 0, total2 = 0;
   for (int i = 1; i < 100; i++) {
     total1 = sum(total1, i);
-    total2 = sum_callback->Run(total2, i);
+    total2 = (*sum_callback)(total2, i);
     EXPECT_EQ((i * i + i) / 2, total1);
     EXPECT_EQ(total1, total2);
   }
@@ -266,7 +266,7 @@ static int Adds2(int x) { return x + 2; }
 TEST(CallbackToFunctor, MultipleConversions) {
   typedef ::util::functional::ResultCallbackFunctor<int, int> ResultCB;
   EXPECT_EQ(7, FromCallback(ToCallback<ResultCB>(Adds2))(5));
-  EXPECT_EQ(7, ToCallback<ResultCB>(Adds2)->Run(5));
+  EXPECT_EQ(7, (*ToCallback<ResultCB>(Adds2))(5));
 }
 
 TEST(CallbackToFunctor, WithOwnership) {
@@ -365,7 +365,7 @@ TEST(CallbackToFunctor, FromCallbackConstMethod) {
 TEST(CallbackFunctor, CanBeCalledLikeCallback) {
   util::functional::ResultCallbackFunctor<int, int> cb =
       util::functional::ToCallback([](int n) { return n - 1; });
-  EXPECT_EQ(cb->Run(42), 41);
+  EXPECT_EQ((*cb)(42), 41);
 
   int sum = 0;
   auto cb2 =
@@ -386,15 +386,15 @@ TEST(CallbackFunctor, CanBeUsedLikeUniquePtrToCallback) {
       absl::WrapUnique(util::functional::ToPermanentCallback<
                        ::util::functional::ResultCallbackFunctor<int, int>>(
           [](int n) { return n - 1; }));
-  EXPECT_EQ(cb.get()->Run(42), 41);
+  EXPECT_EQ((*cb.get())(42), 41);
 
-  cb.reset(util::functional::ToCallback([&](int n) { return n + 1; }));
-  EXPECT_EQ(cb->Run(42), 43);
+  cb = util::functional::ToCallback([&](int n) { return n + 1; });
+  EXPECT_EQ((*cb)(42), 43);
 
-  cb.reset(nullptr);
+  cb = nullptr;
   EXPECT_FALSE(cb);
 
-  cb.reset();
+  cb = nullptr;
   EXPECT_FALSE(cb);
 }
 

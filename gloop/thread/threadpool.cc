@@ -70,7 +70,7 @@ AbstractThreadPool::~AbstractThreadPool() {}
 
 // Run callback->Run().  To permit a callback to be wrapped in another.
 static void RunCallback(WatchdogCallback callback, WatchDog* watchdog) {
-  callback->Run(watchdog);
+  (*callback)(watchdog);
 }
 
 void ThreadPool::RunWorker() {

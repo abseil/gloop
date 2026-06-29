@@ -772,7 +772,7 @@ bool RepeatedStatistics(
       return true;
     }
 
-    std::unique_ptr<RandomBase> gen(generator_factory->Run());
+    std::unique_ptr<RandomBase> gen((*generator_factory)());
     if (ChiSquaredStatisticsTest(name, gen.get())) {
       passes++;
     }

@@ -39,7 +39,7 @@ class Server {
  public:
   void StartLookup(::util::functional::CallbackFunctor<Response> cb, int key) {
     Response r = {key, std::string()};  // Simply send back the key.
-    if (cb) cb->Run(r);                 // let the client run.
+    if (cb) (*cb)(r);                   // let the client run.
   }
 };
 
@@ -90,7 +90,7 @@ TEST(Callback, AllowsTypeConversionForPreboundArgsInFreeFunction) {
       absl::WrapUnique(util::functional::ToPermanentCallback<
                        ::util::functional::ResultCallbackFunctor<int>>(
           absl::bind_front(GetStringLength, s)));
-  cb->Run();
+  (*cb)();
 }
 
 }  // namespace

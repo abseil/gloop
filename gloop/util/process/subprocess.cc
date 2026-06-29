@@ -435,7 +435,7 @@ SubProcess::~SubProcess() {
   FreeCommand();
   FreeEnviron();
 
-  change_callback_.reset(nullptr);
+  change_callback_ = nullptr;
 }
 
 // SetChannelAction()
@@ -2282,8 +2282,8 @@ void SubProcess::LockAndWaitInternal(pid_t sp_pid, int flags) {
     } else {
       VLOG(2) << "SubProcess::WaitInternal: wait4() returns " << pid
               << " did not exit";
-      if (sp && sp->change_callback_.get()) {
-        sp->change_callback_->Run(sp, status);
+      if (sp && sp->change_callback_) {
+        (*sp->change_callback_)(sp, status);
       }
     }
   } else if (pid < 0 && errno == ECHILD) {
@@ -2435,7 +2435,7 @@ void SubProcess::SetCallbackOnChange(
     int wait_flags,
     ::util::functional::CallbackFunctor<SubProcess*, int> callback) {
   additional_wait_flags_ = wait_flags;
-  change_callback_.reset(callback);
+  change_callback_ = callback;
 }
 
 // --------------------------------------------
