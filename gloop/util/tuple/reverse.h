@@ -32,11 +32,8 @@
 
 #include <utility>
 
-#include "gloop/util/tuple/array.h"
 #include "gloop/util/tuple/generate.h"
 #include "gloop/util/tuple/intrinsics.h"
-#include "gloop/util/tuple/pair.h"
-#include "gloop/util/tuple/std_tuple.h"
 
 namespace util {
 namespace tuple {
