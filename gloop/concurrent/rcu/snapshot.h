@@ -20,17 +20,35 @@
 
 // A Snapshot<T> provides a view of an item from a concurrent data structure.
 // That item will be safe to access for the lifetime of all Snapshots pointing
-// at it.  While this is implemented via unique_ptr, this is not a hard
-// guarantee; do not look behind the typedef, or use release/reset.  Simply
-// treat this as a smart pointer as follows:
+// at it.
 //
-//   struct Foo { int x; };
+// Note: It is not thread-safe to use a pointer or view (such as
+// std::string_view) referencing internal data after the lifetime of its
+// originating Snapshot has ended. When the Snapshot goes out of scope, its RCU
+// read lock is released, making subsequent concurrent accesses vulnerable to
+// data races or use-after-free errors.
+//
+// While this is implemented via unique_ptr, this is not a hard guarantee; do
+// not look behind the typedef, or use release/reset.  Simply treat this as a
+// smart pointer as follows:
+//
+//   struct Foo {
+//     int x;
+//     std::string s;
+//   };
 //   View<Foo> view;
+//
+//   // Safe: keep Snapshot alive while accessing derived views or pointers.
 //   Snapshot<const Foo> snapshot = view.Get();
 //   if (snapshot == nullptr) return;
 //   Foo& reference = *snapshot;
 //   Foo* pointer = snapshot.get();
 //   int x = snapshot->x;
+//   std::string_view sv = snapshot->s;  // Safe while `snapshot` lives.
+//
+//   // Not thread-safe: temporary Snapshot drops RCU lock at statement end.
+//   std::string_view bad_sv = view.Get()->s;  // Not thread-safe!
+//   Foo* bad_ptr = view.Get().get();          // Not thread-safe!
 //
 // Any other expressions are outside the contract of Snapshot and are subject to
 // change or removal in the future.
