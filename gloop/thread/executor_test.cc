@@ -142,8 +142,7 @@ TEST_P(AddCancellableTest, CancelledDuringDelay) {
   // 3 minutes so the unit test times out before this call.
   AddCancellableHelper(executor_, absl::Minutes(3), [&n] { n.Notify(); }, &h);
   Closure* cb = nullptr;
-  bool cancelled = Cancel(h, absl::ZeroDuration(), &cb);
-  EXPECT_TRUE(cancelled);
+  EXPECT_EQ(Cancel(h, absl::ZeroDuration(), &cb), CancelResult::kCancelled);
   EXPECT_NE(cb, nullptr);
   EXPECT_FALSE(n.HasBeenNotified());
   delete cb;
@@ -192,8 +191,7 @@ TEST_P(AddCancellableTest, CancelWillTimeout) {
     n.start.WaitForNotification();
 
     Closure* cb = dummy_closure_;
-    bool cancelled = Cancel(h, absl::Milliseconds(i), &cb);
-    EXPECT_FALSE(cancelled);
+    EXPECT_EQ(Cancel(h, absl::Milliseconds(i), &cb), CancelResult::kRunning);
     EXPECT_EQ(cb, nullptr);
     n.wait.Notify();
     n.finish.WaitForNotification();
@@ -217,8 +215,8 @@ TEST_P(AddCancellableTest, CancelWaitsForFinish) {
     let_it_end.Start();
 
     Closure* cb = dummy_closure_;
-    bool cancelled = Cancel(h, absl::InfiniteDuration(), &cb);
-    EXPECT_TRUE(cancelled);
+    EXPECT_EQ(Cancel(h, absl::InfiniteDuration(), &cb),
+              CancelResult::kNotScheduled);
     EXPECT_EQ(cb, nullptr);
     let_it_end.Join();
     n.finish.WaitForNotification();
@@ -240,8 +238,8 @@ TEST_P(AddCancellableTest, CancelAfterFinish) {
     // after it notifies), cancel with a timeout of zero would fail and return
     // false.  We pass kBlock to avoid that tiny race.
     Closure* cb;
-    bool cancelled = Cancel(h, absl::InfiniteDuration(), &cb);
-    EXPECT_TRUE(cancelled);
+    EXPECT_EQ(Cancel(h, absl::InfiniteDuration(), &cb),
+              CancelResult::kNotScheduled);
     EXPECT_EQ(cb, nullptr);
   }
 }
@@ -253,12 +251,12 @@ TEST_P(AddCancellableTest, MultipleCancellations) {
   AddCancellableHelper(executor_, absl::Minutes(3), [&n] { n.Notify(); }, &h);
 
   Closure* cb;
-  EXPECT_TRUE(Cancel(h, absl::ZeroDuration(), &cb));
+  EXPECT_EQ(Cancel(h, absl::ZeroDuration(), &cb), CancelResult::kCancelled);
   EXPECT_NE(cb, nullptr);
   delete cb;
   EXPECT_FALSE(n.HasBeenNotified());
 
-  EXPECT_TRUE(Cancel(h, absl::ZeroDuration(), &cb));
+  EXPECT_EQ(Cancel(h, absl::ZeroDuration(), &cb), CancelResult::kNotScheduled);
   EXPECT_EQ(cb, nullptr);
   EXPECT_FALSE(n.HasBeenNotified());
 }
@@ -284,7 +282,7 @@ TEST(AddCancellableAt, AnyInvocableCancels) {
   // and cancel it immediately.
   AddCancellableAt(
       &executor, absl::Now() + absl::Hours(10), [&] { done.Notify(); }, &h);
-  ASSERT_TRUE(Cancel(h, absl::ZeroDuration()));
+  EXPECT_EQ(Cancel(h, absl::ZeroDuration()), CancelResult::kCancelled);
 
   EXPECT_FALSE(done.HasBeenNotified());
 }
@@ -299,7 +297,7 @@ TEST(AddCancellableAt, AnyInvocableImmediateCancels) {
   absl::Notification done;
 
   AddCancellable(&executor, [&] { done.Notify(); }, &h);
-  ASSERT_TRUE(Cancel(h, absl::ZeroDuration()));
+  EXPECT_EQ(Cancel(h, absl::ZeroDuration()), CancelResult::kCancelled);
 
   EXPECT_FALSE(done.HasBeenNotified());
   hogger_done.Notify();
@@ -317,7 +315,7 @@ TEST(AddCancellableAt, ClosureWrapsAnyInvocable) {
   Closure* cb = nullptr;
   AddCancellableAt(
       &executor, absl::Now() + absl::Hours(10), [&] { done.Notify(); }, &h);
-  ASSERT_TRUE(Cancel(h, absl::ZeroDuration(), &cb));
+  EXPECT_EQ(Cancel(h, absl::ZeroDuration(), &cb), CancelResult::kCancelled);
 
   ASSERT_FALSE(done.HasBeenNotified());
   ASSERT_NE(cb, nullptr);
@@ -347,7 +345,7 @@ TEST(AddCancellable, AnyInvocableCancels) {
   // Schedule the callback to run in a while so we get a chance to cancel it,
   // and cancel it immediately.
   AddCancellable(&executor, absl::Hours(10), [&] { done.Notify(); }, &h);
-  ASSERT_TRUE(Cancel(h, absl::ZeroDuration()));
+  EXPECT_EQ(Cancel(h, absl::ZeroDuration()), CancelResult::kCancelled);
 
   EXPECT_FALSE(done.HasBeenNotified());
 }
@@ -363,7 +361,7 @@ TEST(AddCancellable, ClosureWrapsAnyInvocable) {
   // and cancel it immediately.
   Closure* cb = nullptr;
   AddCancellable(&executor, absl::Hours(10), [&] { done.Notify(); }, &h);
-  ASSERT_TRUE(Cancel(h, absl::ZeroDuration(), &cb));
+  EXPECT_EQ(Cancel(h, absl::ZeroDuration(), &cb), CancelResult::kCancelled);
 
   ASSERT_FALSE(done.HasBeenNotified());
   ASSERT_NE(cb, nullptr);
@@ -389,7 +387,7 @@ TEST(AddCancellable, CancelDeletesCallbackWhenNonReturning) {
                       }}]() mutable { std::move(on_delete).Cancel(); }),
                  &h);
 
-  ASSERT_TRUE(Cancel(h, absl::InfiniteDuration()));
+  EXPECT_EQ(Cancel(h, absl::InfiniteDuration()), CancelResult::kCancelled);
   EXPECT_TRUE(was_deleted);
 }
 
@@ -397,12 +395,14 @@ TEST(Executor, CancelWithInvalidHandle) {
   ExecutorHandle handle;  // an invalid/default handle
 
   Closure* cb1;
-  EXPECT_TRUE(Cancel(handle, absl::ZeroDuration(), &cb1));
+  EXPECT_EQ(Cancel(handle, absl::ZeroDuration(), &cb1),
+            CancelResult::kNotScheduled);
   EXPECT_TRUE(cb1 == nullptr);
 
   // The timeout value is irrelevant with an invalid handle.
   Closure* cb2;
-  EXPECT_TRUE(Cancel(handle, absl::InfiniteDuration(), &cb2));
+  EXPECT_EQ(Cancel(handle, absl::InfiniteDuration(), &cb2),
+            CancelResult::kNotScheduled);
   EXPECT_TRUE(cb2 == nullptr);
 }
 
@@ -413,7 +413,8 @@ TEST_P(AddCancellableTest, EmptyHandle) {
   AddCancellableHelper(executor_, absl::Milliseconds(100), [] {}, &handle);
   EXPECT_FALSE(handle.empty());
   Closure* cb1;
-  EXPECT_TRUE(Cancel(handle, absl::InfiniteDuration(), &cb1));
+  EXPECT_EQ(Cancel(handle, absl::InfiniteDuration(), &cb1),
+            CancelResult::kCancelled);
   EXPECT_FALSE(handle.empty());
   delete cb1;
 
@@ -425,7 +426,8 @@ TEST_P(AddCancellableTest, EmptyHandle) {
   EXPECT_FALSE(handle.empty());
   n.WaitForNotification();
   Closure* cb2;
-  EXPECT_TRUE(Cancel(handle, absl::InfiniteDuration(), &cb2));
+  EXPECT_EQ(Cancel(handle, absl::InfiniteDuration(), &cb2),
+            CancelResult::kNotScheduled);
   EXPECT_EQ(cb2, nullptr);
   EXPECT_FALSE(handle.empty());
 }

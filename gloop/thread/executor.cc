@@ -527,12 +527,13 @@ void AddCancellableAt(Executor* executor, absl::Time when, Closure* closure,
   executor->ScheduleAt(when, std::move(cancellable_callable));
 }
 
-bool Cancel(ExecutorHandle handle, absl::Duration timeout, Closure** cb_ptr) {
+CancelResult Cancel(ExecutorHandle handle, absl::Duration timeout,
+                    Closure** cb_ptr) {
   *cb_ptr = nullptr;
   int s;
   uint64_t shard_key;
   ExecutorInternal::Decode(handle, &s, &shard_key);
-  if (shard_key == 0) return true;
+  if (shard_key == 0) return CancelResult::kNotScheduled;
 
   Shard* shard = &shards[s];
   absl::MutexLock lock(shard->mu);
@@ -543,20 +544,20 @@ bool Cancel(ExecutorHandle handle, absl::Duration timeout, Closure** cb_ptr) {
   // If the closure already finished running, if it got cancelled, or
   // if it was never registered to begin with, there's nothing for us to do.
   if (iter == shard->table.end()) {
-    return true;
+    return CancelResult::kNotScheduled;
   }
 
   if (Closure*& closure = *iter->second) {
     // The closure hasn't yet started running: cancel it.
     *cb_ptr = std::exchange(closure, nullptr);
     shard->table.erase(iter);
-    return true;
+    return CancelResult::kCancelled;
   }
 
   // The closure has already started running and a non-positive timeout means
   // we can't wait for it to finish running.
   if (timeout <= absl::ZeroDuration()) {
-    return false;
+    return CancelResult::kRunning;
   }
 
   // Wait until either the timeout expires, or the closure finishes running and
@@ -564,11 +565,12 @@ bool Cancel(ExecutorHandle handle, absl::Duration timeout, Closure** cb_ptr) {
   auto finished_running = [shard, shard_key] {
     return shard->table.find(shard_key) == shard->table.end();
   };
-  return shard->mu.AwaitWithTimeout(absl::Condition(&finished_running),
-                                    timeout);
+  return shard->mu.AwaitWithTimeout(absl::Condition(&finished_running), timeout)
+             ? CancelResult::kNotScheduled
+             : CancelResult::kRunning;
 }
 
-bool Cancel(ExecutorHandle handle, absl::Duration timeout) {
+CancelResult Cancel(ExecutorHandle handle, absl::Duration timeout) {
   Closure* c = nullptr;
 
   // If the closure was cancelled successfully, delete it before returning.

@@ -306,6 +306,29 @@ ABSL_DEPRECATED("Use the AnyInvocable-accepting overload instead.")
 void AddCancellableAt(Executor* executor, absl::Time when, Closure* closure,
                       ExecutorHandle* handle);
 
+namespace executor_internal {
+
+// The result of a cancellation attempt. Convertible to bool where 0/false
+// implies "the closure is still running when Cancel() returned" as it always
+// has.
+enum CancelResultImpl {
+  // Cancellation failed because the closure was already running and did not
+  // finish within the specified timeout.
+  kRunning = 0,
+  // Cancellation succeeded, and the closure never ran.
+  kCancelled = 1,
+  // Cancellation failed because the handle did not refer to a scheduled
+  // closure. This can mean the handle was invalid, or that the closure had
+  // already run or had been cancelled.
+  kNotScheduled = 2,
+};
+
+static_assert(CancelResultImpl::kRunning == false);
+
+}  // namespace executor_internal
+
+using CancelResult = executor_internal::CancelResultImpl;
+
 // Attempt to cancel the closure associated with the handle.  If the
 // closure is currently running, waits up to timeout for it to finish.  You
 // can pass timeout==absl::InfiniteDuration() if you want to wait without a
@@ -324,18 +347,19 @@ void AddCancellableAt(Executor* executor, absl::Time when, Closure* closure,
 // previous Cancel(), or the handle may be invalid).
 //
 // REQUIRES: cb_ptr != nullptr
-bool Cancel(ExecutorHandle handle, absl::Duration timeout, Closure** cb_ptr);
+CancelResult Cancel(ExecutorHandle handle, absl::Duration timeout,
+                    Closure** cb_ptr);
 
 // As above, except deletes the closure instead of returning it when
 // successfully cancelled.
 //
 // NOTE: this function doesn't distinguish between repeatable (permanent) and
 // non-permanent callbacks. It deletes whatever the other overload returns.
-bool Cancel(ExecutorHandle handle, absl::Duration timeout);
+CancelResult Cancel(ExecutorHandle handle, absl::Duration timeout);
 
 // An alias for the common case of cancelling without potentially blocking for
 // the closure to finish.
-inline bool TryCancel(ExecutorHandle handle) {
+inline CancelResult TryCancel(ExecutorHandle handle) {
   // Break into a variable to prevent inlining with the below overload.
   absl::Duration timeout = absl::ZeroDuration();
   return Cancel(handle, timeout);
@@ -343,7 +367,7 @@ inline bool TryCancel(ExecutorHandle handle) {
 
 #if ABSL_HAVE_ATTRIBUTE(enable_if)
 ABSL_DEPRECATE_AND_INLINE()
-inline bool Cancel(ExecutorHandle handle, absl::Duration timeout)
+inline CancelResult Cancel(ExecutorHandle handle, absl::Duration timeout)
     __attribute__((enable_if(timeout <= absl::ZeroDuration(),
                              "Use TryCancel instead."))) {
   return TryCancel(handle);
