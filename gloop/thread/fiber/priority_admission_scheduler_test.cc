@@ -121,8 +121,14 @@ class FiberSchedulerTest : public testing::TestWithParam<bool> {
                                             num_priorities);
     } else {
       // Use PriorityAdmissionScheduler as a child of domain root scheduler.
-      return new PriorityAdmissionScheduler(
-          thread::DefaultDomain()->root_scheduler(), num_slots, num_priorities);
+      custom_domain_ = thread::CreateCustomDomain(
+          {.name = "Test", .max_concurrency = num_slots + 4});
+      Scheduler* domain_root =
+          thread::NewRootFIFOScheduler(custom_domain_.get());
+      PriorityAdmissionScheduler* pas = new PriorityAdmissionScheduler(
+          domain_root, num_slots, num_priorities);
+      domain_root->Orphan();
+      return pas;
     }
   }
 
@@ -152,23 +158,26 @@ TEST_P(FiberSchedulerTest, Priority) {
   EXPECT_EQ(1, root->num_running());
 
   e1.store(true, std::memory_order_relaxed);
+  Yield();
   f1->Join();
   // Schedule f3 due to priority.
   EXPECT_FALSE(NotifiedOrTimedOut(s2));
-  s3.WaitForNotification();
+  EXPECT_TRUE(s3.WaitForNotificationWithTimeout(absl::Seconds(5)));
   EXPECT_FALSE(FinishedOrTimedOut(f4.get()));
   EXPECT_EQ(2, root->num_queued());
   EXPECT_EQ(1, root->num_running());
 
   e3.store(true, std::memory_order_relaxed);
+  Yield();
   f3->Join();
   // Schedule f2 due to FIFO.
-  s2.WaitForNotification();
+  EXPECT_TRUE(s2.WaitForNotificationWithTimeout(absl::Seconds(5)));
   EXPECT_FALSE(FinishedOrTimedOut(f4.get()));
   EXPECT_EQ(1, root->num_queued());
   EXPECT_EQ(1, root->num_running());
 
   e2.store(true, std::memory_order_relaxed);
+  Yield();
   f2->Join();
   f4->Join();
   Yield();
@@ -203,11 +212,13 @@ TEST_P(FiberSchedulerTest, InProgress) {
   // As f2 finishes, schedule f1 over f3, because f1 is in progress,
   // despite of its low priority.
   e2.store(true, std::memory_order_relaxed);
+  Yield();
   f2->Join();
   EXPECT_FALSE(NotifiedOrTimedOut(s3));
   EXPECT_EQ(1, root->num_running());
 
   e1.store(true, std::memory_order_relaxed);
+  Yield();
   f1->Join();
   f3->Join();
   Yield();
@@ -242,12 +253,14 @@ TEST_P(FiberSchedulerTest, InProgressChild) {
   // Since f1 started, both f1's children inherit high "in progress"
   // priority, thus chosen over f2 despite its higher original priority.
   e12.store(true, std::memory_order_relaxed);
+  Yield();
   n11.WaitForNotification();
   EXPECT_FALSE(FinishedOrTimedOut(f2.get()));
   EXPECT_EQ(1, root->num_queued());
   EXPECT_EQ(1, root->num_running());  // f1
 
   e11.store(true, std::memory_order_relaxed);
+  Yield();
   f1->Join();
   f2->Join();
   Yield();
@@ -332,6 +345,7 @@ TEST_P(FiberSchedulerTest, MultipleSlotsPerChild) {
   // Since f1 started, f1's first child inherits the high "in progress"
   // priority, thus chosen over f2 which has higher original priority.
   e0.store(true, std::memory_order_relaxed);
+  Yield();
   f0->Join();
   n11.WaitForNotification();
   EXPECT_FALSE(FinishedOrTimedOut(f2.get()));
@@ -340,6 +354,7 @@ TEST_P(FiberSchedulerTest, MultipleSlotsPerChild) {
 
   e11.store(true, std::memory_order_relaxed);
   e12.store(true, std::memory_order_relaxed);
+  Yield();
   f1->Join();
   f2->Join();
   Yield();
@@ -376,27 +391,32 @@ TEST_P(FiberSchedulerTest, PriorityForManagingSlots) {
   s2.WaitForNotification();
   EXPECT_EQ(1, root->num_queued());   // (f3, f4) as 1
   EXPECT_EQ(2, root->num_running());  // f1 and f2
+  // Give time for f4 to be enqueued to avoid race.
+  absl::SleepFor(absl::Milliseconds(100));
 
   e1.store(true, std::memory_order_relaxed);
+  Yield();
   f1->Join();
   // Child scheduler is LIFO so f4 is scheduled.
   EXPECT_FALSE(NotifiedOrTimedOut(s3));
-  s4.WaitForNotification();
+  EXPECT_TRUE(s4.WaitForNotificationWithTimeout(absl::Seconds(5)));
   EXPECT_EQ(2, root->num_running());  // f2 and f4
 
   auto f5 = NewTestTree(root, 0, []() {});
   e2.store(true, std::memory_order_relaxed);
+  Yield();
   f2->Join();
   // Priority is assigned to scheduler, not schedulable, thus f3 and f4 are
   // both boosted to "in progress" priority once one of them gets run. Now
   // f3 wins over f5 despite its lower original priority.
-  s3.WaitForNotification();
+  EXPECT_TRUE(s3.WaitForNotificationWithTimeout(absl::Seconds(5)));
   EXPECT_FALSE(FinishedOrTimedOut(f5.get()));
   EXPECT_EQ(1, root->num_queued());   // f5
   EXPECT_EQ(1, root->num_running());  // (f3, f4) as 1
 
   e3.store(true, std::memory_order_relaxed);
   e4.store(true, std::memory_order_relaxed);
+  Yield();
   f3->Join();
   f4->Join();
   f5->Join();
@@ -432,6 +452,7 @@ TEST_P(FiberSchedulerTest, TailPointerWhenBoostPriority) {
 
   e1.store(true, std::memory_order_relaxed);
   e2.store(true, std::memory_order_relaxed);
+  Yield();
   f1->Join();
   f2->Join();
   f3->Join();
