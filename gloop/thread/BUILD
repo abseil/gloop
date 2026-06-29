@@ -1020,11 +1020,14 @@ cc_test(
     srcs = ["thread_manager_policy_default_test.cc"],
     deps = [
         ":thread_manager",
-        "//gloop/base:init_google",
-        "@abseil-cpp//absl/container:flat_hash_set",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
     ],
 )
 
