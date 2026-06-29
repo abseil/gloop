@@ -1191,3 +1191,28 @@ cc_proto_library(
     name = "message_hasher_unittest_cc_proto",
     deps = [":message_hasher_unittest_proto"],
 )
+
+cc_library(
+    name = "c_memset",
+    hdrs = ["c_memset.h"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:hardening",
+    ],
+)
+
+cc_test(
+    name = "c_memset_test",
+    size = "small",
+    srcs = ["c_memset_test.cc"],
+    deps = [
+        ":c_memset",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:hardening",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
