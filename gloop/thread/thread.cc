@@ -443,6 +443,8 @@ Thread::~Thread() {
   thread::internal::OsSemaphoreDestroy(&tid_set_sem_);
 }
 
+ClosureThread::~ClosureThread() = default;
+
 void Thread::SetInitialCpuSubContainer(thread::CpuSubContainer* subcontainer) {
   subcontainer_ = subcontainer;
 }

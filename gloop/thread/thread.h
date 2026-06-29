@@ -435,7 +435,7 @@ class ClosureThread : public Thread {
 
   // Even if you don't call set_joinable/Join, you must ensure that the thread
   // has finished running (or was not started at all) before destroying it.
-  ~ClosureThread() override {}
+  ~ClosureThread() override;
 
  protected:
   void Run() override { std::move(closure_)(); }
