@@ -1,0 +1,9 @@
+edition = "2024";
+
+package tools.build_rules.text_to_binary.testdata;
+
+option features.utf8_validation = NONE;
+
+message TestNested {
+  string string_value = 1;
+}

@@ -1,0 +1,13 @@
+edition = "2024";
+
+package tools.build_rules.text_to_binary.testdata;
+
+import "gloop/tools/build_rules/text_to_binary/testdata/test.proto";
+
+message TestExtension {
+  extend Test {
+    TestExtension ext = 100;
+  }
+
+  bool bool_value = 1;
+}

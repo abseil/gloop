@@ -1,0 +1,3 @@
+# proto-file: tools/build_rules/text_to_binary/testdata/test.proto
+# proto-message: tools.build_rules.text_to_binary.testdata.Test
+int_value: 12

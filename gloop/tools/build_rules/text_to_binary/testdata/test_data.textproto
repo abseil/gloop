@@ -1,0 +1,13 @@
+# proto-file: tools/build_rules/text_to_binary/testdata/test.proto
+# proto-message Test
+
+# Input to proto_data, compared to manually-constructed
+# expected value in proto_data_test.cc
+
+int_value: 3
+nested_value {
+  string_value: "three"
+}
+[tools.build_rules.text_to_binary.testdata.TestExtension.ext]: {
+  bool_value: true
+}

@@ -1,0 +1,19 @@
+edition = "2024";
+
+package tools.build_rules.text_to_binary.testdata;
+
+import "gloop/tools/build_rules/text_to_binary/testdata/test_nested.proto";
+
+import option "google/protobuf/java_features.proto";
+
+option java_outer_classname = "TestOuterClass";
+
+message Test {
+  option features.(pb.java).nest_in_file_class = YES;
+
+  int32 int_value = 1;
+  TestNested nested_value = 2;
+
+  // TestExtension
+  extensions 100 [verification = UNVERIFIED];
+}

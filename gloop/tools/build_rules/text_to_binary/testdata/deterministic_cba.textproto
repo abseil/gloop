@@ -1,0 +1,8 @@
+# proto-file: google/protobuf/struct.proto
+# proto-message: Struct
+
+# Same as deterministic_abc.textproto, but with entry order changed
+
+fields { key: "a" value: { number_value: 1 } }
+fields { key: "b" value: { number_value: 2 } }
+fields { key: "c" value: { number_value: 3 } }
