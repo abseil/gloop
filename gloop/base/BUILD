@@ -72,8 +72,13 @@ cc_test(
     ],
     deps = [
         ":address_is_readable",
-        ":init_google",
+        ":strerror",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/log:check",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
     ],
 )
 
