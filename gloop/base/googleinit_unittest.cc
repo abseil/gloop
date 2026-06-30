@@ -324,7 +324,7 @@ TEST(GoogleInitTest, RegisterTooLate) {
 }
 
 TEST(GoogleInitDeathTest, CycleDetection) {
-  EXPECT_DEATH(
+  EXPECT_DEATH_IF_SUPPORTED(
       {
         GoogleInitializer init1(::base::internal::LiteralTag{}, "cycle_type",
                                 "init1", []() {});
@@ -347,7 +347,7 @@ TEST(GoogleInitDeathTest, CycleDetection) {
 }
 
 TEST(GoogleInitDeathTest, DuplicateInitializerName) {
-  EXPECT_DEATH(
+  EXPECT_DEATH_IF_SUPPORTED(
       {
         [[maybe_unused]] GoogleInitializer init1(
             ::base::internal::LiteralTag{}, "dup_name_type", "init", []() {});
