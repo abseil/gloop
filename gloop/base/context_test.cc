@@ -218,6 +218,7 @@ TEST_F(ContextTest, DefaultInitIsConstExprAndDefaulted) {
 TEST_F(ContextTest, ThreadContextEqualsThreadContext) {
   std::unique_ptr<Context> context(GetTestContext());
   base::WithContext wc(*context);
+  ContextEq(ThreadContext(), *context);
   ContextEq(Context(Context::kThread), *context);
 }
 

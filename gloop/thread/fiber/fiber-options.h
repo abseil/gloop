@@ -106,7 +106,25 @@ class TreeOptions {
   //
   // To create a new root fiber within a copy of the current environmental
   // context use:
-  //  set_context(base::CurrentContext())
+  //  set_context(base::ThreadContext())
+  //
+  // When specifying a specific context, it is also important to 'move' the
+  // `TreeOptions` value into the `NewTree()` or `Detach()` functions: tracing
+  // frameworks such as Dapper trace contexts created by the `ThreadContext()`
+  // context, and rely on values being moved instead of copied. Copying the
+  // options also performs a low level copy of the embedded (trace) context,
+  // which prevents Dapper from tracking the full causality of the execution.
+  //
+  // For example:
+  //
+  //  TreeOptions options;
+  //  options.set_context(base::ThreadContext())
+  //  my_fiber = thread::NewTree(std::move(options), ...);
+  //
+  // Or fully inline the TreeOptions() value::
+  //
+  //    my_fiber = thread::NewTree(
+  //        TreeOptions().set_context(base::ThreadContext()), ...);
   //
   // If this function is not called, context() returns an empty Context.
   TreeOptions& set_context(base::Context context) & {

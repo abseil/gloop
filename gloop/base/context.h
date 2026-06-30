@@ -325,6 +325,51 @@ const Context& DefaultContext();
 // invalidated by actions that change the current context.
 const Context& CurrentContext();
 
+// Returns a copy of the current thread's Context with the implied intent of
+// scoping (scheduling) the context for execution on a different thread than the
+// current thread.
+//
+// This function is tracked by (Dapper) traces and helps tracking causality of
+// executions explicitly scoped by a copy of the current thread context.
+//
+// For example, the below function can not be analyzed for causality as the
+// context for the `TreeOptions` is set using a plain (no scheduling intent)
+// copy. On top of that, the `TreeOptions` are copied instead of moved, causing
+// also a loss of causality as copying the options also causes an internal copy
+// of the embedded context:
+//
+//   std::unique_ptr<thread::Fiber> StartFiber() {
+//     // BAD: base::CurrentContext() prevents causality tracing.
+//     thread::TreeOptions options;
+//     options.set_context(base::CurrentContext());
+//     return thread::NewTree(options, [this] { DoStuff(); });
+//   }
+//
+// Use either of the below examples instead:
+//
+//   std::unique_ptr<thread::Fiber> StartFiber() {
+//     thread::TreeOptions options;
+//     options.set_context(base::ThreadContext());
+//     return thread::NewTree(std::move(options), [this] { DoStuff(); });
+//   }
+//
+//   std::unique_ptr<thread::Fiber> StartFiber() {
+//     return thread::NewTree(
+//         thread::TreeOptions().set_context(base::ThreadContext()),
+//         [this] { DoStuff(); });
+//   }
+//
+// `thread_name` can be explicitly specified, and serves as an identifying name
+// for the (scheduled) execution of the code scoped by the returned context for
+// the purpose of causality tracing. `thread_name` defaults to the current
+// source location.
+//
+//   thread::TreeOptions options;
+//   options.set_context(base::ThreadContext("DataRetrievalWorked"));
+//
+Context ThreadContext(perftools::tracing::StringRef thread_name =
+                          perftools::tracing::TraceSourceLocation::current());
+
 // Returns a pointer to the "status string" associated with the current thread,
 // or nullptr if there is no status set. This function is safe to call from a
 // signal handler.

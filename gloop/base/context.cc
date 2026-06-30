@@ -69,6 +69,8 @@ Context::~Context() {}
 
 void swap(Context&, Context&) noexcept {}
 
+Context ThreadContext(perftools::tracing::StringRef) { return Context(); }
+
 void SwapCurrentContext(Context* c) {}
 
 void RestoreCurrentContext(Context* c) {}
@@ -134,6 +136,10 @@ void swap(Context& lhs, Context& rhs) noexcept {
   swap(lhs.tc_, rhs.tc_);
   swap(lhs.deadline_, rhs.deadline_);
   swap(lhs.thread_status_, rhs.thread_status_);
+}
+
+Context ThreadContext(perftools::tracing::StringRef thread_name) {
+  return Context(*InlineCurrent(), thread_name);
 }
 
 void Context::SwapDeadline(absl::Time* deadline) {
