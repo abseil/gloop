@@ -458,8 +458,7 @@ bool IsActiveExecutorHandle(ExecutorHandle handle) {
 }  // namespace internal
 
 // Returns a cancellation-aware callable that calls the supplied closure when
-// called. Captures the current context, and restores it around the body of
-// `closure` when it is called.
+// called.
 static auto MakeCancellableCallable(Closure* closure, ExecutorHandle* handle) {
   return [cw = std::make_unique<CancelWrapper>(closure, handle)]() mutable {
     // Transfer the responsibility for destroying the wrapper from the
@@ -485,11 +484,10 @@ void AddCancellable(Executor* executor, absl::Duration delay, Closure* closure,
   auto cancellable_callable = MakeCancellableCallable(closure, handle);
 
   // Switch to the background Context, so that we don't capture the current
-  // thread's Context when enqueuing the cancellable closure. We want to make
-  // sure that the current thread's Context does not stay pinned/referenced if
-  // the closure is cancelled.
-  // Note that MakeCancellableCallable above captures the current Context, so
-  // the supplied `closure` will run in the correct Context.
+  // thread's Context when enqueuing the cancellable closure on some executors
+  // such as ThreadPool (http://shortn/_2ELM1fm7ip). We want to make sure that
+  // the current thread's Context does not stay pinned/referenced if the closure
+  // is cancelled.
   base::WithContext wc(base::BackgroundContext());
   executor->ScheduleAfterForMigration(delay, std::move(cancellable_callable));
 }
@@ -515,12 +513,7 @@ void AddCancellableAt(Executor* executor, absl::Time when, Closure* closure,
 
   auto cancellable_callable = MakeCancellableCallable(closure, handle);
 
-  // Switch to the background Context, so that we don't capture the current
-  // thread's Context when enqueuing the cancellable closure. We want to make
-  // sure that the current thread's Context does not stay pinned/referenced if
-  // the closure is cancelled.
-  // Note that MakeCancellableCallable above captures the current Context, so
-  // the supplied `closure` will run in the correct Context.
+  // See comment on background context in AddCancellable.
   base::WithContext wc(base::BackgroundContext());
   executor->ScheduleAt(when, std::move(cancellable_callable));
 }
