@@ -694,14 +694,13 @@ cc_test(
     srcs = ["guard_unittest.cc"],
     deps = [
         ":thread",
+        "//gloop:gloop_test_main",
         "//gloop/base:address_is_readable",
-        "//gloop/base:init_google",
-        "//gloop/base:log_file_flags",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/log:initialize",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
     ],
 )
 
