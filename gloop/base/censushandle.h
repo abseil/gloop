@@ -44,7 +44,7 @@ class WithLifetimeBoundContext;
 // Census library. This handle is embedded inside TraceContext and gets copied
 // as part of the NewCallback mechanism. It is only interpreted by Census
 // library. See stats/census/public/census-interface.h for details.
-// CensusHandle is thread-compatible.
+// CensusHandle is thread-safe.
 class ABSL_ATTRIBUTE_TRIVIAL_ABI CensusHandle {
   // This class carefully synchronizes with the SIGPROF signal handler. Any
   // operation which mutates a `CensusHandle` by reference or pointer might be
@@ -70,14 +70,11 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI CensusHandle {
     if (old_entry == other_entry) return *this;
     set_entry(other_entry);
 
-    // As CensusHandle is thread-compatible and not thread-safe, we don't need
-    // to handle users concurrently doing reads and writes of a CensusHandle
-    // from different threads; users will need to do their own synchronization
-    // in that case. We need to make sure that when the sigprof handler
-    // interrupts this function, and reads the old value of rep_, then the code
-    // below to unref old cannot have started. atomic_signal_fence (as opposed
-    // to an atomic_thread_fence) expresses this constraint directly and allows
-    // the compiler to enforce it as efficiently as it can.
+    // We need to make sure that when the sigprof handler interrupts this
+    // function, and reads the old value of entry_, then the code below to unref
+    // old cannot have started. atomic_signal_fence (as opposed to an
+    // atomic_thread_fence) expresses this constraint directly and allows the
+    // compiler to enforce it as efficiently as it can.
     std::atomic_signal_fence(std::memory_order_seq_cst);
 
     if (other_entry != nullptr) other_entry->Ref();
@@ -97,14 +94,11 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI CensusHandle {
     set_entry(other_entry);
     other.set_entry(nullptr);
 
-    // As CensusHandle is thread-compatible and not thread-safe, we don't need
-    // to handle users concurrently doing reads and writes of a CensusHandle
-    // from different threads; users will need to do their own synchronization
-    // in that case. We need to make sure that when the sigprof handler
-    // interrupts this function, and reads the old value of entry_, then the
-    // code below to unref old cannot have started. atomic_signal_fence (as
-    // opposed to an atomic_thread_fence) expresses this constraint directly and
-    // allows the compiler to enforce it as efficiently as it can.
+    // We need to make sure that when the sigprof handler interrupts this
+    // function, and reads the old value of entry_, then the code below to unref
+    // old cannot have started. atomic_signal_fence (as opposed to an
+    // atomic_thread_fence) expresses this constraint directly and allows the
+    // compiler to enforce it as efficiently as it can.
     std::atomic_signal_fence(std::memory_order_seq_cst);
 
     if (old_entry != nullptr) old_entry->Unref();
@@ -114,14 +108,11 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI CensusHandle {
 
   ~CensusHandle() {
     if (EntryBase* e = get_entry(); e != nullptr) {
-      // As CensusHandle is thread-compatible and not thread-safe, we don't need
-      // to handle users concurrently doing reads and writes of a CensusHandle
-      // from different threads; users will need to do their own synchronization
-      // in that case. We need to make sure that when the sigprof handler
-      // interrupts this function, and reads the old value of entry_, then the
-      // code below to unref old cannot have started. atomic_signal_fence (as
-      // opposed to an atomic_thread_fence) expresses this constraint directly
-      // and allows the compiler to enforce it as efficiently as it can.
+      // We need to make sure that when the sigprof handler interrupts this
+      // function, and reads the old value of entry_, then the code below to
+      // unref old cannot have started. atomic_signal_fence (as opposed to an
+      // atomic_thread_fence) expresses this constraint directly and allows the
+      // compiler to enforce it as efficiently as it can.
       std::atomic_signal_fence(std::memory_order_seq_cst);
       e->Unref();
     }
@@ -192,26 +183,26 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI CensusHandle {
   explicit CensusHandle(std::unique_ptr<EntryBase> e) : entry_(e.release()) {}
 #endif
 
-  // Returns the current value of `entry` using a relaxed atomic load.
+  // Returns the current value of `entry` using an acquire atomic load.
   EntryBase* get_entry() const {
 #if defined(__cpp_lib_atomic_ref)
-    return std::atomic_ref(entry_).load(std::memory_order_relaxed);
+    return std::atomic_ref(entry_).load(std::memory_order_acquire);
 #else
     static_assert(__atomic_always_lock_free(sizeof(entry_), &entry_));
 
     EntryBase* result;
-    __atomic_load(&entry_, &result, __ATOMIC_RELAXED);
+    __atomic_load(&entry_, &result, __ATOMIC_ACQUIRE);
     return result;
 #endif
   }
 
-  // Sets the current value of `entry` using a relaxed atomic store.
+  // Sets the current value of `entry` using a release atomic store.
   void set_entry(EntryBase* const e) {
 #if defined(__cpp_lib_atomic_ref)
-    std::atomic_ref(entry_).store(e, std::memory_order_relaxed);
+    std::atomic_ref(entry_).store(e, std::memory_order_release);
 #else
     static_assert(__atomic_always_lock_free(sizeof(entry_), &entry_));
-    __atomic_store_n(&entry_, e, __ATOMIC_RELAXED);
+    __atomic_store_n(&entry_, e, __ATOMIC_RELEASE);
 #endif
   }
 
