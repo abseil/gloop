@@ -429,14 +429,12 @@ CancelWrapper::~CancelWrapper() {
   std::unique_ptr<Closure> to_delete;
   shard_->mu.lock();
 
-  // Prepare to delete the closure if hasn't been cancelled or started yet, and
-  // it's not repeatable.
-  //
-  // NOTE: Repeatable callbacks are not owned and their creator is responsible
-  // for deleting them (http://shortn/_Ybi0q3b9w6).
-  if (closure_ != nullptr && !closure_->IsRepeatable()) {
-    to_delete.reset(closure_);
-  }
+  // Prepare to delete the closure if hasn't been cancelled or started yet.
+  // NOTE: we only support non-permanent closures (http://shortn/_QiIjz9dViQ),
+  // which means its always our responsibility to delete them.
+  DCHECK(closure_ == nullptr || !closure_->IsRepeatable())
+      << "CancelWrapper only supports non-permanent callbacks";
+  to_delete.reset(closure_);
 
   shard_->table.erase(shard_key_);
   shard_->mu.unlock();
