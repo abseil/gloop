@@ -574,5 +574,12 @@ TEST(UniqueArrayTest, PrintsNullArrayToOutputStream) {
   EXPECT_THAT(out.str(), ContainsRegex(R"(\(nil\)|0)"));
 }
 
+TEST(UniqueArrayTest, UniqueArrayWithDefaultDeleteTag) {
+  char* raw = new char[kArraySize * 2];
+  UniqueArray<char, DefaultDelete> buffer(raw, kArraySize);
+  EXPECT_THAT(buffer, SizeIs(kArraySize));
+  EXPECT_NO_FATAL_FAILURE({ buffer.reset(); });
+}
+
 }  // namespace
 }  // namespace gtl

@@ -43,6 +43,10 @@ namespace gtl {
 template <typename T, typename Deleter = void>
 class ABSL_ATTRIBUTE_TRIVIAL_ABI ABSL_NULLABILITY_COMPATIBLE UniqueArray;
 
+// Tag type used to request std::default_delete<T[]> and skip sized
+// deallocation.
+struct DefaultDelete {};
+
 template <typename T>
 UniqueArray<T> MakeUniqueArray(size_t size);
 
@@ -86,8 +90,10 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI
   using reference = T&;
   using const_reference = const T&;
   using size_type = size_t;
-  using deleter_type = std::conditional_t<std::is_void_v<Deleter>,
-                                          std::default_delete<T[]>, Deleter>;
+  using deleter_type =
+      std::conditional_t<std::is_void_v<Deleter> ||
+                             std::is_same_v<Deleter, DefaultDelete>,
+                         std::default_delete<T[]>, Deleter>;
 
   // This type wraps a unique_ptr `ptr` and its `size`. It is used when
   // releasing ownership of the unique_ptr to callers of `release()`, without
