@@ -18,10 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2006 Google Inc.
-// All rights reserved.
-
-//
 // DEPRECATED: Prefer the `thread_local` storage specifier when you need static,
 // threadlocal storage.  See <link> .
 
@@ -54,17 +50,7 @@
 // STATIC_THREAD_LOCAL_WITH_CONSTRUCTOR_ARGS(Type, var, ()).
 //
 // These macros are faster than ThreadLocal especially on a system
-// with compiler-supported TLS:
-//
-// With ABSL_HAVE_TLS (on warp18 + Goobuntu):
-//   STATIC_THREAD_LOCAL: 2ns
-//   STATIC_THREAD_LOCAL_POD: 1ns
-//   ThreadLocal: 7ns
-//
-// Without ABSL_HAVE_TLS (on warp18 + Goobuntu):
-//   STATIC_THREAD_LOCAL: 10ns
-//   STATIC_THREAD_LOCAL_POD: 10ns
-//   ThreadLocal: 16ns
+// with compiler-supported TLS.
 //
 // A variable declared by STATIC_THREAD_*(Type, var) exports three key
 // methods:

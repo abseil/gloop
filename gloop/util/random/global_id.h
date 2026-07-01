@@ -44,9 +44,6 @@
 //
 // We generate random numbers using a combination of the CPU
 // cycleclock, process ID, and the current time.
-//
-// NewGlobalID() overhead is on average 16ns on Warp18.
-//
 
 namespace util {
 namespace random {
