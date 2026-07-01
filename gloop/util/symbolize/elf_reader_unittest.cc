@@ -127,9 +127,8 @@ TEST(ElfReader, IsNativeElfFile) {
       // Collect only executable maps, and exclude maps like "[heap]",
       // which don't correspond to files.  Sometimes files like
       // /var/db/nscd/passwd are mapped with an executable flag for
-      // some reason (this happened on goobuntu dapper for x86_64),
-      // hence we only collect maps with file names likely to be an
-      // executable or dynamic shared object.
+      // some reason (this happened on x86_64), hence we only collect maps with
+      // file names likely to be an executable or dynamic shared object.
       if ((flags[2] == 'x' && file_name[0] != '\0' && file_name[0] != '[') &&
           (FileNameIsLikelySelfExec(file_name) ||
            FileNameIsLikelyDSO(file_name))) {

@@ -296,9 +296,6 @@ static void SwitchUser(const std::string& username) {
 // cannot be obtained, the program will abort with a fatal error.
 static void SwitchGroup(const std::string& groupname, const std::string& uid) {
 #if defined(GOOGLE_ENABLE_SETGID)
-  // Worst case number of failures we observed on grhat was 6 so let's use
-  // 2x that. Sadly, that's not enough with goobuntu or in SQE, so let's use
-  // another factor of 4.
   const int kMaxTries = 48;
 
   gid_t new_gid;
