@@ -705,6 +705,7 @@ cc_library(
     srcs = ["value_or_die.cc"],
     hdrs = ["value_or_die.h"],
     deps = [
+        ":requires",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log",

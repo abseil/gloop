@@ -39,6 +39,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/types/source_location.h"
+#include "gloop/util/gtl/requires.h"
 
 namespace gtl {
 namespace internal_value_or_die {
@@ -97,6 +98,25 @@ T& ValueOrDie(T* value ABSL_ATTRIBUTE_LIFETIME_BOUND,
     internal_value_or_die::DieBecauseEmptyValue(loc);
   }
   return *value;
+}
+
+// Recursively unwraps a nested sequence of values, returning the bottom-most
+// payload value (e.g. from nested absl::StatusOr, std::optional, pointers)
+// or crashes if any wrapper is empty/not-ok.
+template <typename T>
+decltype(auto) BottomValueOrDie(
+    T&& value, absl::SourceLocation loc = absl::SourceLocation::current()) {
+  // Check if the value can be unwrapped with ValueOrDie.
+  // If so, recursively call BottomValueOrDie on the unwrapped value.
+  if constexpr (Requires<T>(
+                    [](auto&& x) -> decltype(gtl::ValueOrDie(
+                                     std::forward<decltype(x)>(x))) {})) {
+    return gtl::BottomValueOrDie(gtl::ValueOrDie(std::forward<T>(value), loc),
+                                 loc);
+  } else {
+    // Base case: no more wrappers, return the value as-is.
+    return std::forward<T>(value);
+  }
 }
 
 }  // namespace gtl
