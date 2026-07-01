@@ -713,22 +713,16 @@ static bool GeneralBase32Escape(absl::string_view src,
                                 std::string* absl_nonnull dest,
                                 const std::array<char, 32>& alphabet) {
   const ptrdiff_t max_escaped_size = CalculateBase32EscapedLen(src.length());
-  bool success = true;
   absl::StringResizeAndOverwrite(
-      *dest, max_escaped_size + 1,
-      [src, alphabet, &success](char* buf, size_t buf_size) {
+      *dest, max_escaped_size + 1, [src, alphabet](char* buf, size_t buf_size) {
         const ptrdiff_t escaped_len = GeneralBase32Escape(
             reinterpret_cast<const unsigned char*>(src.data()), src.length(),
             buf, buf_size, alphabet);
-
-        if (escaped_len < 0) {
-          success = false;
-          return size_t{0};
-        }
-
         return static_cast<size_t>(escaped_len);
       });
-  return true;
+  // The pointer version of GeneralBase32Escape() returns 0 on error
+  // when szsrc > 0.
+  return !dest->empty() || src.empty();
 }
 
 static constexpr std::array<char, 32> kBase32Alphabet = {
@@ -766,7 +760,7 @@ bool Base32HexEscape(const std::string& src, std::string* absl_nonnull dest) {
 }
 
 ptrdiff_t CalculateBase32EscapedLen(size_t input_len) {
-  assert(input_len <= std::numeric_limits<size_t>::max() / 8);
+  CHECK_LE(input_len, std::numeric_limits<size_t>::max() / 8 - 4);
   size_t intermediate_result = 8 * input_len + 4;
   size_t len = intermediate_result / 5;
   len = (len + 7) & ~7;
