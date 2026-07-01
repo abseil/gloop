@@ -355,7 +355,8 @@ CancelResult Cancel(ExecutorHandle handle, absl::Duration timeout,
 //
 // NOTE: this function doesn't distinguish between repeatable (permanent) and
 // non-permanent callbacks. It deletes whatever the other overload returns.
-CancelResult Cancel(ExecutorHandle handle, absl::Duration timeout);
+CancelResult Cancel(ExecutorHandle handle,
+                    absl::Duration timeout = absl::InfiniteDuration());
 
 // An alias for the common case of cancelling without potentially blocking for
 // the closure to finish.
@@ -371,6 +372,13 @@ inline CancelResult Cancel(ExecutorHandle handle, absl::Duration timeout)
     __attribute__((enable_if(timeout <= absl::ZeroDuration(),
                              "Use TryCancel instead."))) {
   return TryCancel(handle);
+}
+
+ABSL_DEPRECATE_AND_INLINE()
+inline bool Cancel(ExecutorHandle handle, absl::Duration timeout)
+    __attribute__((enable_if(timeout == absl::InfiniteDuration(),
+                             "Use the one argument overload instead."))) {
+  return Cancel(handle);
 }
 #endif  // ABSL_HAVE_ATTRIBUTE(enable_if)
 
