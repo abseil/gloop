@@ -21,9 +21,6 @@
 #ifndef THIRD_PARTY_GLOOP_BASE_PER_THREAD_H_
 #define THIRD_PARTY_GLOOP_BASE_PER_THREAD_H_
 
-// Copyright 2006 Google Inc.
-// All rights reserved.
-
 // This interface provides functionality similar to pthread_getspecific() and
 // pthread_setspecific().  It is typically faster than those calls when
 // using linuxthreads (old versions of glibc).  The implementation may slow

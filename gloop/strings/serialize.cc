@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2003, Google Inc.  All rights reserved.
-
 #include "gloop/strings/serialize.h"
 
 #include <cstdint>

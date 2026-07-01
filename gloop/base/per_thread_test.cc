@@ -18,9 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Copyright 2006 Google Inc.
-// All rights reserved.
-
 // A unittest for the PerThread code.
 
 #include "gloop/base/per_thread.h"
