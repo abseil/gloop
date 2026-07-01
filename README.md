@@ -1,8 +1,9 @@
 # Gloop
 
 Gloop is a library designed to speed up the transition of internal code to open
-source, minimizing friction for projects moving out of google3. It contains
-primarily core C++ libraries that were previously internal to Google.
+source, minimizing friction for projects moving out of Google's internal
+monorepo (google3). It contains primarily common C++ libraries that were
+previously internal to Google.
 
 ## Disclaimer & Intended Audience
 
@@ -17,7 +18,8 @@ non-Google projects. Depending on Gloop has the following consequences:
 -   **Strict Expectations**: Users must live at head and stay up-to-date with
     the Gloop main branch.
 -   **No External Support**: Issues and pull requests submitted by external
-    contributors developers will not be accepted.
+    contributors will not be accepted. If you use a project that depends on
+    Gloop, please channel your request through that project.
 -   **Commit Consistency**: We reserve the right to edit our history on the
     `main` branch in order to obliterate changes. This is only for exceptional
     situations though, and won't be done regularly.
@@ -26,7 +28,7 @@ non-Google projects. Depending on Gloop has the following consequences:
 
 Gloop sits above Abseil, which has strict requirements for quality and a wide
 support matrix to cover OSS, but below domain-specific libraries exported by
-Google. It consists of core C++ libraries and build tools, that are general
+Google. It consists of common C++ libraries and build tools, that are general
 purpose and not specific to any particular product.
 
 The goal of Gloop is to provide an intermediate layer facilitating Google
@@ -37,8 +39,9 @@ migrate to.
 
 Gloop itself is largely considered technical debt. Much of the code it contains
 is very old, and was never intended for external use. The long-term vision for
-gloop is to either delete, replace, or re-home everything in it into another
-repository with better support (such as Abseil).
+code in Gloop is to either delete, replace, or re-home everything in it into
+another repository with a more principled and longer-term support strategy such
+as Abseil.
 
 --------------------------------------------------------------------------------
 
@@ -73,7 +76,7 @@ Component        | Supported Version  | Last Changed | Next Change
 We maintain a trailing support window for our build dependencies. The timer
 starts when a new version is released, and we advance our baseline after a fixed
 period (e.g., 1 year for Bazel and 6 months for Clang/libc++). C++ standard
-transitions track internal google3 rollouts.
+transitions track internal rollouts.
 
 Alternative build systems (CMake, Make), compilers (GCC, MSVC), and standard
 libraries (libstdc++) are completely unsupported and blocked by policy.
