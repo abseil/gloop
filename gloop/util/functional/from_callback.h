@@ -120,7 +120,6 @@
 
 #include "absl/base/macros.h"
 #include "gloop/util/functional/from_callback_internal.h"  // IWYU pragma: export
-#include "gloop/util/functional/to_callback.h"
 
 namespace util {
 namespace functional {
@@ -138,10 +137,9 @@ internal::CallbackFunctor<CallbackType> FromCallback(CallbackType* callback) {
 }
 
 // A helper type for migration purposes to split caller and callee migration of
-// current users of callback types. This type is implicitly convertible from the
-// return type of util::functional::ToCallback as well as raw callback pointers,
-// meaning that changing a callee from ResultCallbackN<R, A>* to
-// ResultCallbackFunctor<R, A> should be a no-op for many callers.
+// current users of callback types. This type is implicitly convertible from raw
+// callback pointers, meaning that changing a callee from ResultCallbackN<R, A>*
+// to ResultCallbackFunctor<R, A> should be a no-op for many callers.
 template <typename R, typename... Args>
 using ResultCallbackFunctor = internal::ResultCallbackFunctorImpl<R, Args...>;
 
@@ -174,30 +172,6 @@ template <typename F>
 ABSL_DEPRECATE_AND_INLINE()
 F FromCallbackWithOwnership(F&& f) {
   return std::forward<F>(f);
-}
-
-// Overload for migration that returns the ResultCallbackFunctor. This can show
-// up when migrating code to CallbackFunctor.
-//
-// This doesn't directly accept a ResultCallbackFunctor since the inliner
-// doesn't work with parameter packs, see b/288454561.
-template <typename CallbackType, typename Functor>
-  requires internal::IsResultCallbackFunctor<CallbackType>
-ABSL_DEPRECATE_AND_INLINE()
-CallbackType ToCallback(Functor&& functor) {
-  return ToCallback(std::forward<Functor>(functor));
-}
-
-// Overload for migration that returns the functor as-is. This can show up when
-// migrating code to CallbackFunctor.
-//
-// This doesn't directly accept a ResultCallbackFunctor since the inliner
-// doesn't work with parameter packs, see b/288454561.
-template <typename CallbackType, typename Functor>
-  requires internal::IsResultCallbackFunctor<CallbackType>
-ABSL_DEPRECATE_AND_INLINE()
-CallbackType ToPermanentCallback(Functor&& functor) {
-  return std::forward<Functor>(functor);
 }
 
 #endif  // __cplusplus >= 202002L

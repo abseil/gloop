@@ -52,25 +52,19 @@ cc_library(
     name = "from_callback",
     srcs = [
         "from_callback_internal.h",
-        "to_callback_internal.h",
     ],
     hdrs = ["from_callback.h"],
     visibility = ["//gloop:__subpackages__"],
     deps = [
-        ":to_callback",
+        ":callable_once",
+        ":to_callback_internal",
         ":to_shared_function",
         "//gloop:enforce_gloop_support",
         "//gloop/base:callback-types",
-        "//gloop/base:context",
-        "//gloop/base:tracecontext",
-        "//gloop/perftools/tracing:trace_source_location",
-        "//gloop/perftools/tracing:tracing_base",
         "//gloop/util/refcount:compact_reference_counted",
         "//gloop/util/refcount:reffed_ptr",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
-        "@abseil-cpp//absl/cleanup",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:die_if_null",
     ],
 )
@@ -91,12 +85,9 @@ cc_test(
     ],
 )
 
-# For only util::functional::ToCallback
 cc_library(
-    name = "to_callback",
-    srcs = ["to_callback_internal.h"],
-    hdrs = ["to_callback.h"],
-    visibility = ["//gloop:__subpackages__"],
+    name = "to_callback_internal",
+    hdrs = ["to_callback_internal.h"],
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base:callback-types",
@@ -105,7 +96,23 @@ cc_library(
         "//gloop/perftools/tracing:trace_source_location",
         "//gloop/perftools/tracing:tracing_base",
         "@abseil-cpp//absl/cleanup",
-        "@abseil-cpp//absl/log:check",
+    ],
+)
+
+# For only util::functional::ToCallback
+cc_library(
+    name = "to_callback",
+    hdrs = ["to_callback.h"],
+    visibility = ["//gloop:__subpackages__"],
+    deps = [
+        ":from_callback",
+        ":to_callback_internal",
+        ":with_context",
+        "//gloop:enforce_gloop_support",
+        "//gloop/base:callback-types",
+        "//gloop/perftools/tracing:trace_source_location",
+        "//gloop/perftools/tracing:tracing_base",
+        "@abseil-cpp//absl/base:core_headers",
     ],
 )
 
