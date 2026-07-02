@@ -302,7 +302,7 @@ static inline int lss_clone(int (*fn)(void *), void *child_stack, int flags,
                           * unwinding. http://b/18777254
                           */
 #ifdef __GCC_HAVE_DWARF2_CFI_ASM
-                         ".cfi_undefined %%rip\n"
+                        //  ".cfi_undefined %%rip\n"
 #endif
 
                          /* Call "fn(arg)".
