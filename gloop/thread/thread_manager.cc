@@ -897,17 +897,26 @@ static void TMOverseer() {
 
     WaitStateScope scope(WaitStateScope::WaitState::kWaitingForWork);
     if (ignore_wakeup_requests) {
-      absl::SleepFor(deadline - absl::Now());
+      absl::Time now = absl::Now();
+      if (deadline > now) {
+        absl::SleepFor(deadline - now);
+      }
       // Clear any ignored wakeup request, since the overseer is waking up now.
       tm_overseer_wakeup_mu.lock();
       tm_overseer_wakeup_requested = false;
       tm_overseer_wakeup_mu.unlock();
     } else {
       // Wait until a wakeup request or a timeout.
-      tm_overseer_wakeup_mu.LockWhenWithDeadline(
-          absl::Condition(&tm_overseer_wakeup_requested), deadline);
-      tm_overseer_wakeup_requested = false;
-      tm_overseer_wakeup_mu.unlock();
+      if (deadline > absl::Now()) {
+        tm_overseer_wakeup_mu.LockWhenWithDeadline(
+            absl::Condition(&tm_overseer_wakeup_requested), deadline);
+        tm_overseer_wakeup_requested = false;
+        tm_overseer_wakeup_mu.unlock();
+      } else {
+        tm_overseer_wakeup_mu.lock();
+        tm_overseer_wakeup_requested = false;
+        tm_overseer_wakeup_mu.unlock();
+      }
     }
     if (watchdog) {
       watchdog->Alive();
