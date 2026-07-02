@@ -83,6 +83,9 @@ int GetStringLength(const char* s) { return 0; }
 
 TEST(Callback, AllowsTypeConversionForPreboundArgsInFreeFunction) {
   char* s = nullptr;
+  // Verifies that we don't need to cast s to const char* explicitly.
+  util::functional::ToCallback<Closure>(absl::bind_front(GetStringLength, s))
+      ->Run();
   ::util::functional::ResultCallbackFunctor<int> cb =
       absl::WrapUnique(util::functional::ToPermanentCallback<
                        ::util::functional::ResultCallbackFunctor<int>>(

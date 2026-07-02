@@ -130,7 +130,6 @@ cc_library(
         ":callback-types",
         "//gloop:enforce_gloop_support",
         "//gloop/util/functional:from_callback",
-        "//gloop/util/functional:to_callback",
     ],
 )
 

@@ -48,7 +48,6 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_FUNCTIONAL_WITH_CONTEXT_H_
 #define THIRD_PARTY_GLOOP_UTIL_FUNCTIONAL_WITH_CONTEXT_H_
 
-#include <type_traits>
 #include <utility>
 
 #include "gloop/base/context.h"
@@ -62,20 +61,20 @@ namespace functional {
 // Takes an invocable of some kind and returns an invocable that will use
 // `context` to invoke `invocable`.
 template <typename Functor, typename Context>
-internal::WithContextFunctor<std::decay_t<Functor>> WithContext(
-    Functor&& invocable, Context&& context) {
-  return internal::WithContextFunctor<std::decay_t<Functor>>(
-      std::forward<Functor>(invocable), std::forward<Context>(context));
+internal::WithContextFunctor<Functor> WithContext(Functor&& invocable,
+                                                  Context&& context) {
+  return internal::WithContextFunctor<Functor>(std::forward<Functor>(invocable),
+                                               std::forward<Context>(context));
 }
 
 // Takes an invocable of some kind and returns an invocable that will restore
 // the context of the current thread before invoking `invocable`.
 template <typename Functor>
-internal::WithContextFunctor<std::decay_t<Functor>> WithCurrentContext(
+internal::WithContextFunctor<Functor> WithCurrentContext(
     Functor&& invocable,
     ::perftools::tracing::StringRef label =
         ::perftools::tracing::TraceSourceLocation::current()) {
-  return internal::WithContextFunctor<std::decay_t<Functor>>(
+  return internal::WithContextFunctor<Functor>(
       std::forward<Functor>(invocable),
       ::base::Context(::base::Context::kThread, label));
 }
@@ -83,11 +82,11 @@ internal::WithContextFunctor<std::decay_t<Functor>> WithCurrentContext(
 // `WithContext` implementation capturing 'base::Context::kThread' calls.
 // Applications should prefer to use `WithCurrentContext()` instead.
 template <typename Functor>
-internal::WithContextFunctor<std::decay_t<Functor>> WithContext(
+internal::WithContextFunctor<Functor> WithContext(
     Functor&& invocable, base::Context::ThreadInitType,
     ::perftools::tracing::StringRef label =
         ::perftools::tracing::TraceSourceLocation::current()) {
-  return internal::WithContextFunctor<std::decay_t<Functor>>(
+  return internal::WithContextFunctor<Functor>(
       std::forward<Functor>(invocable),
       ::base::Context(::base::Context::kThread, label));
 }
