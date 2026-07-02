@@ -548,6 +548,11 @@ struct TMThreadWithPool {
   TMPool* pool;
 };
 
+static std::vector<TMThreadWithPool>& TMExitingThreads() {
+  static absl::NoDestructor<std::vector<TMThreadWithPool>> tm_exiting_threads;
+  return *tm_exiting_threads;
+}
+
 // Remove exiting threads from pool and append them to *exiting_threads; the
 // caller should then call TMDestroyExitingThreads, after releasing locks.
 // L >= pool->pool_mu
@@ -767,14 +772,13 @@ static void TMQueueKillThreads(TMPool* pool, int to_kill) {
 // Requires that now_ms be the current time in milliseconds.
 // Called by TMOverseer()
 // L >= tm_mu,  L < pool->pool_mu
-static int64_t TMOverseePoolInterval(
-    ThreadManager::Rep* rep, TMPool* pool, WatchDog* watchdog, int64_t now_ms,
-    bool* ignore_wakeup_requests,
-    std::vector<TMThreadWithPool>* exiting_threads) {
+static int64_t TMOverseePoolInterval(ThreadManager::Rep* rep, TMPool* pool,
+                                     WatchDog* watchdog, int64_t now_ms,
+                                     bool* ignore_wakeup_requests,
+                                     ThreadStarter* new_threads) {
   int64_t pool_delay_until_ms =
       pool->delay_until_ms.load(std::memory_order_relaxed);
   if (pool_delay_until_ms <= now_ms) {
-    ThreadStarter new_threads(watchdog);
     pool->pool_mu.lock();
     pool->overseer_woken.store(false, std::memory_order_relaxed);
     if (pool->pool_queue.empty() || !pool->idle_threads.empty()) {
@@ -793,14 +797,14 @@ static int64_t TMOverseePoolInterval(
         TMRunCreationPolicy(rep, pool, now_ms, &action);
         pool_delay_until_ms = now_ms + action.delay_ms;
         if (action.create) {
-          TMCreateWorker(rep, pool, &new_threads);
+          TMCreateWorker(rep, pool, new_threads);
           *ignore_wakeup_requests = true;  // so we won't be woken prematurely
         } else if (action.desired_threads >= 0) {
           int32_t current_threads =
               static_cast<int32_t>(pool->created - pool->exiting) +
               pool->create_pending - pool->kill_pending;
           for (int i = current_threads; i < action.desired_threads; i++) {
-            TMCreateWorker(rep, pool, &new_threads);
+            TMCreateWorker(rep, pool, new_threads);
           }
           if (current_threads - action.desired_threads > 0) {
             TMQueueKillThreads(pool, current_threads - action.desired_threads);
@@ -814,10 +818,9 @@ static int64_t TMOverseePoolInterval(
         *ignore_wakeup_requests = true;  // so we won't be woken prematurely
       }
     }
-    TMTakeExitingThreads(pool, exiting_threads);
+    TMTakeExitingThreads(pool, &TMExitingThreads());
     pool->delay_until_ms.store(pool_delay_until_ms, std::memory_order_relaxed);
     pool->pool_mu.unlock();
-    new_threads.Start();
   }
   return pool_delay_until_ms;
 }
@@ -853,7 +856,6 @@ static void TMOverseer() {
     watchdog->SetCallback(
         ::util::functional::ToPermanentCallback(&TMOverseerTimeout));
   }
-  std::vector<TMThreadWithPool> exiting_threads;
   for (;;) {
     // watchdog checks that overseer doesn't die. The timeout must
     // exceed kTMOverseerSleepMS ms, the overseer's max sleep time.
@@ -873,23 +875,35 @@ static void TMOverseer() {
     int64_t now_ms = absl::ToUnixMillis(absl::Now());
     int64_t delay_until_ms = now_ms + kTMOverseerSleepMS;
     bool ignore_wakeup_requests = false;
+    ThreadStarter new_threads(watchdog.get());
     for (ThreadManager::Rep* rep : TMVec()) {
       DVLOG(5) << "TMOverseer for_Rep. repi=" << (&rep - &TMVec()[0]);
       for (TMPool& pool : absl::MakeSpan(rep->pool, rep->n_pools)) {
         DVLOG(5) << "TMOverseer. Check policy for pool=" << (&pool - rep->pool);
         int64_t pool_delay_until_ms =
             TMOverseePoolInterval(rep, &pool, watchdog.get(), now_ms,
-                                  &ignore_wakeup_requests, &exiting_threads);
+                                  &ignore_wakeup_requests, &new_threads);
         if (pool_delay_until_ms != 0 && pool_delay_until_ms < delay_until_ms) {
           delay_until_ms = pool_delay_until_ms;
         }
       }
     }
     tm_mu.unlock();
+    new_threads.Start();
     // Destroy any exiting threads now rather than delaying until after the
-    // overseer sleep below.
-    TMDestroyExitingThreads(&exiting_threads, watchdog.get());
-    DCHECK(exiting_threads.empty());
+    // overseer sleep below. Destroy them one by one to allow TMRepDelete
+    // to steal its threads.
+    while (true) {
+      std::vector<TMThreadWithPool> to_destroy;
+      tm_mu.lock();
+      if (!TMExitingThreads().empty()) {
+        to_destroy.push_back(TMExitingThreads().back());
+        TMExitingThreads().pop_back();
+      }
+      tm_mu.unlock();
+      if (to_destroy.empty()) break;
+      TMDestroyExitingThreads(&to_destroy, watchdog.get());
+    }
     absl::Time deadline = absl::FromUnixMillis(delay_until_ms);
     if (watchdog) {
       watchdog->Alive();
@@ -1022,9 +1036,21 @@ static void TMRepDelete(ThreadManager::Rep* rep) {
     TMVec()[repi]->index = repi;
     TMVec().pop_back();
   }  // else no queues were created; never registered with overseer
+
+  // Steal any exiting threads belonging to this rep
+  std::vector<TMThreadWithPool> exiting_threads;
+  for (size_t i = 0; i < TMExitingThreads().size();) {
+    TMPool* p = TMExitingThreads()[i].pool;
+    if (p >= &rep->pool[0] && p < &rep->pool[rep->n_pools]) {
+      exiting_threads.push_back(TMExitingThreads()[i]);
+      TMExitingThreads()[i] = TMExitingThreads().back();
+      TMExitingThreads().pop_back();
+    } else {
+      i++;
+    }
+  }
   tm_mu.unlock();
   // Tell all the threads to die; then wait for them to do so.
-  std::vector<TMThreadWithPool> exiting_threads;
   for (int pool_i = 0; pool_i != rep->n_pools; pool_i++) {
     TMPool* pool = &rep->pool[pool_i];
     pool->pool_mu.lock();
@@ -1258,7 +1284,7 @@ std::vector<ManagedQueueStats> ThreadManager::QueueStats()
 
 // The default ThreadManager and ManagedQueue
 
-// The default ThreadManager and ManagedQueue are initilized under
+// The default ThreadManager and ManagedQueue are initialized under
 // tm_default_once
 static absl::once_flag tm_default_once;
 static ThreadManager* tm_default_thread_manager;  // the default ThreadManager
