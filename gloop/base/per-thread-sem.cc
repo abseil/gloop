@@ -35,6 +35,8 @@
 #include "absl/synchronization/internal/kernel_timeout.h"
 #include "absl/synchronization/internal/per_thread_sem.h"
 #include "absl/synchronization/internal/waiter.h"
+#include "absl/time/clock.h"
+#include "absl/time/time.h"
 #include "gloop/base/scheduling/downcalls.h"
 #include "gloop/base/scheduling/scheduler.h"
 #include "gloop/base/spinlock.h"
@@ -125,6 +127,12 @@ ABSL_ATTRIBUTE_UNUSED bool ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemWait)(
   if (base::scheduling::Schedulable::GetBoundSchedulable(identity) != nullptr) {
     // We do not require the association lock when blocking as no other thread
     // has the right to modify this field.
+    if (t.has_timeout() && t.is_absolute_timeout()) {
+      absl::Time abs_time = absl::FromUnixNanos(t.MakeAbsNanos());
+      absl::Duration rel_dur = abs_time - absl::Now();
+      t = absl::synchronization_internal::KernelTimeout(
+          rel_dur < absl::ZeroDuration() ? absl::ZeroDuration() : rel_dur);
+    }
     timeout = !base::scheduling::Downcalls::Wait(t);
   } else {
     timeout = !base::scheduling_internal::Wait(identity, t);

@@ -584,6 +584,7 @@ cc_library(
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
+        "@abseil-cpp//absl/time",
         "@tcmalloc//tcmalloc:malloc_extension",
     ],
     alwayslink = 1,
