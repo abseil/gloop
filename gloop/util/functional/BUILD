@@ -139,6 +139,7 @@ cc_test(
         "//gloop/base:callback",
         "//gloop/base:context",
         "//gloop/base:tracecontext",
+        "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log",
         "@google_benchmark//:benchmark",

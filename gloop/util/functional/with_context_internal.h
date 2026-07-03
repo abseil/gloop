@@ -72,6 +72,16 @@ class WithContextFunctorImpl {
     return std::invoke(std::move(functor_), std::forward<Args>(args)...);
   }
 
+  // Delegate to the functor's bool conversion if it exists. Otherwise, a
+  // WithContextFunctor is always truthy.
+  explicit operator bool() const {
+    if constexpr (std::is_constructible_v<bool, Functor>) {
+      return static_cast<bool>(functor_);
+    } else {
+      return true;
+    }
+  }
+
  private:
   Functor functor_;
   base::Context context_;

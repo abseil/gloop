@@ -27,6 +27,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/functional/bind_front.h"
 #include "absl/log/log.h"
 #include "gloop/base/callback.h"
@@ -342,6 +343,17 @@ TEST(FunctorToCallback, EmptyFunctors) {
   Closure* non_empty = ToCallback(function_ptr);
   ASSERT_NE(nullptr, non_empty);
   non_empty->Run();
+
+  // Empty move-only absl::AnyInvocable should be converted to null.
+  absl::AnyInvocable<bool(int, void*)> empty_invocable = nullptr;
+  ::util::functional::ResultCallbackFunctor<bool, int, void*> cb =
+      ::util::functional::ToCallback(std::move(empty_invocable));
+  EXPECT_TRUE(cb == nullptr);
+
+  absl::AnyInvocable<void()> empty_void_invocable = nullptr;
+  Closure* cb_void =
+      ::util::functional::ToCallback(std::move(empty_void_invocable));
+  EXPECT_TRUE(cb_void == nullptr);
 }
 
 TEST(FunctorToCallback, ResultCallbackVoid) {
