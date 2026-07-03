@@ -36,6 +36,7 @@
 #include "absl/base/nullability.h"
 #include "absl/log/die_if_null.h"
 #include "gloop/base/callback-types.h"
+#include "gloop/util/functional/callable_once.h"
 #include "gloop/util/functional/to_callback_internal.h"  // IWYU pragma: export
 #include "gloop/util/functional/to_shared_function.h"
 #include "gloop/util/refcount/compact_reference_counted.h"
@@ -273,13 +274,26 @@ class ABSL_NULLABILITY_COMPATIBLE ResultCallbackFunctorImpl
   using CallbackType = typename Base::CallbackType;
 
   // Converting constructor from a functor.
-  template <typename F,
-            typename = std::enable_if_t<
-                !std::is_same_v<std::decay_t<F>, ResultCallbackFunctorImpl> &&
-                IsCallable<FunctorRef</*Permanent=*/true, std::decay_t<F>>,
-                           R(Args...)>()>>
+  template <typename F>
+    requires(!std::is_same_v<std::decay_t<F>, ResultCallbackFunctorImpl> &&
+             IsCallable<FunctorRef</*Permanent=*/true, std::decay_t<F>>,
+                        R(Args...)>())
   ResultCallbackFunctorImpl(F&& functor)  // NOLINT(google-explicit-constructor)
       : Base(ToCopyableFunction(std::forward<F>(functor))) {}
+
+  // Converting constructor from a rvalue-callable-only functor. Historically,
+  // calling this twice would be a use-after-free of the callback type
+  // constructed with ToCallback(), but now will CHECK-fail.
+  template <typename F>
+    requires(!std::is_same_v<std::decay_t<F>, ResultCallbackFunctorImpl> &&
+             !IsCallable<FunctorRef</*Permanent=*/true, std::decay_t<F>>,
+                         R(Args...)>() &&
+             IsCallable<FunctorRef</*Permanent=*/false, std::decay_t<F>>,
+                        R(Args...)>())
+  ABSL_DEPRECATE_AND_INLINE()
+  ResultCallbackFunctorImpl(F&& functor)  // NOLINT(google-explicit-constructor)
+      : ResultCallbackFunctorImpl(
+            ::util::functional::CallAtMostOnce(std::forward<F>(functor))) {}
 
   // Converting constructor from a raw callback pointer (likely a derived
   // callback implementation)
@@ -311,25 +325,6 @@ class ABSL_NULLABILITY_COMPATIBLE ResultCallbackFunctorImpl
   // NOLINTNEXTLINE(google-explicit-constructor)
   ResultCallbackFunctorImpl(std::nullptr_t) : Base() {}
   ResultCallbackFunctorImpl() : Base() {}
-
-  // Converting constructor from a call to ToCallback.
-  template <typename Functor, typename = std::enable_if_t<IsCallable<
-                                  FunctorRef</*Permanent=*/false, Functor>,
-                                  R(Args...)>()>>
-  ResultCallbackFunctorImpl(  // NOLINT(google-explicit-constructor)
-      FunctorCallbackBinder<Functor, /*Permanent=*/false> binder)
-      : ResultCallbackFunctorImpl(
-            static_cast<CallbackType*>(std::move(binder))) {}
-
-  // Converting constructor from a call to ToPermanentCallback. Note that the
-  // callbacks it would construct have no custom behavior, so we just unwrap the
-  // functor for lower overhead.
-  template <typename Functor,
-            typename = std::enable_if_t<IsCallable<
-                FunctorRef</*Permanent=*/true, Functor>, R(Args...)>()>>
-  ResultCallbackFunctorImpl(  // NOLINT(google-explicit-constructor)
-      FunctorCallbackBinder<Functor, /*Permanent=*/true> binder)
-      : ResultCallbackFunctorImpl(static_cast<Functor&&>(std::move(binder))) {}
 
   // ResultCallbackFunctorImpl is copyable and movable.
   ResultCallbackFunctorImpl(const ResultCallbackFunctorImpl& other) = default;

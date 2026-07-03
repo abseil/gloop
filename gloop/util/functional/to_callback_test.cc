@@ -140,9 +140,6 @@ TEST(FunctorToCallback, ExplicitConversion) {
 TEST(FunctorToCallback, ResultTypeConversion) {
   ::util::functional::ResultCallbackFunctor<int64_t> c = ToCallback(One);
   EXPECT_EQ(1, (*c)());
-  // In the example below, the result's type is suppressed.
-  Closure* d = ToCallback(One);
-  d->Run();
 }
 
 TEST(FunctorToCallback, ArgumentTypeConversion) {
@@ -258,40 +255,6 @@ TEST(FunctorToCallback, LvalueRvalueInvocation) {
   // As above, even though "cb_rvf2" was constructed with an lvalue, we invoke
   // against the temporary copy embedded in the returned callback.
   EXPECT_EQ("dog", (*cb_rvf2)());
-
-  // Below, we demonstrate explicitly specializing for lvalue and rvalue
-  // variants (as opposed to satisfying both with "operator()()").
-  //
-  // BIG SCARY WARNING:  THIS FUNCTOR IS BADLY BEHAVED AND COULD RESULT IN
-  // SUBTLE, HARD TO DIAGNOSE BUGS.  IN PRACTICE "()&" AND "()&&" SHOULD ONLY
-  // BE USED WHEN IT IS REQUIRED TO RESTRICT THE TYPE OF OBJECT THAT MAY BE USED
-  // AS A FUNCTOR, OR, EVEN MORE RARELY, OPTIMIZE THE CONSTRUCTION OF THE RETURN
-  // VALUE.
-  //
-  // We violate this rule here, only to demonstrate that the correct operator is
-  // invoked in all cases.
-  struct BadlyBehavedFunctor {
-    // Cats just want to be fed.
-    std::string operator()() & { return "cat"; }
-    // Dogs, however, show much more loyalty to a single owner.
-    std::string operator()() && { return std::move(pet); }
-    std::string pet = "dog";
-  };
-
-  const BadlyBehavedFunctor bad_f = {};
-  ::util::functional::ResultCallbackFunctor<std::string> pcb_badf1(
-      ToPermanentCallback(bad_f));
-  ::util::functional::ResultCallbackFunctor<std::string> pcb_badf2(
-      ToPermanentCallback(BadlyBehavedFunctor()));
-  ::util::functional::ResultCallbackFunctor<std::string> cb_badf1 =
-      ToCallback(BadlyBehavedFunctor());
-  ::util::functional::ResultCallbackFunctor<std::string> cb_badf2 =
-      ToCallback(bad_f);
-
-  EXPECT_EQ("cat", (*pcb_badf1)());
-  EXPECT_EQ("cat", (*pcb_badf2)());  // Note: Constructed with rvalue.
-  EXPECT_EQ("dog", (*cb_badf1)());
-  EXPECT_EQ("dog", (*cb_badf2)());  // Note: Constructed with lvalue.
 }
 
 TEST(FunctorToCallback, LvalueFunctor) {
@@ -352,7 +315,6 @@ TEST(FunctorToCallback, ConvertibleAmbiguities) {
     static void Fn() {}
     static void Fn(int) {}
     static void Fn(void*) {}
-    static void Fn(int (*)()) {}
     static void Fn(::util::functional::ResultCallbackFunctor<int> cb) { ; }
     static void Fn(::util::functional::ResultCallbackFunctor<int, int> cb) { ; }
   };
@@ -385,14 +347,6 @@ TEST(FunctorToCallback, EmptyFunctors) {
 TEST(FunctorToCallback, ResultCallbackVoid) {
   ::util::functional::ResultCallbackFunctor<void> c =
       ToPermanentCallback([] {});
-}
-
-TEST(FunctorToCallback, ClosureFromResultCallback) {
-  ::util::functional::ResultCallbackFunctor<int> c =
-      ToPermanentCallback([] { return 5; });
-  Closure* closure = ToCallback(absl::bind_front(
-      &::util::functional::ResultCallbackFunctor<int>::Run, c));
-  closure->Run();
 }
 
 }  // namespace

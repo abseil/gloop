@@ -67,6 +67,7 @@
 // here to make the migration from Closure easier, but not IWYU exported so that
 // it will be removed over time.
 #include "gloop/util/functional/from_callback.h"  // IWYU pragma: keep
+#include "gloop/util/functional/to_callback.h"    // IWYU pragma: keep
 #endif                                            // SWIG
 
 #endif  // THIRD_PARTY_GLOOP_BASE_CALLBACK_H_
