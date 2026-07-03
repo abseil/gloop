@@ -29,6 +29,7 @@
 #include <utility>
 
 #include "absl/cleanup/cleanup.h"
+#include "absl/log/check.h"
 #include "gloop/base/callback-types.h"
 #include "gloop/base/context.h"
 #include "gloop/base/tracecontext.h"
@@ -67,34 +68,51 @@ class CallbackToSig {
   using type = typename MFSig<decltype(&C::Run)>::type;
 };
 
-template <bool Permanent, typename Functor>
-class FunctorClosure final : public Closure {
+// We immediately specialize below to extract Sig.
+template <typename CallbackType, bool Permanent, typename Functor,
+          typename Sig = typename CallbackToSig<CallbackType>::type>
+class FunctorCallback;
+
+// This implementation provides all callback specializations.
+template <typename CallbackType, bool Permanent, typename Functor, typename R,
+          typename... Args>
+class FunctorCallback<CallbackType, Permanent, Functor, R(Args...)> final
+    : public CallbackType {
  public:
-  // Always move-constructed.
-  explicit FunctorClosure(
-      Functor functor, perftools::tracing::StringLabel label =
-                           perftools::tracing::TraceSourceLocation::current())
-      : Closure(std::conditional_t<Permanent, ::base::Context::DefaultInitType,
-                                   ::base::Context::ThreadInitType>(),
-                label),
+  // Always move-constructed by FunctorCallbackBinder.
+  explicit FunctorCallback(
+      Functor&& functor, perftools::tracing::StringLabel label =
+                             perftools::tracing::TraceSourceLocation::current())
+      : CallbackType(
+            std::conditional_t<Permanent, ::base::Context::DefaultInitType,
+                               ::base::Context::ThreadInitType>(),
+            label),
         functor_(std::move(functor)),
         label_(std::move(label)) {}
 
   // This type is neither copyable nor movable.
-  FunctorClosure(const FunctorClosure&) = delete;
-  FunctorClosure& operator=(const FunctorClosure&) = delete;
+  FunctorCallback(const FunctorCallback&) = delete;
+  FunctorCallback& operator=(const FunctorCallback&) = delete;
 
-  void Run() override {
+  R Run(Args... args) override {
     // Some notes on the invocation below:
     // - For non-void types, the conversion above has already been validated by
     //   IsCallable.
     // - std::forward allows the use of move-only arguments.
     if constexpr (Permanent) {
-      functor()();
+      if constexpr (std::is_void_v<R>) {
+        functor()(std::forward<Args>(args)...);
+      } else {
+        return static_cast<R>(functor()(std::forward<Args>(args)...));
+      }
     } else {
       base::WithContext with(std::move(this->context_), label_);
       auto delete_self = absl::Cleanup([this] { delete this; });
-      functor()();
+      if constexpr (std::is_void_v<R>) {
+        functor()(std::forward<Args>(args)...);
+      } else {
+        return static_cast<R>(functor()(std::forward<Args>(args)...));
+      }
     }
   }
 
@@ -102,7 +120,7 @@ class FunctorClosure final : public Closure {
 
  private:
   // Returns `functor_` cast to the proper lvalue or rvalue function reference.
-  FunctorRef<Permanent, Functor> functor() {
+  inline FunctorRef<Permanent, Functor> functor() {
     return static_cast<FunctorRef<Permanent, Functor>>(functor_);
   }
 
@@ -127,14 +145,85 @@ constexpr bool IsCallable() {
   return IsCallableImpl<F, Sig>::value;
 }
 
-template <typename F>
-constexpr bool IsEmpty(const F& f) {
-  if constexpr (std::is_constructible_v<bool, F>) {
-    return !f;
-  } else {
+// FunctorCallbackBinder allows desired Callback-type to be deduced via
+// conversion operators as we cannot otherwise overload ToCallback*'s result
+// type.
+template <typename Functor, bool Permanent>
+class FunctorCallbackBinder {
+ public:
+  explicit FunctorCallbackBinder(
+      const Functor& functor,
+      perftools::tracing::StringLabel label =
+          perftools::tracing::TraceSourceLocation::current())
+      : functor_(functor), label_(std::move(label)) {}
+
+  explicit FunctorCallbackBinder(
+      Functor&& functor, perftools::tracing::StringLabel label =
+                             perftools::tracing::TraceSourceLocation::current())
+      : functor_(std::move(functor)), label_(std::move(label)) {}
+
+  // Requested conversions are valid only if:
+  // a) We are converting to a known Callback type.
+  // b) The signature of that type is compatible with the functor we're binding.
+  // c) *this is a temporary (e.g. prevents auto f = ..., then converting f)
+  template <
+      typename CallbackType,
+      typename = typename std::enable_if<IsCallback<CallbackType>()>::type,
+      typename = typename std::enable_if<
+          IsCallable<FunctorRef<Permanent, Functor>,
+                     typename CallbackToSig<CallbackType>::type>()>::type>
+  operator CallbackType*() && {
+    CHECK(!bound_) << "Returned ToCallback object has already been converted";
+    bound_ = true;
+    if (IsEmpty<Functor>()) {
+      return nullptr;
+    } else {
+      return new FunctorCallback<CallbackType, Permanent, Functor>(
+          std::move(functor_), std::move(label_));
+    }
+  }
+
+  // Unwrap the functor, returning ownership back.
+  //
+  // For use in ResultCallbackFunctorImpl.
+  explicit operator Functor&&() && { return std::move(functor_); }
+
+ private:
+  template <typename F>
+  typename std::enable_if<std::is_constructible<bool, F>::value, bool>::type
+  IsEmpty() const {
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpointer-bool-conversion"
+#endif
+    // functor_ may be a lambda, which is convertible to bool, leading to a
+    // -Wpointer-bool-conversion warning because the value is always true.
+    return functor_ == nullptr;
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+  }
+
+  template <typename F>
+  typename std::enable_if<!std::is_constructible<bool, F>::value,
+                          bool>::type constexpr IsEmpty() const {
     return false;
   }
-}
+
+  Functor functor_;
+  perftools::tracing::StringLabel label_;
+  bool bound_ = false;
+};
+
+// Template aliases to hide the details of the computed return type of
+// ToCallback and ToPermanentCallback. These keep the declarations
+// readable enough to be in the public to_callback.h header.
+template <typename Functor>
+using ToCallbackResult =
+    FunctorCallbackBinder<typename std::decay<Functor>::type, false>;
+template <typename Functor>
+using ToPermanentCallbackResult =
+    FunctorCallbackBinder<typename std::decay<Functor>::type, true>;
 
 }  // namespace internal
 }  // namespace functional
