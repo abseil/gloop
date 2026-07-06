@@ -512,7 +512,7 @@ struct PeriodicThreadTestTarget {
 struct CallbackTestTarget {
  public:
   CallbackTestTarget()
-      : thread(::util::functional::CallbackFunctor<Thread*>(&TestCallback)) {}
+      : thread(::util::functional::ToPermanentCallback(&TestCallback)) {}
 
   PeriodicThread<::util::functional::CallbackFunctor<Thread*>> thread;
 };
