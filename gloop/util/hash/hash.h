@@ -213,13 +213,13 @@ struct hash<std::basic_string<CharT, Traits, Alloc>> {
       __GOOGLE3_RANDOMIZATION_ROLLOUT > 3)) &&            \
     !defined(__GOOGLE3_RANDOMIZATION_TEMPORARY_OPTOUT)
     return (reinterpret_cast<size_t>(&::std::nothrow) >> 12) +
-           Hash32StringWithSeed(k.data(), k.size(), MIX32);
+           Hash32StringWithSeed(absl::string_view(k), MIX32);
 #elif defined(__GOOGLE3_RANDOMIZATION_ROLLOUT) && \
     __GOOGLE3_RANDOMIZATION_ROLLOUT > 1 &&        \
     !defined(__GOOGLE3_RANDOMIZATION_TEMPORARY_OPTOUT)
-    return 0xDF7B5A63 + Hash32StringWithSeed(k.data(), k.size(), MIX32);
+    return 0xDF7B5A63 + Hash32StringWithSeed(absl::string_view(k), MIX32);
 #else
-    return Hash32StringWithSeed(k.data(), k.size(), MIX32);
+    return Hash32StringWithSeed(absl::string_view(k), MIX32);
 #endif
   }
 };
