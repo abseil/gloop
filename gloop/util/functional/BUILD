@@ -95,6 +95,7 @@ cc_library(
         "//gloop/base:tracecontext",
         "//gloop/perftools/tracing:trace_source_location",
         "//gloop/perftools/tracing:tracing_base",
+        "@abseil-cpp//absl/base:nullability_traits_internal",
         "@abseil-cpp//absl/cleanup",
     ],
 )
@@ -113,6 +114,7 @@ cc_library(
         "//gloop/perftools/tracing:trace_source_location",
         "//gloop/perftools/tracing:tracing_base",
         "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
     ],
 )
 
