@@ -160,10 +160,10 @@ WatchDog::~WatchDog() {
   dogs_->pop_back();
 }
 
-/*static*/ void WatchDog::RunCallbacks(std::vector<DogCall>* expiry_calls) {
+/*static*/ void WatchDog::RunCallbacks(std::vector<DogCall>& expiry_calls) {
   const absl::Time now = ReadApproximateClock();
   const int64_t now_unix_nanos = absl::ToUnixNanos(now);
-  for (const DogCall& dog_call : *expiry_calls) {
+  for (const DogCall& dog_call : expiry_calls) {
     (*dog_call.cb)(dog_call.dog);
     // Reset the dog only after we run the callback, so that it may read the
     // correct time while in the callback.
@@ -172,7 +172,7 @@ WatchDog::~WatchDog() {
   }
 
   absl::MutexLock lock(dogs_lock_);
-  for (const WatchDog::DogCall& call : *expiry_calls) {
+  for (const WatchDog::DogCall& call : expiry_calls) {
     // zero callback_tid_ iff dog has not been deleted
     WatchDog* dog = call.dog;
     size_t dogs_index = call.dogs_index;
@@ -341,7 +341,7 @@ void WatchDog::PrintStackTraceTo(DebugWriter* debug_writer,
   // Keep the old output order, dumping the kernel stack after the user stack.
   pid_t target_tid = tid();
   std::string kernel_stack;
-  bool kernel_stack_success = GetKernelStack(target_tid, &kernel_stack);
+  bool kernel_stack_success = GetKernelStack(target_tid, kernel_stack);
 
   PrintStackTraceState state;
   state.tid = target_tid;
@@ -384,9 +384,9 @@ void WatchDog::PrintStackTraceTo(DebugWriter* debug_writer,
 }
 
 // static
-bool WatchDog::GetKernelStack(pid_t tid, std::string* stack) {
+bool WatchDog::GetKernelStack(pid_t tid, std::string& stack) {
 #if defined(__linux__)
-  return ReadProcFileToString("/proc/%d/stack", tid, 1024, stack) >= 0;
+  return ReadProcFileToString("/proc/%d/stack", tid, 1024, &stack) >= 0;
 #else
   return false;
 #endif
@@ -472,13 +472,13 @@ void WatchDog::CheckAlive() {
     }
 
     check_in_progress_ = true;
-    CheckTimeout(&expiry_calls);
+    CheckTimeout(expiry_calls);
     check_in_progress_ = false;
   }
-  RunCallbacks(&expiry_calls);
+  RunCallbacks(expiry_calls);
 }
 
-void WatchDog::CheckTimeout(std::vector<DogCall>* expiry_calls)
+void WatchDog::CheckTimeout(std::vector<DogCall>& expiry_calls)
     ABSL_EXCLUSIVE_LOCKS_REQUIRED(dogs_lock_) {
   dogs_lock_.AssertHeld();
   DCHECK(check_in_progress_);
@@ -537,7 +537,7 @@ void WatchDog::CheckTimeout(std::vector<DogCall>* expiry_calls)
         ref_and_call.dogs_index = dog->dogs_index_;
         ref_and_call.gen = dog->generation_;
         ref_and_call.cb = dog->callback_;
-        expiry_calls->push_back(ref_and_call);
+        expiry_calls.push_back(ref_and_call);
         // When the DogCall runs, we will reset the dog's expiration time. This
         // is so that any callback that runs will see the old expire time.
       }

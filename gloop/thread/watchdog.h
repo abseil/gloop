@@ -207,11 +207,11 @@ class WatchDog final {
   // Helper function that does an immediate read of the state.
   WatchDogState ReadCurrentState() const;
 
-  static void CheckTimeout(std::vector<DogCall>* expiry_calls);
-  static void RunCallbacks(std::vector<DogCall>* expiry_calls);
+  static void CheckTimeout(std::vector<DogCall>& expiry_calls);
+  static void RunCallbacks(std::vector<DogCall>& expiry_calls);
 
   // Returns success value.
-  static bool GetKernelStack(pid_t tid, std::string* stack);
+  static bool GetKernelStack(pid_t tid, std::string& stack);
 
   // Waits until CheckTimeout isn't in progress, then pauses checks on all
   // watchdogs. Calling Alive doesn't resume checks.
