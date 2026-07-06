@@ -78,6 +78,7 @@
 #include <utility>
 
 #include "absl/base/macros.h"
+#include "absl/base/nullability.h"
 #include "gloop/base/callback-types.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
@@ -155,8 +156,19 @@ Closure* ToPermanentCallback(Functor&& functor) {
 
 // Overload from legacy calls to ToCallback.
 template <typename Functor>
-  requires(!std::invocable<std::decay_t<Functor>> ||
-           !std::is_void_v<std::invoke_result_t<std::decay_t<Functor>>>)
+  requires(internal::HasNullability<Functor> &&
+           (!std::invocable<std::decay_t<Functor>> ||
+            !std::is_void_v<std::invoke_result_t<std::decay_t<Functor>>>))
+ABSL_DEPRECATE_AND_INLINE()
+auto ToCallback(absl_nonnull Functor&& functor) {
+  return ::util::functional::WithCurrentContext(std::forward<Functor>(functor));
+}
+
+// Overload from legacy calls to ToCallback.
+template <typename Functor>
+  requires(!internal::HasNullability<Functor> &&
+           (!std::invocable<std::decay_t<Functor>> ||
+            !std::is_void_v<std::invoke_result_t<std::decay_t<Functor>>>))
 ABSL_DEPRECATE_AND_INLINE()
 auto ToCallback(Functor&& functor) {
   return ::util::functional::WithCurrentContext(std::forward<Functor>(functor));
@@ -173,7 +185,17 @@ auto&& ToPermanentCallback(Functor&& functor) {
 
 // Overload from legacy calls to ToCallback.
 template <typename CallbackType, typename Functor>
-  requires internal::IsResultCallbackFunctor<CallbackType>
+  requires(internal::IsResultCallbackFunctor<CallbackType> &&
+           internal::HasNullability<Functor>)
+ABSL_DEPRECATE_AND_INLINE()
+CallbackType ToCallback(absl_nonnull Functor&& functor) {
+  return ::util::functional::WithCurrentContext(std::forward<Functor>(functor));
+}
+
+// Overload from legacy calls to ToCallback.
+template <typename CallbackType, typename Functor>
+  requires(internal::IsResultCallbackFunctor<CallbackType> &&
+           !internal::HasNullability<Functor>)
 ABSL_DEPRECATE_AND_INLINE()
 CallbackType ToCallback(Functor&& functor) {
   return ::util::functional::WithCurrentContext(std::forward<Functor>(functor));
@@ -181,7 +203,17 @@ CallbackType ToCallback(Functor&& functor) {
 
 // Overload from legacy calls to ToPermanentCallback.
 template <typename CallbackType, typename Functor>
-  requires internal::IsResultCallbackFunctor<CallbackType>
+  requires(internal::IsResultCallbackFunctor<CallbackType> &&
+           internal::HasNullability<Functor>)
+ABSL_DEPRECATE_AND_INLINE()
+CallbackType ToPermanentCallback(absl_nonnull Functor&& functor) {
+  return std::forward<Functor>(functor);
+}
+
+// Overload from legacy calls to ToPermanentCallback.
+template <typename CallbackType, typename Functor>
+  requires(internal::IsResultCallbackFunctor<CallbackType> &&
+           !internal::HasNullability<Functor>)
 ABSL_DEPRECATE_AND_INLINE()
 CallbackType ToPermanentCallback(Functor&& functor) {
   return std::forward<Functor>(functor);

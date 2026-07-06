@@ -28,6 +28,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/internal/nullability_traits.h"
 #include "absl/cleanup/cleanup.h"
 #include "gloop/base/callback-types.h"
 #include "gloop/base/context.h"
@@ -135,6 +136,10 @@ constexpr bool IsEmpty(const F& f) {
     return false;
   }
 }
+
+template <typename F>
+concept HasNullability =
+    absl::base_internal::IsNullabilityCompatibleType<F>::value;
 
 }  // namespace internal
 }  // namespace functional
