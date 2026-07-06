@@ -52,6 +52,7 @@
 #include "gloop/base/walltime.h"
 #include "gloop/thread/threadpool.h"
 #include "gloop/thread/timedcall.h"
+#include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
 #include "gloop/util/functional/with_context.h"
 
@@ -319,21 +320,21 @@ class ExecutorInternal {
 
 namespace {
 
-typedef absl::flat_hash_map<uint64_t, Closure* absl_nullable* absl_nonnull>
-    Table;
+using Table =
+    absl::flat_hash_map<uint64_t, absl::AnyInvocable<void() &&>* absl_nonnull>;
 struct Shard {
   absl::Mutex mu;
   Table table;
   uint64_t next_key = 1;
 };
 
-// An object that wraps a closure that can be cancelled using Cancel, that
+// An object that wraps a callback can be cancelled using Cancel, that
 // provides a cancellation-aware operator() and destructor.
 //
 // Its contents are protected by shard->mu. It cannot be copied or moved.
 class CancelWrapper {
  public:
-  CancelWrapper(Closure* closure, ExecutorHandle* handle);
+  CancelWrapper(absl::AnyInvocable<void() &&> callback, ExecutorHandle* handle);
 
   ~CancelWrapper();
 
@@ -354,8 +355,8 @@ class CancelWrapper {
   // Key in shard->table
   uint64_t shard_key_;
 
-  // The wrapped closure.
-  Closure* absl_nullable closure_ ABSL_GUARDED_BY(shard_->mu);
+  // The wrapped callback.
+  absl::AnyInvocable<void() &&> callback_ ABSL_GUARDED_BY(shard_->mu);
 };
 
 static absl::once_flag once;
@@ -380,9 +381,9 @@ static void SwitchToRandomShard(ThreadState* const t) {
   t->shard = (t->rand >> 32) & (kNumShards - 1);
 }
 
-CancelWrapper::CancelWrapper(Closure* const closure,
+CancelWrapper::CancelWrapper(absl::AnyInvocable<void() &&> callback,
                              ExecutorHandle* const handle)
-    : closure_(closure) {
+    : callback_(std::move(callback)) {
   absl::call_once(once, InitShards);
 
   // Try using the last shard used by this thread and acquiring the lock
@@ -399,7 +400,7 @@ CancelWrapper::CancelWrapper(Closure* const closure,
   shard_->mu.AssertHeld();
 
   shard_key_ = shard_->next_key++;
-  shard_->table[shard_key_] = &closure_;
+  shard_->table[shard_key_] = &callback_;
   ExecutorInternal::Encode(ts->shard, shard_key_, handle);
   shard_->mu.unlock();
 }
@@ -410,31 +411,28 @@ void CancelWrapper::operator()() && {
   // libraries, e.g. http://shortn/_FG1ZkRX6Jt).
   absl::Cleanup delete_this = [&] { delete this; };
 
-  // Take the closure to prepare to run it.
-  Closure* closure = [this]() {
+  // Take the callback and prepare to run it.
+  absl::AnyInvocable<void() &&> callback;
+  {
     absl::MutexLock lock(shard_->mu);
-    return std::exchange(closure_, nullptr);
-  }();
+    callback = std::move(callback_);
+  };
 
-  // If the closure is not present (i.e. it has been cancelled or has already
-  // started), or if the scheduled closure was null, there's nothing to run.
-  if (closure == nullptr) {
+  // If the callback is not present (i.e. it has been cancelled or has already
+  // started), or if the scheduled callback was empty, there's nothing to run.
+  if (!callback) {
     return;
   }
 
-  closure->Run();
+  std::move(callback)();
 }
 
 CancelWrapper::~CancelWrapper() {
-  std::unique_ptr<Closure> to_delete;
+  absl::AnyInvocable<void() &&> to_delete;
   shard_->mu.lock();
 
-  // Prepare to delete the closure if hasn't been cancelled or started yet.
-  // NOTE: we only support non-permanent closures (http://shortn/_QiIjz9dViQ),
-  // which means its always our responsibility to delete them.
-  DCHECK(closure_ == nullptr || !closure_->IsRepeatable())
-      << "CancelWrapper only supports non-permanent callbacks";
-  to_delete.reset(closure_);
+  // Prepare to delete the callback if hasn't been cancelled or started yet.
+  std::swap(to_delete, callback_);
 
   shard_->table.erase(shard_key_);
   shard_->mu.unlock();
@@ -457,10 +455,19 @@ bool IsActiveExecutorHandle(ExecutorHandle handle) {
 
 }  // namespace internal
 
-// Returns a cancellation-aware callable that calls the supplied closure when
-// called.
-static auto MakeCancellableCallable(Closure* closure, ExecutorHandle* handle) {
-  return [cw = std::make_unique<CancelWrapper>(closure, handle)]() mutable {
+// Returns a cancellation-aware callable that captures the current context upon
+// creation calls the supplied callback under that context when called.
+static auto MakeCancellableCallable(absl::AnyInvocable<void() &&> callback,
+                                    ExecutorHandle* handle) {
+  // Capture the current context here to preserve historical behavior prior to
+  // cl/940841934, when we converted the given AnyInvocable into Closure in
+  // Closure-accepting overloads of AddCancellable and AddCancellableAt.
+  //
+  // TODO: file a separate bug to stop capturing the context here
+  // if possible.
+  return [cw = std::make_unique<CancelWrapper>(
+              util::functional::WithCurrentContext(std::move(callback)),
+              handle)]() mutable {
     // Transfer the responsibility for destroying the wrapper from the
     // std::unique_ptr to the wrapper's operator().
     CancelWrapper& to_call = *cw.release();
@@ -471,9 +478,16 @@ static auto MakeCancellableCallable(Closure* closure, ExecutorHandle* handle) {
 void AddCancellable(Executor* executor, absl::Duration delay,
                     absl::AnyInvocable<void() &&> callback,
                     ExecutorHandle* handle) {
-  AddCancellable(executor, delay,
-                 util::functional::ToCallback<Closure>(std::move(callback)),
-                 handle);
+  auto cancellable_callable =
+      MakeCancellableCallable(std::move(callback), handle);
+
+  // Switch to the background Context, so that we don't capture the current
+  // thread's Context when enqueuing the cancellable callback on some executors
+  // such as ThreadPool (http://shortn/_2ELM1fm7ip). We want to make sure that
+  // the current thread's Context does not stay pinned/referenced if the
+  // callback is cancelled.
+  base::WithContext wc(base::BackgroundContext());
+  executor->ScheduleAfterForMigration(delay, std::move(cancellable_callable));
 }
 
 void AddCancellable(Executor* executor, absl::Duration delay, Closure* closure,
@@ -481,29 +495,24 @@ void AddCancellable(Executor* executor, absl::Duration delay, Closure* closure,
   CHECK(!closure->IsRepeatable())
       << "AddCancellable only accepts non-permanent callbacks";
 
-  auto cancellable_callable = MakeCancellableCallable(closure, handle);
-
-  // Switch to the background Context, so that we don't capture the current
-  // thread's Context when enqueuing the cancellable closure on some executors
-  // such as ThreadPool (http://shortn/_2ELM1fm7ip). We want to make sure that
-  // the current thread's Context does not stay pinned/referenced if the closure
-  // is cancelled.
-  base::WithContext wc(base::BackgroundContext());
-  executor->ScheduleAfterForMigration(delay, std::move(cancellable_callable));
+  AddCancellable(executor, delay,
+                 util::functional::FromCallbackWithOwnership(closure), handle);
 }
 
 void AddCancellable(Executor* executor, absl::AnyInvocable<void() &&> callback,
                     ExecutorHandle* handle) {
-  executor->Schedule(MakeCancellableCallable(
-      util::functional::ToCallback(std::move(callback)), handle));
+  executor->Schedule(MakeCancellableCallable(std::move(callback), handle));
 }
 
 void AddCancellableAt(Executor* executor, absl::Time when,
                       absl::AnyInvocable<void() &&> callback,
                       ExecutorHandle* handle) {
-  AddCancellableAt(executor, when,
-                   util::functional::ToCallback<Closure>(std::move(callback)),
-                   handle);
+  auto cancellable_callable =
+      MakeCancellableCallable(std::move(callback), handle);
+
+  // See comment on background context in AddCancellable.
+  base::WithContext wc(base::BackgroundContext());
+  executor->ScheduleAt(when, std::move(cancellable_callable));
 }
 
 void AddCancellableAt(Executor* executor, absl::Time when, Closure* closure,
@@ -511,11 +520,9 @@ void AddCancellableAt(Executor* executor, absl::Time when, Closure* closure,
   CHECK(!closure->IsRepeatable())
       << "AddCancellableAt only accepts non-permanent callbacks";
 
-  auto cancellable_callable = MakeCancellableCallable(closure, handle);
-
-  // See comment on background context in AddCancellable.
-  base::WithContext wc(base::BackgroundContext());
-  executor->ScheduleAt(when, std::move(cancellable_callable));
+  AddCancellableAt(executor, when,
+                   util::functional::FromCallbackWithOwnership(closure),
+                   handle);
 }
 
 CancelResult Cancel(ExecutorHandle handle, absl::Duration timeout,
@@ -532,26 +539,27 @@ CancelResult Cancel(ExecutorHandle handle, absl::Duration timeout,
 
   Table::iterator iter = shard->table.find(shard_key);
 
-  // If the closure already finished running, if it got cancelled, or
+  // If the callback already finished running, if it got cancelled, or
   // if it was never registered to begin with, there's nothing for us to do.
   if (iter == shard->table.end()) {
     return CancelResult::kNotScheduled;
   }
 
-  if (Closure*& closure = *iter->second) {
-    // The closure hasn't yet started running: cancel it.
-    *cb_ptr = std::exchange(closure, nullptr);
+  if (absl::AnyInvocable<void() &&>& callback = *iter->second) {
+    // The callback hasn't yet started running: cancel it.
+    *cb_ptr = util::functional::ToCallback<Closure>(std::move(callback));
+
     shard->table.erase(iter);
     return CancelResult::kCancelled;
   }
 
-  // The closure has already started running and a non-positive timeout means
+  // The callback has already started running and a non-positive timeout means
   // we can't wait for it to finish running.
   if (timeout <= absl::ZeroDuration()) {
     return CancelResult::kRunning;
   }
 
-  // Wait until either the timeout expires, or the closure finishes running and
+  // Wait until either the timeout expires, or the callback finishes running and
   // erases the entry from shard->table.
   auto finished_running = [shard, shard_key] {
     return shard->table.find(shard_key) == shard->table.end();
