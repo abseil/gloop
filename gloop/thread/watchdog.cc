@@ -445,12 +445,12 @@ void WatchDog::SetCrashReasonFromStuckThread() {
 #endif  // BASE_HAVE_CRASHREASON
 }
 
-void WatchDog::TimedOut() {
+[[noreturn]] void WatchDog::TimedOut() {
   TimedOutInternal(ReadCurrentState(), ReadApproximateClock());
 }
 
-void WatchDog::TimedOutInternal(const WatchDogState& state,
-                                absl::Time cached_expiration_time) {
+[[noreturn]] void WatchDog::TimedOutInternal(
+    const WatchDogState& state, absl::Time cached_expiration_time) {
   // Timeout exceeded.
   char buf[kPrintStatusBufSize + 200];
   PrintExpirationMessage(buf, sizeof(buf), state, cached_expiration_time);
@@ -530,9 +530,6 @@ void WatchDog::CheckTimeout(std::vector<DogCall>* expiry_calls)
         // WatchDog has expired.
         const WatchDogState state = {last_called_alive, timeout};
         dog->TimedOutInternal(state, now);
-        // Reset the dog's expiration time.
-        dog->last_called_alive_unix_nanos_.store(absl::ToUnixNanos(now),
-                                                 std::memory_order_relaxed);
       } else {
         dog->callback_tid_ = tid;
         DogCall ref_and_call;

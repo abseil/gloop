@@ -173,7 +173,7 @@ class WatchDog final {
 
   // The default routine called when "this" expires if no callback is set. This
   // routine crashes the program.
-  void TimedOut();
+  [[noreturn]] void TimedOut();
 
   // GetTID() of the creating thread, or thread that first calls Alive().
   pid_t tid() const { return tid_.load(std::memory_order_relaxed); }
@@ -231,8 +231,8 @@ class WatchDog final {
   // stale) cached clock at the time the watchdog was determined to have
   // expired. It is passed in to ensure that the expiration message is accurate
   // and reflects the conditions at the time of expiry detection.
-  void TimedOutInternal(const WatchDogState& state,
-                        absl::Time cached_expiration_time);
+  [[noreturn]] void TimedOutInternal(const WatchDogState& state,
+                                     absl::Time cached_expiration_time);
   void PrintStatusInternal(char* buf, int buf_size, const WatchDogState& state,
                            absl::Time now_for_check) const;
 

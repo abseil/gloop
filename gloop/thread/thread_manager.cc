@@ -824,7 +824,7 @@ static int64_t TMOverseePoolInterval(
 
 // Overseer's watchdog timeout routine.  Print a message about the likely cause
 // before calling the watchdog's default TimedOut() routine.
-static void TMOverseerTimeout(WatchDog* w) {
+[[noreturn]] static void TMOverseerTimeout(WatchDog* w) {
   const char* suggestion = "";
   LOG(ERROR) << "ThreadManager overseer was not scheduled for " << w->timeout()
              << " seconds." << suggestion;
