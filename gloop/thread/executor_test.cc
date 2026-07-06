@@ -660,7 +660,7 @@ TEST(Executor, ScheduleAtAnyInvocable) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    AddCancellableTest, AddCancellableTest,
+    , AddCancellableTest,
     testing::ConvertGenerator(testing::Combine(testing::Bool(),
                                                testing::Bool()),
                               [](const std::tuple<bool, bool>& t) {
