@@ -193,6 +193,15 @@ void BM_ThreadPoolDuration(benchmark::State& state) {
 }
 BENCHMARK(BM_ThreadPoolDuration);
 
+void BM_QueueCountContention(benchmark::State& state) {
+  static ThreadPool* pool = new ThreadPool(10);
+  for (auto _ : state) {
+    int count = pool->queue_count();
+    benchmark::DoNotOptimize(count);
+  }
+}
+BENCHMARK(BM_QueueCountContention)->ThreadRange(1, 64);
+
 }  // namespace
 
 int main(int argc, char* argv[]) {

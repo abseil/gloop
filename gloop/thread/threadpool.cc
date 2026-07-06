@@ -21,6 +21,7 @@
 #include "gloop/thread/threadpool.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cassert>
 #include <cstddef>
 #include <ctime>
@@ -227,8 +228,7 @@ bool ThreadPool::ScheduleIfReadyToRun(absl::AnyInvocable<void() &&> callback) {
 }
 
 int ThreadPool::queue_count() const {
-  absl::MutexLock lock(mutex_);
-  return util_intops::saturated_cast<int>(queue_.size());
+  return queue_size_.load(std::memory_order_relaxed);
 }
 
 int ThreadPool::queue_capacity() const {
@@ -302,6 +302,7 @@ void ThreadPool::InternalPut(
   // census accounting and security in google3 applications.
   queue_.push_back(std::make_unique<Entry>(
       base::Context(base::Context::kThread), std::move(callback)));
+  queue_size_.fetch_add(1, std::memory_order_relaxed);
   SignalWaiter();
 }
 
@@ -322,6 +323,7 @@ std::unique_ptr<ThreadPool::Entry> ThreadPool::DequeueWork() {
   }
   absl_nonnull std::unique_ptr<Entry> entry = std::move(queue_.front());
   queue_.pop_front();
+  queue_size_.fetch_sub(1, std::memory_order_relaxed);
 
   // Be careful: have to signal every time we remove an element,
   // or do something more complicated with broadcasts.

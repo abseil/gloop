@@ -47,6 +47,7 @@
 
 #else
 
+#include <atomic>
 #include <climits>
 #include <cstddef>
 #include <ctime>
@@ -97,7 +98,8 @@ class AbstractThreadPool : public thread::Executor {
 
   // Accessors for the thread pool's work queue
 
-  // Number of elements in queue.  The returned count may not be valid for very
+  // Number of elements in queue. This isn't guaranteed to be synchronized with
+  // the actual size of the queue.  The returned count may not be valid for very
   // long since other threads may be concurrently adding/removing elements
   // to/from the queue.  So use the return value as just a hint about the size
   // of the queue.
@@ -265,7 +267,8 @@ class ThreadPool : public AbstractThreadPool {
   const thread::Options thread_options_;   // Standard thread options
 
   absl::chunked_queue<absl_nonnull std::unique_ptr<Entry> >
-      queue_;                         // Queue of elements
+      queue_;  // Queue of elements
+  std::atomic<int> queue_size_{0};
   const bool eager_thread_creation_;  // Whether to eagerly spawn threads
 
   bool stopping_ ABSL_GUARDED_BY(mutex_) = false;  // Set in destructor
