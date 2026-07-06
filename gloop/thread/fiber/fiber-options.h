@@ -40,8 +40,6 @@ class Scheduler;
 namespace thread {
 
 // Options controlling the behavior of a newly created Fiber.
-//
-// TODO: priority, embedded thread-options
 class FiberOptions {
  public:
   // Always provide a default constructor.  Currently there are no parameters.
