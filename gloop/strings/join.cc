@@ -21,75 +21,58 @@
 #include "gloop/strings/join.h"
 
 #include <cstddef>
+#include <memory>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "absl/log/check.h"
 #include "absl/strings/ascii.h"
-#include "absl/strings/resize_and_overwrite.h"
 #include "absl/strings/str_join.h"
-#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "gloop/strings/escaping.h"
 
 namespace strings {
-
-// Copies the input string into the destination, repeating every " character.
-static size_t DoubleQuotes(absl::string_view src, char* dest_not_nul_terminated,
-                           size_t dest_len) {
-  size_t used = 0;
-  size_t i = 0;
-
-  while (i < src.size()) {
-    const char ch = src[i++];
-    const bool repeats = ch == '"';
-
-    DCHECK_LT(used + static_cast<int>(repeats), dest_len);
-
-    dest_not_nul_terminated[used++] = ch;
-
-    if (repeats) {
-      dest_not_nul_terminated[used++] = ch;
-    }
-  }
-
-  return used;
-}
 
 void JoinCSVLineWithDelimiter(absl::Span<const std::string> cols,
                               char delimiter, std::string* output) {
   CHECK(output);
   CHECK(output->empty());
   std::vector<std::string> quoted_cols;
-  quoted_cols.reserve(cols.size());
 
-  const char escape_chars[] = {delimiter, '\0', '\"', '\r', '\n'};
+  const std::string delimiter_str(1, delimiter);
+  const std::string escape_chars = delimiter_str + "\"";
 
-  // If the string contains the delimiter, quote, or newline anywhere, or begins
-  // or ends with whitespace (ie ascii_isspace() returns true), escape all
-  // double-quotes and bracket the string in double quotes. string.rbegin()
-  // evaluates to the last character of the string.
+  // If the string contains the delimiter or " anywhere, or begins or ends with
+  // whitespace (ie ascii_isspace() returns true), escape all double-quotes and
+  // bracket the string in double quotes. string.rbegin() evaluates to the last
+  // character of the string.
   for (const std::string& col : cols) {
-    if ((col.find_first_of(absl::string_view(
-             escape_chars, std::size(escape_chars))) != std::string::npos) ||
+    if ((col.find_first_of(escape_chars) != std::string::npos) ||
         (!col.empty() && (absl::ascii_isspace(*col.begin()) ||
                           absl::ascii_isspace(*col.rbegin())))) {
-      std::string quoted;
-      absl::StringResizeAndOverwrite(
-          quoted, col.size() * 2 + 2,
-          [col](char* buffer, ptrdiff_t buffer_size) {
-            size_t used = 0;
-            buffer[used++] = '"';
-            used += DoubleQuotes(col, buffer + used, buffer_size - used);
-            buffer[used++] = '"';
-            return used;
-          });
-      quoted_cols.push_back(std::move(quoted));
+      // Double the original size, for escaping, plus two bytes for
+      // the bracketing double-quotes, and one byte for the closing \0.
+      size_t size = 2 * col.size() + 3;
+      std::unique_ptr<char[]> buf(new char[size]);
+
+      // Leave space at beginning and end for bracketing double-quotes.
+      ptrdiff_t escaped_size =
+          strings::EscapeStrForCSV(col.c_str(), buf.get() + 1, size - 2);
+      CHECK_GE(escaped_size, 0) << "Buffer somehow wasn't large enough.";
+      CHECK_GE(static_cast<ptrdiff_t>(size), escaped_size + 3)
+          << "Buffer should have one space at the beginning for a "
+          << "double-quote, one at the end for a double-quote, and "
+          << "one at the end for a closing '\\0'";
+      *buf.get() = '"';
+      *((buf.get() + 1) + escaped_size) = '"';
+      *((buf.get() + 1) + escaped_size + 1) = '\0';
+      quoted_cols.push_back(
+          std::string(buf.get(), buf.get() + escaped_size + 2));
     } else {
       quoted_cols.push_back(col);
     }
   }
-  *output = absl::StrJoin(quoted_cols, absl::string_view(&delimiter, 1));
+  *output = absl::StrJoin(quoted_cols, delimiter_str);
 }
 
 void JoinCSVLine(const std::vector<std::string>& cols, std::string* output) {
