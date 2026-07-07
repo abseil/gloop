@@ -24,6 +24,7 @@ use_repo(cc_configure, "local_config_cc")
 bazel_dep(name = "google_benchmark", version = "1.9.5", dev_dependency = True)
 bazel_dep(name = "numactl", version = "2.0.19.bcr.1", dev_dependency = True)
 bazel_dep(name = "gloop_examples", version = "0.1", dev_dependency = True, repo_name = "examples")
+bazel_dep(name = "docker_toolchain", version = "0.1", dev_dependency = True)
 
 # Override our visibility settings in with patches.  Once Gloop is public and in BCR, we can
 # upstream these changes and declare a noop dependency in these repos for enabling visibility.
@@ -46,6 +47,11 @@ git_override(
 local_path_override(
     module_name = "gloop_examples",
     path = "gloop/examples",
+)
+
+local_path_override(
+    module_name = "docker_toolchain",
+    path = "gloop/ci/docker_toolchain",
 )
 
 # Dev dependencies required for fuzz testing.
