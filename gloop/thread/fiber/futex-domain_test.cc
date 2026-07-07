@@ -22,35 +22,32 @@
 
 #include <tuple>
 
-#include "absl/log/log.h"
-#include "gloop/base/config.h"
-#include "gloop/base/init_google.h"
 #include "gloop/base/scheduling/domain-test.h"
+#include "gloop/base/scheduling/domain.h"
 #include "gtest/gtest.h"
 
 namespace base {
 namespace scheduling {
+namespace {
 
-INSTANTIATE_TEST_SUITE_P(
-    FutexDomainTest, DomainTest,
-    ::testing::Values(std::make_tuple(thread::NewFutexDomain, true)));
+class FutexDomainEnvironment : public testing::Environment {
+ public:
+  void SetUp() override {
+    if (!thread::FutexDomainAvailable()) {
+      // Skip test since attempting to construct a FutexDomain would CHECK-fail.
+      GTEST_SKIP() << "FutexDomain unavailable";
+    }
+  }
+};
+
+testing::Environment* const futex_domain_env =
+    testing::AddGlobalTestEnvironment(new FutexDomainEnvironment);
+
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(FutexDomainTest, DomainTest,
+                         testing::Values(std::make_tuple(thread::NewFutexDomain,
+                                                         true)));
 
 }  // namespace scheduling
 }  // namespace base
-
-int main(int argc, char** argv) {
-  InitGoogle(argv[0], &argc, &argv, true);
-
-  if (!thread::FutexDomainAvailable()) {
-    // Skip test since attempting to construct a FutexDomain would
-    // CHECK-fail.
-#if !PORTABLE_BASE
-    LOG(ERROR) << "FutexDomain unavailable";
-#else
-    ABSL_RAW_LOG(ERROR, "FutexDomain unavailable.");
-#endif
-    return 0;
-  }
-
-  return RUN_ALL_TESTS();
-}

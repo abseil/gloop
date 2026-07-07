@@ -457,10 +457,9 @@ cc_test(
     srcs = ["futex-domain_test.cc"],
     deps = [
         ":futex-domain",
-        "//gloop/base:config",
-        "//gloop/base:init_google",
+        "//gloop:gloop_test_main",
+        "//gloop/base/scheduling",
         "//gloop/base/scheduling:domain-test",
-        "@abseil-cpp//absl/log",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
