@@ -199,6 +199,7 @@ class GoogleInitializer::TypeData {
   TypeData()
       : active_initializer_(nullptr),
         have_run_initializers_(false),
+        cleared_(false),
         run_count_(0) {}
 
   InitializerData* GetInitializerData(const char* type, const char* name,
@@ -206,10 +207,15 @@ class GoogleInitializer::TypeData {
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(table_lock) {
     // This routine must not look at any fields of "*init" since its
     // constructor might not have run yet.
-    LOG_IF(ERROR, have_run_initializers_)
-        << "Registering initializer '" << name
-        << "' too late: some initializers of type '" << type
-        << "' have executed";
+    if (cleared_) {
+      LOG(ERROR) << "Registering initializer '" << name
+                 << "' after initializers of type '" << type
+                 << "' have been cleared";
+    } else if (have_run_initializers_) {
+      LOG(ERROR) << "Registering initializer '" << name
+                 << "' too late: some initializers of type '" << type
+                 << "' have executed";
+    }
     InitializerData* idata = &initializer_by_name_[name];
     if (idata->initializer_obj == nullptr) {
       idata->initializer_obj = init;
@@ -242,6 +248,17 @@ class GoogleInitializer::TypeData {
     }
     RunIfNecessary(init);
     EndRun();
+  }
+
+  void Clear() ABSL_EXCLUSIVE_LOCKS_REQUIRED(table_lock) {
+    if (cleared_) return;
+    if (run_count_ > 0) {
+      LOG(ERROR)
+          << "Cannot clear initializers while they are currently running";
+      return;
+    }
+    initializer_by_name_.clear();
+    cleared_ = true;
   }
 
  private:
@@ -298,6 +315,7 @@ class GoogleInitializer::TypeData {
   // before execution of the initializers.
   // True iff have run some initializers of this type.
   bool have_run_initializers_ ABSL_GUARDED_BY(table_lock);
+  bool cleared_ ABSL_GUARDED_BY(table_lock);
 
   // If non-zero the number of times the thread identified by runner_tid_
   // has called BeginRun() without a matching EndRun().
@@ -383,8 +401,21 @@ void GoogleInitializer::RunInitializers(base::internal::LiteralTag,
   type_data->RunAll();
 }
 
-void GoogleInitializer::Require() ABSL_LOCKS_EXCLUDED(table_lock) {
+void GoogleInitializer::ClearInitializers(base::internal::LiteralTag,
+                                          const char* type)
+    ABSL_LOCKS_EXCLUDED(table_lock) {
   absl::MutexLock l(table_lock);
+  if (type_table == nullptr) return;
+  TypeTable::iterator it = type_table->find(type);
+  if (it != type_table->end()) {
+    it->second->Clear();
+  }
+}
+
+void GoogleInitializer::Require() ABSL_LOCKS_EXCLUDED(table_lock) {
+  if (done_.load(std::memory_order_acquire)) return;
+  absl::MutexLock l(table_lock);
+  if (done_.load(std::memory_order_relaxed)) return;
   TypeData* type_data = type_table->find(type_)->second;
   type_data->RunOne(this);
 }
@@ -422,6 +453,7 @@ static void ForgetModuleRunning(absl::string_view name)
 }
 
 void GoogleInitializer::TypeData::RunIfNecessary(GoogleInitializer* init) {
+  if (init->done_.load(std::memory_order_relaxed)) return;
   absl::string_view name = init->name_;
   absl::string_view type = init->type_;
   DCHECK(IsRunning());  // this thread must be running initializers
@@ -432,7 +464,11 @@ void GoogleInitializer::TypeData::RunIfNecessary(GoogleInitializer* init) {
         it->second.initializer_obj_constructed)  // sanity
       << ": Wow! We've managed to attempt to run initializer '" << name
       << "' of type " << type << " before it has been registered via "
-      << "its global GoogleInitializer object constructor execution.";
+      << "its global GoogleInitializer object constructor execution"
+      << (cleared_ ? " (note: initializers for this type were already cleared "
+                     "by ClearInitializers)"
+                   : "")
+      << ".";
   if (!init->done_) {  // need to run it
     VLOG(4) << "Initializing  " << type << ":" << name;
     init->is_active_ = true;
@@ -469,7 +505,7 @@ void GoogleInitializer::TypeData::RunIfNecessary(GoogleInitializer* init) {
       active_initializer_ = last_active_initializer;
     }
     init->is_active_ = false;
-    init->done_ = true;
+    init->done_.store(true, std::memory_order_release);
     const int64_t time_in_ms = absl::ToInt64Milliseconds(absl::Now() - start);
     // VLOG at default visibility any initializer that takes over 100 ms.
     VLOG(time_in_ms > 100 && absl::log_internal::IsInitialized() &&

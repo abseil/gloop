@@ -186,6 +186,8 @@
 // initialization is implemented, and can be safely ignored
 // by users of the initialization facility.
 
+#include <atomic>
+
 #include "absl/base/attributes.h"
 
 namespace base {
@@ -239,6 +241,10 @@ class GoogleInitializer {
   // allow cycles in the requirement graph).
   void Require();
 
+  // Reclaims registration map and dependency graph memory for initializers of
+  // this type.
+  static void ClearInitializers(base::internal::LiteralTag, const char* type);
+
   // Helper data-holder struct that is passed into
   // DependencyRegisterer's c-tor below.
   struct Dependency {
@@ -281,11 +287,11 @@ class GoogleInitializer {
   struct InitializerData;
 
  private:
-  const char* type_;      // Initializer type; pointer to string literal
-  const char* name_;      // Initializer name; pointer to string literal
-  Initializer function_;  // The actual initializer
-  bool done_;             // Finished initializing?
-  bool is_active_;        // Is currently running
+  const char* type_;        // Initializer type; pointer to string literal
+  const char* name_;        // Initializer name; pointer to string literal
+  Initializer function_;    // The actual initializer
+  std::atomic<bool> done_;  // Finished initializing?
+  bool is_active_;          // Is currently running
 
   // Helper to initialize/create and return data for a given initializer type.
   // `type` must be initialized from a string literal.
@@ -392,6 +398,14 @@ class GoogleInitializer {
   REQUIRE_GOOGLE_INITIALIZED(module, name)
 
 #define RUN_MODULE_INITIALIZERS() RUN_GOOGLE_INITIALIZERS(module)
+
+#define CLEAR_GOOGLE_INITIALIZERS(type)                                  \
+  do {                                                                   \
+    GoogleInitializer::ClearInitializers(::base::internal::LiteralTag{}, \
+                                         #type);                         \
+  } while (0)
+
+#define CLEAR_MODULE_INITIALIZERS() CLEAR_GOOGLE_INITIALIZERS(module)
 
 #define REQUIRE_MODULE_LINKED(name) REQUIRE_GOOGLE_LINKED(module, name)
 

@@ -154,6 +154,10 @@ ABSL_FLAG(bool, syslog_on_start, true,
           "syslog() on program start-up.  We collect these logs to "
           "identify used (vs obsolete) binaries");
 
+ABSL_FLAG(bool, reclaim_googleinit_memory, false,
+          "If true, reclaims heap memory used by GoogleInitializer "
+          "registration tables after startup.");
+
 // TODO: This should move somewhere reasonable (selectserver.cc)
 ABSL_FLAG(std::string, data_version, "", "Data version of the server");
 
@@ -757,6 +761,15 @@ static void RealInitGoogle(absl::string_view usage, int* argc, char*** argv,
 #if !PORTABLE_BASE
   // TODO: clean up references to old heap checker interface.
 #endif
+
+  if (absl::GetFlag(FLAGS_reclaim_googleinit_memory)) {
+    GoogleInitializer::ClearInitializers(::base::internal::LiteralTag{},
+                                         "command_line_flags_parsing");
+    GoogleInitializer::ClearInitializers(::base::internal::LiteralTag{},
+                                         "command_line_flags_parsed");
+    GoogleInitializer::ClearInitializers(::base::internal::LiteralTag{},
+                                         "module");
+  }
 
   absl::SetFlag(&FLAGS_silent_init, false);  // init is over now
   {
