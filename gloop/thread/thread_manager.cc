@@ -206,23 +206,29 @@ struct ManagedQueue::Rep {
                       // queue_id is used to distinguish the work of one queue
                       // from that of another, deleted queue that
                       // had the same address.
-  absl::Mutex queue_mu;  // protects following fields.
-  int queue_refcount;    // reference count of Queues, not counting
-                         // queue_external; under queue_mu
-                         // currently, queue_refcount is at most 1.
-  int queue_running;     // work items given to a pool; under queue_mu
-                         // used only if queue_options.thread_limit != INT_MAX
-                         // or WaitUntilCompleted() is active.  A work item is
-                         // counted here if its "counted" field is true.
-  int add_after_count;   // AddAfter() work items, not yet added to queue;
-                         // under queue_mu
-  int queue_waiters;  // threads blocked adding to "queue_work"; under queue_mu
-  absl::CondVar
-      queue_cv;  // signalled when queue_waiters > 0 and either
-                 // queue_work.size() falls below queue_options.queue_limit
-                 // or queue_running falls below queue_options.thread_limit
-  std::deque<absl::AnyInvocable<void() &&>>
-      queue_work;  // queue of pending work; under queue_mu
+  absl::Mutex queue_mu;
+
+  // Reference count of Queues, not counting queue_external currently,
+  // queue_refcount is at most 1.
+  int queue_refcount ABSL_GUARDED_BY(queue_mu);
+
+  // Work items given to a pool used only if queue_options.thread_limit !=
+  // INT_MAX or WaitUntilCompleted() is active.  A work item is counted here if
+  // its "counted" field is true.
+  int queue_running ABSL_GUARDED_BY(queue_mu);
+
+  // AddAfter() work items, not yet added to queue
+  int add_after_count ABSL_GUARDED_BY(queue_mu);
+
+  // Threads blocked adding to "queue_work"
+  int queue_waiters ABSL_GUARDED_BY(queue_mu);
+
+  // Signalled when queue_waiters > 0 and either queue_work.size() falls below
+  // queue_options.queue_limit or queue_running falls below
+  // queue_options.thread_limit
+  absl::CondVar queue_cv ABSL_GUARDED_BY(queue_mu);
+  std::deque<absl::AnyInvocable<void() &&>> queue_work
+      ABSL_GUARDED_BY(queue_mu);  // queue of pending work
 };
 
 typedef std::deque<TMWork> TMWorkQueue;  // a queue of work
@@ -363,7 +369,8 @@ static void TMQueueRepDelete(ThreadManager::Rep* rep, ManagedQueue::Rep* q_rep);
 
 // Return whether *q_rep should be deleted.
 // L >= q_rep->queue_mu
-static inline bool ShouldDeleteQueueRep(ManagedQueue::Rep* q_rep) {
+static inline bool ShouldDeleteQueueRep(ManagedQueue::Rep* q_rep)
+    ABSL_EXCLUSIVE_LOCKS_REQUIRED(q_rep->queue_mu) {
   // No need to check queue_waiters here because queue_waiters != 0 implies
   // queue_refcount != 0:
   DCHECK(q_rep->queue_refcount != 0 || q_rep->queue_waiters == 0);
@@ -1233,10 +1240,10 @@ ManagedQueue* ThreadManager::NewQueue(
   q_rep->queue_options = queue_options;
   q_rep->parent_rep = rep;
   q_rep->queue_id = rep->next_q_id++;
-  q_rep->queue_refcount = 1;
-  q_rep->queue_running = 0;
-  q_rep->add_after_count = 0;
-  q_rep->queue_waiters = 0;
+  ABSL_TS_UNCHECKED_READ(q_rep->queue_refcount) = 1;
+  ABSL_TS_UNCHECKED_READ(q_rep->queue_running) = 0;
+  ABSL_TS_UNCHECKED_READ(q_rep->add_after_count) = 0;
+  ABSL_TS_UNCHECKED_READ(q_rep->queue_waiters) = 0;
   rep->refcount++;
   rep->rep_mu.unlock();
   // queue_options is read-only after this point
@@ -1459,7 +1466,8 @@ ManagedQueueStats ManagedQueue::Stats() const {
 
 // Return whether the queue *q_rep has any work that is not yet complete.
 // L >= q_rep->queue_mu
-static bool TMIsWorkComplete(ManagedQueue::Rep* q_rep) {
+static bool TMIsWorkComplete(ManagedQueue::Rep* q_rep)
+    ABSL_EXCLUSIVE_LOCKS_REQUIRED(q_rep->queue_mu) {
   return (q_rep->queue_running == 0 && q_rep->queue_waiters == 0 &&
           q_rep->queue_work.empty() && q_rep->add_after_count == 0);
 }
