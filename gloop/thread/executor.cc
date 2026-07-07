@@ -26,6 +26,7 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -525,13 +526,21 @@ void AddCancellableAt(Executor* executor, absl::Time when, Closure* closure,
                    handle);
 }
 
-CancelResult Cancel(ExecutorHandle handle, absl::Duration timeout,
-                    Closure** cb_ptr) {
-  *cb_ptr = nullptr;
+// Cancels the callback that corresponds to the given handle, if it was
+// scheduled to run using AddCancellable or AddCancellableAt, but has not yet
+// started running. Returns CancelResult::kCancelled and the callback if
+// successful, otherwise returns a CancelResult that describes why it failed to
+// cancel.
+static std::pair<CancelResult, std::optional<absl::AnyInvocable<void() &&>>>
+CancelImpl(ExecutorHandle handle, absl::Duration timeout) {
   int s;
   uint64_t shard_key;
   ExecutorInternal::Decode(handle, &s, &shard_key);
-  if (shard_key == 0) return CancelResult::kNotScheduled;
+  if (shard_key == 0)
+    return {
+        CancelResult::kNotScheduled,
+        std::nullopt,
+    };
 
   Shard* shard = &shards[s];
   absl::MutexLock lock(shard->mu);
@@ -542,21 +551,28 @@ CancelResult Cancel(ExecutorHandle handle, absl::Duration timeout,
   // If the callback already finished running, if it got cancelled, or
   // if it was never registered to begin with, there's nothing for us to do.
   if (iter == shard->table.end()) {
-    return CancelResult::kNotScheduled;
+    return {
+        CancelResult::kNotScheduled,
+        std::nullopt,
+    };
   }
 
   if (absl::AnyInvocable<void() &&>& callback = *iter->second) {
     // The callback hasn't yet started running: cancel it.
-    *cb_ptr = util::functional::ToCallback<Closure>(std::move(callback));
-
     shard->table.erase(iter);
-    return CancelResult::kCancelled;
+    return {
+        CancelResult::kCancelled,
+        std::move(callback),
+    };
   }
 
   // The callback has already started running and a non-positive timeout means
   // we can't wait for it to finish running.
   if (timeout <= absl::ZeroDuration()) {
-    return CancelResult::kRunning;
+    return {
+        CancelResult::kRunning,
+        std::nullopt,
+    };
   }
 
   // Wait until either the timeout expires, or the callback finishes running and
@@ -564,18 +580,28 @@ CancelResult Cancel(ExecutorHandle handle, absl::Duration timeout,
   auto finished_running = [shard, shard_key] {
     return shard->table.find(shard_key) == shard->table.end();
   };
-  return shard->mu.AwaitWithTimeout(absl::Condition(&finished_running), timeout)
-             ? CancelResult::kNotScheduled
-             : CancelResult::kRunning;
+  return {
+      shard->mu.AwaitWithTimeout(absl::Condition(&finished_running), timeout)
+          ? CancelResult::kNotScheduled
+          : CancelResult::kRunning,
+      std::nullopt,
+  };
+}
+
+CancelResult Cancel(ExecutorHandle handle, absl::Duration timeout,
+                    Closure** cb_ptr) {
+  auto [result, callback] = CancelImpl(handle, timeout);
+
+  *cb_ptr = nullptr;
+  if (callback.has_value()) {
+    *cb_ptr = util::functional::ToCallback<Closure>(*std::move(callback));
+  }
+
+  return result;
 }
 
 CancelResult Cancel(ExecutorHandle handle, absl::Duration timeout) {
-  Closure* c = nullptr;
-
-  // If the closure was cancelled successfully, delete it before returning.
-  absl::Cleanup d = [&] { delete c; };
-
-  return Cancel(handle, timeout, &c);
+  return CancelImpl(handle, timeout).first;
 }
 
 }  // namespace thread
