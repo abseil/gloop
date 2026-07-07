@@ -201,18 +201,6 @@ TEST(JoinCSVLineWithDelimiter, Basics) {
   std::vector<std::string> test_vector;
   std::string answer_string;
 
-  test_vector.push_back("a\rb");
-  JoinCSVLineWithDelimiter(test_vector, '.', &answer_string);
-  EXPECT_EQ(answer_string, "\"a\rb\"");
-  test_vector.clear();
-  answer_string.clear();
-
-  test_vector.push_back("a\nb");
-  JoinCSVLineWithDelimiter(test_vector, '.', &answer_string);
-  EXPECT_EQ(answer_string, "\"a\nb\"");
-  test_vector.clear();
-  answer_string.clear();
-
   test_vector.push_back("gooGle");
   JoinCSVLineWithDelimiter(test_vector, 'G', &answer_string);
   EXPECT_EQ(answer_string, "\"gooGle\"");

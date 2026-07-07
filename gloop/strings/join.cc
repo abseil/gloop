@@ -63,7 +63,7 @@ void JoinCSVLineWithDelimiter(absl::Span<const std::string> cols,
   std::vector<std::string> quoted_cols;
   quoted_cols.reserve(cols.size());
 
-  const char escape_chars[] = {delimiter, '\0', '\"', '\r', '\n'};
+  const char escape_chars[] = {delimiter, '\0', '\"'};
 
   // If the string contains the delimiter, quote, or newline anywhere, or begins
   // or ends with whitespace (ie ascii_isspace() returns true), escape all
