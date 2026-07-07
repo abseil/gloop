@@ -201,6 +201,18 @@ TEST(JoinCSVLineWithDelimiter, Basics) {
   std::vector<std::string> test_vector;
   std::string answer_string;
 
+  test_vector.push_back("a\rb");
+  JoinCSVLineWithDelimiter(test_vector, '.', &answer_string);
+  EXPECT_EQ(answer_string, "\"a\rb\"");
+  test_vector.clear();
+  answer_string.clear();
+
+  test_vector.push_back("a\nb");
+  JoinCSVLineWithDelimiter(test_vector, '.', &answer_string);
+  EXPECT_EQ(answer_string, "\"a\nb\"");
+  test_vector.clear();
+  answer_string.clear();
+
   test_vector.push_back("gooGle");
   JoinCSVLineWithDelimiter(test_vector, 'G', &answer_string);
   EXPECT_EQ(answer_string, "\"gooGle\"");
@@ -211,6 +223,20 @@ TEST(JoinCSVLineWithDelimiter, Basics) {
   test_vector.push_back("google");
   JoinCSVLineWithDelimiter(test_vector, 'G', &answer_string);
   EXPECT_EQ(answer_string, "theGgoogle");
+  test_vector.clear();
+  answer_string.clear();
+
+  test_vector.push_back("a");
+  test_vector.push_back("b");
+  JoinCSVLineWithDelimiter(test_vector, '\0', &answer_string);
+  EXPECT_EQ(answer_string, std::string("a\0b", 3));
+  test_vector.clear();
+  answer_string.clear();
+
+  test_vector.push_back("a");
+  test_vector.push_back("b\"");
+  JoinCSVLineWithDelimiter(test_vector, '\0', &answer_string);
+  EXPECT_EQ(answer_string, std::string("a\0\"b\"\"\"", 7));
   test_vector.clear();
   answer_string.clear();
 
@@ -227,6 +253,18 @@ TEST(JoinCSVLineWithDelimiter, Basics) {
   test_vector.push_back("spaces");
   JoinCSVLineWithDelimiter(test_vector, ' ', &answer_string);
   EXPECT_EQ(answer_string, "\"this example\" \"  uses \" spaces");
+  test_vector.clear();
+  answer_string.clear();
+
+  test_vector.push_back(absl::StrCat("a\"", std::string(1, '\0'), "bcd"));
+  test_vector.push_back(
+      absl::StrCat("hello ", std::string(2, '\0'), "\" world\""));
+  JoinCSVLineWithDelimiter(test_vector, ' ', &answer_string);
+  EXPECT_EQ(answer_string,
+            absl::StrCat("\"a\"\"", std::string(1, '\0'), "bcd\" \"hello ",
+                         std::string(2, '\0'), "\"\" world\"\"\""));
+  test_vector.clear();
+  answer_string.clear();
 }
 
 TEST(LegacyFormatter, FormatterAPI) {

@@ -339,11 +339,11 @@ cc_library(
     srcs = ["join.cc"],
     hdrs = ["join.h"],
     deps = [
-        ":escaping",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:resize_and_overwrite",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
     ],
