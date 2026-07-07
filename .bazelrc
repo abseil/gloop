@@ -15,7 +15,7 @@ build --copt=-funsigned-char --host_copt=-funsigned-char
 build --copt=-fno-omit-frame-pointer
 
 # Disable warnings from dependencies.
-build --per_file_copt=-external/.*@-Wno-thread-safety-analysis,-Wno-character-conversion,-Wno-unused-function
+build --per_file_copt=-external/.*@-Wno-thread-safety-analysis,-Wno-character-conversion,-Wno-unused-function,-Wno-unused-private-field
 build --host_per_file_copt=-external/.*@-Wno-deprecated-declarations
 
 # Enable all recommended warnings by default, and treat them as errors.
