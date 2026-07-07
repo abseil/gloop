@@ -575,10 +575,15 @@ static void TMDestroyExitingThreads(
   for (size_t i = 0; i != exiting_threads->size(); i++) {
     TMThread* thread = (*exiting_threads)[i].thread;
     TMPool* pool = (*exiting_threads)[i].pool;
+    if (watchdog) {
+      // Join() might block while waiting for the exiting thread to finish,
+      // so disable our watchdog while joining to prevent false timeout
+      // triggers.
+      watchdog->Disable();
+    }
     thread->t->Join();
     if (watchdog) {
-      // Join() might block, so give ourselves the best chance at not expiring
-      // our watchdog.
+      // Re-enable and refresh watchdog timestamp after Join() completes.
       watchdog->Alive();
     }
     delete thread->t;
