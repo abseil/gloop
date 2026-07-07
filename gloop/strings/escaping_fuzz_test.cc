@@ -23,6 +23,7 @@
 #include <string>
 
 #include "absl/strings/match.h"
+#include "absl/strings/string_view.h"
 #include "fuzztest/fuzztest.h"
 #include "gloop/strings/escaping.h"
 #include "gtest/gtest.h"
@@ -45,6 +46,38 @@ void FuzzUnescapeCEscapeSequences(const std::string& s) {
   UnescapeCEscapeSequences(src.get(), dst.get());
 }
 FUZZ_TEST(EscapingFuzz, FuzzUnescapeCEscapeSequences);
+
+void Base32EscapeRoundTrip(const std::string& src) {
+  std::string escaped;
+  EXPECT_TRUE(Base32Escape(src, &escaped));
+  std::string unescaped;
+  EXPECT_TRUE(Base32Unescape(escaped, &unescaped));
+  EXPECT_EQ(src, unescaped);
+}
+FUZZ_TEST(EscapingFuzz, Base32EscapeRoundTrip);
+
+// This only tests that Base32Unescape() does not crash.
+void FuzzBase32Unescape(absl::string_view src) {
+  std::string dst;
+  static_cast<void>(Base32Unescape(src, &dst));
+}
+FUZZ_TEST(EscapingFuzz, FuzzBase32Unescape);
+
+void Base32HexEscapeRoundTrip(const std::string& src) {
+  std::string escaped;
+  EXPECT_TRUE(Base32HexEscape(src, &escaped));
+  std::string unescaped;
+  EXPECT_TRUE(Base32HexUnescape(escaped, &unescaped));
+  EXPECT_EQ(src, unescaped);
+}
+FUZZ_TEST(EscapingFuzz, Base32HexEscapeRoundTrip);
+
+// This only tests that Base32HexUnescape() does not crash.
+void FuzzBase32HexUnescape(absl::string_view src) {
+  std::string dst;
+  static_cast<void>(Base32HexUnescape(src, &dst));
+}
+FUZZ_TEST(EscapingFuzz, FuzzBase32HexUnescape);
 
 }  // namespace
 }  // namespace strings

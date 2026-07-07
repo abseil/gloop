@@ -877,6 +877,34 @@ TEST_F(Base32, TooSmallSzDestWholeChunks) {
   EXPECT_EQ(0, length_);
 }
 
+TEST_F(Base32, CornerCases) {
+  std::string out;
+
+  // Padding in the middle of a block
+  EXPECT_FALSE(strings::Base32Unescape("MZ=YTBOI", &out));
+
+  // Data after padding
+  EXPECT_FALSE(strings::Base32Unescape("MZXW6===MJQXE===", &out));
+
+  // 1 data char + 7 '='
+  EXPECT_FALSE(strings::Base32Unescape("M=======", &out));
+
+  // 3 data chars + 5 '='
+  EXPECT_FALSE(strings::Base32Unescape("MZX=====", &out));
+
+  // Leading '='
+  EXPECT_FALSE(strings::Base32Unescape("=MZXW6YQ", &out));
+
+  // All padding
+  EXPECT_FALSE(strings::Base32Unescape("========", &out));
+
+  // Incorrect padding length
+  EXPECT_FALSE(strings::Base32Unescape("MZXW6==", &out));
+
+  // Extra multiple-of-8 padding
+  EXPECT_FALSE(strings::Base32Unescape("MZXW6=============", &out));
+}
+
 static std::string B32Hex(const std::string& from) {
   std::string to;
   strings::Base32HexEscape(from, &to);

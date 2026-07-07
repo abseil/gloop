@@ -281,14 +281,17 @@ void LegacyBase64EscapeWithoutPadding(absl::string_view src,
 // equivalents. src is not NUL-terminated, instead specify len. RETURNS the
 // length of dest, or -1 if src contains invalid chars.
 // ----------------------------------------------------------------------
+bool Base32Unescape(absl::string_view src, std::string* absl_nonnull dest);
+
+ABSL_DEPRECATE_AND_INLINE()
+inline bool Base32Unescape(const char* absl_nullable src, ptrdiff_t slen,
+                           std::string* absl_nonnull dest) {
+  return Base32Unescape(absl::string_view(src, slen), dest);
+}
+
+[[deprecated("Use the version that returns a bool")]]
 ptrdiff_t Base32Unescape(const char* absl_nullable src, ptrdiff_t slen,
                          char* absl_nonnull dest, ptrdiff_t szdest);
-bool Base32Unescape(const char* absl_nullable src, ptrdiff_t slen,
-                    std::string* absl_nonnull dest);
-inline bool Base32Unescape(const std::string& src,
-                           std::string* absl_nonnull dest) {
-  return Base32Unescape(src.data(), static_cast<int>(src.size()), dest);
-}
 
 // ----------------------------------------------------------------------
 // Base32HexUnescape()
@@ -297,7 +300,7 @@ inline bool Base32Unescape(const std::string& src,
 // binary equivalents. Returns true on success, or false if the conversion
 // fails.
 // ----------------------------------------------------------------------
-bool Base32HexUnescape(const std::string& src, std::string* absl_nonnull dest);
+bool Base32HexUnescape(absl::string_view src, std::string* absl_nonnull dest);
 
 // ----------------------------------------------------------------------
 // Base32Escape()
