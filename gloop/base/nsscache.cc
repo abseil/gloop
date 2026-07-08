@@ -22,17 +22,21 @@
 
 #include "gloop/base/nsscache.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <grp.h>
 #include <pwd.h>
-#include <stddef.h>
 #include <sys/types.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
+#include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/base/const_init.h"
@@ -98,11 +102,138 @@ class NSSInfo {
   static absl::Mutex getXY_lock_;
 };
 
+// Some systems don't have this field defined, so we need to check for it.
+inline std::nullptr_t GetPasswdField(const void*) { return nullptr; }
+template <class T>
+inline decltype(&std::declval<T*>()->pw_passwd) GetPasswdField(T* p) {
+  return &p->pw_passwd;
+}
+template <class T>
+inline decltype(&std::declval<T*>()->gr_passwd) GetPasswdField(T* p) {
+  return &p->gr_passwd;
+}
+
+// Some systems don't have this field defined, so we need to check for it.
+inline std::nullptr_t GetGecosField(const void*) { return nullptr; }
+template <class T>
+inline decltype(&std::declval<T*>()->pw_gecos) GetGecosField(T* p) {
+  return &p->pw_gecos;
+}
+
+static std::optional<std::string> ToString(const char* str) {
+  if (str == nullptr) {
+    return std::nullopt;
+  }
+
+  return str;
+}
+
+static char* ToStringPtr(std::optional<std::string>& str) {
+  return str.has_value() ? &str.value()[0] : nullptr;
+}
+
+// Helper C++-style struct that mirrors the given C-style struct, but with the
+// data owned in a safe manner.
+template <class>
+class OwnedData;
+
+template <>
+class OwnedData<passwd> {
+ public:
+  OwnedData() = default;
+
+  void Init(const passwd& src) {
+    pw_name_ = ToString(src.pw_name);
+    if (char* const* p = GetPasswdField(&src)) {
+      pw_passwd_ = ToString(*p);
+    }
+    pw_uid_ = src.pw_uid;
+    pw_gid_ = src.pw_gid;
+    if (char* const* p = GetGecosField(&src)) {
+      pw_gecos_ = ToString(*p);
+    }
+    pw_dir_ = ToString(src.pw_dir);
+    pw_shell_ = ToString(src.pw_shell);
+  }
+
+  void CopyTo(passwd& dst) {
+    dst.pw_name = ToStringPtr(pw_name_);
+    if (char** p = GetPasswdField(&dst)) {
+      *p = ToStringPtr(pw_passwd_);
+    }
+    dst.pw_uid = pw_uid_;
+    dst.pw_gid = pw_gid_;
+    if (char** p = GetGecosField(&dst)) {
+      *p = ToStringPtr(pw_gecos_);
+    }
+    dst.pw_dir = ToStringPtr(pw_dir_);
+    dst.pw_shell = ToStringPtr(pw_shell_);
+  }
+
+ private:
+  std::optional<std::string> pw_name_;
+  std::optional<std::string> pw_passwd_;
+  uid_t pw_uid_;
+  gid_t pw_gid_;
+  std::optional<std::string> pw_gecos_;
+  std::optional<std::string> pw_dir_;
+  std::optional<std::string> pw_shell_;
+
+  OwnedData(const OwnedData&) = delete;
+  OwnedData& operator=(const OwnedData&) = delete;
+};
+
+template <>
+class OwnedData<group> {
+ public:
+  OwnedData() = default;
+
+  void Init(const group& src) {
+    gr_name_ = ToString(src.gr_name);
+    if (char* const* p = GetPasswdField(&src)) {
+      gr_passwd_ = ToString(*p);
+    }
+    gr_gid_ = src.gr_gid;
+
+    gr_mem_data_.clear();
+    for (char* const* s = src.gr_mem; s != nullptr && *s != nullptr; ++s) {
+      gr_mem_data_.push_back(ToString(*s));
+    }
+
+    gr_mem_.clear();
+    gr_mem_.reserve(gr_mem_data_.size() + 1);
+    for (std::optional<std::string>& s : gr_mem_data_) {
+      gr_mem_.push_back(ToStringPtr(s));
+    }
+    gr_mem_.push_back(nullptr);
+  }
+
+  void CopyTo(group& dst) {
+    dst.gr_name = ToStringPtr(gr_name_);
+    if (char** p = GetPasswdField(&dst)) {
+      *p = ToStringPtr(gr_passwd_);
+    }
+    dst.gr_gid = gr_gid_;
+    dst.gr_mem = gr_mem_.data();
+  }
+
+ private:
+  std::optional<std::string> gr_name_;
+  std::optional<std::string> gr_passwd_;
+  gid_t gr_gid_;
+  std::vector<std::optional<std::string>> gr_mem_data_;
+  std::vector<char*> gr_mem_;
+
+  OwnedData(const OwnedData&) = delete;
+  OwnedData& operator=(const OwnedData&) = delete;
+};
+
 template <class Data, typename UserKey, typename Key, NSSFn<Data, Key> LookupFn>
 struct NSSInfo<Data, UserKey, Key, LookupFn>::CacheRec {
   bool valid = false;
   Data dbdata;
   std::string buffer;
+  OwnedData<Data> owned_data;
   absl::Time expired;
 };
 
@@ -143,11 +274,11 @@ bool NSSInfo<Data, UserKey, Key, LookupFn>::Lookup(const UserKey& key) {
   // Not found, or stale - look it up
 
   auto rec = std::make_shared<CacheRec>();
-  rec->buffer.resize(1024);
-  Data* res = nullptr;
   Key nsskey = MapNSSKey(key);
 
 #if !BASE_NSSCACHE_LOOKUP_REENTRANT
+  Data* res = nullptr;
+  rec->buffer.resize(1024);
   do {
     int bufsize = rec->buffer.size();
     int err;
@@ -186,9 +317,12 @@ bool NSSInfo<Data, UserKey, Key, LookupFn>::Lookup(const UserKey& key) {
   } while (!res);
 
 #else
-  res = LookupFn(nsskey);
-  if (res) {
-    rec->dbdata = *res;
+  Data* src = LookupFn(nsskey);
+  if (src != nullptr) {
+    // Copy over TLS data into our own heap structure so that we can safely
+    // share it globally across threads.
+    rec->owned_data.Init(*src);
+    rec->owned_data.CopyTo(rec->dbdata);
     rec->valid = true;
   }
 
