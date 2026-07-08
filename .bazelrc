@@ -40,6 +40,10 @@ build --copt=-Wno-deprecated-volatile
 
 # CI configurations
 
+# Register explicit C++ toolchain from @docker_toolchain.
+# This can be overridden by our test docker images to inject our own toolchains.
+build --extra_toolchains=@docker_toolchain//:all
+
 test --test_output=errors --keep_going
 
 build:dbg --compilation_mode=dbg
@@ -49,14 +53,14 @@ build:san-common --config=dbg --strip=never --copt=-Og
 
 build:asan --config=san-common
 build:asan --//gloop:sanitizer=asan
-build:asan --copt=-fsanitize=address --linkopt=-fsanitize=address
+build:asan --features=asan
 build:asan --copt=-O2 # TODO Workaround cord/status false positive
 test:asan --test_tag_filters=-nosan,-noasan
 test:asan --build_tag_filters=-nosan,-noasan
 
 build:ubsan --config=san-common
 build:ubsan --//gloop:sanitizer=ubsan
-build:ubsan --copt=-fsanitize=undefined --linkopt=-fsanitize=undefined
+build:ubsan --features=ubsan
 build:ubsan --copt=-fno-sanitize=function --copt=-fno-sanitize=vptr --copt=-fno-sanitize=nonnull-attribute
 build:ubsan --copt=-D__SANITIZE_UNDEFINED__=1
 build:ubsan --copt=-O2
@@ -66,24 +70,22 @@ test:ubsan --build_tag_filters=-nosan,-noubsan
 
 build:msan --config=san-common
 build:msan --//gloop:sanitizer=msan
-build:msan --copt=-fsanitize=memory --linkopt=-fsanitize=memory
 build:msan --copt=-fno-sanitize-memory-use-after-dtor --copt=-fsanitize-memory-track-origins=0
 build:msan --copt=-O2 # Avoids false positives from -Og
 build:msan --copt=-DLINUX_SYSCALL_ENABLE_HOOKS
+build:msan --features=msan
 test:msan --test_env=MSAN_OPTIONS=symbolize=1:fast_unwind_on_malloc=0:poison_in_dtor=0
 test:msan --test_tag_filters=-nosan,-nomsan
 test:msan --build_tag_filters=-nosan,-nomsan
 
 build:tsan --config=san-common
 build:tsan --//gloop:sanitizer=tsan
-build:tsan --copt=-fsanitize=thread --linkopt=-fsanitize=thread
 build:tsan --copt=-DLINUX_SYSCALL_ENABLE_HOOKS
+build:tsan --features=tsan
 test:tsan --test_tag_filters=-nosan,-notsan
 test:tsan --build_tag_filters=-nosan,-notsan
 
-build:libstdc++-base --repo_env=BAZEL_CXXOPTS= --repo_env=BAZEL_LINKOPTS= --repo_env=CPLUS_INCLUDE_PATH=
-build:libstdc++-base --action_env=BAZEL_CXXOPTS= --action_env=BAZEL_LINKOPTS= --action_env=CPLUS_INCLUDE_PATH=
-build:libstdc++-base --host_action_env=BAZEL_CXXOPTS= --host_action_env=BAZEL_LINKOPTS= --host_action_env=CPLUS_INCLUDE_PATH=
+build:libstdc++-base --features=libstdc++ --//gloop:stdlib=libstdc++
 build:libstdc++ --config=libstdc++-base --config=asan --copt=-DGLOOP_I_ACKNOWLEDGE_THAT_GLOOP_DOES_NOT_SUPPORT_LIBSTDCXX=1  --host_copt=-DGLOOP_I_ACKNOWLEDGE_THAT_GLOOP_DOES_NOT_SUPPORT_LIBSTDCXX=1
 
 # Remote build configuration for Gloop CI.
@@ -96,14 +98,14 @@ build:remote-base --jobs=800
 build:remote-base --remote_download_minimal
 
 build:remote --config=remote-base
-build:remote --extra_execution_platforms=//gloop:rbe
-build:remote --host_platform=//gloop:rbe
-build:remote --platforms=//gloop:rbe
+build:remote --extra_execution_platforms=//gloop/ci:rbe
+build:remote --host_platform=//gloop/ci:rbe
+build:remote --platforms=//gloop/ci:rbe
 
 build:remote-arm --config=remote-base
-build:remote-arm --extra_execution_platforms=//gloop:rbe-arm
-build:remote-arm --host_platform=//gloop:rbe-arm
-build:remote-arm --platforms=//gloop:rbe-arm
+build:remote-arm --extra_execution_platforms=//gloop/ci:rbe-arm
+build:remote-arm --host_platform=//gloop/ci:rbe-arm
+build:remote-arm --platforms=//gloop/ci:rbe-arm
 
 # Fuzzing configuration.
 try-import %workspace%/fuzztest.bazelrc
