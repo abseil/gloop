@@ -79,7 +79,9 @@
 
 // Indicates that the io_priority_level and io_class fields in thread::Options
 // take effect on this platform.
-#ifdef THREAD_HAVE_IOPRIORITY
+#if defined(DISABLE_THREAD_IOPRIORITY)
+// Thread IO priority disabled by build flag.
+#elif defined(THREAD_HAVE_IOPRIORITY)
 #error THREAD_HAVE_IOPRIORITY cannot be set directly
 #elif defined(__linux__) && !defined(__ANDROID__)
 #define THREAD_HAVE_IOPRIORITY 1

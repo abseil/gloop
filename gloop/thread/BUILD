@@ -321,8 +321,11 @@ cc_library(
         "@abseil-cpp//absl/types:span",
         "@googletest//:gtest_prod",
         "@tcmalloc//tcmalloc:malloc_extension",
-    ] + select({
+    ] + selects.with_or({
         "//conditions:default": POSIX_PORT_DEPS + [
+        ],
+    }) + selects.with_or({
+        "//conditions:default": [
             "//gloop/util/priority:io-priority",
         ],
     }),
