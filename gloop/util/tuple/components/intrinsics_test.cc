@@ -20,6 +20,7 @@
 
 #include "gloop/util/tuple/components/intrinsics.h"
 
+#include <concepts>
 #include <cstddef>
 #include <string>
 #include <type_traits>
@@ -49,6 +50,11 @@ struct tag<S> {
 
 template <>
 struct intrinsics<TagS> {
+  template <class... Elements>
+  struct assemble {
+    using type = S;
+  };
+
   template <::size_t N, class T>
   struct element : ::std::integral_constant<int, N> {
     static_assert(::std::is_same<T, S>::value, "Wrong template argument");
@@ -252,6 +258,30 @@ TEST(Intrinsics, HasAllElements) {
   EXPECT_FALSE(has_all_elements<S>::value);
   // Defines the has_all_elements intrinsic.
   EXPECT_TRUE(has_all_elements<Q>::value);
+}
+
+TEST(Intrinsics, ModernAliases) {
+  EXPECT_TRUE((::std::same_as<tag_t<S>, TagS>));
+  EXPECT_TRUE((::std::same_as<tag_t<const S&>, TagS>));
+  EXPECT_TRUE((::std::same_as<tag_t<Q>, TagQ>));
+  EXPECT_TRUE((::std::same_as<tag_t<const volatile Q&&>, TagQ>));
+
+  EXPECT_EQ(size_v<S>, 42);
+  EXPECT_EQ(size_v<const S&>, 42);
+  EXPECT_EQ(size_v<Q>, 42);
+  EXPECT_EQ(size_v<const volatile Q&&>, 42);
+
+  EXPECT_TRUE(
+      (::std::same_as<element_t<0, S>, ::std::integral_constant<int, 0>>));
+  EXPECT_TRUE((::std::same_as<element_t<1, const Q&>,
+                              ::std::integral_constant<int, 1>>));
+
+  EXPECT_TRUE((::std::same_as<assemble_t<TagS, int, char>, S>));
+
+  EXPECT_FALSE(has_all_elements_v<void>);
+  EXPECT_FALSE(has_all_elements_v<int>);
+  EXPECT_FALSE(has_all_elements_v<S>);
+  EXPECT_TRUE(has_all_elements_v<Q>);
 }
 
 }  // namespace

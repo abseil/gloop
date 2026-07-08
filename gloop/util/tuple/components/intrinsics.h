@@ -56,6 +56,8 @@ namespace tuple {
 // explicitly specified when querying for a tag or specializing it.
 template <class T, class E = void>
 struct tag {};
+template <typename T>
+using tag_t = tag<T>::type;
 
 namespace internal_intrinsics {
 
@@ -121,6 +123,8 @@ struct intrinsics;
 // assemble<std_tuple_tag, string>::type is std::tuple<string>.
 template <class Tag, class... Elements>
 struct assemble : intrinsics<Tag>::template assemble<Elements...> {};
+template <class Tag, class... Elements>
+using assemble_t = assemble<Tag, Elements...>::type;
 
 // Metafunction that returns the number of elements in the tuple.
 // This is the facade for size_impl declared above and which should
@@ -130,6 +134,8 @@ struct assemble : intrinsics<Tag>::template assemble<Elements...> {};
 template <class T>
 struct size : intrinsics<typename tag<T>::type>::template size<
                   internal_intrinsics::remove_cvref_t<T>> {};
+template <class T>
+inline constexpr ::std::size_t size_v = size<T>::value;
 
 // Metafunction that returns the type of the element in the tuple.
 // This is the facade for element_impl declared above and which should
@@ -140,6 +146,8 @@ struct size : intrinsics<typename tag<T>::type>::template size<
 template <::size_t N, class T>
 struct element : intrinsics<typename tag<T>::type>::template element<
                      N, internal_intrinsics::remove_cvref_t<T>> {};
+template <::size_t N, class T>
+using element_t = element<N, T>::type;
 
 namespace internal_intrinsics {
 
@@ -225,6 +233,8 @@ constexpr const char* name() {
 // element.
 template <class T>
 struct has_all_elements : internal_intrinsics::has_all_elements<T> {};
+template <class T>
+inline constexpr bool has_all_elements_v = has_all_elements<T>::value;
 
 namespace internal_intrinsics_adl_barrier {
 
