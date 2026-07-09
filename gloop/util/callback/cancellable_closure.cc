@@ -87,12 +87,18 @@ void CancellableClosure::UnrefAndUnlock() {
   }
 }
 
+// Return whether the state is finish or wont-be-called.
+// Used with Condition.
+static inline bool IsComplete(int* pstate) {
+  return *pstate == STATE_FINISHED || *pstate == STATE_WONT_BE_CALLED;
+}
+
 // Internal version of Run(), called from both Run() and from WaitUntil().
 // With this->mu_ held, if the state is not-yet-called, set the state to
 // running and call wrapped_closure->Run().  In any case, set the state to
 // finished.  Releases and reacquires this->mu_ in order to run the wrapped
-// closure.
-// L >= this->mu_
+// closure.  Does not return until the wrapped closure either has completed, or
+// never will be run due to cancellation. L >= this->mu_
 void CancellableClosure::RunInternal() {
   if (this->state_ == STATE_NOT_YET_CALLED) {
     Closure* wrapped_cl = this->wrapped_cl_;
@@ -101,8 +107,10 @@ void CancellableClosure::RunInternal() {
     this->mu_.unlock();
     wrapped_cl->Run();
     this->mu_.lock();
+    this->state_ = STATE_FINISHED;
+  } else {
+    this->mu_.Await(absl::Condition(&IsComplete, &this->state_));
   }
-  this->state_ = STATE_FINISHED;
 }
 
 // L < this->mu_
@@ -110,12 +118,6 @@ void CancellableClosure::Run() {
   this->mu_.lock();
   this->RunInternal();
   UnrefAndUnlock();
-}
-
-// Return whether the state is finish or wont-be-called.
-// Used with Condition.
-static inline bool IsComplete(int* pstate) {
-  return *pstate == STATE_FINISHED || *pstate == STATE_WONT_BE_CALLED;
 }
 
 // L < this->mu_

@@ -23,6 +23,7 @@
 #include "gloop/util/callback/cancellable_closure.h"
 
 #include <array>
+#include <atomic>
 #include <climits>
 #include <cstdint>
 #include <string>
@@ -86,6 +87,52 @@ TEST(CancellableClosureTest, RefUnref) {
   for (int i = 0; i != kReferences + 1; i++) {
     cc->Unref();
   }
+}
+
+TEST(CancellableClosureTest, ConcurrentRunWaitsForWaitUntilToFinish) {
+  // This test ensures that a call to Run() waits for a concurrent invocation of
+  // WaitUntil(..., kRunInCaller) to finish running the wrapped closure, instead
+  // of racing with it or otherwise prematurely returning a completion status.
+
+  absl::Notification evt;
+  std::atomic<bool> run_thread_started = false;
+  std::atomic<bool> wrapped_started = false;
+
+  auto* cc = util::callback::CancellableClosure::New(
+      ::util::functional::ToCallback([&evt, &wrapped_started]() {
+        wrapped_started = true;
+        evt.WaitForNotification();
+      }));
+  cc->Ref();
+
+  std::thread shutdown_thread([cc]() {
+    cc->WaitUntil(util::callback::CancellableClosure::kForever,
+                  util::callback::CancellableClosure::kRunInCaller);
+    cc->Unref();
+  });
+
+  while (!wrapped_started) {
+    absl::SleepFor(absl::Milliseconds(1));
+  }
+
+  std::thread thrd([&run_thread_started, cc]() {
+    run_thread_started = true;
+    cc->Run();
+    EXPECT_TRUE(cc->WaitUntil(0, /*flags=*/0));
+  });
+
+  while (!run_thread_started) {
+    absl::SleepFor(absl::Milliseconds(1));
+  }
+
+  absl::SleepFor(absl::Milliseconds(50));  // HACK: Wait for Run() call to block
+
+  EXPECT_FALSE(cc->WaitUntil(0, /*flags=*/0));
+  evt.Notify();
+  thrd.join();
+  EXPECT_TRUE(cc->WaitUntil(0, /*flags=*/0));
+  shutdown_thread.join();
+  cc->Unref();
 }
 
 struct WaitUntilExpectations {
