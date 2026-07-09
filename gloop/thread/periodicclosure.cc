@@ -32,10 +32,20 @@
 #include "absl/time/clock_interface.h"
 #include "absl/time/time.h"
 #include "absl/types/source_location.h"
+#ifndef _WIN32
 #include "gloop/thread/thread.h"
+#endif
 #include "gloop/thread/wait_state.h"
 
 namespace thread {
+
+namespace {
+#ifndef _WIN32
+void JoinThread(::Thread* t) { t->Join(); }
+#else
+void JoinThread(std::thread* t) { t->join(); }
+#endif
+}  // namespace
 
 PeriodicClosureOptions::PeriodicClosureOptions()
     : clock_(&absl::Clock::GetRealClock()),
@@ -64,11 +74,16 @@ void PeriodicClosure::Start(absl::SourceLocation loc) {
   // a large time delay immediately after calling Start.)
   auto c = absl::bind_front(&PeriodicClosure::RunLoop, this,
                             options_.clock()->TimeNow());
+#ifndef _WIN32
   thread_ =
       new ClosureThread(options_.thread_options(), options_.name_prefix(), c);
 
   thread_->SetJoinable(true);
   thread_->Start(loc);
+#else
+  // Note: thread_options and name_prefix are ignored on Windows.
+  thread_ = new std::thread(c);
+#endif
 }
 
 void PeriodicClosure::ForceRunInternal(bool blocking) {
@@ -103,7 +118,7 @@ bool PeriodicClosure::ForceRunDone(int64_t target_run) const {
 }
 
 void PeriodicClosure::Stop() {
-  Thread* internal_thread = nullptr;
+  InternalThread* internal_thread = nullptr;
 
   {
     absl::MutexLock lock(mutex_);
@@ -115,7 +130,7 @@ void PeriodicClosure::Stop() {
   }
 
   // wait for the closure to complete and clean up
-  internal_thread->Join();
+  JoinThread(internal_thread);
   delete internal_thread;
 }
 

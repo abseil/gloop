@@ -80,12 +80,14 @@ PORT_SOURCES = [
     "port/threadpool.cc",
     "port/threadlocal.h",
     "port/threadpool.h",
+    "thread_options.cc",
 ]
 
 # Headers of portable implementation of //thread for non-posix platforms.
 PORT_HEADERS = [
     "threadlocal.h",
     "threadpool.h",
+    "thread_options.h",
 ]
 
 cc_test(

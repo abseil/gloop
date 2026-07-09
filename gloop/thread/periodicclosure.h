@@ -76,7 +76,13 @@
 #include "absl/types/source_location.h"
 #include "gloop/thread/thread_options.h"
 
+#ifdef _WIN32
+#include <thread>  // NOLINT(build/c++11)
+#endif
+
+#ifndef _WIN32
 class Thread;
+#endif
 namespace thread {
 
 // Provides the ability to customize several aspects of the PeriodicClosure.
@@ -210,7 +216,12 @@ class PeriodicClosure {
   int64_t forced_run_ ABSL_GUARDED_BY(mutex_) = 0;
 
   // Thread for running "closure_"
-  Thread* thread_ ABSL_GUARDED_BY(mutex_) = nullptr;
+#ifndef _WIN32
+  using InternalThread = ::Thread;
+#else
+  using InternalThread = std::thread;
+#endif
+  InternalThread* thread_ ABSL_GUARDED_BY(mutex_) = nullptr;
   absl::Duration interval_ ABSL_GUARDED_BY(mutex_);  // Interval between calls
   absl::AnyInvocable<void()> callback_;              // Actual client closure
   const PeriodicClosureOptions options_;
