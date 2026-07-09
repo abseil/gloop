@@ -417,6 +417,7 @@ void CancelWrapper::operator()() && {
   {
     absl::MutexLock lock(shard_->mu);
     callback = std::move(callback_);
+    callback_ = nullptr;
   };
 
   // If the callback is not present (i.e. it has been cancelled or has already
