@@ -329,16 +329,6 @@ size_t u64tostr_base36(uint64_t number, size_t buf_size, char* buffer);
 // two.
 std::optional<uint64_t> AtoiKMGT(absl::string_view s);
 
-// Converts the given string representation into a 64-bit unsigned integer
-// value similar to `atoi(s)`, except `s` may refer to metric size suffixes for
-// kilo, mega, giga, and tera. (E.g. "16k", "32M", "2G", "4t").
-//
-// Deprecated. Use AtoiKMGT or //gloop/util/units/bytes.h instead.
-ABSL_DEPRECATED("Use AtoiKMGT instead")
-uint64_t atoi_kmgt(const char* s);
-ABSL_DEPRECATED("Use AtoiKMGT instead")
-inline uint64_t atoi_kmgt(const std::string& s) { return atoi_kmgt(s.c_str()); }
-
 // Converts an integer to a string. Truncates values to K, G, M or T as
 // appropriate. Opposite of atoi_kmgt() E.g. 3000 -> 2K   57185920 -> 54M
 std::string ItoaKMGT(int64_t i);

@@ -1462,17 +1462,6 @@ void TestParseLeadingBoolValue() {
   EXPECT_EQ(false, ParseLeadingBoolValue("yessirree", false));
 }
 
-void Test_atoi_kmgt() {
-  ASSERT_EQ(atoi_kmgt("321k"), uint64_t{321} << 10);
-  ASSERT_EQ(atoi_kmgt("321m"), uint64_t{321} << 20);
-  ASSERT_EQ(atoi_kmgt("321g"), uint64_t{321} << 30);
-  ASSERT_EQ(atoi_kmgt("321t"), uint64_t{321} << 40);
-  ASSERT_EQ(atoi_kmgt("123K"), uint64_t{123} << 10);
-  ASSERT_EQ(atoi_kmgt("123M"), uint64_t{123} << 20);
-  ASSERT_EQ(atoi_kmgt("123G"), uint64_t{123} << 30);
-  ASSERT_EQ(atoi_kmgt("123T"), uint64_t{123} << 40);
-}
-
 void TestStringsItoa() {
   const struct s32 {
     int32_t n;
@@ -2501,7 +2490,6 @@ TEST(Numbers, TestFunctionsMovedOverFromStrutilUnittestMain) {
   TestParseLeadingDoubleValue();
   TestParseLeadingIntValue();
   TestParseLeadingBoolValue();
-  Test_atoi_kmgt();
   TestConsumeStrayLeadingZeroes();
   TestStringsItoa();
 }

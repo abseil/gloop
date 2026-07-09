@@ -682,39 +682,6 @@ std::optional<uint64_t> AtoiKMGT(absl::string_view s) {
   return n * scale;
 }
 
-uint64_t atoi_kmgt(const char* s) {
-  static_assert(sizeof(unsigned long long) == sizeof(uint64_t),  // NOLINT
-                "This method assumes strtoull is 64-bit, "
-                "but sizeof long long is not sizeof uint64_t");
-  char* endptr;
-  uint64_t n = strtoull(s, &endptr, 10);  // NOLINT
-  uint64_t scale = 1;
-  char c = *endptr;
-  if (c != '\0') {
-    c = absl::ascii_toupper(c);
-    switch (c) {
-      case 'K':
-        scale = uint64_t{1} << 10;
-        break;
-      case 'M':
-        scale = uint64_t{1} << 20;
-        break;
-      case 'G':
-        scale = uint64_t{1} << 30;
-        break;
-      case 'T':
-        scale = uint64_t{1} << 40;
-        break;
-      default:
-        ABSL_RAW_LOG(
-            FATAL,
-            "Invalid mnemonic: '%c'; should be one of 'K', 'M', 'G', and 'T'.",
-            c);
-    }
-  }
-  return n * scale;
-}
-
 // ----------------------------------------------------------------------
 // AutoDigitStrCmp
 // AutoDigitLessThan
@@ -884,7 +851,7 @@ int HexDigitsPrefix(const char* buf, ptrdiff_t num_digits) {
 // ItoaKMGT()
 //    Description: converts an integer to a string
 //    Truncates values to a readable unit: K, M, G or T
-//    Opposite of atoi_kmgt()
+//    Opposite of AtoiKMGT()
 //    e.g. 100 -> "100" 1500 -> "1500"  4000 -> "3K"   57185920 -> "54M"
 //
 //    Return value: string
