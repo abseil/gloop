@@ -658,7 +658,8 @@ bool GetMemoryStats(pid_t pid, base::MemoryStats* mem_stats) {
   //  [4] = unused
   //  [5] = data + stack
   //  [6] = unused
-  long long vsize, rss, shared, code, data, unused;  // NOLINT
+  // NOLINTNEXTLINE(runtime/int)
+  long long vsize = 0, rss = 0, shared = 0, code = 0, data = 0, unused = 0;
   if (ReadProcField("/proc/%d/statm", pid, 0, "%lld %lld %lld %lld %lld %lld",
                     &vsize, &rss, &shared, &code, &unused, &data)) {
     mem_stats->vsize = vsize * page_size;
