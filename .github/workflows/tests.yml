@@ -60,7 +60,9 @@ jobs:
             value: libstdc++
           - name: Bazel 8
             value: asan
-            env: USE_BAZEL_VERSION=8.x
+            env: USE_BAZEL_VERSION=8.7.0
+    env:
+      USE_BAZEL_VERSION: 9.1.1
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -120,6 +122,8 @@ jobs:
           - config: Bazel less than 8.0
             env: USE_BAZEL_VERSION=7.7.1
             expected_error: Bazel compatibility check failed
+    env:
+      USE_BAZEL_VERSION: 9.1.1
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
