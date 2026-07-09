@@ -92,6 +92,12 @@ void EmplaceFrontSequence(C* c, int lo, int hi) {
   }
 }
 
+template <size_t N>
+struct InlineCapacity {
+  static constexpr size_t value = N;
+};
+
+template <typename T>
 class CircularBufferTest : public ::testing::Test {
  public:
   void SetUp() override { count_ = 0; }
@@ -118,11 +124,19 @@ class CircularBufferTest : public ::testing::Test {
   static int count() { return count_; }
   static int count_;
 };
-int CircularBufferTest::count_ = 0;
-int* CircularBufferTest::Canary::count_ = &CircularBufferTest::count_;
 
-TEST_F(CircularBufferTest, PushBack) {
-  CircularBuffer<int> cb(3);
+template <typename T>
+int CircularBufferTest<T>::count_ = 0;
+
+template <typename T>
+int* CircularBufferTest<T>::Canary::count_ = &CircularBufferTest<T>::count_;
+
+using InlineCapacityTypes =
+    testing::Types<InlineCapacity<0>, InlineCapacity<1>, InlineCapacity<8>>;
+TYPED_TEST_SUITE(CircularBufferTest, InlineCapacityTypes);
+
+TYPED_TEST(CircularBufferTest, PushBack) {
+  CircularBuffer<int, TypeParam::value> cb(3);
   PushBackSequence(&cb, 0, 2);
   EXPECT_THAT(cb, ElementsAre(0, 1));
   PushBackSequence(&cb, 2, 6);
@@ -130,8 +144,8 @@ TEST_F(CircularBufferTest, PushBack) {
   EXPECT_THAT(cb, ElementsAre(3, 4, 5));
 }
 
-TEST_F(CircularBufferTest, EmplaceBack) {
-  CircularBuffer<NonCopyablePair> cb(3);
+TYPED_TEST(CircularBufferTest, EmplaceBack) {
+  CircularBuffer<NonCopyablePair, TypeParam::value> cb(3);
   EmplaceBackSequence(&cb, 0, 2);
   EXPECT_THAT(cb, ElementsAre(PairIs(0, 2), PairIs(1, 2)));
   EmplaceBackSequence(&cb, 2, 6);
@@ -139,16 +153,16 @@ TEST_F(CircularBufferTest, EmplaceBack) {
   EXPECT_THAT(cb, ElementsAre(PairIs(3, 6), PairIs(4, 6), PairIs(5, 6)));
 }
 
-TEST_F(CircularBufferTest, EmplaceReturnsReference) {
-  CircularBuffer<int> cb(3);
+TYPED_TEST(CircularBufferTest, EmplaceReturnsReference) {
+  CircularBuffer<int, TypeParam::value> cb(3);
   int& ref_back = cb.emplace_back(511);
   EXPECT_EQ(511, ref_back);
   int& ref_front = cb.emplace_front(1963);
   EXPECT_EQ(1963, ref_front);
 }
 
-TEST_F(CircularBufferTest, At) {
-  CircularBuffer<int> cb(3);
+TYPED_TEST(CircularBufferTest, At) {
+  CircularBuffer<int, TypeParam::value> cb(3);
   PushBackSequence(&cb, 3, 6);
   EXPECT_EQ(3, cb.at(0));
   EXPECT_EQ(4, cb.at(1));
@@ -158,8 +172,8 @@ TEST_F(CircularBufferTest, At) {
   EXPECT_EQ(3, cb.at(-3));
 }
 
-TEST_F(CircularBufferTest, PopFront) {
-  CircularBuffer<int> cb(3);
+TYPED_TEST(CircularBufferTest, PopFront) {
+  CircularBuffer<int, TypeParam::value> cb(3);
   PushBackSequence(&cb, 3, 6);
   EXPECT_EQ(3, cb.front());
   cb.pop_front();
@@ -170,8 +184,8 @@ TEST_F(CircularBufferTest, PopFront) {
   EXPECT_TRUE(cb.empty());
 }
 
-TEST_F(CircularBufferTest, PopBack) {
-  CircularBuffer<int> cb(3);
+TYPED_TEST(CircularBufferTest, PopBack) {
+  CircularBuffer<int, TypeParam::value> cb(3);
   PushBackSequence(&cb, 3, 6);
   EXPECT_EQ(5, cb.back());
   cb.pop_back();
@@ -182,15 +196,16 @@ TEST_F(CircularBufferTest, PopBack) {
   EXPECT_TRUE(cb.empty());
 }
 
-TEST_F(CircularBufferTest, Clear) {
-  CircularBuffer<int> cb(3);
+TYPED_TEST(CircularBufferTest, Clear) {
+  CircularBuffer<int, TypeParam::value> cb(3);
   PushBackSequence(&cb, 2, 6);
   cb.clear();
   EXPECT_TRUE(cb.empty());
 }
 
-TEST_F(CircularBufferTest, PushFront) {
-  CircularBuffer<int> cb(3);
+TYPED_TEST(CircularBufferTest, PushFront) {
+  using C = CircularBuffer<int, TypeParam::value>;
+  C cb(3);
   PushFrontSequence(&cb, 0, 5);
   EXPECT_THAT(cb, ElementsAre(4, 3, 2));
   // Test at()
@@ -201,15 +216,16 @@ TEST_F(CircularBufferTest, PushFront) {
   EXPECT_EQ(2, cb.at(2));
   EXPECT_EQ(&cb[2], &cb.at(2));
   // Test mutating.
-  typedef CircularBuffer<int>::iterator Iter;
+  typedef typename C::iterator Iter;
   for (Iter ii = cb.begin(); ii != cb.end(); ++ii) {
     *ii *= 2;
   }
   EXPECT_THAT(cb, ElementsAre(8, 6, 4));
 }
 
-TEST_F(CircularBufferTest, EmplaceFront) {
-  CircularBuffer<NonCopyablePair> cb(3);
+TYPED_TEST(CircularBufferTest, EmplaceFront) {
+  using C = CircularBuffer<NonCopyablePair, TypeParam::value>;
+  C cb(3);
   EmplaceFrontSequence(&cb, 0, 5);
   EXPECT_THAT(cb, ElementsAre(PairIs(4, 5), PairIs(3, 5), PairIs(2, 5)));
   // Test at()
@@ -217,76 +233,80 @@ TEST_F(CircularBufferTest, EmplaceFront) {
   EXPECT_THAT(cb.at(1), PairIs(3, 5));
   EXPECT_THAT(cb.at(2), PairIs(2, 5));
   // Test mutating.
-  typedef CircularBuffer<NonCopyablePair>::iterator Iter;
+  typedef typename C::iterator Iter;
   for (Iter ii = cb.begin(); ii != cb.end(); ++ii) {
     ii->first *= 2;
   }
   EXPECT_THAT(cb, ElementsAre(PairIs(8, 5), PairIs(6, 5), PairIs(4, 5)));
 }
 
-TEST_F(CircularBufferTest, Assignment) {
-  CircularBuffer<int> cb1(3);
+TYPED_TEST(CircularBufferTest, Assignment) {
+  CircularBuffer<int, TypeParam::value> cb1(3);
   PushBackSequence(&cb1, 0, 3);
-  CircularBuffer<int> cb2(3);
+  CircularBuffer<int, TypeParam::value> cb2(3);
   cb2 = cb1;
   EXPECT_THAT(cb1, ElementsAre(0, 1, 2));
   EXPECT_THAT(cb2, ElementsAre(0, 1, 2));
 }
 
-TEST_F(CircularBufferTest, ResizingLarger) {
-  CircularBuffer<int> cb(3);
+TYPED_TEST(CircularBufferTest, ResizingLarger) {
+  CircularBuffer<int, TypeParam::value> cb(3);
   PushBackSequence(&cb, 0, 3);
   cb.resize(4);
   EXPECT_THAT(cb, ElementsAre(0, 1, 2));
 }
 
-TEST_F(CircularBufferTest, ResizingSmaller) {
-  CircularBuffer<int> cb(3);
+TYPED_TEST(CircularBufferTest, ResizingSmaller) {
+  CircularBuffer<int, TypeParam::value> cb(3);
   PushBackSequence(&cb, 0, 3);
   cb.resize(2);
   EXPECT_THAT(cb, ElementsAre(0, 1));
 }
 
-TEST_F(CircularBufferTest, CanBePutIntoMaps) {
-  std::map<int, CircularBuffer<int>> m;
-  m[0] = CircularBuffer<int>();
+TYPED_TEST(CircularBufferTest, CanBePutIntoMaps) {
+  std::map<int, CircularBuffer<int, TypeParam::value>> m;
+  m[0] = CircularBuffer<int, TypeParam::value>();
 }
 
-TEST_F(CircularBufferTest, EmptyConstruction) {
+TYPED_TEST(CircularBufferTest, EmptyConstruction) {
   // Test that a CircularBuffer creates no live elements.
-  CircularBuffer<Canary> cb(2);
-  EXPECT_EQ(0, count());
+  using Canary = TestFixture::Canary;
+  CircularBuffer<Canary, TypeParam::value> cb(2);
+  EXPECT_EQ(0, this->count());
 }
 
-TEST_F(CircularBufferTest, PartiallyFilledLifetimes) {
-  CircularBuffer<Canary> cb(3);
+TYPED_TEST(CircularBufferTest, PartiallyFilledLifetimes) {
+  using Canary = TestFixture::Canary;
+  CircularBuffer<Canary, TypeParam::value> cb(3);
   cb.push_back(Canary(1));
-  EXPECT_EQ(1, count());
+  EXPECT_EQ(1, this->count());
   cb.push_back(Canary(2));
-  EXPECT_EQ(2, count());
+  EXPECT_EQ(2, this->count());
   cb.clear();
   EXPECT_TRUE(cb.empty());
-  EXPECT_EQ(0, count());
+  EXPECT_EQ(0, this->count());
 }
 
-TEST_F(CircularBufferTest, ClearDestruction) {
+TYPED_TEST(CircularBufferTest, ClearDestruction) {
   // Test that a cleared CircularBuffer has no live elements.
-  CircularBuffer<Canary> cb(2);
+  using Canary = TestFixture::Canary;
+  CircularBuffer<Canary, TypeParam::value> cb(2);
   cb.push_back(Canary(1));
-  EXPECT_EQ(1, count());
+  EXPECT_EQ(1, this->count());
   cb.push_back(Canary(2));
-  EXPECT_EQ(2, count());
+  EXPECT_EQ(2, this->count());
   cb.push_back(Canary(3));
-  EXPECT_EQ(2, count());
+  EXPECT_EQ(2, this->count());
   cb.clear();
   EXPECT_TRUE(cb.empty());
-  EXPECT_EQ(0, count());
+  EXPECT_EQ(0, this->count());
 }
 
-TEST_F(CircularBufferTest, AllBeginPositionsPushBack) {
+TYPED_TEST(CircularBufferTest, AllBeginPositionsPushBack) {
+  using Canary = TestFixture::Canary;
   for (int i = 0; i < 3; ++i) {
     SCOPED_TRACE(i);
-    CircularBuffer<Canary> cb(3);
+    CircularBuffer<Canary, TypeParam::value> cb(3);
     // Rotate 'begin_' up to position i:
     for (int j = 0; j < i; ++j) {
       cb.push_back(Canary(j));
@@ -307,25 +327,26 @@ void Accept(const T& x) {}
 // The default constructor makes a CircularBuffer of capacity 0.
 // It has to be resized before it can hold elements, but it should
 // otherwise be functional.
-TEST_F(CircularBufferTest, DefaultConstructedTrivial) {
+TYPED_TEST(CircularBufferTest, DefaultConstructedTrivial) {
   // Try some different syntax
+  using Canary = TestFixture::Canary;
   {
-    CircularBuffer<Canary> cb;
+    CircularBuffer<Canary, TypeParam::value> cb;
   }
   {
-    CircularBuffer<Canary> cb{};
+    CircularBuffer<Canary, TypeParam::value> cb{};
   }
   {
-    CircularBuffer<Canary> cb = {};
+    CircularBuffer<Canary, TypeParam::value> cb = {};
   }
   {
-    auto cb = CircularBuffer<Canary>{};
+    auto cb = CircularBuffer<Canary, TypeParam::value>{};
   }
   {
-    auto cb = CircularBuffer<Canary>();
+    auto cb = CircularBuffer<Canary, TypeParam::value>();
   }
-  Accept<CircularBuffer<Canary>>({});
-  CircularBuffer<Canary> cb;
+  Accept<CircularBuffer<Canary, TypeParam::value>>({});
+  CircularBuffer<Canary, TypeParam::value> cb;
   EXPECT_TRUE(cb.empty());
   EXPECT_EQ(0, cb.size());
   EXPECT_EQ(0, cb.capacity());
@@ -334,29 +355,31 @@ TEST_F(CircularBufferTest, DefaultConstructedTrivial) {
   EXPECT_EQ(0, (cb.begin() + 0) - cb.end());
 }
 
-TEST_F(CircularBufferTest, DefaultConstructed) {
-  CircularBuffer<Canary> cb;
+TYPED_TEST(CircularBufferTest, DefaultConstructed) {
+  using Canary = TestFixture::Canary;
+  CircularBuffer<Canary, TypeParam::value> cb;
 
   cb.resize(1);
   EXPECT_TRUE(cb.empty());
   EXPECT_EQ(0, cb.size());
   EXPECT_EQ(1, cb.capacity());
-  EXPECT_EQ(0, count());
+  EXPECT_EQ(0, this->count());
 
   cb.push_back(Canary(1));
   EXPECT_EQ(1, cb.size());
   EXPECT_THAT(cb, ElementsAre(Canary(1)));
-  EXPECT_EQ(1, count());
+  EXPECT_EQ(1, this->count());
 
   cb.pop_back();
   EXPECT_THAT(cb, ElementsAre());
-  EXPECT_EQ(0, count());
+  EXPECT_EQ(0, this->count());
 }
 
-TEST_F(CircularBufferTest, AllBeginPositionsPushFront) {
+TYPED_TEST(CircularBufferTest, AllBeginPositionsPushFront) {
+  using Canary = TestFixture::Canary;
   for (int i = 0; i < 3; ++i) {
     SCOPED_TRACE(i);
-    CircularBuffer<Canary> cb(3);
+    CircularBuffer<Canary, TypeParam::value> cb(3);
     // Rotate 'begin_' up to position i:
     for (int j = 0; j < i; ++j) {
       cb.push_back(Canary(j));
@@ -490,74 +513,98 @@ TEST(CircularBufferInAssociativeContainterTest, Map) {
   }
 }
 
-TEST_F(CircularBufferTest, MoveOnly) {
-  CircularBuffer<std::unique_ptr<Canary>> cb;
+TYPED_TEST(CircularBufferTest, Swap) {
+  using Canary = TestFixture::Canary;
+
+  CircularBuffer<std::unique_ptr<Canary>, TypeParam::value> cb1(1);
+  cb1.push_back(std::make_unique<Canary>(1));
+  EXPECT_THAT(cb1, ElementsAre(Pointee(Canary(1))));
+
+  CircularBuffer<std::unique_ptr<Canary>, TypeParam::value> cb2(3);
+  cb2.push_back(std::make_unique<Canary>(1));
+  cb2.push_back(std::make_unique<Canary>(2));
+  EXPECT_THAT(cb2, ElementsAre(Pointee(Canary(1)), Pointee(Canary(2))));
+
+  cb1.swap(cb2);
+  EXPECT_THAT(cb1, ElementsAre(Pointee(Canary(1)), Pointee(Canary(2))));
+  EXPECT_THAT(cb2, ElementsAre(Pointee(Canary(1))));
+
+  cb1.swap(cb2);
+  EXPECT_THAT(cb1, ElementsAre(Pointee(Canary(1))));
+  EXPECT_THAT(cb2, ElementsAre(Pointee(Canary(1)), Pointee(Canary(2))));
+}
+
+TYPED_TEST(CircularBufferTest, MoveOnly) {
+  using Canary = TestFixture::Canary;
+  CircularBuffer<std::unique_ptr<Canary>, TypeParam::value> cb;
 
   cb.resize(1);
   EXPECT_TRUE(cb.empty());
   EXPECT_EQ(0, cb.size());
   EXPECT_EQ(1, cb.capacity());
-  EXPECT_EQ(0, count());
+  EXPECT_EQ(0, this->count());
 
   cb.push_back(std::make_unique<Canary>(123));
   EXPECT_EQ(1, cb.size());
   EXPECT_THAT(cb, ElementsAre(Pointee(Canary(123))));
-  EXPECT_EQ(1, count());
+  EXPECT_EQ(1, this->count());
 
   cb.pop_back();
   EXPECT_THAT(cb, ElementsAre());
-  EXPECT_EQ(0, count());
+  EXPECT_EQ(0, this->count());
 }
 
-TEST_F(CircularBufferTest, MoveConstruct) {
-  CircularBuffer<std::unique_ptr<Canary>> cb1(1);
+TYPED_TEST(CircularBufferTest, MoveConstruct) {
+  using Canary = TestFixture::Canary;
+  CircularBuffer<std::unique_ptr<Canary>, TypeParam::value> cb1(1);
   cb1.push_back(std::make_unique<Canary>(123));
-  CircularBuffer<std::unique_ptr<Canary>> cb2(std::move(cb1));
+  CircularBuffer<std::unique_ptr<Canary>, TypeParam::value> cb2(std::move(cb1));
   EXPECT_THAT(cb1, ElementsAre());  // not specified, but test anyway
   EXPECT_THAT(cb2, ElementsAre(Pointee(Canary(123))));
-  EXPECT_EQ(1, count());
+  EXPECT_EQ(1, this->count());
   cb2.pop_back();
   EXPECT_THAT(cb2, ElementsAre());
-  EXPECT_EQ(0, count());
+  EXPECT_EQ(0, this->count());
 }
 
-TEST_F(CircularBufferTest, MoveAssign) {
-  CircularBuffer<std::unique_ptr<Canary>> cb1(1);
+TYPED_TEST(CircularBufferTest, MoveAssign) {
+  using Canary = TestFixture::Canary;
+  CircularBuffer<std::unique_ptr<Canary>, TypeParam::value> cb1(1);
   cb1.push_back(std::make_unique<Canary>(123));
-  CircularBuffer<std::unique_ptr<Canary>> cb2(1);
+  CircularBuffer<std::unique_ptr<Canary>, TypeParam::value> cb2(1);
   cb2.push_back(std::make_unique<Canary>(456));
-  EXPECT_EQ(2, count());
+  EXPECT_EQ(2, this->count());
   cb2 = std::move(cb1);
-  EXPECT_EQ(1, count());
+  EXPECT_EQ(1, this->count());
   EXPECT_THAT(cb1, ElementsAre());  // not specified, but test anyway
   EXPECT_THAT(cb2, ElementsAre(Pointee(Canary(123))));
   cb2.pop_back();
   EXPECT_THAT(cb2, ElementsAre());
-  EXPECT_EQ(0, count());
+  EXPECT_EQ(0, this->count());
 }
 
-template <size_t size, size_t alignment>
+template <size_t inline_capacity, size_t size, size_t alignment>
 void TestAligned() {
   using aligned_struct = std::aligned_storage_t<size, alignment>;
 
-  CircularBuffer<aligned_struct> cb(1);
+  CircularBuffer<aligned_struct, inline_capacity> cb(1);
   cb.push_back({});
   EXPECT_EQ(0, reinterpret_cast<uintptr_t>(&cb.back()) % alignment)
       << "alignment=" << alignment << " size=" << size
       << " alloc=" << sizeof(aligned_struct);
 }
 
-TEST_F(CircularBufferTest, Aligned) {
+TYPED_TEST(CircularBufferTest, Aligned) {
   // Check that object alignment is respected.
-  TestAligned<11 * 8, 16>();
-  TestAligned<11 * 16, 32>();
-  TestAligned<11 * 32, 64>();
-  TestAligned<7 * 4, 16>();
-  TestAligned<7 * 8, 32>();
-  TestAligned<7 * 16, 64>();
-  TestAligned<9 * 32, 16>();
-  TestAligned<9 * 32, 32>();
-  TestAligned<9 * 32, 64>();
+  TestAligned<TypeParam::value, 11 * 8, 16>();
+  TestAligned<TypeParam::value, 11 * 16, 32>();
+  TestAligned<TypeParam::value, 11 * 32, 64>();
+  TestAligned<TypeParam::value, 7 * 4, 16>();
+  TestAligned<TypeParam::value, 7 * 8, 32>();
+  TestAligned<TypeParam::value, 7 * 16, 64>();
+  TestAligned<TypeParam::value, 9 * 32, 16>();
+  TestAligned<TypeParam::value, 9 * 32, 32>();
+  TestAligned<TypeParam::value, 9 * 32, 64>();
 }
 
 void BM_Moves(benchmark::State& state) {
