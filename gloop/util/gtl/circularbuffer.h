@@ -49,7 +49,7 @@
 namespace gtl {
 
 // The double-ended circular buffer class.
-template <typename T>
+template <typename T, size_t kInlineCapacity = 0>
 class CircularBuffer {
   // CircularBuffer contains raw storage for capacity() objects of type T.
   //
@@ -60,6 +60,11 @@ class CircularBuffer {
   // When the CircularBuffer is not full(), pushing an element will place
   // a copy of the pushed object into the appropriate uninitialized buffer
   // slot via placement new.
+  //
+  // If `kInlineCapacity` is greater than 0, CircularBuffer will use inline
+  // storage for the buffer, avoiding heap allocation for small CircularBuffers.
+  // If `kInlineCapacity` is 0, CircularBuffer will always use heap allocation
+  // for the buffer.
  public:
   typedef T value_type;
   typedef T* pointer;
@@ -89,11 +94,18 @@ class CircularBuffer {
     for (const auto& e : o) Construct(p++, e);
   }
 
-  CircularBuffer(CircularBuffer&& o) noexcept
-      : capacity_(o.capacity_),
-        begin_(o.begin_),
-        size_(o.size_),
-        space_(o.space_) {
+  CircularBuffer(CircularBuffer&& o) noexcept : capacity_(o.capacity_) {
+    if (o.UsesInlineStorage()) {
+      space_ = Allocate(o.capacity_);
+      begin_ = 0;
+      size_ = 0;
+      std::copy(std::make_move_iterator(o.begin()),
+                std::make_move_iterator(o.end()), std::back_inserter(*this));
+    } else {
+      begin_ = o.begin_;
+      size_ = o.size_;
+      space_ = o.space_;
+    }
     o.capacity_ = 0;
     o.begin_ = 0;
     o.size_ = 0;
@@ -103,11 +115,17 @@ class CircularBuffer {
   CircularBuffer& operator=(CircularBuffer&& o) noexcept(
       noexcept(std::declval<CircularBuffer>().clear())) {
     clear();
-    Deallocate(space_, capacity_);
+    Deallocate();
     capacity_ = o.capacity_;
-    begin_ = o.begin_;
-    size_ = o.size_;
-    space_ = o.space_;
+    if (o.UsesInlineStorage()) {
+      space_ = Allocate(o.capacity_);
+      std::copy(std::make_move_iterator(o.begin()),
+                std::make_move_iterator(o.end()), std::back_inserter(*this));
+    } else {
+      begin_ = o.begin_;
+      size_ = o.size_;
+      space_ = o.space_;
+    }
     o.capacity_ = 0;
     o.begin_ = 0;
     o.size_ = 0;
@@ -121,7 +139,7 @@ class CircularBuffer {
 
   ~CircularBuffer() {
     clear();
-    Deallocate(space_, capacity_);
+    Deallocate();
   }
 
   void swap(CircularBuffer& b) noexcept {
@@ -130,6 +148,7 @@ class CircularBuffer {
     swap(begin_, b.begin_);
     swap(size_, b.size_);
     swap(space_, b.space_);
+    swap(inline_storage_, b.inline_storage_);
   }
 
   friend void swap(CircularBuffer& a, CircularBuffer& b) noexcept { a.swap(b); }
@@ -301,11 +320,21 @@ class CircularBuffer {
   }
 
   pointer Allocate(size_type n) {
-    return std::allocator<value_type>().allocate(n);
+    if (n <= kInlineCapacity) {
+      return reinterpret_cast<pointer>(inline_storage_);
+    } else {
+      return std::allocator<value_type>().allocate(n);
+    }
   }
 
-  void Deallocate(pointer p, size_type n) {
-    std::allocator<value_type>().deallocate(p, n);
+  void Deallocate() {
+    if (!UsesInlineStorage()) {
+      std::allocator<value_type>().deallocate(space_, capacity_);
+    }
+  }
+
+  bool UsesInlineStorage() const {
+    return space_ == reinterpret_cast<const_pointer>(inline_storage_);
   }
 
   reference at_absolute(size_type pos) { return space_[pos]; }
@@ -349,12 +378,14 @@ class CircularBuffer {
   size_type begin_;
   size_type size_;
   value_type* space_;
+  alignas(value_type) unsigned char inline_storage_[sizeof(
+      value_type[kInlineCapacity])];
 };
 
 // Iterators are invalidated by modification to the circular buffer.
-template <typename T>
+template <typename T, size_t kInlineCapacity>
 template <bool IsConst>
-class CircularBuffer<T>::Iterator {
+class CircularBuffer<T, kInlineCapacity>::Iterator {
  private:
   typedef std::conditional_t<IsConst, const CircularBuffer, CircularBuffer>
       container_type;
