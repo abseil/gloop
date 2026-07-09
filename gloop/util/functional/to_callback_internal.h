@@ -130,7 +130,7 @@ constexpr bool IsCallable() {
 template <typename F>
 constexpr bool IsEmpty(const F& f) {
   if constexpr (std::is_constructible_v<bool, F>) {
-    return !f;
+    return !static_cast<bool>(f);
   } else {
     return false;
   }
