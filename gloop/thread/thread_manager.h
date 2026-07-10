@@ -217,46 +217,27 @@ struct ManagedQueueOptions {   // options to NewQueue()
                                // aborts.
 };
 
+// ManagedQueue is an executor that separates shutdown logic from destruction.
+// It uses backing threads from ThreadManager for execution.
 class ManagedQueue : public thread::Executor {
  public:
-  // This type is neither copyable nor movable.
-  ManagedQueue(const ManagedQueue&) = delete;
-  ManagedQueue& operator=(const ManagedQueue&) = delete;
+  // does not wait until work is complete; see WaitUntilComplete() below.
+  ~ManagedQueue() override;
 
-  ~ManagedQueue() override;  // does not wait until work is complete;
-                             // see WaitUntilComplete() below.
-
-  std::string name() const;                   // return the queue name
-  ManagedQueueOptions queue_options() const;  // return the queue options
-
-  // From the Executor interface (//thread/executor.h):
-  // It is illegal to pass NULL closures to any of these methods.
-  void Schedule(absl::AnyInvocable<void() &&> callback)
-      override;  // Add callback to queue; may block.
-  bool TrySchedule(absl::AnyInvocable<void() &&> callback)
-      override;  // Schedule(callback) if queue not full.
-  void ScheduleAt(absl::Time when,
-                  absl::AnyInvocable<void() &&> callback)
-      override;                               // Schedule(callback) at time.
-  int num_pending_closures() const override;  // Count of closures on queue.
+  virtual std::string name() const = 0;
+  virtual ManagedQueueOptions queue_options() const = 0;
 
   // Wait until all work currently associated with this queue (including work
   // passed to ScheduleAt()) is complete.  If new work is added during the call,
   // it is unspecified whether the call waits for the new work to complete.
-  void WaitUntilComplete();
+  virtual void WaitUntilComplete() = 0;
 
   // Return stats for the ManagedQueue. Stats may be slightly inconsistent and
   // should just be used for status pages and monitoring.
-  ManagedQueueStats Stats() const;
+  virtual ManagedQueueStats Stats() const = 0;
 
-  // Implementation details follow.
-  struct Rep;
-  ManagedQueue* current_executor_for_testing() const;  // for testing
-
- private:
-  friend class ThreadManager;       // to allow calls to constructor below
-  explicit ManagedQueue(Rep* rep);  // not callable by clients
-  Rep* q_rep_;
+  // for testing
+  virtual ManagedQueue* current_executor_for_testing() const = 0;
 };
 
 }  // namespace thread

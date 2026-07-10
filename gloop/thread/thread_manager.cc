@@ -54,7 +54,7 @@
 //   that automatically shrinks and grows.
 // TMThread
 //   Represents a thread in a pool.
-// ManagedQueue::Rep
+// ManagedQueueRep
 //   The internal representation of a ManagedQueue. It points to the
 //   ThreadManager::Rep, and sends work to it.  It has a queue of work
 //   (possibly of finite size) that holds work that cannot be given to a pool
@@ -170,9 +170,11 @@ static const int kTMOverseerSleepMS = 1000;
 // Delay when overseer repeatedly is woken but finds nothing to do
 static const int kTMOverseerIdleSleepMS = 50;
 
+struct ManagedQueueRep;
+
 struct TMWork {                      // An entry in a queue of work
   absl::AnyInvocable<void() &&> cb;  // closure to run
-  ManagedQueue::Rep* q_rep;          // internal queue on which work arrived
+  ManagedQueueRep* q_rep;            // internal queue on which work arrived
   uint32_t q_id;  // id of *q_rep (handles reuse of q_rep's address)
   // For efficiency we may sometimes not update the count of running items.
   // "counted" is true iff this work item has been added into the
@@ -192,11 +194,36 @@ struct TMThread {
   TMWork work;  // work being done by this thread; under TMPool::pool_mu
 };
 
-struct ManagedQueue::Rep {
+class ManagedQueueImpl final : public ManagedQueue {
+ public:
+  explicit ManagedQueueImpl(ManagedQueueRep* rep);
+  ~ManagedQueueImpl() override;
+
+  std::string name() const override;
+  ManagedQueueOptions queue_options() const override;
+
+  void Schedule(absl::AnyInvocable<void() &&> callback) override;
+  bool TrySchedule(absl::AnyInvocable<void() &&> callback) override;
+  void ScheduleAt(absl::Time when,
+                  absl::AnyInvocable<void() &&> callback) override;
+  int num_pending_closures() const override;
+
+  void WaitUntilComplete() override;
+
+  ManagedQueueStats Stats() const override;
+
+  // for testing
+  ManagedQueue* current_executor_for_testing() const override;
+
+ private:
+  ManagedQueueRep* q_rep_;
+};
+
+struct ManagedQueueRep {
   // queue_external is given to CurrentExecutor() so it's always valid, even if
   // the original ManagedQueue is deleted.
-  Rep() : queue_external(this) {}
-  ManagedQueue queue_external;
+  ManagedQueueRep() : queue_external(this) {}
+  ManagedQueueImpl queue_external;
 
   std::string queue_name;             // name; read-only after init
   ManagedQueueOptions queue_options;  // options; read-only after init
@@ -365,11 +392,11 @@ ABSL_CONST_INIT static absl::Mutex qu_mu(absl::kConstInit);
 static absl::flat_hash_set<ManagedQueue*>* qu_set ABSL_GUARDED_BY(qu_mu);
 
 // Forward declarations.
-static void TMQueueRepDelete(ThreadManager::Rep* rep, ManagedQueue::Rep* q_rep);
+static void TMQueueRepDelete(ThreadManager::Rep* rep, ManagedQueueRep* q_rep);
 
 // Return whether *q_rep should be deleted.
 // L >= q_rep->queue_mu
-static inline bool ShouldDeleteQueueRep(ManagedQueue::Rep* q_rep)
+static inline bool ShouldDeleteQueueRep(ManagedQueueRep* q_rep)
     ABSL_EXCLUSIVE_LOCKS_REQUIRED(q_rep->queue_mu) {
   // No need to check queue_waiters here because queue_waiters != 0 implies
   // queue_refcount != 0:
@@ -382,7 +409,7 @@ static inline bool ShouldDeleteQueueRep(ManagedQueue::Rep* q_rep)
 // and return true.   Otherwise return false.
 // L < q_rep->queue_mu
 static bool TMMoreWorkFromQueue(TMWork* work) {
-  ManagedQueue::Rep* q_rep = work->q_rep;
+  ManagedQueueRep* q_rep = work->q_rep;
   bool more_work = false;
   bool del_q_rep = false;
   q_rep->queue_mu.lock();
@@ -721,7 +748,7 @@ enum { kAddAtBeginning = 0x1 };  // put work at start of queue, not end
 enum { kCountWork = 0x2 };       // count the work in queue_running
 // L >= pool->pool_mu
 static bool TMAddToPool(absl::AnyInvocable<void() &&> cb,
-                        ManagedQueue::Rep* q_rep, TMPool* pool, int flags) {
+                        ManagedQueueRep* q_rep, TMPool* pool, int flags) {
   bool wake_overseer = false;
   bool was_no_work = pool->pool_queue.empty();
   TMWork work;
@@ -1111,8 +1138,8 @@ static bool TMNeedWakeOverseer(TMPool* pool) {
 // to the queue.
 // L < rep->pool[*].pool_mu, q_rep->queue_mu, tm_mu
 static bool TMQueueAdd(ThreadManager::Rep* rep,
-                       absl::AnyInvocable<void() &&> cb,
-                       ManagedQueue::Rep* q_rep, int queue_limit, int flags) {
+                       absl::AnyInvocable<void() &&> cb, ManagedQueueRep* q_rep,
+                       int queue_limit, int flags) {
   DVLOG(3) << "TMQueueAdd entry.";
   CHECK(cb != nullptr);
   // Store the current context, per the Schedule contract.
@@ -1180,8 +1207,7 @@ static bool TMQueueAdd(ThreadManager::Rep* rep,
 
 // Remove *q_rep and its reference from *rep.
 // L < rep->rep_mu, tm_mu, pool_mu
-static void TMQueueRepDelete(ThreadManager::Rep* rep,
-                             ManagedQueue::Rep* q_rep) {
+static void TMQueueRepDelete(ThreadManager::Rep* rep, ManagedQueueRep* q_rep) {
   VLOG(3) << "TMQueueRepDelete entry.";
   rep->rep_mu.lock();
   rep->refcount--;
@@ -1197,7 +1223,7 @@ static void TMQueueRepDelete(ThreadManager::Rep* rep,
 // Decrement the reference count of *q_rep.  If the refcount falls to
 // zero and the queue has no queued or outstanding work, delete *q_rep.
 // L < q_rep->queue_mu, q_rep->parent_rep->rep_mu, tm_mu, pool_mu
-static void TMQueueRepUnref(ManagedQueue::Rep* q_rep) {
+static void TMQueueRepUnref(ManagedQueueRep* q_rep) {
   q_rep->queue_mu.lock();
   q_rep->queue_refcount--;
   CHECK_GE(q_rep->queue_refcount, 0);
@@ -1234,8 +1260,8 @@ ManagedQueue* ThreadManager::NewQueue(
   ThreadManager::Rep* rep = this->rep_;
   TMEnsureRegisteredWithOverseer(rep);  // need an overseer to hand out a queue
   rep->rep_mu.lock();
-  ManagedQueue::Rep* q_rep;
-  q_rep = new ManagedQueue::Rep;
+  ManagedQueueRep* q_rep;
+  q_rep = new ManagedQueueRep;
   q_rep->queue_name = std::string(name);
   q_rep->queue_options = queue_options;
   q_rep->parent_rep = rep;
@@ -1247,7 +1273,7 @@ ManagedQueue* ThreadManager::NewQueue(
   rep->refcount++;
   rep->rep_mu.unlock();
   // queue_options is read-only after this point
-  return new ManagedQueue(q_rep);
+  return new ManagedQueueImpl(q_rep);
 }
 
 std::vector<ManagedQueueStats> ThreadManager::QueueStats()
@@ -1307,7 +1333,7 @@ void ThreadManager::SetDefaultNumCPUs(int (*num_cpus)()) {
 // If *work came from queue *q_rep but was not counted in q_rep->q_running,
 // count it now, and mark the work as counted.
 // L < q_rep->queue_mu
-static void TMCountWorkFromQueue(TMWork* work, ManagedQueue::Rep* q_rep) {
+static void TMCountWorkFromQueue(TMWork* work, ManagedQueueRep* q_rep) {
   // We must check the queue_id as well as checking that the address
   // q_rep is the same because the queue at work->q_rep could have
   // been deleted and another recreated at the same address.
@@ -1323,7 +1349,7 @@ static void TMCountWorkFromQueue(TMWork* work, ManagedQueue::Rep* q_rep) {
 // in that pool associated with q_rep as "counted".  This is done when the
 // client calls WaitUntilComplete(), or when *q_rep is about to be destroyed.
 // L < this->q_rep_->parent_rep->pool[*]->pool_mu
-static void TMCountAllWorkFromQueue(ManagedQueue::Rep* q_rep) {
+static void TMCountAllWorkFromQueue(ManagedQueueRep* q_rep) {
   ThreadManager::Rep* parent_rep = q_rep->parent_rep;
   for (int pool_i = 0; pool_i != parent_rep->n_pools; pool_i++) {
     TMPool* pool = &parent_rep->pool[pool_i];
@@ -1342,7 +1368,7 @@ static void TMCountAllWorkFromQueue(ManagedQueue::Rep* q_rep) {
   }
 }
 
-ManagedQueue::ManagedQueue(ManagedQueue::Rep* q_rep) : q_rep_(q_rep) {
+ManagedQueueImpl::ManagedQueueImpl(ManagedQueueRep* q_rep) : q_rep_(q_rep) {
   if (this != &this->q_rep_->queue_external) {
     qu_mu.lock();
     if (qu_set == nullptr) {
@@ -1353,8 +1379,10 @@ ManagedQueue::ManagedQueue(ManagedQueue::Rep* q_rep) : q_rep_(q_rep) {
   }
 }
 
+ManagedQueue::~ManagedQueue() = default;
+
 // L < q_rep->queue_mu, q_rep->parent_rep->rep_mu, tm_mu, pool_mu
-ManagedQueue::~ManagedQueue() {
+ManagedQueueImpl::~ManagedQueueImpl() {
   if (this != &this->q_rep_->queue_external) {  // Don't unref queue_external.
     qu_mu.lock();
     size_t erased = qu_set->erase(this);
@@ -1371,22 +1399,22 @@ ManagedQueue::~ManagedQueue() {
   }
 }
 
-std::string ManagedQueue::name() const { return this->q_rep_->queue_name; }
+std::string ManagedQueueImpl::name() const { return this->q_rep_->queue_name; }
 
-ManagedQueueOptions ManagedQueue::queue_options() const {
+ManagedQueueOptions ManagedQueueImpl::queue_options() const {
   return this->q_rep_->queue_options;
 }
 
 // L < rep->pool[*].pool_mu, q_rep->queue_mu, tm_mu
-void ManagedQueue::Schedule(absl::AnyInvocable<void() &&> callback) {
-  ManagedQueue::Rep* q_rep = this->q_rep_;
+void ManagedQueueImpl::Schedule(absl::AnyInvocable<void() &&> callback) {
+  ManagedQueueRep* q_rep = this->q_rep_;
   TMQueueAdd(q_rep->parent_rep, std::move(callback), q_rep,
              q_rep->queue_options.queue_limit, kAddBlock);
 }
 
 // L < rep->pool[*].pool_mu, q_rep->queue_mu, tm_mu
-bool ManagedQueue::TrySchedule(absl::AnyInvocable<void() &&> callback) {
-  ManagedQueue::Rep* q_rep = this->q_rep_;
+bool ManagedQueueImpl::TrySchedule(absl::AnyInvocable<void() &&> callback) {
+  ManagedQueueRep* q_rep = this->q_rep_;
   return TMQueueAdd(q_rep->parent_rep, std::move(callback), q_rep,
                     q_rep->queue_options.queue_limit, 0);
 }
@@ -1395,16 +1423,16 @@ bool ManagedQueue::TrySchedule(absl::AnyInvocable<void() &&> callback) {
 // then decrement add_after_count----used with AddAfter().
 // L < rep->pool[*].pool_mu, q_rep->queue_mu, tm_mu
 static void TMQueueAddAlways(ThreadManager::Rep* rep, Closure* cb,
-                             ManagedQueue::Rep* q_rep) {
+                             ManagedQueueRep* q_rep) {
   // Add, and request that add_after_count be decremented.
   CHECK(TMQueueAdd(rep, util::functional::FromCallback(cb), q_rep, INT_MAX,
                    kDecAddAfter));
 }
 
-void ManagedQueue::ScheduleAt(absl::Time when,
-                              absl::AnyInvocable<void() &&> callback) {
+void ManagedQueueImpl::ScheduleAt(absl::Time when,
+                                  absl::AnyInvocable<void() &&> callback) {
   Closure* cb = util::functional::ToCallback(std::move(callback));
-  ManagedQueue::Rep* q_rep = this->q_rep_;
+  ManagedQueueRep* q_rep = this->q_rep_;
   // Use TMQueueAddAlways() to avoid blocking the TimedCall thread.
   auto delayed_cb =
       absl::bind_front(&TMQueueAddAlways, q_rep->parent_rep, cb, q_rep);
@@ -1415,8 +1443,8 @@ void ManagedQueue::ScheduleAt(absl::Time when,
 }
 
 // L < this->q_rep_->queue_mu
-int ManagedQueue::num_pending_closures() const {
-  ManagedQueue::Rep* q_rep = this->q_rep_;
+int ManagedQueueImpl::num_pending_closures() const {
+  ManagedQueueRep* q_rep = this->q_rep_;
   // The result is the sum from the ManagedQueue and the pool queues.
   // The ManagedQueue value can be read from a word.
   q_rep->queue_mu.lock();
@@ -1452,7 +1480,7 @@ int ManagedQueue::num_pending_closures() const {
   return num_on_queue;
 }
 
-ManagedQueueStats ManagedQueue::Stats() const {
+ManagedQueueStats ManagedQueueImpl::Stats() const {
   ManagedQueueStats s;
   s.queue_name = this->name();
 
@@ -1466,15 +1494,15 @@ ManagedQueueStats ManagedQueue::Stats() const {
 
 // Return whether the queue *q_rep has any work that is not yet complete.
 // L >= q_rep->queue_mu
-static bool TMIsWorkComplete(ManagedQueue::Rep* q_rep)
+static bool TMIsWorkComplete(ManagedQueueRep* q_rep)
     ABSL_EXCLUSIVE_LOCKS_REQUIRED(q_rep->queue_mu) {
   return (q_rep->queue_running == 0 && q_rep->queue_waiters == 0 &&
           q_rep->queue_work.empty() && q_rep->add_after_count == 0);
 }
 
 // L < this->q_rep_->queue_mu, this->q_rep_->parent_rep->pool[*]->pool_mu
-void ManagedQueue::WaitUntilComplete() {
-  ManagedQueue::Rep* q_rep = this->q_rep_;
+void ManagedQueueImpl::WaitUntilComplete() {
+  ManagedQueueRep* q_rep = this->q_rep_;
   // Normally, we just have to wait for TMIsWorkComplete() to return
   // true (see end of this routine).
   // However, if the queue has thread_limit==INT_MAX, the queue_running field
@@ -1495,7 +1523,7 @@ void ManagedQueue::WaitUntilComplete() {
 // Return the ManagedQueue* that would be returned by CurrentExecutor
 // if we were running in a Closure on this ManagedQueue.
 // This is used to test that CurrentExecutor returns what it should.
-ManagedQueue* ManagedQueue::current_executor_for_testing() const {
+ManagedQueue* ManagedQueueImpl::current_executor_for_testing() const {
   return &this->q_rep_->queue_external;
 }
 
