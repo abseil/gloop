@@ -610,7 +610,7 @@ inline void CountingMutex::unlock() ABSL_UNLOCK_FUNCTION() {
 class ABSL_SCOPED_LOCKABLE CountingMutexReaderLock {
  public:
   explicit CountingMutexReaderLock(
-      CountingMutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
+      CountingMutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_SHARED_LOCK_FUNCTION(mu)
       : mu_(mu) {
     mu.lock_shared();
@@ -637,7 +637,7 @@ class ABSL_SCOPED_LOCKABLE CountingMutexReaderLock {
 class ABSL_SCOPED_LOCKABLE CountingMutexWriterLock {
  public:
   explicit CountingMutexWriterLock(
-      CountingMutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
+      CountingMutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : mu_(mu) {
     mu.lock();
@@ -662,7 +662,7 @@ class ABSL_SCOPED_LOCKABLE CountingMutexWriterLock {
 class ABSL_SCOPED_LOCKABLE ReleasableCountingMutexWriterLock {
  public:
   explicit ReleasableCountingMutexWriterLock(
-      CountingMutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
+      CountingMutex& mu ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : mu_(&mu) {
     mu.lock();

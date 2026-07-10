@@ -269,7 +269,7 @@ class ABSL_LOCKABLE PerCpuSpinLock {
 class ABSL_SCOPED_LOCKABLE PerCpuSpinLockHolder {
  public:
   inline explicit PerCpuSpinLockHolder(
-      PerCpuSpinLock& l ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
+      PerCpuSpinLock& l ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_SHARED_LOCK_FUNCTION(l)
       : lock_(l) {
     cpu_ = lock_.Lock();
