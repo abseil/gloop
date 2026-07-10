@@ -21,11 +21,13 @@
 #include "gloop/util/gtl/circularbuffer.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
 #include <map>
 #include <memory>
+#include <new>
 #include <ostream>
 #include <string>
 #include <type_traits>
@@ -534,6 +536,112 @@ TEST_F(CircularBufferTest, MoveAssign) {
   cb2.pop_back();
   EXPECT_THAT(cb2, ElementsAre());
   EXPECT_EQ(0, count());
+}
+
+template <typename T, size_t N>
+struct ArrayAllocatorStorage {
+  std::array<std::aligned_storage_t<sizeof(T), alignof(T)>, N> array;
+  bool allocated = false;
+};
+
+template <typename T, size_t N>
+class ArrayAllocator {
+ public:
+  using value_type = T;
+  using propagate_on_container_swap = std::true_type;
+
+  ArrayAllocator() : storage_(nullptr) {}
+  ArrayAllocator(ArrayAllocatorStorage<T, N>* storage) : storage_(storage) {}
+
+  T* allocate(size_t n) {
+    if (storage_ != nullptr && !storage_->allocated && n <= N) {
+      storage_->allocated = true;
+      return reinterpret_cast<T*>(storage_->array.data());
+    }
+    return reinterpret_cast<T*>(
+        ::operator new(n * sizeof(T), std::align_val_t(alignof(T))));
+  }
+
+  void deallocate(T* p, size_t n) {
+    if (storage_ != nullptr &&
+        p == reinterpret_cast<T*>(storage_->array.data())) {
+      storage_->allocated = false;
+      return;
+    }
+    ::operator delete(p, n * sizeof(T), std::align_val_t(alignof(T)));
+  }
+
+  ArrayAllocatorStorage<T, N>* storage() const { return storage_; }
+
+ private:
+  ArrayAllocatorStorage<T, N>* storage_;
+};
+
+template <typename T, size_t N>
+bool operator==(const ArrayAllocator<T, N>& lhs,
+                const ArrayAllocator<T, N>& rhs) {
+  return lhs.storage() == rhs.storage();
+}
+
+TEST_F(CircularBufferTest, CustomAllocatorCopyMove) {
+  ArrayAllocatorStorage<int, 3> storage;
+  ArrayAllocator<int, 3> allocator(&storage);
+
+  {
+    CircularBuffer<int, ArrayAllocator<int, 3>> cb1(3, allocator);
+    cb1.push_back(1);
+    cb1.push_back(2);
+    cb1.push_back(3);
+    EXPECT_THAT(cb1, ElementsAre(1, 2, 3));
+    EXPECT_EQ(&cb1.front(), reinterpret_cast<int*>(storage.array.data()));
+
+    CircularBuffer<int, ArrayAllocator<int, 3>> cb2(cb1);
+    EXPECT_THAT(cb2, ElementsAre(1, 2, 3));
+    EXPECT_NE(&cb2.front(), reinterpret_cast<int*>(storage.array.data()));
+
+    CircularBuffer<int, ArrayAllocator<int, 3>> cb3 = cb1;
+    EXPECT_THAT(cb3, ElementsAre(1, 2, 3));
+    EXPECT_NE(&cb3.front(), reinterpret_cast<int*>(storage.array.data()));
+
+    CircularBuffer<int, ArrayAllocator<int, 3>> cb4(std::move(cb1));
+    EXPECT_EQ(&cb4.front(), reinterpret_cast<int*>(storage.array.data()));
+
+    CircularBuffer<int, ArrayAllocator<int, 3>> cb5 = std::move(cb4);
+    EXPECT_EQ(&cb5.front(), reinterpret_cast<int*>(storage.array.data()));
+
+    cb5.ChangeCapacity(5);
+    EXPECT_NE(&cb5.front(), reinterpret_cast<int*>(storage.array.data()));
+  }
+
+  EXPECT_FALSE(storage.allocated);
+}
+
+TEST_F(CircularBufferTest, CustomAllocatorSwap) {
+  ArrayAllocatorStorage<int, 3> storage;
+  ArrayAllocator<int, 3> allocator(&storage);
+
+  CircularBuffer<int, ArrayAllocator<int, 3>> cb1(3, allocator);
+  cb1.push_back(1);
+  cb1.push_back(2);
+  cb1.push_back(3);
+  EXPECT_THAT(cb1, ElementsAre(1, 2, 3));
+  EXPECT_EQ(&cb1.front(), reinterpret_cast<int*>(storage.array.data()));
+
+  CircularBuffer<int, ArrayAllocator<int, 3>> cb2(
+      3, ArrayAllocator<int, 3>(nullptr));
+  cb2.push_back(4);
+  cb2.push_back(5);
+  cb2.push_back(6);
+  EXPECT_THAT(cb2, ElementsAre(4, 5, 6));
+  EXPECT_NE(&cb2.front(), reinterpret_cast<int*>(storage.array.data()));
+
+  cb1.swap(cb2);
+
+  EXPECT_THAT(cb1, ElementsAre(4, 5, 6));
+  EXPECT_NE(&cb1.front(), reinterpret_cast<int*>(storage.array.data()));
+
+  EXPECT_THAT(cb2, ElementsAre(1, 2, 3));
+  EXPECT_EQ(&cb2.front(), reinterpret_cast<int*>(storage.array.data()));
 }
 
 template <size_t size, size_t alignment>

@@ -49,7 +49,7 @@
 namespace gtl {
 
 // The double-ended circular buffer class.
-template <typename T>
+template <typename T, typename Allocator = std::allocator<T>>
 class CircularBuffer {
   // CircularBuffer contains raw storage for capacity() objects of type T.
   //
@@ -60,6 +60,9 @@ class CircularBuffer {
   // When the CircularBuffer is not full(), pushing an element will place
   // a copy of the pushed object into the appropriate uninitialized buffer
   // slot via placement new.
+  //
+  // CircularBuffer meets the requirements of AllocatorAwareContainer
+  // (https://timsong-cpp.github.io/cppwp/n4950/containers#container.alloc.reqmts).
  public:
   typedef T value_type;
   typedef T* pointer;
@@ -68,6 +71,7 @@ class CircularBuffer {
   typedef const T& const_reference;
   typedef size_t size_type;
   typedef ptrdiff_t difference_type;
+  typedef Allocator allocator_type;
 
   template <bool IsConst>
   class Iterator;
@@ -77,11 +81,22 @@ class CircularBuffer {
   typedef typename std::reverse_iterator<const_iterator> const_reverse_iterator;
 
   CircularBuffer() : CircularBuffer(0) {}
-  explicit CircularBuffer(size_type c)
-      : capacity_(c), begin_(0), size_(0), space_(Allocate(capacity_)) {}
+
+  explicit CircularBuffer(const allocator_type& allocator)
+      : CircularBuffer(0, allocator) {}
+
+  explicit CircularBuffer(size_type c,
+                          const allocator_type& allocator = allocator_type())
+      : allocator_(allocator),
+        capacity_(c),
+        begin_(0),
+        size_(0),
+        space_(Allocate(capacity_)) {}
 
   CircularBuffer(const CircularBuffer& o)
-      : capacity_(o.capacity_),
+      : allocator_(std::allocator_traits<allocator_type>::
+                       select_on_container_copy_construction(o.allocator_)),
+        capacity_(o.capacity_),
         begin_(0),
         size_(o.size_),
         space_(Allocate(capacity_)) {
@@ -90,7 +105,8 @@ class CircularBuffer {
   }
 
   CircularBuffer(CircularBuffer&& o) noexcept
-      : capacity_(o.capacity_),
+      : allocator_(std::move(o.allocator_)),
+        capacity_(o.capacity_),
         begin_(o.begin_),
         size_(o.size_),
         space_(o.space_) {
@@ -101,22 +117,61 @@ class CircularBuffer {
   }
 
   CircularBuffer& operator=(CircularBuffer&& o) noexcept(
-      noexcept(std::declval<CircularBuffer>().clear())) {
+      noexcept(std::declval<CircularBuffer>().clear()) &&
+      (std::allocator_traits<
+           allocator_type>::propagate_on_container_move_assignment::value ||
+       std::allocator_traits<allocator_type>::is_always_equal::value)) {
+    if (this == &o) {
+      return *this;
+    }
     clear();
     Deallocate(space_, capacity_);
-    capacity_ = o.capacity_;
-    begin_ = o.begin_;
-    size_ = o.size_;
-    space_ = o.space_;
-    o.capacity_ = 0;
-    o.begin_ = 0;
-    o.size_ = 0;
-    o.space_ = nullptr;
+    if constexpr (std::allocator_traits<allocator_type>::
+                      propagate_on_container_move_assignment::value ||
+                  std::allocator_traits<
+                      allocator_type>::is_always_equal::value) {
+      allocator_ = std::move(o.allocator_);
+      capacity_ = o.capacity_;
+      begin_ = o.begin_;
+      size_ = o.size_;
+      space_ = o.space_;
+      o.allocator_ = allocator_type();
+      o.capacity_ = 0;
+      o.begin_ = 0;
+      o.size_ = 0;
+      o.space_ = nullptr;
+    } else {
+      capacity_ = o.capacity_;
+      begin_ = 0;
+      size_ = o.size_;
+      space_ = Allocate(capacity_);
+      pointer p = space_;
+      for (auto& e : o) Construct(p++, std::move(e));
+      o.clear();
+      o.Deallocate(o.space_, o.capacity_);
+      o.space_ = nullptr;
+      o.capacity_ = 0;
+    }
     return *this;
   }
 
   CircularBuffer& operator=(const CircularBuffer& o) {
-    return *this = CircularBuffer(o);
+    if (this == &o) {
+      return *this;
+    }
+    if constexpr (std::allocator_traits<allocator_type>::
+                      propagate_on_container_copy_assignment::value) {
+      allocator_ = o.allocator_;
+    }
+    clear();
+    Deallocate(space_, capacity_);
+    capacity_ = o.capacity_;
+    begin_ = 0;
+    size_ = o.size_;
+    space_ = Allocate(capacity_);
+    pointer p = space_;
+    for (const auto& e : o) Construct(p++, e);
+    return *this;
   }
 
   ~CircularBuffer() {
@@ -126,6 +181,15 @@ class CircularBuffer {
 
   void swap(CircularBuffer& b) noexcept {
     using std::swap;
+    if constexpr (std::allocator_traits<
+                      allocator_type>::propagate_on_container_swap::value) {
+      swap(allocator_, b.allocator_);
+    } else {
+      DCHECK(allocator_ == b.allocator_)
+          << "The behavior of swapping two containers with unequal allocators "
+             "if propagate_on_container_swap is false is undefined per C++ "
+             "standard";
+    }
     swap(capacity_, b.capacity_);
     swap(begin_, b.begin_);
     swap(size_, b.size_);
@@ -134,13 +198,15 @@ class CircularBuffer {
 
   friend void swap(CircularBuffer& a, CircularBuffer& b) noexcept { a.swap(b); }
 
+  allocator_type get_allocator() const { return allocator_; }
+
   // Reallocates and sets capacity. Items from the front up to the
   // new_capacity are kept, e.g. [0, new_capacity).
   // Post: capacity() == new_capacity
   // Post: size() == min(old_size, new_capacity)
   void ChangeCapacity(size_type new_capacity) {
     if (new_capacity == capacity_) return;
-    CircularBuffer tmp(new_capacity);
+    CircularBuffer tmp(new_capacity, allocator_);
     std::copy(std::make_move_iterator(begin()),
               std::make_move_iterator(begin() + std::min(size_, new_capacity)),
               std::back_inserter(tmp));
@@ -294,18 +360,20 @@ class CircularBuffer {
 
   template <typename... U>
   reference Construct(pointer p, U&&... v) {
-    return *new (p) value_type(std::forward<U>(v)...);
+    std::allocator_traits<allocator_type>::construct(allocator_, p,
+                                                     std::forward<U>(v)...);
+    return *p;
   }
   void Destroy(pointer p) noexcept(noexcept(p->~value_type())) {
-    p->~value_type();
+    std::allocator_traits<allocator_type>::destroy(allocator_, p);
   }
 
   pointer Allocate(size_type n) {
-    return std::allocator<value_type>().allocate(n);
+    return std::allocator_traits<allocator_type>::allocate(allocator_, n);
   }
 
   void Deallocate(pointer p, size_type n) {
-    std::allocator<value_type>().deallocate(p, n);
+    std::allocator_traits<allocator_type>::deallocate(allocator_, p, n);
   }
 
   reference at_absolute(size_type pos) { return space_[pos]; }
@@ -345,6 +413,7 @@ class CircularBuffer {
     return absolute;
   }
 
+  allocator_type allocator_;
   size_type capacity_;
   size_type begin_;
   size_type size_;
@@ -352,9 +421,9 @@ class CircularBuffer {
 };
 
 // Iterators are invalidated by modification to the circular buffer.
-template <typename T>
+template <typename T, typename Allocator>
 template <bool IsConst>
-class CircularBuffer<T>::Iterator {
+class CircularBuffer<T, Allocator>::Iterator {
  private:
   typedef std::conditional_t<IsConst, const CircularBuffer, CircularBuffer>
       container_type;
@@ -464,40 +533,46 @@ class CircularBuffer<T>::Iterator {
   size_type pos_;       // absolute position in *cb_.
 };
 
-template <typename T>
+template <typename T, typename Allocator>
 inline std::ostream& operator<<(std::ostream& os,
-                                const CircularBuffer<T>& obj) {
+                                const CircularBuffer<T, Allocator>& obj) {
   return os << gtl::LogContainer(obj);
 }
 
 // relational operators
-template <typename T>
-inline bool operator==(const CircularBuffer<T>& a, const CircularBuffer<T>& b) {
+template <typename T, typename Allocator>
+inline bool operator==(const CircularBuffer<T, Allocator>& a,
+                       const CircularBuffer<T, Allocator>& b) {
   return absl::c_equal(a, b);
 }
 
-template <typename T>
-inline bool operator<(const CircularBuffer<T>& a, const CircularBuffer<T>& b) {
+template <typename T, typename Allocator>
+inline bool operator<(const CircularBuffer<T, Allocator>& a,
+                      const CircularBuffer<T, Allocator>& b) {
   return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end());
 }
 
-template <typename T>
-inline bool operator!=(const CircularBuffer<T>& a, const CircularBuffer<T>& b) {
+template <typename T, typename Allocator>
+inline bool operator!=(const CircularBuffer<T, Allocator>& a,
+                       const CircularBuffer<T, Allocator>& b) {
   return !(a == b);
 }
 
-template <typename T>
-inline bool operator>(const CircularBuffer<T>& a, const CircularBuffer<T>& b) {
+template <typename T, typename Allocator>
+inline bool operator>(const CircularBuffer<T, Allocator>& a,
+                      const CircularBuffer<T, Allocator>& b) {
   return b < a;
 }
 
-template <typename T>
-inline bool operator<=(const CircularBuffer<T>& a, const CircularBuffer<T>& b) {
+template <typename T, typename Allocator>
+inline bool operator<=(const CircularBuffer<T, Allocator>& a,
+                       const CircularBuffer<T, Allocator>& b) {
   return !(a > b);
 }
 
-template <typename T>
-inline bool operator>=(const CircularBuffer<T>& a, const CircularBuffer<T>& b) {
+template <typename T, typename Allocator>
+inline bool operator>=(const CircularBuffer<T, Allocator>& a,
+                       const CircularBuffer<T, Allocator>& b) {
   return !(a < b);
 }
 
