@@ -2007,7 +2007,9 @@ TEST(SocketAddressTest, GenericInputInvalid) {
   EXPECT_EQ(SocketAddress(), SocketAddress(sa));
   EXPECT_EQ(SocketAddress(), SocketAddress(ss));
   EXPECT_DEATH(SocketAddress foo(sin), "sin_family");
-  EXPECT_DEATH(SocketAddress foo(sin6), "sin6_family");
+  EXPECT_DEATH(SocketAddress foo(
+                   gtl::ValueOrDie(MakeSocketAddressFromSockaddrIn6(sin6))),
+               "sin6_family");
 
   // Test with an invalid family.
   sa.sa_family = 255;
@@ -2021,7 +2023,9 @@ TEST(SocketAddressTest, GenericInputInvalid) {
     EXPECT_EQ(SocketAddress(), SocketAddress(ss));
   }
   EXPECT_DEATH(SocketAddress foo(sin), "sin_family");
-  EXPECT_DEATH(SocketAddress foo(sin6), "sin6_family");
+  EXPECT_DEATH(SocketAddress foo(
+                   gtl::ValueOrDie(MakeSocketAddressFromSockaddrIn6(sin6))),
+               "sin6_family");
 }
 
 TEST(SocketAddressTest, EmptySockaddr) {
