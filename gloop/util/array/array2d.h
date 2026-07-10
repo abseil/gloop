@@ -40,6 +40,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <limits>
 #include <type_traits>
 
 #include "absl/log/check.h"
@@ -234,6 +235,10 @@ template <typename T>
 Array2D<T>::Array2D(InstantiationMode inst_mode, const PD h, const PD w,
                     T* buffer) {
   Reset();
+  if (h > 0) {
+    CHECK_LE(w, std::numeric_limits<PD>::max() / h)
+        << "Integer overflow in Array2D dimensions";
+  }
   height_ = h;
   width_ = w;
   num_elements_ = h * w;
@@ -295,6 +300,10 @@ void Array2D<T>::InitOwned(const PD h, const PD w) {
   assert(w >= 0);
 
   Reset();
+  if (h > 0) {
+    CHECK_LE(w, std::numeric_limits<PD>::max() / h)
+        << "Integer overflow in Array2D dimensions";
+  }
   height_ = h;
   width_ = w;
   num_elements_ = h * w;
@@ -338,6 +347,10 @@ void Array2D<T>::Realloc(const PD h, const PD w) {
 
   Release();
   Reset();
+  if (h > 0) {
+    CHECK_LE(w, std::numeric_limits<PD>::max() / h)
+        << "Integer overflow in Array2D dimensions";
+  }
   height_ = h;
   width_ = w;
   num_elements_ = h * w;

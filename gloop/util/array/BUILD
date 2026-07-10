@@ -76,3 +76,14 @@ cc_library(
     hdrs = ["array_common.h"],
     deps = ["//gloop:enforce_gloop_support"],
 )
+
+cc_test(
+    name = "array2d_test",
+    srcs = ["array2d_test.cc"],
+    deps = [
+        ":array2d",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
