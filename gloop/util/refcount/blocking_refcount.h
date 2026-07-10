@@ -52,9 +52,8 @@
 // void Parent(Executor* executor) {
 //   BlockingRefcount blocking_refcount;
 //   {
-//     BlockingRefcountReference ref(&blocking_refcount);
 //     while (...) {
-//       executor->Add(NewCallback(Child, ref, ...));
+//       executor->Add(NewCallback(Child, blocking_refcount.GetRef(), ...));
 //     }
 //   }
 //   blocking_refcount.WaitForZero();
@@ -79,6 +78,8 @@
 #include "absl/time/time.h"
 
 namespace util {
+
+class BlockingRefcountReference;
 
 // Provides a reference-counting mechanism that enables a thread
 // to wait for the count to reduce to 0.
@@ -135,6 +136,10 @@ class BlockingRefcount {
   // Decrease the reference count by number.  It is an error to decrease
   // the reference count below 0.
   void DecN(int64_t n);
+
+  // Get a reference to this BlockingRefcount that will be decremented when the
+  // reference is destroyed.
+  BlockingRefcountReference GetRef();
 
   // Wait for the reference count to decrement to zero.  When used to
   // maintain a conventional reference count and a single waiter, it
@@ -240,6 +245,10 @@ inline void BlockingRefcount::DecN(int64_t n) {
     // Since kWaiting is accessed only under lock, relaxed order suffices.
     count_.fetch_and(~kWaiting, std::memory_order_relaxed);
   }
+}
+
+inline BlockingRefcountReference BlockingRefcount::GetRef() {
+  return BlockingRefcountReference(this);
 }
 
 }  // namespace util
