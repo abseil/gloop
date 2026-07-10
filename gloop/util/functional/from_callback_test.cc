@@ -27,6 +27,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/nullability.h"
+#include "absl/functional/any_invocable.h"
 #include "absl/functional/bind_front.h"
 #include "gloop/base/callback.h"
 #include "gloop/util/functional/to_callback.h"
@@ -395,6 +396,14 @@ TEST(CallbackFunctor, CanBeUsedLikeUniquePtrToCallback) {
   EXPECT_FALSE(cb);
 
   cb = nullptr;
+  EXPECT_FALSE(cb);
+}
+
+TEST(CallbackFunctor, EmptyAnyInvocableIsNullable) {
+  absl::AnyInvocable<int(int)> empty_invocable = nullptr;
+  util::functional::ResultCallbackFunctor<int, int> cb =
+      std::move(empty_invocable);
+  EXPECT_EQ(cb, nullptr);
   EXPECT_FALSE(cb);
 }
 

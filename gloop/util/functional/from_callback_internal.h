@@ -279,7 +279,9 @@ class ABSL_NULLABILITY_COMPATIBLE ResultCallbackFunctorImpl
              IsCallable<FunctorRef</*Permanent=*/true, std::decay_t<F>>,
                         R(Args...)>())
   ResultCallbackFunctorImpl(F&& functor)  // NOLINT(google-explicit-constructor)
-      : Base(ToCopyableFunction(std::forward<F>(functor))) {}
+      : Base(::util::functional::internal::IsEmpty(functor)
+                 ? Impl()
+                 : Impl(ToCopyableFunction(std::forward<F>(functor)))) {}
 
   // Converting constructor from a rvalue-callable-only functor. Historically,
   // calling this twice would be a use-after-free of the callback type
@@ -292,8 +294,10 @@ class ABSL_NULLABILITY_COMPATIBLE ResultCallbackFunctorImpl
                         R(Args...)>())
   ABSL_DEPRECATE_AND_INLINE()
   ResultCallbackFunctorImpl(F&& functor)  // NOLINT(google-explicit-constructor)
-      : ResultCallbackFunctorImpl(
-            ::util::functional::CallAtMostOnce(std::forward<F>(functor))) {}
+      : Base(::util::functional::internal::IsEmpty(functor)
+                 ? Impl()
+                 : Impl(ToCopyableFunction(::util::functional::CallAtMostOnce(
+                       std::forward<F>(functor))))) {}
 
   // Converting constructor from a raw callback pointer (likely a derived
   // callback implementation)

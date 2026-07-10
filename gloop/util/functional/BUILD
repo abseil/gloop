@@ -79,6 +79,7 @@ cc_test(
         "//gloop/base:callback",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/functional:bind_front",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
