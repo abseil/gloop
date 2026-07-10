@@ -333,6 +333,9 @@ class Task {
   // REQUIRES: Return() has been called; i.e. !IsActive()
   const absl::Status& status() const;
 
+  // Clears the status of this task to absl::OkStatus().
+  void ClearStatus();
+
   // -------------------------------------------------------------------
   // Methods used by the implementer of a task.  i.e. the callee.
   // -------------------------------------------------------------------

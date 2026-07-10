@@ -194,6 +194,11 @@ const absl::Status& Task::status() const {
   return status_;
 }
 
+void Task::ClearStatus() {
+  SpinLockHolder l(lock_);
+  status_ = absl::OkStatus();
+}
+
 void Task::set_executor(thread::Executor* executor) {
   // We assume the method is called early in the
   // life of a task, so we don't grab the lock.
