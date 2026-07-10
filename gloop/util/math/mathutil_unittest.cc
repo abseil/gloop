@@ -277,10 +277,10 @@ TEST(MathUtil, GCD) {
   int num_tcs = sizeof(testcases) / sizeof(*testcases);
   for (int i = 0; i < num_tcs; i++) {
     const GCDTestCase& tc = testcases[i];
-    EXPECT_EQ(tc.gcd, MathUtil::GCD(tc.x, tc.y));
-    EXPECT_EQ(tc.gcd, MathUtil::GCD(tc.y, tc.x));
-    EXPECT_EQ(tc.gcd, MathUtil::GCD64(tc.x, tc.y));
-    EXPECT_EQ(tc.gcd, MathUtil::GCD64(tc.y, tc.x));
+    EXPECT_EQ(tc.gcd, std::gcd(tc.x, tc.y));
+    EXPECT_EQ(tc.gcd, std::gcd(tc.y, tc.x));
+    EXPECT_EQ(tc.gcd, std::gcd(tc.x, tc.y));
+    EXPECT_EQ(tc.gcd, std::gcd(tc.y, tc.x));
     int a, b;
     EXPECT_EQ(tc.gcd, MathUtil::ExtendedGCD(tc.x, tc.y, &a, &b));
     EXPECT_EQ(tc.gcd, a * tc.x + b * tc.y);
@@ -288,8 +288,7 @@ TEST(MathUtil, GCD) {
     EXPECT_EQ(tc.gcd, a * tc.x + b * tc.y);
   }
   static const uint64_t biggish_prime = 1666666667;
-  EXPECT_EQ(biggish_prime,
-            MathUtil::GCD64(biggish_prime * 3, biggish_prime * 4));
+  EXPECT_EQ(biggish_prime, std::gcd(biggish_prime * 3, biggish_prime * 4));
 }
 
 struct LCMTestCase {
@@ -307,15 +306,15 @@ TEST(MathUtil, LeastCommonMultiple) {
   int num_tcs = sizeof(testcases) / sizeof(*testcases);
   for (int i = 0; i < num_tcs; i++) {
     const LCMTestCase& tc = testcases[i];
-    EXPECT_EQ(tc.lcm, MathUtil::LeastCommonMultiple(tc.x, tc.y));
-    EXPECT_EQ(tc.lcm, MathUtil::LeastCommonMultiple(tc.y, tc.x));
-    EXPECT_EQ(tc.lcm, MathUtil::LeastCommonMultiple64(tc.x, tc.y));
-    EXPECT_EQ(tc.lcm, MathUtil::LeastCommonMultiple64(tc.y, tc.x));
+    EXPECT_EQ(tc.lcm, std::lcm(tc.x, tc.y));
+    EXPECT_EQ(tc.lcm, std::lcm(tc.y, tc.x));
+    EXPECT_EQ(tc.lcm, std::lcm(tc.x, tc.y));
+    EXPECT_EQ(tc.lcm, std::lcm(tc.y, tc.x));
   }
   EXPECT_EQ(std::numeric_limits<uint64_t>::max(),
-            MathUtil::LeastCommonMultiple64(uint64_t{2753074036095}, 6700417));
+            std::lcm(uint64_t{2753074036095}, 6700417));
   EXPECT_EQ(std::numeric_limits<int64_t>::max(),
-            MathUtil::LeastCommonMultiple64(uint64_t{2028184990993}, 31833193));
+            std::lcm(uint64_t{2028184990993}, 31833193));
 }
 
 // compute 2^i for i < 0
@@ -408,10 +407,10 @@ TEST(MathUtil, Round) {
   EXPECT_EQ(MathUtil::RoundOffBits(0.0f, 5), 0.0f);
 
   // test float rounding
-  EXPECT_EQ(MathUtil::FastIntRound(0.7f), 1);
-  EXPECT_EQ(MathUtil::FastIntRound(5.7f), 6);
-  EXPECT_EQ(MathUtil::FastIntRound(6.3f), 6);
-  EXPECT_EQ(MathUtil::FastIntRound(1000000.7f), 1000001);
+  EXPECT_EQ(MathUtil::Round<int32_t>(0.7f), 1);
+  EXPECT_EQ(MathUtil::Round<int32_t>(5.7f), 6);
+  EXPECT_EQ(MathUtil::Round<int32_t>(6.3f), 6);
+  EXPECT_EQ(MathUtil::Round<int32_t>(1000000.7f), 1000001);
 
   // test that largest representable number below 0.5 rounds to zero.
   // this is important because naive implementation of round:
@@ -932,13 +931,13 @@ TEST(MathUtil, RoundToUInt128TooSmall) {
 
 TEST(MathUtil, FastIntRoundDoubleMax) {
   // All `int32_t`s are exactly representable by `double`.
-  EXPECT_EQ(MathUtil::FastIntRound(
+  EXPECT_EQ(MathUtil::Round<int32_t>(
                 static_cast<double>(std::numeric_limits<int32_t>::max())),
             std::numeric_limits<int32_t>::max());
 }
 
 TEST(MathUtil, FastIntRoundDoubleMin) {
-  EXPECT_EQ(MathUtil::FastIntRound(
+  EXPECT_EQ(MathUtil::Round<int32_t>(
                 static_cast<double>(std::numeric_limits<int32_t>::lowest())),
             std::numeric_limits<int32_t>::lowest());
 }
@@ -947,7 +946,7 @@ TEST(MathUtil, FastInt64RoundDoubleMax) {
 #if GTEST_HAS_DEATH_TEST
   // `2^63 - 1` is not exactly representable as a double.  The nearest double
   // is larger, so it is not in-range and we will DCHECK-fail.
-  EXPECT_DEBUG_DEATH(MathUtil::FastInt64Round(static_cast<double>(
+  EXPECT_DEBUG_DEATH(MathUtil::Round<int64_t>(static_cast<double>(
                          std::numeric_limits<int64_t>::max())),
                      R"re(rounded < kExclusiveUpperBound)re");
 #else   // GTEST_HAS_DEATH_TEST
@@ -958,13 +957,13 @@ TEST(MathUtil, FastInt64RoundDoubleMax) {
 TEST(MathUtil, FastInt64RoundDoubleBeforeMax) {
   // Test with the value before the one `2^63 - 1` converts to.  This has 53
   // bits set (so not the low 10 bits).
-  EXPECT_EQ(MathUtil::FastInt64Round(std::nextafter(
+  EXPECT_EQ(MathUtil::Round<int64_t>(std::nextafter(
                 static_cast<double>(std::numeric_limits<int64_t>::max()), 0.0)),
             0x7fff'ffff'ffff'fc00);
 }
 
 TEST(MathUtil, FastInt64RoundDoubleMin) {
-  EXPECT_EQ(MathUtil::FastInt64Round(
+  EXPECT_EQ(MathUtil::Round<int64_t>(
                 static_cast<double>(std::numeric_limits<int64_t>::lowest())),
             std::numeric_limits<int64_t>::lowest());
 }
@@ -973,7 +972,7 @@ TEST(MathUtil, FastIntRoundFloatMax) {
 #if GTEST_HAS_DEATH_TEST
   // `2^32 - 1` is not exactly representable as a float.  As in
   // `FastInt64RoundDoubleMax` above, we will DCHECK-fail.
-  EXPECT_DEBUG_DEATH(MathUtil::FastIntRound(static_cast<float>(
+  EXPECT_DEBUG_DEATH(MathUtil::Round<int32_t>(static_cast<float>(
                          std::numeric_limits<int32_t>::max())),
                      R"re(rounded < kExclusiveUpperBound)re");
 #else   // GTEST_HAS_DEATH_TEST
@@ -982,15 +981,15 @@ TEST(MathUtil, FastIntRoundFloatMax) {
 }
 
 TEST(MathUtil, FastIntRoundFloatMin) {
-  EXPECT_EQ(MathUtil::FastIntRound(
+  EXPECT_EQ(MathUtil::Round<int32_t>(
                 static_cast<float>(std::numeric_limits<int32_t>::lowest())),
             std::numeric_limits<int32_t>::lowest());
 }
 
 TEST(MathUtil, FastInt64RoundFloatMax) {
 #if GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::FastInt64Round(static_cast<float>(
-                         std::numeric_limits<int64_t>::max())),
+  EXPECT_DEBUG_DEATH(MathUtil::Round<int64_t>(double{static_cast<float>(
+                         std::numeric_limits<int64_t>::max())}),
                      R"re(rounded < kExclusiveUpperBound)re");
 #else   // GTEST_HAS_DEATH_TEST
   GTEST_SKIP() << "Skipping death test because it is unsupported by googletest";
@@ -998,24 +997,24 @@ TEST(MathUtil, FastInt64RoundFloatMax) {
 }
 
 TEST(MathUtil, FastInt64RoundFloatBeforeMax) {
-  EXPECT_EQ(MathUtil::FastInt64Round(
-                std::nextafterf(std::numeric_limits<int64_t>::max(), 0.0f)),
+  EXPECT_EQ(MathUtil::Round<int64_t>(double{
+                std::nextafterf(std::numeric_limits<int64_t>::max(), 0.0f)}),
             0x7fff'ff80'0000'0000);
 }
 
 TEST(MathUtil, FastInt64RoundFloatMin) {
-  EXPECT_EQ(MathUtil::FastInt64Round(
-                static_cast<float>(std::numeric_limits<int64_t>::lowest())),
+  EXPECT_EQ(MathUtil::Round<int64_t>(double{
+                static_cast<float>(std::numeric_limits<int64_t>::lowest())}),
             std::numeric_limits<int64_t>::lowest());
 }
 
 TEST(MathUtil, FastIntRoundDoubleOverflow) {
 #if GTEST_HAS_DEATH_TEST
-  EXPECT_DEBUG_DEATH(MathUtil::FastIntRound(static_cast<double>(
+  EXPECT_DEBUG_DEATH(MathUtil::Round<int32_t>(static_cast<double>(
                          int64_t{std::numeric_limits<int32_t>::max()} + 99999)),
                      R"re(rounded < kExclusiveUpperBound)re");
   EXPECT_DEBUG_DEATH(
-      MathUtil::FastIntRound(static_cast<double>(
+      MathUtil::Round<int32_t>(static_cast<double>(
           int64_t{std::numeric_limits<int32_t>::lowest()} - 99999)),
       R"re(kInclusiveLowerBound <= rounded)re");
 #else   // GTEST_HAS_DEATH_TEST
@@ -1226,15 +1225,15 @@ BENCHMARK(BM_IntRoundLatency);
 void BM_FastIntRound(benchmark::State& state) {
   double x = 0.1;
   while (state.KeepRunningBatch(5)) {
-    benchmark::DoNotOptimize(MathUtil::FastIntRound(x));
+    benchmark::DoNotOptimize(MathUtil::Round<int32_t>(x));
     x += 0.1;
-    benchmark::DoNotOptimize(MathUtil::FastIntRound(x));
+    benchmark::DoNotOptimize(MathUtil::Round<int32_t>(x));
     x += 0.1;
-    benchmark::DoNotOptimize(MathUtil::FastIntRound(x));
+    benchmark::DoNotOptimize(MathUtil::Round<int32_t>(x));
     x += 0.1;
-    benchmark::DoNotOptimize(MathUtil::FastIntRound(x));
+    benchmark::DoNotOptimize(MathUtil::Round<int32_t>(x));
     x += 0.1;
-    benchmark::DoNotOptimize(MathUtil::FastIntRound(x));
+    benchmark::DoNotOptimize(MathUtil::Round<int32_t>(x));
     x += 0.1;
   }
 }
@@ -1243,11 +1242,16 @@ BENCHMARK(BM_FastIntRound);
 void BM_FastIntRoundLatency(benchmark::State& state) {
   double x = 10.1;
   while (state.KeepRunningBatch(5)) {
-    x = std::bit_cast<double>(static_cast<int64_t>(MathUtil::FastIntRound(x)));
-    x = std::bit_cast<double>(static_cast<int64_t>(MathUtil::FastIntRound(x)));
-    x = std::bit_cast<double>(static_cast<int64_t>(MathUtil::FastIntRound(x)));
-    x = std::bit_cast<double>(static_cast<int64_t>(MathUtil::FastIntRound(x)));
-    x = std::bit_cast<double>(static_cast<int64_t>(MathUtil::FastIntRound(x)));
+    x = std::bit_cast<double>(
+        static_cast<int64_t>(MathUtil::Round<int32_t>(x)));
+    x = std::bit_cast<double>(
+        static_cast<int64_t>(MathUtil::Round<int32_t>(x)));
+    x = std::bit_cast<double>(
+        static_cast<int64_t>(MathUtil::Round<int32_t>(x)));
+    x = std::bit_cast<double>(
+        static_cast<int64_t>(MathUtil::Round<int32_t>(x)));
+    x = std::bit_cast<double>(
+        static_cast<int64_t>(MathUtil::Round<int32_t>(x)));
   }
   benchmark::DoNotOptimize(x);
 }
@@ -3144,7 +3148,9 @@ TEST(MathUtil, CeilOfRatio) {
   TestThatCeilOfRatioDenomMinusOneIsIncorrect();
 }
 
-TEST(MathUtil, NaN) { EXPECT_TRUE(std::isnan(MathUtil::NaN())); }
+TEST(MathUtil, NaN) {
+  EXPECT_TRUE(std::isnan(std::numeric_limits<double>::quiet_NaN()));
+}
 
 struct NormalizeRangeParams {
   double input_value;
