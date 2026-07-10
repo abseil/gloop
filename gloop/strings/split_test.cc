@@ -1761,7 +1761,7 @@ namespace {
 // differently based on type so that it is easy to test that correct
 // one is selected for SplitStringAndParseToContainer.
 bool OverloadedParse(const std::string& str, int32_t* value) {
-  if (safe_strto32(str, value)) {
+  if (absl::SimpleAtoi(str, value)) {
     *value *= 10;
     return true;
   }
@@ -1769,7 +1769,7 @@ bool OverloadedParse(const std::string& str, int32_t* value) {
 }
 
 bool OverloadedParse(const std::string& str, int64_t* value) {
-  if (safe_strto64(str, value)) {
+  if (absl::SimpleAtoi(str, value)) {
     *value *= 100;
     return true;
   }

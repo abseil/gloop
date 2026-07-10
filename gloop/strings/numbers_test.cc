@@ -1678,35 +1678,35 @@ TEST(stringtest, safe_strto32_base) {
   EXPECT_FALSE(safe_strto32_base("0xG", &value, 0));
 
   // Base-10 version.
-  EXPECT_TRUE(safe_strto32("34234324", &value));
+  EXPECT_TRUE(absl::SimpleAtoi("34234324", &value));
   EXPECT_EQ(34234324, value);
 
-  EXPECT_TRUE(safe_strto32("0", &value));
+  EXPECT_TRUE(absl::SimpleAtoi("0", &value));
   EXPECT_EQ(0, value);
 
-  EXPECT_TRUE(safe_strto32(" \t\n -34234324", &value));
+  EXPECT_TRUE(absl::SimpleAtoi(" \t\n -34234324", &value));
   EXPECT_EQ(-34234324, value);
 
-  EXPECT_TRUE(safe_strto32("34234324 \n\t ", &value));
+  EXPECT_TRUE(absl::SimpleAtoi("34234324 \n\t ", &value));
   EXPECT_EQ(34234324, value);
 
   // Invalid ints.
-  EXPECT_FALSE(safe_strto32("", &value));
-  EXPECT_FALSE(safe_strto32("  ", &value));
-  EXPECT_FALSE(safe_strto32("abc", &value));
-  EXPECT_FALSE(safe_strto32("34234324a", &value));
-  EXPECT_FALSE(safe_strto32("34234.3", &value));
+  EXPECT_FALSE(absl::SimpleAtoi("", &value));
+  EXPECT_FALSE(absl::SimpleAtoi("  ", &value));
+  EXPECT_FALSE(absl::SimpleAtoi("abc", &value));
+  EXPECT_FALSE(absl::SimpleAtoi("34234324a", &value));
+  EXPECT_FALSE(absl::SimpleAtoi("34234.3", &value));
 
   // Out of bounds.
-  EXPECT_FALSE(safe_strto32("2147483648", &value));
-  EXPECT_FALSE(safe_strto32("-2147483649", &value));
+  EXPECT_FALSE(absl::SimpleAtoi("2147483648", &value));
+  EXPECT_FALSE(absl::SimpleAtoi("-2147483649", &value));
 
   // String version.
   EXPECT_TRUE(absl::SimpleHexAtoi(std::string("0x1234"), &value));
   EXPECT_EQ(0x1234, value);
 
   // Base-10 string version.
-  EXPECT_TRUE(safe_strto32(std::string("1234"), &value));
+  EXPECT_TRUE(absl::SimpleAtoi("1234", &value));
   EXPECT_EQ(1234, value);
 }
 
@@ -1833,35 +1833,35 @@ TEST(stringtest, safe_strto64_base) {
   EXPECT_FALSE(safe_strto64_base("0xG", &value, 0));
 
   // Base-10 version.
-  EXPECT_TRUE(safe_strto64("34234324487834466", &value));
+  EXPECT_TRUE(absl::SimpleAtoi("34234324487834466", &value));
   EXPECT_EQ(int64_t{34234324487834466}, value);
 
-  EXPECT_TRUE(safe_strto64("0", &value));
+  EXPECT_TRUE(absl::SimpleAtoi("0", &value));
   EXPECT_EQ(0, value);
 
-  EXPECT_TRUE(safe_strto64(" \t\n -34234324487834466", &value));
+  EXPECT_TRUE(absl::SimpleAtoi(" \t\n -34234324487834466", &value));
   EXPECT_EQ(int64_t{-34234324487834466}, value);
 
-  EXPECT_TRUE(safe_strto64("34234324487834466 \n\t ", &value));
+  EXPECT_TRUE(absl::SimpleAtoi("34234324487834466 \n\t ", &value));
   EXPECT_EQ(int64_t{34234324487834466}, value);
 
   // Invalid ints.
-  EXPECT_FALSE(safe_strto64("", &value));
-  EXPECT_FALSE(safe_strto64("  ", &value));
-  EXPECT_FALSE(safe_strto64("abc", &value));
-  EXPECT_FALSE(safe_strto64("34234324487834466a", &value));
-  EXPECT_FALSE(safe_strto64("34234487834466.3", &value));
+  EXPECT_FALSE(absl::SimpleAtoi("", &value));
+  EXPECT_FALSE(absl::SimpleAtoi("  ", &value));
+  EXPECT_FALSE(absl::SimpleAtoi("abc", &value));
+  EXPECT_FALSE(absl::SimpleAtoi("34234324487834466a", &value));
+  EXPECT_FALSE(absl::SimpleAtoi("34234487834466.3", &value));
 
   // Out of bounds.
-  EXPECT_FALSE(safe_strto64("9223372036854775808", &value));
-  EXPECT_FALSE(safe_strto64("-9223372036854775809", &value));
+  EXPECT_FALSE(absl::SimpleAtoi("9223372036854775808", &value));
+  EXPECT_FALSE(absl::SimpleAtoi("-9223372036854775809", &value));
 
   // String version.
   EXPECT_TRUE(absl::SimpleHexAtoi(std::string("0x1234"), &value));
   EXPECT_EQ(0x1234, value);
 
   // Base-10 string version.
-  EXPECT_TRUE(safe_strto64(std::string("1234"), &value));
+  EXPECT_TRUE(absl::SimpleAtoi("1234", &value));
   EXPECT_EQ(1234, value);
 }
 
@@ -2011,7 +2011,7 @@ TEST(stringtest, safe_strtou32_stringpiece) {
       continue;
     }
     uint32_t value;
-    EXPECT_EQ(e.expect_ok, safe_strtou32(absl::string_view(e.str), &value))
+    EXPECT_EQ(e.expect_ok, absl::SimpleAtoi(absl::string_view(e.str), &value))
         << "str=\"" << e.str;
     if (e.expect_ok) {
       EXPECT_EQ(e.expected, value) << "str=\"" << e.str << "\"";
@@ -2117,7 +2117,7 @@ TEST(stringtest, safe_strtou64_stringpiece) {
       continue;
     }
     uint64_t value;
-    EXPECT_EQ(e.expect_ok, safe_strtou64(absl::string_view(e.str), &value))
+    EXPECT_EQ(e.expect_ok, absl::SimpleAtoi(absl::string_view(e.str), &value))
         << "str=\"" << e.str;
     if (e.expect_ok) {
       EXPECT_EQ(e.expected, value) << "str=\"" << e.str << "\"";
@@ -2143,97 +2143,97 @@ TEST(stringtest, safe_strtou64_base_length_delimited) {
 
 TEST(stringtest, safe_strtof) {
   float value;
-  EXPECT_TRUE(safe_strtof("342.5", &value));
+  EXPECT_TRUE(absl::SimpleAtof("342.5", &value));
   EXPECT_FLOAT_EQ(342.5, value);
 
-  EXPECT_TRUE(safe_strtof("0", &value));
+  EXPECT_TRUE(absl::SimpleAtof("0", &value));
   EXPECT_FLOAT_EQ(0.0, value);
 
-  EXPECT_TRUE(safe_strtof(" \t\n -342.5", &value));
+  EXPECT_TRUE(absl::SimpleAtof(" \t\n -342.5", &value));
   EXPECT_FLOAT_EQ(-342.5, value);
 
-  EXPECT_TRUE(safe_strtof("2.1e2", &value));
+  EXPECT_TRUE(absl::SimpleAtof("2.1e2", &value));
   EXPECT_FLOAT_EQ(210.0, value);
 
-  EXPECT_TRUE(safe_strtof("34234324 \n\t ", &value));
+  EXPECT_TRUE(absl::SimpleAtof("34234324 \n\t ", &value));
   EXPECT_FLOAT_EQ(34234324.0, value);
 
   // Invalid floats.
-  EXPECT_FALSE(safe_strtof("", &value));
-  EXPECT_FALSE(safe_strtof("  ", &value));
-  EXPECT_FALSE(safe_strtof("abc", &value));
-  EXPECT_FALSE(safe_strtof("34234324a", &value));
+  EXPECT_FALSE(absl::SimpleAtof("", &value));
+  EXPECT_FALSE(absl::SimpleAtof("  ", &value));
+  EXPECT_FALSE(absl::SimpleAtof("abc", &value));
+  EXPECT_FALSE(absl::SimpleAtof("34234324a", &value));
 
   // Out of bounds - but not an error.
-  EXPECT_TRUE(safe_strtof("1e100", &value));
+  EXPECT_TRUE(absl::SimpleAtof("1e100", &value));
   EXPECT_FLOAT_EQ(HUGE_VALF, value);
-  EXPECT_TRUE(safe_strtof("-1e100", &value));
+  EXPECT_TRUE(absl::SimpleAtof("-1e100", &value));
   EXPECT_FLOAT_EQ(-HUGE_VALF, value);
-  EXPECT_TRUE(safe_strtof("1e-500", &value));
+  EXPECT_TRUE(absl::SimpleAtof("1e-500", &value));
   EXPECT_GE(FLT_MIN, value);
   EXPECT_LE(0, value);
-  EXPECT_TRUE(safe_strtof("-1e-500", &value));
+  EXPECT_TRUE(absl::SimpleAtof("-1e-500", &value));
   EXPECT_LE(-FLT_MIN, value);
   EXPECT_GE(0, value);
 
   // String version.
-  EXPECT_TRUE(safe_strtof(std::string("1234.5"), &value));
+  EXPECT_TRUE(absl::SimpleAtof("1234.5", &value));
   EXPECT_FLOAT_EQ(1234.5, value);
 
   // absl::string_view version. Make sure trailing characters are ignored.
-  EXPECT_TRUE(safe_strtof(absl::string_view("12.345x", 6), &value));
+  EXPECT_TRUE(absl::SimpleAtof(absl::string_view("12.345x", 6), &value));
   EXPECT_FLOAT_EQ(12.345, value);
 
   // std::string version.
-  EXPECT_TRUE(safe_strtof(std::string("1234.5"), &value));
+  EXPECT_TRUE(absl::SimpleAtof("1234.5", &value));
   EXPECT_FLOAT_EQ(1234.5, value);
 }
 
 TEST(stringtest, safe_strtod) {
   double value;
-  EXPECT_TRUE(safe_strtod("34253465.5", &value));
+  EXPECT_TRUE(absl::SimpleAtod("34253465.5", &value));
   EXPECT_DOUBLE_EQ(34253465.5, value);
 
-  EXPECT_TRUE(safe_strtod("0", &value));
+  EXPECT_TRUE(absl::SimpleAtod("0", &value));
   EXPECT_DOUBLE_EQ(0.0, value);
 
-  EXPECT_TRUE(safe_strtod(" \t\n -34253465.5", &value));
+  EXPECT_TRUE(absl::SimpleAtod(" \t\n -34253465.5", &value));
   EXPECT_DOUBLE_EQ(-34253465.5, value);
 
-  EXPECT_TRUE(safe_strtod("2.1e2", &value));
+  EXPECT_TRUE(absl::SimpleAtod("2.1e2", &value));
   EXPECT_DOUBLE_EQ(210.0, value);
 
-  EXPECT_TRUE(safe_strtod("34234324 \n\t ", &value));
+  EXPECT_TRUE(absl::SimpleAtod("34234324 \n\t ", &value));
   EXPECT_DOUBLE_EQ(34234324, value);
 
   // Invalid doubles.
-  EXPECT_FALSE(safe_strtod("", &value));
-  EXPECT_FALSE(safe_strtod("  ", &value));
-  EXPECT_FALSE(safe_strtod("abc", &value));
-  EXPECT_FALSE(safe_strtod("34234324a", &value));
+  EXPECT_FALSE(absl::SimpleAtod("", &value));
+  EXPECT_FALSE(absl::SimpleAtod("  ", &value));
+  EXPECT_FALSE(absl::SimpleAtod("abc", &value));
+  EXPECT_FALSE(absl::SimpleAtod("34234324a", &value));
 
   // Out of bounds - rounds up/down.
-  EXPECT_TRUE(safe_strtod("1e1000", &value));
+  EXPECT_TRUE(absl::SimpleAtod("1e1000", &value));
   EXPECT_DOUBLE_EQ(HUGE_VAL, value);
-  EXPECT_TRUE(safe_strtod("-1e1000", &value));
+  EXPECT_TRUE(absl::SimpleAtod("-1e1000", &value));
   EXPECT_DOUBLE_EQ(-HUGE_VAL, value);
-  EXPECT_TRUE(safe_strtod("1e-1000", &value));
+  EXPECT_TRUE(absl::SimpleAtod("1e-1000", &value));
   EXPECT_GE(DBL_MIN, value);
   EXPECT_LE(0, value);
-  EXPECT_TRUE(safe_strtod("-1e-1000", &value));
+  EXPECT_TRUE(absl::SimpleAtod("-1e-1000", &value));
   EXPECT_LE(-DBL_MIN, value);
   EXPECT_GE(0, value);
 
   // String version.
-  EXPECT_TRUE(safe_strtod(std::string("1234.5"), &value));
+  EXPECT_TRUE(absl::SimpleAtod("1234.5", &value));
   EXPECT_DOUBLE_EQ(1234.5, value);
 
   // absl::string_view version. Make sure trailing characters are ignored.
-  EXPECT_TRUE(safe_strtod(absl::string_view("12.345x", 6), &value));
+  EXPECT_TRUE(absl::SimpleAtod(absl::string_view("12.345x", 6), &value));
   EXPECT_DOUBLE_EQ(12.345, value);
 
   // std::string version.
-  EXPECT_TRUE(safe_strtod(std::string("1234.5"), &value));
+  EXPECT_TRUE(absl::SimpleAtod("1234.5", &value));
   EXPECT_DOUBLE_EQ(1234.5, value);
 }
 
@@ -2316,7 +2316,7 @@ class SimpleDtoaTest : public testing::Test {
   }
 
   void TestDtoaRoundTrip(double value, int min_length) {
-    std::string str = SimpleDtoa(value);
+    std::string str = absl::StrCat(absl::HighPrecision(value));
     SCOPED_TRACE("SimpleDtoa() returned: " + str);
     if (std::isnan(value)) {
       EXPECT_TRUE(std::isnan(strtod(str.c_str(), nullptr)));
@@ -2328,7 +2328,7 @@ class SimpleDtoaTest : public testing::Test {
   }
 
   void TestFtoaRoundTrip(float value, int min_length) {
-    std::string str = SimpleFtoa(value);
+    std::string str = absl::StrCat(absl::HighPrecision(value));
     SCOPED_TRACE("SimpleFtoa() returned: " + str);
     float rt = strtof(str.c_str(), nullptr);
     if (std::isnan(value)) {
@@ -2347,14 +2347,14 @@ class SimpleDtoaTest : public testing::Test {
 TEST_F(SimpleDtoaTest, SimpleDtoa) {
   // Make sure that nice, round decimal numbers are printed using few digits,
   // even if they can't be represented exactly in binary.
-  EXPECT_EQ("0", SimpleDtoa(0.0));
-  EXPECT_EQ("1", SimpleDtoa(1.0));
-  EXPECT_EQ("-1", SimpleDtoa(-1.0));
-  EXPECT_EQ("0.2", SimpleDtoa(0.2));
-  EXPECT_EQ("1.1", SimpleDtoa(1.1));
-  EXPECT_EQ("1e+23", SimpleDtoa(1e23));
-  EXPECT_EQ("47.8", SimpleDtoa(47.8));
-  EXPECT_EQ("1000.2", SimpleDtoa(1000.2));
+  EXPECT_EQ("0", absl::StrCat(absl::HighPrecision(0.0)));
+  EXPECT_EQ("1", absl::StrCat(absl::HighPrecision(1.0)));
+  EXPECT_EQ("-1", absl::StrCat(absl::HighPrecision(-1.0)));
+  EXPECT_EQ("0.2", absl::StrCat(absl::HighPrecision(0.2)));
+  EXPECT_EQ("1.1", absl::StrCat(absl::HighPrecision(1.1)));
+  EXPECT_EQ("1e+23", absl::StrCat(absl::HighPrecision(1e23)));
+  EXPECT_EQ("47.8", absl::StrCat(absl::HighPrecision(47.8)));
+  EXPECT_EQ("1000.2", absl::StrCat(absl::HighPrecision(1000.2)));
 
   // Make sure round-trips with strtod() work.  Note that even though we're
   // dealing with floating points, we expect the results to be *exactly*
@@ -2397,16 +2397,17 @@ TEST_F(SimpleDtoaTest, SimpleDtoa) {
 TEST_F(SimpleDtoaTest, SimpleFtoa) {
   // Make sure that nice, round decimal numbers are printed using few digits,
   // even if they can't be represented exactly in binary.
-  EXPECT_EQ("0", SimpleFtoa(0.0f));
-  EXPECT_EQ("-0", SimpleFtoa(-0.0f));
-  EXPECT_EQ("1", SimpleFtoa(1.0f));
-  EXPECT_EQ("-1", SimpleFtoa(-1.0f));
-  EXPECT_EQ("0.2", SimpleFtoa(0.2f));
-  EXPECT_EQ("1.1", SimpleFtoa(1.1f));
-  EXPECT_EQ("1e+23", SimpleFtoa(1e23f));
-  EXPECT_EQ("47.8", SimpleFtoa(47.8f));
-  EXPECT_EQ("1000.2", SimpleFtoa(1000.2f));
-  EXPECT_EQ("1.1754944e-38", SimpleFtoa(1.17549435e-38f));
+  EXPECT_EQ("0", absl::StrCat(absl::HighPrecision(0.0f)));
+  EXPECT_EQ("-0", absl::StrCat(absl::HighPrecision(-0.0f)));
+  EXPECT_EQ("1", absl::StrCat(absl::HighPrecision(1.0f)));
+  EXPECT_EQ("-1", absl::StrCat(absl::HighPrecision(-1.0f)));
+  EXPECT_EQ("0.2", absl::StrCat(absl::HighPrecision(0.2f)));
+  EXPECT_EQ("1.1", absl::StrCat(absl::HighPrecision(1.1f)));
+  EXPECT_EQ("1e+23", absl::StrCat(absl::HighPrecision(1e23f)));
+  EXPECT_EQ("47.8", absl::StrCat(absl::HighPrecision(47.8f)));
+  EXPECT_EQ("1000.2", absl::StrCat(absl::HighPrecision(1000.2f)));
+  EXPECT_EQ("1.1754944e-38",
+            absl::StrCat(absl::HighPrecision(1.17549435e-38f)));
 
   // Make sure round-trips with strtod() work.  Note that even though we're
   // dealing with floating points, we expect the results to be *exactly*
@@ -2510,7 +2511,7 @@ TEST(BooleanConversion, StringToBool) {
   for (const std::string& str : kFailureStrings) {
     SCOPED_TRACE(absl::StrCat(
         "Testing string that shouldn't be convertible to a boolean: ", str));
-    EXPECT_FALSE(safe_strtob(str, &val));
+    EXPECT_FALSE(absl::SimpleAtob(str, &val));
     // Note that the value of "val" should be unchanged after a failure.
     EXPECT_FALSE(val);
   }
@@ -2523,7 +2524,7 @@ TEST(BooleanConversion, StringToBool) {
     SCOPED_TRACE(
         absl::StrCat("Testing string that should evaluate to true: ", str));
     val = false;  // Make sure the value is actually changed
-    EXPECT_TRUE(safe_strtob(str, &val));
+    EXPECT_TRUE(absl::SimpleAtob(str, &val));
     EXPECT_TRUE(val);
   }
 
@@ -2537,30 +2538,30 @@ TEST(BooleanConversion, StringToBool) {
     SCOPED_TRACE(
         absl::StrCat("Testing string that should evaluate to false: ", str));
     val = true;  // Make sure the value is actually changed
-    EXPECT_TRUE(safe_strtob(str, &val));
+    EXPECT_TRUE(absl::SimpleAtob(str, &val));
     EXPECT_FALSE(val);
   }
 
   // The only process failure should be if a nullptr is provided for the
   // output boolean.
-  EXPECT_DEATH_IF_SUPPORTED(safe_strtob("true", nullptr), "");
+  EXPECT_DEATH_IF_SUPPORTED(absl::SimpleAtob("true", nullptr), "");
 }
 
 TEST(BooleanConversion, StringToBoolAndBack) {
   bool val = false;
 
   // Ensure we can convert from bool->string->bool accurately.
-  ASSERT_TRUE(safe_strtob(SimpleBtoa(true), &val));
+  ASSERT_TRUE(absl::SimpleAtob(SimpleBtoa(true), &val));
   EXPECT_EQ(true, val);
-  ASSERT_TRUE(safe_strtob(SimpleBtoa(false), &val));
+  ASSERT_TRUE(absl::SimpleAtob(SimpleBtoa(false), &val));
   EXPECT_EQ(false, val);
 
   // Ensure we can convert from string->bool->string accurately.
   std::string string_val = "true";
-  ASSERT_TRUE(safe_strtob(string_val, &val));
+  ASSERT_TRUE(absl::SimpleAtob(string_val, &val));
   EXPECT_STREQ(string_val.c_str(), SimpleBtoa(val).c_str());
   string_val = "false";
-  ASSERT_TRUE(safe_strtob(string_val, &val));
+  ASSERT_TRUE(absl::SimpleAtob(string_val, &val));
   EXPECT_STREQ(string_val.c_str(), SimpleBtoa(val).c_str());
 }
 
@@ -2585,15 +2586,15 @@ TEST(StrToInt32, Partial) {
 
   for (const Int32TestLine& test_line : int32_test_line) {
     int32_t value = -2;
-    bool status = safe_strto32(test_line.input, &value);
+    bool status = absl::SimpleAtoi(test_line.input, &value);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
     value = -2;
-    status = safe_strto32(test_line.input, &value);
+    status = absl::SimpleAtoi(test_line.input, &value);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
     value = -2;
-    status = safe_strto32(absl::string_view(test_line.input), &value);
+    status = absl::SimpleAtoi(absl::string_view(test_line.input), &value);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
   }
@@ -2618,15 +2619,15 @@ TEST(StrToUint32, Partial) {
 
   for (const Uint32TestLine& test_line : uint32_test_line) {
     uint32_t value = 2;
-    bool status = safe_strtou32(test_line.input, &value);
+    bool status = absl::SimpleAtoi(test_line.input, &value);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
     value = 2;
-    status = safe_strtou32(test_line.input, &value);
+    status = absl::SimpleAtoi(test_line.input, &value);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
     value = 2;
-    status = safe_strtou32(absl::string_view(test_line.input), &value);
+    status = absl::SimpleAtoi(absl::string_view(test_line.input), &value);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
   }
@@ -2653,15 +2654,15 @@ TEST(StrToInt64, Partial) {
 
   for (const Int64TestLine& test_line : int64_test_line) {
     int64_t value = -2;
-    bool status = safe_strto64(test_line.input, &value);
+    bool status = absl::SimpleAtoi(test_line.input, &value);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
     value = -2;
-    status = safe_strto64(test_line.input, &value);
+    status = absl::SimpleAtoi(test_line.input, &value);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
     value = -2;
-    status = safe_strto64(absl::string_view(test_line.input), &value);
+    status = absl::SimpleAtoi(absl::string_view(test_line.input), &value);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
   }
@@ -2686,15 +2687,15 @@ TEST(StrToUint64, Partial) {
 
   for (const Uint64TestLine& test_line : uint64_test_line) {
     uint64_t value = 2;
-    bool status = safe_strtou64(test_line.input, &value);
+    bool status = absl::SimpleAtoi(test_line.input, &value);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
     value = 2;
-    status = safe_strtou64(test_line.input, &value);
+    status = absl::SimpleAtoi(test_line.input, &value);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
     value = 2;
-    status = safe_strtou64(absl::string_view(test_line.input), &value);
+    status = absl::SimpleAtoi(absl::string_view(test_line.input), &value);
     EXPECT_EQ(test_line.status, status) << test_line.input;
     EXPECT_EQ(test_line.value, value) << test_line.input;
   }
