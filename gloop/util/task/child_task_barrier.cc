@@ -45,8 +45,20 @@ class CustomChildTaskBarrier::State {
   void OneChildDoneWithCallback(
       absl::AnyInvocable<void(util::Task*) &&> child_done,
       Closure* barrier_done, util::Task* child) {
+    bool return_early = false;
+    absl::Status return_early_status;
+    {
+      absl::MutexLock lock(accumulated_status_lock_);
+      if (accumulator_function_(&accumulated_status_, child)) {
+        return_early = true;
+        return_early_status = accumulated_status_;
+      }
+    }
+
     std::move(child_done)(child);
-    OneChildDone(barrier_done, child);
+
+    if (return_early) parent_task_->Return(return_early_status);
+    barrier_done->Run();  // This must be last. The last child deletes 'this'.
   }
 
   void OneChildDone(Closure* barrier_done, util::Task* child) {
