@@ -177,7 +177,7 @@ static void CheckMultiplicationTable(const Parser& parser) {
     for (const std::string& field : fields) {
       int32_t val;
 
-      strings::safe_strto32(field, &val);
+      absl::SimpleAtoi(field, &val);
       EXPECT_EQ(num * j, val);
       ++j;
     }
@@ -248,7 +248,7 @@ TEST(Parser, VectorIterator) {
     for (const std::string& field : fields) {
       int32_t val;
 
-      strings::safe_strto32(field, &val);
+      absl::SimpleAtoi(field, &val);
       EXPECT_EQ(num * j, val);
       ++j;
     }
@@ -417,7 +417,7 @@ TEST(Parser, CompleteParsing) {
     for (const std::string& field : fields) {
       int32_t val;
 
-      strings::safe_strto32(field, &val);
+      absl::SimpleAtoi(field, &val);
       EXPECT_EQ(num * j, val);
       ++j;
     }
