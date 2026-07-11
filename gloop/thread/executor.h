@@ -375,7 +375,7 @@ inline CancelResult Cancel(ExecutorHandle handle, absl::Duration timeout)
 }
 
 ABSL_DEPRECATE_AND_INLINE()
-inline bool Cancel(ExecutorHandle handle, absl::Duration timeout)
+inline CancelResult Cancel(ExecutorHandle handle, absl::Duration timeout)
     __attribute__((enable_if(timeout == absl::InfiniteDuration(),
                              "Use the one argument overload instead."))) {
   return Cancel(handle);
