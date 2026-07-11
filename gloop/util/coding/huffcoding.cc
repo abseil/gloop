@@ -185,7 +185,7 @@ void HuffmanCode::Save(std::vector<char>* buffer) const {
   for (int i = 0; i < num_; i++) {
     e.put8(length_[i]);
   }
-  uint32_t checksum = HashTo32(buf.data(), e.length());
+  uint32_t checksum = HashTo32(absl::string_view(buf.data(), e.length()));
   e.put32(checksum);
   CHECK(e.length() == max_bytes);
   buffer->insert(buffer->end(), buf.begin(), buf.end());
@@ -231,7 +231,7 @@ HuffmanCode* HuffmanCode::SafeRestore(const char* buffer, int size,
     }
   }
   uint32_t checksum = d.get32();
-  if (HashTo32(buffer, 8 + num) != checksum) {
+  if (HashTo32(absl::string_view(buffer, 8 + num)) != checksum) {
     delete[] len;
     return nullptr;
   }

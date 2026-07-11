@@ -218,7 +218,7 @@ TEST(HuffCoding, RestoreErrorsNumZero) {
   std::vector<char> invalid_code(12);
   LittleEndian::Store32(&invalid_code[0], 0x7af663fbu);  // kMagicNumber
   LittleEndian::Store32(&invalid_code[4], 0);            // num = 0
-  uint32_t checksum = HashTo32(invalid_code.data(), 8);
+  uint32_t checksum = HashTo32(absl::string_view(invalid_code.data(), 8));
   LittleEndian::Store32(&invalid_code[8], checksum);
   int len;
   EXPECT_EQ(
@@ -231,7 +231,7 @@ TEST(HuffCoding, RestoreErrorsNumOne) {
   LittleEndian::Store32(&invalid_code[0], 0x7af663fbu);  // kMagicNumber
   LittleEndian::Store32(&invalid_code[4], 1);            // num = 1
   invalid_code[8] = 1;                                   // length = 1
-  uint32_t checksum = HashTo32(invalid_code.data(), 9);
+  uint32_t checksum = HashTo32(absl::string_view(invalid_code.data(), 9));
   LittleEndian::Store32(&invalid_code[9], checksum);
   int len;
   EXPECT_EQ(
@@ -243,7 +243,7 @@ TEST(HuffCoding, RestoreErrorsZeroLengthSymbol) {
   std::vector<char> code = MakeSampleCode();
   std::vector<char> mutated_zero = code;
   mutated_zero[8] = 0;
-  uint32_t checksum = HashTo32(mutated_zero.data(), 14);
+  uint32_t checksum = HashTo32(absl::string_view(mutated_zero.data(), 14));
   LittleEndian::Store32(&mutated_zero[14], checksum);
   int len;
   EXPECT_EQ(
