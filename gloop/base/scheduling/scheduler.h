@@ -613,6 +613,7 @@ ABSL_NAMESPACE_BEGIN
 namespace base_internal {
 using Schedulable = ::base::scheduling::Schedulable;
 }  // namespace base_internal
+ABSL_NAMESPACE_END
 }  // namespace absl
 
 #endif  // THIRD_PARTY_GLOOP_BASE_SCHEDULING_SCHEDULER_H_
