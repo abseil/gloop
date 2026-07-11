@@ -1411,11 +1411,12 @@ IPAddress GetCoercedIPv4Address(const IPAddress& ip6) {
     // Hash the 32 bit embedded IPv4 address.  Other parts of the IPv6
     // address can be arbitrarily varied by the client.
     struct in_addr address = ip4.ipv4_address();
-    ip_hash = HashTo32(reinterpret_cast<const char*>(&address.s_addr), 4);
+    ip_hash = HashTo32(
+        absl::string_view(reinterpret_cast<const char*>(&address.s_addr), 4));
   } else {
     // Hash the top 64 bits.  Assumption: most leaf networks will be /64s.
-    ip_hash =
-        HashTo32(reinterpret_cast<const char*>(ip6.ipv6_address().s6_addr), 8);
+    ip_hash = HashTo32(absl::string_view(
+        reinterpret_cast<const char*>(ip6.ipv6_address().s6_addr), 8));
   }
 
   // s_addr is always taken to be big endian; however, for a random string
