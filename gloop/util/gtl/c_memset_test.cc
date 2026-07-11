@@ -70,7 +70,7 @@ TEST(CMemsetTest, WorksForCustomTrivialType) {
 
 TEST(CMemsetTest, WorksForContainersOfSingleByteType) {
   std::array<char, 4> a = {'1', '2', '3', '4'};
-  gtl::c_memset(a, '9');
+  absl::c_fill(a, '9');
   EXPECT_THAT(a, ElementsAre('9', '9', '9', '9'));
 }
 
