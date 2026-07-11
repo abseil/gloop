@@ -523,7 +523,7 @@ class Task {
   template <class Cbf,
             typename = std::enable_if_t<
                 ::util::functional::internal::IsResultCallbackFunctor<Cbf>>>
-  ABSL_DEPRECATE_AND_INLINE()
+  ABSL_DEPRECATED("DeleteWhenDone is not meant to be used with callbacks")
   Cbf DeleteWhenDone(Cbf x) {
     return x;
   }
