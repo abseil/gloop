@@ -520,12 +520,12 @@ class Task {
   template <class T>
   T* DeleteWhenDone(T* x);
 #ifndef SWIG
-  template <class Cbf,
-            typename = std::enable_if_t<
-                ::util::functional::internal::IsResultCallbackFunctor<Cbf>>>
+  template <class Cbf, typename = std::enable_if_t<
+                           ::util::functional::internal::
+                               IsResultCallbackFunctor<std::decay_t<Cbf>>>>
   ABSL_DEPRECATE_AND_INLINE()
-  Cbf DeleteWhenDone(Cbf x) {
-    return x;
+  auto&& DeleteWhenDone(Cbf&& x) {
+    return std::forward<Cbf>(x);
   }
 #endif  // SWIG
 
