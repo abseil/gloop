@@ -243,67 +243,71 @@ absl::Status JoinMessageToStatus(absl::Status s, absl::string_view msg,
   return result;
 }
 
-StatusBuilder AbortedErrorBuilder(absl::SourceLocation location) {
+absl::StatusBuilder AbortedErrorBuilder(absl::SourceLocation location) {
   return util::MakeStatusBuilder(error::ABORTED, location);
 }
 
-StatusBuilder AlreadyExistsErrorBuilder(absl::SourceLocation location) {
+absl::StatusBuilder AlreadyExistsErrorBuilder(absl::SourceLocation location) {
   return util::MakeStatusBuilder(error::ALREADY_EXISTS, location);
 }
 
-StatusBuilder CancelledErrorBuilder(absl::SourceLocation location) {
+absl::StatusBuilder CancelledErrorBuilder(absl::SourceLocation location) {
   return util::MakeStatusBuilder(error::CANCELLED, location);
 }
 
-StatusBuilder DataLossErrorBuilder(absl::SourceLocation location) {
+absl::StatusBuilder DataLossErrorBuilder(absl::SourceLocation location) {
   return util::MakeStatusBuilder(error::DATA_LOSS, location);
 }
 
-StatusBuilder DeadlineExceededErrorBuilder(absl::SourceLocation location) {
+absl::StatusBuilder DeadlineExceededErrorBuilder(
+    absl::SourceLocation location) {
   return util::MakeStatusBuilder(error::DEADLINE_EXCEEDED, location);
 }
 
-StatusBuilder FailedPreconditionErrorBuilder(absl::SourceLocation location) {
+absl::StatusBuilder FailedPreconditionErrorBuilder(
+    absl::SourceLocation location) {
   return util::MakeStatusBuilder(error::FAILED_PRECONDITION, location);
 }
 
-StatusBuilder InternalErrorBuilder(absl::SourceLocation location) {
+absl::StatusBuilder InternalErrorBuilder(absl::SourceLocation location) {
   return util::MakeStatusBuilder(error::INTERNAL, location);
 }
 
-StatusBuilder InvalidArgumentErrorBuilder(absl::SourceLocation location) {
+absl::StatusBuilder InvalidArgumentErrorBuilder(absl::SourceLocation location) {
   return util::MakeStatusBuilder(error::INVALID_ARGUMENT, location);
 }
 
-StatusBuilder NotFoundErrorBuilder(absl::SourceLocation location) {
+absl::StatusBuilder NotFoundErrorBuilder(absl::SourceLocation location) {
   return util::MakeStatusBuilder(error::NOT_FOUND, location);
 }
 
-StatusBuilder OutOfRangeErrorBuilder(absl::SourceLocation location) {
+absl::StatusBuilder OutOfRangeErrorBuilder(absl::SourceLocation location) {
   return util::MakeStatusBuilder(error::OUT_OF_RANGE, location);
 }
 
-StatusBuilder PermissionDeniedErrorBuilder(absl::SourceLocation location) {
+absl::StatusBuilder PermissionDeniedErrorBuilder(
+    absl::SourceLocation location) {
   return util::MakeStatusBuilder(error::PERMISSION_DENIED, location);
 }
 
-StatusBuilder UnauthenticatedErrorBuilder(absl::SourceLocation location) {
+absl::StatusBuilder UnauthenticatedErrorBuilder(absl::SourceLocation location) {
   return util::MakeStatusBuilder(error::UNAUTHENTICATED, location);
 }
 
-StatusBuilder ResourceExhaustedErrorBuilder(absl::SourceLocation location) {
+absl::StatusBuilder ResourceExhaustedErrorBuilder(
+    absl::SourceLocation location) {
   return util::MakeStatusBuilder(error::RESOURCE_EXHAUSTED, location);
 }
 
-StatusBuilder UnavailableErrorBuilder(absl::SourceLocation location) {
+absl::StatusBuilder UnavailableErrorBuilder(absl::SourceLocation location) {
   return util::MakeStatusBuilder(error::UNAVAILABLE, location);
 }
 
-StatusBuilder UnimplementedErrorBuilder(absl::SourceLocation location) {
+absl::StatusBuilder UnimplementedErrorBuilder(absl::SourceLocation location) {
   return util::MakeStatusBuilder(error::UNIMPLEMENTED, location);
 }
 
-StatusBuilder UnknownErrorBuilder(absl::SourceLocation location) {
+absl::StatusBuilder UnknownErrorBuilder(absl::SourceLocation location) {
   return util::MakeStatusBuilder(error::UNKNOWN, location);
 }
 

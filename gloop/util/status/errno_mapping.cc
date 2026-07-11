@@ -37,10 +37,11 @@ absl::Status ErrnoToCanonicalStatus(int error_number,
   return absl::ErrnoToStatus(error_number, message);
 }
 
-StatusBuilder ErrnoToCanonicalStatusBuilder(int error_number,
-                                            absl::string_view message,
-                                            absl::SourceLocation location) {
-  return StatusBuilder(absl::ErrnoToStatus(error_number, message), location);
+absl::StatusBuilder ErrnoToCanonicalStatusBuilder(
+    int error_number, absl::string_view message,
+    absl::SourceLocation location) {
+  return absl::StatusBuilder(absl::ErrnoToStatus(error_number, message),
+                             location);
 }
 
 }  // namespace util

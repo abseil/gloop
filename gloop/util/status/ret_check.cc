@@ -45,7 +45,7 @@ ABSL_FLAG(bool, ret_check_abort_on_failure, false,
 namespace util {
 namespace internal_status_macros_ret_check {
 
-StatusBuilder RetCheckFailSlowPath(absl::SourceLocation location) {
+absl::StatusBuilder RetCheckFailSlowPath(absl::SourceLocation location) {
   return InternalErrorBuilder(location)
              .Log(absl::GetFlag(FLAGS_ret_check_abort_on_failure)
                       ? absl::LogSeverity::kFatal
@@ -55,20 +55,20 @@ StatusBuilder RetCheckFailSlowPath(absl::SourceLocation location) {
          << location.line() << ") ";
 }
 
-StatusBuilder RetCheckFailSlowPath(absl::SourceLocation location,
-                                   std::string* condition) {
+absl::StatusBuilder RetCheckFailSlowPath(absl::SourceLocation location,
+                                         std::string* condition) {
   std::unique_ptr<std::string> cleanup(condition);
   return RetCheckFailSlowPath(location) << *condition << " ";
 }
 
-StatusBuilder RetCheckFailSlowPath(absl::SourceLocation location,
-                                   const char* condition) {
+absl::StatusBuilder RetCheckFailSlowPath(absl::SourceLocation location,
+                                         const char* condition) {
   return RetCheckFailSlowPath(location) << condition << " ";
 }
 
-StatusBuilder RetCheckFailSlowPath(absl::SourceLocation location,
-                                   const char* condition,
-                                   const absl::Status& status) {
+absl::StatusBuilder RetCheckFailSlowPath(absl::SourceLocation location,
+                                         const char* condition,
+                                         const absl::Status& status) {
   return RetCheckFailSlowPath(location)
          << condition << " returned " << ::util::StatusToString(status) << " ";
 }

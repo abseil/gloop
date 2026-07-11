@@ -67,7 +67,7 @@ TEST(ErrnoMappingTest, ErrnoToCanonicalStatus) {
 
 TEST(ErrnoMappingTest, ErrnoToCanonicalStatusBuilderImplicitLocation) {
   absl::Status status;
-  StatusBuilder builder(absl::OkStatus());
+  absl::StatusBuilder builder(absl::OkStatus());
   absl::SourceLocation loc;
 
   status = ErrnoToCanonicalStatusBuilder(0, "");
@@ -105,7 +105,8 @@ TEST(ErrnoMappingTest, ErrnoToCanonicalStatusBuilderExplicitLocation) {
   absl::SourceLocation loc = ::absl::SourceLocation::current();
   ASSERT_EQ(loc.line(), 12345);
 
-  StatusBuilder builder = ErrnoToCanonicalStatusBuilder(EINVAL, "test0", loc);
+  absl::StatusBuilder builder =
+      ErrnoToCanonicalStatusBuilder(EINVAL, "test0", loc);
   absl::Status status = builder << "message0";
   EXPECT_EQ(builder.source_location().file_name(), loc.file_name());
   EXPECT_EQ(builder.source_location().line(), 12345);
