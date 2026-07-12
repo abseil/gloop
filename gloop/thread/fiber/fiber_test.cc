@@ -947,9 +947,10 @@ TEST_F(FiberTest, NewFiberTreeSetParallelism) {
   const int max_parallelism =
       std::min(4, thread::DefaultDomain()->max_concurrency());
   for (int parallelism = 1; parallelism <= max_parallelism; parallelism++) {
-    auto f = NewTree(TreeOptions().set_parallelism(parallelism), [parallelism] {
-      ASSERT_EQ(parallelism, GetCurrentScheduler()->num_slots());
-    });
+    auto f = NewTree(
+        std::move(TreeOptions().set_max_cpu_slots(parallelism)), [parallelism] {
+          ASSERT_EQ(parallelism, GetCurrentScheduler()->num_slots());
+        });
     f->Join();
   }
 }
@@ -1196,7 +1197,7 @@ void BlockScopedThreadLocalWithDtor() {
 }
 
 TEST_F(FiberTest, ThreadLocalDoesNotDeadlock) {
-  auto root = NewTree(TreeOptions().set_parallelism(1), [] {
+  auto root = NewTree(std::move(TreeOptions().set_max_cpu_slots(1)), [] {
     thread::Bundle b;
     for (int i = 0; i < 2; ++i) {
       b.Add([&] { BlockScopedThreadLocalWithDtor(); });
@@ -1514,7 +1515,7 @@ TEST_F(FiberTest, CancellationColoring) {
 #endif
 
 TEST(Concurrency, EmptyFiber) {
-  thread::NewTree(thread::TreeOptions().set_parallelism(4), []() {
+  thread::NewTree(std::move(thread::TreeOptions().set_max_cpu_slots(4)), []() {
     constexpr int kNumTrials = 1000;
     for (int i = 0; i < kNumTrials; ++i) {
       thread::Fiber fiber([] {});
@@ -1927,7 +1928,7 @@ void BM_FiberMutexJoin(benchmark::State& state) {
     absl::Mutex mutex;
     mutex.lock();
 
-    auto tree = NewTree(TreeOptions().set_parallelism(4), [&] {
+    auto tree = NewTree(std::move(TreeOptions().set_max_cpu_slots(4)), [&] {
       Bundle bundle;
       for (int idx = 0; idx < num_fibers; ++idx) {
         bundle.Add([&]() {
