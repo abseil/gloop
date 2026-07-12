@@ -77,8 +77,8 @@
 #include "gloop/util/sysinfo/topology/topology_converter.h"
 #include "re2/re2.h"
 
-using absl::base_internal::CpuType;
-using absl::base_internal::GetCpuType;
+using absl::base_internal::CpuType;     // NOLINT
+using absl::base_internal::GetCpuType;  // NOLINT
 using util_os_core::CpuSetAnd;
 using util_os_core::CpuSetClear;
 using util_os_core::CpuSetClearSubset;
@@ -872,10 +872,9 @@ SysTopology* SysTopology::SimpleTopology(int num_nodes, int per_package_nodes,
 }
 
 SysTopology* SysTopologyGenerator::FromNumCPUs() const {
-  return SysTopology::SimpleTopology(::NumCPUs(),
-                                     absl::base_internal::IsSMTEnabled()
-                                         ? SysTopology::HT_ADJACENT
-                                         : SysTopology::HT_NONE);
+  const bool smt = absl::base_internal::IsSMTEnabled();  // NOLINT
+  return SysTopology::SimpleTopology(
+      ::NumCPUs(), smt ? SysTopology::HT_ADJACENT : SysTopology::HT_NONE);
 }
 
 static SysTopologyGenerator::Generator generators[] = {
@@ -1436,6 +1435,7 @@ SysTopology::SysTopology(TopologyInfo ti) : topology_info_(ti) {
       caches_with_cpus_.push_back(cache_id);
     }
   }
+  levels_.shrink_to_fit();
 }
 
 int SysTopology::FindLevel(const std::string& name) const {
