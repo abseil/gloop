@@ -39,7 +39,7 @@ class Server {
  public:
   void StartLookup(::util::functional::CallbackFunctor<Response> cb, int key) {
     Response r = {key, std::string()};  // Simply send back the key.
-    if (cb) (*cb)(r);                   // let the client run.
+    if (cb) (cb)(r);                    // let the client run.
   }
 };
 
@@ -48,7 +48,7 @@ class Client {
   explicit Client(Server* s) : key_(0), server_(s) {}
 
   void Lookup() {
-    server_->StartLookup(util::functional::ToCallback(
+    server_->StartLookup(util::functional::WithCurrentContext(
                              absl::bind_front(&Client::LookupDone, this)),
                          key_);
   }
@@ -84,10 +84,10 @@ int GetStringLength(const char* s) { return 0; }
 TEST(Callback, AllowsTypeConversionForPreboundArgsInFreeFunction) {
   char* s = nullptr;
   ::util::functional::ResultCallbackFunctor<int> cb =
-      absl::WrapUnique(util::functional::ToPermanentCallback<
-                       ::util::functional::ResultCallbackFunctor<int>>(
-          absl::bind_front(GetStringLength, s)));
-  (*cb)();
+      util::functional::ToPermanentCallback<
+          ::util::functional::ResultCallbackFunctor<int>>(
+          absl::bind_front(GetStringLength, s));
+  (cb)();
 }
 
 }  // namespace
