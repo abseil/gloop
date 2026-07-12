@@ -77,7 +77,9 @@
 #include "gloop/util/sysinfo/topology/topology_converter.h"
 #include "re2/re2.h"
 
+// NOLINTNEXTLINE(abseil-no-internal-dependencies)
 using absl::base_internal::CpuType;
+// NOLINTNEXTLINE(abseil-no-internal-dependencies)
 using absl::base_internal::GetCpuType;
 using util_os_core::CpuSetAnd;
 using util_os_core::CpuSetClear;
@@ -872,10 +874,11 @@ SysTopology* SysTopology::SimpleTopology(int num_nodes, int per_package_nodes,
 }
 
 SysTopology* SysTopologyGenerator::FromNumCPUs() const {
-  return SysTopology::SimpleTopology(::NumCPUs(),
-                                     absl::base_internal::IsSMTEnabled()
-                                         ? SysTopology::HT_ADJACENT
-                                         : SysTopology::HT_NONE);
+  // NOLINTNEXTLINE(abseil-no-internal-dependencies)
+  bool smt_enabled = absl::base_internal::IsSMTEnabled();
+  return SysTopology::SimpleTopology(::NumCPUs(), smt_enabled
+                                                      ? SysTopology::HT_ADJACENT
+                                                      : SysTopology::HT_NONE);
 }
 
 static SysTopologyGenerator::Generator generators[] = {
@@ -1285,6 +1288,9 @@ SysTopology::SysTopology(TopologyInfo ti) : topology_info_(ti) {
   VLOG(4) << "max_id[] = " << MapToString(max_id);
   Id max_cpu = max_id["cpu"];
 
+  std::vector<LevelInfoInt> temp_levels;
+  temp_levels.reserve(ti.levels.size());
+
   for (const LevelInfo& li : ti.levels) {
     VLOG(4) << "Setting up level " << li.name;
     LevelInfoInt lii;
@@ -1322,21 +1328,26 @@ SysTopology::SysTopology(TopologyInfo ti) : topology_info_(ti) {
 
     // If this level is identical to the previous level then drop it
     // and point the name at the previous level
-    if (!levels_.empty()) {
-      LevelInfoInt& prev_level = levels_.back();
+    if (!temp_levels.empty()) {
+      LevelInfoInt& prev_level = temp_levels.back();
       if (lii.parent == prev_level.parent &&
           CompareCpuSetVectors(lii.children, prev_level.children) &&
           CompareCpuSetVectors(lii.siblings, prev_level.siblings)) {
         VLOG(4) << "Collapsing level " << li.name;
-        levelnames_[li.name] = levels_.size() - 1;
+        levelnames_[li.name] = temp_levels.size() - 1;
         prev_level.names.insert(li.name);
         continue;
       }
     }
 
     // Add the new level to the vector of levels
-    levelnames_[li.name] = levels_.size();
-    levels_.push_back(lii);
+    levelnames_[li.name] = temp_levels.size();
+    temp_levels.push_back(std::move(lii));
+  }
+
+  levels_.reserve(temp_levels.size());
+  for (auto& lii : temp_levels) {
+    levels_.push_back(std::move(lii));
   }
 
   core_level_ = FindLevel("core");
