@@ -142,8 +142,7 @@ class SubProcessTest : public ::testing::Test {
 
   ::util::functional::CallbackFunctor<SubProcess*, int>
   ChangeHandlerCallback() {
-    return ::util::functional::ToPermanentCallback(
-        absl::bind_front(&SubProcessTest::ChangeHandler, this));
+    return absl::bind_front(&SubProcessTest::ChangeHandler, this);
   }
 
   void CheckRusage(const char* tag, SubProcess* sp) {
