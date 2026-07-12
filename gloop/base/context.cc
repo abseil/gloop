@@ -170,7 +170,7 @@ TraceContext* internal::MutableCurrentContext::MutableCurrentTrace() {
 
 const TraceContext* CurrentTraceContextNoAlloc() {
   const Context* c = per_thread_context.safe_pointer();
-  return c ? c->trace() : nullptr;
+  return c ? &c->trace_context() : nullptr;
 }
 
 // Defined in <path>
