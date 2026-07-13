@@ -620,7 +620,7 @@ void SysTopologyGenerator::ReadNumaMemNodes(
     const std::string meminfo_filename =
         absl::StrCat(path_prefix_, kSysNodeDir, "node", node_id, "/meminfo");
     std::string field_prefix = absl::StrCat("Node ", node_id, " MemTotal:");
-    long long size_kb = 0;  // NOLINT(google-runtime-int)
+    long long size_kb = 0;  // NOLINT(runtime/int)
     if (ReadProcKeyword(meminfo_filename.c_str(), 0, field_prefix.c_str(),
                         "%lld", &size_kb)) {
       info.size_kb = size_kb;
@@ -1338,6 +1338,9 @@ SysTopology::SysTopology(TopologyInfo ti) : topology_info_(ti) {
     levelnames_[li.name] = levels_.size();
     levels_.push_back(lii);
   }
+  // per <link> we are OK trading CPU for RAM as long as it's net positive
+  // in SWE terms
+  levels_.shrink_to_fit();
 
   core_level_ = FindLevel("core");
   if (core_level_ == -1) core_level_ = 0;
