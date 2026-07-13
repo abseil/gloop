@@ -674,6 +674,7 @@ static ptrdiff_t GeneralBase32Escape(const unsigned char* absl_nullable src,
   static const char kPad32 = '=';
 
   if (szsrc == 0) return 0;
+  if (src == nullptr) return 0;
 
   char* cur_dest = dest;
   const unsigned char* cur_src = src;

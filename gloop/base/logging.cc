@@ -47,7 +47,7 @@
 #include "gloop/base/logging_extensions.h"
 
 extern "C" {
-ABSL_ATTRIBUTE_WEAK base_logging::InitializeCallback
+ABSL_ATTRIBUTE_WEAK base_logging::InitializeCallback absl_nullable
 InitializeRemoteDebugLogging() {
   return nullptr;
 }

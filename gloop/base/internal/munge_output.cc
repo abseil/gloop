@@ -129,7 +129,7 @@ absl::StatusOr<std::string> MungeFile(absl::string_view file,
     std::optional<std::string> munged_line = MungeLine(std::string(line));
     if (munged_line) munged_lines.push_back(*std::move(munged_line));
   }
-  const std::string munged_contents = absl::StrJoin(munged_lines, "\n");
+  std::string munged_contents = absl::StrJoin(munged_lines, "\n");
   if (!output.empty()) {
     std::unique_ptr<FILE, std::function<void(FILE*)>> fp(
         fopen(std::string(output).c_str(), "wb"), [](FILE* fp) { fclose(fp); });
