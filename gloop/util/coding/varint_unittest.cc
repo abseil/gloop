@@ -1059,3 +1059,35 @@ static void BM_Append64_Random(benchmark::State& state) {
   }
 }
 BENCHMARK(BM_Append64_Random);
+
+// Benchmark appending N varints to a growing string, exercising the
+// resize/reallocation path in Append{32,64}Slow.  The existing BM_Append*
+// benchmarks clear() between appends, so after warmup the string always has
+// enough capacity and never resizes.
+static void BM_Append32_Growing(benchmark::State& state) {
+  const int num_appends = state.range(0);
+  // Varint uses 7 bits per byte, so values >= 2^28 need all 5 bytes (kMax32).
+  constexpr uint32_t kValue = uint32_t{1} << 28;
+  while (state.KeepRunningBatch(num_appends)) {
+    std::string str;
+    for (int i = 0; i < num_appends; i++) {
+      Varint::Append32(&str, kValue);
+    }
+    benchmark::DoNotOptimize(str.data());
+  }
+}
+BENCHMARK(BM_Append32_Growing)->Range(1, 1 << 16);
+
+static void BM_Append64_Growing(benchmark::State& state) {
+  const int num_appends = state.range(0);
+  // Varint uses 7 bits per byte, so values >= 2^63 need all 10 bytes (kMax64).
+  constexpr uint64_t kValue = uint64_t{1} << 63;
+  while (state.KeepRunningBatch(num_appends)) {
+    std::string str;
+    for (int i = 0; i < num_appends; i++) {
+      Varint::Append64(&str, kValue);
+    }
+    benchmark::DoNotOptimize(str.data());
+  }
+}
+BENCHMARK(BM_Append64_Growing)->Range(1, 1 << 16);
