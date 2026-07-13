@@ -20,6 +20,7 @@
 
 #include "gloop/util/coding/varint.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -28,7 +29,7 @@
 
 #include "absl/base/optimization.h"
 #include "absl/log/check.h"
-#include "gloop/util/gtl/stl_util.h"
+#include "absl/strings/resize_and_overwrite.h"
 
 char* Varint::Encode32(char* sptr, uint32_t v) {
   return Encode32Inline(sptr, v);
@@ -353,14 +354,30 @@ const char* Varint::Skip64BackwardSlow(const char* p, const char* b) {
 
 void Varint::Append32Slow(std::string* s, uint32_t value) {
   const size_t start = s->size();
-  gtl::STLStringResizeUninitializedAmortized(s,
-                                             start + Varint::Length32(value));
-  Varint::Encode32(&((*s)[start]), value);
+  const size_t len = Varint::Length32(value);
+  const size_t new_size = start + len;
+  // Ensure amortized O(1) growth; std::string::resize() does not
+  // over-allocate in all implementations.
+  if (new_size > s->capacity()) {
+    s->reserve(std::max(new_size, 2 * s->capacity()));
+  }
+  absl::StringResizeAndOverwrite(*s, new_size, [=](char* buf, size_t buf_size) {
+    Varint::Encode32(buf + start, value);
+    return buf_size;
+  });
 }
 
 void Varint::Append64Slow(std::string* s, uint64_t value) {
   const size_t start = s->size();
-  gtl::STLStringResizeUninitializedAmortized(s,
-                                             start + Varint::Length64(value));
-  Varint::Encode64(&((*s)[start]), value);
+  const size_t len = Varint::Length64(value);
+  const size_t new_size = start + len;
+  // Ensure amortized O(1) growth; std::string::resize() does not
+  // over-allocate in all implementations.
+  if (new_size > s->capacity()) {
+    s->reserve(std::max(new_size, 2 * s->capacity()));
+  }
+  absl::StringResizeAndOverwrite(*s, new_size, [=](char* buf, size_t buf_size) {
+    Varint::Encode64(buf + start, value);
+    return buf_size;
+  });
 }
