@@ -526,6 +526,7 @@ cc_test(
     srcs = ["cpuusage_test.cc"],
     deps = [
         ":thread",
+        "//gloop:gloop_test_main",
         "//gloop/base:init_google",
         "//gloop/base:sysinfo",
         "@abseil-cpp//absl/functional:bind_front",
@@ -758,6 +759,7 @@ cc_test(
     copts = ["$(STACK_FRAME_UNLIMITED)"],  # thread_default_stack_unittest.cc
     deps = [
         ":thread",
+        "//gloop:gloop_test_main",
         "//gloop/base:log_file_flags",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log:initialize",
@@ -782,6 +784,8 @@ cc_test(
         "@abseil-cpp//absl/log:log_sink_registry",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
     ],
 )
 
@@ -1036,6 +1040,7 @@ cc_test(
     srcs = ["thread_manager_regression_test.cc"],
     deps = [
         ":thread_manager",
+        "//gloop:gloop_test_main",
         "//gloop/base:init_google",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",

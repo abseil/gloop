@@ -28,6 +28,7 @@
 #include <ctime>
 #include <functional>
 #include <iostream>
+#include <memory>
 #include <ostream>
 
 #include "absl/base/log_severity.h"
@@ -39,8 +40,16 @@
 #include "absl/log/log_sink_registry.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
-#include "gloop/base/init_google.h"
 #include "gloop/base/logger.h"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
+
+namespace {
+
+using ::testing::Eq;
+using ::testing::Ge;
+using ::testing::Ne;
+using ::testing::Not;
 
 static const int kNumMessagesToSend = 100;
 
@@ -53,29 +62,29 @@ class TestLogger : public base_logging::Logger {
 
   void Write(bool force_flush, time_t timestamp, const char* message,
              size_t message_len) override {
-    absl::MutexLock lock(mutex_);
+    absl::MutexLock lock(&mutex_);
     counter_++;
     delivery_thread_ = pthread_self();
   }
 
   void Flush() override {
-    absl::MutexLock lock(mutex_);
+    absl::MutexLock lock(&mutex_);
     flush_counter_++;
     delivery_thread_ = pthread_self();
   }
 
   size_t LogSize() override {
-    absl::MutexLock lock(mutex_);
+    absl::MutexLock lock(&mutex_);
     return counter_;
   }
 
   int flush_counter() const {
-    absl::MutexLock lock(mutex_);
+    absl::MutexLock lock(&mutex_);
     return flush_counter_;
   }
 
   pthread_t delivery_thread() const {
-    absl::MutexLock lock(mutex_);
+    absl::MutexLock lock(&mutex_);
     return delivery_thread_;
   }
 
@@ -85,7 +94,7 @@ class TestLogger : public base_logging::Logger {
   bool WaitForLogSizeAtLeast(int min_size, absl::Duration timeout) const {
     std::function<bool()> callback =
         absl::bind_front(&GreaterEqual, &counter_, min_size);
-    absl::MutexLock lock(mutex_);
+    absl::MutexLock lock(&mutex_);
     return mutex_.AwaitWithTimeout(absl::Condition(&callback), timeout);
   }
 
@@ -100,16 +109,10 @@ class TestLogger : public base_logging::Logger {
   pthread_t delivery_thread_ ABSL_GUARDED_BY(mutex_);
 };
 
-int main(int argc, char** argv) {
-  absl::SetFlag(&FLAGS_disable_threaded_logging, false);
+TestLogger* global_logger = nullptr;
 
-  // Use a special logger so we can check whether it got the message.
-  TestLogger* logger = new TestLogger;
-
-  // SetLogger takes ownership of logger.
-  base_logging::logging_internal::SetLogger(absl::LogSeverity::kInfo, logger);
-
-  InitGoogle(argv[0], &argc, &argv, true);
+TEST(LoggerTest, ThreadedLoggingWorks) {
+  ASSERT_THAT(global_logger, testing::NotNull());
   threadlogger::EnableThreadedLogging(base_logging::WARNING);
 
   int expected_messages = kNumMessagesToSend;
@@ -124,16 +127,32 @@ int main(int argc, char** argv) {
   }
 
   // Wait for the messages to be delivered, but time out after 2 sec.
-  CHECK(logger->WaitForLogSizeAtLeast(expected_messages, absl::Seconds(2)))
+  EXPECT_TRUE(
+      global_logger->WaitForLogSizeAtLeast(expected_messages, absl::Seconds(2)))
       << "Log wasn't flushed even after waiting 2 seconds.";
 
   // All messages must have been delivered
-  CHECK_GE(logger->LogSize(), expected_messages);
-  CHECK_GE(logger->flush_counter(), 2);
+  EXPECT_GE(global_logger->LogSize(), expected_messages);
+  EXPECT_GE(global_logger->flush_counter(), 2);
 
   // Check that last delivery must have been from another thread
-  CHECK(pthread_self() != logger->delivery_thread());
+  EXPECT_NE(pthread_self(), global_logger->delivery_thread());
+}
 
-  std::cout << "PASS" << std::endl;
-  return 0;
+}  // namespace
+
+int main(int argc, char** argv) {
+  absl::SetFlag(&FLAGS_disable_threaded_logging, false);
+
+  // Use a special logger so we can check whether it got the message.
+  auto logger = std::make_unique<TestLogger>();
+  global_logger = logger.get();
+
+  // SetLogger takes ownership of logger.
+  base_logging::logging_internal::SetLogger(absl::LogSeverity::kInfo,
+                                            logger.release());
+
+  testing::InitGoogleTest(&argc, argv);
+
+  return RUN_ALL_TESTS();
 }
