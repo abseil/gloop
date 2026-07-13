@@ -21,6 +21,8 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_GTL_SUBSPAN_H_
 #define THIRD_PARTY_GLOOP_UTIL_GTL_SUBSPAN_H_
 
+// TODO: Remove this file once all callers migrate to subspan().
+
 #include <stddef.h>
 
 #include "absl/base/macros.h"
@@ -28,33 +30,34 @@
 
 namespace gtl {
 
-// Temporary migration aid for subspan() calls that are not intended truncate.
-// Use this while the old truncating subspan() is still present, to indicate
-// that truncation is undesired. Once the old subspan() is gone, your call
-// will be migrated to the new (non-truncating) subspan().
-//
-// TODO: Remove this once the old subspan() is gone.
 template <class T>
-constexpr absl::AnySpan<T> Subspan(
+[[deprecated("Use .subspan() instead.")]]
+ABSL_REFACTOR_INLINE constexpr absl::AnySpan<T> Subspan(
     absl::AnySpan<T> span, typename absl::AnySpan<T>::size_type pos,
-    typename absl::AnySpan<T>::size_type len = absl::AnySpan<T>::npos) {
-  // No need to check for position being in-bounds since that is already checked
-  // by the subspan() call.
-  ABSL_HARDENING_ASSERT(len == absl::AnySpan<T>::npos ||
-                        len <= span.size() - pos);
+    typename absl::AnySpan<T>::size_type len) {
   return span.subspan(pos, len);
 }
 
-// Temporary migration aid for subspan() calls that are intended to truncate.
-// Use this while the old truncating subspan() is still present, to indicate
-// that truncation is desired.
-//
-// TODO: Remove this once the old subspan() is gone.
 template <class T>
+[[deprecated("Use .subspan() instead.")]]
+ABSL_REFACTOR_INLINE constexpr absl::AnySpan<T> Subspan(
+    absl::AnySpan<T> span, typename absl::AnySpan<T>::size_type pos) {
+  return span.subspan(pos);
+}
+
+template <class T>
+[[deprecated("Use .subspan() instead, manually truncating if needed.")]]
 constexpr absl::AnySpan<T> SubspanOrTruncate(
     absl::AnySpan<T> span, typename absl::AnySpan<T>::size_type pos,
-    typename absl::AnySpan<T>::size_type len = absl::AnySpan<T>::npos) {
+    typename absl::AnySpan<T>::size_type len) {
   return span.subspan(pos, (std::min)(len, span.size() - pos));
+}
+
+template <class T>
+[[deprecated("Use .subspan() instead.")]]
+ABSL_REFACTOR_INLINE constexpr absl::AnySpan<T> SubspanOrTruncate(
+    absl::AnySpan<T> span, typename absl::AnySpan<T>::size_type pos) {
+  return span.subspan(pos);
 }
 
 }  // namespace gtl
