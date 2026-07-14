@@ -80,6 +80,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/mutex.h"
 #include "gloop/base/commandlineflags.h"
 #include "gloop/base/port.h"  // IWYU pragma: keep
 #include "gloop/util/symbolize/symbol_map_sink.h"
@@ -1806,6 +1807,7 @@ void ElfReader::AddSymbols(internal::SymbolMapSink* symbols,
 }
 
 void ElfReader::VisitSymbols(ElfReader::SymbolSink* sink) {
+  absl::MutexLock lock(visit_symbols_mutex_);
   if (IsElf32File()) {
     auto* const impl = GetImpl32();
     impl->VisitRelocationEntries();
