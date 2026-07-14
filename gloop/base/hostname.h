@@ -23,7 +23,7 @@
 
 #include <string>
 
-#include "absl/base/attributes.h"
+#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 
 namespace base {
@@ -42,8 +42,9 @@ absl::string_view Hostname();
 
 }  // namespace base
 
-// TODO: remove this deprecated alias.
-ABSL_DEPRECATED("Use base::Hostname().")
-const char* Hostname();
+[[deprecated("Use base::Hostname() instead")]]
+ABSL_REFACTOR_INLINE inline const char* Hostname() {
+  return base::Hostname().data();
+}
 
 #endif  // THIRD_PARTY_GLOOP_BASE_HOSTNAME_H_
