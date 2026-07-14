@@ -407,4 +407,12 @@ TEST(CallbackFunctor, EmptyAnyInvocableIsNullable) {
   EXPECT_FALSE(cb);
 }
 
+TEST(CallbackFunctor, EmptyAnyInvocableWithContextIsNullable) {
+  absl::AnyInvocable<bool(int)> empty_invocable = nullptr;
+  auto wrapped = util::functional::ToCallback(std::move(empty_invocable));
+  util::functional::ResultCallbackFunctor<bool, int> cb = std::move(wrapped);
+  EXPECT_EQ(cb, nullptr);
+  EXPECT_FALSE(cb);
+}
+
 }  // namespace
