@@ -127,7 +127,7 @@ class AddAfterHelperTest : public testing::Test {
   MockExecutor mock_executor_;
   // unique_ptr<> so I can delete the instance and check what happens afterward.
   std::unique_ptr<AddAfterHelper> helper_;
-  const ::util::functional::CallbackFunctor<> dummy_task_;
+  const std::unique_ptr<Closure> dummy_task_;
   std::string complete_add_after_thread_status_;
 };
 
@@ -200,7 +200,7 @@ TEST_F(AddAfterHelperTest, ShutdownExecutesUnrunClosures) {
   // argument, and should clean up non-permanent callbacks.
   helper_->ScheduleAddAfter(absl::ZeroDuration(),
                             ::util::functional::ToCallback(&ExpectNotCalled));
-  ::util::functional::CallbackFunctor<> permanent_cb(
+  std::unique_ptr<Closure> permanent_cb(
       ::util::functional::ToPermanentCallback(&ExpectNotCalled));
   helper_->ScheduleAddAfter(absl::ZeroDuration(), permanent_cb.get());
   // This should run complete_add_after_ on the two non-permanent Closure*s.

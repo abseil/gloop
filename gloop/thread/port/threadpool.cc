@@ -38,11 +38,19 @@
 
 ThreadPool::~ThreadPool() { Shutdown(); }
 
+void ThreadPool::Add(Closure* closure) {
+  Schedule([closure]() { closure->Run(); });
+}
+
 void ThreadPool::Schedule(std::function<void()> closure) {
   queue_mutex_.Lock();
   queue_.push_back(std::move(closure));
   condition_.Signal();
   queue_mutex_.Unlock();
+}
+
+bool ThreadPool::AddIfReadyToRun(Closure* closure) {
+  return ScheduleIfReadyToRun([closure]() { closure->Run(); });
 }
 
 bool ThreadPool::ScheduleIfReadyToRun(std::function<void()> closure) {

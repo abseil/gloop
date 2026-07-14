@@ -78,8 +78,7 @@ class AddAfterHelper {
   ~AddAfterHelper();
 
   // Arranges to call complete_add_after->Run(task) after ms milliseconds.
-  void ScheduleAddAfter(absl::Duration delay,
-                        ::util::functional::CallbackFunctor<> task);
+  void ScheduleAddAfter(absl::Duration delay, Closure* task);
   void ScheduleAddAfterAt(absl::Time when,
                           absl::AnyInvocable<void() &&> callback);
 

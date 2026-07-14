@@ -126,10 +126,16 @@ CancellableClosure* AddAfterHelper::AddTaskForCompletion(
   return cancellable;
 }
 
-void AddAfterHelper::ScheduleAddAfter(
-    absl::Duration delay, ::util::functional::CallbackFunctor<> task) {
+void AddAfterHelper::ScheduleAddAfter(absl::Duration delay, Closure* task) {
+  absl::AnyInvocable<void() &&> callback;
+  if (task->IsRepeatable()) {
+    // Don't take ownership if this is a permanent callback.
+    callback = util::functional::FromCallback(task);
+  } else {
+    callback = util::functional::FromCallbackWithOwnership(task);
+  }
   ScheduleAddAfterAt(underlying_executor_->clock()->TimeNow() + delay,
-                     std::move(task));
+                     std::move(callback));
 }
 
 void AddAfterHelper::ScheduleAddAfterAt(
