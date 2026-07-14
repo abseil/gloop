@@ -24,48 +24,64 @@ package(
 
 cc_library(
     name = "affinity",
-    srcs = ["affinity.cc"],
-    hdrs = ["affinity.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "//gloop/util/os/core:cpu_set",
-        "@abseil-cpp//absl/log",
-    ],
+    srcs = select({
+        "//mobile/flutter/build_defs/internal:targeting_ios": [],
+        "//conditions:default": ["affinity.cc"],
+    }),
+    hdrs = select({
+        "//mobile/flutter/build_defs/internal:targeting_ios": [],
+        "//conditions:default": ["affinity.h"],
+    }),
+    deps = select({
+        "//mobile/flutter/build_defs/internal:targeting_ios": [],
+        "//conditions:default": [
+            "//gloop/util/os/core:cpu_set",
+            "@abseil-cpp//absl/log",
+        ],
+    }) + ["//gloop:enforce_gloop_support"],
 )
 
 cc_library(
     name = "topology",
-    srcs = [
-        "topology.cc",
-        "topology_converter.cc",
-    ],
-    hdrs = [
-        "topology.h",
-        "topology_converter.h",
-    ],
-    deps = [
-        ":affinity",
-        ":topology_cc_proto",
-        "//gloop:enforce_gloop_support",
-        "//gloop/base:commandlineflags",
-        "//gloop/base:sysinfo",
-        "//gloop/strings:split",
-        "//gloop/testing/production_stub:testvalue",
-        "//gloop/util/gtl:container_logging",
-        "//gloop/util/os/core:cpu_set",
-        "@abseil-cpp//absl/algorithm:container",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:cpu_detect",
-        "@abseil-cpp//absl/container:flat_hash_map",
-        "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:statusor",
-        "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/types:span",
-        "@re2",
-    ],
+    srcs = select({
+        "//mobile/flutter/build_defs/internal:targeting_ios": [],
+        "//conditions:default": [
+            "topology.cc",
+            "topology_converter.cc",
+        ],
+    }),
+    hdrs = select({
+        "//mobile/flutter/build_defs/internal:targeting_ios": [],
+        "//conditions:default": [
+            "topology.h",
+            "topology_converter.h",
+        ],
+    }),
+    deps = select({
+        "//mobile/flutter/build_defs/internal:targeting_ios": [],
+        "//conditions:default": [
+            ":affinity",
+            ":topology_cc_proto",
+            "//gloop/base:commandlineflags",
+            "//gloop/base:sysinfo",
+            "//gloop/strings:split",
+            "//gloop/testing/production_stub:testvalue",
+            "//gloop/util/gtl:container_logging",
+            "//gloop/util/os/core:cpu_set",
+            "@abseil-cpp//absl/algorithm:container",
+            "@abseil-cpp//absl/base:core_headers",
+            "@abseil-cpp//absl/base:cpu_detect",
+            "@abseil-cpp//absl/container:flat_hash_map",
+            "@abseil-cpp//absl/flags:flag",
+            "@abseil-cpp//absl/log",
+            "@abseil-cpp//absl/log:check",
+            "@abseil-cpp//absl/status",
+            "@abseil-cpp//absl/status:statusor",
+            "@abseil-cpp//absl/strings",
+            "@abseil-cpp//absl/types:span",
+            "@re2",
+        ],
+    }) + ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
