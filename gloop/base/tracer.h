@@ -1339,8 +1339,6 @@ class Tracer {
   // the skeletal sampling probability, this is 0.0.
   double inverse_relative_skeletal_sampling_probability_ = 0.0;
 
-  absl::Time start_time_ = absl::UnixEpoch();
-
   // We want to enforce that atomic access of TimeUnixNanos is always lock-
   // free, but some platforms don't support lock-free access on 64 bit values.
   // So we assert on lock-free access only if int64_t is always lock-free.
@@ -1352,6 +1350,8 @@ class Tracer {
 
   // Unref time; empty (unix epoch) if still referenced.
   std::atomic<base::TimeUnixNanos> unref_time_ = {};
+
+  absl::Time start_time_ = absl::UnixEpoch();
 
   // Count of TraceContexts that reference this tracer.
   std::atomic<int32_t> ref_count_ = 0;

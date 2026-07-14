@@ -309,6 +309,12 @@ class TestTracer : public Tracer {
   std::unique_ptr<base::ChildSampler> child_sampler_;
 };
 
+TEST(Tracer, Size) {
+#ifdef NDEBUG
+  EXPECT_EQ(sizeof(Tracer), 112);
+#endif
+}
+
 TEST(Tracer, SetStartTime) {
   bool deleted = false;
   TestTracer tracer(&deleted);
