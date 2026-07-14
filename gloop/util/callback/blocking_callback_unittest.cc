@@ -175,7 +175,7 @@ TEST(BlockingCallbackTest, MultipleWaitersForNumCalled) {
 // returned before Wait() returns.
 TEST(BlockingCallbackTest, InnerCallback) {
   int n = 0;
-  std::unique_ptr<Closure> increment_callback(
+  ::util::functional::CallbackFunctor<> increment_callback(
       ::util::functional::ToPermanentCallback([&n] { IncrementN(&n); }));
   BlockingClosure* done = new BlockingClosure(increment_callback.get());
   ClosureThread thread(::util::functional::FromCallbackWithOwnership(done));
@@ -187,15 +187,6 @@ TEST(BlockingCallbackTest, InnerCallback) {
   done->Run();
   done->Wait();
   EXPECT_EQ(2, n);
-}
-
-// Verify that closure is not destroyed if it's not called.
-TEST(BlockingCallbackTest, ClosureNotCalled) {
-  Closure* inner_callback = util::functional::ToCallback([] {});
-  BlockingClosure* done = new BlockingClosure(inner_callback);
-  delete done;
-  // Should SEGV if the pointer has been deleted.
-  inner_callback->Run();
 }
 
 // Verify that a NULL closure is still valid

@@ -77,7 +77,6 @@ class ThreadPool {
   // Adds the specified "closure" to the queue for processing. If worker threads
   // are available, "closure" will run immediately. Otherwise "closure" is
   // queued for later execution.
-  void Add(Closure* closure);
   void Schedule(std::function<void()> closure);
 
   // Like Add and Schedule except if the closure is not able to run immediately
@@ -87,7 +86,6 @@ class ThreadPool {
   // NOTE: The threads created by StartWorkers() may not be immediately
   // available; subsequent calls to these functions may still return false for
   // some (very short) period of time.
-  bool AddIfReadyToRun(Closure* closure);
   bool ScheduleIfReadyToRun(std::function<void()> closure);
 
   // Set the name prefix used for worker threads. Cannot be called after

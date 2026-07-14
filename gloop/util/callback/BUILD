@@ -34,8 +34,10 @@ cc_library(
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base:callback",
+        "//gloop/util/functional:from_callback",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
