@@ -25,7 +25,36 @@
 // <sanitizer/linux_syscall_hooks.h> manually.
 #ifndef SYS_CPLUSPLUS
 #include <sanitizer/linux_syscall_hooks.h>
+
+/* linux_syscall_hooks.h defines __sanitizer_syscall_post_mmap and
+ * __sanitizer_syscall_post_mmap2 as empty macros because SYS_mmap_pgoff is the
+ * standard syscall for mmap hooks in sanitizer runtime. Map mmap and mmap2 to
+ * the mmap_pgoff implementation so that lss_mmap updates sanitizer shadow
+ * memory correctly.
+ */
+#undef __sanitizer_syscall_pre_mmap
+#define __sanitizer_syscall_pre_mmap(addr, len, prot, flags, fd, offset)       \
+  __sanitizer_syscall_pre_impl_mmap_pgoff((long)(addr), (long)(len),           \
+                                          (long)(prot), (long)(flags),         \
+                                          (long)(fd), (long)(offset))
+#undef __sanitizer_syscall_post_mmap
+#define __sanitizer_syscall_post_mmap(res, addr, len, prot, flags, fd, offset) \
+  __sanitizer_syscall_post_impl_mmap_pgoff(res, (long)(addr), (long)(len),     \
+                                           (long)(prot), (long)(flags),        \
+                                           (long)(fd), (long)(offset))
+#undef __sanitizer_syscall_pre_mmap2
+#define __sanitizer_syscall_pre_mmap2(addr, len, prot, flags, fd, offset)      \
+  __sanitizer_syscall_pre_impl_mmap_pgoff((long)(addr), (long)(len),           \
+                                          (long)(prot), (long)(flags),         \
+                                          (long)(fd), (long)(offset))
+#undef __sanitizer_syscall_post_mmap2
+#define __sanitizer_syscall_post_mmap2(res, addr, len, prot, flags, fd,        \
+                                       offset)                                 \
+  __sanitizer_syscall_post_impl_mmap_pgoff(res, (long)(addr), (long)(len),     \
+                                           (long)(prot), (long)(flags),        \
+                                           (long)(fd), (long)(offset))
 #endif
+
 
 /* linux_syscall_support.h defines a bunch of non-standard NR_* constants and
  * syscall-like functions (ex.: _pread64 and NR__pread64). Syscall hook names
