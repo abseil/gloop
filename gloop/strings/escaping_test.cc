@@ -384,7 +384,7 @@ TEST(BackslashEscape, SingleChar) {
   EXPECT_THAT(BackslashUnescape(after, ' '), Eq(start));
 }
 
-TEST(EscapeStrForCSV, BasicFunctions) {
+TEST(QuoteStrForCSV, BasicFunctions) {
   char outbuf[128];
 
   // No quotes test.
@@ -400,6 +400,13 @@ TEST(EscapeStrForCSV, BasicFunctions) {
             -1);
 
   // Quotes tests.
+  EXPECT_EQ(strings::QuoteStrForCSV("a b"), "a b");
+  EXPECT_EQ(strings::QuoteStrForCSV(","), "\",\"");
+  EXPECT_EQ(strings::QuoteStrForCSV("\r"), "\"\r\"");
+  EXPECT_EQ(strings::QuoteStrForCSV("\n"), "\"\n\"");
+  EXPECT_EQ(strings::QuoteStrForCSV("\r\n"), "\"\r\n\"");
+  EXPECT_EQ(strings::QuoteStrForCSV("\""), "\"\"\"\"");
+  EXPECT_EQ(strings::QuoteStrForCSV("\"\""), "\"\"\"\"\"\"");
   EXPECT_EQ(strings::EscapeStrForCSV("some \"string\" to test", outbuf, 24),
             23);
   EXPECT_STREQ(outbuf, "some \"\"string\"\" to test");
@@ -422,6 +429,10 @@ TEST(EscapeStrForCSV, BasicFunctions) {
 
   // error case: off by one
   EXPECT_EQ(strings::EscapeStrForCSV("   \"   \"   \"   ", outbuf, 18), -1);
+
+  // Embedded NUL characters for counted-string versions
+  EXPECT_EQ(strings::QuoteStrForCSV(absl::string_view("a\0b,\",c,d", 9)),
+            absl::string_view("\"a\0b,\"\",c,d\"", 12));
 }
 
 TEST(EncodeUTF8Char, BasicFunction) {

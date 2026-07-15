@@ -192,23 +192,68 @@ absl::string_view::size_type BackslashUnescapedFind(
       src, [&delims](unsigned char c) { return delims.contains(c); });
 }
 
-ptrdiff_t EscapeStrForCSV(const char* absl_nonnull src, char* absl_nonnull dest,
-                          ptrdiff_t dest_len) {
+static ptrdiff_t EscapeStrForCSV(absl::string_view src,
+                                 char* dest_not_nul_terminated,
+                                 ptrdiff_t dest_len) {
+  if (dest_len < 0) {
+    return -1;
+  }
+
   ptrdiff_t used = 0;
 
-  while (true) {
-    if (*src == '\0' && used < dest_len) {
-      dest[used] = '\0';
-      return used;
+  size_t i = 0;
+
+  while (i < src.size()) {
+    const char ch = src[i++];
+    const bool repeats = ch == '"';
+
+    if (used + static_cast<int>(repeats) >= dest_len) {
+      return -1;
     }
 
-    if (used + 1 >= dest_len)  // +1 because we might require two characters
-      return -1;
+    dest_not_nul_terminated[used++] = ch;
 
-    if (*src == '"') dest[used++] = '"';
-
-    dest[used++] = *src++;
+    if (repeats) {
+      dest_not_nul_terminated[used++] = ch;
+    }
   }
+
+  return used;
+}
+
+std::string QuoteStrForCSV(absl::string_view src) {
+  std::string result;
+  constexpr const char need_quotes[] = {'"', ',', '\0', '\r', '\n'};
+  const bool needs_quote =
+      src.find_first_of(absl::string_view(
+          need_quotes, std::size(need_quotes))) != absl::string_view::npos;
+  absl::StringResizeAndOverwrite(
+      result, src.size() * 2 + 2,
+      [src, needs_quote](char* buf, ptrdiff_t buf_size) {
+        ptrdiff_t used = 0;
+        if (needs_quote) {
+          buf[used++] = '"';
+        }
+        used += EscapeStrForCSV(src, buf + used, buf_size - used);
+        if (needs_quote) {
+          buf[used++] = '"';
+        }
+        return used;
+      });
+  return result;
+}
+
+ptrdiff_t EscapeStrForCSV(const char* absl_nonnull src, char* absl_nonnull dest,
+                          ptrdiff_t dest_len) {
+  const ptrdiff_t used =
+      EscapeStrForCSV(absl::string_view(src), dest, dest_len);
+
+  if (used < 0 || used >= dest_len) {
+    return -1;
+  }
+
+  dest[used] = '\0';
+  return used;
 }
 
 static unsigned int HexDigitToInt(char c) {

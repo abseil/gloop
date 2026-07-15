@@ -259,8 +259,22 @@ inline std::string BackslashUnescape(absl::string_view src,
 //
 //   [some "string" to test] --> [some ""string"" to test]
 // ----------------------------------------------------------------------
+[[deprecated("Use QuoteStrForCSV() instead.")]]
 ptrdiff_t EscapeStrForCSV(const char* absl_nonnull src, char* absl_nonnull dest,
                           ptrdiff_t dest_len);
+
+// ----------------------------------------------------------------------
+// QuoteStrForCSV()
+//
+// Formats `src` as a single CSV field (RFC 4180 compliant).
+//
+// Examples:
+//   [hello world]           --> [hello world]
+//   [some "string" to test] --> ["some ""string"" to test"]
+//   [line 1\nline 2]        --> ["line 1\nline 2"]
+//   [city, state]           --> ["city, state"]
+// ----------------------------------------------------------------------
+std::string QuoteStrForCSV(absl::string_view src);
 
 // ----------------------------------------------------------------------
 // LegacyBase64EscapeWithoutPadding()
