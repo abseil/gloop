@@ -66,6 +66,16 @@ config_setting(
     flag_values = {":sanitizer": "ubsan"},
 )
 
+string_flag(
+    name = "stdlib",
+    build_setting_default = "libc++",
+)
+
+config_setting(
+    name = "libstdcxx_enabled",
+    flag_values = {":stdlib": "libstdc++"},
+)
+
 # The default malloc to use for tests.
 cc_library(
     name = "malloc",
@@ -95,32 +105,4 @@ cc_library(
         "@google_benchmark//:benchmark",
         "@googletest//:gtest_for_library",
     ],
-)
-
-platform(
-    name = "rbe",
-    constraint_values = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
-    exec_properties = {
-        "container-image": "docker://gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:903f3d7733dd615bc1542b548fab4b649cf6e48118251a2c6527ce4e30543c6b",
-        "OSArch": "amd64",
-        "dockerRunAsRoot": "true",
-        "cache-silo-key": "n2-highmem-8-2026-05-02",
-    },
-)
-
-platform(
-    name = "rbe-arm",
-    constraint_values = [
-        "@platforms//os:linux",
-        "@platforms//cpu:aarch64",
-    ],
-    exec_properties = {
-        "container-image": "docker://gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:903f3d7733dd615bc1542b548fab4b649cf6e48118251a2c6527ce4e30543c6b",
-        "OSArch": "arm64",
-        "dockerRunAsRoot": "true",
-        "cache-silo-key": "t2a-standard-8-2026-05-02",
-    },
 )

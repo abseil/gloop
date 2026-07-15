@@ -1,0 +1,4 @@
+module(
+    name = "docker_toolchain",
+    version = "0.1",
+)
