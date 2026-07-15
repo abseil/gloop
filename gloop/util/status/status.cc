@@ -33,6 +33,7 @@
 #include <variant>
 
 #include "absl/base/attributes.h"
+#include "absl/base/nullability.h"
 #include "absl/container/fixed_array.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
@@ -425,7 +426,7 @@ class UnknownErrorSpace : public ErrorSpaceImpl<UnknownErrorSpace> {
 };
 }  // namespace
 
-const ErrorSpace* ErrorSpaceAndCode::GetErrorSpace() const {
+const ErrorSpace* absl_nonnull ErrorSpaceAndCode::GetErrorSpace() const {
   const ErrorSpace* value = nullptr;
   if (std::holds_alternative<std::string>(space)) {
     value = ErrorSpace::Find(std::get<std::string>(space));

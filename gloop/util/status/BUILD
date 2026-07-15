@@ -193,6 +193,7 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "//gloop/util/coding",
         "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/container:flat_hash_map",

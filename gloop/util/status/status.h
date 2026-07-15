@@ -35,6 +35,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
+#include "absl/base/nullability.h"
 #include "absl/flags/declare.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
@@ -69,7 +70,7 @@ class ErrorSpace;
 namespace status_internal {
 
 struct ErrorSpaceAndCode {
-  const ErrorSpace* GetErrorSpace() const;
+  const ErrorSpace* absl_nonnull GetErrorSpace() const;
   absl::string_view GetErrorSpaceName() const;
   bool MatchErrorSpace(const ErrorSpace*) const;
   std::variant<std::string, const ErrorSpace*> space;
@@ -200,7 +201,8 @@ absl::Status MakeStatus(
     absl::SourceLocation loc = absl::SourceLocation::current());
 
 // Return the error space used to create the Status.
-inline const ErrorSpace* RetrieveErrorSpace(const absl::Status& status) {
+inline const ErrorSpace* absl_nonnull RetrieveErrorSpace(
+    const absl::Status& status) {
   return status_internal::ErrorSpacePayload::Retrieve(status).GetErrorSpace();
 }
 
