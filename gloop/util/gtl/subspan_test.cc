@@ -43,23 +43,6 @@ bool IsHardened() {
   return hardened;
 }
 
-TEST(SubspanTest, Subspan) {
-  int arr[] = {0, 1, 2};
-  AnyIntSpan span = arr;
-  EXPECT_THAT(gtl::Subspan(span, 2, 1), ElementsAre(2));
-  EXPECT_THAT(gtl::Subspan(span, 1, AnyIntSpan::npos), ElementsAre(1, 2));
-#if GTEST_HAS_DEATH_TEST
-  if (IsHardened()) {
-    absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
-    EXPECT_DEATH(gtl::Subspan(span, 0, 4), "");
-    EXPECT_DEATH(gtl::Subspan(span, 3, 1), "");
-    EXPECT_DEATH(gtl::Subspan(span, 4, AnyIntSpan::npos), "");
-    EXPECT_DEATH(gtl::Subspan(span, AnyIntSpan::npos, 0), "");
-    EXPECT_DEATH(gtl::Subspan(span, AnyIntSpan::npos, AnyIntSpan::npos), "");
-  }
-#endif
-}
-
 TEST(SubspanTest, SubspanOrTruncate) {
   int arr[] = {0, 1, 2};
   AnyIntSpan span = arr;

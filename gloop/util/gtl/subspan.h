@@ -31,21 +31,6 @@
 namespace gtl {
 
 template <class T>
-[[deprecated("Use .subspan() instead.")]]
-ABSL_REFACTOR_INLINE constexpr absl::AnySpan<T> Subspan(
-    absl::AnySpan<T> span, typename absl::AnySpan<T>::size_type pos,
-    typename absl::AnySpan<T>::size_type len) {
-  return span.subspan(pos, len);
-}
-
-template <class T>
-[[deprecated("Use .subspan() instead.")]]
-ABSL_REFACTOR_INLINE constexpr absl::AnySpan<T> Subspan(
-    absl::AnySpan<T> span, typename absl::AnySpan<T>::size_type pos) {
-  return span.subspan(pos);
-}
-
-template <class T>
 [[deprecated("Use .subspan() instead, manually truncating if needed.")]]
 constexpr absl::AnySpan<T> SubspanOrTruncate(
     absl::AnySpan<T> span, typename absl::AnySpan<T>::size_type pos,
