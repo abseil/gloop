@@ -29,11 +29,12 @@
 
 static void Calibrate();
 
-int main(int argc, char** argv) {
-  InitGoogle(argv[0], &argc, &argv, true);
-  Calibrate();
-  return RUN_ALL_TESTS();
-}
+class CPUUsageTest : public ::testing::Test {
+ protected:
+  static void SetUpTestSuite() { Calibrate(); }
+};
+
+// No main() needed, using gunit_main.
 
 // A routine that chews up a fixed amount of CPU.
 // The volatile should discourage the compiler from optimizing this away.
@@ -97,7 +98,7 @@ static bool TestFinished(int i, int in_bounds) {
   return kMaxTrials - i < kExpectedOK - in_bounds || in_bounds >= kExpectedOK;
 }
 
-TEST(MyCPUUsage, MainThread) {
+TEST_F(CPUUsageTest, MainThread) {
   int in_bounds = 0;
   for (int i = 0; !TestFinished(i, in_bounds); i++) {
     const double start = absl::FDivDuration(base::CPUUsage(), absl::Seconds(1));
@@ -109,7 +110,7 @@ TEST(MyCPUUsage, MainThread) {
   EXPECT_GE(in_bounds, kExpectedOK);
 }
 
-TEST(MyCPUUsage, FinishedChildThread) {
+TEST_F(CPUUsageTest, FinishedChildThread) {
   int in_bounds = 0;
   for (int i = 0; !TestFinished(i, in_bounds); i++) {
     const double start = absl::FDivDuration(base::CPUUsage(), absl::Seconds(1));
@@ -123,7 +124,7 @@ TEST(MyCPUUsage, FinishedChildThread) {
   EXPECT_GE(in_bounds, kExpectedOK);
 }
 
-TEST(MyCPUUsage, ActiveChildThread) {
+TEST_F(CPUUsageTest, ActiveChildThread) {
   ThreadPool* pool = new ThreadPool(1);
   int in_bounds = 0;
   for (int i = 0; !TestFinished(i, in_bounds); i++) {
@@ -143,7 +144,7 @@ TEST(MyCPUUsage, ActiveChildThread) {
   sleep(1);
 }
 
-TEST(MyCPUUsage, MultipleChildren) {
+TEST_F(CPUUsageTest, MultipleChildren) {
   ThreadPool* pool = new ThreadPool(2);
   int in_bounds = 0;
   for (int i = 0; !TestFinished(i, in_bounds); i++) {
