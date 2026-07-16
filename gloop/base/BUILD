@@ -1513,6 +1513,7 @@ cc_test(
         ":percpu",
         ":signal_util_subtle",
         ":time_support",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/flags:flag",

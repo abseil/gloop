@@ -186,6 +186,14 @@ void sa_alrm(int sig) {
 class UtilInternalTest : public ::testing::Test {
  protected:
   static void SetUpTestSuite() {
+    // Add SIGALRM to blocked signals so that threads inherit and we can unblock
+    // on the main test thread. This avoids data races on variables shared
+    // between the test and the signal handler.
+    sigset_t blocked_signals;
+    CHECK_EQ(sigemptyset(&blocked_signals), 0);
+    CHECK_EQ(sigaddset(&blocked_signals, SIGALRM), 0);
+    CHECK_EQ(sigprocmask(SIG_BLOCK, &blocked_signals, nullptr), 0);
+
     struct sigaction sig;
 
     // Set up signal handler
@@ -588,20 +596,3 @@ restart:
 }
 
 }  // namespace
-
-int main(int argc, char** argv) {
-  // Add SIGALRM to blocked signals so that threads inherit and we can unblock
-  // on the main test thread. This avoids data races on variables shared between
-  // the test and the signal handler.
-  sigset_t blocked_signals;
-  CHECK_EQ(sigemptyset(&blocked_signals), 0);
-  CHECK_EQ(sigaddset(&blocked_signals, SIGALRM), 0);
-  CHECK_EQ(sigprocmask(SIG_BLOCK, &blocked_signals, nullptr), 0);
-  // Init and run tests.
-  ::testing::InitGoogleTest(&argc, argv);
-  if (!benchmark::GetBenchmarkFilter().empty()) {
-    benchmark::RunSpecifiedBenchmarks();
-    exit(0);
-  }
-  return RUN_ALL_TESTS();
-}
