@@ -167,9 +167,6 @@ class ThreadPool : public AbstractThreadPool {
 #else
   enum { kDefaultStackBytes = 64 * 1024 };
 #endif
-#ifndef SWIG
-#endif
-
   // Waits for closures (if any) to complete.
   ~ThreadPool() override;
 
