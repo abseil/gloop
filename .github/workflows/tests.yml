@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-24.04${{ matrix.config.arch-suffix }}
     name: Linux (${{ matrix.config.name || format('{0}{1}', matrix.config.value, matrix.config.arch-suffix) }})
     container:
-      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:d75f175108017723ccb757e695db4cab621c34662c1fa063129ffa1b282a9c0a
+      image: gcr.io/google.com/absl-177019/gloop-linux-toolchain-latest@sha256:94b9d281c95d3c770898a2aeb39edc65de2d53aa3ed72dd069a7e476d3897f70
       # Our images happen to be public today, but use our service account's credentials anyway in
       # case we decide to lock down access.
       credentials:
@@ -91,7 +91,7 @@ jobs:
     name: Check Non-compilation for ${{ matrix.config }}
     runs-on: ubuntu-latest
     container:
-      image: gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:d75f175108017723ccb757e695db4cab621c34662c1fa063129ffa1b282a9c0a
+      image: gcr.io/google.com/absl-177019/gloop-linux-toolchain-latest@sha256:94b9d281c95d3c770898a2aeb39edc65de2d53aa3ed72dd069a7e476d3897f70
       # Our images happen to be public today, but use our service account's credentials anyway in
       # case we decide to lock down access.
       credentials:
@@ -134,7 +134,7 @@ jobs:
           # TODO: either revert to GAR_SERVICE_ACCOUNT or switch
           # to more appropriately named credentials after testing.
           google-credentials: ${{ secrets.BAZEL_CACHE_KEY_FOR_B_512558700 }}
-          bazelrc: common --remote_cache=https://storage.googleapis.com/gloop-bazel-remote-cache
+          bazelrc: common --config=remote${{ matrix.config.arch-suffix }}
 
       - name: Run tests
         run: |
