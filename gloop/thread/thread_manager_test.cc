@@ -200,6 +200,29 @@ TEST(ThreadManagerTest, WaitUntilComplete) {
   }
 }
 
+TEST(ThreadManagerTest, SchedulingDuringManagedQueueDestruction) {
+  thread::ManagerOptions mgr_options;
+  mgr_options.policy = thread::EagerThreadManagerPolicy(/*max_threads=*/1);
+  auto tm = std::make_unique<thread::ThreadManager>("a", mgr_options);
+
+  std::unique_ptr<thread::ManagedQueue> q(
+      tm->NewQueue("b", thread::ManagedQueueOptions()));
+
+  absl::Notification c1_started;
+  absl::Notification queue_deleted;
+
+  q->Schedule([&]() {
+    c1_started.Notify();
+    queue_deleted.WaitForNotification();
+    thread::Executor::CurrentExecutor()->Schedule([]() {});
+  });
+
+  c1_started.WaitForNotification();
+  q.reset();
+  queue_deleted.Notify();
+  absl::SleepFor(absl::Milliseconds(100));
+}
+
 // Struct used to test named queues
 struct QueueInfo {
   absl::Mutex mu;             // protects counter, thread_counter,

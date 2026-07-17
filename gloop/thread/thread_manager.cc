@@ -233,6 +233,8 @@ struct ManagedQueueRep {
                       // queue_id is used to distinguish the work of one queue
                       // from that of another, deleted queue that
                       // had the same address.
+  std::atomic<size_t> force_queue_running_tracking{0};
+
   absl::Mutex queue_mu;
 
   // Reference count of Queues, not counting queue_external currently,
@@ -256,6 +258,11 @@ struct ManagedQueueRep {
   absl::CondVar queue_cv ABSL_GUARDED_BY(queue_mu);
   std::deque<absl::AnyInvocable<void() &&>> queue_work
       ABSL_GUARDED_BY(queue_mu);  // queue of pending work
+
+  bool is_queue_running_tracked() const {
+    return queue_options.thread_limit != INT_MAX ||
+           force_queue_running_tracking.load() > 0;
+  }
 };
 
 typedef std::deque<TMWork> TMWorkQueue;  // a queue of work
@@ -1148,8 +1155,7 @@ static bool TMQueueAdd(ThreadManager::Rep* rep,
   bool wake_overseer = false;
   TMPool* pool = nullptr;
   do {
-    if (q_rep->queue_options.thread_limit == INT_MAX &&
-        (flags & kDecAddAfter) == 0) {
+    if (!q_rep->is_queue_running_tracked() && (flags & kDecAddAfter) == 0) {
       // Optimize case where the number of running threads is unlimited:
       // acquire only the pool lock, rather than both the queue lock and the
       // pool lock.   This is possible by not maintaining queue_running
@@ -1349,7 +1355,13 @@ static void TMCountWorkFromQueue(TMWork* work, ManagedQueueRep* q_rep) {
 // in that pool associated with q_rep as "counted".  This is done when the
 // client calls WaitUntilComplete(), or when *q_rep is about to be destroyed.
 // L < this->q_rep_->parent_rep->pool[*]->pool_mu
-static void TMCountAllWorkFromQueue(ManagedQueueRep* q_rep) {
+static void TMCountAllWorkFromQueue(ManagedQueueRep* q_rep,
+                                    bool destroying = false) {
+  const bool force_tracking = q_rep->queue_options.thread_limit == INT_MAX;
+  if (force_tracking) {
+    q_rep->force_queue_running_tracking.fetch_add(1);
+  }
+
   ThreadManager::Rep* parent_rep = q_rep->parent_rep;
   for (int pool_i = 0; pool_i != parent_rep->n_pools; pool_i++) {
     TMPool* pool = &parent_rep->pool[pool_i];
@@ -1365,6 +1377,10 @@ static void TMCountAllWorkFromQueue(ManagedQueueRep* q_rep) {
       TMCountWorkFromQueue(&(*it)->work, q_rep);
     }
     pool->pool_mu.unlock();
+  }
+
+  if (force_tracking && !destroying) {
+    CHECK_NE(q_rep->force_queue_running_tracking.fetch_sub(1), 0);
   }
 }
 
@@ -1394,7 +1410,7 @@ ManagedQueueImpl::~ManagedQueueImpl() {
     // not update the running count to reduce cost.  Make sure that all
     // such updates are done before we unref the queue to prevent
     // uncounted work from dereferencing a deleted queue.
-    TMCountAllWorkFromQueue(this->q_rep_);
+    TMCountAllWorkFromQueue(this->q_rep_, /*destroying=*/true);
     TMQueueRepUnref(this->q_rep_);  // compensates for ref inc in NewQueue().
   }
 }
@@ -1511,10 +1527,10 @@ void ManagedQueueImpl::WaitUntilComplete() {
   // work that came from this queue as having its count maintained,
   // incrementing the queue_running count appropriately.
   // This allows the wait at the end to work in the expected way.
-  if (q_rep->queue_options.thread_limit == INT_MAX) {
+  if (!q_rep->is_queue_running_tracked()) {
     q_rep->queue_mu.LockWhen(absl::Condition(&TMIsWorkComplete, q_rep));
     q_rep->queue_mu.unlock();
-    TMCountAllWorkFromQueue(q_rep);
+    TMCountAllWorkFromQueue(q_rep, /*destroying=*/false);
   }
   q_rep->queue_mu.LockWhen(absl::Condition(&TMIsWorkComplete, q_rep));
   q_rep->queue_mu.unlock();
