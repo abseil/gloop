@@ -86,6 +86,7 @@
 #include "absl/strings/cord.h"
 #include "absl/strings/has_absl_stringify.h"
 #include "absl/strings/str_format.h"
+#include "absl/strings/string_view.h"
 #include "gloop/util/gtl/heterogeneous_lookup.h"
 
 namespace gtl {
@@ -113,6 +114,10 @@ struct AllowHeterogeneousLookup {};
 // We allow heterogeneous lookup for string-like types.
 template <>
 struct AllowHeterogeneousLookup<std::string> {
+  using is_transparent = void;
+};
+template <>
+struct AllowHeterogeneousLookup<absl::string_view> {
   using is_transparent = void;
 };
 template <>
@@ -146,8 +151,8 @@ class Interval {
       : start_(start), limit_(limit) {}
 
   template <typename U1, typename U2,
-            typename = std::enable_if_t<std::is_convertible_v<U1, T> &&
-                                        std::is_convertible_v<U2, T>>>
+            typename = std::enable_if_t<std::is_constructible_v<T, U1> &&
+                                        std::is_constructible_v<T, U2>>>
   constexpr Interval(U1&& start, U2&& limit)
       : start_(std::forward<U1>(start)), limit_(std::forward<U2>(limit)) {}
 

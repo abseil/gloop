@@ -601,26 +601,36 @@ TEST(IntervalHeterogeneousTest, Heterogeneous) {
   EXPECT_TRUE(cord_interval.contains("aa"));
   EXPECT_FALSE(cord_interval.contains("ba"));
 
-  const Interval<std::string> string_view_interval("a", "b");
+  const Interval<absl::string_view> string_view_interval("a", "b");
+  EXPECT_TRUE(string_view_interval.contains(absl::Cord("aa")));
+  EXPECT_FALSE(string_view_interval.contains(absl::Cord("ba")));
+  EXPECT_TRUE(string_view_interval.contains(std::string("aa")));
+  EXPECT_FALSE(string_view_interval.contains(std::string("ba")));
+  EXPECT_TRUE(string_view_interval.contains("aa"));
+  EXPECT_FALSE(string_view_interval.contains("ba"));
 
   EXPECT_TRUE(string_interval == cord_interval);
   EXPECT_TRUE(cord_interval == string_interval);
   EXPECT_TRUE(string_interval == string_view_interval);
   EXPECT_TRUE(cord_interval == string_view_interval);
+  EXPECT_TRUE(string_view_interval == string_interval);
+  EXPECT_TRUE(string_view_interval == cord_interval);
   EXPECT_TRUE(string_view_interval == string_view_interval);
 
   EXPECT_FALSE(string_interval != cord_interval);
   EXPECT_FALSE(cord_interval != string_interval);
   EXPECT_FALSE(string_interval != string_view_interval);
   EXPECT_FALSE(cord_interval != string_view_interval);
+  EXPECT_FALSE(string_view_interval != string_interval);
+  EXPECT_FALSE(string_view_interval != cord_interval);
   EXPECT_FALSE(string_view_interval != string_view_interval);
 
   EXPECT_FALSE(string_interval < cord_interval);
   EXPECT_FALSE(cord_interval < string_interval);
-  EXPECT_FALSE(string_interval < cord_interval);
-  EXPECT_FALSE(cord_interval < string_interval);
   EXPECT_FALSE(string_interval < string_view_interval);
   EXPECT_FALSE(cord_interval < string_view_interval);
+  EXPECT_FALSE(string_view_interval < string_interval);
+  EXPECT_FALSE(string_view_interval < cord_interval);
   EXPECT_FALSE(string_view_interval < string_view_interval);
 }
 

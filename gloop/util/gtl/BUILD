@@ -329,6 +329,8 @@ cc_library(
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:cord",
+        "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
     ],
 )
@@ -341,6 +343,7 @@ cc_test(
         ":interval",
         ":interval_set",
         "//gloop:gloop_test_main",
+        "//gloop/util/intops",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/container:container_memory",
         "@abseil-cpp//absl/hash:hash_testing",
