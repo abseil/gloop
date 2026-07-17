@@ -96,8 +96,10 @@ TEST(ThreadManagerTest, Add) {
 }
 
 TEST(ThreadManagerTest, TrySchedule) {
+  thread::ThreadManager tm("test2", thread::ManagerOptions());
   {
-    thread::ManagedQueue* queue = thread::DefaultQueue();
+    thread::ManagedQueue* queue =
+        tm.NewQueue("default", thread::ManagedQueueOptions());
     absl::Notification started[10];
     absl::Notification done[ABSL_ARRAYSIZE(started)];
     // TrySchedule on default queue always succeeds
@@ -118,8 +120,7 @@ TEST(ThreadManagerTest, TrySchedule) {
     thread::ManagedQueueOptions q_options;
     q_options.thread_limit = 1;  // at most one thread
     q_options.queue_limit = 0;   // queue must be zero length
-    thread::ManagedQueue* queue =
-        thread::DefaultManager()->NewQueue("limited", q_options);
+    thread::ManagedQueue* queue = tm.NewQueue("limited", q_options);
     absl::Notification started[2];
     absl::Notification done[2];
     Closure* cb = ::util::functional::ToCallback(
@@ -175,14 +176,14 @@ TEST(ThreadManagerTest, WaitUntilComplete) {
   // For various queue and thread limits, we start some closures that delay a
   // while on a a queue, and use WaitUntilComplete().  We check that all the
   // closures have indeed finished when WaitUntilComplete() returns.
-  thread::ThreadManager* tm = thread::DefaultManager();
+  thread::ThreadManager tm("test4", thread::ManagerOptions());
   static const int limit[] = {1, INT_MAX};
   for (int i = 0; i != ABSL_ARRAYSIZE(limit); i++) {
     for (int j = 0; j != ABSL_ARRAYSIZE(limit); j++) {
       thread::ManagedQueueOptions q_options;
       q_options.thread_limit = limit[i];
       q_options.queue_limit = limit[j];
-      thread::ManagedQueue* queue = tm->NewQueue("test queue", q_options);
+      thread::ManagedQueue* queue = tm.NewQueue("test queue", q_options);
       absl::Notification done[10];
       for (int i = 0; i != ABSL_ARRAYSIZE(done); i++) {
         queue->Schedule(absl::bind_front(&SleepThenNotify, &done[i]));
