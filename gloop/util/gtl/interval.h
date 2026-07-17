@@ -86,6 +86,7 @@
 #include "absl/strings/cord.h"
 #include "absl/strings/has_absl_stringify.h"
 #include "absl/strings/str_format.h"
+#include "absl/strings/string_view.h"
 #include "gloop/util/gtl/heterogeneous_lookup.h"
 
 namespace gtl {
@@ -113,6 +114,10 @@ struct AllowHeterogeneousLookup {};
 // We allow heterogeneous lookup for string-like types.
 template <>
 struct AllowHeterogeneousLookup<std::string> {
+  using is_transparent = void;
+};
+template <>
+struct AllowHeterogeneousLookup<absl::string_view> {
   using is_transparent = void;
 };
 template <>
