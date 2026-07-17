@@ -128,7 +128,7 @@ TEST_F(IntervalSetTest, IsDisjoint) {
 // Base helper method for verifying the contents of an interval set.
 // Returns true iff <is> contains <count> intervals whose successive
 // endpoints match the sequence of args in <ap>:
-static bool VA_Check(const IntervalSet<int>& is, int count, va_list ap) {
+static bool VA_Check(const IntervalSet<int>& is, size_t count, va_list ap) {
   std::vector<Interval<int>> intervals(is.begin(), is.end());
   if (count != intervals.size()) {
     LOG(ERROR) << "Expected " << count << " intervals, got " << intervals.size()
@@ -141,7 +141,7 @@ static bool VA_Check(const IntervalSet<int>& is, int count, va_list ap) {
     return false;
   }
   bool result = true;
-  for (int i = 0; i < count; i++) {
+  for (size_t i = 0; i < count; i++) {
     int min = va_arg(ap, int);
     int max = va_arg(ap, int);
     if (min != intervals[i].start() || max != intervals[i].limit()) {
@@ -254,7 +254,7 @@ TEST_F(IntervalSetTest, IntervalSetBasic) {
     std::copy(iset.begin(), iset.end(), std::back_inserter(actual2));
     ASSERT_EQ(expected.size(), actual2.size());
 
-    for (int i = 0; i < expected.size(); i++) {
+    for (size_t i = 0; i < expected.size(); i++) {
       EXPECT_EQ(expected[i].start(), actual1[i].start());
       EXPECT_EQ(expected[i].limit(), actual1[i].limit());
 
@@ -1332,7 +1332,111 @@ TEST_F(IntervalSetTest, OutputReturnsOstreamRef) {
   return_type_is_a_ref(ss << v);
 }
 
-TEST_F(IntervalSetTest, HeterogeneousIntervals) {
+TEST(IntervalSetHeterogeneousTest, ContainsPointAndRange) {
+  IntervalSet<std::string> is;
+  is.Add("a", "c");
+  is.Add("e", "g");
+
+  absl::string_view a = "a";
+  absl::string_view b = "b";
+  absl::string_view c = "c";
+  absl::string_view d = "d";
+
+  // Point Contains
+  EXPECT_TRUE(is.Contains(a));
+  EXPECT_TRUE(is.Contains(b));
+  EXPECT_FALSE(is.Contains(c));
+  EXPECT_TRUE(is.Contains("b"));  // Literal
+
+  // Interval Contains
+  EXPECT_TRUE(is.Contains(Interval<absl::string_view>("a", "b")));
+  EXPECT_TRUE(is.Contains(Interval<absl::string_view>("a", "c")));
+  EXPECT_FALSE(is.Contains(Interval<absl::string_view>("a", "d")));
+
+  // 2-Argument Range Contains
+  EXPECT_TRUE(is.Contains(a, b));
+  EXPECT_TRUE(is.Contains("a", c));
+  EXPECT_FALSE(is.Contains(a, d));
+}
+
+TEST(IntervalSetHeterogeneousTest, FindPointAndRange) {
+  IntervalSet<std::string> is;
+  is.Add("a", "c");
+
+  absl::string_view a = "a";
+  absl::string_view b = "b";
+  absl::string_view c = "c";
+
+  // Point Find
+  auto it_b = is.Find(b);
+  ASSERT_NE(it_b, is.end());
+  EXPECT_EQ(it_b->start(), "a");
+  EXPECT_EQ(it_b->limit(), "c");
+  EXPECT_EQ(is.Find(c), is.end());
+
+  // Interval Find
+  auto it_ab = is.Find(Interval<absl::string_view>("a", "b"));
+  ASSERT_NE(it_ab, is.end());
+  EXPECT_EQ(it_ab->start(), "a");
+  EXPECT_EQ(is.Find(Interval<absl::string_view>("c", "d")), is.end());
+
+  // 2-Argument Range Find
+  auto it_ab_args = is.Find(a, b);
+  ASSERT_NE(it_ab_args, is.end());
+  EXPECT_EQ(it_ab_args->start(), "a");
+}
+
+TEST(IntervalSetHeterogeneousTest, IntersectsInterval) {
+  IntervalSet<std::string> is;
+  is.Add("a", "c");
+
+  EXPECT_TRUE(is.IntersectsInterval(Interval<absl::string_view>("b", "d")));
+  EXPECT_FALSE(is.IntersectsInterval(Interval<absl::string_view>("c", "d")));
+}
+
+TEST(IntervalSetHeterogeneousTest, LowerAndUpperBound) {
+  IntervalSet<std::string> is;
+  is.Add("a", "c");
+  is.Add("e", "g");
+
+  absl::string_view b = "b";
+  absl::string_view d = "d";
+
+  // LowerBound
+  auto it_low_b = is.LowerBound(b);
+  ASSERT_NE(it_low_b, is.end());
+  EXPECT_EQ(it_low_b->start(), "a");
+  auto it_low_d = is.LowerBound(d);
+  ASSERT_NE(it_low_d, is.end());
+  EXPECT_EQ(it_low_d->start(), "e");
+
+  // UpperBound
+  auto it_up_b = is.UpperBound(b);
+  ASSERT_NE(it_up_b, is.end());
+  EXPECT_EQ(it_up_b->start(), "e");
+}
+
+TEST(IntervalSetHeterogeneousTest, CordSupport) {
+  IntervalSet<absl::Cord> is_cord;
+  is_cord.Add(absl::Cord("a"), absl::Cord("c"));
+
+  absl::string_view b = "b";
+
+  // Verify view-friendly point and Interval lookups compile and work correctly
+  // for Cord (since Cord defines transparent comparators).
+  EXPECT_TRUE(is_cord.Contains(b));
+  EXPECT_TRUE(is_cord.Contains(Interval<absl::string_view>("a", "b")));
+
+  auto it_b = is_cord.Find(b);
+  ASSERT_NE(it_b, is_cord.end());
+  EXPECT_EQ(it_b->start(), absl::Cord("a"));
+
+  // Note: 2-Argument Range API for Cord requires explicit Interval wrapper
+  // since absl::Cord's conversion from string_view is 'explicit'.
+  EXPECT_TRUE(is_cord.Contains(Interval<absl::string_view>("a", "b")));
+}
+
+TEST(IntervalSetHeterogeneousTest, IsDisjoint) {
   IntervalSet<std::string> set;
   set.Add("a", "b");
   set.Add("g", "h");
