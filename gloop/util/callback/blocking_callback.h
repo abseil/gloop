@@ -70,6 +70,7 @@
 #include <cstdint>
 
 #include "absl/base/casts.h"
+#include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/synchronization/mutex.h"
@@ -148,9 +149,8 @@ class BlockingClosure : public Closure {
   // base/callback.h for more information.
   bool IsRepeatable() const override;
 
-  // When using a BlockingClosure* in a NewCallback() which expects a Closure*
-  // use this method to explicitly up-cast to avoid a type mis-match.
-  Closure* AsClosure() { return absl::implicit_cast<Closure*>(this); }
+  ABSL_DEPRECATE_AND_INLINE()
+  BlockingClosure* AsClosure() { return this; }
 
   // Returns how many times Run has been called.
   int num_called() const ABSL_LOCKS_EXCLUDED(&done_lock_);
