@@ -30,8 +30,10 @@
 #include <cstdlib>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/base/macros.h"
@@ -64,9 +66,7 @@ using testing::Field;
 using testing::IsEmpty;
 
 TEST(ThreadManagerTest, DeleteWithoutWork) {
-  thread::ThreadManager* tm =
-      new thread::ThreadManager("test0", thread::ManagerOptions());
-  delete tm;
+  (void)thread::ThreadManager("test_manager", thread::ManagerOptions());
 }
 
 static void NotifyThenWait(absl::Notification* to_notify,
@@ -82,24 +82,24 @@ static void WaitThenNotify(absl::Notification* to_wait,
 }
 
 TEST(ThreadManagerTest, Add) {
-  thread::ThreadManager* tm =
-      new thread::ThreadManager("test1", thread::ManagerOptions());
-  thread::ManagedQueue* queue =
-      tm->NewQueue("default", thread::ManagedQueueOptions());
+  std::optional<thread::ThreadManager> tm(std::in_place, "test_manager",
+                                          thread::ManagerOptions());
+  std::unique_ptr<thread::ManagedQueue> queue(
+      tm->NewQueue("default", thread::ManagedQueueOptions()));
   CHECK_EQ(queue->name(), "default");
   absl::Notification started;
   absl::Notification done;
   queue->Schedule(absl::bind_front(&NotifyThenWait, &started, &done));
   WaitThenNotify(&started, &done);
-  delete queue;
-  delete tm;
+  queue.reset();
+  tm.reset();
 }
 
 TEST(ThreadManagerTest, TrySchedule) {
-  thread::ThreadManager tm("test2", thread::ManagerOptions());
+  thread::ThreadManager tm("test_manager", thread::ManagerOptions());
   {
-    thread::ManagedQueue* queue =
-        tm.NewQueue("default", thread::ManagedQueueOptions());
+    std::unique_ptr<thread::ManagedQueue> queue(
+        tm.NewQueue("default", thread::ManagedQueueOptions()));
     absl::Notification started[10];
     absl::Notification done[ABSL_ARRAYSIZE(started)];
     // TrySchedule on default queue always succeeds
@@ -110,7 +110,7 @@ TEST(ThreadManagerTest, TrySchedule) {
     for (int i = 0; i != ABSL_ARRAYSIZE(started); i++) {
       WaitThenNotify(&started[i], &done[i]);
     }
-    delete queue;
+    queue.reset();
     ::absl::SleepFor(
         ::absl::Milliseconds(500));  // want all closures to finish, but can't
                                      // delete the default ThreadManager
@@ -120,7 +120,8 @@ TEST(ThreadManagerTest, TrySchedule) {
     thread::ManagedQueueOptions q_options;
     q_options.thread_limit = 1;  // at most one thread
     q_options.queue_limit = 0;   // queue must be zero length
-    thread::ManagedQueue* queue = tm.NewQueue("limited", q_options);
+    std::unique_ptr<thread::ManagedQueue> queue(
+        tm.NewQueue("limited", q_options));
     absl::Notification started[2];
     absl::Notification done[2];
     Closure* cb = ::util::functional::ToCallback(
@@ -137,7 +138,7 @@ TEST(ThreadManagerTest, TrySchedule) {
     CHECK(queue->TrySchedule(::util::functional::FromCallback(
         cb)));  // second callback should be accepted
     WaitThenNotify(&started[1], &done[1]);
-    delete queue;
+    queue.reset();
     ::absl::SleepFor(
         ::absl::Milliseconds(500));  // want all closures to finish, but can't
                                      // delete the default ThreadManager
@@ -145,12 +146,13 @@ TEST(ThreadManagerTest, TrySchedule) {
 }
 
 TEST(ThreadManagerTest, AddIfReadyToRun) {
-  thread::ThreadManager* tm =
-      new thread::ThreadManager("test3", thread::ManagerOptions());
+  std::optional<thread::ThreadManager> tm(std::in_place, "test_manager",
+                                          thread::ManagerOptions());
   thread::ManagedQueueOptions q_options;
   q_options.thread_limit = 1;  // at most one thread
   q_options.queue_limit = 0;   // queue must be zero length
-  thread::ManagedQueue* queue = tm->NewQueue("limited", q_options);
+  std::unique_ptr<thread::ManagedQueue> queue(
+      tm->NewQueue("limited", q_options));
   absl::Notification started[2];
   absl::Notification done[2];
   std::function<void()> cb =
@@ -163,8 +165,8 @@ TEST(ThreadManagerTest, AddIfReadyToRun) {
       ::absl::Milliseconds(500));  // time for worker thread to become idle
   CHECK(queue->TrySchedule(cb));   // second callback should be accepted
   WaitThenNotify(&started[1], &done[1]);
-  delete queue;
-  delete tm;
+  queue.reset();
+  tm.reset();
 }
 
 static void SleepThenNotify(absl::Notification* done) {
@@ -176,14 +178,15 @@ TEST(ThreadManagerTest, WaitUntilComplete) {
   // For various queue and thread limits, we start some closures that delay a
   // while on a a queue, and use WaitUntilComplete().  We check that all the
   // closures have indeed finished when WaitUntilComplete() returns.
-  thread::ThreadManager tm("test4", thread::ManagerOptions());
+  thread::ThreadManager tm("test_manager", thread::ManagerOptions());
   static const int limit[] = {1, INT_MAX};
   for (int i = 0; i != ABSL_ARRAYSIZE(limit); i++) {
     for (int j = 0; j != ABSL_ARRAYSIZE(limit); j++) {
       thread::ManagedQueueOptions q_options;
       q_options.thread_limit = limit[i];
       q_options.queue_limit = limit[j];
-      thread::ManagedQueue* queue = tm.NewQueue("test queue", q_options);
+      std::unique_ptr<thread::ManagedQueue> queue(
+          tm.NewQueue("test queue", q_options));
       absl::Notification done[10];
       for (int i = 0; i != ABSL_ARRAYSIZE(done); i++) {
         queue->Schedule(absl::bind_front(&SleepThenNotify, &done[i]));
@@ -195,7 +198,7 @@ TEST(ThreadManagerTest, WaitUntilComplete) {
             << "thread limit " << q_options.thread_limit << "queue limit "
             << q_options.queue_limit;
       }
-      delete queue;
+      queue.reset();
     }
   }
 }
@@ -237,9 +240,9 @@ struct QueueInfo {
 
   // The following fields are read-only after initialization
   thread::ManagedQueueOptions queue_options;
-  Closure* cb;                  // Closure to be called for each event
+  std::unique_ptr<Closure> cb;  // Closure to be called for each event
   std::string name;             // unique name
-  thread::ManagedQueue* queue;  // queue for this name
+  std::unique_ptr<thread::ManagedQueue> queue;  // queue for this name
 };
 
 // Increment queue_info->count under queue_info->mu, wait sleep_ms milliseconds,
@@ -298,8 +301,8 @@ static void WaitForCompletion(QueueInfo& queue_info) {
 }
 
 TEST(ThreadManagerTest, SleepingClosures) {
-  thread::ThreadManager* tm =
-      new thread::ThreadManager("test4", thread::ManagerOptions());
+  std::optional<thread::ThreadManager> tm(std::in_place, "test_manager",
+                                          thread::ManagerOptions());
   PerThread::Key key{PerThread::kInvalid};
   PerThread::Allocate(&key, nullptr);
   QueueInfo queue_info;
@@ -309,19 +312,21 @@ TEST(ThreadManagerTest, SleepingClosures) {
   queue_info.total_threads = 0;
   queue_info.max_concurrent_calls = 0;
   queue_info.max_pending_for_queue = 0;
-  queue_info.cb = ::util::functional::ToPermanentCallback(
-      absl::bind_front(&ParameterizedTestClosure, &key, 1000, 0, &queue_info));
+  queue_info.cb.reset(::util::functional::ToPermanentCallback(
+      absl::bind_front(&ParameterizedTestClosure, &key, 1000, 0, &queue_info)));
   queue_info.name = "sleeping";
-  queue_info.queue = tm->NewQueue(queue_info.name, queue_info.queue_options);
+  queue_info.queue.reset(
+      tm->NewQueue(queue_info.name, queue_info.queue_options));
   const absl::Time start_time = absl::Now();
   for (int i = 0; i != queue_info.expected_calls; i++) {
-    queue_info.queue->Schedule(util::functional::FromCallback(queue_info.cb));
+    queue_info.queue->Schedule(
+        util::functional::FromCallback(queue_info.cb.get()));
   }
   WaitForCompletion(queue_info);
   const absl::Duration elapsed = absl::Now() - start_time;
-  delete queue_info.queue;
-  delete tm;
-  delete queue_info.cb;
+  queue_info.queue.reset();
+  tm.reset();
+  queue_info.cb.reset();
   CHECK_GT(elapsed, absl::Milliseconds(500));
 #if defined(ABSL_HAVE_THREAD_SANITIZER)
   CHECK_LT(elapsed, absl::Milliseconds(6000));
@@ -331,8 +336,8 @@ TEST(ThreadManagerTest, SleepingClosures) {
 }
 
 TEST(ThreadManagerTest, CPUBoundClosures) {
-  thread::ThreadManager* tm =
-      new thread::ThreadManager("test5", thread::ManagerOptions());
+  std::optional<thread::ThreadManager> tm(std::in_place, "test_manager",
+                                          thread::ManagerOptions());
   PerThread::Key key{PerThread::kInvalid};
   PerThread::Allocate(&key, nullptr);
   static const int kSpin = 10000000;
@@ -343,23 +348,25 @@ TEST(ThreadManagerTest, CPUBoundClosures) {
   queue_info.total_threads = 0;
   queue_info.max_concurrent_calls = 0;
   queue_info.max_pending_for_queue = 0;
-  queue_info.cb = ::util::functional::ToPermanentCallback(
-      absl::bind_front(&ParameterizedTestClosure, &key, 0, kSpin, &queue_info));
+  queue_info.cb.reset(::util::functional::ToPermanentCallback(absl::bind_front(
+      &ParameterizedTestClosure, &key, 0, kSpin, &queue_info)));
   queue_info.name = "cpu_bound";
-  queue_info.queue = tm->NewQueue(queue_info.name, queue_info.queue_options);
+  queue_info.queue.reset(
+      tm->NewQueue(queue_info.name, queue_info.queue_options));
   for (int i = 0; i != queue_info.expected_calls; i++) {
-    queue_info.queue->Schedule(util::functional::FromCallback(queue_info.cb));
+    queue_info.queue->Schedule(
+        util::functional::FromCallback(queue_info.cb.get()));
   }
   WaitForCompletion(queue_info);
-  delete queue_info.queue;
-  delete tm;
-  delete queue_info.cb;
+  queue_info.queue.reset();
+  tm.reset();
+  queue_info.cb.reset();
   CHECK_LT(queue_info.total_threads, queue_info.total_calls);
 }
 
 TEST(ThreadManagerTest, ContendingClosures) {
-  thread::ThreadManager* tm =
-      new thread::ThreadManager("test6", thread::ManagerOptions());
+  std::optional<thread::ThreadManager> tm(std::in_place, "test_manager",
+                                          thread::ManagerOptions());
   PerThread::Key key{PerThread::kInvalid};
   PerThread::Allocate(&key, nullptr);
   QueueInfo queue_info;
@@ -373,20 +380,22 @@ TEST(ThreadManagerTest, ContendingClosures) {
   queue_info.total_threads = 0;
   queue_info.max_concurrent_calls = 0;
   queue_info.max_pending_for_queue = 0;
-  queue_info.cb = ::util::functional::ToPermanentCallback(
-      absl::bind_front(&ParameterizedTestClosure, &key, 0, 0, &queue_info));
+  queue_info.cb.reset(::util::functional::ToPermanentCallback(
+      absl::bind_front(&ParameterizedTestClosure, &key, 0, 0, &queue_info)));
   queue_info.name = "contending";
-  queue_info.queue = tm->NewQueue(queue_info.name, queue_info.queue_options);
+  queue_info.queue.reset(
+      tm->NewQueue(queue_info.name, queue_info.queue_options));
   for (int i = 0; i != queue_info.expected_calls; i++) {
-    queue_info.queue->Schedule(util::functional::FromCallback(queue_info.cb));
+    queue_info.queue->Schedule(
+        util::functional::FromCallback(queue_info.cb.get()));
     if (((i + 1) % 10000) == 0) {
       VLOG(0) << "Added " << (i + 1) << " of " << queue_info.expected_calls;
     }
   }
   WaitForCompletion(queue_info);
-  delete queue_info.queue;
-  delete tm;
-  delete queue_info.cb;
+  queue_info.queue.reset();
+  tm.reset();
+  queue_info.cb.reset();
 #if defined(ABSL_HAVE_THREAD_SANITIZER)
   CHECK_LT(queue_info.total_threads, queue_info.total_calls / 2);
 #else
@@ -397,8 +406,8 @@ TEST(ThreadManagerTest, ContendingClosures) {
 TEST(ThreadManagerTest, Queues) {
   PerThread::Key key{PerThread::kInvalid};
   PerThread::Allocate(&key, nullptr);
-  thread::ThreadManager* tm =
-      new thread::ThreadManager("test7", thread::ManagerOptions());
+  std::optional<thread::ThreadManager> tm(std::in_place, "test_manager",
+                                          thread::ManagerOptions());
   static const int kSleepMS = 40;  // ms to sleep in closures
   // We use 2 queue names.  Entry 0 gets default (infinite) limits.
   // Entry 1 gets specific finite limits.
@@ -412,11 +421,12 @@ TEST(ThreadManagerTest, Queues) {
     queue_info[i].total_threads = 0;
     queue_info[i].max_concurrent_calls = 0;
     queue_info[i].max_pending_for_queue = 0;
-    queue_info[i].cb = ::util::functional::ToPermanentCallback(absl::bind_front(
-        &ParameterizedTestClosure, &key, kSleepMS, 0, &queue_info[i]));
+    queue_info[i].cb.reset(
+        ::util::functional::ToPermanentCallback(absl::bind_front(
+            &ParameterizedTestClosure, &key, kSleepMS, 0, &queue_info[i])));
     queue_info[i].name = absl::StrFormat("queue %d", i);
-    queue_info[i].queue =
-        tm->NewQueue(queue_info[i].name, queue_info[i].queue_options);
+    queue_info[i].queue.reset(
+        tm->NewQueue(queue_info[i].name, queue_info[i].queue_options));
     CHECK_EQ(queue_info[i].queue->num_pending_closures(), 0);
   }
 
@@ -425,7 +435,7 @@ TEST(ThreadManagerTest, Queues) {
     int r = rand();
     int entry = r % ABSL_ARRAYSIZE(queue_info);
     queue_info[entry].queue->Schedule(
-        util::functional::FromCallback(queue_info[entry].cb));
+        util::functional::FromCallback(queue_info[entry].cb.get()));
   }
   int total_calls;
   do {
@@ -438,9 +448,9 @@ TEST(ThreadManagerTest, Queues) {
     }
   } while (total_calls != queue_info[0].expected_calls);
   for (int i = 0; i != ABSL_ARRAYSIZE(queue_info); i++) {
-    delete queue_info[i].queue;
+    queue_info[i].queue.reset();
   }
-  delete tm;
+  tm.reset();
   int64_t end_ms = absl::ToUnixMillis(absl::Now());
   int threads = 0;
   for (int i = 0; i != ABSL_ARRAYSIZE(queue_info); i++) {
@@ -471,7 +481,7 @@ TEST(ThreadManagerTest, Queues) {
       ASSERT_GE(queue_info[i].max_pending_for_queue, 25);
       CHECK_LE(queue_info[i].max_pending_for_queue, 40);
     }
-    delete queue_info[i].cb;
+    queue_info[i].cb.reset();
   }
   LOG(INFO) << "ran " << queue_info[0].expected_calls << " " << kSleepMS
             << "ms closures in " << end_ms - start_ms << " ms with " << threads
@@ -479,13 +489,13 @@ TEST(ThreadManagerTest, Queues) {
 }
 
 TEST(ThreadManagerTest, AddAfter) {
-  thread::ThreadManager* tm =
-      new thread::ThreadManager("test8", thread::ManagerOptions());
+  std::optional<thread::ThreadManager> tm(std::in_place, "test_manager",
+                                          thread::ManagerOptions());
   thread::ManagedQueueOptions options;
   options.queue_limit = 1;
   options.thread_limit = 1;
-  thread::ManagedQueue* q0 = tm->NewQueue("test8q0", options);
-  thread::ManagedQueue* q1 = tm->NewQueue("test8q1", options);
+  std::unique_ptr<thread::ManagedQueue> q0(tm->NewQueue("test8q0", options));
+  std::unique_ptr<thread::ManagedQueue> q1(tm->NewQueue("test8q1", options));
   absl::Notification n[4];
   int64_t start_ms = absl::ToUnixMillis(absl::Now());
   q0->ScheduleAt(absl::Now() + absl::Milliseconds(1),
@@ -510,8 +520,8 @@ TEST(ThreadManagerTest, AddAfter) {
   // now 10s should have passed despite the 1ms delay because q0 is
   // single-threaded.
   CHECK_LT(start_ms + 10000, end1_ms);
-  delete q0;
-  delete q1;
+  q0.reset();
+  q1.reset();
   // Check that WaitUntilComplete() waits even for work passed via
   // AddAfter(), both with bounded and unbounded threads.
   for (int i = 0; i != 2; i++) {
@@ -520,29 +530,31 @@ TEST(ThreadManagerTest, AddAfter) {
       options_wait.thread_limit = 1;
     }
     absl::Notification add_after_note;
-    thread::ManagedQueue* q = tm->NewQueue("test8q2", options_wait);
+    std::unique_ptr<thread::ManagedQueue> q(
+        tm->NewQueue("test8q2", options_wait));
     q->ScheduleAt(absl::Now() + absl::Milliseconds(1000),
                   [&add_after_note] { add_after_note.Notify(); });
     q->WaitUntilComplete();
     CHECK(add_after_note.HasBeenNotified());
-    delete q;
+    q.reset();
   }
-  delete tm;
+  tm.reset();
 
   // Check that deleting the thread_manager waits even for work passed
   // via AddAfter(), and even if WaitUntilComplete() is not called.
   for (int i = 0; i != 2; i++) {
-    tm = new thread::ThreadManager("test8a", thread::ManagerOptions());
+    tm.emplace("test8a", thread::ManagerOptions());
     thread::ManagedQueueOptions options_wait;
     if ((i & 1) == 0) {
       options_wait.thread_limit = 1;
     }
     absl::Notification add_after_note;
-    thread::ManagedQueue* q = tm->NewQueue("test8q2", options_wait);
+    std::unique_ptr<thread::ManagedQueue> q(
+        tm->NewQueue("test8q2", options_wait));
     q->ScheduleAt(absl::Now() + absl::Milliseconds(1000),
                   [&add_after_note] { add_after_note.Notify(); });
-    delete q;
-    delete tm;
+    q.reset();
+    tm.reset();
     CHECK(add_after_note.HasBeenNotified());
   }
 }
@@ -556,10 +568,10 @@ class VerifyNoCurrentExecutorAtDestruction {
 };
 
 TEST(ThreadManagerTest, CurrentExecutorNotSetDuringThreadExit) {
-  thread::ThreadManager* tm =
-      new thread::ThreadManager("test9", thread::ManagerOptions());
-  thread::ManagedQueue* q =
-      tm->NewQueue("test9q", thread::ManagedQueueOptions());
+  std::optional<thread::ThreadManager> tm(std::in_place, "test_manager",
+                                          thread::ManagerOptions());
+  std::unique_ptr<thread::ManagedQueue> q(
+      tm->NewQueue("test9q", thread::ManagedQueueOptions()));
 
   // Create a threadlocal object on the ThreadManager thread that will verify
   // there's no CurrentExecutor visible when the ThreadManager thread exits and
@@ -569,8 +581,8 @@ TEST(ThreadManagerTest, CurrentExecutorNotSetDuringThreadExit) {
     threadlocal.get();  // Force creation of the threadlocal on this thread.
   });
 
-  delete q;
-  delete tm;
+  q.reset();
+  tm.reset();
 }
 
 // Helper class for ToleratesSlowThreadExit test; it's like a Notification but
@@ -634,10 +646,10 @@ TEST(ThreadManagerTest, ToleratesSlowThreadExit) {
   // when they become idle.
   const int kNumThreads = 100;
 
-  thread::ThreadManager* tm =
-      new thread::ThreadManager("test10", thread::ManagerOptions());
-  thread::ManagedQueue* q =
-      tm->NewQueue("test10q", thread::ManagedQueueOptions());
+  std::optional<thread::ThreadManager> tm(std::in_place, "test_manager",
+                                          thread::ManagerOptions());
+  std::unique_ptr<thread::ManagedQueue> q(
+      tm->NewQueue("test10q", thread::ManagedQueueOptions()));
 
   // Start several threads that have a slow-to-destruct threadlocal.
   ThreadLocal<ClassWithSlowDestructor> threadlocal;
@@ -682,20 +694,17 @@ TEST(ThreadManagerTest, ToleratesSlowThreadExit) {
   }
   LOG(INFO) << "Ran closures on queue";
 
-  thread::ManagedQueue* q2 =
-      tm->NewQueue("test10q2", thread::ManagedQueueOptions());
-  delete q2;
+  (void)std::unique_ptr<thread::ManagedQueue>(
+      tm->NewQueue("test10q2", thread::ManagedQueueOptions()));
   LOG(INFO) << "Created/destroyed new queue";
 
-  thread::ThreadManager* tm2 =
-      new thread::ThreadManager("test10tm2", thread::ManagerOptions());
-  delete tm2;
+  (void)thread::ThreadManager("test10tm2", thread::ManagerOptions());
   LOG(INFO) << "Created/destroyed new threadmanager";
 
   // Clean up.
   can_finish_threadlocal_destructors.Notify();
-  delete q;
-  delete tm;
+  q.reset();
+  tm.reset();
 }
 
 namespace thread {
@@ -709,10 +718,10 @@ TEST(ThreadManagerWatchdogTest, UsesCustomWatchDogCallback) {
   thread::ManagedQueueOptions queue_options;
   queue_options.time_limit_s = 1;
 
-  thread::ThreadManager* tm = new thread::ThreadManager(
-      "custom_watchdog_callback_test", manager_options);
-  thread::ManagedQueue* q =
-      tm->NewQueue("custom_watchdog_callback_test_queue", queue_options);
+  std::optional<thread::ThreadManager> tm(
+      std::in_place, "custom_watchdog_callback_test", manager_options);
+  std::unique_ptr<thread::ManagedQueue> q(
+      tm->NewQueue("custom_watchdog_callback_test_queue", queue_options));
 
   q->Schedule([&]() {
     const absl::Time watchdog_wait_start = absl::Now();
@@ -729,8 +738,6 @@ TEST(ThreadManagerWatchdogTest, UsesCustomWatchDogCallback) {
   });
 
   q->WaitUntilComplete();
-  delete q;
-  delete tm;
 }
 }  // namespace thread
 
@@ -748,11 +755,12 @@ TEST(QueueStatsTest, ZeroQueues) {
 }
 
 TEST(QueueStatsTest, OneQueue) {
-  thread::ThreadManager tm("QueueStatsTest", thread::ManagerOptions());
+  std::optional<thread::ThreadManager> tm(std::in_place, "QueueStatsTest",
+                                          thread::ManagerOptions());
   {
     thread::ManagedQueueOptions qo;
     qo.thread_limit = 1;
-    std::unique_ptr<thread::ManagedQueue> q(tm.NewQueue("OneQueue", qo));
+    std::unique_ptr<thread::ManagedQueue> q(tm->NewQueue("OneQueue", qo));
     EXPECT_THAT(
         q->Stats(),
         AllOf(Field(&thread::ManagedQueueStats::queue_name, Eq("OneQueue")),
@@ -831,19 +839,18 @@ static void BM_ThreadManagerRun(benchmark::State& state) {
   thread::ManagerOptions options;
   options.n_pools = 1;
   options.policy = new SingleThreadPolicy;
-  thread::ThreadManager* manager =
-      new thread::ThreadManager("benchmark_manager", options);
+  std::optional<thread::ThreadManager> manager(std::in_place,
+                                               "benchmark_manager", options);
 
   // Make a queue with the specified thread limit
   thread::ManagedQueueOptions qoptions;
   qoptions.thread_limit = state.range(0);
-  thread::ManagedQueue* q = manager->NewQueue("benchmark_queue", qoptions);
+  std::unique_ptr<thread::ManagedQueue> q(
+      manager->NewQueue("benchmark_queue", qoptions));
 
-  BM_Runner runner(q, &state);
+  BM_Runner runner(q.get(), &state);
   runner.Run();
   runner.Wait();
-  delete q;
-  delete manager;
 }
 BENCHMARK(BM_ThreadManagerRun)->Arg(1)->Arg(INT_MAX);
 
@@ -852,13 +859,14 @@ static void BM_ThreadManagerSchedule(benchmark::State& state) {
   thread::ManagerOptions options;
   options.n_pools = 1;
   options.policy = new SingleThreadPolicy;
-  thread::ThreadManager* manager =
-      new thread::ThreadManager("benchmark_manager", options);
+  std::optional<thread::ThreadManager> manager(std::in_place,
+                                               "benchmark_manager", options);
 
   // Make a queue with the specified thread limit
   thread::ManagedQueueOptions qoptions;
   qoptions.thread_limit = state.range(0);
-  thread::ManagedQueue* q = manager->NewQueue("benchmark_queue", qoptions);
+  std::unique_ptr<thread::ManagedQueue> q(
+      manager->NewQueue("benchmark_queue", qoptions));
 
   absl::Notification done;
   std::function<void()> fn = [&] {
@@ -871,27 +879,25 @@ static void BM_ThreadManagerSchedule(benchmark::State& state) {
 
   fn();  // Kick things off
   done.WaitForNotification();
-  delete q;
-  delete manager;
+  q.reset();
+  manager.reset();
 }
 BENCHMARK(BM_ThreadManagerSchedule)->Arg(1)->Arg(INT_MAX);
 
 static void BM_ThreadManagerDefaultPolicyRun(benchmark::State& state) {
   // Make a thread manager with the default policy
   thread::ManagerOptions options;
-  thread::ThreadManager* manager =
-      new thread::ThreadManager("benchmark_manager_with_defaults", options);
+  thread::ThreadManager manager("benchmark_manager_with_defaults", options);
 
   // Make a queue with the specified thread limit
   thread::ManagedQueueOptions qoptions;
   qoptions.thread_limit = state.range(0);
-  thread::ManagedQueue* q = manager->NewQueue("benchmark_queue", qoptions);
+  std::unique_ptr<thread::ManagedQueue> q(
+      manager.NewQueue("benchmark_queue", qoptions));
 
-  BM_Runner runner(q, &state);
+  BM_Runner runner(q.get(), &state);
   runner.Run();
   runner.Wait();
-  delete q;
-  delete manager;
 }
 BENCHMARK(BM_ThreadManagerDefaultPolicyRun)->Arg(1)->Arg(INT_MAX);
 
@@ -904,11 +910,11 @@ static void BM_ThreadManagerDefaultPolicyQueuedInAdvance(
   thread::ManagerOptions options;
   options.n_pools = 1;
   options.policy = new SingleThreadPolicy;
-  thread::ThreadManager* manager =
-      new thread::ThreadManager("benchmark_manager_with_defaults", options);
+  thread::ThreadManager manager("benchmark_manager_with_defaults", options);
   // Make a queue with the specified thread limit
   thread::ManagedQueueOptions qoptions;
-  thread::ManagedQueue* q = manager->NewQueue("benchmark_queue", qoptions);
+  std::unique_ptr<thread::ManagedQueue> q(
+      manager.NewQueue("benchmark_queue", qoptions));
 
   while (state.KeepRunningBatch(kBatchSize)) {
     for (int i = 0; i < kBatchSize; ++i) {
@@ -916,9 +922,6 @@ static void BM_ThreadManagerDefaultPolicyQueuedInAdvance(
     }
     q->WaitUntilComplete();
   }
-
-  delete q;
-  delete manager;
 }
 BENCHMARK(BM_ThreadManagerDefaultPolicyQueuedInAdvance);
 
