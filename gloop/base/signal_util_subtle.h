@@ -202,6 +202,7 @@ class ScopedSigaction {
   int signum_;
 };
 
+#if !defined(__APPLE__)
 // Timers that run for the length of this object's existence.
 class ScopedPosixTimer {
  public:
@@ -241,6 +242,7 @@ class ScopedPosixTimer {
  private:
   timer_t t_;
 };
+#endif
 
 // Read variable width={1,2,4,8} bytes from *ptr.  No other widths are
 // supported.  Optimal when width is not known at compile time.
@@ -371,6 +373,7 @@ inline void WriteVariableSigned(volatile void* ptr, size_t width, int64_t val) {
   WriteVariableUnsigned(ptr, width, val);
 }
 
+#if !defined(__APPLE__)
 // Affinity helpers.
 
 // Returns a vector of the which cpus the currently allowed thread is allowed to
@@ -405,6 +408,7 @@ class ScopedAffinityMask {
  private:
   cpu_set_t original_cpus_, specified_cpus_;
 };
+#endif
 
 }  // namespace internal
 }  // namespace base
