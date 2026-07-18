@@ -526,7 +526,7 @@ cc_test(
     srcs = ["cpuusage_test.cc"],
     deps = [
         ":thread",
-        "//gloop/base:init_google",
+        "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log:check",
