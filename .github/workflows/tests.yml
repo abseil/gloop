@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-24.04${{ matrix.config.arch-suffix }}
     name: Linux (${{ matrix.config.name || format('{0}{1}', matrix.config.value, matrix.config.arch-suffix) }})
     container:
-      image: gcr.io/google.com/absl-177019/gloop-linux-toolchain-latest@sha256:94b9d281c95d3c770898a2aeb39edc65de2d53aa3ed72dd069a7e476d3897f70
+      image: gcr.io/google.com/absl-177019/gloop-linux-toolchain-latest@sha256:a820c79d3f356a64db121a4ee16c4408df18f9d2c8bf6c6abfae21666ac003ba
       # Our images happen to be public today, but use our service account's credentials anyway in
       # case we decide to lock down access.
       credentials:
@@ -91,7 +91,7 @@ jobs:
     name: Check Non-compilation for ${{ matrix.config }}
     runs-on: ubuntu-latest
     container:
-      image: gcr.io/google.com/absl-177019/gloop-linux-toolchain-latest@sha256:94b9d281c95d3c770898a2aeb39edc65de2d53aa3ed72dd069a7e476d3897f70
+      image: gcr.io/google.com/absl-177019/gloop-linux-toolchain-latest@sha256:a820c79d3f356a64db121a4ee16c4408df18f9d2c8bf6c6abfae21666ac003ba
       # Our images happen to be public today, but use our service account's credentials anyway in
       # case we decide to lock down access.
       credentials:

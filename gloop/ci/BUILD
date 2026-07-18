@@ -27,7 +27,7 @@ platform(
         "@platforms//cpu:x86_64",
     ],
     exec_properties = {
-        "container-image": "docker://gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:f2a037597a30bf894567ee69ed8190aa93b203c037cb524d6db4fd7327e5784b",
+        "container-image": "docker://gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:e199623ad0b61b30d240e8bbddf473f65cb1a11da09462001d83b5066dbd9e98",
         "OSArch": "amd64",
         "dockerRunAsRoot": "true",
         "cache-silo-key": "n2-highmem-8-2026-05-02",
@@ -41,7 +41,7 @@ platform(
         "@platforms//cpu:aarch64",
     ],
     exec_properties = {
-        "container-image": "docker://gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:f2a037597a30bf894567ee69ed8190aa93b203c037cb524d6db4fd7327e5784b",
+        "container-image": "docker://gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:e199623ad0b61b30d240e8bbddf473f65cb1a11da09462001d83b5066dbd9e98",
         "OSArch": "arm64",
         "dockerRunAsRoot": "true",
         "cache-silo-key": "t2a-standard-8-2026-05-02",
