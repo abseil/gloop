@@ -97,7 +97,7 @@ cc_test(
         ":atomic_sequence_num",
         "//gloop:gloop_test_main",
         "//gloop/thread",
-        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/synchronization",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

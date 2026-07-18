@@ -26,123 +26,131 @@
 #include <thread>  // NOLINT(build/c++11)
 #include <vector>
 
-#include "absl/log/check.h"
+#include "absl/base/thread_annotations.h"
 #include "absl/synchronization/mutex.h"
 #include "gloop/thread/threadpool.h"
 #include "gtest/gtest.h"
 
+namespace base {
+namespace {
+
 // ----------------------------------------------------
-static const int kMaxRefCountThreads = 10;
+constexpr int kMaxRefCountThreads = 10;
 
 struct TestContext {  // state used by the tests
-  ThreadPool* tp;
+  ThreadPool* tp = nullptr;
 
-  base::SequenceNumber cnt;
+  SequenceNumber cnt;
 
   absl::Mutex mu;
-  int outstanding;  // number of threads outstanding; under mu
+  // Number of threads outstanding; under mu.
+  int outstanding ABSL_GUARDED_BY(mu) = 0;
 
-  int64_t expected_final;  // expected final value of cnt
+  // Expected final value of cnt.
+  int64_t expected_final ABSL_GUARDED_BY(mu) = 0;
 
   // We sum (via + and ^) the sequence of numbers returned by
   // GetNext() to ensure that all values are returned.
-  base::SequenceNumber::Value expected_xor;
-  base::SequenceNumber::Value expected_sum;
-};
+  SequenceNumber::Value expected_xor ABSL_GUARDED_BY(mu) = 0;
+  SequenceNumber::Value expected_sum ABSL_GUARDED_BY(mu) = 0;
 
-// Initialize the values in a TestContext.
-// L < c->mu
-static void InitTestContext(TestContext* c) {
-  c->mu.lock();
-  c->expected_final = 0;
-  c->outstanding = 0;
-  c->expected_sum = 0;
-  c->expected_xor = 0;
-  c->mu.unlock();
-}
+  bool is_monotonic ABSL_GUARDED_BY(mu) = true;
+};
 
 // Record that a thread has been started that will increment
 // the counters by n.
-static void AddThread(TestContext* c, int n) {
-  c->mu.lock();
+void AddThread(TestContext* c, int n) {
+  absl::MutexLock lock(c->mu);
   c->expected_final += n;
   c->outstanding++;
-  c->mu.unlock();
 }
 
 // Get sequence numbers
-static void GetSequenceNumbers(TestContext* c, int n) {
-  base::SequenceNumber::Value expected_sum = 0;
-  base::SequenceNumber::Value expected_xor = 0;
-  base::SequenceNumber::Value previous = -1;
+void GetSequenceNumbers(TestContext* c, int n) {
+  SequenceNumber::Value expected_sum = 0;
+  SequenceNumber::Value expected_xor = 0;
+  SequenceNumber::Value previous = -1;
+  bool is_monotonic = true;
   for (int i = 0; i != n; i++) {
-    base::SequenceNumber::Value x = c->cnt.GetNext();
-    CHECK_LT(previous, x);  // sequence numbers are in order
-    expected_sum += x;      // accumulate local sums
+    SequenceNumber::Value x = c->cnt.GetNext();
+    if (x <= previous) {
+      is_monotonic = false;
+    }
+    expected_sum += x;  // accumulate local sums
     expected_xor ^= x;
     previous = x;
   }
-  c->mu.lock();
+  absl::MutexLock lock(c->mu);
   c->expected_sum += expected_sum;  // accumulate global sums
   c->expected_xor ^= expected_xor;
+  if (!is_monotonic) {
+    c->is_monotonic = false;
+  }
   c->outstanding--;  // this thread is finished
-  c->mu.unlock();
 }
 
 // Return whether c->outstanding is 0, which indicates whether all test threads
 // have finished their tasks.
 // L >= c->mu
-static bool ThreadsFinished(TestContext* c) { return c->outstanding == 0; }
+bool ThreadsFinished(TestContext* c) {
+  c->mu.AssertHeld();
+  return c->outstanding == 0;
+}
 
 // Test that every time we get a sequence number, we get a higher value than
-// the previous one, and that al sequence are given out exactly once.
+// the previous one, and that all sequence numbers are given out exactly once.
 // L < c->mu
-static void TestSequenceNumber(TestContext* c) {
-  InitTestContext(c);
+TEST(AtomicSequenceNumber, SequenceNumber) {
+  ThreadPool tp(kMaxRefCountThreads);
+  TestContext context;
+  context.tp = &tp;
 
   for (int i = 0; i != kMaxRefCountThreads; i++) {
     int n = 10000000;
-    AddThread(c, n);
-    c->tp->Schedule([c, n] { GetSequenceNumbers(c, n); });
+    AddThread(&context, n);
+    context.tp->Schedule([&context, n] { GetSequenceNumbers(&context, n); });
   }
-  c->mu.LockWhen(
-      absl::Condition(&ThreadsFinished, c));  // wait for threads to finish
-  c->mu.unlock();
+  int64_t expected_final = 0;
+  SequenceNumber::Value expected_word_sum = 0;
+  SequenceNumber::Value expected_word_xor = 0;
+  bool is_monotonic = true;
+  {
+    absl::MutexLock lock(
+        context.mu, absl::Condition(&ThreadsFinished,
+                                    &context));  // wait for threads to finish
+    expected_final = context.expected_final;
+    expected_word_sum = context.expected_sum;
+    expected_word_xor = context.expected_xor;
+    is_monotonic = context.is_monotonic;
+  }
 
-  CHECK_EQ(c->cnt.GetNext(), c->expected_final);
+  EXPECT_TRUE(is_monotonic);  // sequence numbers are in order
+  EXPECT_EQ(context.cnt.GetNext(), expected_final);
 
   // Compute the expected value of the cumulative xor.
   int64_t expected_64_xor = 0;
-  for (int64_t i = 0; i != c->expected_final; i++) {
+  for (int64_t i = 0; i != expected_final; i++) {
     expected_64_xor ^= i;
   }
-  base::SequenceNumber::Value expected_word_xor = expected_64_xor;
+  SequenceNumber::Value expected_word_xor_calc = expected_64_xor;
   // Compute the expected value of the cumulative sum.
-  int64_t expected_64_sum = (c->expected_final * (c->expected_final - 1)) / 2;
-  base::SequenceNumber::Value expected_word_sum = expected_64_sum;
-  CHECK_EQ(expected_word_sum, c->expected_sum);
-  CHECK_EQ(expected_word_xor, c->expected_xor);
-}
-
-TEST(AtomicSequenceNumber, SequenceNumber) {
-  TestContext context;
-  context.tp = new ThreadPool(kMaxRefCountThreads);
-
-  TestSequenceNumber(&context);
-
-  delete context.tp;
+  int64_t expected_64_sum = (expected_final * (expected_final - 1)) / 2;
+  SequenceNumber::Value expected_word_sum_calc = expected_64_sum;
+  EXPECT_EQ(expected_word_sum, expected_word_sum_calc);
+  EXPECT_EQ(expected_word_xor, expected_word_xor_calc);
 }
 
 TEST(AtomicSequenceNumber, SingleThreaded) {
-  base::SequenceNumber cnt;
+  SequenceNumber cnt;
   EXPECT_EQ(cnt.GetNext(), 0);
   EXPECT_EQ(cnt.GetNext(), 1);
   EXPECT_EQ(cnt.GetNext(), 2);
 }
 
 TEST(AtomicSequenceNumber, StdThreaded) {
-  base::SequenceNumber cnt;
+  SequenceNumber cnt;
   std::vector<std::thread> threads;
+  threads.reserve(10);
   for (int i = 0; i < 10; ++i) {
     threads.emplace_back([&cnt] {
       for (int j = 0; j < 10000; ++j) {
@@ -155,3 +163,6 @@ TEST(AtomicSequenceNumber, StdThreaded) {
   }
   EXPECT_EQ(cnt.GetNext(), 100000);
 }
+
+}  // namespace
+}  // namespace base
