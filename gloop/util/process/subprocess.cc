@@ -2283,7 +2283,7 @@ void SubProcess::LockAndWaitInternal(pid_t sp_pid, int flags) {
       VLOG(2) << "SubProcess::WaitInternal: wait4() returns " << pid
               << " did not exit";
       if (sp && sp->change_callback_) {
-        (*sp->change_callback_)(sp, status);
+        (sp->change_callback_)(sp, status);
       }
     }
   } else if (pid < 0 && errno == ECHILD) {
