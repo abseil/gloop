@@ -34,7 +34,12 @@
 #include "absl/log/check.h"
 #include "absl/memory/memory.h"
 #include "benchmark/benchmark.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
+
+namespace {
+
+using ::testing::IsNull;
 
 static PerThread::Key per_thread[10];
 static int destructor_count;
@@ -46,27 +51,27 @@ static void TestThread(int offset) {
   void** my_locations[ABSL_ARRAYSIZE(per_thread)];
   for (int i = 0; i != ABSL_ARRAYSIZE(per_thread); i++) {
     my_locations[i] = PerThread::Data(per_thread[i]);
-    CHECK(*my_locations[i] == nullptr);
-    CHECK(*my_locations[i] == PerThread::GetData(per_thread[i]));
+    EXPECT_THAT(*my_locations[i], IsNull());
+    EXPECT_EQ(*my_locations[i], PerThread::GetData(per_thread[i]));
     *my_locations[i] = reinterpret_cast<void*>(
         reinterpret_cast<uintptr_t>(value_base) + offset + i);
-    CHECK(*my_locations[i] == PerThread::GetData(per_thread[i]));
+    EXPECT_EQ(*my_locations[i], PerThread::GetData(per_thread[i]));
   }
   for (int i = 0; i != ABSL_ARRAYSIZE(per_thread); i++) {
-    CHECK(my_locations[i] == PerThread::Data(per_thread[i]));
-    CHECK(*my_locations[i] ==
-          reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(value_base) +
-                                  offset + i));
-    CHECK(*my_locations[i] == PerThread::GetData(per_thread[i]));
+    EXPECT_EQ(my_locations[i], PerThread::Data(per_thread[i]));
+    EXPECT_EQ(*my_locations[i],
+              reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(value_base) +
+                                      offset + i));
+    EXPECT_EQ(*my_locations[i], PerThread::GetData(per_thread[i]));
   }
 }
 
 static void Destructor(void* v) {
-  CHECK(v != nullptr);
-  CHECK(value_base <= reinterpret_cast<char*>(v)) << v;
-  CHECK(reinterpret_cast<char*>(v) <
-        reinterpret_cast<char*>(reinterpret_cast<uintptr_t>(value_base) +
-                                ABSL_ARRAYSIZE(per_thread)))
+  CHECK_NE(v, nullptr);
+  CHECK_GE(reinterpret_cast<char*>(v), value_base) << v;
+  CHECK_LT(reinterpret_cast<char*>(v),
+           reinterpret_cast<char*>(reinterpret_cast<uintptr_t>(value_base) +
+                                   ABSL_ARRAYSIZE(per_thread)))
       << v;
   destructor_count++;
 }
@@ -89,7 +94,7 @@ TEST(PerThread, Test) {
   RunThread(0);
 
   // destructor will not be called for entry 0 because value is 0
-  ASSERT_EQ(ABSL_ARRAYSIZE(per_thread) - 1, destructor_count);
+  EXPECT_EQ(destructor_count, ABSL_ARRAYSIZE(per_thread) - 1);
 
   // zero the values in the main thread
   for (int i = 0; i != ABSL_ARRAYSIZE(per_thread); i++) {
@@ -100,7 +105,7 @@ TEST(PerThread, Test) {
   RunThread(ABSL_ARRAYSIZE(per_thread));
 
   // destructor_count should have increased by ABSL_ARRAYSIZE(per_thread)
-  ASSERT_EQ(2 * ABSL_ARRAYSIZE(per_thread) - 1, destructor_count);
+  EXPECT_EQ(destructor_count, 2 * ABSL_ARRAYSIZE(per_thread) - 1);
 
   // zero the values in the main thread
   for (int i = 0; i != ABSL_ARRAYSIZE(per_thread); i++) {
@@ -139,7 +144,7 @@ struct PerThreadInfo {
 // Recursively checks the integrity of PerThread::GetData() for a range of
 // thread stack space that is some multiple of 'count'.
 static void CheckKeyInDestructor(int count, const PerThreadInfo* info) {
-  CHECK(PerThread::Data(info->key) == info->address);
+  CHECK_EQ(PerThread::Data(info->key), info->address);
   if (!count) {
     return;
   }
@@ -191,3 +196,5 @@ static void BM_PerThreadData(benchmark::State& state) {
 }
 BENCHMARK(BM_PerThreadData)->ThreadPerCpu();
 #endif
+
+}  // namespace
