@@ -108,24 +108,24 @@ TEST(VarSetterTest, MoveOnlyType) {
   EXPECT_THAT(v.value(), Eq(100));
 }
 
-TEST(VarSetter, CTAD) {
+TEST(VarSetterTest, CTAD) {
   int v = 100;
   {
     VarSetter setter(&v, 200);
-    EXPECT_EQ(200, v);
+    EXPECT_EQ(v, 200);
   }
-  EXPECT_EQ(100, v);
+  EXPECT_EQ(v, 100);
 }
 
-TEST(VarSetter, Atomic) {
+TEST(VarSetterTest, Atomic) {
   std::atomic<int> megaton = 100;
   {
     VarSetter setter(&megaton, 200);
-    EXPECT_EQ(200, megaton);
+    EXPECT_EQ(megaton, 200);
     megaton.store(300);
-    EXPECT_EQ(300, megaton);
+    EXPECT_EQ(megaton, 300);
   }
-  EXPECT_EQ(100, megaton);
+  EXPECT_EQ(megaton, 100);
 }
 
 }  // namespace
