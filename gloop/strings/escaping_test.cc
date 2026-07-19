@@ -48,44 +48,48 @@ using ::testing::_;
 using ::testing::EndsWith;
 using ::testing::Eq;
 
-TEST(BackslashEscape, Escape) {
-  struct Case {
-    int line;
-    const char* in;
-    const char* escapes;
-    const char* expect;
-  };
-  const Case cases[] = {
-      {__LINE__, "foobar", "xyz", "foobar"},
-      {__LINE__, "foobar", "r", "fooba\\r"},
-      {__LINE__, "foobar", "xyzo", "f\\o\\obar"},
-      {__LINE__, "", "", ""},
-      {__LINE__, "", ":", ""},
-      {__LINE__, "", "\\", ""},
-      {__LINE__, "", "\\:", ""},
-      {__LINE__, "\\", "", "\\"},
-      {__LINE__, "\\", ":", "\\"},
-      {__LINE__, "\\", "\\", "\\\\"},
-      {__LINE__, "\\", "\\:", "\\\\"},
-      {__LINE__, "\\\\", "", "\\\\"},
-      {__LINE__, "\\\\", ":", "\\\\"},
-      {__LINE__, "\\\\", "\\", "\\\\\\\\"},
-      {__LINE__, "\\\\", "\\:", "\\\\\\\\"},
-      {__LINE__, ":", "", ":"},
-      {__LINE__, ":", ":", "\\:"},
-      {__LINE__, ":", "\\", ":"},
-      {__LINE__, ":", "\\:", "\\:"},
-      {__LINE__, "\\:", "", "\\:"},
-      {__LINE__, "\\:", ":", "\\\\:"},
-      {__LINE__, "\\:", "\\", "\\\\:"},
-      {__LINE__, "\\:", "\\:", "\\\\\\:"},
-  };
-  for (const Case* p = cases; p != cases + ABSL_ARRAYSIZE(cases); ++p) {
-    EXPECT_EQ(p->expect, BackslashEscape(p->in, absl::CharSet(p->escapes)))
-        << "BackslashEscape('" << p->in << "'" << ", '" << p->escapes
-        << "') line:" << p->line;
-  }
+struct BackslashEscapeCase {
+  int line;
+  const char* in;
+  const char* escapes;
+  const char* expect;
+};
+
+using BackslashEscapeTest = ::testing::TestWithParam<BackslashEscapeCase>;
+
+TEST_P(BackslashEscapeTest, Escape) {
+  const auto& c = GetParam();
+  EXPECT_EQ(c.expect, BackslashEscape(c.in, absl::CharSet(c.escapes)))
+      << "BackslashEscape('" << c.in << "'" << ", '" << c.escapes
+      << "') line:" << c.line;
 }
+
+INSTANTIATE_TEST_SUITE_P(BackslashEscape, BackslashEscapeTest,
+                         ::testing::ValuesIn(std::vector<BackslashEscapeCase>{
+                             {__LINE__, "foobar", "xyz", "foobar"},
+                             {__LINE__, "foobar", "r", "fooba\\r"},
+                             {__LINE__, "foobar", "xyzo", "f\\o\\obar"},
+                             {__LINE__, "", "", ""},
+                             {__LINE__, "", ":", ""},
+                             {__LINE__, "", "\\", ""},
+                             {__LINE__, "", "\\:", ""},
+                             {__LINE__, "\\", "", "\\"},
+                             {__LINE__, "\\", ":", "\\"},
+                             {__LINE__, "\\", "\\", "\\\\"},
+                             {__LINE__, "\\", "\\:", "\\\\"},
+                             {__LINE__, "\\\\", "", "\\\\"},
+                             {__LINE__, "\\\\", ":", "\\\\"},
+                             {__LINE__, "\\\\", "\\", "\\\\\\\\"},
+                             {__LINE__, "\\\\", "\\:", "\\\\\\\\"},
+                             {__LINE__, ":", "", ":"},
+                             {__LINE__, ":", ":", "\\:"},
+                             {__LINE__, ":", "\\", ":"},
+                             {__LINE__, ":", "\\:", "\\:"},
+                             {__LINE__, "\\:", "", "\\:"},
+                             {__LINE__, "\\:", ":", "\\\\:"},
+                             {__LINE__, "\\:", "\\", "\\\\:"},
+                             {__LINE__, "\\:", "\\:", "\\\\\\:"},
+                         }));
 
 TEST(BackslashEscape, Unescape) {
   struct Case {
