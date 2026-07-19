@@ -30,15 +30,20 @@
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "gloop/base/config.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 #if !PORTABLE_BASE  // TODO: Remove when benchmark.h is portable.
 #include "benchmark/benchmark.h"
 #endif  // !PORTABLE_BASE
 
+namespace {
+
+using ::testing::DoubleNear;
+
 // Note that the time returned by SteadyClockNanos() uses an
 // arbitrary epoch, not necessarily the Unix epoch.
-static int64_t SteadyClockNanos() {
+int64_t SteadyClockNanos() {
   return std::chrono::duration_cast<std::chrono::nanoseconds>(
              std::chrono::steady_clock::now().time_since_epoch())
       .count();
@@ -55,8 +60,8 @@ struct TimePair {
 // time read at a moment close to the read of the cycle counter.
 // This is accomplished by making several attempts and
 // picking the one with the lowest latency.
-static struct TimePair GetTimePair() {
-  struct TimePair best;
+TimePair GetTimePair() {
+  TimePair best;
   int64_t best_interval_ns = 1000 * 1000 * 1000;
   for (int i = 0; i != 10; i++) {
     int64_t start_ns = SteadyClockNanos();
@@ -73,26 +78,26 @@ static struct TimePair GetTimePair() {
 
 TEST(CycleClockTest, Frequency) {
   for (int i = 0; i != 10; i++) {
-    struct TimePair start = GetTimePair();
+    TimePair start = GetTimePair();
     // Don't use absl::SleepFor() since it depends on CycleClock which could be
     // broken.
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    struct TimePair end = GetTimePair();
+    TimePair end = GetTimePair();
     double measured_frequency = static_cast<double>(end.cycles - start.cycles) *
                                 1e9 / static_cast<double>(end.ns - start.ns);
     double returned_frequency = CycleClock::Frequency();
-    LOG(INFO) << "measured_frequency " << measured_frequency
-              << "   returned_frequency " << returned_frequency << "   ratio "
-              << returned_frequency / measured_frequency;
+    VLOG(1) << "measured_frequency " << measured_frequency
+            << "   returned_frequency " << returned_frequency << "   ratio "
+            << returned_frequency / measured_frequency;
     // Check that the measured frequency is within 1% of
     // the nominal frequency reported.
-    EXPECT_LT(measured_frequency * 0.99, returned_frequency);
-    EXPECT_LT(returned_frequency, measured_frequency * 1.01);
+    EXPECT_THAT(returned_frequency,
+                DoubleNear(measured_frequency, measured_frequency * 0.01));
   }
 }
 
 #if !PORTABLE_BASE  // TODO: Remove when benchmark.h is portable.
-static void BM_Now(benchmark::State& state) {
+void BM_Now(benchmark::State& state) {
   int64_t c = 0;
   for (auto _ : state) {
     c = CycleClock::Now();
@@ -102,7 +107,7 @@ static void BM_Now(benchmark::State& state) {
 }
 BENCHMARK(BM_Now);
 
-static void BM_NowWithRegisterPresure(benchmark::State& state) {
+void BM_NowWithRegisterPresure(benchmark::State& state) {
   int64_t c = 0;
   for (auto _ : state) {
     intptr_t r0 = 0, r1 = 0, r2 = 0, r3 = 0, r4 = 0;
@@ -138,3 +143,5 @@ static void BM_NowWithRegisterPresure(benchmark::State& state) {
 BENCHMARK(BM_NowWithRegisterPresure);
 
 #endif
+
+}  // namespace
