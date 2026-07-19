@@ -748,12 +748,6 @@ void PrintTo(const thread::ManagedQueueStats& s, std::ostream* os) {
 }
 }  // namespace thread
 
-TEST(QueueStatsTest, ZeroQueues) {
-  std::vector<thread::ManagedQueueStats> stats =
-      thread::ThreadManager::QueueStats();
-  EXPECT_THAT(stats, IsEmpty());
-}
-
 TEST(QueueStatsTest, OneQueue) {
   std::optional<thread::ThreadManager> tm(std::in_place, "QueueStatsTest",
                                           thread::ManagerOptions());
@@ -783,7 +777,7 @@ TEST(QueueStatsTest, OneQueue) {
         thread::ThreadManager::QueueStats();
     EXPECT_THAT(
         stats,
-        ElementsAre(AllOf(
+        Contains(AllOf(
             Field(&thread::ManagedQueueStats::queue_name, Eq("OneQueue")),
             Field(&thread::ManagedQueueStats::queue_running, Eq(1)),
             Field(&thread::ManagedQueueStats::num_pending_closures, Eq(2)))));

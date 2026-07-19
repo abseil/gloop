@@ -109,12 +109,20 @@
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
 #include "gloop/util/functional/with_context.h"
+#include "gloop/util/refcount/blocking_refcount.h"
 
 ABSL_FLAG(int32_t, threadmanager_overseer_watchdog_s,
           IsDebuggerAttached() ? 100000000 : 120,
           "die if threadmanager overseer doesn't wake in this many secs");
 ABSL_FLAG(int32_t, threadmanager_default_manager_pools, 0,
           "number of thread pools in the default threadmanager, 0 = auto");
+
+ABSL_FLAG(bool, threadmanager_default_queue_executor, true,
+          "If true, thread::DefaultQueue() returns a queue implemented using "
+          "thread::Executor::DefaultExecutor(); if false it returns a queue "
+          "implemented using thread::DefaultManager(). "
+          "NOTE: This flag is only intended for short-term rollbacks in case "
+          "of an issue and will be enabled for all users then removed soon. ");
 ABSL_FLAG(bool, threadmanager_experimental_use_cpu_subcontainer, false,
           "if true use CPU subcontainer for threads created by this thread "
           "manager. This is an *experimental* feature limited to PD team "
@@ -141,6 +149,13 @@ ABSL_FLAG(bool, threadmanager_eager_gc_threads, true,
           "one thread per GC cycle and keeping 5 threads around always. "
           "NOTE: This flag is only intended for short-term rollbacks in case "
           "of an issue and will be enabled for all users then removed soon. ");
+
+namespace thread_internal {
+
+// Forward declaration from executor.cc
+thread::Executor* DefaultEventManager2Executor();
+
+}  // namespace thread_internal
 
 namespace thread {
 
@@ -1295,6 +1310,60 @@ std::vector<ManagedQueueStats> ThreadManager::QueueStats()
   return stats;
 }
 
+// A ManagedQueue backed by an Executor. This class may never be deleted, it is
+// only intended to replace DefaultQueue().
+class ExecutorManagedQueue final : public ManagedQueue {
+ public:
+  explicit ExecutorManagedQueue(Executor& impl) : impl_(impl) {}
+  ~ExecutorManagedQueue() override = default;
+
+  std::string name() const override { return "default_queue"; }
+  ManagedQueueOptions queue_options() const override {
+    return ManagedQueueOptions();
+  }
+
+  void Schedule(absl::AnyInvocable<void() &&> callback) override {
+    impl_.Schedule(Wrap(std::move(callback)));
+  }
+  bool TrySchedule(absl::AnyInvocable<void() &&> callback) override {
+    return impl_.TrySchedule(Wrap(std::move(callback)));
+  }
+  void ScheduleAt(absl::Time when,
+                  absl::AnyInvocable<void() &&> callback) override {
+    impl_.ScheduleAt(when, Wrap(std::move(callback)));
+  }
+  int num_pending_closures() const override { return 0; }
+
+  void WaitUntilComplete() override { refcount_.WaitForZero(); }
+
+  // Return stats for the ManagedQueue. Stats may be slightly inconsistent and
+  // should just be used for status pages and monitoring.
+  ManagedQueueStats Stats() const override {
+    return {.queue_name = "default_queue",
+            .queue_running = static_cast<int>(refcount_.count()),
+            .num_pending_closures = 0};
+  }
+
+  // for testing
+  ManagedQueue* current_executor_for_testing() const override {
+    return const_cast<ExecutorManagedQueue*>(this);
+  }
+
+ private:
+  absl::AnyInvocable<void() &&> Wrap(absl::AnyInvocable<void() &&> callback) {
+    return [this, callback = std::move(callback),
+            ref = refcount_.GetRef()]() mutable {
+      Executor* old =
+          std::exchange(*Executor::CurrentExecutorPointerInternal(), this);
+      std::exchange(callback, nullptr)();
+      *Executor::CurrentExecutorPointerInternal() = old;
+    };
+  }
+
+  Executor& impl_;
+  util::BlockingRefcount refcount_;
+};
+
 // The default ThreadManager and ManagedQueue
 
 // The default ThreadManager and ManagedQueue are initilized under
@@ -1310,8 +1379,14 @@ static void TMMakeDefault() {
       absl::GetFlag(FLAGS_threadmanager_default_manager_pools);
   tm_default_thread_manager =
       new ThreadManager("default_ThreadManager", manager_options);
-  tm_default_queue = tm_default_thread_manager->NewQueue("default_queue",
-                                                         ManagedQueueOptions());
+  auto* executor = thread_internal::DefaultEventManager2Executor();
+  if (absl::GetFlag(FLAGS_threadmanager_default_queue_executor) &&
+      executor != nullptr) {
+    tm_default_queue = new ExecutorManagedQueue(*executor);
+  } else {
+    tm_default_queue = tm_default_thread_manager->NewQueue(
+        "default_queue", ManagedQueueOptions());
+  }
 }
 
 ThreadManager* DefaultManager() {

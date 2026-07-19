@@ -969,6 +969,7 @@ cc_library(
         "//gloop/util/functional:from_callback",
         "//gloop/util/functional:to_callback",
         "//gloop/util/functional:with_context",
+        "//gloop/util/refcount:blocking_refcount",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:no_destructor",
