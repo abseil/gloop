@@ -59,7 +59,11 @@ using perftools::tracing::MockTraceEventListener;
 using perftools::tracing::StringRef;
 using testing::_;
 using testing::Eq;
+using testing::IsNull;
 using testing::NiceMock;
+using testing::NotNull;
+using testing::Return;
+using testing::StrEq;
 
 ABSL_DECLARE_FLAG(bool, harden_with_context);
 
@@ -163,18 +167,6 @@ class ContextTest : public ::testing::Test {
         .BuildValue();
   }
 
-  void ContextEq(const Context& a, const Context& b) {
-#if BASE_CONTEXT_HAVE_SECURITYCONTEXT
-    EXPECT_EQ(a.security(), b.security());
-    EXPECT_TRUE(
-        stats_census::CensusHandlesEqual(a.census_handle(), b.census_handle()));
-#endif
-    EXPECT_EQ(a.trace_context().rpc_id(), b.trace_context().rpc_id());
-    EXPECT_EQ(a.trace_context().global_id(), b.trace_context().global_id());
-    EXPECT_EQ(a.thread_status(), b.thread_status());
-    EXPECT_EQ(a.deadline(), b.deadline());
-  }
-
   const CensusHandle& GetCurrentHandle() {
     return CensusAccess::GetCurrentHandle();
   }
@@ -195,6 +187,40 @@ const absl::Time ContextTest::kTestDeadline =
     absl::UnixEpoch() + absl::Seconds(1);
 
 namespace {
+
+MATCHER_P(ContextEq, expected, "equals expected Context") {
+#if BASE_CONTEXT_HAVE_SECURITYCONTEXT
+  if (arg.security() != expected.security()) {
+    *result_listener << "security mismatch";
+    return false;
+  }
+  if (!stats_census::CensusHandlesEqual(arg.census_handle(),
+                                        expected.census_handle())) {
+    *result_listener << "census handle mismatch";
+    return false;
+  }
+#endif
+  if (arg.trace_context().rpc_id() != expected.trace_context().rpc_id()) {
+    *result_listener << "rpc_id mismatch: " << arg.trace_context().rpc_id()
+                     << " vs " << expected.trace_context().rpc_id();
+    return false;
+  }
+  if (arg.trace_context().global_id() != expected.trace_context().global_id()) {
+    *result_listener << "global_id mismatch: "
+                     << arg.trace_context().global_id() << " vs "
+                     << expected.trace_context().global_id();
+    return false;
+  }
+  if (arg.thread_status() != expected.thread_status()) {
+    *result_listener << "thread_status mismatch";
+    return false;
+  }
+  if (arg.deadline() != expected.deadline()) {
+    *result_listener << "deadline mismatch";
+    return false;
+  }
+  return true;
+}
 
 #if BASE_CONTEXT_HAVE_SECURITYCONTEXT
 const net_base::Peer* peer(const Context& c) {
@@ -218,7 +244,7 @@ TEST_F(ContextTest, DefaultInitIsConstExprAndDefaulted) {
 TEST_F(ContextTest, ThreadContextEqualsThreadContext) {
   std::unique_ptr<Context> context(GetTestContext());
   base::WithContext wc(*context);
-  ContextEq(Context(Context::kThread), *context);
+  EXPECT_THAT(*context, ContextEq(Context(Context::kThread)));
 }
 
 // Validate initial parameters on CurrentContext().  Must be first test.
@@ -229,22 +255,22 @@ TEST_F(ContextTest, TestInitialState) {
   Context default_context;
 
   // DEFAULT: TraceContext constructed via TraceContext(TraceContext::kDefault)
-  EXPECT_EQ(0, default_context.trace()->rpc_id());
-  EXPECT_EQ(0, default_context.trace()->global_id());
+  EXPECT_EQ(default_context.trace()->rpc_id(), 0);
+  EXPECT_EQ(default_context.trace()->global_id(), 0);
 
   // DEFAULT: Deadline is infinite future.
-  EXPECT_EQ(absl::InfiniteFuture(), default_context.deadline());
+  EXPECT_EQ(default_context.deadline(), absl::InfiniteFuture());
 
   // DEFAULT: Thread status is null.
-  EXPECT_EQ(nullptr, default_context.thread_status());
+  EXPECT_THAT(default_context.thread_status(), IsNull());
 
   // The background context is specified to be Context::kDefault constructed.
-  ContextEq(default_context, BackgroundContext());
+  EXPECT_THAT(default_context, ContextEq(BackgroundContext()));
 
   // The (equivalent) Contexts below should all be default also.
-  ContextEq(CurrentContext(), BackgroundContext());
+  EXPECT_THAT(CurrentContext(), ContextEq(BackgroundContext()));
   Context copy_current_thread_context(Context::kThread);
-  ContextEq(default_context, copy_current_thread_context);
+  EXPECT_THAT(copy_current_thread_context, ContextEq(default_context));
 
   // Finally, take a copy of the current context so that 'TestFinalState' can
   // verify it was not perturbed by any test.
@@ -255,15 +281,15 @@ TEST_F(ContextTest, CopyAndAssign) {
   std::unique_ptr<Context> handle(GetTestContext());
 
   Context copy(*handle);
-  ContextEq(*handle, copy);
+  EXPECT_THAT(copy, ContextEq(*handle));
 
   Context eq;
   eq = *handle;
-  ContextEq(*handle, eq);
+  EXPECT_THAT(eq, ContextEq(*handle));
 
   // Do a reverse assignment to check internal reference counting
   *handle = eq;
-  ContextEq(*handle, eq);
+  EXPECT_THAT(*handle, ContextEq(eq));
 
   // Self-assignment
   Context self(GetTestContextValue());
@@ -274,7 +300,7 @@ TEST_F(ContextTest, MoveConstructor) {
   const Context ctx(GetTestContextValue());
   Context copied(ctx);
   Context moved(std::move(copied));
-  ContextEq(ctx, moved);
+  EXPECT_THAT(moved, ContextEq(ctx));
 #if BASE_CONTEXT_HAVE_SECURITYCONTEXT
   // NOLINTNEXTLINE - we want to test that security was modified.
   EXPECT_NE(copied.security(), moved.security()) << "Security was moved.";
@@ -286,10 +312,10 @@ TEST_F(ContextTest, MoveAssignment) {
   Context copied(ctx);
   Context moved;
   moved = std::move(copied);
-  ContextEq(ctx, moved);
+  EXPECT_THAT(moved, ContextEq(ctx));
 #if BASE_CONTEXT_HAVE_SECURITYCONTEXT
   // NOLINTNEXTLINE - we want to test that security was modified.
-  EXPECT_EQ(nullptr, copied.security()) << "Security was moved.";
+  EXPECT_THAT(copied.security(), IsNull()) << "Security was moved.";
 #endif  // BASE_CONTEXT_HAVE_SECURITYCONTEXT
 
   // Self-assignment.
@@ -302,21 +328,21 @@ TEST_F(ContextTest, MoveAssignment) {
 #pragma clang diagnostic pop
 #endif
   // NOLINTNEXTLINE - ClangTidy complains that the object was moved.
-  ContextEq(ctx, moved);
+  EXPECT_THAT(moved, ContextEq(ctx));
 }
 
 TEST_F(ContextTest, Initializers) {
   Context def;
-  ContextEq(def, BackgroundContext());
+  EXPECT_THAT(def, ContextEq(BackgroundContext()));
 
   Context th(Context::kThread);
-  ContextEq(th, BackgroundContext());
+  EXPECT_THAT(th, ContextEq(BackgroundContext()));
 
   {
     std::unique_ptr<Context> handle(GetTestContext());
     WithContext wc(*handle);
     Context th(Context::kThread);
-    ContextEq(*handle, th);
+    EXPECT_THAT(th, ContextEq(*handle));
   }
 }
 
@@ -352,7 +378,7 @@ TEST_F(ContextTest, AccessorsAndMutators) {
     EXPECT_TRUE(
         stats_census::CensusHandlesEqual(h, CurrentContext().census_handle()));
 #endif  // BASE_CONTEXT_HAVE_SECURITYCONTEXT
-    EXPECT_EQ("my status", CurrentContext().thread_status());
+    EXPECT_THAT(CurrentContext().thread_status(), StrEq("my status"));
   }
 }
 
@@ -364,15 +390,15 @@ TEST_F(ContextTest, Swap) {
 
   using std::swap;
   swap(*a, *b);
-  ContextEq(a_value, *b);
-  ContextEq(BackgroundContext(), *a);
+  EXPECT_THAT(*b, ContextEq(a_value));
+  EXPECT_THAT(*a, ContextEq(BackgroundContext()));
 
   swap(*a, *b);
-  ContextEq(BackgroundContext(), *b);
-  ContextEq(a_value, *a);
+  EXPECT_THAT(*b, ContextEq(BackgroundContext()));
+  EXPECT_THAT(*a, ContextEq(a_value));
 
   *b = std::move(*a);
-  ContextEq(a_value, *b);
+  EXPECT_THAT(*b, ContextEq(a_value));
 }
 
 #if BASE_CONTEXT_HAVE_SECURITYCONTEXT
@@ -398,95 +424,83 @@ TEST_F(ContextTest, SwapSecurity) {
 
   using std::swap;
   swap(*a, *b);
-  EXPECT_EQ("DIFFERENT", security::context::PeerAccess::PeerFromSecurityContext(
-                             *a->security())
-                             ->username());
   EXPECT_EQ(
-      "dummy_role",
+      security::context::PeerAccess::PeerFromSecurityContext(*a->security())
+          ->username(),
+      "DIFFERENT");
+  EXPECT_EQ(
       security::context::PeerAccess::PeerFromSecurityContext(*b->security())
-          ->username());
+          ->username(),
+      "dummy_role");
 
   swap(*a, *b);
   EXPECT_EQ(
-      "dummy_role",
       security::context::PeerAccess::PeerFromSecurityContext(*a->security())
-          ->username());
-  EXPECT_EQ("DIFFERENT", security::context::PeerAccess::PeerFromSecurityContext(
-                             *b->security())
-                             ->username());
+          ->username(),
+      "dummy_role");
+  EXPECT_EQ(
+      security::context::PeerAccess::PeerFromSecurityContext(*b->security())
+          ->username(),
+      "DIFFERENT");
 
   *b = std::move(*a);
   EXPECT_EQ(
-      "dummy_role",
       security::context::PeerAccess::PeerFromSecurityContext(*b->security())
-          ->username());
+          ->username(),
+      "dummy_role");
 }
 
-TEST_F(ContextTest, SwapWithSecurityContext) {
-  // Previous is null, new is null.
-  {
-    const SecurityContextHandle a;
-    const WithContext wc{
-        ContextBuilder(BackgroundContext())
-            .set_security_context(a)
-            .BuildValue(),
-    };
+TEST_F(ContextTest, SwapWithSecurityContextNullToNull) {
+  const SecurityContextHandle a;
+  const WithContext wc{
+      ContextBuilder(BackgroundContext()).set_security_context(a).BuildValue(),
+  };
 
-    const SecurityContextHandle b;
-    WithSecurityContext wsc(b);
-    EXPECT_EQ(b.get(), CurrentContext().security());
-  }
+  const SecurityContextHandle b;
+  WithSecurityContext wsc(b);
+  EXPECT_EQ(CurrentContext().security(), b.get());
+}
 
-  // Previous is null, new is non-null.
-  {
-    const SecurityContextHandle a;
-    const WithContext wc{
-        ContextBuilder(BackgroundContext())
-            .set_security_context(a)
-            .BuildValue(),
-    };
+TEST_F(ContextTest, SwapWithSecurityContextNullToNonNull) {
+  const SecurityContextHandle a;
+  const WithContext wc{
+      ContextBuilder(BackgroundContext()).set_security_context(a).BuildValue(),
+  };
 
-    ASSERT_OK_AND_ASSIGN(const SecurityContextHandle b,
-                         BuildSecurityContextHandle(net_base::NewFakePeer({})));
+  ASSERT_OK_AND_ASSIGN(const SecurityContextHandle b,
+                       BuildSecurityContextHandle(net_base::NewFakePeer({})));
 
-    WithSecurityContext wsc(b);
-    EXPECT_EQ(b.get(), CurrentContext().security());
-  }
+  WithSecurityContext wsc(b);
+  EXPECT_EQ(CurrentContext().security(), b.get());
+}
 
-  // Previous is non-null, new is null.
-  {
-    ASSERT_OK_AND_ASSIGN(const SecurityContextHandle a,
-                         BuildSecurityContextHandle(net_base::NewFakePeer({})));
+TEST_F(ContextTest, SwapWithSecurityContextNonNullToNull) {
+  ASSERT_OK_AND_ASSIGN(const SecurityContextHandle a,
+                       BuildSecurityContextHandle(net_base::NewFakePeer({})));
 
-    const WithContext wc{
-        ContextBuilder(BackgroundContext())
-            .set_security_context(a)
-            .BuildValue(),
-    };
+  const WithContext wc{
+      ContextBuilder(BackgroundContext()).set_security_context(a).BuildValue(),
+  };
 
-    const SecurityContextHandle b;
+  const SecurityContextHandle b;
 
-    WithSecurityContext wsc(b);
-    EXPECT_EQ(b.get(), CurrentContext().security());
-  }
+  WithSecurityContext wsc(b);
+  EXPECT_EQ(CurrentContext().security(), b.get());
+}
 
-  // Previous is non-null, new is non-null.
-  {
-    ASSERT_OK_AND_ASSIGN(const SecurityContextHandle a,
-                         BuildSecurityContextHandle(net_base::NewFakePeer({})));
+TEST_F(ContextTest, SwapWithSecurityContextNonNullToNonNull) {
+  ASSERT_OK_AND_ASSIGN(const SecurityContextHandle a,
+                       BuildSecurityContextHandle(net_base::NewFakePeer({})));
 
-    const WithContext wc{
-        ContextBuilder(BackgroundContext())
-            .set_security_context(a)
-            .BuildValue(),
-    };
+  const WithContext wc{
+      ContextBuilder(BackgroundContext()).set_security_context(a).BuildValue(),
+  };
 
-    ASSERT_OK_AND_ASSIGN(const SecurityContextHandle b,
-                         BuildSecurityContextHandle(net_base::NewFakePeer({})));
+  ASSERT_OK_AND_ASSIGN(const SecurityContextHandle b,
+                       BuildSecurityContextHandle(net_base::NewFakePeer({})));
 
-    WithSecurityContext wsc(b);
-    EXPECT_EQ(b.get(), CurrentContext().security());
-  }
+  WithSecurityContext wsc(b);
+  EXPECT_EQ(CurrentContext().security(), b.get());
 }
 
 #endif  // BASE_CONTEXT_HAVE_SECURITYCONTEXT
@@ -512,7 +526,7 @@ TEST_F(ContextTest, TestCreateAndSetSecurityContext) {
   {
     std::unique_ptr<Context> handle(GetTestContext());
     WithContext new_scope(*handle);
-    EXPECT_EQ("dummy_role", peer(CurrentContext())->primary_role());
+    EXPECT_EQ(peer(CurrentContext())->primary_role(), "dummy_role");
 
     {
       // Replace just the security context, retaining the trace context
@@ -531,7 +545,7 @@ TEST_F(ContextTest, TestCreateAndSetSecurityContext) {
                   security::context::BuildLegacyUnvalidated(params, nullptr)))
               .BuildValue()));
       WithContext inner_scope(*inner_context);
-      ASSERT_EQ("DIFFERENT", peer(CurrentContext())->primary_role());
+      ASSERT_EQ(peer(CurrentContext())->primary_role(), "DIFFERENT");
       inner_peer->Unref();
     }
 
@@ -542,8 +556,8 @@ TEST_F(ContextTest, TestCreateAndSetSecurityContext) {
                           .set_trace_context(TraceContext(2, 0, 0, 0))
                           .BuildValue()));
       WithContext inner_scope(*inner_context);
-      EXPECT_EQ(2, rpc_id(CurrentContext()));
-      ASSERT_EQ("dummy_role", peer(CurrentContext())->primary_role());
+      EXPECT_EQ(rpc_id(CurrentContext()), 2);
+      ASSERT_EQ(peer(CurrentContext())->primary_role(), "dummy_role");
     }
 
     // Clear the security context by setting it to null.
@@ -554,16 +568,16 @@ TEST_F(ContextTest, TestCreateAndSetSecurityContext) {
               .BuildValue(),
       };
 
-      EXPECT_EQ(nullptr, peer(CurrentContext()));
+      EXPECT_THAT(peer(CurrentContext()), IsNull());
     }
 
     // Ensure that the previous context was restored
-    ASSERT_EQ("dummy_role", peer(CurrentContext())->primary_role());
+    ASSERT_EQ(peer(CurrentContext())->primary_role(), "dummy_role");
   }
 
   // Ensure that the initial application context was restored.
-  EXPECT_TRUE(peer(CurrentContext()) == nullptr);
-  EXPECT_EQ(0, rpc_id(CurrentContext()));
+  EXPECT_THAT(peer(CurrentContext()), IsNull());
+  EXPECT_EQ(rpc_id(CurrentContext()), 0);
 }
 
 // Tests NULL argument to set_security_context.
@@ -577,12 +591,12 @@ TEST_F(ContextTest, TestSetNullSecurityContext) {
                         .set_security_context(nullptr)
                         .BuildValue()));
     WithContext inner_scope(*inner_context);
-    EXPECT_EQ(1, rpc_id(CurrentContext()));
-    EXPECT_EQ(nullptr, CurrentContext().security());
+    EXPECT_EQ(rpc_id(CurrentContext()), 1);
+    EXPECT_THAT(CurrentContext().security(), IsNull());
   }
   // Previous context is restored.
-  EXPECT_EQ("dummy_role", peer(CurrentContext())->primary_role());
-  EXPECT_EQ(1, rpc_id(CurrentContext()));
+  EXPECT_EQ(peer(CurrentContext())->primary_role(), "dummy_role");
+  EXPECT_EQ(rpc_id(CurrentContext()), 1);
 }
 #endif  // BASE_CONTEXT_HAVE_SECURITYCONTEXT
 
@@ -595,25 +609,27 @@ TEST_F(ContextTest, BuildWithDeadline) {
   std::unique_ptr<Context> c1(new Context(ContextBuilder(BackgroundContext())
                                               .set_deadline(arbitrary_deadline)
                                               .BuildValue()));
-  EXPECT_EQ(arbitrary_deadline, c1->deadline());
+  EXPECT_EQ(c1->deadline(), arbitrary_deadline);
 
   // A copy built from c1 should duplicate the deadline.
   std::unique_ptr<Context> c2(new Context(ContextBuilder(*c1).BuildValue()));
-  EXPECT_EQ(arbitrary_deadline, c2->deadline());
+  EXPECT_EQ(c2->deadline(), arbitrary_deadline);
+}
 
-  // Running within c1 above, we should still be able to build a 'clean' context
-  // relative to the BackgroundContext().
+TEST_F(ContextTest, BuildBackgroundContextWithDeadline) {
+  absl::Time arbitrary_deadline = kTestDeadline + absl::Seconds(1);
+  std::unique_ptr<Context> c1(new Context(ContextBuilder(BackgroundContext())
+                                              .set_deadline(arbitrary_deadline)
+                                              .BuildValue()));
+  WithContext wc(*c1);
+  EXPECT_EQ(CurrentContext().deadline(), arbitrary_deadline);
+
+  std::unique_ptr<Context> bgcopy(
+      new Context(ContextBuilder(BackgroundContext()).BuildValue()));
+  EXPECT_EQ(bgcopy->deadline(), absl::InfiniteFuture());
   {
-    WithContext wc(*c1);
-    EXPECT_EQ(arbitrary_deadline, CurrentContext().deadline());
-
-    std::unique_ptr<Context> bgcopy(
-        new Context(ContextBuilder(BackgroundContext()).BuildValue()));
-    EXPECT_EQ(absl::InfiniteFuture(), bgcopy->deadline());
-    {
-      WithContext wc(*bgcopy);
-      EXPECT_EQ(absl::InfiniteFuture(), CurrentContext().deadline());
-    }
+    WithContext wc(*bgcopy);
+    EXPECT_EQ(CurrentContext().deadline(), absl::InfiniteFuture());
   }
 }
 
@@ -642,16 +658,6 @@ TEST_F(ContextTest, TestNoBuild) {
 }
 
 #if BASE_CONTEXT_HAVE_SECURITYCONTEXT
-void CheckEucValidity(absl::Notification* n) {
-  const EndUserCredentialsProto* euc =
-      security::context::CurrentEuc(security::context::FOR_TEST);
-  ASSERT_TRUE(euc != nullptr);
-  // Make a copy to ensure the pointer is still valid.
-  EndUserCredentialsProto copy(*euc);
-  ASSERT_EQ(AuthenticatorProto::GAIA_MINT, copy.credential(0).type());
-  ASSERT_EQ("fake-gaia-mint", copy.credential(0).gaia_mint_wrapper());
-  n->Notify();
-}
 
 // Simulate the pattern of an incoming Stubby RPC which spawns
 // a child callback that outlives the RPC (run in a separate thread).
@@ -678,7 +684,16 @@ TEST_F(ContextTest, TestLongLivedCallback) {
                         .BuildValue()));
     WithContext new_scope(*handle);
     // Inherits the current context, including EUC
-    check_euc = ::util::functional::ToCallback([&n] { CheckEucValidity(&n); });
+    check_euc = ::util::functional::ToCallback([&n] {
+      const EndUserCredentialsProto* euc =
+          security::context::CurrentEuc(security::context::FOR_TEST);
+      ASSERT_NE(euc, nullptr);
+      // Make a copy to ensure the pointer is still valid.
+      EndUserCredentialsProto copy(*euc);
+      EXPECT_EQ(copy.credential(0).type(), AuthenticatorProto::GAIA_MINT);
+      EXPECT_EQ(copy.credential(0).gaia_mint_wrapper(), "fake-gaia-mint");
+      n.Notify();
+    });
   }
   euc.reset();
 
@@ -692,14 +707,14 @@ TEST_F(ContextTest, TestLongLivedCallback) {
 void ExpectGaiaMintContext(std::string expected_mint_wrapper) {
   const EndUserCredentialsProto* euc =
       security::context::CurrentEuc(security::context::FOR_TEST);
-  ASSERT_TRUE(euc != nullptr);
+  ASSERT_THAT(euc, NotNull());
   EXPECT_GT(euc->credential_size(), 0);
-  EXPECT_EQ(expected_mint_wrapper, euc->credential(0).gaia_mint_wrapper());
+  EXPECT_EQ(euc->credential(0).gaia_mint_wrapper(), expected_mint_wrapper);
 }
 #endif  // BASE_CONTEXT_HAVE_SECURITYCONTEXT
 
 void ExpectDeadline(absl::Time deadline) {
-  EXPECT_EQ(deadline, CurrentContext().deadline());
+  EXPECT_EQ(CurrentContext().deadline(), deadline);
 }
 
 // A permanent callback does not capture the current context at creation.
@@ -720,13 +735,13 @@ TEST_F(ContextTest, TestPermanentCallback) {
 
   {
     WithSecurityContext c(std::move(sec1));
-    EXPECT_TRUE(CurrentContext().security() != nullptr);
+    EXPECT_THAT(CurrentContext().security(), NotNull());
     permanent_cb.reset(::util::functional::ToPermanentCallback(
         absl::bind_front(&ExpectGaiaMintContext, "xyz")));
   }
   {
     WithSecurityContext c(std::move(sec2));
-    EXPECT_TRUE(CurrentContext().security() != nullptr);
+    EXPECT_THAT(CurrentContext().security(), NotNull());
     permanent_cb->Run();  // runs with 'sec2' context
   }
 #endif  // BASE_CONTEXT_HAVE_SECURITYCONTEXT
@@ -779,12 +794,12 @@ TEST_F(ContextTest, WithCensusHandle) {
 #endif  // BASE_CONTEXT_HAVE_SECURITYCONTEXT
 
 TEST_F(ContextTest, WithThreadStatus) {
-  EXPECT_EQ(nullptr, CurrentContext().thread_status());
+  EXPECT_THAT(CurrentContext().thread_status(), IsNull());
   {
     WithThreadStatus w("my_status");
-    EXPECT_EQ("my_status", CurrentContext().thread_status());
+    EXPECT_THAT(CurrentContext().thread_status(), StrEq("my_status"));
   }
-  EXPECT_EQ(nullptr, CurrentContext().thread_status());
+  EXPECT_THAT(CurrentContext().thread_status(), IsNull());
 }
 
 TEST_F(ContextTest, WithContextHardenedAgainstIllegalScope) {
