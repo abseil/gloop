@@ -1661,6 +1661,10 @@ cc_test(
     name = "process_state_test",
     size = "small",
     srcs = ["process_state_test.cc"],
+    local_defines = select({
+        "//tools/compilation_mode:dbg": ["DBG_COMPILATION_MODE"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":config",
         ":process_state",
