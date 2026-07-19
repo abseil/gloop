@@ -132,7 +132,7 @@ class ThreadPool : public AbstractThreadPool {
     // The callback to call when the watchdog expires, if set.
     WatchdogCallback absl_nullable watchdog_callback = nullptr;
     // When set, always spawn all workers on construction instead of lazily
-    // creating when they are needed.
+    // creating when they are needed and deleting when they are idle.
     bool force_eager_thread_creation = false;
   };
 
@@ -251,6 +251,17 @@ class ThreadPool : public AbstractThreadPool {
     return stopping_;
   }
 
+  class ThreadPoolWorker : public Thread {
+   public:
+    explicit ThreadPoolWorker(ThreadPool* pool);
+
+   protected:
+    void Run() override;
+
+   private:
+    ThreadPool* pool_;
+  };
+
   mutable absl::Mutex mutex_;  // The protecting lock
   absl::CondVar wait_nonfull_
       ABSL_GUARDED_BY(mutex_);  // To wait until non-full
@@ -267,15 +278,24 @@ class ThreadPool : public AbstractThreadPool {
       queue_;  // Queue of elements
   std::atomic<int> queue_size_{0};
   const bool eager_thread_creation_;  // Whether to eagerly spawn threads
+  const bool gc_workers_;             // Whether threads should exit when idle.
 
   bool stopping_ ABSL_GUARDED_BY(mutex_) = false;  // Set in destructor
   thread::AddAfterHelper add_after_helper_;        // Provides safe AddAfter()
   WatchdogCallback absl_nullable const watchdog_callback_;  // Watchdog callback
-  // How many threads have entered RunWorker
+  // How many threads currently exist.
+  size_t num_threads_ ABSL_GUARDED_BY(mutex_) = 0;
+  // How many threads have entered RunWorker but have not yet exited.
   size_t running_threads_ ABSL_GUARDED_BY(mutex_) = 0;
+  // How many threads are in the process of exiting and won't pick up new work.
+  size_t exiting_threads_ ABSL_GUARDED_BY(mutex_) = 0;
   thread::CpuSubContainer* const subcontainer_;  // Thread scheduling container
-  std::vector<Thread*> threads_ ABSL_GUARDED_BY(mutex_);  // List of threads
+  // Most recently dead thread that needs to be joined by the next dead thread
+  // or the destructor. This allows us to guarantee that all threads are joined
+  // before destroying the CpuSubContainer.
+  Thread* dead_thread_ ABSL_GUARDED_BY(mutex_) = nullptr;
 
+  friend class ThreadPoolWorker;
   FRIEND_TEST(ThreadPoolTest, OptionsConstructor);
 };
 

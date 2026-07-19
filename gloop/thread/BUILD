@@ -309,6 +309,7 @@ cc_library(
         "@abseil-cpp//absl/functional:overload",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:die_if_null",
         "@abseil-cpp//absl/log:flags",
         "@abseil-cpp//absl/log:log_sink_registry",
         "@abseil-cpp//absl/log:log_streamer",
