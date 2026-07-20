@@ -33,7 +33,7 @@
 namespace strings {
 namespace {
 
-using testing::IsEmpty;
+using ::testing::IsEmpty;
 
 TEST(Strip, StripDupCharacters) {
   // <input, golden output> pairs
@@ -56,7 +56,7 @@ TEST(Strip, StripDupCharacters) {
   for (int i = 0; i < num_entries; i += 2) {
     std::string stripped_src(input_goldens[i]);
     StripDupCharacters(&stripped_src, '/', 0);
-    EXPECT_EQ(stripped_src, std::string(input_goldens[i + 1]));
+    EXPECT_EQ(stripped_src, input_goldens[i + 1]);
   }
 }
 
@@ -140,126 +140,120 @@ TEST(Strip, TrimString) {
   absl::string_view sp;
   // TrimStringLeft
   sp = "";  // empty
-  s = std::string(sp);
-  expected = "";
+  s = sp;
   EXPECT_EQ(TrimStringLeft(&s, white), 0);
   EXPECT_EQ(TrimStringLeft(&sp, white), 0);
-  EXPECT_EQ(expected, s);
-  EXPECT_EQ(expected, sp);
+  EXPECT_THAT(s, IsEmpty());
+  EXPECT_THAT(sp, IsEmpty());
 
   sp = " \n\t";  // all bad
-  s = std::string(sp);
-  expected = "";
+  s = sp;
   EXPECT_EQ(TrimStringLeft(&s, white), 3);
   EXPECT_EQ(TrimStringLeft(&sp, white), 3);
-  EXPECT_EQ(expected, s);
-  EXPECT_EQ(expected, sp);
+  EXPECT_THAT(s, IsEmpty());
+  EXPECT_THAT(sp, IsEmpty());
 
   sp = "dog";  // nothing bad
-  s = std::string(sp);
+  s = sp;
   expected = "dog";
   EXPECT_EQ(TrimStringLeft(&s, white), 0);
   EXPECT_EQ(TrimStringLeft(&sp, white), 0);
-  EXPECT_EQ(expected, s);
-  EXPECT_EQ(expected, sp);
+  EXPECT_EQ(s, expected);
+  EXPECT_EQ(sp, expected);
 
   sp = " dog ";  // some bad
-  s = std::string(sp);
+  s = sp;
   expected = "dog ";
   EXPECT_EQ(TrimStringLeft(&s, white), 1);
   EXPECT_EQ(TrimStringLeft(&sp, white), 1);
-  EXPECT_EQ(expected, s);
-  EXPECT_EQ(expected, sp);
+  EXPECT_EQ(s, expected);
+  EXPECT_EQ(sp, expected);
 
   sp = " \n\t\t I love my little dog \n\t ";
-  s = std::string(sp);
+  s = sp;
   expected = "I love my little dog \n\t ";
   EXPECT_EQ(TrimStringLeft(&s, white), 5);
   EXPECT_EQ(TrimStringLeft(&sp, white), 5);
-  EXPECT_EQ(expected, s);
-  EXPECT_EQ(expected, sp);
+  EXPECT_EQ(s, expected);
+  EXPECT_EQ(sp, expected);
 
   // TrimStringRight
   sp = "";
-  s = std::string(sp);
-  expected = "";
+  s = sp;
   EXPECT_EQ(TrimStringRight(&s, white), 0);
   EXPECT_EQ(TrimStringRight(&sp, white), 0);
-  EXPECT_EQ(expected, s);
-  EXPECT_EQ(expected, sp);
+  EXPECT_THAT(s, IsEmpty());
+  EXPECT_THAT(sp, IsEmpty());
 
   sp = " \n\t";
-  s = std::string(sp);
-  expected = "";
+  s = sp;
   EXPECT_EQ(TrimStringRight(&s, white), 3);
   EXPECT_EQ(TrimStringRight(&sp, white), 3);
-  EXPECT_EQ(expected, s);
-  EXPECT_EQ(expected, sp);
+  EXPECT_THAT(s, IsEmpty());
+  EXPECT_THAT(sp, IsEmpty());
 
   sp = "dog";
-  s = std::string(sp);
+  s = sp;
   expected = "dog";
   EXPECT_EQ(TrimStringRight(&s, white), 0);
   EXPECT_EQ(TrimStringRight(&sp, white), 0);
-  EXPECT_EQ(expected, s);
-  EXPECT_EQ(expected, sp);
+  EXPECT_EQ(s, expected);
+  EXPECT_EQ(sp, expected);
 
   sp = " dog ";
-  s = std::string(sp);
+  s = sp;
   expected = " dog";
   EXPECT_EQ(TrimStringRight(&s, white), 1);
   EXPECT_EQ(TrimStringRight(&sp, white), 1);
-  EXPECT_EQ(expected, s);
-  EXPECT_EQ(expected, sp);
+  EXPECT_EQ(s, expected);
+  EXPECT_EQ(sp, expected);
 
   sp = " \n\t\t I love my little dog \n\t ";
-  s = std::string(sp);
+  s = sp;
   expected = " \n\t\t I love my little dog";
   EXPECT_EQ(TrimStringRight(&s, white), 4);
   EXPECT_EQ(TrimStringRight(&sp, white), 4);
-  EXPECT_EQ(expected, s);
-  EXPECT_EQ(expected, sp);
+  EXPECT_EQ(s, expected);
+  EXPECT_EQ(sp, expected);
 
   // TrimString
   sp = "";
-  s = std::string(sp);
-  expected = "";
+  s = sp;
   EXPECT_EQ(TrimString(&s, white), 0);
   EXPECT_EQ(TrimString(&sp, white), 0);
-  EXPECT_EQ(expected, s);
-  EXPECT_EQ(expected, sp);
+  EXPECT_THAT(s, IsEmpty());
+  EXPECT_THAT(sp, IsEmpty());
 
   sp = " \n\t";
-  s = std::string(sp);
-  expected = "";
+  s = sp;
   EXPECT_EQ(TrimString(&s, white), 3);
   EXPECT_EQ(TrimString(&sp, white), 3);
-  EXPECT_EQ(expected, s);
-  EXPECT_EQ(expected, sp);
+  EXPECT_THAT(s, IsEmpty());
+  EXPECT_THAT(sp, IsEmpty());
 
   sp = "dog";
-  s = std::string(sp);
+  s = sp;
   expected = "dog";
   EXPECT_EQ(TrimString(&s, white), 0);
   EXPECT_EQ(TrimString(&sp, white), 0);
-  EXPECT_EQ(expected, s);
-  EXPECT_EQ(expected, sp);
+  EXPECT_EQ(s, expected);
+  EXPECT_EQ(sp, expected);
 
   sp = " dog ";
-  s = std::string(sp);
+  s = sp;
   expected = "dog";
   EXPECT_EQ(TrimString(&s, white), 2);
   EXPECT_EQ(TrimString(&sp, white), 2);
-  EXPECT_EQ(expected, s);
-  EXPECT_EQ(expected, sp);
+  EXPECT_EQ(s, expected);
+  EXPECT_EQ(sp, expected);
 
   sp = " \n\t\t I love my little dog \n\t ";
-  s = std::string(sp);
+  s = sp;
   expected = "I love my little dog";
   EXPECT_EQ(TrimString(&s, white), 9);
   EXPECT_EQ(TrimString(&sp, white), 9);
-  EXPECT_EQ(expected, s);
-  EXPECT_EQ(expected, sp);
+  EXPECT_EQ(s, expected);
+  EXPECT_EQ(sp, expected);
 
   // There was a bug that caused the leading and trailing null bytes to be
   // trimmed.
@@ -268,8 +262,8 @@ TEST(Strip, TrimString) {
   expected.assign("\0abc\0", 5);
   EXPECT_EQ(TrimString(&s, white), 0);
   EXPECT_EQ(TrimString(&sp, white), 0);
-  EXPECT_EQ(expected, s);
-  EXPECT_EQ(expected, sp);
+  EXPECT_EQ(s, expected);
+  EXPECT_EQ(sp, expected);
 
   // Test that null characters are stripped if they are explicitly part
   // of the remove string.
@@ -283,37 +277,37 @@ TEST(Strip, TrimString) {
   expected = "I love my little dog";
   EXPECT_EQ(TrimString(&s, white_nulls), 10);
   EXPECT_EQ(TrimString(&sp, white_nulls), 10);
-  EXPECT_EQ(expected, s);
-  EXPECT_EQ(expected, sp);
+  EXPECT_EQ(s, expected);
+  EXPECT_EQ(sp, expected);
 
   // TrimRunsInString
   s = "";
   TrimRunsInString(&s, " \t\r\n");
-  EXPECT_EQ("", s);
+  EXPECT_THAT(s, IsEmpty());
 
   s = "plain vanilla String";
   TrimRunsInString(&s, " \t\r\n");
-  EXPECT_EQ("plain vanilla String", s);
+  EXPECT_EQ(s, "plain vanilla String");
   TrimRunsInString(&s, "xyz");
-  EXPECT_EQ("plain vanilla String", s);
+  EXPECT_EQ(s, "plain vanilla String");
 
   s = " a   b - - c -...d.e..-f -";
   TrimRunsInString(&s, " -.");
-  EXPECT_EQ("a b c d e f", s);
+  EXPECT_EQ(s, "a b c d e f");
 
   s = "   a    test of   the Trim-Runs-In-String function   ";
   TrimRunsInString(&s, " ");
-  EXPECT_EQ("a test of the Trim-Runs-In-String function", s);
+  EXPECT_EQ(s, "a test of the Trim-Runs-In-String function");
   TrimRunsInString(&s, "-of");
-  EXPECT_EQ("a test - the Trim-Runs-In-String -uncti-n", s);
+  EXPECT_EQ(s, "a test - the Trim-Runs-In-String -uncti-n");
   TrimRunsInString(&s, " -g");
-  EXPECT_EQ("a test the Trim Runs In Strin uncti n", s);
+  EXPECT_EQ(s, "a test the Trim Runs In Strin uncti n");
 
   s.assign(".\0-\0String..\0with-\0-nulls\0-.\0", 29);
   TrimRunsInString(&s, ".");
-  EXPECT_EQ(std::string("\0-\0String.\0with-\0-nulls\0-.\0", 27), s);
+  EXPECT_EQ(s, std::string("\0-\0String.\0with-\0-nulls\0-.\0", 27));
   TrimRunsInString(&s, absl::string_view("\0.-", 3));
-  EXPECT_EQ(std::string("String\0with\0nulls", 17), s);
+  EXPECT_EQ(s, std::string("String\0with\0nulls", 17));
 }
 
 TEST(Strip, RemoveNullsInString) {
@@ -321,62 +315,71 @@ TEST(Strip, RemoveNullsInString) {
 
   s = "Hey there";
   RemoveNullsInString(&s);
-  EXPECT_EQ("Hey there", s);
+  EXPECT_EQ(s, "Hey there");
 
   s = std::string("\0", 1);
   RemoveNullsInString(&s);
-  EXPECT_EQ("", s);
+  EXPECT_THAT(s, IsEmpty());
 
   s = std::string("\0\0\0", 3);
   RemoveNullsInString(&s);
-  EXPECT_EQ("", s);
+  EXPECT_THAT(s, IsEmpty());
 
   s = std::string("a\0b\0c\0d", 7);
   RemoveNullsInString(&s);
-  EXPECT_EQ("abcd", s);
+  EXPECT_EQ(s, "abcd");
 
   s = std::string("\0\0\0aaa\0\0bb\0c", 12);
   RemoveNullsInString(&s);
-  EXPECT_EQ("aaabbc", s);
+  EXPECT_EQ(s, "aaabbc");
 
   s = std::string("a\0bb\0\0ccc\0\0\0", 12);
   RemoveNullsInString(&s);
-  EXPECT_EQ("abbccc", s);
+  EXPECT_EQ(s, "abbccc");
 }
 
-void test_strrmm(const char* original, const char* remove, const char* expect) {
-  // first, the char* version
+std::string StrrmmChar(const char* original, const char* remove) {
 #ifdef _MSC_VER
   char* tmp = _strdup(original);
 #else
   char* tmp = strdup(original);
 #endif
   strrmm(tmp, remove);
-  EXPECT_STREQ(expect, tmp);
+  std::string result(tmp);
   free(tmp);
+  return result;
+}
 
-  // then, the string version
+std::string StrrmmString(absl::string_view original, const char* remove) {
   std::string str_tmp(original);
   strrmm(&str_tmp, remove);
-  EXPECT_EQ(expect, str_tmp);
+  return str_tmp;
 }
 
 // Test strrmm
 TEST(stringtest, strrmm) {
-  test_strrmm(
+  const char* original =
       "New%York"
-      "@ Yankees./#Super.So_nics",
+      "@ Yankees./#Super.So_nics";
+  const char* remove =
       "#_"
-      "@% /.",
-      "NewYorkYankeesSuperSonics");
+      "@% /.";
+  const char* expect = "NewYorkYankeesSuperSonics";
 
-  test_strrmm("    ", " ", "");
+  EXPECT_EQ(StrrmmChar(original, remove), expect);
+  EXPECT_EQ(StrrmmString(original, remove), expect);
 
-  test_strrmm(" a.b,c  d ", ",d. ", "abc");
+  EXPECT_THAT(StrrmmChar("    ", " "), IsEmpty());
+  EXPECT_THAT(StrrmmString("    ", " "), IsEmpty());
 
-  test_strrmm(" a.\"b,c\"  d ", ",d. ", "a\"bc\"");
+  EXPECT_EQ(StrrmmChar(" a.b,c  d ", ",d. "), "abc");
+  EXPECT_EQ(StrrmmString(" a.b,c  d ", ",d. "), "abc");
 
-  test_strrmm(" a.\"b,c\"  d ", ",d.\" ", "abc");
+  EXPECT_EQ(StrrmmChar(" a.\"b,c\"  d ", ",d. "), "a\"bc\"");
+  EXPECT_EQ(StrrmmString(" a.\"b,c\"  d ", ",d. "), "a\"bc\"");
+
+  EXPECT_EQ(StrrmmChar(" a.\"b,c\"  d ", ",d.\" "), "abc");
+  EXPECT_EQ(StrrmmString(" a.\"b,c\"  d ", ",d.\" "), "abc");
 
   // Make sure strrmm works with CoW strings
   const char kOrig[] = "does it work for me?";
@@ -391,30 +394,29 @@ TEST(stringtest, strrmm) {
 
   str.assign("abc\0def", 7);
   strrmm(&str, "bcde");
-  EXPECT_EQ(std::string("a\0f", 3), str);
-  EXPECT_NE(std::string("a\0c", 3), str);
+  EXPECT_EQ(str, std::string("a\0f", 3));
+  EXPECT_NE(str, std::string("a\0c", 3));
 
   str.assign("abcdef");
   strrmm(&str, std::string("bc\0de", 5));
-  EXPECT_EQ("af", str);
+  EXPECT_EQ(str, "af");
 
   str.assign("abc\0def", 7);
   strrmm(&str, std::string("bc\0de", 5));
-  EXPECT_EQ("af", str);
+  EXPECT_EQ(str, "af");
 }
 
 TEST(Strip, StripPrefixString) {
   const std::string foobar = "foobar";
-  const std::string FOOBAR = "FOOBAR";
   const absl::string_view null_stringpiece;
 
-  EXPECT_EQ(std::string(absl::StripPrefix(foobar, "foo")), std::string("bar"));
-  EXPECT_EQ(std::string(absl::StripPrefix(foobar, "")), foobar);
-  EXPECT_EQ(std::string(absl::StripPrefix(foobar, null_stringpiece)), foobar);
-  EXPECT_THAT(std::string(absl::StripPrefix(foobar, "foobar")), IsEmpty());
-  EXPECT_EQ(std::string(absl::StripPrefix(foobar, "bar")), foobar);
-  EXPECT_EQ(std::string(absl::StripPrefix(foobar, "foobarr")), foobar);
-  EXPECT_THAT(std::string(absl::StripPrefix("", "")), IsEmpty());
+  EXPECT_EQ(absl::StripPrefix(foobar, "foo"), "bar");
+  EXPECT_EQ(absl::StripPrefix(foobar, ""), foobar);
+  EXPECT_EQ(absl::StripPrefix(foobar, null_stringpiece), foobar);
+  EXPECT_THAT(absl::StripPrefix(foobar, "foobar"), IsEmpty());
+  EXPECT_EQ(absl::StripPrefix(foobar, "bar"), foobar);
+  EXPECT_EQ(absl::StripPrefix(foobar, "foobarr"), foobar);
+  EXPECT_THAT(absl::StripPrefix("", ""), IsEmpty());
 }
 
 TEST(Strip, TryStripPrefixString) {
@@ -445,16 +447,15 @@ TEST(Strip, TryStripPrefixString) {
 
 TEST(Strip, StripSuffixString) {
   const std::string foobar = "foobar";
-  const std::string FOOBAR = "FOOBAR";
   const absl::string_view null_stringpiece;
 
-  EXPECT_EQ(std::string(absl::StripSuffix(foobar, "bar")), std::string("foo"));
-  EXPECT_EQ(std::string(absl::StripSuffix(foobar, "")), foobar);
-  EXPECT_EQ(std::string(absl::StripSuffix(foobar, null_stringpiece)), foobar);
-  EXPECT_THAT(std::string(absl::StripSuffix(foobar, "foobar")), IsEmpty());
-  EXPECT_EQ(std::string(absl::StripSuffix(foobar, "foo")), foobar);
-  EXPECT_EQ(std::string(absl::StripSuffix(foobar, "ffoobar")), foobar);
-  EXPECT_THAT(std::string(absl::StripSuffix("", "")), IsEmpty());
+  EXPECT_EQ(absl::StripSuffix(foobar, "bar"), "foo");
+  EXPECT_EQ(absl::StripSuffix(foobar, ""), foobar);
+  EXPECT_EQ(absl::StripSuffix(foobar, null_stringpiece), foobar);
+  EXPECT_THAT(absl::StripSuffix(foobar, "foobar"), IsEmpty());
+  EXPECT_EQ(absl::StripSuffix(foobar, "foo"), foobar);
+  EXPECT_EQ(absl::StripSuffix(foobar, "ffoobar"), foobar);
+  EXPECT_THAT(absl::StripSuffix("", ""), IsEmpty());
 }
 
 TEST(Strip, TryStripSuffixString) {
@@ -487,135 +488,135 @@ TEST(Strip, ReplaceCharacter) {
   char test[256];
   absl::SNPrintF(test, sizeof(test), "%s", "");
   ReplaceCharacter(test, strlen(test), '-', 'x');
-  EXPECT_STREQ("", test);
+  EXPECT_STREQ(test, "");
 
   absl::SNPrintF(test, sizeof(test), "%s", "no occurrences");
   ReplaceCharacter(test, strlen(test), '-', 'x');
-  EXPECT_STREQ("no occurrences", test);
+  EXPECT_STREQ(test, "no occurrences");
 
   absl::SNPrintF(test, sizeof(test), "%s", "-a--bc-");
   ReplaceCharacter(test, strlen(test), '-', 'x');
-  EXPECT_STREQ("xaxxbcx", test);
+  EXPECT_STREQ(test, "xaxxbcx");
 
   // Replacing '-' with the null character.
   absl::SNPrintF(test, sizeof(test), "%s", "-a--bc-");
   ReplaceCharacter(test, strlen(test), '-', '\0');
-  EXPECT_EQ(std::string("\0a\0\0bc\0", 7), std::string(test, 7));
+  EXPECT_EQ(std::string(test, 7), std::string("\0a\0\0bc\0", 7));
 }
 
 TEST(Strip, ReplaceCharactersWithLength) {
   char test[256];
   absl::SNPrintF(test, sizeof(test), "%s", "-a--bc-");
   ReplaceCharacters(test, 0, "-", 'x');  // Passing empty prefix.
-  EXPECT_STREQ("-a--bc-", test);
+  EXPECT_STREQ(test, "-a--bc-");
 
   absl::SNPrintF(test, sizeof(test), "%s", "no occurrences--");
   ReplaceCharacters(test, strlen(test) - 2, "-", 'x');
-  EXPECT_STREQ("no occurrences--", test);
+  EXPECT_STREQ(test, "no occurrences--");
 
   absl::SNPrintF(test, sizeof(test), "%s", "-a--bc--");
   ReplaceCharacters(test, strlen(test) - 1, "-", 'x');
-  EXPECT_STREQ("xaxxbcx-", test);
+  EXPECT_STREQ(test, "xaxxbcx-");
 
   memcpy(test, "a-b\0c-d", 7);  // Null character in input, not replaced.
   ReplaceCharacters(test, 7, "-", 'x');
-  EXPECT_EQ(std::string("axb\0cxd", 7), std::string(test, 7));
+  EXPECT_EQ(std::string(test, 7), std::string("axb\0cxd", 7));
 
   memcpy(test, "\0a\0\0bc\0", 7);  // Replacing null character.
   ReplaceCharacters(test, 7, absl::string_view("\0", 1), 'x');
-  EXPECT_EQ("xaxxbcx", std::string(test, 7));
+  EXPECT_EQ(std::string(test, 7), "xaxxbcx");
 
   // Replacing '-' with the null character.
   absl::SNPrintF(test, sizeof(test), "%s", "-a--bc-");
   ReplaceCharacters(test, strlen(test), "-", '\0');
-  EXPECT_EQ(std::string("\0a\0\0bc\0", 7), std::string(test, 7));
+  EXPECT_EQ(std::string(test, 7), std::string("\0a\0\0bc\0", 7));
 
   // Similar tests with multiple characters to remove.
   absl::SNPrintF(test, sizeof(test), "%s", "qa-qbc-");
   ReplaceCharacters(test, 0, "qz-", 'x');  // Passing empty prefix.
-  EXPECT_STREQ("qa-qbc-", test);
+  EXPECT_STREQ(test, "qa-qbc-");
 
   absl::SNPrintF(test, sizeof(test), "%s", "no occurrences-q");
   ReplaceCharacters(test, strlen(test) - 2, "qz-", 'x');
-  EXPECT_STREQ("no occurrences-q", test);
+  EXPECT_STREQ(test, "no occurrences-q");
 
   absl::SNPrintF(test, sizeof(test), "%s", "qa-qbc-z");
   ReplaceCharacters(test, strlen(test) - 1, "qz-", 'x');
-  EXPECT_STREQ("xaxxbcxz", test);
+  EXPECT_STREQ(test, "xaxxbcxz");
 
   memcpy(test, "azb\0c-d", 7);  // Null character in input, not replaced.
   ReplaceCharacters(test, 7, "qz-", 'x');
-  EXPECT_EQ(std::string("axb\0cxd", 7), std::string(test, 7));
+  EXPECT_EQ(std::string(test, 7), std::string("axb\0cxd", 7));
 
   memcpy(test, "\0a\0zbcz", 7);  // Replacing null character.
   ReplaceCharacters(test, 7, absl::string_view("q\0z", 3), 'x');
-  EXPECT_EQ("xaxxbcx", std::string(test, 7));
+  EXPECT_EQ(std::string(test, 7), "xaxxbcx");
 
   // Replacing with the null character.
   absl::SNPrintF(test, sizeof(test), "%s", "qa-qbc-");
   ReplaceCharacters(test, strlen(test), "qz-", '\0');
-  EXPECT_EQ(std::string("\0a\0\0bc\0", 7), std::string(test, 7));
+  EXPECT_EQ(std::string(test, 7), std::string("\0a\0\0bc\0", 7));
 
   // No characters to remove.
   absl::SNPrintF(test, sizeof(test), "%s", "abc");
   ReplaceCharacters(test, strlen(test), "", 'x');
-  EXPECT_STREQ("abc", test);
+  EXPECT_STREQ(test, "abc");
 }
 
 TEST(Strip, ReplaceCharactersObject) {
   std::string test;
   ReplaceCharacters(&test, "-", 'x');
-  EXPECT_EQ("", test);
+  EXPECT_THAT(test, IsEmpty());
 
   test = "no occurrences";
   ReplaceCharacters(&test, "-", 'x');
-  EXPECT_EQ("no occurrences", test);
+  EXPECT_EQ(test, "no occurrences");
 
   test = "-a--bc-";
   ReplaceCharacters(&test, "-", 'x');
-  EXPECT_EQ("xaxxbcx", test);
+  EXPECT_EQ(test, "xaxxbcx");
 
   test.assign("a-b\0c-d", 7);  // Null character in input, not replaced.
   ReplaceCharacters(&test, "-", 'x');
-  EXPECT_EQ(std::string("axb\0cxd", 7), test);
+  EXPECT_EQ(test, std::string("axb\0cxd", 7));
 
   test.assign("\0a\0\0bc\0", 7);  // Replacing null character.
   ReplaceCharacters(&test, absl::string_view("\0", 1), 'x');
-  EXPECT_EQ("xaxxbcx", test);
+  EXPECT_EQ(test, "xaxxbcx");
 
   test = ("-a--bc-");  // Replacing '-' with the null character.
   ReplaceCharacters(&test, "-", '\0');
-  EXPECT_EQ(std::string("\0a\0\0bc\0", 7), test);
+  EXPECT_EQ(test, std::string("\0a\0\0bc\0", 7));
 
   // Similar tests with multiple characters to remove.
   test = "";
   ReplaceCharacters(&test, "qz-", 'x');
-  EXPECT_EQ("", test);
+  EXPECT_THAT(test, IsEmpty());
 
   test = "no occurrences";
   ReplaceCharacters(&test, "qz-", 'x');
-  EXPECT_EQ("no occurrences", test);
+  EXPECT_EQ(test, "no occurrences");
 
   test = ("qa-qbc-");
   ReplaceCharacters(&test, "qz-", 'x');
-  EXPECT_EQ("xaxxbcx", test);
+  EXPECT_EQ(test, "xaxxbcx");
 
   test.assign("azb\0c-d", 7);  // Null character in input, not replaced.
   ReplaceCharacters(&test, "qz-", 'x');
-  EXPECT_EQ(std::string("axb\0cxd", 7), test);
+  EXPECT_EQ(test, std::string("axb\0cxd", 7));
 
   test.assign("\0a\0zbcz", 7);  // Replacing null character.
   ReplaceCharacters(&test, absl::string_view("q\0z", 3), 'x');
-  EXPECT_EQ("xaxxbcx", test);
+  EXPECT_EQ(test, "xaxxbcx");
 
   test = "qa-qbc-";  // Replacing with the null character.
   ReplaceCharacters(&test, "qz-", '\0');
-  EXPECT_EQ(std::string("\0a\0\0bc\0", 7), test);
+  EXPECT_EQ(test, std::string("\0a\0\0bc\0", 7));
 
   // No characters to remove.
   test = "abc";
   ReplaceCharacters(&test, "", 'x');
-  EXPECT_EQ("abc", test);
+  EXPECT_EQ(test, "abc");
 }
 
 TEST(Strip, SkipLeadingWhitespace) {
