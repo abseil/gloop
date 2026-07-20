@@ -37,8 +37,7 @@ git_override(
 
 git_override(
     module_name = "tcmalloc",
-    commit = "29bae22bff6cd2adcb32972f1cb4928f34dfa213",
-    patches = ["//gloop:tcmalloc.patch"],
+    commit = "0957bbd3567f6c46586121cfc2746a2c06608b7d",
     remote = "https://github.com/google/tcmalloc",
 )
 
