@@ -101,6 +101,7 @@ cc_test(
         "//gloop/util/status",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_matchers",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
