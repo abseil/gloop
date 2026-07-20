@@ -233,8 +233,8 @@ TEST(IPAddressTest, ThoroughToString4) {
 // They are one source of "spoofed" addresses in URLs and generally
 // considered unsafe.  We follow inet_pton(3) and explicitly do not
 // support them.
-class UnsafeIPv4StringsParamTest
-    : public ::testing::TestWithParam<const char*> {};
+class UnsafeIPv4StringsParamTest : public testing::TestWithParam<const char*> {
+};
 
 TEST_P(UnsafeIPv4StringsParamTest, StringToIPAddressFails) {
   IPAddress ip;
@@ -243,21 +243,21 @@ TEST_P(UnsafeIPv4StringsParamTest, StringToIPAddressFails) {
 
 INSTANTIATE_TEST_SUITE_P(
     UnsafeIPv4Strings, UnsafeIPv4StringsParamTest,
-    ::testing::Values("016.016.016",          // 14.14.0.14
-                      "016.016",              // 14.0.0.14
-                      "016",                  // 0.0.0.14
-                      "0x0a.0x0a.0x0a.0x0a",  // 10.10.10.10
-                      "0x0a.0x0a.0x0a",       // 10.10.0.10
-                      "0x0a.0x0a",            // 10.0.0.10
-                      "0x0a",                 // 0.0.0.10
-                      "42.42.42",             // 42.42.0.42
-                      "42.42",                // 42.0.0.42
-                      "42",                   // 0.0.0.42
-                      // On Darwin `inet_pton` ignores leading zeros so this
-                      // would be a valid 16.16.16.16 address, but
-                      // `StringToIPAddress` does not use `inet_pton`.
-                      "016.016.016.016"  // 14.14.14.14
-                      ));
+    testing::Values("016.016.016",          // 14.14.0.14
+                    "016.016",              // 14.0.0.14
+                    "016",                  // 0.0.0.14
+                    "0x0a.0x0a.0x0a.0x0a",  // 10.10.10.10
+                    "0x0a.0x0a.0x0a",       // 10.10.0.10
+                    "0x0a.0x0a",            // 10.0.0.10
+                    "0x0a",                 // 0.0.0.10
+                    "42.42.42",             // 42.42.0.42
+                    "42.42",                // 42.0.0.42
+                    "42",                   // 0.0.0.42
+                    // On Darwin `inet_pton` ignores leading zeros so this
+                    // would be a valid 16.16.16.16 address, but
+                    // `StringToIPAddress` does not use `inet_pton`.
+                    "016.016.016.016"  // 14.14.14.14
+                    ));
 
 TEST(IPAddressTest, IPv4TooShort) {
   IPAddress ip;
@@ -826,7 +826,7 @@ TEST(IPAddressTest, Joining) {
             "192.0.2.0!!!2001:db8::!!!0.0.0.0!!!::");
 }
 
-class ChooseRandomAddressParamTest : public ::testing::TestWithParam<int> {};
+class ChooseRandomAddressParamTest : public testing::TestWithParam<int> {};
 
 TEST_P(ChooseRandomAddressParamTest, IPv4) {
   const int N = GetParam();
@@ -926,7 +926,7 @@ TEST_P(ChooseRandomAddressParamTest, Vector) {
 }
 
 INSTANTIATE_TEST_SUITE_P(EntryCounts, ChooseRandomAddressParamTest,
-                         ::testing::Values(1, 2, 10, 40));
+                         testing::Values(1, 2, 10, 40));
 
 TEST(IPAddressTest, ChooseRandomAddressInvalid) {
   std::vector<IPAddress> vec;
@@ -2505,7 +2505,7 @@ struct NormalizeSocketAddressCase {
 };
 
 class NormalizeSocketAddressTest
-    : public ::testing::TestWithParam<NormalizeSocketAddressCase> {};
+    : public testing::TestWithParam<NormalizeSocketAddressCase> {};
 
 TEST_P(NormalizeSocketAddressTest, NormalizesCorrectly) {
   const auto& c = GetParam();
@@ -2537,7 +2537,7 @@ TEST_P(NormalizeSocketAddressTest, NormalizesCorrectly) {
 
 INSTANTIATE_TEST_SUITE_P(
     NormalizeSocketAddress, NormalizeSocketAddressTest,
-    ::testing::Values(
+    testing::Values(
         NormalizeSocketAddressCase{"IPv4", "129.241.93.35:21",
                                    "129.241.93.35:21"},
         NormalizeSocketAddressCase{
@@ -4544,7 +4544,7 @@ struct MaskLengthIPv4Case {
 };
 
 class MaskLengthToIPAddressIPv4Test
-    : public ::testing::TestWithParam<MaskLengthIPv4Case> {};
+    : public testing::TestWithParam<MaskLengthIPv4Case> {};
 
 TEST_P(MaskLengthToIPAddressIPv4Test, ConvertsCorrectly) {
   const auto& param = GetParam();
@@ -4555,7 +4555,7 @@ TEST_P(MaskLengthToIPAddressIPv4Test, ConvertsCorrectly) {
 
 INSTANTIATE_TEST_SUITE_P(
     Cases, MaskLengthToIPAddressIPv4Test,
-    ::testing::Values(
+    testing::Values(
         MaskLengthIPv4Case{32, "255.255.255.255"},
         MaskLengthIPv4Case{31, "255.255.255.254"},
         MaskLengthIPv4Case{30, "255.255.255.252"},
@@ -4592,7 +4592,7 @@ struct MaskLengthIPv6Case {
 };
 
 class MaskLengthToIPAddressIPv6Test
-    : public ::testing::TestWithParam<MaskLengthIPv6Case> {};
+    : public testing::TestWithParam<MaskLengthIPv6Case> {};
 
 TEST_P(MaskLengthToIPAddressIPv6Test, ConvertsCorrectly) {
   const auto& param = GetParam();
@@ -4603,7 +4603,7 @@ TEST_P(MaskLengthToIPAddressIPv6Test, ConvertsCorrectly) {
 
 INSTANTIATE_TEST_SUITE_P(
     Cases, MaskLengthToIPAddressIPv6Test,
-    ::testing::Values(
+    testing::Values(
         MaskLengthIPv6Case{0, "::"}, MaskLengthIPv6Case{1, "8000::"},
         MaskLengthIPv6Case{15, "fffe::"}, MaskLengthIPv6Case{31, "ffff:fffe::"},
         MaskLengthIPv6Case{47, "ffff:ffff:fffe::"},
@@ -4623,7 +4623,7 @@ TEST(NetMaskToMaskLength, Uninitialized) {
 }
 
 class NetMaskToMaskLengthInvalidTest
-    : public ::testing::TestWithParam<const char*> {};
+    : public testing::TestWithParam<const char*> {};
 
 TEST_P(NetMaskToMaskLengthInvalidTest, Fails) {
   EXPECT_FALSE(
@@ -4632,15 +4632,15 @@ TEST_P(NetMaskToMaskLengthInvalidTest, Fails) {
 
 INSTANTIATE_TEST_SUITE_P(
     InvalidMasks, NetMaskToMaskLengthInvalidTest,
-    ::testing::Values("127.0.0.0", "255.255.0.255", "255.254.255.255",
-                      "255.0.0.1", "ffff:ffff:7fff::", "7fff:ffff:ffff::",
-                      "ffff:ff7f:ffff::", "ffff:ffff:ffff:7fff::",
-                      "ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffd",
-                      "ffff:ffff:ffff:ffff:ffff:ffff:fffd::",
-                      "ffff:ffff:ffff:ffff:ffff:fffd::",
-                      "ffff:ffff:ffff:ffff:fffd::", "ffff:ffff:ffff:fffd::"));
+    testing::Values("127.0.0.0", "255.255.0.255", "255.254.255.255",
+                    "255.0.0.1", "ffff:ffff:7fff::", "7fff:ffff:ffff::",
+                    "ffff:ff7f:ffff::", "ffff:ffff:ffff:7fff::",
+                    "ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffd",
+                    "ffff:ffff:ffff:ffff:ffff:ffff:fffd::",
+                    "ffff:ffff:ffff:ffff:ffff:fffd::",
+                    "ffff:ffff:ffff:ffff:fffd::", "ffff:ffff:ffff:fffd::"));
 
-class NetMaskToMaskLengthIPv4Test : public ::testing::TestWithParam<int> {};
+class NetMaskToMaskLengthIPv4Test : public testing::TestWithParam<int> {};
 
 TEST_P(NetMaskToMaskLengthIPv4Test, RoundTrip) {
   const int length = GetParam();
@@ -4653,9 +4653,9 @@ TEST_P(NetMaskToMaskLengthIPv4Test, RoundTrip) {
 }
 
 INSTANTIATE_TEST_SUITE_P(Range, NetMaskToMaskLengthIPv4Test,
-                         ::testing::Range(0, 33));
+                         testing::Range(0, 33));
 
-class NetMaskToMaskLengthIPv6Test : public ::testing::TestWithParam<int> {};
+class NetMaskToMaskLengthIPv6Test : public testing::TestWithParam<int> {};
 
 TEST_P(NetMaskToMaskLengthIPv6Test, RoundTrip) {
   const int length = GetParam();
@@ -4668,7 +4668,7 @@ TEST_P(NetMaskToMaskLengthIPv6Test, RoundTrip) {
 }
 
 INSTANTIATE_TEST_SUITE_P(Range, NetMaskToMaskLengthIPv6Test,
-                         ::testing::Range(0, 129));
+                         testing::Range(0, 129));
 
 TEST(AddressFamilyToString, BasicTest) {
   EXPECT_EQ("IPv4", AddressFamilyToString(AF_INET));

@@ -40,8 +40,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-namespace util {
-namespace csv {
+namespace util::csv {
 namespace {
 
 using ::absl_testing::IsOk;
@@ -491,5 +490,4 @@ TYPED_TEST(WriterTest, CRLFFieldQuoting) {
 }
 
 }  // namespace
-}  // namespace csv
-}  // namespace util
+}  // namespace util::csv
