@@ -36,10 +36,7 @@
 namespace strings {
 namespace {
 
-using ::testing::Contains;
 using ::testing::ElementsAre;
-using ::testing::Pair;
-using ::testing::StrCaseEq;
 
 TEST(Case, GetAsciiCapitalizationTypeToString) {
   std::stringstream stream;
@@ -131,7 +128,8 @@ TEST(Case, HeterogeneousLookupLess) {
   absl::btree_map<std::string, std::string, AsciiCaseInsensitiveLess> map;
   map.emplace("Key", "value");
   absl::string_view string_view_key("key");
-  EXPECT_THAT(map, Contains(Pair(StrCaseEq(string_view_key), "value")));
+  ASSERT_TRUE(map.contains(string_view_key));
+  EXPECT_EQ(map[string_view_key], "value");
 }
 
 TEST(Case, HeterogeneousLookupHashEq) {
@@ -140,7 +138,8 @@ TEST(Case, HeterogeneousLookupHashEq) {
       map;
   map.emplace("Key", "value");
   absl::string_view string_view_key("key");
-  EXPECT_THAT(map, Contains(Pair(StrCaseEq(string_view_key), "value")));
+  ASSERT_TRUE(map.contains(string_view_key));
+  EXPECT_EQ(map[string_view_key], "value");
 }
 
 // Test MakeAsciiTitlecase
