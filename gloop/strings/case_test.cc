@@ -34,8 +34,12 @@
 #include "gtest/gtest.h"
 
 namespace strings {
+namespace {
 
+using ::testing::Contains;
 using ::testing::ElementsAre;
+using ::testing::Pair;
+using ::testing::StrCaseEq;
 
 TEST(Case, GetAsciiCapitalizationTypeToString) {
   std::stringstream stream;
@@ -49,61 +53,61 @@ TEST(Case, GetAsciiCapitalizationTypeToString) {
 }
 
 TEST(Case, GetAsciiCapitalization) {
-  ASSERT_EQ(GetAsciiCapitalization(""), AsciiCapitalizationType::kNoAlpha);
-  ASSERT_EQ(GetAsciiCapitalization("*"), AsciiCapitalizationType::kNoAlpha);
-  ASSERT_EQ(GetAsciiCapitalization("9123&(*4327"),
+  EXPECT_EQ(GetAsciiCapitalization(""), AsciiCapitalizationType::kNoAlpha);
+  EXPECT_EQ(GetAsciiCapitalization("*"), AsciiCapitalizationType::kNoAlpha);
+  EXPECT_EQ(GetAsciiCapitalization("9123&(*4327"),
             AsciiCapitalizationType::kNoAlpha);
-  ASSERT_EQ(GetAsciiCapitalization("k"), AsciiCapitalizationType::kLower);
-  ASSERT_EQ(GetAsciiCapitalization("    k  "), AsciiCapitalizationType::kLower);
-  ASSERT_EQ(GetAsciiCapitalization("jsdlkjfd asflj asdfj ewiei sdkl dj"),
+  EXPECT_EQ(GetAsciiCapitalization("k"), AsciiCapitalizationType::kLower);
+  EXPECT_EQ(GetAsciiCapitalization("    k  "), AsciiCapitalizationType::kLower);
+  EXPECT_EQ(GetAsciiCapitalization("jsdlkjfd asflj asdfj ewiei sdkl dj"),
             AsciiCapitalizationType::kLower);
-  ASSERT_EQ(GetAsciiCapitalization("  #!&(!$($* sdf"),
+  EXPECT_EQ(GetAsciiCapitalization("  #!&(!$($* sdf"),
             AsciiCapitalizationType::kLower);
-  ASSERT_EQ(GetAsciiCapitalization("js&#sdj320asdf*$"),
+  EXPECT_EQ(GetAsciiCapitalization("js&#sdj320asdf*$"),
             AsciiCapitalizationType::kLower);
-  ASSERT_EQ(GetAsciiCapitalization("o'connell"),
+  EXPECT_EQ(GetAsciiCapitalization("o'connell"),
             AsciiCapitalizationType::kLower);
-  ASSERT_EQ(GetAsciiCapitalization("K"), AsciiCapitalizationType::kUpper);
-  ASSERT_EQ(GetAsciiCapitalization("  K   "), AsciiCapitalizationType::kUpper);
-  ASSERT_EQ(GetAsciiCapitalization("JKL JFJD EUOFGU ABFEIIIA  DOJJL"),
+  EXPECT_EQ(GetAsciiCapitalization("K"), AsciiCapitalizationType::kUpper);
+  EXPECT_EQ(GetAsciiCapitalization("  K   "), AsciiCapitalizationType::kUpper);
+  EXPECT_EQ(GetAsciiCapitalization("JKL JFJD EUOFGU ABFEIIIA  DOJJL"),
             AsciiCapitalizationType::kUpper);
-  ASSERT_EQ(GetAsciiCapitalization("  30831*)#*)!#'', QWEOIOI"),
+  EXPECT_EQ(GetAsciiCapitalization("  30831*)#*)!#'', QWEOIOI"),
             AsciiCapitalizationType::kUpper);
-  ASSERT_EQ(GetAsciiCapitalization("   Mjdof"),
+  EXPECT_EQ(GetAsciiCapitalization("   Mjdof"),
             AsciiCapitalizationType::kFirst);
-  ASSERT_EQ(GetAsciiCapitalization(" I nmx "), AsciiCapitalizationType::kFirst);
-  ASSERT_EQ(GetAsciiCapitalization("jXqiXjfQ"),
+  EXPECT_EQ(GetAsciiCapitalization(" I nmx "), AsciiCapitalizationType::kFirst);
+  EXPECT_EQ(GetAsciiCapitalization("jXqiXjfQ"),
             AsciiCapitalizationType::kMixed);
-  ASSERT_EQ(GetAsciiCapitalization("  jX "), AsciiCapitalizationType::kMixed);
-  ASSERT_EQ(GetAsciiCapitalization("Becky"), AsciiCapitalizationType::kFirst);
-  ASSERT_EQ(GetAsciiCapitalization("O'Neill"), AsciiCapitalizationType::kMixed);
+  EXPECT_EQ(GetAsciiCapitalization("  jX "), AsciiCapitalizationType::kMixed);
+  EXPECT_EQ(GetAsciiCapitalization("Becky"), AsciiCapitalizationType::kFirst);
+  EXPECT_EQ(GetAsciiCapitalization("O'Neill"), AsciiCapitalizationType::kMixed);
 }
 
 TEST(Case, AsciiCaseInsensitiveCompare) {
   const std::string a("abc");
   const std::string b("abC");
-  ASSERT_EQ(AsciiCaseInsensitiveCompare(a, b), 0);
-  ASSERT_FALSE(AsciiCaseInsensitiveLess()(a, b));
-  ASSERT_TRUE(AsciiCaseInsensitiveEq()(a, b));
+  EXPECT_EQ(AsciiCaseInsensitiveCompare(a, b), 0);
+  EXPECT_FALSE(AsciiCaseInsensitiveLess()(a, b));
+  EXPECT_TRUE(AsciiCaseInsensitiveEq()(a, b));
 
   const std::string c("abCa");
-  ASSERT_LT(AsciiCaseInsensitiveCompare(a, c), 0);
-  ASSERT_TRUE(AsciiCaseInsensitiveLess()(a, c));
-  ASSERT_FALSE(AsciiCaseInsensitiveEq()(a, c));
+  EXPECT_LT(AsciiCaseInsensitiveCompare(a, c), 0);
+  EXPECT_TRUE(AsciiCaseInsensitiveLess()(a, c));
+  EXPECT_FALSE(AsciiCaseInsensitiveEq()(a, c));
 
   const std::string d("bcd");
-  ASSERT_LT(AsciiCaseInsensitiveCompare(a, d), 0);
-  ASSERT_TRUE(AsciiCaseInsensitiveLess()(a, d));
-  ASSERT_FALSE(AsciiCaseInsensitiveEq()(a, d));
+  EXPECT_LT(AsciiCaseInsensitiveCompare(a, d), 0);
+  EXPECT_TRUE(AsciiCaseInsensitiveLess()(a, d));
+  EXPECT_FALSE(AsciiCaseInsensitiveEq()(a, d));
 
   const std::string e("aBd");
-  ASSERT_LT(AsciiCaseInsensitiveCompare(a, e), 0);
-  ASSERT_TRUE(AsciiCaseInsensitiveLess()(a, e));
-  ASSERT_FALSE(AsciiCaseInsensitiveEq()(a, e));
+  EXPECT_LT(AsciiCaseInsensitiveCompare(a, e), 0);
+  EXPECT_TRUE(AsciiCaseInsensitiveLess()(a, e));
+  EXPECT_FALSE(AsciiCaseInsensitiveEq()(a, e));
 
-  ASSERT_LT(AsciiCaseInsensitiveCompare("X_Z", "XYZ"), 0);
-  ASSERT_TRUE(AsciiCaseInsensitiveLess()("X_Z", "XYZ"));
-  ASSERT_FALSE(AsciiCaseInsensitiveEq()("X_Z", "XYZ"));
+  EXPECT_LT(AsciiCaseInsensitiveCompare("X_Z", "XYZ"), 0);
+  EXPECT_TRUE(AsciiCaseInsensitiveLess()("X_Z", "XYZ"));
+  EXPECT_FALSE(AsciiCaseInsensitiveEq()("X_Z", "XYZ"));
 }
 
 // Reproduce b/219968630.
@@ -120,14 +124,14 @@ TEST(Case, AsciiCaseInsensitiveCompareNull) {
 }
 
 TEST(Case, AsciiCaseInsensitiveHash) {
-  ASSERT_EQ(AsciiCaseInsensitiveHash()("A"), AsciiCaseInsensitiveHash()("a"));
+  EXPECT_EQ(AsciiCaseInsensitiveHash()("A"), AsciiCaseInsensitiveHash()("a"));
 }
 
 TEST(Case, HeterogeneousLookupLess) {
   absl::btree_map<std::string, std::string, AsciiCaseInsensitiveLess> map;
   map.emplace("Key", "value");
   absl::string_view string_view_key("key");
-  ASSERT_EQ(map.find(string_view_key)->second, "value");
+  EXPECT_THAT(map, Contains(Pair(StrCaseEq(string_view_key), "value")));
 }
 
 TEST(Case, HeterogeneousLookupHashEq) {
@@ -136,57 +140,57 @@ TEST(Case, HeterogeneousLookupHashEq) {
       map;
   map.emplace("Key", "value");
   absl::string_view string_view_key("key");
-  ASSERT_TRUE(map.contains(string_view_key));
-  ASSERT_EQ(map.find(string_view_key)->second, "value");
+  EXPECT_THAT(map, Contains(Pair(StrCaseEq(string_view_key), "value")));
 }
 
 // Test MakeAsciiTitlecase
 TEST(Case, MakeAsciiTitlecase) {
   std::string s = "houston rockets";
   MakeAsciiTitlecase(&s, " ");
-  ASSERT_EQ(s, "Houston Rockets");
+  EXPECT_EQ(s, "Houston Rockets");
 
-  ASSERT_EQ(MakeAsciiTitlecase(s, " "), "Houston Rockets");
+  EXPECT_EQ(MakeAsciiTitlecase(s, " "), "Houston Rockets");
 
   s = "i am a googler";
   MakeAsciiTitlecase(&s, " ");
-  ASSERT_EQ(s, "I Am A Googler");
+  EXPECT_EQ(s, "I Am A Googler");
 
   s = "";
   MakeAsciiTitlecase(&s, " ");
-  ASSERT_EQ(s, "");
+  EXPECT_EQ(s, "");
 
   s = "   ";
   MakeAsciiTitlecase(&s, " ");
-  ASSERT_EQ(s, "   ");
+  EXPECT_EQ(s, "   ");
 
   s = "i-am-A-GooGler";
   MakeAsciiTitlecase(&s, "-");
-  ASSERT_EQ(s, "I-Am-A-GooGler");
+  EXPECT_EQ(s, "I-Am-A-GooGler");
 
   s = "i -_ am a googler.";
   MakeAsciiTitlecase(&s, "- _");
-  ASSERT_EQ(s, "I -_ Am A Googler.");
+  EXPECT_EQ(s, "I -_ Am A Googler.");
 
   s = "i -_am a googler.";
   MakeAsciiTitlecase(&s, "- _");
-  ASSERT_EQ(s, "I -_Am A Googler.");
+  EXPECT_EQ(s, "I -_Am A Googler.");
 
   s = "how,are you?fine?";
   MakeAsciiTitlecase(&s, "?");
-  ASSERT_EQ(s, "How,are you?Fine?");
+  EXPECT_EQ(s, "How,are you?Fine?");
 
   s = "how,are you?fine?";
   MakeAsciiTitlecase(&s, ", ");
-  ASSERT_EQ(s, "How,Are You?fine?");
+  EXPECT_EQ(s, "How,Are You?fine?");
 
   s.assign("i\0am\0a\0googler", 14);
   MakeAsciiTitlecase(&s, " ");
-  ASSERT_EQ(s, std::string("I\0am\0a\0googler", 14));
+  EXPECT_EQ(s, std::string("I\0am\0a\0googler", 14));
 
   s.assign("i\0am\0a\0googler", 14);
   MakeAsciiTitlecase(&s, absl::string_view("\0", 1));
-  ASSERT_EQ(s, std::string("I\0Am\0A\0Googler", 14));
+  EXPECT_EQ(s, std::string("I\0Am\0A\0Googler", 14));
 }
 
+}  // namespace
 }  // namespace strings
