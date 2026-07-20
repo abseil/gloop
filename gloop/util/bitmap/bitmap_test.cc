@@ -51,9 +51,10 @@ ABSL_FLAG(int32_t, bm_bitmap_size, 10000, "Size of bitmap for benchmarks");
 
 namespace {
 
-using testing::ElementsAre;
-using testing::ElementsAreArray;
-using util::bitmap::internal::BasicBitmap;
+using ::testing::ElementsAre;
+using ::testing::ElementsAreArray;
+using ::testing::IsEmpty;
+using ::util::bitmap::internal::BasicBitmap;
 
 // Fills in the bitmap with roughly 'percent_filled' bits randomly set. Returns
 // a pair of count of bits set and the sum of the indices of the set bits.
@@ -239,7 +240,7 @@ TYPED_TEST_P(BitmapTest, TestRange) {
   for (int i = 0; i < 100; i++) EXPECT_EQ(map.Get(i), (i % 7) == 0);
 
   map.SetAll(false);
-  for (int i = 0; i < 100; i++) EXPECT_EQ(map.Get(i), false);
+  for (int i = 0; i < 100; i++) EXPECT_FALSE(map.Get(i));
   EXPECT_FALSE(map.TestRange(0, 0));
   EXPECT_FALSE(map.TestRange(0, 1));
   EXPECT_FALSE(map.TestRange(31, 31));
@@ -281,7 +282,7 @@ TYPED_TEST_P(BitmapTest, TestRange) {
   EXPECT_TRUE(map.TestRange(40, 60));
   EXPECT_TRUE(map.TestRange(90, 100));
   EXPECT_TRUE(map.IsAllOnes());
-  for (int i = 0; i < 100; i++) EXPECT_EQ(map.Get(i), true);
+  for (int i = 0; i < 100; i++) EXPECT_TRUE(map.Get(i));
 
   map.SetRange(70, 99, false);
   EXPECT_TRUE(map.TestRange(69, 99));
@@ -307,70 +308,70 @@ TYPED_TEST_P(BitmapTest, TestRange) {
 
 TYPED_TEST_P(BitmapTest, RequiredArraySize) {
   // Test that array size is always at least 1 (even for 0 bits).
-  EXPECT_EQ(1, BasicBitmap<TypeParam>::RequiredArraySize(0));
-  EXPECT_EQ(1, BasicBitmap<TypeParam>::RequiredArraySize(1));
+  EXPECT_EQ(BasicBitmap<TypeParam>::RequiredArraySize(0), 1);
+  EXPECT_EQ(BasicBitmap<TypeParam>::RequiredArraySize(1), 1);
 
   constexpr size_t bits_in_word = 8 * sizeof(TypeParam);
 
   // Test numbers of bits around the 1 word boundary.
-  EXPECT_EQ(1, BasicBitmap<TypeParam>::RequiredArraySize(bits_in_word - 1));
-  EXPECT_EQ(1, BasicBitmap<TypeParam>::RequiredArraySize(bits_in_word));
-  EXPECT_EQ(2, BasicBitmap<TypeParam>::RequiredArraySize(bits_in_word + 1));
+  EXPECT_EQ(BasicBitmap<TypeParam>::RequiredArraySize(bits_in_word - 1), 1);
+  EXPECT_EQ(BasicBitmap<TypeParam>::RequiredArraySize(bits_in_word), 1);
+  EXPECT_EQ(BasicBitmap<TypeParam>::RequiredArraySize(bits_in_word + 1), 2);
 
   // Test numbers of bits around the 2 word boundary.
-  EXPECT_EQ(2, BasicBitmap<TypeParam>::RequiredArraySize(2 * bits_in_word - 1));
-  EXPECT_EQ(2, BasicBitmap<TypeParam>::RequiredArraySize(2 * bits_in_word));
-  EXPECT_EQ(3, BasicBitmap<TypeParam>::RequiredArraySize(2 * bits_in_word + 1));
+  EXPECT_EQ(BasicBitmap<TypeParam>::RequiredArraySize(2 * bits_in_word - 1), 2);
+  EXPECT_EQ(BasicBitmap<TypeParam>::RequiredArraySize(2 * bits_in_word), 2);
+  EXPECT_EQ(BasicBitmap<TypeParam>::RequiredArraySize(2 * bits_in_word + 1), 3);
 
   // Verify that RequiredArraySize can be used to initialize constexpr.
   constexpr auto kArraySizeForZeroBits =
       BasicBitmap<TypeParam>::RequiredArraySize(0);
-  EXPECT_EQ(1, kArraySizeForZeroBits);
+  EXPECT_EQ(kArraySizeForZeroBits, 1);
 }
 
 TYPED_TEST_P(BitmapTest, OverAllocate) {
   // Test that we don't over allocate on boundaries
   BasicBitmap<TypeParam> map32(8 * sizeof(TypeParam));
-  EXPECT_EQ(1, map32.array_size());
+  EXPECT_EQ(map32.array_size(), 1);
 
   BasicBitmap<TypeParam> map64(2 * 8 * sizeof(TypeParam));
-  EXPECT_EQ(2, map64.array_size());
+  EXPECT_EQ(map64.array_size(), 2);
 }
 
 TYPED_TEST_P(BitmapTest, HighOrderMapElementMask) {
   // Test HighOrderMapElementMask
   BasicBitmap<TypeParam> map0(0u, false);
-  EXPECT_EQ(0x0, map0.HighOrderMapElementMask());
+  EXPECT_EQ(map0.HighOrderMapElementMask(), 0x0);
   EXPECT_TRUE(map0.IsAllZeroes());
   EXPECT_TRUE(map0.IsAllOnes());
 
   if constexpr (sizeof(TypeParam) == 1) {
     BasicBitmap<TypeParam> map10(10u, false);
-    EXPECT_EQ(0x03, map10.HighOrderMapElementMask());
+    EXPECT_EQ(map10.HighOrderMapElementMask(), 0x03);
     EXPECT_TRUE(map10.IsAllZeroes());
     EXPECT_FALSE(map10.IsAllOnes());
 
     BasicBitmap<TypeParam> map19(19u, true);
-    EXPECT_EQ(0x07, map19.HighOrderMapElementMask());
+    EXPECT_EQ(map19.HighOrderMapElementMask(), 0x07);
     EXPECT_FALSE(map19.IsAllZeroes());
     EXPECT_TRUE(map19.IsAllOnes());
   } else {
     BasicBitmap<TypeParam> map10(10u, false);
-    EXPECT_EQ(0x3FF, map10.HighOrderMapElementMask());
+    EXPECT_EQ(map10.HighOrderMapElementMask(), 0x3FF);
     EXPECT_TRUE(map10.IsAllZeroes());
     EXPECT_FALSE(map10.IsAllOnes());
 
     BasicBitmap<TypeParam> map42(42u, true);
-    EXPECT_EQ(sizeof(TypeParam) == 8 ? 0x3FFFFFFFFFF : 0x3FF,
-              map42.HighOrderMapElementMask());
+    EXPECT_EQ(map42.HighOrderMapElementMask(),
+              sizeof(TypeParam) == 8 ? 0x3FFFFFFFFFF : 0x3FF);
     EXPECT_FALSE(map42.IsAllZeroes());
     EXPECT_TRUE(map42.IsAllOnes());
   }
 
   BasicBitmap<TypeParam> map64(64u, true);
 
-  EXPECT_EQ(kAllOnes<typename remove_atomic<TypeParam>::type>,
-            map64.HighOrderMapElementMask());
+  EXPECT_EQ(map64.HighOrderMapElementMask(),
+            kAllOnes<typename remove_atomic<TypeParam>::type>);
   EXPECT_FALSE(map64.IsAllZeroes());
   EXPECT_TRUE(map64.IsAllOnes());
 }
@@ -418,7 +419,7 @@ TYPED_TEST_P(BitmapIteratorTest, BasicIteratorTest) {
   for (size_type i = 0; i < 100; i++) map.Set(i, (i % 7) == 0);
   int find_me = 0;  // first one expected
   for (size_type index : map.TrueBitIndices()) {
-    ASSERT_EQ(find_me, index);
+    ASSERT_EQ(index, find_me);
     find_me += 7;
   }
   EXPECT_EQ(find_me, 105);  // the next find_me after 98
@@ -576,7 +577,7 @@ TYPED_TEST_P(BitmapTest, FindNextUnsetBitBeforeLimit) {
   BasicBitmap<TypeParam> map(500);
   map.SetAll(true);
   for (int i = 0; i < 500; /*no incr*/) {
-    if (0 == i % 27) {
+    if (i % 27 == 0) {
       for (int j = 0; j < 3 && i < 500; ++i, ++j) map.Set(i, false);
     } else {
       ++i;
@@ -585,7 +586,7 @@ TYPED_TEST_P(BitmapTest, FindNextUnsetBitBeforeLimit) {
   int find_me = 135;  // first one expected
   for (typename BasicBitmap<TypeParam>::size_type index = 111;
        map.FindNextUnsetBitBeforeLimit(&index, 278); ++index) {
-    EXPECT_EQ(find_me, index);
+    EXPECT_EQ(index, find_me);
     if ((find_me % 27) < 2) {
       find_me += 1;
     } else {
@@ -602,13 +603,13 @@ TYPED_TEST_P(BitmapTest, FindNextUnsetBitBeforeLimit_Edges) {
   EXPECT_FALSE(map.FindNextUnsetBitBeforeLimit(&index, map.bits()));
   map.Set(0, false);
   ASSERT_TRUE(map.FindNextUnsetBitBeforeLimit(&index, map.bits()));
-  EXPECT_EQ(0, index);
+  EXPECT_EQ(index, 0);
   ++index;
   EXPECT_FALSE(map.FindNextUnsetBitBeforeLimit(&index, map.bits()));
   map.Set(0, true);
   map.Set(map.bits() - 1, false);
   ASSERT_TRUE(map.FindNextUnsetBitBeforeLimit(&index, map.bits()));
-  EXPECT_EQ(map.bits() - 1, index);
+  EXPECT_EQ(index, map.bits() - 1);
 }
 
 TYPED_TEST_P(BitmapTest, FindNextUnsetBitBeforeLimitAligned) {
@@ -772,7 +773,7 @@ TYPED_TEST_P(BitmapTest, Union) {
 
   map.Union(map2);
   for (int i = 0; i < 100; i++)
-    EXPECT_EQ(map.Get(i), ((i % 7) == 0) || ((i % 3) == 0));
+    EXPECT_EQ(map.Get(i), (i % 7 == 0) || (i % 3 == 0));
 }
 
 TYPED_TEST_P(BitmapTest, UnionDifferentSizeLargerTarget) {
@@ -788,7 +789,7 @@ TYPED_TEST_P(BitmapTest, UnionDifferentSizeLargerTarget) {
 
   map.Union(map2);
   for (int i = 0; i < 100; i++)
-    EXPECT_EQ(map.Get(i), ((i % 7) == 0) || (i < 50 && (i % 3) == 0));
+    EXPECT_EQ(map.Get(i), (i % 7 == 0) || (i < 50 && (i % 3 == 0)));
 }
 
 TYPED_TEST_P(BitmapTest, UnionDifferentSizeSmallerTarget) {
@@ -804,7 +805,7 @@ TYPED_TEST_P(BitmapTest, UnionDifferentSizeSmallerTarget) {
 
   map.Union(map2);
   for (int i = 0; i < 50; i++)
-    EXPECT_EQ(map.Get(i), (i < 50 && (i % 7) == 0) || ((i % 3) == 0));
+    EXPECT_EQ(map.Get(i), (i < 50 && (i % 7 == 0)) || ((i % 3) == 0));
 }
 
 TYPED_TEST_P(BitmapTest, Intersection) {
@@ -816,7 +817,7 @@ TYPED_TEST_P(BitmapTest, Intersection) {
 
   map.Intersection(map2);
   for (int i = 0; i < 100; i++)
-    EXPECT_EQ(map.Get(i), ((i % 7) == 0) && ((i % 3) == 0));
+    EXPECT_EQ(map.Get(i), (i % 7 == 0) && (i % 3 == 0));
 }
 
 TYPED_TEST_P(BitmapTest, HammingDistance) {
@@ -850,7 +851,7 @@ TYPED_TEST_P(BitmapTest, IntersectionDifferentSizeLargerTarget) {
 
   map.Intersection(map2);
   for (int i = 0; i < 100; i++)
-    EXPECT_EQ(map.Get(i), ((i % 7) == 0) && (i < 50 && (i % 3) == 0));
+    EXPECT_EQ(map.Get(i), (i % 7 == 0) && (i < 50 && (i % 3 == 0)));
 }
 
 TYPED_TEST_P(BitmapTest, IntersectionDifferentSizeSmallerTarget) {
@@ -867,7 +868,7 @@ TYPED_TEST_P(BitmapTest, IntersectionDifferentSizeSmallerTarget) {
 
   map.Intersection(map2);
   for (int i = 0; i < 50; i++)
-    EXPECT_EQ(map.Get(i), (i < 50 && (i % 7) == 0) && ((i % 3) == 0));
+    EXPECT_EQ(map.Get(i), (i < 50 && (i % 7 == 0)) && ((i % 3) == 0));
 }
 
 TYPED_TEST_P(BitmapTest, IsIntersectionNonEmpty) {
@@ -980,7 +981,7 @@ TYPED_TEST_P(BitmapTest, Complement) {
   for (int i = 0; i < 100; i++) map.Set(i, (i % 2) == 0);
 
   map.Complement();
-  for (int i = 0; i < 100; i++) EXPECT_EQ(map.Get(i), ((i % 2) != 0));
+  for (int i = 0; i < 100; i++) EXPECT_EQ(map.Get(i), (i % 2) != 0);
 }
 
 TYPED_TEST_P(BitmapTest, Difference) {
@@ -1108,19 +1109,19 @@ TYPED_TEST_P(BitmapTest, CompareTo) {
     // Set the maps to: (high order bit is listed first):
     // 01101
     // 0000001101
-    map1.Set(0, 1);
-    map1.Set(2, 1);
-    map1.Set(3, 1);
-    map2.Set(0, 1);
-    map2.Set(2, 1);
-    map2.Set(3, 1);
+    map1.Set(0, true);
+    map1.Set(2, true);
+    map1.Set(3, true);
+    map2.Set(0, true);
+    map2.Set(2, true);
+    map2.Set(3, true);
 
     EXPECT_LT(map1.CompareTo(map2), 0);
     EXPECT_LT(map1, map2);
     EXPECT_GT(map2.CompareTo(map1), 0);
     EXPECT_GT(map2, map1);
-    EXPECT_EQ(0, map1.CompareTo(map1));
-    EXPECT_EQ(0, map2.CompareTo(map2));
+    EXPECT_EQ(map1.CompareTo(map1), 0);
+    EXPECT_EQ(map2.CompareTo(map2), 0);
   }
   {
     // Tests the case where the high order bits that are in a bitmap with more
@@ -1194,7 +1195,7 @@ TYPED_TEST_P(BitmapTest, CompareTo) {
       for (int j = 0; j < bitmaps.size(); ++j) {
         int compare = bitmaps.at(i)->CompareTo(*bitmaps.at(j));
         if (i == j) {
-          EXPECT_EQ(0, compare);
+          EXPECT_EQ(compare, 0);
           EXPECT_EQ(*bitmaps.at(i), *bitmaps.at(j));
           EXPECT_LE(*bitmaps.at(i), *bitmaps.at(j));
           EXPECT_GE(*bitmaps.at(i), *bitmaps.at(j));
@@ -1246,7 +1247,7 @@ TYPED_TEST_P(BitmapTest, CompareTo) {
     // Case where both bitmaps have multiple words.
     BasicBitmap<TypeParam> b5(100, true);
     BasicBitmap<TypeParam> b6(100, true);
-    EXPECT_EQ(0, b5.CompareTo(b6));
+    EXPECT_EQ(b5.CompareTo(b6), 0);
     EXPECT_EQ(b5, b6);
 
     // Make sure we detect differences in the lowest order word.
@@ -1275,8 +1276,8 @@ TYPED_TEST_P(BitmapTest, CompareTo) {
     EXPECT_GT(b7, b8);
     EXPECT_LT(b8, b7);
     b7.Set(31, false);
-    EXPECT_EQ(0, b7.CompareTo(b8));
-    EXPECT_EQ(0, b8.CompareTo(b7));
+    EXPECT_EQ(b7.CompareTo(b8), 0);
+    EXPECT_EQ(b8.CompareTo(b7), 0);
     EXPECT_EQ(b7, b8);
     EXPECT_EQ(b8, b7);
   }
@@ -1289,7 +1290,7 @@ TYPED_TEST_P(BitmapTest, OneZeroCounts) {
     BasicBitmap<TypeParam> map(size);
     int count = 0;
     for (int j = 0; j < size; j += one_interval) {
-      map.Set(j, 1);
+      map.Set(j, true);
       ++count;
     }
     EXPECT_EQ(map.GetOnesCount(), count);
@@ -1301,54 +1302,36 @@ TYPED_TEST_P(BitmapTest, OneZeroBeforeLimitCounts) {
   // Pick a size that is not a multiple of 32 intentionally.
   BasicBitmap<TypeParam> bitmap(40);
 
-  EXPECT_EQ(0, bitmap.GetOnesCount());
-  EXPECT_EQ(40, bitmap.GetZeroesCount());
+  EXPECT_EQ(bitmap.GetOnesCount(), 0);
+  EXPECT_EQ(bitmap.GetZeroesCount(), 40);
 
-  bitmap.Set(24, 1);
-  EXPECT_EQ(1, bitmap.GetOnesCount());
-  EXPECT_EQ(0, bitmap.GetOnesCountBeforeLimit(24));
-  EXPECT_EQ(1, bitmap.GetOnesCountBeforeLimit(25));
-  EXPECT_EQ(24, bitmap.GetZeroesCountBeforeLimit(24));
-  EXPECT_EQ(24, bitmap.GetZeroesCountBeforeLimit(25));
+  bitmap.Set(24, true);
+  EXPECT_EQ(bitmap.GetOnesCount(), 1);
+  EXPECT_EQ(bitmap.GetOnesCountBeforeLimit(24), 0);
+  EXPECT_EQ(bitmap.GetOnesCountBeforeLimit(25), 1);
+  EXPECT_EQ(bitmap.GetZeroesCountBeforeLimit(24), 24);
+  EXPECT_EQ(bitmap.GetZeroesCountBeforeLimit(25), 24);
 
-  bitmap.Set(39, 1);
-  EXPECT_EQ(2, bitmap.GetOnesCount());
-  EXPECT_EQ(1, bitmap.GetOnesCountBeforeLimit(39));
-  EXPECT_EQ(38, bitmap.GetZeroesCountBeforeLimit(39));
-  EXPECT_EQ(38, bitmap.GetZeroesCountBeforeLimit(40));
+  bitmap.Set(39, true);
+  EXPECT_EQ(bitmap.GetOnesCount(), 2);
+  EXPECT_EQ(bitmap.GetOnesCountBeforeLimit(39), 1);
+  EXPECT_EQ(bitmap.GetZeroesCountBeforeLimit(39), 38);
+  EXPECT_EQ(bitmap.GetZeroesCountBeforeLimit(40), 38);
 
   bitmap.SetAll(true);
   for (int i = 40; i > 0; --i) {
-    EXPECT_EQ(i, bitmap.GetOnesCountBeforeLimit(i));
+    EXPECT_EQ(bitmap.GetOnesCountBeforeLimit(i), i);
   }
 
   // Set some bit in each group of 8 bits to 0.
   for (int i = 0; i < 5; ++i) {
-    bitmap.Set(8 * i + i, 0);
+    bitmap.Set(8 * i + i, false);
   }
 
   for (int i = 0; i < 5; ++i) {
-    EXPECT_EQ(i, bitmap.GetZeroesCountBeforeLimit(8 * i));
+    EXPECT_EQ(bitmap.GetZeroesCountBeforeLimit(8 * i), i);
   }
-  EXPECT_EQ(5, bitmap.GetZeroesCount());
-}
-
-// Helper that tests all possible cases of start, end that the
-// GetOnesCountInRange function supports.
-template <typename W>
-void TestOneZeroInRangeHelper(const BasicBitmap<W>& bitmap) {
-  for (size_t start = 0; start <= bitmap.bits(); ++start) {
-    for (size_t end = start; end <= bitmap.bits(); ++end) {
-      // Compute expected_count the naive way by counting individual bits.
-      auto expected_ones = 0;
-      for (size_t i = start; i < end; ++i) {
-        if (bitmap.Get(i)) ++expected_ones;
-      }
-      EXPECT_EQ(expected_ones, bitmap.GetOnesCountInRange(start, end));
-      EXPECT_EQ(end - start - expected_ones,
-                bitmap.GetZeroesCountInRange(start, end));
-    }
-  }
+  EXPECT_EQ(bitmap.GetZeroesCount(), 5);
 }
 
 TYPED_TEST_P(BitmapTest, OneZeroInRange) {
@@ -1358,9 +1341,20 @@ TYPED_TEST_P(BitmapTest, OneZeroInRange) {
     int one_interval = (i % 5) + 1;
     BasicBitmap<TypeParam> map(size);
     for (int j = 0; j < size; j += one_interval) {
-      map.Set(j, 1);
+      map.Set(j, true);
     }
-    TestOneZeroInRangeHelper(map);
+    for (size_t start = 0; start <= map.bits(); ++start) {
+      for (size_t end = start; end <= map.bits(); ++end) {
+        // Compute expected_count the naive way by counting individual bits.
+        auto expected_ones = 0;
+        for (size_t idx = start; idx < end; ++idx) {
+          if (map.Get(idx)) ++expected_ones;
+        }
+        EXPECT_EQ(map.GetOnesCountInRange(start, end), expected_ones);
+        EXPECT_EQ(map.GetZeroesCountInRange(start, end),
+                  end - start - expected_ones);
+      }
+    }
   }
 }
 
@@ -1396,8 +1390,8 @@ TYPED_TEST_P(BitmapTest, CopyConstructorAndEquals) {
 TYPED_TEST_P(BitmapTest, DefaultConstructor) {
   // Verify that the default constructor creates a zero-sized bitmap.
   BasicBitmap<TypeParam> map;
-  EXPECT_EQ(0, map.bits());
-  EXPECT_EQ(1, map.array_size());
+  EXPECT_EQ(map.bits(), 0);
+  EXPECT_EQ(map.array_size(), 1);
 }
 
 TYPED_TEST_P(BitmapTest, Toggle) {
@@ -1406,7 +1400,7 @@ TYPED_TEST_P(BitmapTest, Toggle) {
   for (int i = 0; i < 100; i += 3) map.Toggle(i);
   for (int i = 0; i < 100; i += 9) map.Toggle(i);
   for (int i = 0; i < 100; ++i)
-    EXPECT_EQ((i % 3 == 0) && (i % 9 != 0), map.Get(i));
+    EXPECT_EQ(map.Get(i), (i % 3 == 0) && (i % 9 != 0));
 }
 
 TYPED_TEST_P(BitmapTest, SpanConstructor) {
@@ -1464,11 +1458,11 @@ TYPED_TEST_P(BitmapTest, MapElement) {
 }
 
 TYPED_TEST_P(BitmapTest, Resize) {
-  const int kSize50 = 50;
-  const int kSize100 = 100;
-  const int kSize30 = 30;
-  const uint32_t kSize4 = 3000000000u;
-  const uint32_t kSize5 = std::numeric_limits<uint32_t>::max();
+  constexpr int kSize50 = 50;
+  constexpr int kSize100 = 100;
+  constexpr int kSize30 = 30;
+  constexpr uint32_t kSize4 = 3000000000u;
+  constexpr uint32_t kSize5 = std::numeric_limits<uint32_t>::max();
 
   BasicBitmap<TypeParam> map(kSize50, false);
   // First, the bitmap is initialized to all false.
@@ -1478,14 +1472,14 @@ TYPED_TEST_P(BitmapTest, Resize) {
   // Resizing to the same size does not modify existing values, so all bits
   // remain false and the "true" fill value here is ignored.
   map.Resize(kSize50, true);
-  ASSERT_EQ(kSize50, map.bits());
+  ASSERT_EQ(map.bits(), kSize50);
   for (std::size_t i = 0; i != map.bits(); ++i)
     EXPECT_FALSE(map.Get(i)) << "Wrong value at inded " << i;
 
   // Resizing to a larger size fills the _new_ elements with "true", but the
   // existing elements stay false.
   map.Resize(kSize100, true);
-  ASSERT_EQ(kSize100, map.bits());
+  ASSERT_EQ(map.bits(), kSize100);
   for (std::size_t i = 0; i != kSize50; ++i)
     EXPECT_FALSE(map.Get(i)) << "Wrong value at inded " << i;
   for (std::size_t i = kSize50; i != kSize100; ++i)
@@ -1494,7 +1488,7 @@ TYPED_TEST_P(BitmapTest, Resize) {
   // Shrinking back down does not modify existing values, which are still
   // "false" from the very beginning.
   map.Resize(kSize30, true);
-  ASSERT_EQ(kSize30, map.bits());
+  ASSERT_EQ(map.bits(), kSize30);
   for (std::size_t i = 0; i != map.bits(); ++i)
     EXPECT_FALSE(map.Get(i)) << "Wrong value at inded " << i;
 
@@ -1507,14 +1501,14 @@ TYPED_TEST_P(BitmapTest, Resize) {
   // Resizing to a very large size, filled "false", and setting the last value
   // "true".
   map.Resize(kSize4, false);
-  ASSERT_EQ(kSize4, map.bits());
+  ASSERT_EQ(map.bits(), kSize4);
   map.Set(kSize4 - 1, true);
   EXPECT_FALSE(map.Get(kSize4 - 2));
   EXPECT_TRUE(map.Get(kSize4 - 1));
 
   // Same, but even larger.
   map.Resize(kSize5, false);
-  ASSERT_EQ(kSize5, map.bits());
+  ASSERT_EQ(map.bits(), kSize5);
   map.Set(kSize5 - 1, true);
   EXPECT_FALSE(map.Get(kSize5 - 2));
   EXPECT_TRUE(map.Get(kSize5 - 1));
@@ -1554,8 +1548,8 @@ TYPED_TEST_P(BitmapTest, AssignToAllocatedFromUnallocated) {
 
 TYPED_TEST_P(BitmapTest, EmptyToString) {
   BasicBitmap<TypeParam> b;
-  EXPECT_EQ(b.ToString(), "");
-  EXPECT_EQ(b.ToString(2), "");
+  EXPECT_THAT(b.ToString(), IsEmpty());
+  EXPECT_THAT(b.ToString(2), IsEmpty());
 }
 
 TYPED_TEST_P(BitmapTest, ToStringWithGroups) {
