@@ -20,6 +20,7 @@
 
 #include "gloop/strings/keyed_intern_table.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -46,6 +47,7 @@ namespace strings {
 namespace {
 
 using ::testing::Eq;
+using ::testing::Gt;
 using ::testing::Ne;
 using ::testing::Test;
 using ::testing::Types;
@@ -111,6 +113,7 @@ TYPED_TEST_P(KeyedInternTableInsertTest, InsertLookupEmpty) {
   }
 }
 
+// Verifies that Reserve() executes without crashing for valid sizes.
 TYPED_TEST_P(KeyedInternTableInsertTest, ReservePositive) {
   KeyedInternTable<TypeParam> x;
   x.Reserve(0);
@@ -136,7 +139,7 @@ TYPED_TEST_P(KeyedInternTableOverflowDeathTest, Overflow) {
   // Can not use std::numeric_limits<TypeParam> since
   // std::is_integral_v<TypeParam> might be false.  However all the TypeParam
   // have an effective range of uint8.
-  constexpr const uint8_t uint8max = std::numeric_limits<uint8_t>::max();
+  constexpr uint8_t uint8max = std::numeric_limits<uint8_t>::max();
   static_assert(sizeof(TypeParam) == 1, "TypeParam too large");
   static_assert(static_cast<int>(static_cast<TypeParam>(uint8max)) ==
                     static_cast<int>(uint8max),
@@ -157,8 +160,8 @@ TYPED_TEST_P(KeyedInternTableOverflowDeathTest, ReserveNegative) {
 
 TYPED_TEST_P(KeyedInternTableOverflowDeathTest, ReserveOverflow) {
   KeyedInternTable<TypeParam> x;
-  size_t limit = std::numeric_limits<uint8_t>::max();
-  EXPECT_DEATH(x.Reserve(1 + limit), "Reserve()");
+  constexpr size_t kLimit = std::numeric_limits<uint8_t>::max();
+  EXPECT_DEATH(x.Reserve(1 + kLimit), "Reserve()");
 }
 
 REGISTER_TYPED_TEST_SUITE_P(KeyedInternTableOverflowDeathTest, Overflow,
@@ -182,17 +185,16 @@ static std::string RandomString(RNG* rng) {
 TEST(KeyedInternTableTest, StressTest) {
   std::mt19937 rng(GTEST_FLAG_GET(random_seed));
   std::vector<std::string> random_strings;
-  const size_t kBufferLength = 4096;
+  constexpr size_t kBufferLength = 4096;
   for (int i = 0; i < kBufferLength; ++i) {
     random_strings.push_back(RandomString(&rng));
   }
   // Check that the total length of strings stored is greater than the length
   // of the initial Arena buffer.
-  CHECK_LT(kBufferLength,
-           std::accumulate(random_strings.begin(), random_strings.end(), 0,
-                           [](size_t length, absl::string_view s) {
-                             return length + s.size();
-                           }));
+  const size_t total_length = std::accumulate(
+      random_strings.begin(), random_strings.end(), size_t{0},
+      [](size_t length, absl::string_view s) { return length + s.size(); });
+  ASSERT_THAT(total_length, Gt(kBufferLength));
   using MappedInt = int32_t;
   std::vector<MappedInt> mapped_values;
   KeyedInternTable<MappedInt> x(kBufferLength);
