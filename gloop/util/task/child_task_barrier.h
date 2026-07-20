@@ -114,12 +114,13 @@ class CustomChildTaskBarrier : public AbstractChildTaskBarrier {
 
   ~CustomChildTaskBarrier() override;
 
- private:
+ protected:
   util::Task* DoAddChildTaskWithExecutor(thread::Executor* executor) override;
   util::Task* DoAddChildTaskWithCallbackAndExecutor(
       absl::AnyInvocable<void(util::Task*) &&> child_done,
       thread::Executor* executor) override;
 
+ private:
   class State;  // Internal implementation details.
   State* state_;
 
