@@ -181,7 +181,7 @@ class FifoSemaphoreLock {
       absl::SourceLocation loc = absl::SourceLocation::current());
 
   FifoSemaphoreLock(FifoSemaphore& semaphore
-                        ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this),
+                        ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS,
                     uintptr_t amount);
   ABSL_DEPRECATE_AND_INLINE()
   FifoSemaphoreLock(FifoSemaphore* semaphore, uintptr_t amount)
@@ -209,7 +209,7 @@ class FifoSemaphoreLock {
 class ABSL_SCOPED_LOCKABLE FifoSemaphoreMutexLock {
  public:
   explicit FifoSemaphoreMutexLock(
-      FifoSemaphore& semaphore ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this))
+      FifoSemaphore& semaphore ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(semaphore);
 
   ABSL_DEPRECATE_AND_INLINE()
