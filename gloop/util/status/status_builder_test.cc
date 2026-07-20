@@ -114,9 +114,16 @@ using ::absl_testing::StatusIs;
 using ::testing::_;
 using ::testing::AllOf;
 using ::testing::AnyOf;
+using ::testing::AtMost;
 using ::testing::Eq;
+using ::testing::EqualsProto;
+using ::testing::Exactly;
 using ::testing::HasSubstr;
+using ::testing::InSequence;
+using ::testing::IsEmpty;
+using ::testing::MockFunction;
 using ::testing::Property;
+using ::testing::StrictMock;
 
 // Converts a StatusBuilder to a Status.
 absl::Status ToStatus(const absl::StatusBuilder& s) { return s; }
@@ -520,7 +527,7 @@ TEST_F(StatusBuilderTest, MessageSetPayloadHelpers) {
   EXPECT_TRUE(util::HasPayload(builder));
   EXPECT_TRUE(util::HasPayloadWithType<util::StatusProto>(builder));
   EXPECT_THAT(util::GetPayload<util::StatusProto>(builder),
-              testing::EqualsProto(MakePayloadProto(kPayloadMsg)));
+              EqualsProto(MakePayloadProto(kPayloadMsg)));
 }
 
 TEST_F(StatusBuilderTest, MessageSetPayloadMethods) {
@@ -533,10 +540,10 @@ TEST_F(StatusBuilderTest, MessageSetPayloadMethods) {
   EXPECT_TRUE(util::HasPayloadWithType<util::StatusProto>(
       builder, util::StatusProto::message_set_extension));
   EXPECT_THAT(util::GetPayload<util::StatusProto>(builder),
-              testing::EqualsProto(MakePayloadProto(kPayloadMsg)));
+              EqualsProto(MakePayloadProto(kPayloadMsg)));
   EXPECT_THAT(util::GetPayload<util::StatusProto>(
                   builder, util::StatusProto::message_set_extension),
-              testing::EqualsProto(MakePayloadProto(kPayloadMsg)));
+              EqualsProto(MakePayloadProto(kPayloadMsg)));
 }
 
 TEST_F(StatusBuilderTest, MessageSetPayloadMethodsOnOkStatus) {
@@ -574,9 +581,9 @@ TEST_F(StatusBuilderTest, WithVoidTypeAndSideEffects) {
   };
   absl::StatusBuilder(absl::CancelledError(), absl::SourceLocation())
       .With(policy);
-  EXPECT_EQ(::util::error::CANCELLED, code);
+  EXPECT_EQ(code, ::util::error::CANCELLED);
   absl::StatusBuilder(absl::OkStatus(), absl::SourceLocation()).With(policy);
-  EXPECT_EQ(::util::error::OK, code);
+  EXPECT_EQ(code, ::util::error::OK);
 }
 
 struct MoveOnlyAdaptor {
@@ -681,10 +688,10 @@ class MockLogSink : public absl::LogSink {
 };
 
 TEST_F(StatusBuilderTest, ToStringDoesntHaveSideEffects) {
-  testing::MockFunction<void()> checkpoint;
-  testing::StrictMock<MockLogSink> log_sink;
+  MockFunction<void()> checkpoint;
+  StrictMock<MockLogSink> log_sink;
   {
-    testing::InSequence s;
+    InSequence s;
     EXPECT_CALL(log_sink, Send).Times(0);
     EXPECT_CALL(checkpoint, Call);
     EXPECT_CALL(log_sink, Send);
@@ -770,9 +777,9 @@ TEST(CanonicalErrorsTest, CreateAndClassify) {
     std::string message =
         absl::StrCat("error code ", test.code, " test message");
     absl::Status status = absl::StatusBuilder(test.builder) << message;
-    EXPECT_EQ(CanonicalErrorSpace(), ::util::RetrieveErrorSpace(status));
-    EXPECT_EQ(test.code, ::util::RetrieveErrorCode(status));
-    EXPECT_EQ(message, status.message());
+    EXPECT_EQ(::util::RetrieveErrorSpace(status), CanonicalErrorSpace());
+    EXPECT_EQ(::util::RetrieveErrorCode(status), test.code);
+    EXPECT_EQ(status.message(), message);
     EXPECT_EQ(static_cast<::util::error::Code>(status.code()), test.code);
   }
 }
