@@ -34,24 +34,30 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/status_matchers.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "gloop/strings/bytestream.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+namespace util {
+namespace csv {
+namespace {
+
 using ::absl_testing::IsOk;
+using ::absl_testing::StatusIs;
 using std::list;
 using std::map;
 using std::vector;
-
 using strings::ByteSink;
 using strings::StringByteSink;
-using util::csv::DefaultOrder;
-using util::csv::HeaderOrder;
-using util::csv::Writer;
-using util::csv::WriteRecordToString;
+using ::testing::IsEmpty;
+using ::util::csv::DefaultOrder;
+using ::util::csv::HeaderOrder;
+using ::util::csv::Writer;
+using ::util::csv::WriteRecordToString;
 
-// None of the common impls of BytSink use flushing, but we need to
+// None of the common impls of ByteSink use flushing, but we need to
 // verify proper flushing.
 class FlushableStringByteSink : public ByteSink {
  public:
@@ -70,6 +76,17 @@ class FlushableStringByteSink : public ByteSink {
   std::string buffer_;
   std::string* dest_;
 };
+
+template <typename W, typename R>
+absl::Status WriteRecord(W& writer, const R& record) {
+  absl::Status s = writer.WriteRecord(record);
+  if (s != writer.status()) {
+    return absl::InternalError(absl::StrCat(
+        "WriteRecord status (", s.ToString(),
+        ") does not match writer.status() (", writer.status().ToString(), ")"));
+  }
+  return s;
+}
 
 template <class P>
 class WriterTest : public ::testing::Test {
@@ -118,10 +135,9 @@ TYPED_TEST(WriterTest, BasicCaseWithRawPointer) {
   std::string actual;
   Writer<DefaultOrder> writer(3, DefaultOrder(), new StringByteSink(&actual));
   for (const auto& record : input) {
-    EXPECT_THAT(writer.WriteRecord(record), IsOk());
-    EXPECT_THAT(writer.status(), IsOk());
+    EXPECT_THAT(WriteRecord(writer, record), IsOk());
   }
-  ASSERT_EQ(expected, actual);
+  EXPECT_EQ(actual, expected);
 }
 
 // test basic cases
@@ -135,10 +151,9 @@ TYPED_TEST(WriterTest, BasicCase) {
   Writer<DefaultOrder> writer(3, DefaultOrder(),
                               std::make_unique<StringByteSink>(&actual));
   for (const auto& record : input) {
-    EXPECT_THAT(writer.WriteRecord(record), IsOk());
-    EXPECT_THAT(writer.status(), IsOk());
+    EXPECT_THAT(WriteRecord(writer, record), IsOk());
   }
-  ASSERT_EQ(expected, actual);
+  EXPECT_EQ(actual, expected);
 }
 
 // test that quotes are escaped correctly
@@ -154,10 +169,9 @@ TYPED_TEST(WriterTest, QuoteEscaping) {
   Writer<DefaultOrder> writer(
       3, DefaultOrder(), std::make_unique<FlushableStringByteSink>(&actual));
   for (const auto& record : input) {
-    EXPECT_THAT(writer.WriteRecord(record), IsOk());
-    EXPECT_THAT(writer.status(), IsOk());
+    EXPECT_THAT(WriteRecord(writer, record), IsOk());
   }
-  ASSERT_EQ(expected, actual);
+  EXPECT_EQ(actual, expected);
 }
 
 // test that empty fields are ok
@@ -171,10 +185,9 @@ TYPED_TEST(WriterTest, EmptyFields) {
   Writer<DefaultOrder> writer(
       3, DefaultOrder(), std::make_unique<FlushableStringByteSink>(&actual));
   for (const auto& record : input) {
-    EXPECT_THAT(writer.WriteRecord(record), IsOk());
-    EXPECT_THAT(writer.status(), IsOk());
+    EXPECT_THAT(WriteRecord(writer, record), IsOk());
   }
-  ASSERT_EQ(expected, actual);
+  EXPECT_EQ(actual, expected);
 }
 
 // test comma delimiter field quoting
@@ -190,10 +203,9 @@ TYPED_TEST(WriterTest, CommaFieldQuoting) {
   Writer<DefaultOrder> writer(
       3, DefaultOrder(), std::make_unique<FlushableStringByteSink>(&actual));
   for (const auto& record : input) {
-    EXPECT_THAT(writer.WriteRecord(record), IsOk());
-    EXPECT_THAT(writer.status(), IsOk());
+    EXPECT_THAT(WriteRecord(writer, record), IsOk());
   }
-  ASSERT_EQ(expected, actual);
+  EXPECT_EQ(actual, expected);
 }
 
 // test tab delimiter field quoting
@@ -210,10 +222,9 @@ TYPED_TEST(WriterTest, TabFieldQuoting) {
       3, DefaultOrder(), '\t',
       std::make_unique<FlushableStringByteSink>(&actual));
   for (const auto& record : input) {
-    EXPECT_THAT(writer.WriteRecord(record), IsOk());
-    EXPECT_THAT(writer.status(), IsOk());
+    EXPECT_THAT(WriteRecord(writer, record), IsOk());
   }
-  ASSERT_EQ(expected, actual);
+  EXPECT_EQ(actual, expected);
 }
 
 // test header order (header not written)
@@ -226,13 +237,13 @@ TYPED_TEST(WriterTest, HeaderOrderNoHeader) {
       "a1,b1,c1\n"
       "a2,b2,c2\n");
   std::string actual;
-  Writer<HeaderOrder> writer(3, HeaderOrder(headers),
-                             new FlushableStringByteSink(&actual));
+  Writer<HeaderOrder> writer(
+      3, HeaderOrder(headers),
+      std::make_unique<FlushableStringByteSink>(&actual));
   for (const auto& record : input) {
-    EXPECT_THAT(writer.WriteRecord(record), IsOk());
-    EXPECT_THAT(writer.status(), IsOk());
+    EXPECT_THAT(WriteRecord(writer, record), IsOk());
   }
-  ASSERT_EQ(expected, actual);
+  EXPECT_EQ(actual, expected);
 }
 
 // test header order (with header written)
@@ -249,13 +260,11 @@ TYPED_TEST(WriterTest, HeaderOrderWithHeader) {
   Writer<HeaderOrder> writer(
       3, HeaderOrder(headers),
       std::make_unique<FlushableStringByteSink>(&actual));
-  EXPECT_THAT(writer.WriteRecord(headers), IsOk());
-  EXPECT_THAT(writer.status(), IsOk());
+  EXPECT_THAT(WriteRecord(writer, headers), IsOk());
   for (const auto& record : input) {
-    EXPECT_THAT(writer.WriteRecord(record), IsOk());
-    EXPECT_THAT(writer.status(), IsOk());
+    EXPECT_THAT(WriteRecord(writer, record), IsOk());
   }
-  ASSERT_EQ(expected, actual);
+  EXPECT_EQ(actual, expected);
 }
 
 // test default order write container diversity
@@ -274,17 +283,12 @@ TYPED_TEST(WriterTest, DefaultOrderDiversity) {
   std::string actual;
   Writer<DefaultOrder> writer(
       3, DefaultOrder(), std::make_unique<FlushableStringByteSink>(&actual));
-  EXPECT_THAT(writer.WriteRecord(input1), IsOk());
-  EXPECT_THAT(writer.status(), IsOk());
-  EXPECT_THAT(writer.WriteRecord(input2), IsOk());
-  EXPECT_THAT(writer.status(), IsOk());
-  EXPECT_THAT(writer.WriteRecord(input3), IsOk());
-  EXPECT_THAT(writer.status(), IsOk());
-  EXPECT_THAT(writer.WriteRecord(input4), IsOk());
-  EXPECT_THAT(writer.status(), IsOk());
-  EXPECT_THAT(writer.WriteRecord(input5), IsOk());
-  EXPECT_THAT(writer.status(), IsOk());
-  ASSERT_EQ(expected, actual);
+  EXPECT_THAT(WriteRecord(writer, input1), IsOk());
+  EXPECT_THAT(WriteRecord(writer, input2), IsOk());
+  EXPECT_THAT(WriteRecord(writer, input3), IsOk());
+  EXPECT_THAT(WriteRecord(writer, input4), IsOk());
+  EXPECT_THAT(WriteRecord(writer, input5), IsOk());
+  EXPECT_EQ(actual, expected);
 }
 
 // test header order write container diversity
@@ -307,19 +311,13 @@ TYPED_TEST(WriterTest, HeaderOrderDiversity) {
   Writer<HeaderOrder> writer(
       3, HeaderOrder(headers),
       std::make_unique<FlushableStringByteSink>(&actual));
-  EXPECT_THAT(writer.WriteRecord(input1), IsOk());
-  EXPECT_THAT(writer.status(), IsOk());
-  EXPECT_THAT(writer.WriteRecord(input2), IsOk());
-  EXPECT_THAT(writer.status(), IsOk());
-  EXPECT_THAT(writer.WriteRecord(input3), IsOk());
-  EXPECT_THAT(writer.status(), IsOk());
-  EXPECT_THAT(writer.WriteRecord(input4), IsOk());
-  EXPECT_THAT(writer.status(), IsOk());
-  EXPECT_THAT(writer.WriteRecord(input5), IsOk());
-  EXPECT_THAT(writer.status(), IsOk());
-  EXPECT_THAT(writer.WriteRecord(input6), IsOk());
-  EXPECT_THAT(writer.status(), IsOk());
-  ASSERT_EQ(expected, actual);
+  EXPECT_THAT(WriteRecord(writer, input1), IsOk());
+  EXPECT_THAT(WriteRecord(writer, input2), IsOk());
+  EXPECT_THAT(WriteRecord(writer, input3), IsOk());
+  EXPECT_THAT(WriteRecord(writer, input4), IsOk());
+  EXPECT_THAT(WriteRecord(writer, input5), IsOk());
+  EXPECT_THAT(WriteRecord(writer, input6), IsOk());
+  EXPECT_EQ(actual, expected);
 }
 
 // test duplicate header names
@@ -334,12 +332,9 @@ TYPED_TEST(WriterTest, DuplicateHeader) {
   Writer<HeaderOrder> writer(
       3, HeaderOrder(headers),
       std::make_unique<FlushableStringByteSink>(&actual));
-  absl::Status s;
-  EXPECT_THAT(writer.WriteRecord(input1), IsOk());
-  EXPECT_THAT(writer.status(), IsOk());
-  EXPECT_THAT(writer.WriteRecord(input2), IsOk());
-  EXPECT_THAT(writer.status(), IsOk());
-  ASSERT_EQ(expected, actual);
+  EXPECT_THAT(WriteRecord(writer, input1), IsOk());
+  EXPECT_THAT(WriteRecord(writer, input2), IsOk());
+  EXPECT_EQ(actual, expected);
 }
 
 // test custom order with temporary strings
@@ -363,13 +358,12 @@ TYPED_TEST(WriterTest, CustomOrderTempStringsNoHeader) {
   std::string actual;
   // Test that the Writer template will support the std::strings in
   // CustomOrder's return type.
-  Writer<CustomOrder> writer(2, CustomOrder(),
-                             new FlushableStringByteSink(&actual));
+  Writer<CustomOrder> writer(
+      2, CustomOrder(), std::make_unique<FlushableStringByteSink>(&actual));
   for (const auto& record : input) {
-    EXPECT_THAT(writer.WriteRecord(record), IsOk());
-    EXPECT_THAT(writer.status(), IsOk());
+    EXPECT_THAT(WriteRecord(writer, record), IsOk());
   }
-  ASSERT_EQ(expected, actual);
+  EXPECT_EQ(actual, expected);
 }
 
 // test empty record
@@ -379,10 +373,9 @@ TYPED_TEST(WriterTest, EmptyRecord) {
   std::string actual;
   Writer<DefaultOrder> writer(
       0, DefaultOrder(), std::make_unique<FlushableStringByteSink>(&actual));
-  absl::Status s = writer.WriteRecord(input);
-  EXPECT_THAT(writer.WriteRecord(input), IsOk());
-  EXPECT_THAT(writer.status(), IsOk());
-  ASSERT_EQ(expected, actual);
+  EXPECT_THAT(WriteRecord(writer, input), IsOk());
+  EXPECT_THAT(WriteRecord(writer, input), IsOk());
+  EXPECT_EQ(actual, expected);
 }
 
 // test bad record size
@@ -391,10 +384,8 @@ TYPED_TEST(WriterTest, ErrorRecordSize) {
   std::string actual;
   Writer<DefaultOrder> writer(
       2, DefaultOrder(), std::make_unique<FlushableStringByteSink>(&actual));
-  absl::Status s = writer.WriteRecord(input);
-  EXPECT_EQ(absl::StatusCode::kInvalidArgument, s.code()) << s;
-  EXPECT_EQ(absl::StatusCode::kInvalidArgument, writer.status().code())
-      << writer.status();
+  EXPECT_THAT(WriteRecord(writer, input),
+              StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 // test empty header
@@ -407,14 +398,10 @@ TYPED_TEST(WriterTest, ErrorEmptyHeader) {
   Writer<HeaderOrder> writer(
       2, HeaderOrder(headers),
       std::make_unique<FlushableStringByteSink>(&actual));
-  absl::Status s;
-  s = writer.WriteRecord(input1);
-  EXPECT_EQ(absl::StatusCode::kInvalidArgument, s.code()) << s;
-  EXPECT_EQ(absl::StatusCode::kInvalidArgument, writer.status().code())
-      << writer.status();
-  EXPECT_THAT(writer.WriteRecord(input2), IsOk());
-  EXPECT_THAT(writer.status(), IsOk());
-  ASSERT_EQ(expected, actual);
+  EXPECT_THAT(WriteRecord(writer, input1),
+              StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(WriteRecord(writer, input2), IsOk());
+  EXPECT_EQ(actual, expected);
 }
 
 // test map record keys do not match header
@@ -425,10 +412,8 @@ TYPED_TEST(WriterTest, ErrorHeaderAndRecordKeyDiff) {
   Writer<HeaderOrder> writer(
       3, HeaderOrder(headers),
       std::make_unique<FlushableStringByteSink>(&actual));
-  absl::Status s = writer.WriteRecord(input);
-  EXPECT_EQ(absl::StatusCode::kInvalidArgument, s.code()) << s;
-  EXPECT_EQ(absl::StatusCode::kInvalidArgument, writer.status().code())
-      << writer.status();
+  EXPECT_THAT(WriteRecord(writer, input),
+              StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 // test disable auto flush
@@ -443,13 +428,12 @@ TYPED_TEST(WriterTest, DisableAutoFlush) {
   Writer<DefaultOrder> writer(2, DefaultOrder(), std::move(sink));
   writer.SetAutoFlush(false);
   for (const auto& record : input) {
-    EXPECT_THAT(writer.WriteRecord(record), IsOk());
-    EXPECT_THAT(writer.status(), IsOk());
-    EXPECT_EQ("", actual);
+    EXPECT_THAT(WriteRecord(writer, record), IsOk());
+    EXPECT_THAT(actual, IsEmpty());
   }
   // sink_ptr is guaranteed to remain valid while writer exists.
   sink_ptr->Flush();
-  EXPECT_EQ(expected, actual);
+  EXPECT_EQ(actual, expected);
 }
 
 // test WriteRecordToString helper function
@@ -458,18 +442,17 @@ TEST(WriteRecordToString, Basic) {
   vector<std::string> input{"A", "B,C", "D"};
   std::string expected("A,\"B,C\",D");
   std::string actual = WriteRecordToString(input);
-  EXPECT_EQ(expected, actual);
+  EXPECT_EQ(actual, expected);
 
   // test for customized delimiter
   expected = "A\tB,C\tD";
   actual = WriteRecordToString(input, '\t');
-  EXPECT_EQ(expected, actual);
+  EXPECT_EQ(actual, expected);
 
   // test empty record
   input.clear();
-  expected = "";
   actual = WriteRecordToString(input);
-  EXPECT_EQ(expected, actual);
+  EXPECT_THAT(actual, IsEmpty());
 }
 
 // test CRLF record delimiter
@@ -483,10 +466,9 @@ TYPED_TEST(WriterTest, CRLFRecordDelimiter) {
       2, DefaultOrder(), std::make_unique<FlushableStringByteSink>(&actual));
   writer.SetCRLFRecordDelimiter(true);
   for (const auto& record : input) {
-    EXPECT_THAT(writer.WriteRecord(record), IsOk());
-    EXPECT_THAT(writer.status(), IsOk());
+    EXPECT_THAT(WriteRecord(writer, record), IsOk());
   }
-  EXPECT_EQ(expected, actual);
+  EXPECT_EQ(actual, expected);
 }
 
 // test \r\n record delimiter with \r\n, \r, and \n fields
@@ -497,14 +479,17 @@ TYPED_TEST(WriterTest, CRLFFieldQuoting) {
   std::string expected(
       "simple,\"with \r CR\",\" with CRLF \r\n\"\r\n"
       "\"\r\n\",\"with LF \n\",\"done \n\"\r\n");
-  LOG(INFO) << "Sample output:\n" << expected;
+  VLOG(1) << "Sample output:\n" << expected;
   std::string actual;
   Writer<DefaultOrder> writer(
       3, DefaultOrder(), std::make_unique<FlushableStringByteSink>(&actual));
   writer.SetCRLFRecordDelimiter(true);
   for (const auto& record : input) {
-    EXPECT_THAT(writer.WriteRecord(record), IsOk());
-    EXPECT_THAT(writer.status(), IsOk());
+    EXPECT_THAT(WriteRecord(writer, record), IsOk());
   }
-  ASSERT_EQ(expected, actual);
+  EXPECT_EQ(actual, expected);
 }
+
+}  // namespace
+}  // namespace csv
+}  // namespace util
