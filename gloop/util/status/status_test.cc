@@ -63,9 +63,12 @@ using absl_testing::IsOkAndHolds;
 using testing::AllOf;
 using testing::Eq;
 using testing::HasSubstr;
+using testing::IsNull;
 using testing::Not;
+using testing::NotNull;
 using testing::Optional;
 using testing::Pair;
+using testing::StartsWith;
 
 MATCHER_P(EqualsProto, proto, "") {
   return proto.DebugString() == arg.DebugString();
@@ -192,19 +195,19 @@ static void CheckStatus(
     std::vector<int> lines = {},
     absl::SourceLocation loc = absl::SourceLocation::current()) {
   SCOPED_TRACE(testing::Message() << "Where s is " << s);
-  EXPECT_EQ(error_code, util::RetrieveErrorCode(s));
-  EXPECT_EQ(util::ToAbslStatusCode(canonical_code), s.code());
-  EXPECT_EQ(canonical_code, s.raw_code());
-  EXPECT_EQ(space, util::RetrieveErrorSpace(s));
+  EXPECT_EQ(util::RetrieveErrorCode(s), error_code);
+  EXPECT_EQ(s.code(), util::ToAbslStatusCode(canonical_code));
+  EXPECT_EQ(s.raw_code(), canonical_code);
+  EXPECT_EQ(util::RetrieveErrorSpace(s), space);
   EXPECT_TRUE(util::HasErrorSpace(s, space));
   EXPECT_THAT(util::RetrieveErrorSpaceAndCode(s), Pair(space, error_code));
-  EXPECT_EQ(message, s.message());
+  EXPECT_EQ(s.message(), message);
 
   if (error_code == 0) {
-    EXPECT_TRUE(s.ok());
-    EXPECT_EQ("OK", s.ToString());
+    EXPECT_THAT(s, IsOk());
+    EXPECT_EQ(s.ToString(), "OK");
   } else {
-    EXPECT_TRUE(!s.ok());
+    EXPECT_THAT(s, Not(IsOk()));
     EXPECT_THAT(s.ToString(),
                 HasSubstr(absl::StatusCodeToString(
                     static_cast<absl::StatusCode>(canonical_code))));
@@ -240,15 +243,14 @@ static void CheckStatus(
 }
 
 TEST(ErrorSpace, SpaceName) {
-  ASSERT_EQ(std::string("generic"),
-            ::util::RetrieveErrorSpace(absl::OkStatus())->SpaceName());
-  ASSERT_EQ(ExpectedErrorSpaceName(), MyErrorSpace::Get()->SpaceName());
+  EXPECT_EQ(util::RetrieveErrorSpace(absl::OkStatus())->SpaceName(), "generic");
+  EXPECT_EQ(MyErrorSpace::Get()->SpaceName(), ExpectedErrorSpaceName());
 }
 
 TEST(ErrorSpace, FindKnown) {
-  ASSERT_EQ(MyErrorSpace::Get(),
-            util::ErrorSpace::Find(ExpectedErrorSpaceName()));
-  ASSERT_EQ(s2::MyErrorSpace2::Get(), util::ErrorSpace::Find("myerrors2"));
+  EXPECT_EQ(util::ErrorSpace::Find(ExpectedErrorSpaceName()),
+            MyErrorSpace::Get());
+  EXPECT_EQ(util::ErrorSpace::Find("myerrors2"), s2::MyErrorSpace2::Get());
 }
 
 TEST(ErrorSpace, RegistrationWithoutGet) {
@@ -260,24 +262,24 @@ TEST(ErrorSpace, RegistrationWithoutGet) {
       return absl::StatusCode::kUnknown;
     }
   };
-  ASSERT_NE(nullptr, util::ErrorSpace::Find("myerrors3"));
+  EXPECT_THAT(util::ErrorSpace::Find("myerrors3"), NotNull());
 }
 
 TEST(ErrorSpace, FindGeneric) {
-  ASSERT_NE(nullptr, util::ErrorSpace::Find("generic"));
+  EXPECT_THAT(util::ErrorSpace::Find("generic"), NotNull());
 }
 
 TEST(ErrorSpace, FindUnknown) {
-  ASSERT_EQ(nullptr, util::ErrorSpace::Find("nonexistent_error_space"));
+  EXPECT_THAT(util::ErrorSpace::Find("nonexistent_error_space"), IsNull());
 }
 
 TEST(ErrorSpace, GenericCodeNames) {
   const util::ErrorSpace* e = util::CanonicalErrorSpace();
-  EXPECT_EQ("OK", e->String(util::error::OK));
-  EXPECT_EQ("cancelled", e->String(util::error::CANCELLED));
-  EXPECT_EQ("unknown", e->String(util::error::UNKNOWN));
-  EXPECT_EQ("aborted", e->String(util::error::ABORTED));
-  EXPECT_EQ("1000", e->String(1000));  // Out of range
+  EXPECT_EQ(e->String(util::error::OK), "OK");
+  EXPECT_EQ(e->String(util::error::CANCELLED), "cancelled");
+  EXPECT_EQ(e->String(util::error::UNKNOWN), "unknown");
+  EXPECT_EQ(e->String(util::error::ABORTED), "aborted");
+  EXPECT_EQ(e->String(1000), "1000");  // Out of range
 }
 
 TEST(Status, ConstructDefault) {
@@ -421,7 +423,7 @@ TEST(Status, CreateStatusOkNullMessageSet) {
   absl::Status status =
       util::MakeStatus(util::CanonicalErrorSpace(), 0, "", nullptr);
   CheckStatus(status, util::CanonicalErrorSpace(), 0, util::error::OK, "", "");
-  CHECK(!::util::HasPayload(status));
+  EXPECT_FALSE(util::HasPayload(status));
 }
 
 TEST(Status, CreateStatusNullMessageSet) {
@@ -429,7 +431,7 @@ TEST(Status, CreateStatusNullMessageSet) {
       util::MakeStatus(MyErrorSpace::Get(), 2, "message", nullptr);
   CheckStatus(status, MyErrorSpace::Get(), 2, util::error::UNKNOWN, "message",
               "", {}, {GET_SOURCE_LOCATION(2)});
-  CHECK(!::util::HasPayload(status));
+  EXPECT_FALSE(util::HasPayload(status));
 }
 
 TEST(Status, Cancelled) {
@@ -522,7 +524,7 @@ TEST(Status, Clear) {
 TEST(Status, Copy) {
   absl::Status a = util::MakeStatus(MyErrorSpace::Get(), 2, "message");
   absl::Status b(a);
-  ASSERT_EQ(a, b);
+  EXPECT_EQ(a, b);
 }
 
 TEST(Status, CopyPayload) {
@@ -535,36 +537,36 @@ TEST(Status, CopyPayload) {
               {}, {line});
   CheckStatus(b, MyErrorSpace::Get(), 2, util::error::UNKNOWN, "message", "foo",
               {}, {line});
-  ASSERT_EQ(a, b);
+  EXPECT_EQ(a, b);
 }
 
 TEST(Status, Assign) {
   absl::Status a = util::MakeStatus(MyErrorSpace::Get(), 2, "message");
   absl::Status b;
   b = a;
-  ASSERT_EQ(a, b);
+  EXPECT_EQ(a, b);
 }
 
 TEST(Status, Update) {
   absl::Status s;
   s.Update(absl::OkStatus());
-  ASSERT_TRUE(s.ok());
+  EXPECT_THAT(s, IsOk());
   absl::Status a = util::MakeStatus(MyErrorSpace::Get(), 2, "message");
   int line = GET_SOURCE_LOCATION(1);
   s.Update(a);
-  ASSERT_EQ(s, a);
+  EXPECT_EQ(s, a);
   CheckStatus(s, MyErrorSpace::Get(), 2, util::error::UNKNOWN, "message", "",
               {}, {line});
 
   absl::Status b = util::MakeStatus(MyErrorSpace::Get(), 17, "other message");
   s.Update(b);
-  ASSERT_EQ(s, a);
+  EXPECT_EQ(s, a);
   CheckStatus(s, MyErrorSpace::Get(), 2, util::error::UNKNOWN, "message", "",
               {}, {line});
 
   s.Update(absl::OkStatus());
-  ASSERT_EQ(s, a);
-  ASSERT_FALSE(s.ok());
+  EXPECT_EQ(s, a);
+  EXPECT_THAT(s, Not(IsOk()));
   CheckStatus(s, MyErrorSpace::Get(), 2, util::error::UNKNOWN, "message", "",
               {}, {line});
 }
@@ -573,9 +575,9 @@ TEST(Status, AssignEmpty) {
   absl::Status a = util::MakeStatus(MyErrorSpace::Get(), 2, "message");
   absl::Status b;
   a = b;
-  ASSERT_EQ(std::string("OK"), a.ToString());
-  ASSERT_TRUE(b.ok());
-  ASSERT_TRUE(a.ok());
+  EXPECT_EQ(a.ToString(), "OK");
+  EXPECT_THAT(b, IsOk());
+  EXPECT_THAT(a, IsOk());
 }
 
 TEST(Status, AssignPayload) {
@@ -589,8 +591,8 @@ TEST(Status, AssignPayload) {
   CheckStatus(b, MyErrorSpace::Get(), 2, util::error::UNKNOWN, "message", "foo",
               {}, {line});
   EXPECT_EQ(a, b);
-  ASSERT_TRUE(util::HasPayload(a));
-  ASSERT_TRUE(util::HasPayload(b));
+  EXPECT_TRUE(util::HasPayload(a));
+  EXPECT_TRUE(util::HasPayload(b));
   EXPECT_THAT(util::MakePayloadsSet(a), EqualsProto(util::MakePayloadsSet(b)));
 }
 
@@ -600,9 +602,9 @@ TEST(Status, AssignEmptyPayload) {
       util::MakeStatus(MyErrorSpace::Get(), 2, "message", &payload);
   absl::Status b;
   a = b;
-  ASSERT_EQ(std::string("OK"), a.ToString());
-  ASSERT_TRUE(b.ok());
-  ASSERT_TRUE(a.ok());
+  EXPECT_EQ(a.ToString(), "OK");
+  EXPECT_THAT(b, IsOk());
+  EXPECT_THAT(a, IsOk());
 }
 
 TEST(Status, Swap) {
@@ -610,8 +612,8 @@ TEST(Status, Swap) {
   absl::Status b = a;
   absl::Status c;
   swap(c, a);
-  ASSERT_EQ(c, b);
-  ASSERT_EQ(a, absl::OkStatus());
+  EXPECT_EQ(c, b);
+  EXPECT_EQ(a, absl::OkStatus());
 }
 
 TEST(Status, SwapWithPayload) {
@@ -621,20 +623,20 @@ TEST(Status, SwapWithPayload) {
   absl::Status b = a;
   absl::Status c;
   swap(c, a);
-  ASSERT_EQ(c, b);
-  ASSERT_EQ(a, absl::OkStatus());
+  EXPECT_EQ(c, b);
+  EXPECT_EQ(a, absl::OkStatus());
 }
 
 TEST(Status, UnknownCode) {
   absl::Status status = util::MakeStatus(MyErrorSpace::Get(), 10, "message");
-  ASSERT_TRUE(!status.ok());
-  ASSERT_EQ(10, util::RetrieveErrorCode(status));
-  ASSERT_EQ(absl::StatusCode::kUnknown, status.code());
-  ASSERT_EQ(std::string("message"), status.message());
-  ASSERT_EQ(::util::RetrieveErrorSpace(status), MyErrorSpace::Get());
-  ASSERT_THAT(status.ToString(), HasSubstr(ExpectedErrorSpaceName()));
-  ASSERT_THAT(status.ToString(), HasSubstr("10"));
-  ASSERT_THAT(status.ToString(), HasSubstr("message"));
+  EXPECT_THAT(status, Not(IsOk()));
+  EXPECT_EQ(util::RetrieveErrorCode(status), 10);
+  EXPECT_EQ(status.code(), absl::StatusCode::kUnknown);
+  EXPECT_EQ(status.message(), "message");
+  EXPECT_EQ(util::RetrieveErrorSpace(status), MyErrorSpace::Get());
+  EXPECT_THAT(status.ToString(), HasSubstr(ExpectedErrorSpaceName()));
+  EXPECT_THAT(status.ToString(), HasSubstr("10"));
+  EXPECT_THAT(status.ToString(), HasSubstr("message"));
 }
 
 TEST(Status, EqualsSame) {
@@ -800,10 +802,10 @@ TEST(Status, MoveOps_Global) {
   absl::Status from = absl::CancelledError();
   absl::Status to = std::move(from);
 
-  EXPECT_FALSE(to.ok());
-  EXPECT_EQ(util::CanonicalErrorSpace(), ::util::RetrieveErrorSpace(to));
-  EXPECT_EQ(util::error::CANCELLED, util::RetrieveErrorCode(to));
-  EXPECT_EQ("", to.message());
+  EXPECT_THAT(to, Not(IsOk()));
+  EXPECT_EQ(util::RetrieveErrorSpace(to), util::CanonicalErrorSpace());
+  EXPECT_EQ(util::RetrieveErrorCode(to), util::error::CANCELLED);
+  EXPECT_EQ(to.message(), "");
 
   // We can't check the actual state of 'from', but the methods with no
   // preconditions should continue to work.
@@ -812,16 +814,16 @@ TEST(Status, MoveOps_Global) {
 
   // If I overwrite it, it should have a known state.
   from = absl::OkStatus();
-  EXPECT_TRUE(from.ok());
-  EXPECT_EQ(util::CanonicalErrorSpace(), ::util::RetrieveErrorSpace(from));
-  EXPECT_EQ(util::error::OK, util::RetrieveErrorCode(from));
-  EXPECT_EQ("", from.message());
+  EXPECT_THAT(from, IsOk());
+  EXPECT_EQ(util::RetrieveErrorSpace(from), util::CanonicalErrorSpace());
+  EXPECT_EQ(util::RetrieveErrorCode(from), util::error::OK);
+  EXPECT_EQ(from.message(), "");
 
   to = std::move(from);
-  EXPECT_TRUE(to.ok());
-  EXPECT_EQ(util::CanonicalErrorSpace(), ::util::RetrieveErrorSpace(to));
-  EXPECT_EQ(util::error::OK, util::RetrieveErrorCode(to));
-  EXPECT_EQ("", to.message());
+  EXPECT_THAT(to, IsOk());
+  EXPECT_EQ(util::RetrieveErrorSpace(to), util::CanonicalErrorSpace());
+  EXPECT_EQ(util::RetrieveErrorCode(to), util::error::OK);
+  EXPECT_EQ(to.message(), "");
 
   // We can't check the actual state of 'from', but the methods with no
   // preconditions should continue to work.
@@ -833,10 +835,10 @@ TEST(Status, MoveOps_NonGlobal) {
   absl::Status from(absl::StatusCode::kInvalidArgument, "Message");
   absl::Status to = std::move(from);
 
-  EXPECT_FALSE(to.ok());
-  EXPECT_EQ(util::CanonicalErrorSpace(), ::util::RetrieveErrorSpace(to));
-  EXPECT_EQ(util::error::INVALID_ARGUMENT, util::RetrieveErrorCode(to));
-  EXPECT_EQ("Message", to.message());
+  EXPECT_THAT(to, Not(IsOk()));
+  EXPECT_EQ(util::RetrieveErrorSpace(to), util::CanonicalErrorSpace());
+  EXPECT_EQ(util::RetrieveErrorCode(to), util::error::INVALID_ARGUMENT);
+  EXPECT_EQ(to.message(), "Message");
 
   // We can't check the actual state of 'from', but the methods with no
   // preconditions should continue to work.
@@ -845,16 +847,16 @@ TEST(Status, MoveOps_NonGlobal) {
 
   // If I overwrite it, it should have a known state.
   from = absl::Status(absl::StatusCode::kFailedPrecondition, "Other message");
-  EXPECT_FALSE(from.ok());
-  EXPECT_EQ(util::CanonicalErrorSpace(), ::util::RetrieveErrorSpace(from));
-  EXPECT_EQ(util::error::FAILED_PRECONDITION, util::RetrieveErrorCode(from));
-  EXPECT_EQ("Other message", from.message());
+  EXPECT_THAT(from, Not(IsOk()));
+  EXPECT_EQ(util::RetrieveErrorSpace(from), util::CanonicalErrorSpace());
+  EXPECT_EQ(util::RetrieveErrorCode(from), util::error::FAILED_PRECONDITION);
+  EXPECT_EQ(from.message(), "Other message");
 
   to = std::move(from);
-  EXPECT_FALSE(to.ok());
-  EXPECT_EQ(util::CanonicalErrorSpace(), ::util::RetrieveErrorSpace(to));
-  EXPECT_EQ(util::error::FAILED_PRECONDITION, util::RetrieveErrorCode(to));
-  EXPECT_EQ("Other message", to.message());
+  EXPECT_THAT(to, Not(IsOk()));
+  EXPECT_EQ(util::RetrieveErrorSpace(to), util::CanonicalErrorSpace());
+  EXPECT_EQ(util::RetrieveErrorCode(to), util::error::FAILED_PRECONDITION);
+  EXPECT_EQ(to.message(), "Other message");
 
   // We can't check the actual state of 'from', but the methods with no
   // preconditions should continue to work.
@@ -862,68 +864,59 @@ TEST(Status, MoveOps_NonGlobal) {
   EXPECT_EQ(from.message(), "Status accessed after move.");
 }
 
-TEST(Proto, Empty) {
+TEST(Proto, EmptyStatusProto) {
   absl::Status src;
-
-  {
-    util::StatusProto proto;
-    ::util::SaveStatusToProto(src, &proto);
-    EXPECT_FALSE(proto.has_code());
-    EXPECT_FALSE(proto.has_space());
-    EXPECT_FALSE(proto.has_message());
-    EXPECT_FALSE(proto.has_message_set());
-    EXPECT_FALSE(proto.has_canonical_code());
-    absl::Status dst = ::util::MakeStatusFromProto(proto);
-    EXPECT_EQ(::util::RetrieveErrorSpace(src), ::util::RetrieveErrorSpace(dst));
-    EXPECT_EQ(util::RetrieveErrorCode(src), util::RetrieveErrorCode(dst));
-    EXPECT_EQ("", dst.message());
-    CheckSourceLocation(dst);
-  }
+  util::StatusProto proto;
+  ::util::SaveStatusToProto(src, &proto);
+  EXPECT_FALSE(proto.has_code());
+  EXPECT_FALSE(proto.has_space());
+  EXPECT_FALSE(proto.has_message());
+  EXPECT_FALSE(proto.has_message_set());
+  EXPECT_FALSE(proto.has_canonical_code());
+  absl::Status dst = ::util::MakeStatusFromProto(proto);
+  EXPECT_EQ(util::RetrieveErrorSpace(src), util::RetrieveErrorSpace(dst));
+  EXPECT_EQ(util::RetrieveErrorCode(src), util::RetrieveErrorCode(dst));
+  EXPECT_EQ(dst.message(), "");
+  CheckSourceLocation(dst);
 }
 
-TEST(Proto, NonEmpty) {
+TEST(Proto, NonEmptyStatusProto) {
   absl::Status src = util::MakeStatus(MyErrorSpace::Get(), 1, "message");
-
-  {
-    util::StatusProto proto;
-    ::util::SaveStatusToProto(src, &proto);
-    EXPECT_EQ(1, proto.code());
-    EXPECT_EQ(ExpectedErrorSpaceName(), proto.space());
-    EXPECT_EQ(util::error::UNKNOWN, proto.canonical_code());
-    EXPECT_EQ("message", proto.message());
-    EXPECT_FALSE(proto.has_message_set());
-    absl::Status dst = ::util::MakeStatusFromProto(proto);
-    int line = GET_SOURCE_LOCATION(1);
-    EXPECT_EQ(::util::RetrieveErrorSpace(src), ::util::RetrieveErrorSpace(dst));
-    EXPECT_EQ(util::RetrieveErrorCode(src), util::RetrieveErrorCode(dst));
-    EXPECT_EQ("message", dst.message());
-    CheckSourceLocation(dst, {line});
-  }
+  util::StatusProto proto;
+  ::util::SaveStatusToProto(src, &proto);
+  EXPECT_EQ(proto.code(), 1);
+  EXPECT_EQ(proto.space(), ExpectedErrorSpaceName());
+  EXPECT_EQ(proto.canonical_code(), util::error::UNKNOWN);
+  EXPECT_EQ(proto.message(), "message");
+  EXPECT_FALSE(proto.has_message_set());
+  absl::Status dst = ::util::MakeStatusFromProto(proto);
+  int line = GET_SOURCE_LOCATION(1);
+  EXPECT_EQ(util::RetrieveErrorSpace(src), util::RetrieveErrorSpace(dst));
+  EXPECT_EQ(util::RetrieveErrorCode(src), util::RetrieveErrorCode(dst));
+  EXPECT_EQ(dst.message(), "message");
+  CheckSourceLocation(dst, {line});
 }
 
-TEST(Proto, WithPayload) {
+TEST(Proto, WithPayloadStatusProto) {
   const google::protobuf::bridge::MessageSet payload = MakeTestPayload("foo");
   absl::Status src =
       util::MakeStatus(MyErrorSpace::Get(), 1, "message", &payload);
   CheckStatus(src, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message",
               "foo", {}, {GET_SOURCE_LOCATION(2)});
+  util::StatusProto proto;
+  ::util::SaveStatusToProto(src, &proto);
+  EXPECT_EQ(proto.code(), 1);
+  EXPECT_EQ(proto.space(), ExpectedErrorSpaceName());
+  EXPECT_EQ(proto.canonical_code(), util::error::UNKNOWN);
+  EXPECT_EQ(proto.message(), "message");
+  EXPECT_TRUE(proto.has_message_set());
+  EXPECT_THAT(proto.message_set(), EqualsProto(MakeTestPayload("foo")));
+  absl::Status dst = ::util::MakeStatusFromProto(proto);
+  int line = GET_SOURCE_LOCATION(1);
 
-  {
-    util::StatusProto proto;
-    ::util::SaveStatusToProto(src, &proto);
-    EXPECT_EQ(1, proto.code());
-    EXPECT_EQ(ExpectedErrorSpaceName(), proto.space());
-    EXPECT_EQ(util::error::UNKNOWN, proto.canonical_code());
-    EXPECT_EQ("message", proto.message());
-    EXPECT_TRUE(proto.has_message_set());
-    EXPECT_THAT(proto.message_set(), EqualsProto(MakeTestPayload("foo")));
-    absl::Status dst = ::util::MakeStatusFromProto(proto);
-    int line = GET_SOURCE_LOCATION(1);
-
-    EXPECT_EQ(src, dst);
-    CheckStatus(dst, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message",
-                "foo", {}, {line});
-  }
+  EXPECT_EQ(src, dst);
+  CheckStatus(dst, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message",
+              "foo", {}, {line});
 }
 
 google::protobuf::bridge::MessageSet MakeNonMessageSetPayload(
@@ -939,56 +932,48 @@ google::protobuf::bridge::MessageSet MakeNonMessageSetPayload(
   return mset;
 }
 
-TEST(Proto, WithNonMessageSetPayload) {
+TEST(Proto, WithNonMessageSetPayloadStatusProto) {
   absl::Status src = util::MakeStatus(MyErrorSpace::Get(), 1, "message");
   src.SetPayload(kUrl, absl::Cord(kPayload));
-  CheckStatus(src, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message", "",
+  util::StatusProto proto;
+  util::SaveStatusToProto(src, &proto);
+  EXPECT_EQ(proto.code(), 1);
+  EXPECT_EQ(proto.space(), ExpectedErrorSpaceName());
+  EXPECT_EQ(proto.canonical_code(), util::error::UNKNOWN);
+  EXPECT_EQ(proto.message(), "message");
+  EXPECT_TRUE(proto.has_message_set());
+  EXPECT_THAT(
+      proto.message_set(),
+      EqualsProto(MakeNonMessageSetPayload({{kUrl, absl::Cord(kPayload)}})));
+  absl::Status dst = ::util::MakeStatusFromProto(proto);
+  EXPECT_EQ(src, dst);
+  CheckStatus(dst, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message", "",
               {{kUrl, absl::Cord(kPayload)}}, {GET_SOURCE_LOCATION(3)});
-
-  {
-    util::StatusProto proto;
-    util::SaveStatusToProto(src, &proto);
-    EXPECT_EQ(1, proto.code());
-    EXPECT_EQ(ExpectedErrorSpaceName(), proto.space());
-    EXPECT_EQ(util::error::UNKNOWN, proto.canonical_code());
-    EXPECT_EQ("message", proto.message());
-    EXPECT_TRUE(proto.has_message_set());
-    EXPECT_THAT(
-        proto.message_set(),
-        EqualsProto(MakeNonMessageSetPayload({{kUrl, absl::Cord(kPayload)}})));
-    absl::Status dst = ::util::MakeStatusFromProto(proto);
-    EXPECT_EQ(src, dst);
-    CheckStatus(dst, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message",
-                "", {{kUrl, absl::Cord(kPayload)}}, {GET_SOURCE_LOCATION(3)});
-  }
 }
 
-TEST(Proto, WithBothPayloads) {
+TEST(Proto, WithBothPayloadsStatusProto) {
   absl::Status src = util::MakeStatus(MyErrorSpace::Get(), 1, "message");
   src.SetPayload(kUrl, absl::Cord(kPayload));
   util::TestPayload payload;
   payload.set_message("test");
   util::AttachPayload(&src, payload);
 
-  {
-    util::StatusProto proto;
-    util::SaveStatusToProto(src, &proto);
-    EXPECT_EQ(1, proto.code());
-    EXPECT_EQ(ExpectedErrorSpaceName(), proto.space());
-    EXPECT_EQ(util::error::UNKNOWN, proto.canonical_code());
-    EXPECT_EQ("message", proto.message());
-    EXPECT_TRUE(proto.has_message_set());
-    google::protobuf::bridge::MessageSet expected_mset =
-        MakeNonMessageSetPayload({{kUrl, absl::Cord(kPayload)}});
-    expected_mset.MutableExtension(util::TestPayload::message_set_extension)
-        ->set_message("test");
-    EXPECT_THAT(proto.message_set(), EqualsProto(expected_mset));
-    absl::Status dst = ::util::MakeStatusFromProto(proto);
-    EXPECT_EQ(src, dst);
-    CheckStatus(dst, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message",
-                "test", {{kUrl, absl::Cord(kPayload)}},
-                {GET_SOURCE_LOCATION(4)});
-  }
+  util::StatusProto proto;
+  util::SaveStatusToProto(src, &proto);
+  EXPECT_EQ(proto.code(), 1);
+  EXPECT_EQ(proto.space(), ExpectedErrorSpaceName());
+  EXPECT_EQ(proto.canonical_code(), util::error::UNKNOWN);
+  EXPECT_EQ(proto.message(), "message");
+  EXPECT_TRUE(proto.has_message_set());
+  google::protobuf::bridge::MessageSet expected_mset =
+      MakeNonMessageSetPayload({{kUrl, absl::Cord(kPayload)}});
+  expected_mset.MutableExtension(util::TestPayload::message_set_extension)
+      ->set_message("test");
+  EXPECT_THAT(proto.message_set(), EqualsProto(expected_mset));
+  absl::Status dst = ::util::MakeStatusFromProto(proto);
+  EXPECT_EQ(src, dst);
+  CheckStatus(dst, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message",
+              "test", {{kUrl, absl::Cord(kPayload)}}, {GET_SOURCE_LOCATION(3)});
 }
 
 TEST(Proto, FilterStackTracePayloadFromProto) {
@@ -1068,11 +1053,11 @@ TEST(Proto, RestoreInConstructor) {
   src = util::MakeStatus(MyErrorSpace::Get(), 1, "message", &payload);
   util::StatusProto proto;
   ::util::SaveStatusToProto(src, &proto);
-  EXPECT_EQ(1, proto.code());
-  EXPECT_EQ(ExpectedErrorSpaceName(), proto.space());
-  EXPECT_EQ("message", proto.message());
+  EXPECT_EQ(proto.code(), 1);
+  EXPECT_EQ(proto.space(), ExpectedErrorSpaceName());
+  EXPECT_EQ(proto.message(), "message");
   absl::Status dst = util::MakeStatusFromProto(proto);
-  EXPECT_EQ(::util::RetrieveErrorSpace(src), ::util::RetrieveErrorSpace(dst));
+  EXPECT_EQ(util::RetrieveErrorSpace(src), util::RetrieveErrorSpace(dst));
   EXPECT_EQ(util::RetrieveErrorCode(src), util::RetrieveErrorCode(dst));
   CheckStatus(dst, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message",
               "foo", {}, {GET_SOURCE_LOCATION(4)});
@@ -1109,7 +1094,7 @@ TEST(Proto, MessageSetDoesNotSetTypedMessage) {
 TEST(Proto, AttachToOk) {
   absl::Status s;
   util::AttachPayload(&s, MakeStatusProto("foo"));
-  ASSERT_EQ(absl::OkStatus(), s);
+  EXPECT_EQ(s, absl::OkStatus());
 }
 
 TEST(Proto, AttachToUnsharedStatus) {
@@ -1118,7 +1103,7 @@ TEST(Proto, AttachToUnsharedStatus) {
 
   util::AttachPayload(&y, MakeStatusProto("bar"));
   EXPECT_NE(x, y);
-  EXPECT_EQ(::util::RetrieveErrorSpace(x), ::util::RetrieveErrorSpace(y));
+  EXPECT_EQ(util::RetrieveErrorSpace(x), util::RetrieveErrorSpace(y));
   EXPECT_EQ(util::RetrieveErrorCode(x), util::RetrieveErrorCode(y));
   EXPECT_EQ(x.message(), y.message());
   if (std::is_base_of_v<google::protobuf::Message,
@@ -1245,7 +1230,7 @@ TEST(Canonical, SaveTo) {
       static_cast<int>(MyErrorCode::kCustomPermissionDenied), "message");
   util::StatusProto proto;
   ::util::SaveStatusToProto(s, &proto);
-  EXPECT_EQ(util::error::PERMISSION_DENIED, proto.canonical_code());
+  EXPECT_EQ(proto.canonical_code(), util::error::PERMISSION_DENIED);
 }
 
 TEST(Canonical, SaveFromCanonicalSpace) {
@@ -1253,7 +1238,7 @@ TEST(Canonical, SaveFromCanonicalSpace) {
   util::StatusProto proto;
   ::util::SaveStatusToProto(s, &proto);
   EXPECT_FALSE(proto.has_canonical_code());  // Unset when space is canonical.
-  EXPECT_EQ(util::error::PERMISSION_DENIED, proto.code());
+  EXPECT_EQ(proto.code(), util::error::PERMISSION_DENIED);
 }
 
 TEST(Canonical, RestoreFromCustomSpace) {
@@ -1264,14 +1249,14 @@ TEST(Canonical, RestoreFromCustomSpace) {
 
   absl::Status dst;
   dst = ::util::MakeStatusFromProto(proto);
-  EXPECT_EQ(absl::StatusCode::kPermissionDenied, dst.code());
+  EXPECT_EQ(dst.code(), absl::StatusCode::kPermissionDenied);
 }
 
 TEST(Canonical, CustomMapping) {
   absl::Status s = util::MakeStatus(
       MyErrorSpace::Get(),
       static_cast<int>(MyErrorCode::kCustomPermissionDenied), "message");
-  EXPECT_EQ(absl::StatusCode::kPermissionDenied, s.code());
+  EXPECT_EQ(s.code(), absl::StatusCode::kPermissionDenied);
 }
 
 TEST(Status, Annotate) {
@@ -1339,11 +1324,11 @@ TEST(Canonical, RestoreFrom) {
 
   absl::Status dst;
   dst = ::util::MakeStatusFromProto(proto);
-  EXPECT_EQ(absl::StatusCode::kPermissionDenied, dst.code());
+  EXPECT_EQ(dst.code(), absl::StatusCode::kPermissionDenied);
 
   proto.set_canonical_code(util::error::UNAVAILABLE);
   dst = ::util::MakeStatusFromProto(proto);
-  EXPECT_EQ(absl::StatusCode::kUnavailable, dst.code());
+  EXPECT_EQ(dst.code(), absl::StatusCode::kUnavailable);
 }
 
 TEST(Canonical, RestoreFromUnknownSpace) {
@@ -1355,9 +1340,9 @@ TEST(Canonical, RestoreFromUnknownSpace) {
 
   absl::Status dst;
   dst = ::util::MakeStatusFromProto(proto);
-  EXPECT_EQ(util::CanonicalErrorSpace(), ::util::RetrieveErrorSpace(dst));
-  EXPECT_EQ(util::error::PERMISSION_DENIED, util::RetrieveErrorCode(dst));
-  EXPECT_EQ(absl::StatusCode::kPermissionDenied, dst.code());
+  EXPECT_EQ(util::RetrieveErrorSpace(dst), util::CanonicalErrorSpace());
+  EXPECT_EQ(util::RetrieveErrorCode(dst), util::error::PERMISSION_DENIED);
+  EXPECT_EQ(dst.code(), absl::StatusCode::kPermissionDenied);
 }
 
 TEST(Canonical, RestoreFromMismatchedCodes) {
@@ -1369,9 +1354,9 @@ TEST(Canonical, RestoreFromMismatchedCodes) {
 
   absl::Status dst;
   dst = ::util::MakeStatusFromProto(proto);
-  EXPECT_EQ(util::CanonicalErrorSpace(), ::util::RetrieveErrorSpace(dst));
-  EXPECT_EQ(util::error::PERMISSION_DENIED, util::RetrieveErrorCode(dst));
-  EXPECT_EQ(absl::StatusCode::kPermissionDenied, dst.code());
+  EXPECT_EQ(util::RetrieveErrorSpace(dst), util::CanonicalErrorSpace());
+  EXPECT_EQ(util::RetrieveErrorCode(dst), util::error::PERMISSION_DENIED);
+  EXPECT_EQ(dst.code(), absl::StatusCode::kPermissionDenied);
 }
 
 TEST(Canonical, RestoreFromUnknownCode) {
@@ -1382,37 +1367,37 @@ TEST(Canonical, RestoreFromUnknownCode) {
 
   absl::Status dst;
   dst = ::util::MakeStatusFromProto(proto);
-  EXPECT_EQ(util::CanonicalErrorSpace(), ::util::RetrieveErrorSpace(dst));
-  EXPECT_EQ(9999, dst.raw_code());
-  EXPECT_EQ(9999, util::RetrieveErrorCode(dst));
+  EXPECT_EQ(util::RetrieveErrorSpace(dst), util::CanonicalErrorSpace());
+  EXPECT_EQ(dst.raw_code(), 9999);
+  EXPECT_EQ(util::RetrieveErrorCode(dst), 9999);
   // Unknown error_code is preserved in RetrieveErrorCode() even in
   // canonicalized Status values.
-  EXPECT_EQ(9999, util::RetrieveErrorCode(util::ToCanonical(dst)));
-  EXPECT_EQ(9999, util::ToCanonical(dst).raw_code());
+  EXPECT_EQ(util::RetrieveErrorCode(util::ToCanonical(dst)), 9999);
+  EXPECT_EQ(util::ToCanonical(dst).raw_code(), 9999);
   // But is canonicalized to util::error::UNKNOWN.
-  EXPECT_EQ(absl::StatusCode::kUnknown, util::ToCanonical(dst).code());
-  EXPECT_EQ(absl::StatusCode::kUnknown, dst.code());
+  EXPECT_EQ(util::ToCanonical(dst).code(), absl::StatusCode::kUnknown);
+  EXPECT_EQ(dst.code(), absl::StatusCode::kUnknown);
 }
 
 TEST(Canonical, SetCanonicalCode) {
   absl::Status s = util::MakeStatus(MyErrorSpace::Get(), 1234, "message");
   util::SetCanonicalCode(absl::StatusCode::kResourceExhausted, &s);
-  EXPECT_EQ(1234, util::RetrieveErrorCode(s));
-  EXPECT_EQ(absl::StatusCode::kResourceExhausted, s.code());
+  EXPECT_EQ(util::RetrieveErrorCode(s), 1234);
+  EXPECT_EQ(s.code(), absl::StatusCode::kResourceExhausted);
 }
 
 TEST(Canonical, SetCanonicalCodeIgnoredOnOkStatus) {
   absl::Status s = util::MakeStatus(MyErrorSpace::Get(), 0, "message");
   util::SetCanonicalCode(absl::StatusCode::kResourceExhausted, &s);
-  EXPECT_TRUE(s.ok());
-  EXPECT_EQ(absl::StatusCode::kOk, s.code());
+  EXPECT_THAT(s, IsOk());
+  EXPECT_EQ(s.code(), absl::StatusCode::kOk);
 }
 
 TEST(Canonical, SetCanonicalCodeIgnoredOnCanonicalSpace) {
   absl::Status s(absl::StatusCode::kDeadlineExceeded, "message");
   util::SetCanonicalCode(absl::StatusCode::kResourceExhausted, &s);
-  EXPECT_EQ(util::error::DEADLINE_EXCEEDED, util::RetrieveErrorCode(s));
-  EXPECT_EQ(absl::StatusCode::kDeadlineExceeded, s.code());
+  EXPECT_EQ(util::RetrieveErrorCode(s), util::error::DEADLINE_EXCEEDED);
+  EXPECT_EQ(s.code(), absl::StatusCode::kDeadlineExceeded);
 }
 
 TEST(Canonical, SetCanonicalCodeOnSharedStatus) {
@@ -1425,8 +1410,8 @@ TEST(Canonical, SetCanonicalCodeOnSharedStatus) {
   EXPECT_EQ(util::RetrieveErrorSpace(x), util::RetrieveErrorSpace(y));
   EXPECT_EQ(util::RetrieveErrorCode(x), util::RetrieveErrorCode(y));
   EXPECT_EQ(x.message(), y.message());
-  EXPECT_EQ(absl::StatusCode::kUnknown, x.code());
-  EXPECT_EQ(absl::StatusCode::kResourceExhausted, y.code());
+  EXPECT_EQ(x.code(), absl::StatusCode::kUnknown);
+  EXPECT_EQ(y.code(), absl::StatusCode::kResourceExhausted);
 
   // Yet another copy, with a different code set.
   absl::Status z = y;
@@ -1435,8 +1420,8 @@ TEST(Canonical, SetCanonicalCodeOnSharedStatus) {
   EXPECT_EQ(util::RetrieveErrorSpace(x), util::RetrieveErrorSpace(z));
   EXPECT_EQ(util::RetrieveErrorCode(x), util::RetrieveErrorCode(z));
   EXPECT_EQ(x.message(), z.message());
-  EXPECT_EQ(absl::StatusCode::kResourceExhausted, y.code());
-  EXPECT_EQ(absl::StatusCode::kDeadlineExceeded, z.code());
+  EXPECT_EQ(y.code(), absl::StatusCode::kResourceExhausted);
+  EXPECT_EQ(z.code(), absl::StatusCode::kDeadlineExceeded);
 }
 
 void MaybeAttachPayload(absl::Status* status) {
@@ -1856,8 +1841,8 @@ TEST(StatusCode, StatusCodeToString) {
         code !=
             util::error::
                 DO_NOT_USE_RESERVED_FOR_FUTURE_EXPANSION_USE_DEFAULT_IN_SWITCH_INSTEAD_) {  // NOLINT
-      EXPECT_EQ(util::error::Code_Name(code),
-                absl::StatusCodeToString(util::ToAbslStatusCode(code)));
+      EXPECT_EQ(absl::StatusCodeToString(util::ToAbslStatusCode(code)),
+                util::error::Code_Name(code));
     }
   }
 }
@@ -1914,7 +1899,7 @@ TEST(StatusCode, UtilErrorCodeConversion) {
             util::error::
                 DO_NOT_USE_RESERVED_FOR_FUTURE_EXPANSION_USE_DEFAULT_IN_SWITCH_INSTEAD_) {  // NOLINT
       absl::StatusCode absl_code = util::ToAbslStatusCode(code);
-      EXPECT_EQ(static_cast<int>(code), static_cast<int>(absl_code));
+      EXPECT_EQ(static_cast<int>(absl_code), static_cast<int>(code));
       EXPECT_EQ(util::ToUtilErrorCode(absl_code), code);
     }
   }
