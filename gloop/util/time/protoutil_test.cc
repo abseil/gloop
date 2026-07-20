@@ -22,6 +22,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/status_matchers.h"
@@ -34,8 +35,10 @@
 
 namespace {
 
+using ::absl_testing::IsOk;
 using ::absl_testing::IsOkAndHolds;
 using ::absl_testing::StatusIs;
+using ::testing::Not;
 
 google::protobuf::Duration MakeGoogleApiDuration(int64_t s, int32_t ns) {
   google::protobuf::Duration proto;
@@ -59,14 +62,14 @@ google::protobuf::Timestamp MakeGoogleApiTimestamp(int64_t s, int32_t ns) {
 template <typename T, typename P>
 void RoundTripGoogleApi(T v, int64_t expected_sec, int32_t expected_nsec) {
   const auto sor_proto = util_time::EncodeGoogleApiProto(v);
-  ABSL_ASSERT_OK(sor_proto);
+  ASSERT_THAT(sor_proto, IsOk());
   const auto& proto = sor_proto.value();
   EXPECT_EQ(proto.seconds(), expected_sec);
   EXPECT_EQ(proto.nanos(), expected_nsec);
 
   P out_proto;
   const auto status = util_time::EncodeGoogleApiProto(v, &out_proto);
-  ABSL_ASSERT_OK(status);
+  EXPECT_THAT(status, IsOk());
   EXPECT_EQ(out_proto.seconds(), expected_sec);
   EXPECT_EQ(out_proto.nanos(), expected_nsec);
   EXPECT_EQ(proto.seconds(), out_proto.seconds());
@@ -74,114 +77,172 @@ void RoundTripGoogleApi(T v, int64_t expected_sec, int32_t expected_nsec) {
 
   // Complete the round-trip by decoding the proto back to a absl::Duration.
   const auto sor_duration = util_time::DecodeGoogleApiProto(proto);
-  ABSL_ASSERT_OK(sor_duration);
+  ASSERT_THAT(sor_duration, IsOk());
   const auto& duration = sor_duration.value();
   EXPECT_EQ(duration, v);
 }
 
-TEST(ProtoUtilGoogleApi, RoundTripDuration) {
-  // Shorthand to make the test cases readable.
-  const auto& s = [](int64_t n) { return absl::Seconds(n); };
-  const auto& ns = [](int64_t n) { return absl::Nanoseconds(n); };
-  const struct {
-    absl::Duration d;
-    struct {
-      int64_t sec;
-      int32_t nsec;
-    } expected;
-  } kTestCases[] = {
-      {s(0), {0, 0}},
-      {s(123) + ns(456), {123, 456}},
-      {ns(-5), {0, -5}},
-      {s(-10) - ns(5), {-10, -5}},
-      {s(-315576000000), {-315576000000, 0}},
-      {s(315576000000), {315576000000, 0}},
-      {util_time::MakeGoogleApiDurationMin(), {-315576000000, -999999999}},
-      {util_time::MakeGoogleApiDurationMax(), {315576000000, 999999999}},
-  };
+struct GoogleApiDurationTestCase {
+  const char* name;
+  absl::Duration d;
+  int64_t expected_sec;
+  int32_t expected_nsec;
+};
 
-  for (const auto& tc : kTestCases) {
-    RoundTripGoogleApi<absl::Duration, google::protobuf::Duration>(
-        tc.d, tc.expected.sec, tc.expected.nsec);
-  }
+using ProtoUtilGoogleApiRoundTripDurationTest =
+    testing::TestWithParam<GoogleApiDurationTestCase>;
+
+TEST_P(ProtoUtilGoogleApiRoundTripDurationTest, RoundTrip) {
+  const auto& tc = GetParam();
+  RoundTripGoogleApi<absl::Duration, google::protobuf::Duration>(
+      tc.d, tc.expected_sec, tc.expected_nsec);
 }
 
-TEST(ProtoUtilGoogleApi, DurationTruncTowardZero) {
-  // Shorthand to make the test cases readable.
-  const absl::Duration tick = absl::Nanoseconds(1) / 4;
-  const auto& s = [](int64_t n) { return absl::Seconds(n); };
-  const struct {
-    absl::Duration d;
-    struct {
-      int64_t sec;
-      int32_t nsec;
-    } expected;
-  } kTestCases[] = {
-      {tick, {0, 0}},
-      {-tick, {0, 0}},
-      {s(2) + tick, {2, 0}},
-      {s(2) - tick, {1, 999999999}},
-      {s(1) + tick, {1, 0}},
-      {s(1) - tick, {0, 999999999}},
-      {s(-1) + tick, {0, -999999999}},
-      {s(-1) - tick, {-1, 0}},
-      {s(-2) + tick, {-1, -999999999}},
-      {s(-2) - tick, {-2, 0}},
-      {util_time::MakeGoogleApiDurationMin() - tick,
-       {-315576000000, -999999999}},
-      {util_time::MakeGoogleApiDurationMin() + tick,
-       {-315576000000, -999999998}},
-      {util_time::MakeGoogleApiDurationMax() - tick, {315576000000, 999999998}},
-      {util_time::MakeGoogleApiDurationMax() + tick, {315576000000, 999999999}},
-  };
+INSTANTIATE_TEST_SUITE_P(
+    ProtoUtilGoogleApi, ProtoUtilGoogleApiRoundTripDurationTest,
+    testing::ValuesIn(std::vector<GoogleApiDurationTestCase>{
+        {"Zero", absl::Seconds(0), 0, 0},
+        {"Positive", absl::Seconds(123) + absl::Nanoseconds(456), 123, 456},
+        {"NegNsec", absl::Nanoseconds(-5), 0, -5},
+        {"NegSec_NegNsec", absl::Seconds(-10) - absl::Nanoseconds(5), -10, -5},
+        {"LargeNegative", absl::Seconds(-315576000000), -315576000000, 0},
+        {"LargePositive", absl::Seconds(315576000000), 315576000000, 0},
+        {"Min", util_time::MakeGoogleApiDurationMin(), -315576000000,
+         -999999999},
+        {"Max", util_time::MakeGoogleApiDurationMax(), 315576000000, 999999999},
+    }),
+    [](const testing::TestParamInfo<GoogleApiDurationTestCase>& info) {
+      return info.param.name;
+    });
 
-  for (const auto& tc : kTestCases) {
-    const auto sor = util_time::EncodeGoogleApiProto(tc.d);
-    ABSL_ASSERT_OK(sor);
-    const auto& proto = sor.value();
-    EXPECT_EQ(proto.seconds(), tc.expected.sec) << "d=" << tc.d;
-    EXPECT_EQ(proto.nanos(), tc.expected.nsec) << "d=" << tc.d;
-  }
+struct DurationTruncTestCase {
+  const char* name;
+  absl::Duration d;
+  int64_t expected_sec;
+  int32_t expected_nsec;
+};
+
+using ProtoUtilGoogleApiDurationTruncTest =
+    testing::TestWithParam<DurationTruncTestCase>;
+
+TEST_P(ProtoUtilGoogleApiDurationTruncTest, Truncate) {
+  const auto& tc = GetParam();
+  const auto sor = util_time::EncodeGoogleApiProto(tc.d);
+  ASSERT_THAT(sor, IsOk());
+  const auto& proto = sor.value();
+  EXPECT_EQ(proto.seconds(), tc.expected_sec) << "d=" << tc.d;
+  EXPECT_EQ(proto.nanos(), tc.expected_nsec) << "d=" << tc.d;
 }
 
-TEST(ProtoUtilGoogleApi, EncodeDurationError) {
-  const absl::Duration kTestCases[] = {
-      util_time::MakeGoogleApiDurationMin() - absl::Nanoseconds(1),  //
-      util_time::MakeGoogleApiDurationMax() + absl::Nanoseconds(1),  //
-      -absl::InfiniteDuration(),                                     //
-      absl::InfiniteDuration()};                                     //
-  for (const auto& d : kTestCases) {
-    const auto sor = util_time::EncodeGoogleApiProto(d);
-    EXPECT_FALSE(sor.ok()) << "d=" << d;
+INSTANTIATE_TEST_SUITE_P(
+    ProtoUtilGoogleApi, ProtoUtilGoogleApiDurationTruncTest,
+    testing::ValuesIn(std::vector<DurationTruncTestCase>{
+        {"Tick", absl::Nanoseconds(1) / 4, 0, 0},
+        {"NegTick", -absl::Nanoseconds(1) / 4, 0, 0},
+        {"TwoSecPlusTick", absl::Seconds(2) + absl::Nanoseconds(1) / 4, 2, 0},
+        {"TwoSecMinusTick", absl::Seconds(2) - absl::Nanoseconds(1) / 4, 1,
+         999999999},
+        {"OneSecPlusTick", absl::Seconds(1) + absl::Nanoseconds(1) / 4, 1, 0},
+        {"OneSecMinusTick", absl::Seconds(1) - absl::Nanoseconds(1) / 4, 0,
+         999999999},
+        {"NegOneSecPlusTick", absl::Seconds(-1) + absl::Nanoseconds(1) / 4, 0,
+         -999999999},
+        {"NegOneSecMinusTick", absl::Seconds(-1) - absl::Nanoseconds(1) / 4, -1,
+         0},
+        {"NegTwoSecPlusTick", absl::Seconds(-2) + absl::Nanoseconds(1) / 4, -1,
+         -999999999},
+        {"NegTwoSecMinusTick", absl::Seconds(-2) - absl::Nanoseconds(1) / 4, -2,
+         0},
+        {"MinMinusTick",
+         util_time::MakeGoogleApiDurationMin() - absl::Nanoseconds(1) / 4,
+         -315576000000, -999999999},
+        {"MinPlusTick",
+         util_time::MakeGoogleApiDurationMin() + absl::Nanoseconds(1) / 4,
+         -315576000000, -999999998},
+        {"MaxMinusTick",
+         util_time::MakeGoogleApiDurationMax() - absl::Nanoseconds(1) / 4,
+         315576000000, 999999998},
+        {"MaxPlusTick",
+         util_time::MakeGoogleApiDurationMax() + absl::Nanoseconds(1) / 4,
+         315576000000, 999999999},
+    }),
+    [](const testing::TestParamInfo<DurationTruncTestCase>& info) {
+      return info.param.name;
+    });
 
-    google::protobuf::Duration proto;
-    const auto status = util_time::EncodeGoogleApiProto(d, &proto);
-    EXPECT_FALSE(status.ok()) << "d=" << d;
-  }
+struct EncodeDurationErrorTestCase {
+  const char* name;
+  absl::Duration d;
+};
+
+using ProtoUtilGoogleApiEncodeDurationErrorTest =
+    testing::TestWithParam<EncodeDurationErrorTestCase>;
+
+TEST_P(ProtoUtilGoogleApiEncodeDurationErrorTest, Error) {
+  const auto& tc = GetParam();
+  EXPECT_THAT(util_time::EncodeGoogleApiProto(tc.d), Not(IsOk()))
+      << "d=" << tc.d;
+
+  google::protobuf::Duration proto;
+  EXPECT_THAT(util_time::EncodeGoogleApiProto(tc.d, &proto), Not(IsOk()))
+      << "d=" << tc.d;
 }
 
-TEST(ProtoUtilGoogleApi, DecodeDurationError) {
-  const google::protobuf::Duration kTestCases[] = {
-      MakeGoogleApiDuration(1, -1),                                   //
-      MakeGoogleApiDuration(-1, 1),                                   //
-      MakeGoogleApiDuration(0, 999999999 + 1),                        //
-      MakeGoogleApiDuration(0, -999999999 - 1),                       //
-      MakeGoogleApiDuration(-315576000000 - 1, 0),                    //
-      MakeGoogleApiDuration(315576000000 + 1, 0),                     //
-      MakeGoogleApiDuration(std::numeric_limits<int64_t>::min(), 0),  //
-      MakeGoogleApiDuration(std::numeric_limits<int64_t>::max(), 0),  //
-      MakeGoogleApiDuration(0, std::numeric_limits<int32_t>::min()),  //
-      MakeGoogleApiDuration(0, std::numeric_limits<int32_t>::max()),  //
-      MakeGoogleApiDuration(std::numeric_limits<int64_t>::min(),
-                            std::numeric_limits<int32_t>::min()),  //
-      MakeGoogleApiDuration(std::numeric_limits<int64_t>::max(),
-                            std::numeric_limits<int32_t>::max()),  //
-  };
-  for (const auto& d : kTestCases) {
-    const auto sor = util_time::DecodeGoogleApiProto(d);
-    EXPECT_FALSE(sor.ok()) << "d=" << d.DebugString();
-  }
+INSTANTIATE_TEST_SUITE_P(
+    ProtoUtilGoogleApi, ProtoUtilGoogleApiEncodeDurationErrorTest,
+    testing::ValuesIn(std::vector<EncodeDurationErrorTestCase>{
+        {"BelowMin",
+         util_time::MakeGoogleApiDurationMin() - absl::Nanoseconds(1)},
+        {"AboveMax",
+         util_time::MakeGoogleApiDurationMax() + absl::Nanoseconds(1)},
+        {"NegInfinite", -absl::InfiniteDuration()},
+        {"PosInfinite", absl::InfiniteDuration()},
+    }),
+    [](const testing::TestParamInfo<EncodeDurationErrorTestCase>& info) {
+      return info.param.name;
+    });
+
+struct DecodeDurationErrorTestCase {
+  const char* name;
+  google::protobuf::Duration proto;
+};
+
+using ProtoUtilGoogleApiDecodeDurationErrorTest =
+    testing::TestWithParam<DecodeDurationErrorTestCase>;
+
+TEST_P(ProtoUtilGoogleApiDecodeDurationErrorTest, Error) {
+  const auto& tc = GetParam();
+  EXPECT_THAT(util_time::DecodeGoogleApiProto(tc.proto), Not(IsOk()))
+      << "proto=" << tc.proto.DebugString();
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    ProtoUtilGoogleApi, ProtoUtilGoogleApiDecodeDurationErrorTest,
+    testing::ValuesIn(std::vector<DecodeDurationErrorTestCase>{
+        {"PosSecNegNsec", MakeGoogleApiDuration(1, -1)},
+        {"NegSecPosNsec", MakeGoogleApiDuration(-1, 1)},
+        {"NsecTooLarge", MakeGoogleApiDuration(0, 999999999 + 1)},
+        {"NsecTooSmall", MakeGoogleApiDuration(0, -999999999 - 1)},
+        {"SecTooSmall", MakeGoogleApiDuration(-315576000000 - 1, 0)},
+        {"SecTooLarge", MakeGoogleApiDuration(315576000000 + 1, 0)},
+        {"Int64Min",
+         MakeGoogleApiDuration(std::numeric_limits<int64_t>::min(), 0)},
+        {"Int64Max",
+         MakeGoogleApiDuration(std::numeric_limits<int64_t>::max(), 0)},
+        {"Int32MinNsec",
+         MakeGoogleApiDuration(0, std::numeric_limits<int32_t>::min())},
+        {"Int32MaxNsec",
+         MakeGoogleApiDuration(0, std::numeric_limits<int32_t>::max())},
+        {"MinSecMinNsec",
+         MakeGoogleApiDuration(std::numeric_limits<int64_t>::min(),
+                               std::numeric_limits<int32_t>::min())},
+        {"MaxSecMaxNsec",
+         MakeGoogleApiDuration(std::numeric_limits<int64_t>::max(),
+                               std::numeric_limits<int32_t>::max())},
+    }),
+    [](const testing::TestParamInfo<DecodeDurationErrorTestCase>& info) {
+      return info.param.name;
+    });
 
 TEST(ProtoUtilGoogleApi, DurationProtoMax) {
   const auto proto_max = util_time::MakeGoogleApiDurationProtoMax();
@@ -211,111 +272,172 @@ TEST(ProtoUtilGoogleApi, DurationMinIsMin) {
       StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
-TEST(ProtoUtilGoogleApi, RoundTripTime) {
-  // Shorthand to make the test cases readable.
-  const absl::Time epoch = absl::UnixEpoch();  // The protobuf epoch.
-  const auto& s = [](int64_t n) { return absl::Seconds(n); };
-  const auto& ns = [](int64_t n) { return absl::Nanoseconds(n); };
-  const struct {
-    absl::Time t;
-    struct {
-      int64_t sec;
-      int32_t nsec;
-    } expected;
-  } kTestCases[] = {
-      {epoch, {0, 0}},
-      {epoch - ns(1), {-1, 999999999}},
-      {epoch + ns(1), {0, 1}},
-      {epoch + s(123) + ns(456), {123, 456}},
-      {epoch - ns(5), {-1, 999999995}},
-      {epoch - s(10) - ns(5), {-11, 999999995}},
-      {util_time::MakeGoogleApiTimeMin(), {-62135596800, 0}},
-      {util_time::MakeGoogleApiTimeMax(), {253402300799, 999999999}},
-  };
+struct GoogleApiTimeTestCase {
+  const char* name;
+  absl::Time t;
+  int64_t expected_sec;
+  int32_t expected_nsec;
+};
 
-  for (const auto& tc : kTestCases) {
-    RoundTripGoogleApi<absl::Time, google::protobuf::Timestamp>(
-        tc.t, tc.expected.sec, tc.expected.nsec);
-  }
+using ProtoUtilGoogleApiRoundTripTimeTest =
+    testing::TestWithParam<GoogleApiTimeTestCase>;
+
+TEST_P(ProtoUtilGoogleApiRoundTripTimeTest, RoundTrip) {
+  const auto& tc = GetParam();
+  RoundTripGoogleApi<absl::Time, google::protobuf::Timestamp>(
+      tc.t, tc.expected_sec, tc.expected_nsec);
 }
 
-TEST(ProtoUtilGoogleApi, TimeTruncTowardInfPast) {
-  const absl::Duration tick = absl::Nanoseconds(1) / 4;
-  const absl::Time before_epoch = absl::FromUnixSeconds(-1234567890);
-  const absl::Time epoch = absl::UnixEpoch();
-  const absl::Time after_epoch = absl::FromUnixSeconds(1234567890);
-  const struct {
-    absl::Time t;
-    struct {
-      int64_t sec;
-      int32_t nsec;
-    } expected;
-  } kTestCases[] = {
-      {before_epoch + tick, {-1234567890, 0}},
-      {before_epoch - tick, {-1234567890 - 1, 999999999}},
-      {epoch + tick, {0, 0}},
-      {epoch - tick, {-1, 999999999}},
-      {after_epoch + tick, {1234567890, 0}},
-      {after_epoch - tick, {1234567890 - 1, 999999999}},
-      {util_time::MakeGoogleApiTimeMin() + tick, {-62135596800, 0}},
-      {util_time::MakeGoogleApiTimeMax() - tick, {253402300799, 999999998}},
-      {util_time::MakeGoogleApiTimeMax() + tick, {253402300799, 999999999}},
-  };
+INSTANTIATE_TEST_SUITE_P(
+    ProtoUtilGoogleApi, ProtoUtilGoogleApiRoundTripTimeTest,
+    testing::ValuesIn(std::vector<GoogleApiTimeTestCase>{
+        {"Epoch", absl::UnixEpoch(), 0, 0},
+        {"EpochMinusOneNsec", absl::UnixEpoch() - absl::Nanoseconds(1), -1,
+         999999999},
+        {"EpochPlusOneNsec", absl::UnixEpoch() + absl::Nanoseconds(1), 0, 1},
+        {"Positive",
+         absl::UnixEpoch() + absl::Seconds(123) + absl::Nanoseconds(456), 123,
+         456},
+        {"EpochMinusFiveNsec", absl::UnixEpoch() - absl::Nanoseconds(5), -1,
+         999999995},
+        {"Negative",
+         absl::UnixEpoch() - absl::Seconds(10) - absl::Nanoseconds(5), -11,
+         999999995},
+        {"Min", util_time::MakeGoogleApiTimeMin(), -62135596800, 0},
+        {"Max", util_time::MakeGoogleApiTimeMax(), 253402300799, 999999999},
+    }),
+    [](const testing::TestParamInfo<GoogleApiTimeTestCase>& info) {
+      return info.param.name;
+    });
 
-  for (const auto& tc : kTestCases) {
-    const auto sor = util_time::EncodeGoogleApiProto(tc.t);
-    ABSL_ASSERT_OK(sor);
-    const auto& proto = sor.value();
-    EXPECT_EQ(proto.seconds(), tc.expected.sec) << "t=" << tc.t;
-    EXPECT_EQ(proto.nanos(), tc.expected.nsec) << "t=" << tc.t;
-  }
+struct TimeTruncTestCase {
+  const char* name;
+  absl::Time t;
+  int64_t expected_sec;
+  int32_t expected_nsec;
+};
+
+using ProtoUtilGoogleApiTimeTruncTest =
+    testing::TestWithParam<TimeTruncTestCase>;
+
+TEST_P(ProtoUtilGoogleApiTimeTruncTest, Truncate) {
+  const auto& tc = GetParam();
+  const auto sor = util_time::EncodeGoogleApiProto(tc.t);
+  ASSERT_THAT(sor, IsOk());
+  const auto& proto = sor.value();
+  EXPECT_EQ(proto.seconds(), tc.expected_sec) << "t=" << tc.t;
+  EXPECT_EQ(proto.nanos(), tc.expected_nsec) << "t=" << tc.t;
 }
 
-TEST(ProtoUtilGoogleApi, EncodeTimeError) {
-  const absl::Time kTestCases[] = {
-      util_time::MakeGoogleApiTimeMin() - absl::Nanoseconds(1),  //
-      util_time::MakeGoogleApiTimeMax() + absl::Nanoseconds(1),  //
-      absl::InfinitePast(),                                      //
-      absl::InfiniteFuture(),                                    //
-  };
+INSTANTIATE_TEST_SUITE_P(
+    ProtoUtilGoogleApi, ProtoUtilGoogleApiTimeTruncTest,
+    testing::ValuesIn(std::vector<TimeTruncTestCase>{
+        {"BeforeEpochPlusTick",
+         absl::FromUnixSeconds(-1234567890) + absl::Nanoseconds(1) / 4,
+         -1234567890, 0},
+        {"BeforeEpochMinusTick",
+         absl::FromUnixSeconds(-1234567890) - absl::Nanoseconds(1) / 4,
+         -1234567891, 999999999},
+        {"EpochPlusTick", absl::UnixEpoch() + absl::Nanoseconds(1) / 4, 0, 0},
+        {"EpochMinusTick", absl::UnixEpoch() - absl::Nanoseconds(1) / 4, -1,
+         999999999},
+        {"AfterEpochPlusTick",
+         absl::FromUnixSeconds(1234567890) + absl::Nanoseconds(1) / 4,
+         1234567890, 0},
+        {"AfterEpochMinusTick",
+         absl::FromUnixSeconds(1234567890) - absl::Nanoseconds(1) / 4,
+         1234567889, 999999999},
+        {"MinPlusTick",
+         util_time::MakeGoogleApiTimeMin() + absl::Nanoseconds(1) / 4,
+         -62135596800, 0},
+        {"MaxMinusTick",
+         util_time::MakeGoogleApiTimeMax() - absl::Nanoseconds(1) / 4,
+         253402300799, 999999998},
+        {"MaxPlusTick",
+         util_time::MakeGoogleApiTimeMax() + absl::Nanoseconds(1) / 4,
+         253402300799, 999999999},
+    }),
+    [](const testing::TestParamInfo<TimeTruncTestCase>& info) {
+      return info.param.name;
+    });
 
-  for (const auto& t : kTestCases) {
-    const auto sor = util_time::EncodeGoogleApiProto(t);
-    EXPECT_FALSE(sor.ok()) << "t=" << t;
+struct EncodeTimeErrorTestCase {
+  const char* name;
+  absl::Time t;
+};
 
-    google::protobuf::Timestamp proto;
-    const auto status = util_time::EncodeGoogleApiProto(t, &proto);
-    EXPECT_FALSE(status.ok()) << "t=" << t;
-  }
+using ProtoUtilGoogleApiEncodeTimeErrorTest =
+    testing::TestWithParam<EncodeTimeErrorTestCase>;
+
+TEST_P(ProtoUtilGoogleApiEncodeTimeErrorTest, Error) {
+  const auto& tc = GetParam();
+  EXPECT_THAT(util_time::EncodeGoogleApiProto(tc.t), Not(IsOk()))
+      << "t=" << tc.t;
+
+  google::protobuf::Timestamp proto;
+  EXPECT_THAT(util_time::EncodeGoogleApiProto(tc.t, &proto), Not(IsOk()))
+      << "t=" << tc.t;
 }
 
-TEST(ProtoUtilGoogleApi, DecodeTimeError) {
-  const google::protobuf::Timestamp kTestCases[] = {
-      MakeGoogleApiTimestamp(1, -1),             //
-      MakeGoogleApiTimestamp(1, 999999999 + 1),  //
-      MakeGoogleApiTimestamp(
-          absl::ToUnixSeconds(util_time::MakeGoogleApiTimeMin() -
-                              absl::Seconds(1)),
-          0),  //
-      MakeGoogleApiTimestamp(
-          absl::ToUnixSeconds(util_time::MakeGoogleApiTimeMax() +
-                              absl::Seconds(1)),
-          0),                                                          //
-      MakeGoogleApiTimestamp(std::numeric_limits<int64_t>::min(), 0),  //
-      MakeGoogleApiTimestamp(std::numeric_limits<int64_t>::max(), 0),  //
-      MakeGoogleApiTimestamp(0, std::numeric_limits<int32_t>::min()),  //
-      MakeGoogleApiTimestamp(0, std::numeric_limits<int32_t>::max()),  //
-      MakeGoogleApiTimestamp(std::numeric_limits<int64_t>::min(),
-                             std::numeric_limits<int32_t>::min()),  //
-      MakeGoogleApiTimestamp(std::numeric_limits<int64_t>::max(),
-                             std::numeric_limits<int32_t>::max()),  //
-  };
+INSTANTIATE_TEST_SUITE_P(
+    ProtoUtilGoogleApi, ProtoUtilGoogleApiEncodeTimeErrorTest,
+    testing::ValuesIn(std::vector<EncodeTimeErrorTestCase>{
+        {"BelowMin", util_time::MakeGoogleApiTimeMin() - absl::Nanoseconds(1)},
+        {"AboveMax", util_time::MakeGoogleApiTimeMax() + absl::Nanoseconds(1)},
+        {"InfinitePast", absl::InfinitePast()},
+        {"InfiniteFuture", absl::InfiniteFuture()},
+    }),
+    [](const testing::TestParamInfo<EncodeTimeErrorTestCase>& info) {
+      return info.param.name;
+    });
 
-  for (const auto& d : kTestCases) {
-    const auto sor = util_time::DecodeGoogleApiProto(d);
-    EXPECT_FALSE(sor.ok()) << "d=" << d.DebugString();
-  }
+struct DecodeTimeErrorTestCase {
+  const char* name;
+  google::protobuf::Timestamp proto;
+};
+
+using ProtoUtilGoogleApiDecodeTimeErrorTest =
+    testing::TestWithParam<DecodeTimeErrorTestCase>;
+
+TEST_P(ProtoUtilGoogleApiDecodeTimeErrorTest, Error) {
+  const auto& tc = GetParam();
+  EXPECT_THAT(util_time::DecodeGoogleApiProto(tc.proto), Not(IsOk()))
+      << "proto=" << tc.proto.DebugString();
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    ProtoUtilGoogleApi, ProtoUtilGoogleApiDecodeTimeErrorTest,
+    testing::ValuesIn(std::vector<DecodeTimeErrorTestCase>{
+        {"PosSecNegNsec", MakeGoogleApiTimestamp(1, -1)},
+        {"NsecTooLarge", MakeGoogleApiTimestamp(1, 999999999 + 1)},
+        {"BelowMinSec",
+         MakeGoogleApiTimestamp(
+             absl::ToUnixSeconds(util_time::MakeGoogleApiTimeMin() -
+                                 absl::Seconds(1)),
+             0)},
+        {"AboveMaxSec",
+         MakeGoogleApiTimestamp(
+             absl::ToUnixSeconds(util_time::MakeGoogleApiTimeMax() +
+                                 absl::Seconds(1)),
+             0)},
+        {"Int64Min",
+         MakeGoogleApiTimestamp(std::numeric_limits<int64_t>::min(), 0)},
+        {"Int64Max",
+         MakeGoogleApiTimestamp(std::numeric_limits<int64_t>::max(), 0)},
+        {"Int32MinNsec",
+         MakeGoogleApiTimestamp(0, std::numeric_limits<int32_t>::min())},
+        {"Int32MaxNsec",
+         MakeGoogleApiTimestamp(0, std::numeric_limits<int32_t>::max())},
+        {"MinSecMinNsec",
+         MakeGoogleApiTimestamp(std::numeric_limits<int64_t>::min(),
+                                std::numeric_limits<int32_t>::min())},
+        {"MaxSecMaxNsec",
+         MakeGoogleApiTimestamp(std::numeric_limits<int64_t>::max(),
+                                std::numeric_limits<int32_t>::max())},
+    }),
+    [](const testing::TestParamInfo<DecodeTimeErrorTestCase>& info) {
+      return info.param.name;
+    });
 
 TEST(ProtoUtilGoogleApi, TimestampProtoMax) {
   const auto proto_max = util_time::MakeGoogleApiTimestampProtoMax();
@@ -377,106 +499,131 @@ absl::Time MakeUnixTime(int64_t s, T n) {
 template <typename T>
 void RoundTripDeprecated(T v, int64_t expected_sec, int32_t expected_nsec) {
   const auto proto = util_time::ToProto(v);
-  EXPECT_EQ(expected_sec, proto.seconds()) << "Given: " << v;
-  EXPECT_EQ(expected_nsec, proto.nanos()) << "Given: " << v;
+  EXPECT_EQ(proto.seconds(), expected_sec) << "Given: " << v;
+  EXPECT_EQ(proto.nanos(), expected_nsec) << "Given: " << v;
   absl::Duration subsec;  // for checking if v is nanosecond aligned
   absl::IDivDuration(v - T(), absl::Seconds(1), &subsec);
   if (absl::Trunc(subsec, absl::Nanoseconds(1)) == subsec) {
-    const T v2 = util_time::FromProto(proto);
-    EXPECT_EQ(v, v2);
+    EXPECT_EQ(util_time::FromProto(proto), v);
   }
 }
 
-TEST(ProtoUtilDeprecated, Duration) {
-  const struct {
-    absl::Duration d;
-    int64_t expected_sec;
-    int32_t expected_nsec;
-  } kTestCases[] = {
-      {MakeDuration(0, 0), 0, 0},
-      {MakeDuration(0, 0.5), 0, 0},
-      {MakeDuration(123, 456), 123, 456},
-      {MakeDuration(123, 456.5), 123, 456},
-      {MakeDuration(std::numeric_limits<int64_t>::max(), 0),
-       std::numeric_limits<int64_t>::max(), 0},
-      {MakeDuration(std::numeric_limits<int64_t>::max(), 0.5),
-       std::numeric_limits<int64_t>::max(), 0},
-      {MakeDuration(std::numeric_limits<int64_t>::max(), 999999999),
-       std::numeric_limits<int64_t>::max(), 999999999},
-      {MakeDuration(std::numeric_limits<int64_t>::max(), 999999999.5),
-       std::numeric_limits<int64_t>::max(), 999999999},
-      {MakeDuration(0, -5), 0, -5},
-      {MakeDuration(0, -5.5), 0, -5},
-      {MakeDuration(-10, -5), -10, -5},
-      {MakeDuration(-10, -5.5), -10, -5},
-      {MakeDuration(std::numeric_limits<int64_t>::min(), 1.5),
-       std::numeric_limits<int64_t>::min() + 1, -999999998},
-      {MakeDuration(std::numeric_limits<int64_t>::min(), 1),
-       std::numeric_limits<int64_t>::min() + 1, -999999999},
-      {MakeDuration(std::numeric_limits<int64_t>::min(), 0.5),
-       std::numeric_limits<int64_t>::min() + 1, -999999999},
-      {MakeDuration(std::numeric_limits<int64_t>::min(), 0),
-       std::numeric_limits<int64_t>::min(), 0},
-  };
+struct DurationTestCase {
+  const char* name;
+  absl::Duration d;
+  int64_t expected_sec;
+  int32_t expected_nsec;
+};
 
-  for (const auto& tc : kTestCases) {
-    RoundTripDeprecated(tc.d, tc.expected_sec, tc.expected_nsec);
-  }
+using ProtoUtilDeprecatedDurationTest =
+    testing::TestWithParam<DurationTestCase>;
+
+TEST_P(ProtoUtilDeprecatedDurationTest, RoundTrip) {
+  const auto& tc = GetParam();
+  RoundTripDeprecated(tc.d, tc.expected_sec, tc.expected_nsec);
 }
 
-TEST(ProtoUtilDeprecated, Timestamp) {
-  const struct {
-    absl::Time t;
-    int64_t expected_sec;
-    int32_t expected_nsec;
-  } kTestCases[] = {
-      {MakeUnixTime(0, 0), 0, 0},
-      {MakeUnixTime(0, 0.5), 0, 0},
-      {MakeUnixTime(123, 456), 123, 456},
-      {MakeUnixTime(123, 456.5), 123, 456},
-      {MakeUnixTime(std::numeric_limits<int64_t>::max(), 0),
-       std::numeric_limits<int64_t>::max(), 0},
-      {MakeUnixTime(std::numeric_limits<int64_t>::max(), 0.5),
-       std::numeric_limits<int64_t>::max(), 0},
-      {MakeUnixTime(std::numeric_limits<int64_t>::max(), 999999999),
-       std::numeric_limits<int64_t>::max(), 999999999},
-      {MakeUnixTime(std::numeric_limits<int64_t>::max(), 999999999.5),
-       std::numeric_limits<int64_t>::max(), 999999999},
-      {MakeUnixTime(0, -5), -1, 999999995},
-      {MakeUnixTime(0, -5.5), -1, 999999994},
-      {MakeUnixTime(-10, -5), -11, 999999995},
-      {MakeUnixTime(-10, -5.5), -11, 999999994},
-      {MakeUnixTime(std::numeric_limits<int64_t>::min(), 1.5),
-       std::numeric_limits<int64_t>::min(), 1},
-      {MakeUnixTime(std::numeric_limits<int64_t>::min(), 1),
-       std::numeric_limits<int64_t>::min(), 1},
-      {MakeUnixTime(std::numeric_limits<int64_t>::min(), 0.5),
-       std::numeric_limits<int64_t>::min(), 0},
-      {MakeUnixTime(std::numeric_limits<int64_t>::min(), 0),
-       std::numeric_limits<int64_t>::min(), 0},
-  };
+INSTANTIATE_TEST_SUITE_P(
+    ProtoUtilDeprecated, ProtoUtilDeprecatedDurationTest,
+    testing::ValuesIn(std::vector<DurationTestCase>{
+        {"Zero", MakeDuration(0, 0), 0, 0},
+        {"Zero_HalfNsec", MakeDuration(0, 0.5), 0, 0},
+        {"Positive", MakeDuration(123, 456), 123, 456},
+        {"Positive_SubNsec", MakeDuration(123, 456.5), 123, 456},
+        {"Max_ZeroNsec", MakeDuration(std::numeric_limits<int64_t>::max(), 0),
+         std::numeric_limits<int64_t>::max(), 0},
+        {"Max_HalfNsec", MakeDuration(std::numeric_limits<int64_t>::max(), 0.5),
+         std::numeric_limits<int64_t>::max(), 0},
+        {"Max_MaxNsec",
+         MakeDuration(std::numeric_limits<int64_t>::max(), 999999999),
+         std::numeric_limits<int64_t>::max(), 999999999},
+        {"Max_MaxHalfNsec",
+         MakeDuration(std::numeric_limits<int64_t>::max(), 999999999.5),
+         std::numeric_limits<int64_t>::max(), 999999999},
+        {"NegNsec", MakeDuration(0, -5), 0, -5},
+        {"NegNsec_Half", MakeDuration(0, -5.5), 0, -5},
+        {"NegSec_NegNsec", MakeDuration(-10, -5), -10, -5},
+        {"NegSec_NegNsecHalf", MakeDuration(-10, -5.5), -10, -5},
+        {"Min_OneAndHalfNsec",
+         MakeDuration(std::numeric_limits<int64_t>::min(), 1.5),
+         std::numeric_limits<int64_t>::min() + 1, -999999998},
+        {"Min_OneNsec", MakeDuration(std::numeric_limits<int64_t>::min(), 1),
+         std::numeric_limits<int64_t>::min() + 1, -999999999},
+        {"Min_HalfNsec", MakeDuration(std::numeric_limits<int64_t>::min(), 0.5),
+         std::numeric_limits<int64_t>::min() + 1, -999999999},
+        {"Min_ZeroNsec", MakeDuration(std::numeric_limits<int64_t>::min(), 0),
+         std::numeric_limits<int64_t>::min(), 0},
+    }),
+    [](const testing::TestParamInfo<DurationTestCase>& info) {
+      return info.param.name;
+    });
 
-  for (const auto& tc : kTestCases) {
-    RoundTripDeprecated(tc.t, tc.expected_sec, tc.expected_nsec);
-  }
+struct TimestampTestCase {
+  const char* name;
+  absl::Time t;
+  int64_t expected_sec;
+  int32_t expected_nsec;
+};
+
+using ProtoUtilDeprecatedTimestampTest =
+    testing::TestWithParam<TimestampTestCase>;
+
+TEST_P(ProtoUtilDeprecatedTimestampTest, RoundTrip) {
+  const auto& tc = GetParam();
+  RoundTripDeprecated(tc.t, tc.expected_sec, tc.expected_nsec);
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    ProtoUtilDeprecated, ProtoUtilDeprecatedTimestampTest,
+    testing::ValuesIn(std::vector<TimestampTestCase>{
+        {"Epoch", MakeUnixTime(0, 0), 0, 0},
+        {"Epoch_HalfNsec", MakeUnixTime(0, 0.5), 0, 0},
+        {"Positive", MakeUnixTime(123, 456), 123, 456},
+        {"Positive_SubNsec", MakeUnixTime(123, 456.5), 123, 456},
+        {"Max_ZeroNsec", MakeUnixTime(std::numeric_limits<int64_t>::max(), 0),
+         std::numeric_limits<int64_t>::max(), 0},
+        {"Max_HalfNsec", MakeUnixTime(std::numeric_limits<int64_t>::max(), 0.5),
+         std::numeric_limits<int64_t>::max(), 0},
+        {"Max_MaxNsec",
+         MakeUnixTime(std::numeric_limits<int64_t>::max(), 999999999),
+         std::numeric_limits<int64_t>::max(), 999999999},
+        {"Max_MaxHalfNsec",
+         MakeUnixTime(std::numeric_limits<int64_t>::max(), 999999999.5),
+         std::numeric_limits<int64_t>::max(), 999999999},
+        {"NegNsec", MakeUnixTime(0, -5), -1, 999999995},
+        {"NegNsec_Half", MakeUnixTime(0, -5.5), -1, 999999994},
+        {"NegSec_NegNsec", MakeUnixTime(-10, -5), -11, 999999995},
+        {"NegSec_NegNsecHalf", MakeUnixTime(-10, -5.5), -11, 999999994},
+        {"Min_OneAndHalfNsec",
+         MakeUnixTime(std::numeric_limits<int64_t>::min(), 1.5),
+         std::numeric_limits<int64_t>::min(), 1},
+        {"Min_OneNsec", MakeUnixTime(std::numeric_limits<int64_t>::min(), 1),
+         std::numeric_limits<int64_t>::min(), 1},
+        {"Min_HalfNsec", MakeUnixTime(std::numeric_limits<int64_t>::min(), 0.5),
+         std::numeric_limits<int64_t>::min(), 0},
+        {"Min_ZeroNsec", MakeUnixTime(std::numeric_limits<int64_t>::min(), 0),
+         std::numeric_limits<int64_t>::min(), 0},
+    }),
+    [](const testing::TestParamInfo<TimestampTestCase>& info) {
+      return info.param.name;
+    });
 
 TEST(ProtoUtilDeprecated, Infinity) {
   const auto& dur_pos_inf = util_time::ToProto(absl::InfiniteDuration());
-  EXPECT_EQ(std::numeric_limits<int64_t>::max(), dur_pos_inf.seconds());
-  EXPECT_EQ(999999999, dur_pos_inf.nanos());
+  EXPECT_EQ(dur_pos_inf.seconds(), std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(dur_pos_inf.nanos(), 999999999);
 
   const auto& dur_neg_inf = util_time::ToProto(-absl::InfiniteDuration());
-  EXPECT_EQ(std::numeric_limits<int64_t>::min(), dur_neg_inf.seconds());
-  EXPECT_EQ(-999999999, dur_neg_inf.nanos());
+  EXPECT_EQ(dur_neg_inf.seconds(), std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(dur_neg_inf.nanos(), -999999999);
 
   const auto& time_future = util_time::ToProto(absl::InfiniteFuture());
-  EXPECT_EQ(std::numeric_limits<int64_t>::max(), time_future.seconds());
-  EXPECT_EQ(999999999, time_future.nanos());
+  EXPECT_EQ(time_future.seconds(), std::numeric_limits<int64_t>::max());
+  EXPECT_EQ(time_future.nanos(), 999999999);
 
   const auto& time_past = util_time::ToProto(absl::InfinitePast());
-  EXPECT_EQ(std::numeric_limits<int64_t>::min(), time_past.seconds());
-  EXPECT_EQ(0, time_past.nanos());
+  EXPECT_EQ(time_past.seconds(), std::numeric_limits<int64_t>::min());
+  EXPECT_EQ(time_past.nanos(), 0);
 }
 
 }  // namespace deprecated
