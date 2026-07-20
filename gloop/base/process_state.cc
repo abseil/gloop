@@ -493,8 +493,42 @@ static absl::string_view SigName(int signo) {
   }
 }
 
+#if !PORTABLE_BASE
+#if defined(__x86_64__)
+constexpr int kRedZoneSize = 128;
+#elif defined(__i386__)
+constexpr int kRedZoneSize = 0;
+#elif defined(__arm__)
+constexpr int kRedZoneSize = 0;
+#elif defined(__aarch64__)
+constexpr int kRedZoneSize = 0;
+#elif defined(__riscv)
+constexpr int kRedZoneSize = 0;
+#else
+#error Implement me.
+#endif
+
+static uintptr_t StackPointerFromUcontext(const void* uc) {
+  const ucontext_t* const ucp = reinterpret_cast<const ucontext_t*>(uc);
+#if defined(__x86_64__)
+  return ucp->uc_mcontext.gregs[REG_RSP];
+#elif defined(__i386__)
+  return ucp->uc_mcontext.gregs[REG_ESP];
+#elif defined(__arm__)
+  return ucp->uc_mcontext.arm_sp;
+#elif defined(__aarch64__)
+  return ucp->uc_mcontext.sp;
+#elif defined(__riscv)
+  return ucp->uc_mcontext.__gregs[REG_SP];
+#else
+#error Implement me.
+#endif
+}
+#endif  // PORTABLE_BASE
+
 static void FormatSignalMessage(char* buf, int bufsize, int signo,
-                                siginfo_t* si, bool dump_trace, int cpu) {
+                                const void* /*uc*/, siginfo_t* si,
+                                bool dump_trace, int cpu) {
   char on_cpu[32] = {0};
   char signal_desc[128] = {0};
   char signal_sender[32] = {0};
@@ -737,7 +771,7 @@ static void LoopingSignalHandler(int signo, siginfo_t* si, void* uc) {
   base::internal::EmitSymbolizerURL(uc);
 
   char buf[250];
-  FormatSignalMessage(buf, sizeof(buf), signo, si, true, -1);
+  FormatSignalMessage(buf, sizeof(buf), signo, uc, si, true, -1);
   (void)write(STDERR_FILENO, buf, strlen(buf));
 
   DumpPCAndStackTraceForSignalHandler(uc, DebugWriteToStderr, nullptr);
@@ -825,24 +859,7 @@ static void DumpStackContents(StackDumpMode mode, void* uc, int signo,
 #if !PORTABLE_BASE
   char buf[250];
   const ucontext_t* const ucp = reinterpret_cast<const ucontext_t*>(uc);
-#if defined(__x86_64__)
-  uintptr_t usp = ucp->uc_mcontext.gregs[REG_RSP];
-  const int kRedZoneSize = 128;
-#elif defined(__i386__)
-  uintptr_t usp = ucp->uc_mcontext.gregs[REG_ESP];
-  const int kRedZoneSize = 0;
-#elif defined(__arm__)
-  uintptr_t usp = ucp->uc_mcontext.arm_sp;
-  const int kRedZoneSize = 0;
-#elif defined(__aarch64__)
-  uintptr_t usp = ucp->uc_mcontext.sp;
-  const int kRedZoneSize = 0;
-#elif defined(__riscv)
-  uintptr_t usp = ucp->uc_mcontext.__gregs[REG_SP];
-  const int kRedZoneSize = 0;
-#else
-#error Implement me.
-#endif
+  uintptr_t usp = StackPointerFromUcontext(ucp);
   uintptr_t crash_usp = usp;
 
   // If the signal is one for which si->si_addr (the address that caused
@@ -893,7 +910,7 @@ static void DumpStackContents(StackDumpMode mode, void* uc, int signo,
   }
 
   if (usp < stack_low) {
-    // Don't try to print unaddressable (below stack boundary) memory.
+    // Don't try to print inaccessible (below stack boundary) memory.
     sp = reinterpret_cast<void**>(stack_low);
   }
 
@@ -1137,7 +1154,8 @@ static void FailureSignalHandler(int signo, siginfo_t* si, void* uc) {
   base::internal::EmitSymbolizerURL(uc);
 
   char sigmsg[250];
-  FormatSignalMessage(sigmsg, sizeof(sigmsg), signo, si, dump_trace, my_cpu);
+  FormatSignalMessage(sigmsg, sizeof(sigmsg), signo, uc, si, dump_trace,
+                      my_cpu);
   (void)write(STDERR_FILENO, sigmsg, strlen(sigmsg));
 
   if (dump_trace) {
@@ -1185,7 +1203,7 @@ static void FailureSignalHandler(int signo, siginfo_t* si, void* uc) {
         absl::LogSeverityAtLeast::kInfinity);
 
     if (!dump_trace) {
-      FormatSignalMessage(sigmsg, sizeof(sigmsg), signo, si, true, my_cpu);
+      FormatSignalMessage(sigmsg, sizeof(sigmsg), signo, uc, si, true, my_cpu);
     }
 
     if (signo == SIGTERM) {
