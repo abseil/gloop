@@ -62,7 +62,7 @@ class PercpuGrowingArray {
 
   size_t SliceSize(int i) const { return kPageSize << i; }
 #if defined(__x86_64__) || defined(ARCH_ARM) || defined(__aarch64__) || \
-    defined(__riscv)
+    defined(__riscv) || defined(__arm__) || defined(__i386__)
   static constexpr size_t kNumSlices = 20;
   static constexpr size_t kPageSize = 4096;
 #elif defined(ARCH_PPC) || defined(__wasm__)
