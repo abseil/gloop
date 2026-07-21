@@ -165,7 +165,7 @@ class PerThread {
   // large enough to hold a pointer.)
   struct CacheEntry {
     std::atomic<intptr_t> sp;  // stack pointer page frame
-    void** data;               // pointer to per-thread data
+    std::atomic<void**> data;  // pointer to per-thread data
   };
   static CacheEntry per_thread_cache[];
 
@@ -205,11 +205,13 @@ inline void* PerThread::GetData(const PerThread::Key& data_key) {
     // to reduce the size of the inlined code.  The rest are handled by
     // the slow path.
     if (e[0].sp.load(std::memory_order_relaxed) == sp) {
-      return *static_cast<void**>(PtrAdd(e[0].data, local_data_key));
+      return *static_cast<void**>(
+          PtrAdd(e[0].data.load(std::memory_order_relaxed), local_data_key));
     }
     if (1 < (1 << PerThread::kLog2CacheAssoc) &&
         e[1].sp.load(std::memory_order_relaxed) == sp) {
-      return *static_cast<void**>(PtrAdd(e[1].data, local_data_key));
+      return *static_cast<void**>(
+          PtrAdd(e[1].data.load(std::memory_order_relaxed), local_data_key));
     }
     void** data = PerThread::DataSlowPathNonTLS(false, 2, sp, e);
     // false means "no malloc", 2 is number of elements examined
@@ -243,11 +245,13 @@ inline void** PerThread::Data(const PerThread::Key& data_key) {
     // to reduce the size of the inlined code.  The rest are handled by
     // the slow path.
     if (e[0].sp.load(std::memory_order_relaxed) == sp) {
-      return static_cast<void**>(PtrAdd(e[0].data, local_data_key));
+      return static_cast<void**>(
+          PtrAdd(e[0].data.load(std::memory_order_relaxed), local_data_key));
     }
     if (1 < (1 << PerThread::kLog2CacheAssoc) &&
         e[1].sp.load(std::memory_order_relaxed) == sp) {
-      return static_cast<void**>(PtrAdd(e[1].data, local_data_key));
+      return static_cast<void**>(
+          PtrAdd(e[1].data.load(std::memory_order_relaxed), local_data_key));
     }
     return static_cast<void**>(
         PtrAdd(PerThread::DataSlowPathNonTLS(true, 2, sp, e), local_data_key));
