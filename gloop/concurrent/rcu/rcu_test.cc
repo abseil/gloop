@@ -45,6 +45,7 @@
 #include "absl/random/distributions.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/blocking_counter.h"
 #include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
@@ -89,6 +90,99 @@ TEST_F(RcuTest, IndependentDomains) {
 
   // This should still complete
   d2.Synchronize();
+}
+
+// Verifies that a pinned/blocked domain does not starve other domains in the
+// queue. See b/528371810 for context.
+TEST_F(RcuTest, DomainSchedulerFairness) {
+  rcu::Domain d1, d2;
+  absl::Notification d1_callback_ran;
+  std::atomic<bool> holder_released{false};
+
+  // Permanently pin Domain d1 by holding an active reader lock on it.
+  auto holder = std::make_unique<rcu::ReaderLockHolder>(&d1);
+
+  // Register a dummy callback on d1.
+  // Because d1 is pinned, this callback can never complete while the lock is
+  // held. This forces d1 to remain stuck in RCU's active background domains
+  // list. We verify that it does not run prematurely (before holder is
+  // released).
+  d1.Call([&d1_callback_ran, &holder_released]() {
+    if (!holder_released.load(std::memory_order_acquire)) {
+      ADD_FAILURE() << "d1 callback ran while domain was blocked!";
+    }
+    d1_callback_ran.Notify();
+  });
+
+  // Sleep for 100ms on the main thread to give the cleanup thread a good chance
+  // to wake up, pop d1, and enter the spinning starvation loop before we
+  // register any callbacks on d2.
+  absl::SleepFor(absl::Milliseconds(100));
+
+  // Register an asynchronous callback on Domain d2.
+  absl::Notification callback_ran;
+  d2.Call([&callback_ran]() { callback_ran.Notify(); });
+
+  // Wait for the callback on d2 to be executed by the cleanup thread.
+  // Verify Domain d2's callbacks were not starved by pinned Domain d1.
+  callback_ran.WaitForNotification();
+
+  // Verify d1 callback hasn't run yet (since d1 is still blocked)
+  EXPECT_FALSE(d1_callback_ran.HasBeenNotified());
+
+  // Unblock d1 to allow clean shutdown and verify it runs eventually.
+  holder_released.store(true, std::memory_order_release);
+  holder.reset();
+
+  d1_callback_ran.WaitForNotification();
+}
+
+TEST_F(RcuTest, MultipleQueueCallsOnBlockedDomain) {
+  rcu::Domain d1;
+  const int kNumCalls = 10;
+  absl::BlockingCounter counter(kNumCalls);
+
+  // Block d1
+  auto holder = std::make_unique<rcu::ReaderLockHolder>(&d1);
+
+  // Call Call() multiple times while blocked.
+  // We sleep between calls to allow the cleanup thread to pop the domain
+  // and reset the queued_for_run_ flag, forcing duplicates in buggy code.
+  for (int i = 0; i < kNumCalls; ++i) {
+    d1.Call([&counter]() { counter.DecrementCount(); });
+    absl::SleepFor(absl::Milliseconds(5));
+  }
+
+  // We expect that consecutive Call() invocations on a blocked domain do not
+  // result in duplicate entries in RCU's active cleanup list.
+  // Any duplicate queue requests should be merged, keeping the active queue
+  // count (num_queues_) at exactly 1.
+  // Wait for the cleanup thread to process the final pop and deduplicate
+  // callbacks.
+  while (rcu::DomainTestPeer::num_queues(d1) > 1) {
+    absl::SleepFor(absl::Milliseconds(1));
+  }
+  EXPECT_EQ(rcu::DomainTestPeer::num_queues(d1), 1)
+      << "Duplicates were queued! num_queues should be 1.";
+
+  // Unblock d1
+  holder.reset();
+
+  // Wait for all callbacks to complete.
+  counter.Wait();
+}
+
+TEST_F(RcuTest, SequentialCallsOnSameDomain) {
+  rcu::Domain d1;
+  absl::Notification cb1_ran;
+  d1.Call([&cb1_ran]() { cb1_ran.Notify(); });
+  cb1_ran.WaitForNotification();
+
+  // Verify that after the first cleanup completes, in_cleanup_list_ is reset
+  // so a subsequent Call() on the same domain executes successfully.
+  absl::Notification cb2_ran;
+  d1.Call([&cb2_ran]() { cb2_ran.Notify(); });
+  cb2_ran.WaitForNotification();
 }
 
 TEST_F(RcuTest, CallIsAsync) {

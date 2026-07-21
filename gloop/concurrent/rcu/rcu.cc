@@ -76,6 +76,7 @@ Domain::Domain() : destruct_(true) {
   current_phase_ = cleanup_phase_ = 0;
   queued_for_run_.store(false, std::memory_order_relaxed);
   num_queues_.store(0, std::memory_order_relaxed);
+  in_cleanup_list_ = false;
 }
 
 Domain::~Domain() {
@@ -409,7 +410,22 @@ bool AddNewDomains(std::vector<Domain*>* domains) {
     Domain* d = &*i;
     i++;
     d->queued_for_run_.store(false, std::memory_order_release);
-    domains->push_back(d);
+
+    // Avoid d to domains if it's already in there.
+    if (!d->in_cleanup_list_) {
+      d->in_cleanup_list_ = true;
+      domains->push_back(d);
+    } else {
+      // We're here because d->Enqueue() was called and added d to to_run
+      // and incremented d->num_queues_. However, since d is already in domains,
+      // we skip it, which means there will not be a corresponding RunDomain(d)
+      // call, which would otherwise decrement d->num_queues_, which means we
+      // need to decrement it here.
+      //
+      // NOTE: Memory order is seq_cst for the same historical reason as the
+      // fetch_sub in RunDomain().
+      d->num_queues_.fetch_sub(1, std::memory_order_seq_cst);
+    }
   }
 
   return any;
@@ -429,6 +445,7 @@ bool RunDomain(Domain* d) {
   size_t fences;
   if (d->TryRunCallbacks(&fences)) {
     success = true;
+    d->in_cleanup_list_ = false;
     // this is a Release_AtomicIncrement (ENOFUNC)
     d->num_queues_.fetch_sub(1, std::memory_order_seq_cst);
   }
@@ -462,7 +479,7 @@ void* run_domain_callbacks_thread(void*) {
     // We will interact with the memory allocator during cleanups.
     tcmalloc::MallocExtension::MarkThreadBusy();
 
-    while (!domains.empty() || AddNewDomains(&domains)) {
+    while (AddNewDomains(&domains) || !domains.empty()) {
       unfinished.clear();
       for (auto d : domains) {
         if (!RunDomain(d)) unfinished.push_back(d);
