@@ -527,8 +527,8 @@ static uintptr_t StackPointerFromUcontext(const void* uc) {
 #endif  // PORTABLE_BASE
 
 static void FormatSignalMessage(char* buf, int bufsize, int signo,
-                                const void* /*uc*/, siginfo_t* si,
-                                bool dump_trace, int cpu) {
+                                const void* uc, siginfo_t* si, bool dump_trace,
+                                int cpu) {
   char on_cpu[32] = {0};
   char signal_desc[128] = {0};
   char signal_sender[32] = {0};
@@ -858,12 +858,11 @@ static void DumpStackContents(StackDumpMode mode, void* uc, int signo,
                               void* writerfn_arg) {
 #if !PORTABLE_BASE
   char buf[250];
-  const ucontext_t* const ucp = reinterpret_cast<const ucontext_t*>(uc);
-  uintptr_t usp = StackPointerFromUcontext(ucp);
-  uintptr_t crash_usp = usp;
+  uintptr_t usp = StackPointerFromUcontext(uc);
+  uintptr_t crash_addr = usp;
 
   // If the signal is one for which si->si_addr (the address that caused
-  // the crash) is set, record that address in crash_usp. It could be
+  // the crash) is set, record that address in crash_addr. It could be
   // below the SP at crash due to e.g. red zone access, or it could be
   // completely unrelated to stack at all (when crash is not caused by the
   // stack overflow in the first place).
@@ -872,10 +871,7 @@ static void DumpStackContents(StackDumpMode mode, void* uc, int signo,
     case SIGSEGV:
     case SIGILL:
     case SIGFPE: {
-      uintptr_t crash_addr = si ? reinterpret_cast<uintptr_t>(si->si_addr) : 0;
-      if (crash_usp - crash_addr <= kRedZoneSize) {
-        crash_usp = crash_addr;
-      }
+      if (si != nullptr) crash_addr = reinterpret_cast<uintptr_t>(si->si_addr);
       break;
     }
   }
@@ -903,6 +899,8 @@ static void DumpStackContents(StackDumpMode mode, void* uc, int signo,
   // everything to try to print as much useful information as possible.
   stack_low = 0;
   stack_high = std::numeric_limits<size_t>::max();
+
+  (void)crash_addr;
 
   // Return if we only wanted the warnings above to be printed.
   if (mode == StackDumpMode::kImportant) {

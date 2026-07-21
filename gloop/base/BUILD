@@ -1661,6 +1661,12 @@ cc_test(
     name = "process_state_test",
     size = "small",
     srcs = ["process_state_test.cc"],
+    features = [
+        # This test uses alloca to push SP past stack limits.
+        # Auto-initialization of resulting buffer causes a crash.
+        # Turn that feature off for this test.
+        "-stack_auto_init_pattern",
+    ],
     deps = [
         ":config",
         ":process_state",

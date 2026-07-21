@@ -541,10 +541,17 @@ void ABSL_ATTRIBUTE_NOINLINE Crash() {
 }
 
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
-static void FunctionWhichCausesStackOverflow() {
+static void FunctionWhichCausesStackOverflow(int per_frame_size = 0) {
   volatile int x = 0;
+
+  if (per_frame_size > 0) {
+    volatile char* const buffer =
+        reinterpret_cast<volatile char*>(alloca(per_frame_size));
+    buffer[per_frame_size - 1] = 'b';
+  }
+
   if (++x) {  // prevent the compiler from proving infinite recursion
-    FunctionWhichCausesStackOverflow();
+    FunctionWhichCausesStackOverflow(per_frame_size);
   }
   ++x;  // prevent tail-call optimization
 }
@@ -598,12 +605,6 @@ TEST(StackTrace, FromFailureSignalHandlerOnOtherThread) {
   const char* regex = "anonymous namespace.*::MyThread::Run";
   EXPECT_DEATH(CreateThreadAndCrash(), regex);
 }
-
-struct OverFlowThread : public Thread {
-  OverFlowThread(const thread::Options& options, absl::string_view name_prefix)
-      : Thread(options, name_prefix) {}
-  void Run() override { FunctionWhichCausesStackOverflow(); }
-};
 
 ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL static void TrapLeaf() {
 // Clang defines a __has_builtin test macro, which we can use to test for
