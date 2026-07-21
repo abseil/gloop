@@ -489,6 +489,35 @@ void DumpRegisterContext(
 }
 #endif  // defined(__linux__)
 
+#ifdef __linux__
+// Helper to format and dump a single address map line.
+static void DumpAddressMapLine(DebugWriter* writer, void* writer_arg,
+                               char* out_buffer, const size_t out_buf_size,
+                               const uint64_t begin, const uint64_t end,
+                               const char* const filename, const uint64_t pos) {
+  // Print out the mapping, with the file offset if nonzero.
+  int n = snprintf(out_buffer, out_buf_size, "  %08llx-%08llx: %s",
+                   static_cast<unsigned long long>(begin),  // NOLINT
+                   static_cast<unsigned long long>(end),    // NOLINT
+                   filename);
+  if (n < 0 || static_cast<size_t>(n) >= out_buf_size) {
+    return;
+  }
+  if (pos == 0) {
+    // Append a newline.
+    if (static_cast<size_t>(n + 1) < out_buf_size) {
+      out_buffer[n] = '\n';
+      out_buffer[n + 1] = '\0';
+    }
+  } else {
+    // Append offset.
+    snprintf(out_buffer + n, out_buf_size - n, " (@%llx)\n",
+             static_cast<unsigned long long>(pos));  // NOLINT
+  }
+  writer(out_buffer, writer_arg);
+}
+#endif  // __linux__
+
 // Dump a list of executable mappings (mostly shared libraries) to writer.
 // Currently Linux-only; grovels through /proc/self/maps.
 // Async-termination-safe (acquires no locks),
@@ -579,21 +608,8 @@ void DumpAddressMap(DebugWriter* writer, void* writer_arg) {
           sprintf(filename, "$build%s", end);
         }
 
-        // Print out the mapping, with the file offset if nonzero.
-        int n = sprintf(out_buffer, "  %08llx-%08llx: %s",
-                        static_cast<unsigned long long>(begin),  // NOLINT
-                        static_cast<unsigned long long>(end),    // NOLINT
-                        filename);
-        if (pos == 0) {
-          // Append a newline.
-          out_buffer[n] = '\n';
-          out_buffer[++n] = '\0';
-        } else {
-          // Append offset.
-          sprintf(out_buffer + n, " (@%llx)\n",
-                  static_cast<unsigned long long>(pos));  // NOLINT
-        }
-        writer(out_buffer, writer_arg);
+        DumpAddressMapLine(writer, writer_arg, out_buffer, kOutBufSize, begin,
+                           end, filename, pos);
       }
     }
   }
