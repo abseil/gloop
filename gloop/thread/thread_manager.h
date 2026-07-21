@@ -133,6 +133,9 @@ struct ManagerOptions {
   // Expert clients may set "policy" to control thread-creation policy; see
   // thread_manager_policy.h.  Most users should use the default: 0.
   // The ThreadManager destructor will "delete policy".
+  ABSL_DEPRECATED(
+      "ThreadManagerPolicy is almost never set in google3. "
+      "Remaining callers are being removed to remove this option.")
   ThreadManagerPolicy* policy;
 
   WatchdogCallback get_watchdog_callback() const { return watchdog_callback; }

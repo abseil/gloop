@@ -150,6 +150,13 @@ ABSL_FLAG(bool, threadmanager_eager_gc_threads, true,
           "NOTE: This flag is only intended for short-term rollbacks in case "
           "of an issue and will be enabled for all users then removed soon. ");
 
+ABSL_FLAG(
+    bool, threadmanager_ignore_policy, true,
+    "If true, threadmanager will ignore the policy set and always use the "
+    "default policy. "
+    "NOTE: This flag is only intended for short-term rollbacks in case "
+    "of an issue and will be enabled for all users then removed soon. ");
+
 namespace thread_internal {
 
 // Forward declaration from executor.cc
@@ -1008,8 +1015,13 @@ static ThreadManager::Rep* TMRepNew(absl::string_view name_prefix,
                   std::memory_order_relaxed);  // init arbitrarily
   rep->thread_options = options.thread_options;
   rep->watchdog_callback = options.get_watchdog_callback();
-  if (options.policy != nullptr) {
-    rep->policy = options.policy;
+  ThreadManagerPolicy* policy = options.policy;
+  if (absl::GetFlag(FLAGS_threadmanager_ignore_policy)) {
+    delete policy;
+    policy = nullptr;
+  }
+  if (policy != nullptr) {
+    rep->policy = policy;
   } else {
     tm_mu.lock();
     int (*num_cpus)() = tm_num_cpus;
