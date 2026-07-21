@@ -71,6 +71,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/call_once.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
@@ -80,6 +81,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/mutex.h"
 #include "gloop/base/commandlineflags.h"
 #include "gloop/base/port.h"  // IWYU pragma: keep
 #include "gloop/util/symbolize/symbol_map_sink.h"
@@ -603,8 +605,7 @@ class ElfReaderImpl {
         plts_supported_(false),
         plt_code_size_(0),
         plt0_size_(0),
-        plt_shndx_(-1),
-        visited_relocation_entries_(false) {
+        plt_shndx_(-1) {
     CHECK_GE(fd_, 0);
     std::string error;
     CHECK(IsArchElfFile(fd, off, &error)) << " Could not parse file: " << error;
@@ -948,22 +949,27 @@ class ElfReaderImpl {
         const std::string plt_name = absl::StrCat(name, kPLTFunctionSuffix);
         std::string& plt_name_ref = plt_function_names_[symbol_index];
 
-        if (plt_name_ref.empty()) {
-          plt_name_ref = plt_name;
-        } else if (plt_name_ref != plt_name) {
-          LOG(WARNING) << "Current PLT name " << plt_name
-                       << " does not match previously visited PLT name "
-                       << plt_name_ref << " for dynamic symbol with index "
-                       << symbol_index;
+        const char* plt_name_c_str;
+        {
+          absl::MutexLock lock(&plt_function_names_mu_);
+          if (plt_name_ref.empty()) {
+            plt_name_ref = plt_name;
+          } else if (plt_name_ref != plt_name) {
+            LOG(WARNING) << "Current PLT name " << plt_name
+                         << " does not match previously visited PLT name "
+                         << plt_name_ref << " for dynamic symbol with index "
+                         << symbol_index;
+          }
+          plt_name_c_str = plt_name_ref.c_str();
         }
         DCHECK_GE(plt_shndx_, 0);
         if (!sink->filter ||
-            sink->filter(plt_name_ref.c_str(),
-                         symbols_plt_offsets_[symbol_index], plt_code_size_,
-                         ElfArch::Bind(sym), ElfArch::Type(sym), plt_shndx_)) {
-          sink->AddSymbol(plt_name_ref.c_str(),
-                          symbols_plt_offsets_[symbol_index], plt_code_size_,
-                          ElfArch::Bind(sym), ElfArch::Type(sym), plt_shndx_);
+            sink->filter(plt_name_c_str, symbols_plt_offsets_[symbol_index],
+                         plt_code_size_, ElfArch::Bind(sym), ElfArch::Type(sym),
+                         plt_shndx_)) {
+          sink->AddSymbol(plt_name_c_str, symbols_plt_offsets_[symbol_index],
+                          plt_code_size_, ElfArch::Bind(sym),
+                          ElfArch::Type(sym), plt_shndx_);
         }
       }
       if (!sink->filter ||
@@ -978,107 +984,104 @@ class ElfReaderImpl {
   }
 
   void VisitRelocationEntries() {
-    if (visited_relocation_entries_) {
-      return;
-    }
-    visited_relocation_entries_ = true;
-
-    if (!plts_supported_) {
-      return;
-    }
-    // First determine if PLTs exist. If not, then there is nothing to do.
-    plt_shndx_ = GetSectionIndexByName(kElfPLTSectionName);
-    if (plt_shndx_ < 0) {
-      return;
-    }
-
-    ElfReader::SectionInfo plt_section_info{};
-    GetSectionInfoByIndex(plt_shndx_, &plt_section_info,
-                          /*read_contents=*/false);
-    if (plt_section_info.size == 0 && plt_section_info.offset == 0) {
-      // Section not found.
-      return;
-    }
-    if (plt_section_info.size == 0) {
-      LOG(ERROR) << "Section " << kElfPLTSectionName << " is empty.";
-      return;
-    }
-
-    // The PLTs could be referenced by either a Rel or Rela (Rel with Addend)
-    // section.
-    ElfReader::SectionInfo rel_section_info;
-    ElfReader::SectionInfo rela_section_info;
-    const char* rel_section =
-        GetSectionInfoByName(kElfPLTRelSectionName, &rel_section_info);
-    const char* rela_section =
-        GetSectionInfoByName(kElfPLTRelaSectionName, &rela_section_info);
-
-    const typename ElfArch::Rel* rel =
-        reinterpret_cast<const typename ElfArch::Rel*>(rel_section);
-    const typename ElfArch::Rela* rela =
-        reinterpret_cast<const typename ElfArch::Rela*>(rela_section);
-
-    if (!rel_section && !rela_section) {
-      LOG(ERROR) << "Could not find either " << kElfPLTRelSectionName << " or "
-                 << kElfPLTRelaSectionName << " sections.";
-      return;
-    }
-
-    if (rel_section && rela_section) {
-      LOG(WARNING) << "Both " << kElfPLTRelSectionName << " and "
-                   << kElfPLTRelaSectionName << " sections exist, using "
-                   << kElfPLTRelSectionName << " by default.";
-    }
-
-    // Use either Rel or Rela section, depending on which one exists.
-    size_t section_size =
-        rel_section ? rel_section_info.size : rela_section_info.size;
-    size_t entry_size = rel_section ? sizeof(typename ElfArch::Rel)
-                                    : sizeof(typename ElfArch::Rela);
-
-    // Determine the number of entries in the dynamic symbol table.
-    ElfReader::SectionInfo dynsym_section_info;
-    const char* dynsym_section =
-        GetSectionInfoByName(kElfDynSymSectionName, &dynsym_section_info);
-    // The dynsym section might not exist, or it might be empty. In either case
-    // there is nothing to be done so return.
-    if (!dynsym_section || dynsym_section_info.size == 0) {
-      LOG(WARNING) << "Could not find section " << kElfDynSymSectionName
-                   << " in file containing relocation and PLT info.";
-      return;
-    }
-    // This CHECK avoids a potential division by zero.
-    CHECK_NE(dynsym_section_info.entsize, 0)
-        << kElfDynSymSectionName << " exists but has entsize=0.";
-    size_t num_dynamic_symbols =
-        dynsym_section_info.size / dynsym_section_info.entsize;
-    symbols_plt_offsets_.resize(num_dynamic_symbols, 0);
-
-    // TODO: Can be removed once all Java code is using the
-    // Google3 launcher.
-    if (!absl::GetFlag(FLAGS_elfreader_process_dynsyms)) {
-      // Do not perform PLT function processing for JVM code. We need to avoid
-      // processing PLT functions in Java as it causes memory fragmentation in
-      // malloc, which is fixed in tcmalloc - and if the Google3 launcher is
-      // used the JVM will then use tcmalloc. b/13735638
-    } else {
-      // Make storage room for PLT function name strings.
-      plt_function_names_.resize(num_dynamic_symbols);
-    }
-
-    for (size_t i = 0; i < section_size / entry_size; ++i) {
-      // Determine symbol index from the |r_info| field.
-      int sym_index =
-          ElfArch::r_sym(rel_section ? rel[i].r_info : rela[i].r_info);
-      if (sym_index >= symbols_plt_offsets_.size()) {
-        LOG(ERROR) << "Relocation table references symbol with index "
-                   << sym_index << " but only " << symbols_plt_offsets_.size()
-                   << " dynamic symbols exist.";
-        continue;
+    absl::call_once(visited_relocation_entries_once_, [this]() {
+      if (!plts_supported_) {
+        return;
       }
-      symbols_plt_offsets_[sym_index] =
-          plt_section_info.addr + plt0_size_ + i * plt_code_size_;
-    }
+      // First determine if PLTs exist. If not, then there is nothing to do.
+      plt_shndx_ = GetSectionIndexByName(kElfPLTSectionName);
+      if (plt_shndx_ < 0) {
+        return;
+      }
+
+      ElfReader::SectionInfo plt_section_info{};
+      GetSectionInfoByIndex(plt_shndx_, &plt_section_info,
+                            /*read_contents=*/false);
+      if (plt_section_info.size == 0 && plt_section_info.offset == 0) {
+        // Section not found.
+        return;
+      }
+      if (plt_section_info.size == 0) {
+        LOG(ERROR) << "Section " << kElfPLTSectionName << " is empty.";
+        return;
+      }
+
+      // The PLTs could be referenced by either a Rel or Rela (Rel with Addend)
+      // section.
+      ElfReader::SectionInfo rel_section_info;
+      ElfReader::SectionInfo rela_section_info;
+      const char* rel_section =
+          GetSectionInfoByName(kElfPLTRelSectionName, &rel_section_info);
+      const char* rela_section =
+          GetSectionInfoByName(kElfPLTRelaSectionName, &rela_section_info);
+
+      const typename ElfArch::Rel* rel =
+          reinterpret_cast<const typename ElfArch::Rel*>(rel_section);
+      const typename ElfArch::Rela* rela =
+          reinterpret_cast<const typename ElfArch::Rela*>(rela_section);
+
+      if (!rel_section && !rela_section) {
+        LOG(ERROR) << "Could not find either " << kElfPLTRelSectionName
+                   << " or " << kElfPLTRelaSectionName << " sections.";
+        return;
+      }
+
+      if (rel_section && rela_section) {
+        LOG(WARNING) << "Both " << kElfPLTRelSectionName << " and "
+                     << kElfPLTRelaSectionName << " sections exist, using "
+                     << kElfPLTRelSectionName << " by default.";
+      }
+
+      // Use either Rel or Rela section, depending on which one exists.
+      size_t section_size =
+          rel_section ? rel_section_info.size : rela_section_info.size;
+      size_t entry_size = rel_section ? sizeof(typename ElfArch::Rel)
+                                      : sizeof(typename ElfArch::Rela);
+
+      // Determine the number of entries in the dynamic symbol table.
+      ElfReader::SectionInfo dynsym_section_info;
+      const char* dynsym_section =
+          GetSectionInfoByName(kElfDynSymSectionName, &dynsym_section_info);
+      // The dynsym section might not exist, or it might be empty. In either
+      // case there is nothing to be done so return.
+      if (!dynsym_section || dynsym_section_info.size == 0) {
+        LOG(WARNING) << "Could not find section " << kElfDynSymSectionName
+                     << " in file containing relocation and PLT info.";
+        return;
+      }
+      // This CHECK avoids a potential division by zero.
+      CHECK_NE(dynsym_section_info.entsize, 0)
+          << kElfDynSymSectionName << " exists but has entsize=0.";
+      size_t num_dynamic_symbols =
+          dynsym_section_info.size / dynsym_section_info.entsize;
+      symbols_plt_offsets_.resize(num_dynamic_symbols, 0);
+
+      // TODO: Can be removed once all Java code is using the
+      // Google3 launcher.
+      if (!absl::GetFlag(FLAGS_elfreader_process_dynsyms)) {
+        // Do not perform PLT function processing for JVM code. We need to avoid
+        // processing PLT functions in Java as it causes memory fragmentation in
+        // malloc, which is fixed in tcmalloc - and if the Google3 launcher is
+        // used the JVM will then use tcmalloc. b/13735638
+      } else {
+        // Make storage room for PLT function name strings.
+        plt_function_names_.resize(num_dynamic_symbols);
+      }
+
+      for (size_t i = 0; i < section_size / entry_size; ++i) {
+        // Determine symbol index from the |r_info| field.
+        int sym_index =
+            ElfArch::r_sym(rel_section ? rel[i].r_info : rela[i].r_info);
+        if (sym_index >= symbols_plt_offsets_.size()) {
+          LOG(ERROR) << "Relocation table references symbol with index "
+                     << sym_index << " but only " << symbols_plt_offsets_.size()
+                     << " dynamic symbols exist.";
+          continue;
+        }
+        symbols_plt_offsets_[sym_index] =
+            plt_section_info.addr + plt0_size_ + i * plt_code_size_;
+      }
+    });
   }
 
   // Return an ElfSectionReader for the first section of the given
@@ -1338,55 +1341,62 @@ class ElfReaderImpl {
       return nullptr;
     }
 
+    {
+      absl::MutexLock lock(&sections_mu_);
+      std::unique_ptr<ElfSectionReader<ElfArch>>& reader = sections_[num];
+      if (reader != nullptr && (!read_contents || reader->read_contents())) {
+        return reader.get();
+      }
+    }
+
+    const char* name;
+    // Hard-coding the name for the section-name string table prevents
+    // infinite recursion.
+    const bool is_section_index = num == GetStringTableIndex();
+    if (is_section_index) {
+      name = ".shstrtab";
+    } else {
+      name = GetSectionNameByIndex(num);
+      if (name == nullptr) {
+        LOG(ERROR) << "No name for STRTAB section " << num;
+        return nullptr;
+      }
+    }
+
+    const auto& shdr = section_headers_[num];
+
+    // Sanity check: b/461165219
+    if (shdr.sh_addralign == 0) {
+      VLOG(2) << "Invalid sh_addralign: 0";
+      return nullptr;
+    }
+    // Allocatable section contents should be properly aligned if the section
+    // has any file contents.
+    if ((shdr.sh_flags & SHF_ALLOC) && shdr.sh_type != SHT_NOBITS &&
+        (shdr.sh_offset & (shdr.sh_addralign - 1)) != 0) {
+      VLOG(2) << "Invalid sh_addralign: " << shdr.sh_addralign
+              << " sh_offset: " << shdr.sh_offset;
+      return nullptr;
+    }
+
+    std::unique_ptr<ElfSectionReader<ElfArch>> new_reader;
+    if (whole_file_ == nullptr) {
+      // Only STRTAB sections get special "maybe munmap" treatment.
+      // There is no point in keeping ".shstrtab", so we exclude it as well.
+      const bool leak_mmap = (!is_section_index && shdr.sh_type == SHT_STRTAB)
+                                 ? leak_strtabs_
+                                 : false;
+      new_reader = std::make_unique<ElfSectionReader<ElfArch>>(
+          name, path_, fd_, off_, leak_mmap, read_contents, shdr);
+    } else {
+      new_reader = std::make_unique<ElfSectionReader<ElfArch>>(
+          name, path_, off_, whole_file_, whole_file_size_, shdr);
+    }
+
+    absl::MutexLock lock(&sections_mu_);
     std::unique_ptr<ElfSectionReader<ElfArch>>& reader = sections_[num];
-
-    if (
-        // If this section was not accessed before, or
-        reader == nullptr ||
-        // it was accessed without contents but contents is now being requested
-        (read_contents && !reader->read_contents())) {
-      const char* name;
-      // Hard-coding the name for the section-name string table prevents
-      // infinite recursion.
-      const bool is_section_index = num == GetStringTableIndex();
-      if (is_section_index) {
-        name = ".shstrtab";
-      } else {
-        name = GetSectionNameByIndex(num);
-        if (name == nullptr) {
-          LOG(ERROR) << "No name for STRTAB section " << num;
-          return nullptr;
-        }
-      }
-
-      const auto& shdr = section_headers_[num];
-
-      // Sanity check: b/461165219
-      if (shdr.sh_addralign == 0) {
-        VLOG(2) << "Invalid sh_addralign: 0";
-        return nullptr;
-      }
-      // Allocatable section contents should be properly aligned if the section
-      // has any file contents.
-      if ((shdr.sh_flags & SHF_ALLOC) && shdr.sh_type != SHT_NOBITS &&
-          (shdr.sh_offset & (shdr.sh_addralign - 1)) != 0) {
-        VLOG(2) << "Invalid sh_addralign: " << shdr.sh_addralign
-                << " sh_offset: " << shdr.sh_offset;
-        return nullptr;
-      }
-
-      if (whole_file_ == nullptr) {
-        // Only STRTAB sections get special "maybe munmap" treatment.
-        // There is no point in keeping ".shstrtab", so we exclude it as well.
-        const bool leak_mmap = (!is_section_index && shdr.sh_type == SHT_STRTAB)
-                                   ? leak_strtabs_
-                                   : false;
-        reader = std::make_unique<ElfSectionReader<ElfArch>>(
-            name, path_, fd_, off_, leak_mmap, read_contents, shdr);
-      } else {
-        reader = std::make_unique<ElfSectionReader<ElfArch>>(
-            name, path_, off_, whole_file_, whole_file_size_, shdr);
-      }
+    if (reader == nullptr || (read_contents && !reader->read_contents())) {
+      reader = std::move(new_reader);
     }
     return reader.get();
   }
@@ -1661,8 +1671,13 @@ class ElfReaderImpl {
   // Container for PLT function name strings. These strings are passed by
   // reference to SymbolSink::AddSymbol() so they need to be stored somewhere.
   std::vector<std::string> plt_function_names_;
+  absl::Mutex plt_function_names_mu_;
 
-  bool visited_relocation_entries_;
+  // Whether we've visited the relocation entries.
+  absl::once_flag visited_relocation_entries_once_;
+
+  // Mutex to protect lazy-init of section readers.
+  absl::Mutex sections_mu_;
 };
 
 template <typename ElfArch>
