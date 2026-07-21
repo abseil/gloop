@@ -71,6 +71,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/thread_annotations.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
@@ -80,6 +81,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/mutex.h"
 #include "gloop/base/commandlineflags.h"
 #include "gloop/base/port.h"  // IWYU pragma: keep
 #include "gloop/util/symbolize/symbol_map_sink.h"
@@ -942,28 +944,44 @@ class ElfReaderImpl {
         // avoid processing PLT functions in Java as it causes memory
         // fragmentation in malloc, which is fixed in tcmalloc - and if the
         // Google3 launcher is used the JVM will then use tcmalloc. b/13735638
-      } else if (section_type == SHT_DYNSYM &&
-                 symbol_index < symbols_plt_offsets_.size() &&
-                 symbols_plt_offsets_[symbol_index] != 0) {
-        const std::string plt_name = absl::StrCat(name, kPLTFunctionSuffix);
-        std::string& plt_name_ref = plt_function_names_[symbol_index];
-
-        if (plt_name_ref.empty()) {
-          plt_name_ref = plt_name;
-        } else if (plt_name_ref != plt_name) {
-          LOG(WARNING) << "Current PLT name " << plt_name
-                       << " does not match previously visited PLT name "
-                       << plt_name_ref << " for dynamic symbol with index "
-                       << symbol_index;
+      } else {
+        bool has_plt = false;
+        {
+          absl::ReaderMutexLock l(&relocation_mutex_);
+          has_plt = (section_type == SHT_DYNSYM &&
+                     symbol_index < symbols_plt_offsets_.size() &&
+                     symbols_plt_offsets_[symbol_index] != 0);
         }
-        DCHECK_GE(plt_shndx_, 0);
-        if (!sink->filter ||
-            sink->filter(plt_name_ref.c_str(),
-                         symbols_plt_offsets_[symbol_index], plt_code_size_,
-                         ElfArch::Bind(sym), ElfArch::Type(sym), plt_shndx_)) {
-          sink->AddSymbol(plt_name_ref.c_str(),
-                          symbols_plt_offsets_[symbol_index], plt_code_size_,
-                          ElfArch::Bind(sym), ElfArch::Type(sym), plt_shndx_);
+        if (has_plt) {
+          const std::string plt_name = absl::StrCat(name, kPLTFunctionSuffix);
+          std::string plt_name_val;
+          uint64_t plt_offset = 0;
+          int local_plt_shndx = -1;
+          {
+            absl::MutexLock l(&relocation_mutex_);
+            std::string& plt_name_ref = plt_function_names_[symbol_index];
+
+            if (plt_name_ref.empty()) {
+              plt_name_ref = plt_name;
+            } else if (plt_name_ref != plt_name) {
+              LOG(WARNING) << "Current PLT name " << plt_name
+                           << " does not match previously visited PLT name "
+                           << plt_name_ref << " for dynamic symbol with index "
+                           << symbol_index;
+            }
+            plt_name_val = plt_name_ref;
+            plt_offset = symbols_plt_offsets_[symbol_index];
+            local_plt_shndx = plt_shndx_;
+          }
+          DCHECK_GE(local_plt_shndx, 0);
+          if (!sink->filter ||
+              sink->filter(plt_name_val.c_str(), plt_offset, plt_code_size_,
+                           ElfArch::Bind(sym), ElfArch::Type(sym),
+                           local_plt_shndx)) {
+            sink->AddSymbol(plt_name_val.c_str(), plt_offset, plt_code_size_,
+                            ElfArch::Bind(sym), ElfArch::Type(sym),
+                            local_plt_shndx);
+          }
         }
       }
       if (!sink->filter ||
@@ -978,6 +996,7 @@ class ElfReaderImpl {
   }
 
   void VisitRelocationEntries() {
+    absl::MutexLock lock(&relocation_mutex_);
     if (visited_relocation_entries_) {
       return;
     }
@@ -1333,6 +1352,12 @@ class ElfReaderImpl {
   // it might get deallocated even before its parent ElfReaderImpl is destroyed.
   const ElfSectionReader<ElfArch>* GetSection(int num, bool read_contents) {
     // Section 0 is always SHN_UNDEF.
+    if (num < 0 || num >= GetNumSections()) {
+      VLOG(2) << "section " << num << " is out of bounds";
+      return nullptr;
+    }
+
+    absl::MutexLock lock(&sections_mutex_);
     if (num < 1 || sections_.size() <= num) {
       VLOG(2) << "section " << num << " is out of bounds";
       return nullptr;
@@ -1535,7 +1560,10 @@ class ElfReaderImpl {
     }
 
     // Presize the sections array for efficiency.
-    sections_.resize(GetNumSections());
+    {
+      absl::MutexLock lock(&sections_mutex_);
+      sections_.resize(GetNumSections());
+    }
     return true;
   }
 
@@ -1632,7 +1660,9 @@ class ElfReaderImpl {
   // An array of pointers to ElfSectionReaders. Sections are
   // mmaped as they're needed and not released until this object is
   // destroyed.
-  std::vector<std::unique_ptr<ElfSectionReader<ElfArch>>> sections_;
+  absl::Mutex sections_mutex_;
+  std::vector<std::unique_ptr<ElfSectionReader<ElfArch>>> sections_
+      ABSL_GUARDED_BY(sections_mutex_);
 
   // For PowerPC64 we need to keep track of function descriptors when looking up
   // values for function symbols values. Function descriptors are kept in the
@@ -1652,17 +1682,19 @@ class ElfReaderImpl {
 
   // The index (shndx) of the .plt section in the ELF file. It is set to -1 if
   // a .plt section is not present.
-  int plt_shndx_;
+  int plt_shndx_ ABSL_GUARDED_BY(relocation_mutex_);
 
   // Maps a dynamic symbol index to a PLT offset.
   // The vector entry index is the dynamic symbol index.
-  std::vector<uint64_t> symbols_plt_offsets_;
+  std::vector<uint64_t> symbols_plt_offsets_ ABSL_GUARDED_BY(relocation_mutex_);
 
   // Container for PLT function name strings. These strings are passed by
   // reference to SymbolSink::AddSymbol() so they need to be stored somewhere.
-  std::vector<std::string> plt_function_names_;
+  std::vector<std::string> plt_function_names_
+      ABSL_GUARDED_BY(relocation_mutex_);
 
-  bool visited_relocation_entries_;
+  absl::Mutex relocation_mutex_;
+  bool visited_relocation_entries_ ABSL_GUARDED_BY(relocation_mutex_);
 };
 
 template <typename ElfArch>

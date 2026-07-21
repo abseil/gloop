@@ -35,6 +35,7 @@
 #include <ostream>
 #include <set>
 #include <string>
+#include <thread>
 #include <tuple>
 #include <vector>
 
@@ -160,6 +161,20 @@ TEST(ElfReader, IgnoreVsyscall) {
   EXPECT_CALL(log, Log(_, _, _)).Times(0);  // No log messages expected.
   log.StartCapturingLogs();
   ElfReader reader("[vsyscall]");
+}
+
+TEST(ElfReader, TsanDataRaceReproduction) {
+  ElfReader reader(elf(ELF64));
+  auto reader_func = [&]() {
+    CollectingSymbolSink sink;
+    sink.filter = [](const char* name, uint64_t value, uint64_t size,
+                     int binding, int type, int indx) { return true; };
+    reader.VisitSymbols(&sink);
+  };
+  std::thread reader1(reader_func);
+  std::thread reader2(reader_func);
+  reader1.join();
+  reader2.join();
 }
 
 }  // namespace
