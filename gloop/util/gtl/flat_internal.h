@@ -588,6 +588,9 @@ struct Impl : private Compare {
       rep = other.rep;
     } else {
       rep.clear();
+      if constexpr (kHasReserve<Rep>) {
+        rep.reserve(other.rep.size());
+      }
       std::copy(other.rep.begin(), other.rep.end(), std::back_inserter(rep));
     }
     return *this;
