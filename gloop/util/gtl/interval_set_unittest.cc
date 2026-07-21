@@ -128,7 +128,7 @@ TEST_F(IntervalSetTest, IsDisjoint) {
 // Base helper method for verifying the contents of an interval set.
 // Returns true iff <is> contains <count> intervals whose successive
 // endpoints match the sequence of args in <ap>:
-static bool VA_Check(const IntervalSet<int>& is, int count, va_list ap) {
+static bool VA_Check(const IntervalSet<int>& is, size_t count, va_list ap) {
   std::vector<Interval<int>> intervals(is.begin(), is.end());
   if (count != intervals.size()) {
     LOG(ERROR) << "Expected " << count << " intervals, got " << intervals.size()
@@ -141,7 +141,7 @@ static bool VA_Check(const IntervalSet<int>& is, int count, va_list ap) {
     return false;
   }
   bool result = true;
-  for (int i = 0; i < count; i++) {
+  for (size_t i = 0; i < count; i++) {
     int min = va_arg(ap, int);
     int max = va_arg(ap, int);
     if (min != intervals[i].start() || max != intervals[i].limit()) {
@@ -254,7 +254,7 @@ TEST_F(IntervalSetTest, IntervalSetBasic) {
     std::copy(iset.begin(), iset.end(), std::back_inserter(actual2));
     ASSERT_EQ(expected.size(), actual2.size());
 
-    for (int i = 0; i < expected.size(); i++) {
+    for (size_t i = 0; i < expected.size(); i++) {
       EXPECT_EQ(expected[i].start(), actual1[i].start());
       EXPECT_EQ(expected[i].limit(), actual1[i].limit());
 
