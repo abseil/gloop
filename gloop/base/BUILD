@@ -1388,6 +1388,7 @@ cc_library(
         "@abseil-cpp//absl/functional:function_ref",
         "@abseil-cpp//absl/log:log_streamer",
         "@abseil-cpp//absl/log/internal:globals",
+        "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/strings:string_view",
     ],
 )

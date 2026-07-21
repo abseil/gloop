@@ -51,6 +51,7 @@
 #include "absl/flags/flag.h"
 #include "absl/functional/function_ref.h"
 #include "absl/log/internal/globals.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "gloop/base/proc_maps.h"
 
@@ -551,11 +552,24 @@ void DumpAddressMap(DebugWriter* writer, void* writer_arg) {
       // Only print executable maps unless we're asked for all of them.
       if ((dump_all_maps_on_failure) ||
           (flags[2] == 'x' && filename[0] != '\0')) {
-        // Collapse common "...-(dbg|opt)/" prefix for brevity.
-        char* ptr = strstr(filename, "-dbg/");
-        if (nullptr == ptr) ptr = strstr(filename, "-opt/");
+        // Collapse common "...-(dbg|opt|fastbuild)/" and sanitizer variants
+        // prefix for brevity.
+        char* ptr = nullptr;
+        size_t len = 0;
+        for (const absl::string_view p : {"-fastbuild", "-opt", "-dbg"}) {
+          for (const absl::string_view q : {"", "-asan", "-msan", "-tsan"}) {
+            char suffix[128];
+            absl::SNPrintF(suffix, sizeof(suffix), "%s%s/", p, q);
+            ptr = strstr(filename, suffix);
+            if (ptr != nullptr) {
+              len = strlen(suffix);
+              break;
+            }
+          }
+          if (ptr != nullptr) break;
+        }
         if (nullptr != ptr) {
-          char* end = ptr + strlen("-XXX");
+          char* end = ptr + len - 1;
           if (memcmp(dir, filename, end - filename)) {
             strncpy(dir, filename, end - filename);
             dir[end - filename] = '\0';
