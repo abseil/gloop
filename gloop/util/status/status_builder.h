@@ -219,6 +219,7 @@ class ExtraMessage {
 // log message occurs.  A typical user will not specify `location`, allowing it
 // to default to the current location. Note: `Enum` must not be
 // `util::error::Code`.
+[[deprecated("Use absl::StatusBuilder or canonical_errors.h instead.")]]
 template <typename Enum>
 inline std::enable_if_t<EnumHasErrorSpace<Enum>::value, StatusBuilder>
 MakeStatusBuilder(Enum code, absl::SourceLocation location =
@@ -239,6 +240,7 @@ inline StatusBuilder MakeStatusBuilder(
 // enabled, it will use `location` as the location from which the log message
 // occurs.  A typical user will not specify `location`, allowing it to default
 // to the current location.
+[[deprecated("Use absl::StatusBuilder or canonical_errors.h instead.")]]
 inline StatusBuilder MakeStatusBuilder(
     const ErrorSpace* space, int code,
     absl::SourceLocation location = absl::SourceLocation::current()) {
