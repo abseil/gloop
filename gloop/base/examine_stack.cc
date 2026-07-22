@@ -30,6 +30,7 @@
 #include <ucontext.h>
 #endif
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <memory>
@@ -516,6 +517,44 @@ static void DumpAddressMapLine(DebugWriter* writer, void* writer_arg,
   }
   writer(out_buffer, writer_arg);
 }
+
+// Replaces common prefix (like "/google/obj/.../k8-dbg/" with "$build")
+// and prints "build=..." line if it changed.
+// Exposed for testing / fuzzing.
+void CollapseBuildPrefix(char* filename, char* dir, size_t dir_size,
+                         char* out_buffer, size_t out_buffer_size,
+                         DebugWriter* writer, void* writer_arg) {
+  char* ptr = nullptr;
+  size_t len = 0;
+  for (const absl::string_view q : {"", "-asan", "-msan", "-tsan"}) {
+    for (const absl::string_view p : {"-fastbuild", "-opt", "-dbg"}) {
+      char suffix[128];
+      absl::SNPrintF(suffix, sizeof(suffix), "%s%s/", p, q);
+      ptr = strstr(filename, suffix);
+      if (ptr != nullptr) {
+        len = strlen(suffix);
+        break;
+      }
+    }
+    if (ptr != nullptr) break;
+  }
+  if (ptr != nullptr) {
+    char* end = ptr + len - 1;
+    const size_t max_size = std::min<size_t>(end - filename, dir_size - 1);
+    if (memcmp(dir, filename, max_size) != 0 || dir[max_size] != '\0') {
+      strncpy(dir, filename, max_size);
+      dir[max_size] = '\0';
+      snprintf(out_buffer, out_buffer_size, "  build=%s\n", dir);
+      writer(out_buffer, writer_arg);
+    }
+    // filename and end alias each other, so move the rest of the string first
+    // to avoid overwriting it with "$build".
+    size_t rest_len = strlen(end);
+    constexpr absl::string_view kBuild = "$build";
+    memmove(filename + kBuild.size(), end, rest_len + 1);
+    memcpy(filename, kBuild.data(), kBuild.size());
+  }
+}
 #endif  // __linux__
 
 // Dump a list of executable mappings (mostly shared libraries) to writer.
@@ -581,32 +620,8 @@ void DumpAddressMap(DebugWriter* writer, void* writer_arg) {
       // Only print executable maps unless we're asked for all of them.
       if ((dump_all_maps_on_failure) ||
           (flags[2] == 'x' && filename[0] != '\0')) {
-        // Collapse common "...-(dbg|opt|fastbuild)/" and sanitizer variants
-        // prefix for brevity.
-        char* ptr = nullptr;
-        size_t len = 0;
-        for (const absl::string_view p : {"-fastbuild", "-opt", "-dbg"}) {
-          for (const absl::string_view q : {"", "-asan", "-msan", "-tsan"}) {
-            char suffix[128];
-            absl::SNPrintF(suffix, sizeof(suffix), "%s%s/", p, q);
-            ptr = strstr(filename, suffix);
-            if (ptr != nullptr) {
-              len = strlen(suffix);
-              break;
-            }
-          }
-          if (ptr != nullptr) break;
-        }
-        if (nullptr != ptr) {
-          char* end = ptr + len - 1;
-          if (memcmp(dir, filename, end - filename)) {
-            strncpy(dir, filename, end - filename);
-            dir[end - filename] = '\0';
-            snprintf(out_buffer, kOutBufSize, "  build=%s\n", dir);
-            writer(out_buffer, writer_arg);
-          }
-          sprintf(filename, "$build%s", end);
-        }
+        CollapseBuildPrefix(filename, dir, kOutBufSize, out_buffer, kOutBufSize,
+                            writer, writer_arg);
 
         DumpAddressMapLine(writer, writer_arg, out_buffer, kOutBufSize, begin,
                            end, filename, pos);

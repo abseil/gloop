@@ -1437,6 +1437,19 @@ cc_test(
     ],
 )
 
+cc_test(
+    name = "examine_stack_fuzz_test",
+    srcs = ["examine_stack_fuzz_test.cc"],
+    deps = [
+        ":examine_stack",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/strings",
+        "@fuzztest//fuzztest",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 cc_library(
     name = "per_thread",
     srcs = ["per_thread.cc"],

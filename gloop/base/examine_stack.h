@@ -148,6 +148,11 @@ void DumpRegisterContext(
     void* vuc, absl::FunctionRef<void(absl::string_view, uintptr_t)> fn);
 #endif  // defined(__linux__)
 
+// Exposed for testing.
+void CollapseBuildPrefix(char* filename, char* dir, size_t dir_size,
+                         char* out_buffer, size_t out_buffer_size,
+                         DebugWriter* writer, void* writer_arg);
+
 }  // namespace base
 
 using base::CurrentStackTrace;                    // NOLINT
@@ -161,6 +166,7 @@ using base::GetPC;                                // NOLINT
 using base::GetSP;                                // NOLINT
 using base::SavedStackTrace;                      // NOLINT
 using DebugWriter = base::DebugWriter;            // NOLINT
+using base::CollapseBuildPrefix;                  // NOLINT
 using base::DumpStackTrace;                       // NOLINT
 
 #endif  // THIRD_PARTY_GLOOP_BASE_EXAMINE_STACK_H_

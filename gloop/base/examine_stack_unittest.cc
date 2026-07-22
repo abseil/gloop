@@ -21,6 +21,7 @@
 #include "gloop/base/examine_stack.h"
 
 #include <cstddef>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -38,6 +39,7 @@
 
 namespace {
 
+using ::testing::ContainsRegex;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 
