@@ -558,6 +558,14 @@ SysTopology* SysTopologyGenerator::FromSysfs() const {
 
   // Read each cpu.
   for (SysTopology::Id cpu : cpu_ids) {
+    int online = 1;
+    std::string online_path =
+        absl::Substitute("$0/cpu$1/online", kCpuPrefix, cpu);
+    if (ReadProcField(online_path.c_str(), -1, 0, "%d", &online) &&
+        online == 0) {
+      VLOG(4) << "CPU " << cpu << " is offline";
+      continue;
+    }
     int core, package;
     std::string dir = absl::Substitute("$0/cpu$1/topology/", kCpuPrefix, cpu);
     if (!ReadProcField((dir + "core_id").c_str(), -1, 0, "%d", &core)) {
