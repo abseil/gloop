@@ -108,6 +108,7 @@ cc_library(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/numeric:bits",
         "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
         "@zlib",
     ],
 )

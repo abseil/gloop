@@ -80,6 +80,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/mutex.h"
 #include "gloop/base/commandlineflags.h"
 #include "gloop/base/port.h"  // IWYU pragma: keep
 #include "gloop/util/symbolize/symbol_map_sink.h"
@@ -946,6 +947,8 @@ class ElfReaderImpl {
                  symbol_index < symbols_plt_offsets_.size() &&
                  symbols_plt_offsets_[symbol_index] != 0) {
         const std::string plt_name = absl::StrCat(name, kPLTFunctionSuffix);
+
+        plt_function_names_mu_.Lock();
         std::string& plt_name_ref = plt_function_names_[symbol_index];
 
         if (plt_name_ref.empty()) {
@@ -956,14 +959,18 @@ class ElfReaderImpl {
                        << plt_name_ref << " for dynamic symbol with index "
                        << symbol_index;
         }
+        // Save the pointer while under lock, though it won't be mutated again
+        const char* plt_name_cstr = plt_name_ref.c_str();
+        plt_function_names_mu_.Unlock();
+
         DCHECK_GE(plt_shndx_, 0);
         if (!sink->filter ||
-            sink->filter(plt_name_ref.c_str(),
-                         symbols_plt_offsets_[symbol_index], plt_code_size_,
-                         ElfArch::Bind(sym), ElfArch::Type(sym), plt_shndx_)) {
-          sink->AddSymbol(plt_name_ref.c_str(),
-                          symbols_plt_offsets_[symbol_index], plt_code_size_,
-                          ElfArch::Bind(sym), ElfArch::Type(sym), plt_shndx_);
+            sink->filter(plt_name_cstr, symbols_plt_offsets_[symbol_index],
+                         plt_code_size_, ElfArch::Bind(sym), ElfArch::Type(sym),
+                         plt_shndx_)) {
+          sink->AddSymbol(plt_name_cstr, symbols_plt_offsets_[symbol_index],
+                          plt_code_size_, ElfArch::Bind(sym),
+                          ElfArch::Type(sym), plt_shndx_);
         }
       }
       if (!sink->filter ||
@@ -978,6 +985,7 @@ class ElfReaderImpl {
   }
 
   void VisitRelocationEntries() {
+    absl::MutexLock lock(&visited_relocation_entries_mu_);
     if (visited_relocation_entries_) {
       return;
     }
@@ -1332,63 +1340,82 @@ class ElfReaderImpl {
   // IMPORTANT: Do not store the result of GetSection with read_contents=false,
   // it might get deallocated even before its parent ElfReaderImpl is destroyed.
   const ElfSectionReader<ElfArch>* GetSection(int num, bool read_contents) {
+    sections_mu_.Lock();
     // Section 0 is always SHN_UNDEF.
     if (num < 1 || sections_.size() <= num) {
+      sections_mu_.Unlock();
       VLOG(2) << "section " << num << " is out of bounds";
       return nullptr;
     }
 
-    std::unique_ptr<ElfSectionReader<ElfArch>>& reader = sections_[num];
+    if (sections_[num] != nullptr &&
+        (!read_contents || sections_[num]->read_contents())) {
+      const ElfSectionReader<ElfArch>* ret = sections_[num].get();
+      sections_mu_.Unlock();
+      return ret;
+    }
 
-    if (
-        // If this section was not accessed before, or
-        reader == nullptr ||
-        // it was accessed without contents but contents is now being requested
-        (read_contents && !reader->read_contents())) {
-      const char* name;
-      // Hard-coding the name for the section-name string table prevents
-      // infinite recursion.
-      const bool is_section_index = num == GetStringTableIndex();
-      if (is_section_index) {
-        name = ".shstrtab";
-      } else {
-        name = GetSectionNameByIndex(num);
-        if (name == nullptr) {
-          LOG(ERROR) << "No name for STRTAB section " << num;
-          return nullptr;
-        }
-      }
+    const char* name;
+    // Hard-coding the name for the section-name string table prevents
+    // infinite recursion.
+    const bool is_section_index = num == GetStringTableIndex();
+    if (is_section_index) {
+      name = ".shstrtab";
+    } else {
+      sections_mu_.Unlock();
+      name = GetSectionNameByIndex(num);
+      sections_mu_.Lock();
 
-      const auto& shdr = section_headers_[num];
-
-      // Sanity check: b/461165219
-      if (shdr.sh_addralign == 0) {
-        VLOG(2) << "Invalid sh_addralign: 0";
-        return nullptr;
-      }
-      // Allocatable section contents should be properly aligned if the section
-      // has any file contents.
-      if ((shdr.sh_flags & SHF_ALLOC) && shdr.sh_type != SHT_NOBITS &&
-          (shdr.sh_offset & (shdr.sh_addralign - 1)) != 0) {
-        VLOG(2) << "Invalid sh_addralign: " << shdr.sh_addralign
-                << " sh_offset: " << shdr.sh_offset;
+      if (name == nullptr) {
+        sections_mu_.Unlock();
+        LOG(ERROR) << "No name for STRTAB section " << num;
         return nullptr;
       }
 
-      if (whole_file_ == nullptr) {
-        // Only STRTAB sections get special "maybe munmap" treatment.
-        // There is no point in keeping ".shstrtab", so we exclude it as well.
-        const bool leak_mmap = (!is_section_index && shdr.sh_type == SHT_STRTAB)
-                                   ? leak_strtabs_
-                                   : false;
-        reader = std::make_unique<ElfSectionReader<ElfArch>>(
-            name, path_, fd_, off_, leak_mmap, read_contents, shdr);
-      } else {
-        reader = std::make_unique<ElfSectionReader<ElfArch>>(
-            name, path_, off_, whole_file_, whole_file_size_, shdr);
+      // Recheck after re-acquiring the lock
+      if (sections_[num] != nullptr &&
+          (!read_contents || sections_[num]->read_contents())) {
+        const ElfSectionReader<ElfArch>* ret = sections_[num].get();
+        sections_mu_.Unlock();
+        return ret;
       }
     }
-    return reader.get();
+
+    const auto& shdr = section_headers_[num];
+
+    // Sanity check: b/461165219
+    if (shdr.sh_addralign == 0) {
+      sections_mu_.Unlock();
+      VLOG(2) << "Invalid sh_addralign: 0";
+      return nullptr;
+    }
+    // Allocatable section contents should be properly aligned if the section
+    // has any file contents.
+    if ((shdr.sh_flags & SHF_ALLOC) && shdr.sh_type != SHT_NOBITS &&
+        (shdr.sh_offset & (shdr.sh_addralign - 1)) != 0) {
+      sections_mu_.Unlock();
+      VLOG(2) << "Invalid sh_addralign: " << shdr.sh_addralign
+              << " sh_offset: " << shdr.sh_offset;
+      return nullptr;
+    }
+
+    std::unique_ptr<ElfSectionReader<ElfArch>> new_reader;
+    if (whole_file_ == nullptr) {
+      // Only STRTAB sections get special "maybe munmap" treatment.
+      // There is no point in keeping ".shstrtab", so we exclude it as well.
+      const bool leak_mmap = (!is_section_index && shdr.sh_type == SHT_STRTAB)
+                                 ? leak_strtabs_
+                                 : false;
+      new_reader = std::make_unique<ElfSectionReader<ElfArch>>(
+          name, path_, fd_, off_, leak_mmap, read_contents, shdr);
+    } else {
+      new_reader = std::make_unique<ElfSectionReader<ElfArch>>(
+          name, path_, off_, whole_file_, whole_file_size_, shdr);
+    }
+    sections_[num] = std::move(new_reader);
+    const ElfSectionReader<ElfArch>* ret = sections_[num].get();
+    sections_mu_.Unlock();
+    return ret;
   }
 
   bool ValidSectionHeader(const typename ElfArch::Shdr& shdr, size_t file_size,
@@ -1633,6 +1660,7 @@ class ElfReaderImpl {
   // mmaped as they're needed and not released until this object is
   // destroyed.
   std::vector<std::unique_ptr<ElfSectionReader<ElfArch>>> sections_;
+  absl::Mutex sections_mu_;
 
   // For PowerPC64 we need to keep track of function descriptors when looking up
   // values for function symbols values. Function descriptors are kept in the
@@ -1663,6 +1691,8 @@ class ElfReaderImpl {
   std::vector<std::string> plt_function_names_;
 
   bool visited_relocation_entries_;
+  absl::Mutex visited_relocation_entries_mu_;
+  absl::Mutex plt_function_names_mu_;
 };
 
 template <typename ElfArch>
