@@ -64,7 +64,6 @@ namespace internal {
 // of its size. It is intended as a low-level type to migrate towards the Safe
 // Buffers Programming Model. Its features include:
 // * Bound-checked indexing via hardened `operator[]`.
-// * Supports iteration via `begin`, `end`.
 // * Supports construction of spans with `absl::MakeSpan()`.
 // * Supports incremental adoption via `release()`, allowing the user to get
 // ownership of the underlying `std::unique_ptr<T[]>`.
@@ -87,14 +86,8 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI
   using reference = T&;
   using const_reference = const T&;
   using size_type = size_t;
-  using difference_type = ptrdiff_t;
   using deleter_type = std::conditional_t<std::is_void_v<Deleter>,
                                           std::default_delete<T[]>, Deleter>;
-  using value_type = T;
-  using iterator = pointer;
-  using const_iterator = const_pointer;
-  using reverse_iterator = std::reverse_iterator<iterator>;
-  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
   // This type wraps a unique_ptr `ptr` and its `size`. It is used when
   // releasing ownership of the unique_ptr to callers of `release()`, without
@@ -275,46 +268,6 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI
 
   // Returns the number of the elements in the owned allocation.
   size_t size() const { return size_; }
-
-  // Iterator access.
-  iterator begin() ABSL_ATTRIBUTE_LIFETIME_BOUND {  //
-    return data();
-  }
-  const_iterator begin() const ABSL_ATTRIBUTE_LIFETIME_BOUND {  //
-    return data();
-  }
-  const_iterator cbegin() const ABSL_ATTRIBUTE_LIFETIME_BOUND {  //
-    return data();
-  }
-  iterator end() ABSL_ATTRIBUTE_LIFETIME_BOUND {  //
-    return data() + size();
-  }
-  const_iterator end() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return data() + size();
-  }
-  const_iterator cend() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return data() + size();
-  }
-
-  // Reverse iterator access.
-  reverse_iterator rbegin() ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return reverse_iterator(end());
-  }
-  const_reverse_iterator rbegin() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return const_reverse_iterator(end());
-  }
-  const_reverse_iterator crbegin() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return const_reverse_iterator(cend());
-  }
-  reverse_iterator rend() ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return reverse_iterator(begin());
-  }
-  const_reverse_iterator rend() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return const_reverse_iterator(begin());
-  }
-  const_reverse_iterator crend() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return const_reverse_iterator(cbegin());
-  }
 
   // Releases ownership of the managed unique_ptr, returning the unique_ptr and
   // the size of the array, leaving the `UniqueArray` in a moved-from state.
