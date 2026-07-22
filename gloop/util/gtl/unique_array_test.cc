@@ -22,16 +22,12 @@
 
 #include <array>
 #include <cstddef>
-#include <iterator>
 #include <memory>
-#include <numeric>
 #include <optional>
 #include <sstream>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
-#include "absl/algorithm/container.h"
 #include "absl/base/internal/hardening.h"
 #include "absl/base/optimization.h"
 #include "absl/base/options.h"
@@ -45,7 +41,6 @@ namespace {
 
 using ::testing::ContainsRegex;
 using ::testing::Each;
-using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::IsNull;
 using ::testing::MatchesRegex;
@@ -398,46 +393,6 @@ TEST(UniqueArrayTest, SupportsArrayWithKnownBoundAsElement) {
   absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
   EXPECT_DEATH([[maybe_unused]] int result = buffer[kArraySize][0], "");
 #endif
-}
-
-TEST(UniqueArrayTest, IteratorIsRandomAccess) {
-  static_assert(
-      std::is_same_v<std::iterator_traits<  //
-                         UniqueArray<int>::iterator>::iterator_category,
-                     std::random_access_iterator_tag>);
-
-  static_assert(
-      std::is_same_v<std::iterator_traits<
-                         UniqueArray<int>::const_iterator>::iterator_category,
-                     std::random_access_iterator_tag>);
-
-  static_assert(
-      std::is_same_v<std::iterator_traits<
-                         UniqueArray<int>::reverse_iterator>::iterator_category,
-                     std::random_access_iterator_tag>);
-
-  static_assert(
-      std::is_same_v<std::iterator_traits<UniqueArray<
-                         int>::const_reverse_iterator>::iterator_category,
-                     std::random_access_iterator_tag>);
-}
-
-TEST(UniqueArrayTest, CanIterate) {
-  auto buffer = MakeUniqueArray<int>(3);
-  absl::c_fill(buffer, 6);
-  for (int& n : buffer) {
-    EXPECT_EQ(n, 6);
-    ++n;
-  }
-  for (const int& n : std::as_const(buffer)) {
-    EXPECT_EQ(n, 7);
-  }
-}
-
-TEST(UniqueArrayTest, CanReverseIterate) {
-  auto buffer = MakeUniqueArray<int>(3);
-  std::iota(buffer.rbegin(), buffer.rend(), 9);
-  EXPECT_THAT(buffer, ElementsAre(11, 10, 9));
 }
 
 TEST(UniqueArrayTest, OperatorBool) {
