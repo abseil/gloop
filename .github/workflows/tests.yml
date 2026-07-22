@@ -69,6 +69,11 @@ jobs:
         run: |
           echo "${{ matrix.config.env }}" >> $GITHUB_ENV
 
+      - name: Setup continuous run
+        # Force build isolation and test re-runs on post-submits.
+        if: ${{ github.event_name == 'schedule' || github.event_name == 'push' }}
+        run: echo "EXTRA_BAZEL_ARGS=--cache_test_results=no --action_env=FORCE_REBUILD=1" >> $GITHUB_ENV
+
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
         with:
           bazelisk-cache: true
