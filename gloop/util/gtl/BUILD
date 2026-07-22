@@ -690,7 +690,6 @@ cc_test(
     deps = [
         ":unique_array",
         "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:hardening",
