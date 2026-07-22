@@ -89,7 +89,7 @@ jobs:
 
   non_compilation:
     name: Check Non-compilation for ${{ matrix.config }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     container:
       image: gcr.io/google.com/absl-177019/gloop-linux-toolchain-latest@sha256:a820c79d3f356a64db121a4ee16c4408df18f9d2c8bf6c6abfae21666ac003ba
       # Our images happen to be public today, but use our service account's credentials anyway in
@@ -157,7 +157,7 @@ jobs:
   all-blocking-tests:
     name: All Blocking Tests
     needs: [linux, non_compilation]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Check for cancellations
         if: ${{ contains(join(needs.*.result, ' '), 'cancelled') }}
