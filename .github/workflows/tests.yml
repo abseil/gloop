@@ -84,13 +84,17 @@ jobs:
           # TODO: either revert to GAR_SERVICE_ACCOUNT or switch
           # to more appropriately named credentials after testing.
           google-credentials: ${{ secrets.BAZEL_CACHE_KEY_FOR_B_512558700 }}
-          bazelrc: common --config=remote${{ matrix.config.arch-suffix }}
+          bazelrc: >
+            common
+            --config=remote${{ matrix.config.arch-suffix }}
+            --config=${{ matrix.config.value }}
+            ${{env.EXTRA_BAZEL_ARGS}}
 
       - name: Run tests
-        run: bazel test ... --config=${{ matrix.config.value }}
+        run: bazel test ...
 
       - name: Run example test
-        run: bazel test @examples//... --config=${{ matrix.config.value }}
+        run: bazel test @examples//...
 
   non_compilation:
     name: Check Non-compilation for ${{ matrix.config }}
