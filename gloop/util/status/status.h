@@ -155,37 +155,9 @@ std::string StatusToString(const absl::Status& status);
 // The following helpers are replacing all ErrorSpace-related member functions.
 // See <link> for more details.
 
-#ifndef SWIG
-// Create a status in the associated error space with the specified code and
-// error message.  If `code == util::error::OK`, `msg` is ignored and an
-// object identical to an OK status is constructed.
-//
-// `msg` must be in UTF-8. The implementation may complain (e.g., by printing
-// a warning) if it is not.
-template <typename Enum,
-          typename = typename std::enable_if<
-              EnumHasErrorSpace<Enum>::value &&
-              !std::is_same<Enum, ::util::error::Code>::value>::type>
-absl::Status MakeStatus(
-    Enum code, absl::string_view msg,
-    absl::SourceLocation loc = absl::SourceLocation::current()) {
-  return MakeStatus(GetErrorSpaceForEnum(code), static_cast<int>(code), msg,
-                    loc);
-}
 #endif  // SWIG
 
-// Creates a status in the specified error space with the code and error
-// message provided.  If `code == 0` all other arguments are ignored and an
-// `ok()` Status is constructed.
-//
-// New APIs should use the canonical error space and construct the status using
-// either absl::OkStatus() or one of the canonical status constructors in
-// //depot///gloop/util/task/canonical_errors.h.
-//
 // REQUIRES: space != nullptr
-absl::Status MakeStatus(
-    const ErrorSpace* space, int code, absl::string_view msg,
-    absl::SourceLocation loc = absl::SourceLocation::current());
 
 // Creates a status in the specified error space with the code, error message,
 // and MessageSet (if non-null).  If `code == 0` all other arguments are
@@ -193,11 +165,6 @@ absl::Status MakeStatus(
 // If `message_set != nullptr`, creates a copy of the message_set (consequently
 // does not take ownership).
 //
-// REQUIRES: `space != nullptr`
-absl::Status MakeStatus(
-    const ErrorSpace* space, int code, absl::string_view msg,
-    const google::protobuf::bridge::MessageSet* message_set,
-    absl::SourceLocation loc = absl::SourceLocation::current());
 
 // Return the error space used to create the Status.
 inline const ErrorSpace* absl_nonnull RetrieveErrorSpace(
