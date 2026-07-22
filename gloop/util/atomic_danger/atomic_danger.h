@@ -51,12 +51,34 @@ template <typename T, class Ex, class Des,
                                        std::is_convertible<Des, T>::value>>
 ABSL_MUST_USE_RESULT T CompareAndSwap(std::atomic<T>* ptr, Ex&& expected,
                                       Des&& desired,
-                                      std::memory_order success_order) {
+                                      std::memory_order success_order,
+                                      std::memory_order failure_order) {
   T expected_t = std::forward<Ex>(expected);
   ptr->compare_exchange_strong(expected_t, std::forward<Des>(desired),
-                               success_order);
+                               success_order, failure_order);
   return expected_t;  // `compare_exchange_strong` may have modified
                       // `expected_t`.
+}
+
+// Same as above, but uses a reasonable default for `failure_order`.
+template <typename T, class Ex, class Des,
+          typename = absl::enable_if_t<std::is_integral<T>::value &&
+                                       std::is_convertible<Ex, T>::value &&
+                                       std::is_convertible<Des, T>::value>>
+ABSL_MUST_USE_RESULT T CompareAndSwap(std::atomic<T>* ptr, Ex&& expected,
+                                      Des&& desired,
+                                      std::memory_order success_order) {
+  std::memory_order failure_order;
+  if (success_order == std::memory_order_acq_rel) {
+    failure_order = std::memory_order_acquire;
+  } else if (success_order == std::memory_order_release) {
+    failure_order = std::memory_order_relaxed;
+  } else {
+    failure_order = success_order;
+  }
+  return CompareAndSwap(ptr, std::forward<Ex>(expected),
+                        std::forward<Des>(desired), success_order,
+                        failure_order);
 }
 
 // Decrements a reference count by `decrement` and returns whether the result is
