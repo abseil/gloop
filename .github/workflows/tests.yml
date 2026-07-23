@@ -37,11 +37,7 @@ jobs:
       # case we decide to lock down access.
       credentials:
         username: _json_key
-        # TODO: this has nothing to do with the bazel cache,
-        # we're just reusing a secret to test it. We should either revert to
-        # GAR_SERVICE_ACCOUNT or switch to more appropriately named
-        # credentials after testing.
-        password: ${{ secrets.BAZEL_CACHE_KEY_FOR_B_512558700 }}
+        password: ${{ secrets.GAR_SERVICE_ACCOUNT }}
     strategy:
       fail-fast: false   # Don't cancel all jobs if one fails.
       matrix:
@@ -81,9 +77,7 @@ jobs:
           external-cache: true
           repository-cache: |
             - MODULE.bazel
-          # TODO: either revert to GAR_SERVICE_ACCOUNT or switch
-          # to more appropriately named credentials after testing.
-          google-credentials: ${{ secrets.BAZEL_CACHE_KEY_FOR_B_512558700 }}
+          google-credentials: ${{ secrets.GAR_SERVICE_ACCOUNT }}
           bazelrc: >
             common
             --config=remote${{ matrix.config.arch-suffix }}
@@ -105,11 +99,7 @@ jobs:
       # case we decide to lock down access.
       credentials:
         username: _json_key
-        # TODO: this has nothing to do with the bazel cache,
-        # we're just reusing a secret to test it. We should either revert to
-        # GAR_SERVICE_ACCOUNT or switch to more appropriately named
-        # credentials after testing.
-        password: ${{ secrets.BAZEL_CACHE_KEY_FOR_B_512558700 }}
+        password: ${{ secrets.GAR_SERVICE_ACCOUNT }}
     strategy:
       fail-fast: false
       matrix:
@@ -140,9 +130,7 @@ jobs:
           external-cache: true
           repository-cache: |
             - MODULE.bazel
-          # TODO: either revert to GAR_SERVICE_ACCOUNT or switch
-          # to more appropriately named credentials after testing.
-          google-credentials: ${{ secrets.BAZEL_CACHE_KEY_FOR_B_512558700 }}
+          google-credentials: ${{ secrets.GAR_SERVICE_ACCOUNT }}
           bazelrc: common --config=remote${{ matrix.config.arch-suffix }}
 
       - name: Run tests
