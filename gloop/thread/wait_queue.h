@@ -239,7 +239,7 @@ class WaitQueue {
     return !q_.empty() || stop_requested_;
   }
   bool ReadyToPush() const ABSL_SHARED_LOCKS_REQUIRED(busy_) {
-    return q_.size() < max_queue_size_;
+    return q_.size() < max_queue_size_ || stop_requested_;
   }
 
   template <typename U>

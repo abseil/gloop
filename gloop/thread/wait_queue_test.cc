@@ -495,4 +495,31 @@ TEST(WaitQueueTest, TestWaitQueueMove) {
   EXPECT_THAT(val, testing::Pointee(5));
 }
 
+TEST(WaitQueueTest, TestStopUnblocksPush) {
+  WaitQueue<int> wq;
+  wq.set_max_queue_size(1);
+  wq.push(1);  // Queue is full.
+
+  absl::Notification push_started;
+  absl::Notification push_finished;
+
+  ThreadPool pool(1, ThreadPool::Options{.thread_options = thread::Options(),
+                                         .queue_capacity = 1});
+  pool.Schedule([&] {
+    push_started.Notify();
+    wq.push(2);  // Should block until Stopped.
+    push_finished.Notify();
+  });
+
+  push_started.WaitForNotification();
+  absl::SleepFor(absl::Milliseconds(100));  // Give it time to block.
+
+  EXPECT_FALSE(push_finished.HasBeenNotified());
+
+  wq.StopWaiters();
+
+  push_finished.WaitForNotification();
+  EXPECT_EQ(wq.size(), 2);  // It should have pushed.
+}
+
 }  // namespace

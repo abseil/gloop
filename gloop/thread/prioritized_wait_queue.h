@@ -123,7 +123,14 @@ class PrioritizedWaitQueue {
     absl::MutexLock l(busy_);
 
     while (first != last) {
-      while (q_.size() >= max_queue_size_) unfull_.Wait(&busy_);
+      while (q_.size() >= max_queue_size_ && !stop_requested_)
+        unfull_.Wait(&busy_);
+
+      if (stop_requested_) {
+        if (q_.empty()) ready_.Signal();
+        q_.push_many(first, last);
+        break;
+      }
 
       const size_type available = max_queue_size_ - q_.size();
       const size_type remaining = std::distance(first, last);
@@ -179,6 +186,7 @@ class PrioritizedWaitQueue {
     absl::MutexLock l(busy_);
     stop_requested_ = true;
     ready_.SignalAll();
+    unfull_.SignalAll();
   }
 
   // Copy the current contents of the queue into a separate
@@ -209,7 +217,8 @@ class PrioritizedWaitQueue {
   template <typename U>
   void push_internal(U&& x) ABSL_LOCKS_EXCLUDED(busy_) {
     absl::MutexLock l(busy_);
-    while (q_.size() >= max_queue_size_) unfull_.Wait(&busy_);
+    while (q_.size() >= max_queue_size_ && !stop_requested_)
+      unfull_.Wait(&busy_);
     if (q_.empty()) ready_.Signal();
     q_.push(std::forward<U>(x));
   }
