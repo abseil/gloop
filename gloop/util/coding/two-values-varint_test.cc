@@ -26,17 +26,28 @@
 #include <string>
 #include <vector>
 
-#include "absl/log/check.h"
 #include "absl/random/distributions.h"
-#include "absl/random/random.h"
 #include "absl/strings/str_cat.h"
 #include "benchmark/benchmark.h"
+#include "fuzztest/fuzztest.h"
 #include "gloop/util/random/distributions.h"
 #include "gtest/gtest.h"
 
 namespace util {
 namespace coding {
 namespace {
+
+#if (!defined(__EMSCRIPTEN__) && !defined(__wasm__) && \
+     !defined(__wasm32__)) ||                          \
+    defined(__EMSCRIPTEN_PTHREADS__)
+#define TWO_VALUES_VARINT_TEST_HAS_THREADS 1
+#else
+#define TWO_VALUES_VARINT_TEST_HAS_THREADS 0
+#endif
+
+using ::testing::AssertionFailure;
+using ::testing::AssertionResult;
+using ::testing::AssertionSuccess;
 
 template <typename T>
 void TwoValuesEncode(std::string* s, T a, T b) {}
@@ -85,118 +96,216 @@ const char* TwoValuesDecodeWithLimit(const char* p, const char* limit,
 }
 
 template <typename T>
-std::string TestOnePair(T a, T b) {
+AssertionResult VerifyOnePair(T a, T b, std::string* s_out = nullptr) {
   std::string s;
   TwoValuesEncode(&s, a, b);
-  T a_decode, b_decode;
+  if (s_out != nullptr) {
+    *s_out = s;
+  }
+  T a_decode = 0;
+  T b_decode = 0;
   const char* limit = s.data() + s.size();
 
   const char* p = TwoValuesDecode(s.data(), &a_decode, &b_decode);
-  CHECK_EQ(p, limit);
-  CHECK_EQ(a, a_decode);
-  CHECK_EQ(b, b_decode);
+  if (p != limit) {
+    return AssertionFailure() << "TwoValuesDecode pointer mismatch: got "
+                              << static_cast<const void*>(p) << ", expected "
+                              << static_cast<const void*>(limit);
+  }
+  if (a_decode != a) {
+    return AssertionFailure() << "TwoValuesDecode 'a' mismatch: got "
+                              << a_decode << ", expected " << a;
+  }
+  if (b_decode != b) {
+    return AssertionFailure() << "TwoValuesDecode 'b' mismatch: got "
+                              << b_decode << ", expected " << b;
+  }
 
   // Decode*WithLimit with limit right at the end, success.
   p = TwoValuesDecodeWithLimit(s.data(), limit, &a_decode, &b_decode);
-  CHECK_EQ(p, limit);
-  CHECK_EQ(a, a_decode);
-  CHECK_EQ(b, b_decode);
+  if (p != limit) {
+    return AssertionFailure()
+           << "TwoValuesDecodeWithLimit (at end) pointer mismatch: got "
+           << static_cast<const void*>(p) << ", expected "
+           << static_cast<const void*>(limit);
+  }
+  if (a_decode != a) {
+    return AssertionFailure()
+           << "TwoValuesDecodeWithLimit (at end) 'a' mismatch: got " << a_decode
+           << ", expected " << a;
+  }
+  if (b_decode != b) {
+    return AssertionFailure()
+           << "TwoValuesDecodeWithLimit (at end) 'b' mismatch: got " << b_decode
+           << ", expected " << b;
+  }
 
   // Decode*WithLimit with limit at beginning, failure.
-  CHECK_EQ(nullptr,
-           TwoValuesDecodeWithLimit(s.data(), s.data(), &a_decode, &b_decode));
+  p = TwoValuesDecodeWithLimit(s.data(), s.data(), &a_decode, &b_decode);
+  if (p != nullptr) {
+    return AssertionFailure()
+           << "TwoValuesDecodeWithLimit (at start) expected nullptr, got "
+           << static_cast<const void*>(p);
+  }
 
   // Decode*WithLimit with limit before finishing, failure.
-  CHECK_EQ(nullptr,
-           TwoValuesDecodeWithLimit(s.data(), limit - 1, &a_decode, &b_decode));
+  p = TwoValuesDecodeWithLimit(s.data(), limit - 1, &a_decode, &b_decode);
+  if (p != nullptr) {
+    return AssertionFailure()
+           << "TwoValuesDecodeWithLimit (before finish) expected nullptr, got "
+           << static_cast<const void*>(p);
+  }
 
   // Decode*WithLimit with limit past finishing, success.
   p = TwoValuesDecodeWithLimit(s.data(), limit + 1, &a_decode, &b_decode);
-  CHECK_EQ(p, limit);
-  CHECK_EQ(a, a_decode);
-  CHECK_EQ(b, b_decode);
-  return s;
+  if (p != limit) {
+    return AssertionFailure()
+           << "TwoValuesDecodeWithLimit (past finish) pointer mismatch: got "
+           << static_cast<const void*>(p) << ", expected "
+           << static_cast<const void*>(limit);
+  }
+  if (a_decode != a) {
+    return AssertionFailure()
+           << "TwoValuesDecodeWithLimit (past finish) 'a' mismatch: got "
+           << a_decode << ", expected " << a;
+  }
+  if (b_decode != b) {
+    return AssertionFailure()
+           << "TwoValuesDecodeWithLimit (past finish) 'b' mismatch: got "
+           << b_decode << ", expected " << b;
+  }
+  return AssertionSuccess();
 }
 
-template <typename T>
-void TestPair(T a, T b) {}
+struct Pair32 {
+  uint32_t a;
+  uint32_t b;
+};
 
-template <>
-void TestPair(uint32_t a, uint32_t b) {
+struct Pair64 {
+  uint64_t a;
+  uint64_t b;
+};
+
+std::vector<Pair32> Get32TestPairs() {
+  std::vector<Pair32> pairs = {
+      {0, 0},
+      {1, 0},
+      {1, 1},
+      {2, 1},
+      {17, 1},
+      {17, 17},
+      {253, 17},
+      {1u << 30, 17},
+      {253, 255},
+      {256, 255},
+      {std::numeric_limits<uint32_t>::max(),
+       std::numeric_limits<uint32_t>::max()},
+  };
+  for (int i = 0; i < 31; i += 4) {
+    for (int j = 0; j < 31; j += 4) {
+      pairs.push_back({1u << i, 1u << j});
+    }
+  }
+  return pairs;
+}
+
+std::vector<Pair64> Get64TestPairs() {
+  std::vector<Pair64> pairs = {
+      {uint64_t{1} << 61, uint64_t{1} << 35},
+      {uint64_t{1} << 60, uint64_t{1} << 61},
+      {std::numeric_limits<uint64_t>::max(),
+       std::numeric_limits<uint64_t>::max()},
+      {uint64_t{1}, std::numeric_limits<uint64_t>::max()},
+  };
+  for (uint64_t i = 0; i < 63; i += 8) {
+    for (uint64_t j = 0; j < 63; j += 8) {
+      pairs.push_back({(uint64_t{1} << i) - 1, (uint64_t{1} << j) - 1});
+    }
+  }
+  return pairs;
+}
+
+class TwoValueVarint32Test : public testing::TestWithParam<Pair32> {};
+
+TEST_P(TwoValueVarint32Test, Encoding32Test) {
+  const Pair32& param = GetParam();
+  uint32_t a = param.a;
+  uint32_t b = param.b;
+
+  std::string s32;
+  std::string s64;
+  EXPECT_TRUE(VerifyOnePair<uint32_t>(a, b, &s32));
+
   // Validates the 64 encoder would generate the same output.
-  CHECK_EQ(TestOnePair<uint32_t>(a, b),
-           TestOnePair<uint64_t>(static_cast<uint64_t>(a),
-                                 static_cast<uint64_t>(b)));
-  if (a != b) {
-    // Check the reverse case.
-    CHECK_EQ(TestOnePair<uint32_t>(b, a),
-             TestOnePair<uint64_t>(static_cast<uint64_t>(b),
-                                   static_cast<uint64_t>(a)));
-  }
+  EXPECT_TRUE(VerifyOnePair<uint64_t>(static_cast<uint64_t>(a),
+                                      static_cast<uint64_t>(b), &s64));
+  EXPECT_EQ(s32, s64);
+
+  // Check the reverse case.
+  std::string rev_s32;
+  std::string rev_s64;
+  EXPECT_TRUE(VerifyOnePair<uint32_t>(b, a, &rev_s32));
+  EXPECT_TRUE(VerifyOnePair<uint64_t>(static_cast<uint64_t>(b),
+                                      static_cast<uint64_t>(a), &rev_s64));
+  EXPECT_EQ(rev_s32, rev_s64);
 }
 
-template <>
-void TestPair(uint64_t a, uint64_t b) {
-  TestOnePair(a, b);
-  if (a != b) {
-    // Check the reverse case.
-    TestOnePair(b, a);
-  }
+INSTANTIATE_TEST_SUITE_P(TwoValueVarint32, TwoValueVarint32Test,
+                         testing::ValuesIn(Get32TestPairs()),
+                         [](const testing::TestParamInfo<Pair32>& info) {
+                           return absl::StrCat("idx_", info.index, "_a_",
+                                               info.param.a, "_b_",
+                                               info.param.b);
+                         });
+
+class TwoValueVarint64Test : public testing::TestWithParam<Pair64> {};
+
+TEST_P(TwoValueVarint64Test, Encoding64Test) {
+  const Pair64& param = GetParam();
+  uint64_t a = param.a;
+  uint64_t b = param.b;
+
+  EXPECT_TRUE(VerifyOnePair<uint64_t>(a, b));
+  EXPECT_TRUE(VerifyOnePair<uint64_t>(b, a));
 }
 
-TEST(TwoValueVarint, Encoding32Test) {
-  TestPair<uint32_t>(0, 0);
-  TestPair<uint32_t>(1, 0);
-  TestPair<uint32_t>(1, 1);
-  TestPair<uint32_t>(2, 1);
-  TestPair<uint32_t>(17, 1);
-  TestPair<uint32_t>(17, 17);
-  TestPair<uint32_t>(253, 17);
-  TestPair<uint32_t>(1u << 30, 17);
-  TestPair<uint32_t>(253, 255);
-  TestPair<uint32_t>(256, 255);
-  TestPair<uint32_t>(1u << 30, 17);
-  TestPair<uint32_t>(std::numeric_limits<uint32_t>::max(),
-                     std::numeric_limits<uint32_t>::max());
-  for (int i = 0; i < 31; ++i) {
-    for (int j = 0; j < 31; ++j) {
-      TestPair<uint32_t>(1 << i, 1 << j);
-    }
-  }
-  absl::BitGen gen;
-  for (int i = 0; i < 10000; i++) {
-    TestPair<uint32_t>(util_random::SkewedLow<uint32_t>(gen, 0, 1 << 12),
-                       util_random::SkewedLow<uint32_t>(gen, 0, 1 << 12));
-    TestPair<uint32_t>(absl::Uniform<uint32_t>(gen, 0, 1 << 30),
-                       absl::Uniform<uint32_t>(gen, 0, 1 << 30));
-  }
+INSTANTIATE_TEST_SUITE_P(TwoValueVarint64, TwoValueVarint64Test,
+                         testing::ValuesIn(Get64TestPairs()),
+                         [](const testing::TestParamInfo<Pair64>& info) {
+                           return absl::StrCat("idx_", info.index, "_a_",
+                                               info.param.a, "_b_",
+                                               info.param.b);
+                         });
+
+void Encoding32FuzzTest(uint32_t a, uint32_t b) {
+  std::string s32;
+  std::string s64;
+  EXPECT_TRUE(VerifyOnePair<uint32_t>(a, b, &s32));
+  EXPECT_TRUE(VerifyOnePair<uint64_t>(static_cast<uint64_t>(a),
+                                      static_cast<uint64_t>(b), &s64));
+  EXPECT_EQ(s32, s64);
+
+  std::string rev_s32;
+  std::string rev_s64;
+  EXPECT_TRUE(VerifyOnePair<uint32_t>(b, a, &rev_s32));
+  EXPECT_TRUE(VerifyOnePair<uint64_t>(static_cast<uint64_t>(b),
+                                      static_cast<uint64_t>(a), &rev_s64));
+  EXPECT_EQ(rev_s32, rev_s64);
 }
 
-TEST(TwoValueVarint, Encoding64Teset) {
-  // Note: Encoding32Test already covers Encoding64 for small values.
-  TestPair<uint64_t>(uint64_t{1} << 61, uint64_t{1} << 35);
-  TestPair<uint64_t>(uint64_t{1} << 60, uint64_t{1} << 61);
-  TestPair<uint64_t>(std::numeric_limits<uint64_t>::max(),
-                     std::numeric_limits<uint64_t>::max());
-  TestPair<uint64_t>(uint64_t{1}, std::numeric_limits<uint64_t>::max());
-  for (uint64_t i = 0; i < 63; ++i) {
-    for (uint64_t j = 0; j < 63; ++j) {
-      TestPair<uint64_t>((uint64_t{1} << i) - 1, (uint64_t{1} << j) - 1);
-    }
-  }
-  std::seed_seq seed_seq({1, 2, 3});
-  absl::BitGen gen(seed_seq);
-  for (uint64_t i = 0; i < 10000; i++) {
-    TestPair<uint64_t>(
-        util_random::SkewedLow<uint64_t>(gen, (uint64_t{1} << 33) - 1,
-                                         std::numeric_limits<uint64_t>::max()),
-        util_random::SkewedLow<uint64_t>(gen, (uint64_t{1} << 33) - 1,
-                                         std::numeric_limits<uint64_t>::max()));
-    TestPair<uint64_t>(
-        absl::Uniform<uint64_t>(gen, 0, std::numeric_limits<uint64_t>::max()),
-        absl::Uniform<uint64_t>(gen, 0, std::numeric_limits<uint64_t>::max()));
-  }
+#if TWO_VALUES_VARINT_TEST_HAS_THREADS
+FUZZ_TEST(TwoValueVarint32FuzzTest, Encoding32FuzzTest);
+#endif
+
+void Encoding64FuzzTest(uint64_t a, uint64_t b) {
+  EXPECT_TRUE(VerifyOnePair<uint64_t>(a, b));
+  EXPECT_TRUE(VerifyOnePair<uint64_t>(b, a));
 }
+
+#if TWO_VALUES_VARINT_TEST_HAS_THREADS
+FUZZ_TEST(TwoValueVarint64FuzzTest, Encoding64FuzzTest);
+#endif
 
 // Helper routine to initialize an array of N values based on "bit_shift".
 // If "bit_shift" is -1, random values are chosen. Otherwise, the values are all
@@ -224,7 +333,7 @@ template <typename T>
 int GetAverageEncodedLength(const std::vector<T>& vals) {
   int64_t sum_len = 0;
   for (const T val : vals) sum_len += GetEncodedLength(val);
-  return sum_len /= vals.size();
+  return sum_len / vals.size();
 }
 
 template <typename T>
@@ -241,7 +350,7 @@ void BM_Encode(benchmark::State& state) {
 
   std::string buf;
   while (state.KeepRunningBatch(kNumValues)) {
-    for (int i = 0; i < kNumValues; i++) {
+    for (int i = 0; i < kNumValues; ++i) {
       TwoValuesEncode<T>(&buf, vals[i], vals[i]);
     }
   }
