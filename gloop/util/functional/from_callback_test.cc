@@ -326,6 +326,14 @@ TEST(CallbackToFunctor, ReferenceCountTemporaryInvoked) {
   // Underlying callback should be freed exactly once.
 }
 
+TEST(CallbackToFunctorDeathTest, ReferenceCountTemporaryInvokedDouble) {
+  auto a =
+      FromCallbackWithOwnership(::util::functional::ToCallback<Closure>(Nop));
+  auto b(a);
+  b();
+  EXPECT_DEATH(a(), "Must be non-null");
+}
+
 struct CallbackDerived
     : util::functional::ResultCallbackFunctor<int, int, int>::CallbackType {
   int Run(int a, int b) override { return a + b; }

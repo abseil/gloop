@@ -100,6 +100,9 @@ class OwningCallbackFunctorImpl<CallbackType, R(Args...)> {
                           : nullptr) {}
 
   R operator()(Args... args) const {
+    if (deleter_) {
+      (void)ABSL_DIE_IF_NULL(deleter_->callback.get());
+    }
     CallbackType* to_call = ABSL_DIE_IF_NULL(callback_);
     if (!to_call->IsRepeatable()) {
       // Temporary callbacks promise to be self-deleting.  We clear the deleter
