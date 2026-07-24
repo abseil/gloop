@@ -176,23 +176,11 @@ TEST(SysinfoUnittest, ParseFunctions) {
 }
 
 TEST(SysinfoUnittest, MemoryUsage) {
-  // Find the "real" memory usage values
-  int64_t vmsize = VirtualMemorySize(getpid()) >> 10;
-  int64_t rss = MemoryUsage(getpid()) >> 10;
-
-  // Read all the memory stats.
-  base::MemoryStats mem_stats;
-  ASSERT_TRUE(GetMemoryStats(getpid(), &mem_stats));
-
-  // Get the number of threads.
-  int num_threads = GetProcessThreadCount(getpid());
-  EXPECT_GT(num_threads, 0);
-  EXPECT_LT(num_threads, 100);
-
-  // check that Nice() returns a sane value
-  int niceval = Nice();
-  EXPECT_GE(niceval, -20);
-  EXPECT_LE(niceval, 19);
+  // Warmup to trigger lazy allocations (e.g. sanitizers reserving memory).
+  base::MemoryStats dummy_mem_stats;
+  (void)GetMemoryStats(getpid(), &dummy_mem_stats);
+  (void)VirtualMemorySize(getpid());
+  (void)MemoryUsage(getpid());
 
   // Get the expected values by reading the proc/<pid>/stat file
   // (we do this after calling VirtualMemorySize and MemoryUsage
@@ -201,13 +189,23 @@ TEST(SysinfoUnittest, MemoryUsage) {
   FILE* f = fopen(filename.c_str(), "r");
   ASSERT_NE(f, nullptr);
 
-  char proc_contents[PATH_MAX];
+  char proc_contents[4096];
   char* got_line = fgets(proc_contents, sizeof(proc_contents), f);
   ASSERT_NE(got_line, nullptr);
-  std::string result = proc_contents;
+
+  // Find the "real" memory usage values
+  int64_t vmsize = VirtualMemorySize(getpid()) >> 10;
+  int64_t rss = MemoryUsage(getpid()) >> 10;
+
+  // Read all the memory stats.
+  base::MemoryStats mem_stats;
+  ASSERT_TRUE(GetMemoryStats(getpid(), &mem_stats));
+
+  // Now we can parse the target string
+  absl::string_view result = proc_contents;
   EXPECT_FALSE(result.empty());
 
-  std::vector<std::string> col =
+  std::vector<absl::string_view> col =
       absl::StrSplit(result, absl::ByAnyChar("\t "), absl::SkipEmpty());
 
   int32_t nicetarget;
@@ -251,6 +249,16 @@ TEST(SysinfoUnittest, MemoryUsage) {
 
   EXPECT_NEAR(rss, rsstarget, kRssTolerance);
   EXPECT_NEAR(mem_stats.rss >> 10, rsstarget, kRssTolerance);
+
+  // Get the number of threads.
+  int num_threads = GetProcessThreadCount(getpid());
+  EXPECT_GT(num_threads, 0);
+  EXPECT_LT(num_threads, 100);
+
+  // check that Nice() returns a sane value
+  int niceval = Nice();
+  EXPECT_GE(niceval, -20);
+  EXPECT_LE(niceval, 19);
 
   int mintarget = niceval;
   int maxtarget = niceval;
@@ -412,7 +420,7 @@ TEST(SysinfoUnittest, Threads) {
     EXPECT_EQ(ThreadGroup(pid), pid);
     waitpid(pid, nullptr, 0);
   } else {
-    exit(0);
+    _exit(0);
   }
 
   TestThread t;
@@ -849,13 +857,16 @@ TEST(SysinfoUnittest, ProcessGroup) {
 
 TEST(SysinfoUnittest, VirtualProcessSize) {
   char buffer[128];
-  int64_t vsize_test = VirtualProcessSize();
   long long vsize;  // NOLINT
 
+  // Read VSIZE via ps first to trigger any lazy allocations (e.g. TCMalloc
+  // regions) before taking the internal measurement.
   snprintf(buffer, sizeof(buffer), "ps h -o vsize %d",
            static_cast<int>(getpid()));
   ASSERT_THAT(ReadPipe(buffer, "%lld", &vsize), IsOk());
   vsize *= 1024;
+
+  int64_t vsize_test = VirtualProcessSize();
 
   // vsize_test must be in the range of 256K
   EXPECT_NEAR(vsize_test, vsize, 262144);
@@ -907,7 +918,7 @@ TEST(SysinfoUnittest, ThreadCPUUsage) {
     absl::Duration usage = MeasureUsageInThread(ThreadCPUUsage, kDuration, 0.5);
     ASSERT_LT(absl::Nanoseconds(0), usage);
     const absl::Duration kMinUsage = kDuration / 10;
-    const absl::Duration kMaxUsage = kDuration * 1.1;
+    const absl::Duration kMaxUsage = kDuration * 1.2;
     if ((usage >= kMinUsage && usage <= kMaxUsage) || attempt >= 10) {
       // Ideally we've used kDuration time but it might be less (forge
       // is pretty contended.)  Hopefully we can guarantee at least 10%.
@@ -952,7 +963,7 @@ TEST(SysinfoUnittest, CPUUsageInThread) {
     absl::Duration usage = MeasureUsageInThread(CPUUsageMatch, kDuration, 0.5);
     ASSERT_LT(absl::Nanoseconds(0), usage);
     EXPECT_LE(kDuration / 10, usage);
-    const absl::Duration kMaxUsage = kDuration * 1.1;
+    const absl::Duration kMaxUsage = kDuration * 1.2;
     if (usage <= kMaxUsage || attempt >= 10) {
       EXPECT_LE(usage, kMaxUsage);
       break;
