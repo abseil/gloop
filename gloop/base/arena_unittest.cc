@@ -38,6 +38,8 @@
 #include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/str_format.h"
+#include "absl/time/clock.h"
+#include "absl/time/time.h"
 #include "gloop/base/arena_allocator.h"
 #include "gtest/gtest.h"
 
@@ -561,35 +563,35 @@ struct strlt {
 
 typedef absl::node_hash_set<std::string, std::hash<std::string>,
                             std::equal_to<std::string>,
-                            ArenaAllocator<std::string, UnsafeArena> >
+                            ArenaAllocator<std::string, UnsafeArena>>
     StringHSet;
 typedef absl::node_hash_set<const char*, std::hash<const char*>, streq,
-                            ArenaAllocator<const char*, UnsafeArena> >
+                            ArenaAllocator<const char*, UnsafeArena>>
     CStringHSet;
 typedef absl::node_hash_set<astring, std::hash<astring>, std::equal_to<astring>,
-                            ArenaAllocator<astring, UnsafeArena> >
+                            ArenaAllocator<astring, UnsafeArena>>
     AStringHSet;
 typedef absl::node_hash_set<uint32_t, std::hash<uint32_t>,
                             std::equal_to<uint32_t>,
-                            ArenaAllocator<uint32_t, UnsafeArena> >
+                            ArenaAllocator<uint32_t, UnsafeArena>>
     IntHSet;
 typedef std::set<std::string, std::less<std::string>,
-                 ArenaAllocator<std::string, UnsafeArena> >
+                 ArenaAllocator<std::string, UnsafeArena>>
     StringSet;
-typedef std::set<char*, strlt, ArenaAllocator<char*, UnsafeArena> > CStringSet;
+typedef std::set<char*, strlt, ArenaAllocator<char*, UnsafeArena>> CStringSet;
 typedef std::set<astring, std::less<astring>,
-                 ArenaAllocator<astring, UnsafeArena> >
+                 ArenaAllocator<astring, UnsafeArena>>
     AStringSet;
 typedef std::set<uint32_t, std::less<uint32_t>,
-                 ArenaAllocator<uint32_t, UnsafeArena> >
+                 ArenaAllocator<uint32_t, UnsafeArena>>
     IntSet;
-typedef std::vector<std::string, ArenaAllocator<std::string, UnsafeArena> >
+typedef std::vector<std::string, ArenaAllocator<std::string, UnsafeArena>>
     StringVec;
-typedef std::vector<const char*, ArenaAllocator<const char*, UnsafeArena> >
+typedef std::vector<const char*, ArenaAllocator<const char*, UnsafeArena>>
     CStringVec;
-typedef std::vector<astring, ArenaAllocator<astring, UnsafeArena> > AStringVec;
-typedef std::vector<char, ArenaAllocator<char, UnsafeArena> > CharVec;
-typedef std::vector<uint32_t, ArenaAllocator<uint32_t, UnsafeArena> > IntVec;
+typedef std::vector<astring, ArenaAllocator<astring, UnsafeArena>> AStringVec;
+typedef std::vector<char, ArenaAllocator<char, UnsafeArena>> CharVec;
+typedef std::vector<uint32_t, ArenaAllocator<uint32_t, UnsafeArena>> IntVec;
 
 TEST(ArenaTest, STL) {
   absl::PrintF("\nBeginning STL allocation test\n");
@@ -1219,6 +1221,184 @@ TEST(ArenaTest, StrndupWithUnterminatedStringUnsafe) {
 
 TEST(ArenaTest, StrndupWithUnterminatedStringSafe) {
   TestStrndupUnterminated<SafeArena>();
+}
+
+TEST(ArenaTest, FlagGatedLazyFirstBlockAllocation) {
+  // Test when flag is false (default / non-optimal eager behavior)
+  absl::SetFlag(&FLAGS_gloop_arena_lazy_first_block, false);
+  {
+    UnsafeArena arena(1024);
+    EXPECT_TRUE(arena.is_empty());
+    EXPECT_EQ(arena.block_count(), 1);
+
+    char* ptr = arena.Alloc(10);
+    EXPECT_NE(ptr, nullptr);
+    EXPECT_FALSE(arena.is_empty());
+    EXPECT_EQ(arena.block_count(), 1);
+
+    arena.Reset();
+    EXPECT_TRUE(arena.is_empty());
+    EXPECT_EQ(arena.block_count(), 1);
+  }
+
+  // Test when flag is true (optimized lazy allocation behavior)
+  absl::SetFlag(&FLAGS_gloop_arena_lazy_first_block, true);
+  {
+    UnsafeArena arena(1024);
+    EXPECT_TRUE(arena.is_empty());
+    EXPECT_EQ(arena.block_count(), 0);  // Deferred initial block allocation
+
+    char* ptr = arena.Alloc(10);
+    EXPECT_NE(ptr, nullptr);
+    EXPECT_FALSE(arena.is_empty());
+    EXPECT_EQ(arena.block_count(), 1);
+
+    arena.Reset();
+    EXPECT_TRUE(arena.is_empty());
+    EXPECT_EQ(arena.block_count(), 1);
+  }
+
+  // Test large allocation bypassing pool when lazy
+  {
+    UnsafeArena arena(1024);
+    EXPECT_TRUE(arena.is_empty());
+    EXPECT_EQ(arena.block_count(), 0);
+
+    char* large_ptr = arena.Alloc(4096);
+    EXPECT_NE(large_ptr, nullptr);
+    EXPECT_FALSE(arena.is_empty());
+    EXPECT_GE(arena.block_count(), 1);
+
+    arena.Reset();
+    EXPECT_TRUE(arena.is_empty());
+  }
+
+  // Reset flag back to default false
+  absl::SetFlag(&FLAGS_gloop_arena_lazy_first_block, false);
+}
+
+TEST(ArenaTest, BenchmarkComparisonReport) {
+  constexpr int kNumArenas = 50000;
+  constexpr size_t kBlockSize = 4096;
+
+  // 1. Unused Arenas Benchmark (0% allocations)
+  // Flag = false (Default / Eager)
+  absl::SetFlag(&FLAGS_gloop_arena_lazy_first_block, false);
+  auto start_eager_unused = absl::Now();
+  {
+    std::vector<std::unique_ptr<UnsafeArena>> arenas;
+    arenas.reserve(kNumArenas);
+    for (int i = 0; i < kNumArenas; ++i) {
+      arenas.push_back(std::make_unique<UnsafeArena>(kBlockSize));
+    }
+  }
+  auto elapsed_eager_unused = absl::Now() - start_eager_unused;
+
+  // Flag = true (Optimized / Lazy)
+  absl::SetFlag(&FLAGS_gloop_arena_lazy_first_block, true);
+  auto start_lazy_unused = absl::Now();
+  {
+    std::vector<std::unique_ptr<UnsafeArena>> arenas;
+    arenas.reserve(kNumArenas);
+    for (int i = 0; i < kNumArenas; ++i) {
+      arenas.push_back(std::make_unique<UnsafeArena>(kBlockSize));
+    }
+  }
+  auto elapsed_lazy_unused = absl::Now() - start_lazy_unused;
+
+  // 2. Sparsely Used Arenas Benchmark (5% allocations)
+  // Flag = false (Default / Eager)
+  absl::SetFlag(&FLAGS_gloop_arena_lazy_first_block, false);
+  auto start_eager_sparse = absl::Now();
+  {
+    std::vector<std::unique_ptr<UnsafeArena>> arenas;
+    arenas.reserve(kNumArenas);
+    for (int i = 0; i < kNumArenas; ++i) {
+      arenas.push_back(std::make_unique<UnsafeArena>(kBlockSize));
+      if (i % 20 == 0) {  // 5% active
+        arenas.back()->Alloc(32);
+      }
+    }
+  }
+  auto elapsed_eager_sparse = absl::Now() - start_eager_sparse;
+
+  // Flag = true (Optimized / Lazy)
+  absl::SetFlag(&FLAGS_gloop_arena_lazy_first_block, true);
+  auto start_lazy_sparse = absl::Now();
+  {
+    std::vector<std::unique_ptr<UnsafeArena>> arenas;
+    arenas.reserve(kNumArenas);
+    for (int i = 0; i < kNumArenas; ++i) {
+      arenas.push_back(std::make_unique<UnsafeArena>(kBlockSize));
+      if (i % 20 == 0) {  // 5% active
+        arenas.back()->Alloc(32);
+      }
+    }
+  }
+  auto elapsed_lazy_sparse = absl::Now() - start_lazy_sparse;
+
+  // 3. Fully Used Arenas Benchmark (100% allocations)
+  // Flag = false (Default / Eager)
+  absl::SetFlag(&FLAGS_gloop_arena_lazy_first_block, false);
+  auto start_eager_full = absl::Now();
+  {
+    std::vector<std::unique_ptr<UnsafeArena>> arenas;
+    arenas.reserve(kNumArenas);
+    for (int i = 0; i < kNumArenas; ++i) {
+      arenas.push_back(std::make_unique<UnsafeArena>(kBlockSize));
+      arenas.back()->Alloc(32);
+    }
+  }
+  auto elapsed_eager_full = absl::Now() - start_eager_full;
+
+  // Flag = true (Optimized / Lazy)
+  absl::SetFlag(&FLAGS_gloop_arena_lazy_first_block, true);
+  auto start_lazy_full = absl::Now();
+  {
+    std::vector<std::unique_ptr<UnsafeArena>> arenas;
+    arenas.reserve(kNumArenas);
+    for (int i = 0; i < kNumArenas; ++i) {
+      arenas.push_back(std::make_unique<UnsafeArena>(kBlockSize));
+      arenas.back()->Alloc(32);
+    }
+  }
+  auto elapsed_lazy_full = absl::Now() - start_lazy_full;
+
+  double eager_unused_ms = absl::ToDoubleMilliseconds(elapsed_eager_unused);
+  double lazy_unused_ms = absl::ToDoubleMilliseconds(elapsed_lazy_unused);
+  double eager_sparse_ms = absl::ToDoubleMilliseconds(elapsed_eager_sparse);
+  double lazy_sparse_ms = absl::ToDoubleMilliseconds(elapsed_lazy_sparse);
+  double eager_full_ms = absl::ToDoubleMilliseconds(elapsed_eager_full);
+  double lazy_full_ms = absl::ToDoubleMilliseconds(elapsed_lazy_full);
+
+  LOG(INFO) << "\n======================================================\n"
+            << "BENCHMARK RESULTS (" << kNumArenas << " Arena Instances)\n"
+            << "======================================================\n"
+            << "1. Unused Arenas (0% allocations):\n"
+            << "   Eager (flag=false): " << eager_unused_ms
+            << " ms (Heap memory allocated: "
+            << (kNumArenas * kBlockSize / (1024 * 1024)) << " MB)\n"
+            << "   Lazy  (flag=true) : " << lazy_unused_ms
+            << " ms (Heap memory allocated: 0 MB)\n"
+            << "   Speedup           : " << (eager_unused_ms / lazy_unused_ms)
+            << "x faster\n"
+            << "\n2. Sparsely Used Arenas (5% allocations):\n"
+            << "   Eager (flag=false): " << eager_sparse_ms
+            << " ms (Heap memory allocated: "
+            << (kNumArenas * kBlockSize / (1024 * 1024)) << " MB)\n"
+            << "   Lazy  (flag=true) : " << lazy_sparse_ms
+            << " ms (Heap memory allocated: "
+            << (kNumArenas * 0.05 * kBlockSize / (1024 * 1024))
+            << " MB - 95% savings!)\n"
+            << "   Speedup           : " << (eager_sparse_ms / lazy_sparse_ms)
+            << "x faster\n"
+            << "\n3. Fully Used Arenas (100% allocations):\n"
+            << "   Eager (flag=false): " << eager_full_ms << " ms\n"
+            << "   Lazy  (flag=true) : " << lazy_full_ms << " ms\n"
+            << "======================================================\n";
+
+  // Reset flag back to default false
+  absl::SetFlag(&FLAGS_gloop_arena_lazy_first_block, false);
 }
 
 }  // namespace

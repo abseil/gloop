@@ -37,10 +37,15 @@
 #include <vector>
 
 #include "absl/base/macros.h"
+#include "absl/flags/flag.h"
 #include "absl/log/check.h"
 #include "absl/synchronization/mutex.h"
 #include "gloop/base/config.h"
 #include "tcmalloc/malloc_extension.h"
+
+ABSL_FLAG(bool, gloop_arena_lazy_first_block, false,
+          "If true, BaseArena defers allocating the initial pool block "
+          "until the first allocation.");
 
 #ifdef GOOGLE_HAVE_GETPAGESIZE
 #include <unistd.h>
@@ -125,11 +130,14 @@ BaseArena::BaseArena(char* first, const size_t orig_block_size,
     : remaining_(0),
       block_size_(nallocx(orig_block_size, 0)),
       freestart_(nullptr),  // set for real in Reset()
+      freestart_when_empty_(nullptr),
       last_alloc_(nullptr),
       overflow_blocks_(nullptr),
       first_block_externally_owned_(first != nullptr),
       page_aligned_(align_to_page),
-      blocks_alloced_(1) {
+      lazy_first_block_(first == nullptr &&
+                        absl::GetFlag(FLAGS_gloop_arena_lazy_first_block)),
+      blocks_alloced_(first != nullptr ? 1 : 0) {
   // Trivial check that aligned objects can actually be allocated.
   CHECK_GT(block_size_, static_cast<size_t>(kDefaultAlignment))
       << "orig_block_size = " << orig_block_size;
@@ -146,7 +154,10 @@ BaseArena::BaseArena(char* first, const size_t orig_block_size,
           (reinterpret_cast<uintptr_t>(first) & (kPageSize - 1)) == 0);
     first_blocks_[0].mem = first;
     first_blocks_[0].size = orig_block_size;
-  } else {
+    first_blocks_[0].alignment = 0;
+    blocks_alloced_ = 1;
+    Reset();
+  } else if (!lazy_first_block_) {
     if (page_aligned_) {
       // Make sure the blocksize is page multiple, as we need to end on a page
       // boundary.
@@ -160,16 +171,22 @@ BaseArena::BaseArena(char* first, const size_t orig_block_size,
       first_blocks_[0].alignment = 0;
     }
     first_blocks_[0].size = block_size_;
+    blocks_alloced_ = 1;
+    Reset();
+  } else {
+    first_blocks_[0].mem = nullptr;
+    first_blocks_[0].size = block_size_;
+    first_blocks_[0].alignment = page_aligned_ ? kPageSize : 0;
+    blocks_alloced_ = 0;
+    Reset();
   }
-
-  Reset();
 }
 
 BaseArena::~BaseArena() {
   FreeBlocks();
   assert(overflow_blocks_ == nullptr);  // FreeBlocks() should do that
 #ifdef ABSL_HAVE_ADDRESS_SANITIZER
-  if (first_block_externally_owned_) {
+  if (first_block_externally_owned_ && first_blocks_[0].mem != nullptr) {
     ASAN_UNPOISON_MEMORY_REGION(first_blocks_[0].mem, first_blocks_[0].size);
   }
 #endif
@@ -177,8 +194,10 @@ BaseArena::~BaseArena() {
   // NOTE: block_alloced_ is an int8_t so an int suffices here.
   for (int i = first_block_externally_owned_ ? 1 : 0; i < blocks_alloced_;
        ++i) {
-    DeallocateBytes(first_blocks_[i].mem, first_blocks_[i].size,
-                    first_blocks_[i].alignment);
+    if (first_blocks_[i].mem != nullptr) {
+      DeallocateBytes(first_blocks_[i].mem, first_blocks_[i].size,
+                      first_blocks_[i].alignment);
+    }
   }
 }
 
@@ -216,20 +235,28 @@ bool BaseArena::SatisfyAlignment(size_t alignment) {
 
 void BaseArena::Reset() {
   FreeBlocks();
-  freestart_ = first_blocks_[0].mem;
-  remaining_ = first_blocks_[0].size;
-  last_alloc_ = nullptr;
+  if (first_blocks_[0].mem != nullptr) {
+    freestart_ = first_blocks_[0].mem;
+    remaining_ = first_blocks_[0].size;
+    last_alloc_ = nullptr;
 #ifdef ABSL_HAVE_ADDRESS_SANITIZER
-  ASAN_POISON_MEMORY_REGION(freestart_, remaining_);
+    ASAN_POISON_MEMORY_REGION(freestart_, remaining_);
 #endif
 
-  ARENASET(status_.bytes_allocated_ = block_size_);
+    ARENASET(status_.bytes_allocated_ = block_size_);
 
-  // There is no guarantee the first block is properly aligned, so
-  // enforce that now.
-  CHECK(SatisfyAlignment(kDefaultAlignment));
+    // There is no guarantee the first block is properly aligned, so
+    // enforce that now.
+    CHECK(SatisfyAlignment(kDefaultAlignment));
 
-  freestart_when_empty_ = freestart_;
+    freestart_when_empty_ = freestart_;
+  } else {
+    freestart_ = nullptr;
+    remaining_ = 0;
+    last_alloc_ = nullptr;
+    freestart_when_empty_ = nullptr;
+    ARENASET(status_.bytes_allocated_ = 0);
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -240,10 +267,14 @@ void BaseArena::Reset() {
 // ----------------------------------------------------------------------
 
 void BaseArena::MakeNewBlock(const size_t alignment) {
-  AllocatedBlock* block = AllocNewBlock(block_size_, alignment);
+  AllocatedBlock* block =
+      AllocNewBlock(block_size_, alignment, /*is_pool_block=*/true);
   freestart_ = block->mem;
   remaining_ = block->size;
   CHECK(SatisfyAlignment(alignment));
+  if (freestart_when_empty_ == nullptr) {
+    freestart_when_empty_ = freestart_;
+  }
 }
 
 // The following simple numeric routines also exist in util/math/mathutil.h
@@ -278,12 +309,23 @@ static size_t LeastCommonMultiple(size_t a, size_t b) {
 // -------------------------------------------------------------
 
 BaseArena::AllocatedBlock* BaseArena::AllocNewBlock(const size_t block_size,
-                                                    const size_t alignment) {
+                                                    const size_t alignment,
+                                                    bool is_pool_block) {
   AllocatedBlock* block;
   // Find the next block.
-  if (blocks_alloced_ < static_cast<int64_t>(ABSL_ARRAYSIZE(first_blocks_))) {
-    // Use one of the pre-allocated blocks
-    block = &first_blocks_[blocks_alloced_++];
+  if (is_pool_block && first_blocks_[0].mem == nullptr) {
+    block = &first_blocks_[0];
+    if (blocks_alloced_ == 0) {
+      blocks_alloced_ = 1;
+    }
+  } else if (blocks_alloced_ <
+             static_cast<int64_t>(ABSL_ARRAYSIZE(first_blocks_))) {
+    int idx = blocks_alloced_++;
+    if (idx == 0 && first_blocks_[0].mem == nullptr) {
+      idx = 1;
+      blocks_alloced_ = 2;
+    }
+    block = &first_blocks_[idx];
   } else {  // oops, out of space, move to the vector
     if (overflow_blocks_ == nullptr)
       overflow_blocks_ = new std::vector<AllocatedBlock>;
@@ -372,7 +414,7 @@ void* BaseArena::GetMemoryFallback(const size_t size, const size_t alignment) {
   if (block_size_ == 0 || size > block_size_ / 4) {
     // Use a block separate from all other allocations; in particular
     // we don't update last_alloc_ so you can't reclaim space on this block.
-    AllocatedBlock* b = AllocNewBlock(size, alignment);
+    AllocatedBlock* b = AllocNewBlock(size, alignment, /*is_pool_block=*/false);
 #ifdef ABSL_HAVE_ADDRESS_SANITIZER
     ASAN_UNPOISON_MEMORY_REGION(b->mem, b->size);
 #endif
@@ -410,13 +452,17 @@ void* BaseArena::GetMemoryFallback(const size_t size, const size_t alignment) {
 
 void BaseArena::FreeBlocks() {
   // NOTE: blocks_alloced_ is a int8_t, so using an int is ok.
-  for (int i = 1; i < blocks_alloced_; ++i) {  // keep first block alloced
-    DeallocateBytes(first_blocks_[i].mem, first_blocks_[i].size,
-                    first_blocks_[i].alignment);
-    first_blocks_[i].mem = nullptr;
-    first_blocks_[i].size = 0;
+  int start_idx = (first_blocks_[0].mem != nullptr) ? 1 : 0;
+  for (int i = start_idx; i < blocks_alloced_;
+       ++i) {  // keep first block alloced
+    if (first_blocks_[i].mem != nullptr) {
+      DeallocateBytes(first_blocks_[i].mem, first_blocks_[i].size,
+                      first_blocks_[i].alignment);
+      first_blocks_[i].mem = nullptr;
+      first_blocks_[i].size = 0;
+    }
   }
-  blocks_alloced_ = 1;
+  blocks_alloced_ = (first_blocks_[0].mem != nullptr) ? 1 : 0;
   if (overflow_blocks_ != nullptr) {
     std::vector<AllocatedBlock>::iterator it;
     for (it = overflow_blocks_->begin(); it != overflow_blocks_->end(); ++it) {

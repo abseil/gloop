@@ -267,8 +267,11 @@
 #include "absl/base/attributes.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
+#include "absl/flags/declare.h"
 #include "absl/strings/str_format.h"
 #include "absl/synchronization/mutex.h"
+
+ABSL_DECLARE_FLAG(bool, gloop_arena_lazy_first_block);
 
 #ifdef ABSL_HAVE_ADDRESS_SANITIZER
 #include <sanitizer/asan_interface.h>
@@ -329,7 +332,9 @@ class BaseArena {
   size_t block_size() const { return block_size_; }
   size_t block_count() const;
   bool is_empty() const {
-    // must check block count in case we allocated a block larger than blksize
+    if (freestart_when_empty_ == nullptr && freestart_ == nullptr) {
+      return block_count() == 0;
+    }
     return freestart_ == freestart_when_empty_ && 1 == block_count();
   }
 
@@ -391,8 +396,8 @@ class BaseArena {
   // alignment.
   // The returned AllocatedBlock* is valid until the next call to AllocNewBlock
   // or Reset (i.e. anything that might affect overflow_blocks_).
-  AllocatedBlock* AllocNewBlock(const size_t block_size,
-                                const size_t alignment);
+  AllocatedBlock* AllocNewBlock(const size_t block_size, const size_t alignment,
+                                bool is_pool_block = false);
 
   const size_t block_size_;
   char* freestart_;  // beginning of the free space in most recent block
@@ -403,7 +408,8 @@ class BaseArena {
   // STL vector isn't as efficient as it could be, so we use an array at first
   const bool first_block_externally_owned_;  // true if they pass in 1st block
   const bool page_aligned_;  // when true, all blocks need to be page aligned
-  int8_t blocks_alloced_;    // how many of the first_blocks_ have been alloced
+  const bool lazy_first_block_;  // when true, defer initial block allocation
+  int8_t blocks_alloced_;  // how many of the first_blocks_ have been alloced
   AllocatedBlock first_blocks_[16];  // the length of this array is arbitrary
 
   void FreeBlocks();  // Frees all except first block
