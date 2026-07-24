@@ -87,6 +87,11 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
   // Construct a context in the default (background, empty) state.
   Context() noexcept = default;
 
+  Context(const Context& c);
+  Context(Context&& c) noexcept;
+  Context& operator=(const Context& c);
+  Context& operator=(Context&& c) noexcept;
+
   // Constructs a Context with state inherited from the creating thread. Call
   // like so: base::Context(base::Context::kThread).
   //
@@ -97,11 +102,6 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
   explicit Context(ThreadInitType,
                    perftools::tracing::StringRef thread_name =
                        perftools::tracing::TraceSourceLocation::current());
-
-  Context(const Context& c);
-  Context(Context&& c) noexcept;
-  Context& operator=(const Context& c);
-  Context& operator=(Context&& c) noexcept;
 
   // Copy constructs a Context with state copied from the source context
   // using `thread_name` as an identifying name for the (scheduled) execution
@@ -228,9 +228,9 @@ class ContextBuilder {
   // By default, use the fields from the supplied context. Overrides
   // are specified using set* and adopt* methods.  Applications should
   // prefer to use the default constructor below rather than passing in
-  // `BackgroundContext()` or `Context(Context::kDefault)`.
-  // See the comments on the `ThreadInitType` constructor on when to use
-  // `CurrentContext()` or `Context::kThread` as a constructor argument.
+  // `BackgroundContext()` or `ThreadContext()`. See the comments on the
+  // `ThreadContext()` on when to use CurrentContext()` or `ThreadContext()`
+  // as a constructor argument.
   explicit ContextBuilder(Context base_context);
 
   // Creates a ContextBuilder based on the background context.
@@ -264,6 +264,7 @@ class ContextBuilder {
   //   builder.set_security_context(RequestSpecificSecurity());
   //   base::WithContext with_security_context(builder.BuildValue());
   //
+
   explicit ContextBuilder(
       Context::ThreadInitType,
       perftools::tracing::StringRef label =
@@ -580,16 +581,19 @@ inline const Context& BackgroundContext() {
   return *internal::background_context;
 }
 
+Context ThreadContext(perftools::tracing::StringRef label =
+                          perftools::tracing::TraceSourceLocation::current());
+
 inline const Context& DefaultContext() { return *internal::background_context; }
+
+inline ContextBuilder::ContextBuilder(Context::ThreadInitType,
+                                      perftools::tracing::StringRef label)
+    : context_(base::Context::kThread, label) {}
 
 inline ContextBuilder::ContextBuilder(Context context)
     : context_(std::move(context)) {}
 
 inline ContextBuilder::ContextBuilder() : context_() {}
-
-inline ContextBuilder::ContextBuilder(Context::ThreadInitType,
-                                      perftools::tracing::StringRef label)
-    : context_(base::Context::kThread, label) {}
 
 }  // namespace base
 

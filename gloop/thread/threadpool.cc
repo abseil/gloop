@@ -300,8 +300,8 @@ void ThreadPool::InternalPut(
   // Schedule the callback to be run in our queue with a copy of the current
   // caller's context which is essential for distributed execution, tracing,
   // census accounting and security in google3 applications.
-  queue_.push_back(std::make_unique<Entry>(
-      base::Context(base::Context::kThread), std::move(callback)));
+  queue_.push_back(
+      std::make_unique<Entry>(base::ThreadContext(), std::move(callback)));
   queue_size_.fetch_add(1, std::memory_order_relaxed);
   SignalWaiter();
 }

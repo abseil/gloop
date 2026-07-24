@@ -130,7 +130,7 @@ Task::Task(absl::AnyInvocable<void(Task*) &&> callback,
 Task::Task(absl::AnyInvocable<void(Task*) &&> callback,
            thread::Executor* executor, google::protobuf::Arena* arena,
            perftools::tracing::StringRef label)
-    : context_(base::Context::kThread, label),
+    : context_(base::ThreadContext(label)),
       status_(),
       done_callback_(std::move(callback)),
       cancel_callbacks_(),

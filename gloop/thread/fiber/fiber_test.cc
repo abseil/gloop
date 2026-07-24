@@ -1671,7 +1671,7 @@ TEST(PthreadExit, Works) {
 TEST(CancelAfterDeadlineTest, WorksForParent) {
   auto fiber =
       NewTree(TreeOptions().set_context(
-                  base::ContextBuilder(base::Context(base::Context::kThread))
+                  base::ContextBuilder(base::ThreadContext())
                       .set_deadline(absl::Now() + absl::Milliseconds(1))
                       .BuildValue()),
               [=] {
@@ -1686,10 +1686,9 @@ TEST(CancelAfterDeadlineTest, WorksForChild) {
     absl::Notification fiber_done;
     const auto root_deadline = absl::Seconds(10);
     const auto now = absl::Now();
-    Detach(TreeOptions().set_context(
-               base::ContextBuilder(base::Context(base::Context::kThread))
-                   .set_deadline(now + root_deadline)
-                   .BuildValue()),
+    Detach(TreeOptions().set_context(base::ContextBuilder(base::ThreadContext())
+                                         .set_deadline(now + root_deadline)
+                                         .BuildValue()),
            [&]() {
              base::WithDeadline wd(now + child_deadline);
              Fiber child([=] {

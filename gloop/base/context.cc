@@ -65,6 +65,8 @@ namespace base {
 // provides no functionality in this configuration.
 Context::Context(ThreadInitType, perftools::tracing::StringRef) {}
 
+Context ThreadContext(perftools::tracing::StringRef label) { return Context{}; }
+
 Context::~Context() {}
 
 void swap(Context&, Context&) noexcept {}
@@ -118,6 +120,10 @@ Context* absl_nonnull RestoreContext(ContextAccess access,
 
 Context::Context(ThreadInitType, perftools::tracing::StringRef thread_name)
     : Context(*InlineCurrent(), thread_name) {}
+
+Context ThreadContext(perftools::tracing::StringRef label) {
+  return Context(*InlineCurrent(), label);
+}
 
 Context::Context(const Context& c, perftools::tracing::StringRef thread_name)
     : tc_(c.tc_), deadline_(c.deadline_), thread_status_(c.thread_status_) {}

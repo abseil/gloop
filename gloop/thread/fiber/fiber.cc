@@ -256,7 +256,7 @@ Fiber::Fiber(Unstarted, const FiberOptions& options, Invocable invocable,
         // use `base::BackgroundContext()` which emits no causality events.
         // See `ThreadInitType` constructor in `base::Context` for more info.
         return type_ == fiber::FIBER_TYPE_NORMAL
-                   ? base::Context(base::Context::kThread, options.name())
+                   ? base::ThreadContext(options.name())
                    : base::BackgroundContext();
       }()),
       options_(options),

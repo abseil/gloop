@@ -76,8 +76,7 @@ internal::WithContextFunctor<std::decay_t<Functor>> WithCurrentContext(
     ::perftools::tracing::StringRef label =
         ::perftools::tracing::TraceSourceLocation::current()) {
   return internal::WithContextFunctor<std::decay_t<Functor>>(
-      std::forward<Functor>(invocable),
-      ::base::Context(::base::Context::kThread, label));
+      std::forward<Functor>(invocable), ::base::ThreadContext(label));
 }
 
 // `WithContext` implementation capturing 'base::Context::kThread' calls.
@@ -88,8 +87,7 @@ internal::WithContextFunctor<std::decay_t<Functor>> WithContext(
     ::perftools::tracing::StringRef label =
         ::perftools::tracing::TraceSourceLocation::current()) {
   return internal::WithContextFunctor<std::decay_t<Functor>>(
-      std::forward<Functor>(invocable),
-      ::base::Context(::base::Context::kThread, label));
+      std::forward<Functor>(invocable), ::base::ThreadContext(label));
 }
 
 }  // namespace functional

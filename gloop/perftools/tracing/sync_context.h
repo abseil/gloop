@@ -117,7 +117,7 @@ namespace perftools::tracing::core {
 //    // Creates a child context, invoking `GetEventListener()` on the
 //    // currently active `MyCoolListener` instance to get a child listener,
 //    // and emits (invokes) the 'OnTraceSpawn` event on `MyCoolListener`.
-//    base::Context context(base::Context::kThread);
+//    base::Context context = base::ThreadContext();
 //
 //    // Bind context to thread body
 //    auto body = [context = std::move(context)] mutable {

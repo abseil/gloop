@@ -218,7 +218,7 @@ TEST_F(ContextTest, DefaultInitIsConstExprAndDefaulted) {
 TEST_F(ContextTest, ThreadContextEqualsThreadContext) {
   std::unique_ptr<Context> context(GetTestContext());
   base::WithContext wc(*context);
-  ContextEq(Context(Context::kThread), *context);
+  ContextEq(ThreadContext(), *context);
 }
 
 // Validate initial parameters on CurrentContext().  Must be first test.
@@ -243,12 +243,12 @@ TEST_F(ContextTest, TestInitialState) {
 
   // The (equivalent) Contexts below should all be default also.
   ContextEq(CurrentContext(), BackgroundContext());
-  Context copy_current_thread_context(Context::kThread);
+  Context copy_current_thread_context = ThreadContext();
   ContextEq(default_context, copy_current_thread_context);
 
   // Finally, take a copy of the current context so that 'TestFinalState' can
   // verify it was not perturbed by any test.
-  original_context = std::make_unique<Context>(Context::kThread);
+  original_context = std::make_unique<Context>(ThreadContext());
 }
 
 TEST_F(ContextTest, CopyAndAssign) {
@@ -309,13 +309,13 @@ TEST_F(ContextTest, Initializers) {
   Context def;
   ContextEq(def, BackgroundContext());
 
-  Context th(Context::kThread);
+  Context th = ThreadContext();
   ContextEq(th, BackgroundContext());
 
   {
     std::unique_ptr<Context> handle(GetTestContext());
     WithContext wc(*handle);
-    Context th(Context::kThread);
+    Context th = ThreadContext();
     ContextEq(*handle, th);
   }
 }
