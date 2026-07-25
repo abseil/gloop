@@ -59,7 +59,7 @@ jobs:
             bazel-version: 8.x
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.1
 
       - name: Pin bazel version
         run: |
@@ -126,7 +126,7 @@ jobs:
             expected_error: Bazel compatibility check failed
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.1
 
       - name: Pin bazel version
         run: |
