@@ -44,6 +44,7 @@ build --copt=-Wno-deprecated-volatile
 # This can be overridden by our test docker images to inject our own toolchains.
 build --extra_toolchains=@docker_toolchain//:all
 
+common --announce_rc
 test --test_output=errors --keep_going
 
 build:dbg --compilation_mode=dbg
@@ -111,3 +112,7 @@ build:remote-arm --platforms=//gloop/ci:rbe-arm
 
 # Fuzzing configuration.
 try-import %workspace%/fuzztest.bazelrc
+
+# External repository download caching and retry options.
+common --http_connector_attempts=10
+common --http_timeout_scaling=2.0

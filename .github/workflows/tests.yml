@@ -56,14 +56,15 @@ jobs:
             value: libstdc++
           - name: Bazel 8
             value: asan
-            env: USE_BAZEL_VERSION=8.x
+            bazel-version: 8.x
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
 
-      - name: Override environments variables
+      - name: Pin bazel version
         run: |
-          echo "${{ matrix.config.env }}" >> $GITHUB_ENV
+          echo "USE_BAZEL_VERSION=${{ matrix.config.bazel-version || '9.x' }}" >> $GITHUB_ENV
+          echo "${{ matrix.config.bazel-version || '9.x' }}" >> .bazelversion
 
       - name: Setup continuous run
         # Force build isolation and test re-runs on post-submits.
@@ -77,18 +78,22 @@ jobs:
           external-cache: true
           repository-cache: |
             - MODULE.bazel
+            - gloop/examples/MODULE.bazel
+            - .bazelversion
           google-credentials: ${{ secrets.GAR_SERVICE_ACCOUNT }}
           bazelrc: >
             common
             --config=remote${{ matrix.config.arch-suffix }}
-            --config=${{ matrix.config.value }}
             ${{env.EXTRA_BAZEL_ARGS}}
 
+      - name: Fetch all external dependencies
+        run: bazel fetch //... @examples//...
+
       - name: Run tests
-        run: bazel test ...
+        run: bazel test ... --config=${{ matrix.config.value }}
 
       - name: Run example test
-        run: bazel test @examples//...
+        run: bazel test @examples//... --config=${{ matrix.config.value }}
 
   non_compilation:
     name: Check Non-compilation for ${{ matrix.config }}
@@ -117,19 +122,27 @@ jobs:
             flags: --copt=-fsigned-char
             expected_error: Gloop does not support signed chars
           - config: Bazel less than 8.0
-            env: USE_BAZEL_VERSION=7.7.1
+            bazel-version: 7.7.1
             expected_error: Bazel compatibility check failed
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
 
+      - name: Pin bazel version
+        run: |
+          echo "USE_BAZEL_VERSION=${{ matrix.bazel-version || '9.x' }}" >> $GITHUB_ENV
+          echo "${{ matrix.bazel-version || '9.x' }}" >> .bazelversion
+
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
         with:
           bazelisk-cache: true
-          cache-save: true
+          # Avoid polluting the main build cache with lightweight failed builds.
+          cache-save: false
           external-cache: true
           repository-cache: |
             - MODULE.bazel
+            - gloop/examples/MODULE.bazel
+            - .bazelversion
           google-credentials: ${{ secrets.GAR_SERVICE_ACCOUNT }}
           bazelrc: common --config=remote${{ matrix.config.arch-suffix }}
 
