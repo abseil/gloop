@@ -224,7 +224,7 @@ static bool IsSetuidUser(absl::string_view new_username) {
 // reasons. Currently, only root can do it.
 #if defined(GOOGLE_ENABLE_SETGID)
 static bool IsSetgidUser() {
-  const uid_t uid = getuid();
+  const uid_t uid = geteuid();
   if (uid == 0) return true;  // root can do it
 
   return false;

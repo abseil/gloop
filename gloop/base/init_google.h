@@ -148,6 +148,9 @@ inline void InitGoogleExceptChangeRootAndUser(
 }
 
 // Thread-hostile.
+// WARNING: ChangeRootAndUser() is NOT suitable as the sole privilege-drop
+// mechanism for setuid-root binaries because all controlling flags
+// (--uid, --gid, --chroot) are invoker-supplied and parsed before the drop.
 void ChangeRootAndUser();
 
 // Checks (only in debug mode) if InitGoogle() has been fully executed
