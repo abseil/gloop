@@ -162,8 +162,7 @@ class SymbolMap : public internal::SymbolMapSink {
   static std::unique_ptr<SymbolMap> CreateInternal(bool copy_symbol_names,
                                                    int compression_level);
 
-  static void PopulateSymbols(bool self, ProcMapsIterator* it,
-                              SymbolMap* symbols);
+  static void PopulateSymbols(SymbolMap& symbols);
 
   // Ensures that Finalize has been called for this instance.
   void EnsureFinalized() const;

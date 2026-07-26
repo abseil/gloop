@@ -161,9 +161,7 @@ std::unique_ptr<SymbolMap> SymbolMap::CreateInternal(bool copy_symbol_names,
                                                      int compression_level) {
   auto symbols =
       absl::WrapUnique(new SymbolMap(copy_symbol_names, compression_level));
-  // Passing 0 to ProcMapsIterator tells it to use the current process.
-  ProcMapsIterator it(0);
-  PopulateSymbols(/*self*/ true, &it, symbols.get());
+  PopulateSymbols(*symbols);
   return symbols;
 }
 
@@ -463,8 +461,7 @@ static uint64_t GetMainExecutableBaseAddress() {
 
 #endif  // __ELF__
 
-void SymbolMap::PopulateSymbols(bool self, ProcMapsIterator* it,
-                                SymbolMap* symbols) {
+void SymbolMap::PopulateSymbols(SymbolMap& symbols) {
   // For non-ELF platforms, we currently have no mechanism to enumerate our own
   // symbols. In this case we just leave the map empty, and all operations will
   // fail to resolve anything useful.
@@ -480,18 +477,20 @@ void SymbolMap::PopulateSymbols(bool self, ProcMapsIterator* it,
            std::tie(b.file_name, b.file_offset, b.mem_offset, b.length);
   };
 
+  ProcMapsIterator it(0);  // 0 -> current process.
+
   // When copy_symbol_names_ == true,  ElfReader will create new /proc/.../maps
   // mappings. We don't want these mappings to interfere with ProcMapsIterator,
   // so we first accumulate iteration results into image_info, and then process
   // all images without any further ProcMapsIterator involvement.
   std::vector<Info> image_info;
-  if (it->Valid()) {
+  if (it.Valid()) {
     Info info;
     uint64_t end;
     char *file_name, *flags;
     std::string memfd_name;
-    while (it->Next(&info.mem_offset, &end, &flags, &info.file_offset, nullptr,
-                    &file_name)) {
+    while (it.Next(&info.mem_offset, &end, &flags, &info.file_offset, nullptr,
+                   &file_name)) {
       VLOG(10) << "[" << std::hex << info.mem_offset << ", " << std::hex << end
                << "] file offset: " << std::hex << info.file_offset
                << " flags: " << flags << " name: '" << file_name << "'";
@@ -517,14 +516,12 @@ void SymbolMap::PopulateSymbols(bool self, ProcMapsIterator* it,
             (file_name == nullptr || file_name[0] == '\0' ||
              is_tagged_anon(file_name) ||
              strstr(file_name, " (deleted)") != nullptr)) {
-          if (self) {
-            // Special case: file text may have been remapped to hugepages.
-            // b/28220908. Only do that when iterating over our own map.
-            absl::debugging_internal::GetFileMappingHint(
-                reinterpret_cast<const void**>(&info.mem_offset),
-                reinterpret_cast<const void**>(&end), &info.file_offset,
-                const_cast<const char**>(&file_name));
-          }
+          // Special case: file text may have been remapped to hugepages.
+          // b/28220908. Only do that when iterating over our own map.
+          absl::debugging_internal::GetFileMappingHint(
+              reinterpret_cast<const void**>(&info.mem_offset),
+              reinterpret_cast<const void**>(&end), &info.file_offset,
+              const_cast<const char**>(&file_name));
         }
         if (file_name == nullptr || file_name[0] == '\0' ||
             is_tagged_anon(file_name)) {
@@ -550,25 +547,25 @@ void SymbolMap::PopulateSymbols(bool self, ProcMapsIterator* it,
 
       uint64_t file_offset = 0;
       ElfReader reader(info.file_name, file_offset,
-                       !symbols->copy_symbol_names_);
+                       !symbols.copy_symbol_names_);
       if (reader.IsElf32File() || reader.IsElf64File()) {
         // TODO: ask the ELF reader in advance how many symbols there
         // will be, so we can avoid the need for repeated reallocations.
-        reader.AddSymbols(symbols, info.mem_offset, info.file_offset,
+        reader.AddSymbols(&symbols, info.mem_offset, info.file_offset,
                           info.length);
         // If this is the main binary, check if is stripped.
         if (info.mem_offset == main_base) {
-          symbols->stripped_ = !reader.HasSymbolNames();
+          symbols.stripped_ = !reader.HasSymbolNames();
         }
       }
     }
   }
   if (g_genlibs != nullptr) {
     for (const auto& lib : *g_genlibs) {
-      ElfReader reader(lib.elf_name, 0, !symbols->copy_symbol_names_);
+      ElfReader reader(lib.elf_name, 0, !symbols.copy_symbol_names_);
       if (reader.IsNativeElfFile()) {
         const uint64_t length = lib.map_end - lib.map_beg;
-        reader.AddSymbols(symbols, lib.map_beg, lib.map_offset, length);
+        reader.AddSymbols(&symbols, lib.map_beg, lib.map_offset, length);
       }
     }
   }
@@ -585,13 +582,13 @@ void SymbolMap::PopulateSymbols(bool self, ProcMapsIterator* it,
                             : ELF64_ST_TYPE(info.symbol->st_info);
       // Add only STT_FUNC symbols. Ignore OBJECT, SECTION, etc.
       if (symbol_type == STT_FUNC) {
-        symbols->AddSymbol(info.name, reinterpret_cast<uintptr_t>(info.address),
-                           info.symbol->st_size);
+        symbols.AddSymbol(info.name, reinterpret_cast<uintptr_t>(info.address),
+                          info.symbol->st_size);
       }
     }
   }
 #endif  // ABSL_HAVE_VDSO_SUPPORT
-  symbols->EnsureFinalized();
+  symbols.EnsureFinalized();
 }
 
 SymbolMapIterator::~SymbolMapIterator() = default;
