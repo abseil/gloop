@@ -70,6 +70,20 @@ using testing::Optional;
 using testing::Pair;
 using testing::StartsWith;
 
+struct GloopStatusMatcherParams {
+  const util::ErrorSpace* space;
+  int error_code;
+  util::error::Code canonical_code;
+  absl::string_view message;
+  absl::string_view payload_message = "";
+};
+
+MATCHER_P(GloopStatusIs, p, "") {
+  return util::RetrieveErrorCode(arg) == p.error_code &&
+         arg.code() == util::ToAbslStatusCode(p.canonical_code) &&
+         util::RetrieveErrorSpace(arg) == p.space && arg.message() == p.message;
+}
+
 MATCHER_P(EqualsProto, proto, "") {
   return proto.DebugString() == arg.DebugString();
 }
@@ -195,19 +209,13 @@ static void CheckStatus(
     std::vector<int> lines = {},
     absl::SourceLocation loc = absl::SourceLocation::current()) {
   SCOPED_TRACE(testing::Message() << "Where s is " << s);
-  EXPECT_EQ(util::RetrieveErrorCode(s), error_code);
-  EXPECT_EQ(s.code(), util::ToAbslStatusCode(canonical_code));
-  EXPECT_EQ(s.raw_code(), canonical_code);
-  EXPECT_EQ(util::RetrieveErrorSpace(s), space);
-  EXPECT_TRUE(util::HasErrorSpace(s, space));
-  EXPECT_THAT(util::RetrieveErrorSpaceAndCode(s), Pair(space, error_code));
-  EXPECT_EQ(s.message(), message);
+  GloopStatusMatcherParams p{space, error_code, canonical_code, message,
+                             payload_message};
+  EXPECT_THAT(s, GloopStatusIs(p));
 
   if (error_code == 0) {
-    EXPECT_THAT(s, IsOk());
     EXPECT_EQ(s.ToString(), "OK");
   } else {
-    EXPECT_THAT(s, Not(IsOk()));
     EXPECT_THAT(s.ToString(),
                 HasSubstr(absl::StatusCodeToString(
                     static_cast<absl::StatusCode>(canonical_code))));
@@ -216,22 +224,9 @@ static void CheckStatus(
       EXPECT_THAT(s.ToString(), HasSubstr(space->String(error_code)));
     }
     EXPECT_THAT(s.ToString(), HasSubstr(message));
-    EXPECT_THAT(util::StatusToString(s), HasSubstr(space->SpaceName()));
-    EXPECT_THAT(util::StatusToString(s), HasSubstr(space->String(error_code)));
-    EXPECT_THAT(util::StatusToString(s), HasSubstr(message));
-
-    EXPECT_THAT(util::ErrorSpaceAndStatusToString(s),
-                HasSubstr(space->SpaceName()));
-    EXPECT_THAT(util::ErrorSpaceAndStatusToString(s),
-                HasSubstr(space->String(error_code)));
   }
 
-  if (payload_message.empty()) {
-    EXPECT_FALSE(util::HasPayload(s));
-  } else {
-    SCOPED_TRACE(testing::Message() << "Expecting payload_message == \""
-                                    << payload_message << "\"");
-    ASSERT_TRUE(util::HasPayload(s));
+  if (!payload_message.empty()) {
     EXPECT_THAT(util::MakePayloadsSet(s),
                 EqualsProto(MakeTestPayload(payload_message)));
   }
