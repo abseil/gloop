@@ -528,7 +528,7 @@ TEST(Tracer, InitiatorIdOfChildTrace) {
 
 TEST(Tracer, UnrefNoDeleteRefcountGreaterThanOne) {
   bool deleted = false;
-  TestTracer* tracer = new TestTracer(&deleted);
+  auto tracer = std::make_unique<TestTracer>(&deleted);
   tracer->SetStartTimeNow();
 
   int owners[2] = {0, 0};
@@ -550,7 +550,8 @@ TEST(Tracer, UnrefNoDeleteRefcountGreaterThanOne) {
 
 TEST(Tracer, UnrefNoDeleteRefcountEqualsOneWithUnrefTime) {
   bool deleted = false;
-  TestTracer* tracer = new TestTracer(&deleted);
+  auto tracer_up = std::make_unique<TestTracer>(&deleted);
+  TestTracer* tracer = tracer_up.get();
   tracer->SetStartTimeNow();
 
   int owner_val = 0;
