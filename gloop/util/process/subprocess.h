@@ -604,7 +604,7 @@ class SubProcess {
 
   // GetDirectory()
   //   the directory that the child process will chdir to before
-  //   exec-ing, or NULL.
+  //   exec-ing, or nullptr.
   virtual const char* GetDirectory() const {
     return chdir_.empty() ? nullptr : chdir_.c_str();
   }
@@ -623,7 +623,7 @@ class SubProcess {
 
   // GetChrootDirectory()
   //   the directory that the child process will chroot to before
-  //   exec-ing, or NULL.
+  //   exec-ing, or nullptr.
   virtual const char* GetChrootDirectory() const {
     return chroot_dir_.empty() ? nullptr : chroot_dir_.c_str();
   }
@@ -736,7 +736,7 @@ class SubProcess {
   //
   //    @param file The file containing the program.
   //    @param argv The argument list.
-  //                The array must be terminated with a NULL pointer.
+  //                The array must be terminated with a nullptr pointer.
   virtual void SetProgram(absl::string_view file, const char* const argv[]);
 
   // SetProgram()
@@ -761,7 +761,7 @@ class SubProcess {
   //              File descriptor is not owned by this class and must to be
   //              different than Channels.
   //    @param argv The argument list.
-  //                This must be terminated with a NULL.
+  //                This must be terminated with a nullptr.
   virtual void SetProgram(int fd, const char* const argv[]);
 
   // SetArgv()
@@ -1023,7 +1023,7 @@ class SubProcess {
   //   close() on this file descriptor when finished executing.
   //   If errors occur, returns a negative number.
   //
-  //   If filename is non-NULL, it will be filled with an exec-able path to
+  //   If filename is non-nullptr, it will be filled with an exec-able path to
   //   the file, of the form "/proc/*/fd/*"
   static int StringToExecutableFile(const char* data, size_t len,
                                     std::string* filename);
@@ -1131,8 +1131,8 @@ class SubProcess {
   //    @param pid The process that has exited.
   //    @param status The status returned by wait4()
   //    @param usage The resource usage structure for the process.
-  //                 May be NULL.
-  //    @return The SubProcess that had that pid, or NULL if there was
+  //                 May be nullptr.
+  //    @return The SubProcess that had that pid, or nullptr if there was
   //            no SubProcess with that pid.
   // L < subproc_mu
   static SubProcess* Reap(pid_t pid, int status, const struct rusage* usage);
@@ -1193,7 +1193,7 @@ class SubProcess {
   //    @param pid The pid that has exited.
   //    @param status The exit status, as returned by wait4().
   //    @param usage The resource usage, as reported by wait4().
-  //                 This may be NULL.
+  //                 This may be nullptr.
   // L < subproc_mu
   void HandleExit(pid_t pid, int status, const struct rusage* usage);
 
@@ -1368,7 +1368,7 @@ class SubProcess {
   };
   PidMode pidmode_;          //  Whether a new session or pgrp is needed
   bool disable_thp_;         //  Disable transparent huge pages before exec.
-  bool abandoned_;           //  Leave a NULL pointer in process map
+  bool abandoned_;           //  Leave a nullptr pointer in process map
                              //  if destroyed before the child exits.
   int parent_death_signal_;  //  Send this signal to the child process if the
                              //  parent process dies.

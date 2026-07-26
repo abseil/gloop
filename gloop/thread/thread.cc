@@ -848,8 +848,8 @@ void* MaybeGetPC(const StackTrace* trace) { return GetPC(trace->uc); }
 }  // namespace
 
 // This weak symbol is overridden when the program has a Python
-// interpreter linked in. It returns a non-NULL pointer if the current
-// thread holds the Python GIL, and NULL otherwise
+// interpreter linked in. It returns a non-nullptr pointer if the current
+// thread holds the Python GIL, and nullptr otherwise
 // (https://docs.python.org/3/c-api/threads.html#c.PyThreadState_GetUnchecked).
 // This function is async-signal-safe.
 typedef struct _ts PyThreadState;

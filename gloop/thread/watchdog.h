@@ -113,11 +113,11 @@ class WatchDog final {
   bool IsDisabled() { return disabled_.load(std::memory_order_relaxed); }
 
   // Set the callback to be run in place of TimedOut() when the timeout expires.
-  // If callback==NULL, TimedOut() is called, which aborts. SetCallback() takes
-  // ownership of *callback. The callback must be repeatable. It will not be
-  // called after the WatchDog's destructor returns. Each call to SetCallback()
-  // negates the effect of previous calls. The callback is expected to kill the
-  // process. If it does not do so, it must return swiftly.
+  // If callback==nullptr, TimedOut() is called, which aborts. SetCallback()
+  // takes ownership of *callback. The callback must be repeatable. It will not
+  // be called after the WatchDog's destructor returns. Each call to
+  // SetCallback() negates the effect of previous calls. The callback is
+  // expected to kill the process. If it does not do so, it must return swiftly.
   //
   // Beware that *callback may be called from arbitrary contexts and thus
   // *callback should not acquire application-level locks, or run arbitrary

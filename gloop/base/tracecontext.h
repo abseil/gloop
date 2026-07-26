@@ -143,8 +143,10 @@ class TraceContext {
  public:
   struct DefaultInitType {};
   struct ThreadInitType {};
+  struct NoContextInitType {};
   inline static constexpr DefaultInitType kDefault{};
   inline static constexpr ThreadInitType kThread{};
+  inline static constexpr NoContextInitType kNoContextInit{};
   constexpr TraceContext() = default;
   explicit constexpr TraceContext(DefaultInitType) {}
   explicit TraceContext(ThreadInitType) {}
@@ -762,13 +764,17 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
   int SignalSafeDebugString(char* out, size_t n) const;
 
   struct ABSL_DEPRECATED("Use the default constructor.") DefaultInitType {};
+  struct NoContextInitType {};
 
   ABSL_DEPRECATED("Use the default constructor.")
   inline static constexpr DefaultInitType kDefault{};
+  inline static constexpr NoContextInitType kNoContextInit{};
 
   // An old name for the default constructor. Do not use in new code.
   ABSL_DEPRECATE_AND_INLINE()
   explicit constexpr TraceContext(DefaultInitType) : TraceContext() {}
+
+  explicit constexpr TraceContext(NoContextInitType) : TraceContext() {}
 
  private:
   // Returns true iff the trace context is speculatively traced.

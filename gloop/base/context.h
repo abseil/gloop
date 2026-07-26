@@ -84,6 +84,9 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
   struct ThreadInitType {};
   inline constexpr static ThreadInitType kThread{};
 
+  struct NoContextInitType {};
+  inline constexpr static NoContextInitType kNoContextInit{};
+
   // Construct a context in the default (background, empty) state.
   Context() noexcept = default;
 
@@ -240,6 +243,8 @@ class ContextBuilder {
   [[deprecated("Use the default constructor.")]]
   explicit ContextBuilder(Context::DefaultInitType)
       : ContextBuilder() {}
+
+  explicit ContextBuilder(Context::NoContextInitType) : ContextBuilder() {}
 
   // Creates a ContextBuilder based on the current thread's active context.
   // This constructor should be used to construct a `Context` intended to be

@@ -236,7 +236,7 @@ struct SubProcess::ChildBuffers {
 //  exits, by HandleExit().
 
 //  If a SubProcess object is marked "abandoned" and destroyed
-//  before the child process exits, it leaves a NULL pointer in the
+//  before the child process exits, it leaves a nullptr pointer in the
 //  process map.
 namespace {
 typedef absl::flat_hash_map<pid_t, SubProcess*> ProcessMap;
@@ -633,9 +633,9 @@ void SubProcess::SetArgv(const std::vector<std::string>& argv) {
 }
 
 // SetEnviron()
-//    Set the environment the process is execed in.  `envp` must be a non-NULL
-//    array of strings, usually of the form "key=value".
-//    @param envp the environment.  The last element must be NULL
+//    Set the environment the process is execed in.  `envp` must be a
+//    non-nullptr array of strings, usually of the form "key=value".
+//    @param envp the environment.  The last element must be nullptr
 // Called before Start()
 void SubProcess::SetEnviron(const char* const envp[]) {
   FreeEnviron();
@@ -2121,7 +2121,7 @@ void SubProcess::Close(Channel chan) {
 //    @param pid The pid that has exited.
 //    @param status The exit status, as returned by wait4().
 //    @param usage The resource usage, as reported by wait4().
-//                 This may be NULL.
+//                 This may be nullptr.
 // L < subproc_mu
 void SubProcess::HandleExit(pid_t pid, int status, const struct rusage* usage) {
   finish_time_ = absl::Now();
@@ -2250,7 +2250,7 @@ void SubProcess::LockAndWaitInternal(pid_t sp_pid, int flags) {
 //    If WNOHANG is unset in flags, block until the process exits.  Otherwise,
 //    check whether the process has exited.  In either case, if the process is
 //    found to have exited, call Reap(), which will run the exit callback.
-/*static*/ void SubProcess::WaitInternal(SubProcess* sp /*may be NULL*/,
+/*static*/ void SubProcess::WaitInternal(SubProcess* sp /*may be nullptr*/,
                                          pid_t sp_pid, int flags) {
   pid_t pid;
   int status = 0;
@@ -2338,7 +2338,7 @@ void SubProcess::DoWaitInternal() {
 
   // For each process, do a non-blocking wait, then decrement the refcount.
   for (int i = 0; i != list.size(); i++) {
-    SubProcess* sp = list[i].second;  // might be NULL
+    SubProcess* sp = list[i].second;  // might be nullptr
     if (sp == nullptr) {
       WaitInternal(nullptr, list[i].first, WNOHANG);
     } else {
