@@ -67,7 +67,7 @@ class AddCancellableTest
  public:
   static void SetUpTestSuite() {
     dummy_closure_ = util::functional::ToPermanentCallback([] {});
-    executor_ = new ThreadPool(1);
+    executor_ = std::make_unique<ThreadPool>(1);
   }
 
  protected:
@@ -110,18 +110,18 @@ class AddCancellableTest
   }
 
  protected:
-  static ThreadPool* executor_;
+  static std::unique_ptr<ThreadPool> executor_;
   static Closure* dummy_closure_;
 };
 
-ThreadPool* AddCancellableTest::executor_ = nullptr;
+std::unique_ptr<ThreadPool> AddCancellableTest::executor_ = nullptr;
 Closure* AddCancellableTest::dummy_closure_ = nullptr;
 
 TEST_P(AddCancellableTest, NoCancellationNoDelay) {
   ExecutorHandle h;
   absl::Notification n;
   AddCancellableHelper(
-      executor_, absl::ZeroDuration(), [&n] { n.Notify(); }, &h);
+      executor_.get(), absl::ZeroDuration(), [&n] { n.Notify(); }, &h);
   n.WaitForNotification();
 }
 
@@ -130,7 +130,7 @@ TEST_P(AddCancellableTest, NoCancellationWithDelay) {
   absl::Notification n;
   absl::Time before = absl::Now();
   AddCancellableHelper(
-      executor_, absl::Milliseconds(20), [&n] { n.Notify(); }, &h);
+      executor_.get(), absl::Milliseconds(20), [&n] { n.Notify(); }, &h);
   n.WaitForNotification();
   absl::Time after = absl::Now();
   EXPECT_GE(after - before, absl::Milliseconds(20));
@@ -140,7 +140,8 @@ TEST_P(AddCancellableTest, CancelledDuringDelay) {
   ExecutorHandle h;
   absl::Notification n;
   // 3 minutes so the unit test times out before this call.
-  AddCancellableHelper(executor_, absl::Minutes(3), [&n] { n.Notify(); }, &h);
+  AddCancellableHelper(
+      executor_.get(), absl::Minutes(3), [&n] { n.Notify(); }, &h);
   Closure* cb = nullptr;
   EXPECT_EQ(Cancel(h, absl::ZeroDuration(), &cb), CancelResult::kCancelled);
   EXPECT_NE(cb, nullptr);
@@ -155,7 +156,7 @@ TEST_P(AddCancellableTest, PropagatesContextToTask) {
   {
     base::WithThreadStatus ts("expected_task_thread_status");
     AddCancellableHelper(
-        executor_, absl::Milliseconds(20),
+        executor_.get(), absl::Milliseconds(20),
         [&n, &task_thread_status] {
           task_thread_status = base::CurrentThreadStatus();
           n.Notify();
@@ -187,7 +188,8 @@ TEST_P(AddCancellableTest, CancelWillTimeout) {
     ExecutorHandle h;
     Notifications n;
     AddCancellableHelper(
-        executor_, absl::ZeroDuration(), [&n] { StartWaitFinish(&n); }, &h);
+        executor_.get(), absl::ZeroDuration(), [&n] { StartWaitFinish(&n); },
+        &h);
     n.start.WaitForNotification();
 
     Closure* cb = dummy_closure_;
@@ -203,7 +205,8 @@ TEST_P(AddCancellableTest, CancelWaitsForFinish) {
     ExecutorHandle h;
     Notifications n;
     AddCancellableHelper(
-        executor_, absl::ZeroDuration(), [&n] { StartWaitFinish(&n); }, &h);
+        executor_.get(), absl::ZeroDuration(), [&n] { StartWaitFinish(&n); },
+        &h);
     n.start.WaitForNotification();
 
     // We are not guaranteed to get the interleaving we want (cancel before the
@@ -228,7 +231,7 @@ TEST_P(AddCancellableTest, CancelAfterFinish) {
     ExecutorHandle h;
     absl::Notification n;
     AddCancellableHelper(
-        executor_, absl::ZeroDuration(), [&n] { n.Notify(); }, &h);
+        executor_.get(), absl::ZeroDuration(), [&n] { n.Notify(); }, &h);
     n.WaitForNotification();
 
     // Sleep a tiny bit to make it more likely we get the interleave we want.
@@ -248,7 +251,8 @@ TEST_P(AddCancellableTest, MultipleCancellations) {
   // Multiple cancellations with same handle
   ExecutorHandle h;
   absl::Notification n;
-  AddCancellableHelper(executor_, absl::Minutes(3), [&n] { n.Notify(); }, &h);
+  AddCancellableHelper(
+      executor_.get(), absl::Minutes(3), [&n] { n.Notify(); }, &h);
 
   Closure* cb;
   EXPECT_EQ(Cancel(h, absl::ZeroDuration(), &cb), CancelResult::kCancelled);
@@ -410,7 +414,8 @@ TEST_P(AddCancellableTest, EmptyHandle) {
   ExecutorHandle handle;  // an invalid/default handle
   EXPECT_TRUE(handle.empty());
 
-  AddCancellableHelper(executor_, absl::Milliseconds(100), [] {}, &handle);
+  AddCancellableHelper(
+      executor_.get(), absl::Milliseconds(100), [] {}, &handle);
   EXPECT_FALSE(handle.empty());
   Closure* cb1;
   EXPECT_EQ(Cancel(handle, absl::InfiniteDuration(), &cb1),
@@ -422,7 +427,7 @@ TEST_P(AddCancellableTest, EmptyHandle) {
   EXPECT_TRUE(handle.empty());
   absl::Notification n;
   AddCancellableHelper(
-      executor_, absl::Milliseconds(100), [&n] { n.Notify(); }, &handle);
+      executor_.get(), absl::Milliseconds(100), [&n] { n.Notify(); }, &handle);
   EXPECT_FALSE(handle.empty());
   n.WaitForNotification();
   Closure* cb2;
@@ -677,13 +682,13 @@ INSTANTIATE_TEST_SUITE_P(
 
 class ManyTest : public ::testing::Test {
  public:
-  ManyTest() { executor_ = new ThreadPool(1); }
+  ManyTest() { executor_ = std::make_unique<ThreadPool>(1); }
 
   void DecrementCounter(absl::BlockingCounter* c) { c->DecrementCount(); }
 
  protected:
   static constexpr int kManySize = 1024;
-  ThreadPool* executor_;
+  std::unique_ptr<ThreadPool> executor_;
 };
 
 TEST_F(ManyTest, ScheduleMany) {
@@ -733,10 +738,10 @@ TEST(InlineExecutorTest, Schedule) {
   absl::Time saved_deadline = absl::InfiniteFuture();
   absl::Notification notification;
   {
-    std::unique_ptr<base::Context> target_context(
-        new base::Context(base::ContextBuilder(base::BackgroundContext())
-                              .set_deadline(deadline)
-                              .BuildValue()));
+    auto target_context = std::make_unique<base::Context>(
+        base::ContextBuilder(base::BackgroundContext())
+            .set_deadline(deadline)
+            .BuildValue());
     base::WithContext with(*target_context);
     executor->Schedule([&notification, &executor, &saved_deadline] {
       ValidateCurrentExecutorAndNotify(executor.get(), &notification,
@@ -755,10 +760,10 @@ TEST(InlineExecutorTest, TryAdd) {
   absl::Time saved_deadline = absl::InfiniteFuture();
   absl::Notification notification;
   {
-    std::unique_ptr<base::Context> target_context(
-        new base::Context(base::ContextBuilder(base::BackgroundContext())
-                              .set_deadline(deadline)
-                              .BuildValue()));
+    auto target_context = std::make_unique<base::Context>(
+        base::ContextBuilder(base::BackgroundContext())
+            .set_deadline(deadline)
+            .BuildValue());
     base::WithContext with(*target_context);
 
     EXPECT_TRUE(executor->TrySchedule(
@@ -777,10 +782,10 @@ TEST(InlineExecutorTest, TrySchedule) {
   absl::Time saved_deadline = absl::InfiniteFuture();
   absl::Notification notification;
   {
-    std::unique_ptr<base::Context> target_context(
-        new base::Context(base::ContextBuilder(base::BackgroundContext())
-                              .set_deadline(deadline)
-                              .BuildValue()));
+    auto target_context = std::make_unique<base::Context>(
+        base::ContextBuilder(base::BackgroundContext())
+            .set_deadline(deadline)
+            .BuildValue());
     base::WithContext with(*target_context);
     EXPECT_TRUE(
         executor->TrySchedule([&notification, &executor, &saved_deadline] {
