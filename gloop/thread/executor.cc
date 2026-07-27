@@ -83,6 +83,14 @@ ABSL_FLAG(
     "\"eventmanager2\". Explicit calls to "
     "thread::Executor::SetDefaultExecutor() override this flag.");
 
+ABSL_FLAG(
+    bool, default_executor_ignore_override, true,
+    "If false, SetDefaultExecutor() will use the historical default behavior "
+    "of allowing it to be overridden. If true, SetDefaultExecutor() is a "
+    "no-op.\n\n"
+    "NOTE: This flag is only intended for short-term rollbacks in case "
+    "of an issue and will be enabled for all users then removed soon. ");
+
 namespace thread_internal {
 
 // Weak function that supplies the default EventManager2 executor. Overridden in
@@ -200,6 +208,12 @@ Executor* Executor::DefaultExecutor() {
 }
 
 void Executor::SetDefaultExecutor(Executor* executor) {
+  if (absl::GetFlag(FLAGS_default_executor_ignore_override)) {
+    LOG(WARNING) << "SetDefaultExecutor() is a no-op because "
+                    "--default_executor_ignore_override is true. This method "
+                    "will soon be removed.";
+    return;
+  }
   absl::MutexLock l(set_lock);
   default_executor.store(executor, std::memory_order_release);
   // Leave original_executor alone so that it contains a pointer to
