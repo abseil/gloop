@@ -26,6 +26,7 @@
 
 #include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
+#include "absl/types/span.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -42,6 +43,16 @@ TEST(CMemsetTest, WorksForContainersOfMultiByteType) {
   // 0x01010101 is 16843009
   gtl::c_memset(v2, 0x01);
   EXPECT_THAT(v2, ElementsAre(16843009, 16843009, 16843009));
+}
+
+TEST(CMemsetTest, WorksForRvalueSpans) {
+  std::vector<int> v = {1, 2, 3, 4, 5};
+  gtl::c_memset(absl::MakeSpan(v).subspan(1, 3), 0);
+  EXPECT_THAT(v, ElementsAre(1, 0, 0, 0, 5));
+
+  std::string s = "abcde";
+  gtl::c_memset(absl::MakeSpan(s).subspan(1, 3), 'x');
+  EXPECT_EQ(s, "axxxe");
 }
 
 struct TrivialInts {
@@ -101,6 +112,16 @@ TEST(CMemsetNTest, WorksForContainersOfSingleByteType) {
   std::vector<char> v2 = {'a', 'b', 'c'};
   gtl::c_memset_n(v2, 'x', 0);
   EXPECT_THAT(v2, ElementsAre('a', 'b', 'c'));
+}
+
+TEST(CMemsetNTest, WorksForRvalueSpans) {
+  std::vector<int> v = {0x11111111, 0x22222222, 0x33333333, 0x44444444};
+  gtl::c_memset_n(absl::MakeSpan(v).subspan(1, 3), 0, 4);
+  EXPECT_THAT(v, ElementsAre(0x11111111, 0, 0x33333333, 0x44444444));
+
+  std::vector<char> v2 = {'a', 'b', 'c', 'd'};
+  gtl::c_memset_n(absl::MakeSpan(v2).subspan(1, 3), 'x', 2);
+  EXPECT_THAT(v2, ElementsAre('a', 'x', 'x', 'd'));
 }
 
 bool IsHardened() {
