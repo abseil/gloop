@@ -43,11 +43,13 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
 #include "absl/base/call_once.h"
 #include "absl/debugging/internal/symbolize.h"
 #include "absl/debugging/internal/vdso_support.h"
+#include "absl/debugging/symbolize.h"
 #include "absl/flags/flag.h"
 #include "absl/memory/memory.h"
 #include "absl/status/statusor.h"
@@ -261,8 +263,6 @@ bool SymbolMap::GetSymbolInfoAtPosition(uint64_t pos, const char** name,
   } else {
     index = addr_shrunk_array_.UpperBound(pos);
   }
-  if (index == 0) return false;
-  --index;
 
   auto get_symbol = [&](size_t index) {
     if (symbol_map_compression_level_ == 0) {
@@ -275,21 +275,37 @@ bool SymbolMap::GetSymbolInfoAtPosition(uint64_t pos, const char** name,
       return s;
     }
   };
-  // If the symbol has no size information, we assume that "pos" is
-  // associated with the symbol. This happens with rare symbols such
-  // as __restore in glibc.  Otherwise, check and see if the symbol is
-  // long enough to include "pos".
-  //
-  // Note that the assumption might produce wrong symbol names in very
-  // rare cases.  Suppose the last symbol in the symbol map has no
-  // size information and the program counter is pointing to an
-  // address after the start address of the symbol?  If necessary we
-  // might want to add sanity checks, such as not believing that a
-  // procedure without size information is more than a few hundred
-  // kilobytes in size.
-  const Symbol symbol = get_symbol(index);
-  if ((symbol.size == 0) ||
-      (pos >= symbol.addr && pos - symbol.addr < symbol.size)) {
+
+  bool matched = false;
+  Symbol symbol;
+  if (index != 0) {
+    --index;
+    symbol = get_symbol(index);
+    if ((symbol.size == 0) ||
+        (pos >= symbol.addr && pos - symbol.addr < symbol.size)) {
+      matched = true;
+    }
+  }
+
+  if (!matched || symbol.size == 0) {
+    char absl_symbol_buf[1024];
+    if (absl::Symbolize(reinterpret_cast<const void*>(pos), absl_symbol_buf,
+                        sizeof(absl_symbol_buf))) {
+      if (name) {
+        thread_local std::unordered_map<uint64_t, std::string> tls_symbols;
+        auto& slot = tls_symbols[pos];
+        if (slot.empty()) {
+          slot = absl_symbol_buf;
+        }
+        *name = slot.c_str();
+      }
+      if (start) *start = pos;
+      if (size) *size = 0;
+      return true;
+    }
+  }
+
+  if (matched) {
     if (start) *start = symbol.addr;
     if (size) *size = symbol.size;
 
