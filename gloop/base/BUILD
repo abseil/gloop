@@ -2495,3 +2495,19 @@ cc_library(
     hdrs = ["xray/tracing_annotations.h"],
     deps = ["//gloop:enforce_gloop_support"],
 )
+
+cc_test(
+    name = "symbolize_fallback_test",
+    srcs = ["symbolize_fallback_test.cc"],
+    malloc = "//gloop:malloc",
+    deps = [
+        "//gloop:gloop_test_main",
+        "//gloop/util/symbolize",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:malloc_internal",
+        "@abseil-cpp//absl/cleanup",
+        "@abseil-cpp//absl/debugging:symbolize",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
