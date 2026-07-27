@@ -162,6 +162,36 @@ cc_test(
 )
 
 cc_library(
+    name = "noop_trace_event_listener",
+    srcs = ["noop_trace_event_listener.cc"],
+    hdrs = ["noop_trace_event_listener.h"],
+    visibility = [
+        ":base_visibility",
+        ":internal_visibility",
+        ":trace_event_listener_visibility",
+    ],
+    deps = [
+        ":trace_event_listener",
+        ":tracing_base",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:no_destructor",
+    ],
+)
+
+cc_test(
+    name = "noop_trace_event_listener_test",
+    srcs = ["noop_trace_event_listener_test.cc"],
+    deps = [
+        ":noop_trace_event_listener",
+        ":trace_event_listener",
+        ":tracing_base",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "multiplex_trace_event_listener",
     srcs = ["multiplex_trace_event_listener.cc"],
     hdrs = ["multiplex_trace_event_listener.h"],
