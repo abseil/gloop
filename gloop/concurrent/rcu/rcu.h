@@ -48,7 +48,9 @@ namespace base {
 // RCU implements an extremely scalable form of reader-writer lock.  Reader
 // locks are extremely cheap and should scale linearly to any number of readers;
 // in particular, they don't use any atomic instructions or other
-// synchronization. They aren't even slowed by the existence of writers.
+// synchronization. Reader performance is largely independent of writer
+// activity, though writers will still cause cache line invalidations on the
+// first reads after an update.
 //
 // The disadvantage is that the "writer lock" can't actually modify
 // protected data; instead, you must atomically publish a new version
