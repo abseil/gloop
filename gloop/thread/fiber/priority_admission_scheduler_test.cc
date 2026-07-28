@@ -24,8 +24,10 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <thread>  // NOLINT(build/c++11)
 #include <vector>
 
+#include "absl/base/config.h"
 #include "absl/log/check.h"
 #include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
@@ -65,17 +67,40 @@ bool FinishedOrTimedOut(thread::Fiber* fiber) {
                              {fiber->OnJoinable()}) == 0;
 }
 
+// Helpers for atomic operations to make memory ordering explicit and clean.
+// Memory ordering is important for these tests to remain deterministic.
+void Set(std::atomic<bool>& flag) {
+  flag.store(true, std::memory_order_release);
+}
+
+bool IsSet(const std::atomic<bool>& flag) {
+  return flag.load(std::memory_order_acquire);
+}
+
 // We use Spin() to pause scheduling events, and then add other fibers to
 // the scheduler, so as to probe the scheduling decision with deterministic
-// input. But it has two flaws:
-// - Deadlock if running in a domain with insufficient concurrency.
-// - Spin loop slows things down, yet does not guarantee pausing scheduling
-//   along. It depends on some low level library behavior, and must be used
-//   in some specific way.
-// TODO: use admission limit to make everything event based.
+// input.
+//
+// We use architecture-specific CPU pause/yield instructions to prevent CPU
+// pipeline starvation on hyperthreaded or virtualized test runners while
+// spinning.
+//
+// Note: We use atomic flags and Spin() rather than absl::Notification in many
+// of these tests. Using absl::Notification yields the fiber to the scheduler,
+// which breaks the deterministic scheduling state we are trying to test and
+// causes flakiness. Spin() allows us to hold the execution slot and pause
+// scheduling events deterministically.
 void Spin(const std::atomic<bool>& exit) {
   [[maybe_unused]] uint64_t spin = 0;
-  while (!exit.load(std::memory_order_relaxed)) ++spin;
+  while (!IsSet(exit)) {
+#if ABSL_HAVE_BUILTIN(__builtin_ia32_pause)
+    __builtin_ia32_pause();
+#elif ABSL_HAVE_BUILTIN(__builtin_arm_yield)
+    __builtin_arm_yield();
+#else
+    ++spin;
+#endif
+  }
 }
 
 class FiberSchedulerTest : public testing::TestWithParam<bool> {
@@ -107,7 +132,8 @@ class FiberSchedulerTest : public testing::TestWithParam<bool> {
     if (Downcalls::CurrentThreadIsCooperative()) {
       Downcalls::Reschedule();
     } else {
-      absl::SleepFor(absl::Milliseconds(6));
+      std::this_thread::yield();
+      absl::SleepFor(absl::Milliseconds(30));
     }
   }
 
@@ -151,7 +177,8 @@ TEST_P(FiberSchedulerTest, Priority) {
   EXPECT_EQ(3, root->num_queued());
   EXPECT_EQ(1, root->num_running());
 
-  e1.store(true, std::memory_order_relaxed);
+  Set(e1);
+  Yield();
   f1->Join();
   // Schedule f3 due to priority.
   EXPECT_FALSE(NotifiedOrTimedOut(s2));
@@ -160,7 +187,8 @@ TEST_P(FiberSchedulerTest, Priority) {
   EXPECT_EQ(2, root->num_queued());
   EXPECT_EQ(1, root->num_running());
 
-  e3.store(true, std::memory_order_relaxed);
+  Set(e3);
+  Yield();
   f3->Join();
   // Schedule f2 due to FIFO.
   s2.WaitForNotification();
@@ -168,7 +196,8 @@ TEST_P(FiberSchedulerTest, Priority) {
   EXPECT_EQ(1, root->num_queued());
   EXPECT_EQ(1, root->num_running());
 
-  e2.store(true, std::memory_order_relaxed);
+  Set(e2);
+  Yield();
   f2->Join();
   f4->Join();
   Yield();
@@ -179,21 +208,22 @@ TEST_P(FiberSchedulerTest, Priority) {
 
 TEST_P(FiberSchedulerTest, InProgress) {
   PriorityAdmissionScheduler* root = NewRootScheduler(1, 2);
-  absl::Notification n1, s1, s2, s3;
+  absl::Notification n1;
+  std::atomic<bool> s1(false), s2(false), s3(false);
   std::atomic<bool> e1(false), e2(false);
   auto f1 = NewTestTree(root, 1, [&n1, &s1, &e1]() {
-    s1.Notify();
+    Set(s1);
     n1.WaitForNotification();
     Spin(e1);
   });
-  s1.WaitForNotification();
+  Spin(s1);
   EXPECT_EQ(1, root->num_running());
   auto f2 = NewTestTree(root, 0, [&s2, &e2]() {
-    s2.Notify();
+    Set(s2);
     Spin(e2);
   });
-  auto f3 = NewTestTree(root, 0, [&s3]() { s3.Notify(); });
-  s2.WaitForNotification();
+  auto f3 = NewTestTree(root, 0, [&s3]() { Set(s3); });
+  Spin(s2);
   n1.Notify();
   EXPECT_EQ(2, root->num_running());
 
@@ -202,12 +232,14 @@ TEST_P(FiberSchedulerTest, InProgress) {
   // - Now f1 is unblocked.
   // As f2 finishes, schedule f1 over f3, because f1 is in progress,
   // despite of its low priority.
-  e2.store(true, std::memory_order_relaxed);
+  Set(e2);
+  Yield();
   f2->Join();
-  EXPECT_FALSE(NotifiedOrTimedOut(s3));
+  EXPECT_FALSE(IsSet(s3));
   EXPECT_EQ(1, root->num_running());
 
-  e1.store(true, std::memory_order_relaxed);
+  Set(e1);
+  Yield();
   f1->Join();
   f3->Join();
   Yield();
@@ -217,23 +249,23 @@ TEST_P(FiberSchedulerTest, InProgress) {
 
 TEST_P(FiberSchedulerTest, InProgressChild) {
   PriorityAdmissionScheduler* root = NewRootScheduler(1, 2);
-  absl::Notification n11, n12;
+  std::atomic<bool> n11(false), n12(false);
   std::atomic<bool> e11(false), e12(false);
   auto f1 = NewTestTree(root, 1, [&n11, &e11, &n12, &e12]() {
     thread::Bundle bundle;
     bundle.Add([&n11, &e11]() {
-      n11.Notify();
+      Set(n11);
       Spin(e11);
     });
     bundle.Add([&n12, &e12]() {
-      n12.Notify();
+      Set(n12);
       Spin(e12);
     });
     bundle.JoinAll();
   });
   // Child scheduler is LIFO so 2nd child gets scheduled.
-  EXPECT_FALSE(NotifiedOrTimedOut(n11));
-  n12.WaitForNotification();
+  EXPECT_FALSE(IsSet(n11));
+  Spin(n12);
   auto f2 = NewTestTree(root, 0, []() {});
   Yield();
   EXPECT_EQ(1, root->num_queued());
@@ -241,16 +273,16 @@ TEST_P(FiberSchedulerTest, InProgressChild) {
 
   // Since f1 started, both f1's children inherit high "in progress"
   // priority, thus chosen over f2 despite its higher original priority.
-  e12.store(true, std::memory_order_relaxed);
-  n11.WaitForNotification();
+  Set(e12);
+  Spin(n11);
   EXPECT_FALSE(FinishedOrTimedOut(f2.get()));
   EXPECT_EQ(1, root->num_queued());
   EXPECT_EQ(1, root->num_running());  // f1
 
-  e11.store(true, std::memory_order_relaxed);
+  Set(e11);
+  Yield();
   f1->Join();
   f2->Join();
-  Yield();
   Yield();
   EXPECT_EQ(0, root->num_queued());
   EXPECT_EQ(0, root->num_running());
@@ -290,6 +322,7 @@ TEST_P(FiberSchedulerTest, MultipleSlots) {
   for (int i = 0; i < 20; ++i) {
     n[i].Notify();
   }
+  Yield();
   for (int i = 0; i < 20; ++i) {
     f[i]->Join();
   }
@@ -301,28 +334,28 @@ TEST_P(FiberSchedulerTest, MultipleSlots) {
 
 TEST_P(FiberSchedulerTest, MultipleSlotsPerChild) {
   PriorityAdmissionScheduler* root = NewRootScheduler(2, 2);
-  absl::Notification n0, n11, n12;
+  std::atomic<bool> n0(false), n11(false), n12(false);
   std::atomic<bool> e0(false), e11(false), e12(false);
   auto f0 = NewTestTree(root, 0, [&n0, &e0]() {
-    n0.Notify();
+    Set(n0);
     Spin(e0);
   });
   auto f1 = NewTestTree(root, 1, 2, [&n11, &e11, &n12, &e12]() {
     thread::Bundle bundle;
     bundle.Add([&n11, &e11]() {
-      n11.Notify();
+      Set(n11);
       Spin(e11);
     });
     bundle.Add([&n12, &e12]() {
-      n12.Notify();
+      Set(n12);
       Spin(e12);
     });
     bundle.JoinAll();
   });
-  n0.WaitForNotification();
+  Spin(n0);
   // Child scheduler is LIFO so 2nd child gets scheduled.
-  EXPECT_FALSE(NotifiedOrTimedOut(n11));
-  n12.WaitForNotification();
+  EXPECT_FALSE(IsSet(n11));
+  Spin(n12);
   EXPECT_EQ(0, root->num_queued());
   auto f2 = NewTestTree(root, 0, []() {});
   Yield();
@@ -331,15 +364,17 @@ TEST_P(FiberSchedulerTest, MultipleSlotsPerChild) {
 
   // Since f1 started, f1's first child inherits the high "in progress"
   // priority, thus chosen over f2 which has higher original priority.
-  e0.store(true, std::memory_order_relaxed);
+  Set(e0);
+  Yield();
   f0->Join();
-  n11.WaitForNotification();
+  Spin(n11);
   EXPECT_FALSE(FinishedOrTimedOut(f2.get()));
   EXPECT_EQ(1, root->num_queued());   // f2
   EXPECT_EQ(1, root->num_running());  // f1
 
-  e11.store(true, std::memory_order_relaxed);
-  e12.store(true, std::memory_order_relaxed);
+  Set(e11);
+  Set(e12);
+  Yield();
   f1->Join();
   f2->Join();
   Yield();
@@ -350,53 +385,61 @@ TEST_P(FiberSchedulerTest, MultipleSlotsPerChild) {
 
 TEST_P(FiberSchedulerTest, PriorityForManagingSlots) {
   PriorityAdmissionScheduler* root = NewRootScheduler(2, 2);
-  absl::Notification s1, s2, s3, s4;
+  std::atomic<bool> s1(false), s2(false), s3(false), s4(false);
   std::atomic<bool> e1(false), e2(false), e3(false), e4(false);
-  auto f1 = NewTestTree(root, 0, [&s1, &e1]() {
-    s1.Notify();
+  std::atomic<bool> f1_spin(false), f2_spin(false);
+  auto f1 = NewTestTree(root, 0, [&s1, &e1, &f1_spin]() {
+    Set(f1_spin);
+    Set(s1);
     Spin(e1);
   });
-  auto f2 = NewTestTree(root, 0, [&s2, &e2]() {
-    s2.Notify();
+  auto f2 = NewTestTree(root, 0, [&s2, &e2, &f2_spin]() {
+    Set(f2_spin);
+    Set(s2);
     Spin(e2);
   });
   Scheduler* child = NewChildTreeScheduler(root, 1, 2);
   auto f3 =
       thread::NewTree(thread::TreeOptions().set_scheduler(child), [&s3, &e3]() {
-        s3.Notify();
+        Set(s3);
         Spin(e3);
       });
   auto f4 =
       thread::NewTree(thread::TreeOptions().set_scheduler(child), [&s4, &e4]() {
-        s4.Notify();
+        Set(s4);
         Spin(e4);
       });
   child->Orphan();
-  s1.WaitForNotification();
-  s2.WaitForNotification();
+  Spin(s1);
+  Spin(s2);
+  Spin(f1_spin);
+  Spin(f2_spin);
   EXPECT_EQ(1, root->num_queued());   // (f3, f4) as 1
   EXPECT_EQ(2, root->num_running());  // f1 and f2
 
-  e1.store(true, std::memory_order_relaxed);
+  Set(e1);
+  Yield();
   f1->Join();
   // Child scheduler is LIFO so f4 is scheduled.
-  EXPECT_FALSE(NotifiedOrTimedOut(s3));
-  s4.WaitForNotification();
+  EXPECT_FALSE(IsSet(s3));
+  Spin(s4);
   EXPECT_EQ(2, root->num_running());  // f2 and f4
 
   auto f5 = NewTestTree(root, 0, []() {});
-  e2.store(true, std::memory_order_relaxed);
+  Set(e2);
+  Yield();
   f2->Join();
   // Priority is assigned to scheduler, not schedulable, thus f3 and f4 are
   // both boosted to "in progress" priority once one of them gets run. Now
   // f3 wins over f5 despite its lower original priority.
-  s3.WaitForNotification();
+  Spin(s3);
   EXPECT_FALSE(FinishedOrTimedOut(f5.get()));
   EXPECT_EQ(1, root->num_queued());   // f5
   EXPECT_EQ(1, root->num_running());  // (f3, f4) as 1
 
-  e3.store(true, std::memory_order_relaxed);
-  e4.store(true, std::memory_order_relaxed);
+  Set(e3);
+  Set(e4);
+  Yield();
   f3->Join();
   f4->Join();
   f5->Join();
@@ -408,14 +451,14 @@ TEST_P(FiberSchedulerTest, PriorityForManagingSlots) {
 
 TEST_P(FiberSchedulerTest, TailPointerWhenBoostPriority) {
   PriorityAdmissionScheduler* root = NewRootScheduler(2, 1);
-  absl::Notification s1, s2;
+  std::atomic<bool> s1(false), s2(false);
   std::atomic<bool> e1(false), e2(false);
   auto f1 = NewTestTree(root, 0, [&s1, &e1]() {
-    s1.Notify();
+    Set(s1);
     Spin(e1);
   });
   auto f2 = NewTestTree(root, 0, [&s2, &e2]() {
-    s2.Notify();
+    Set(s2);
     Spin(e2);
   });
   Scheduler* child = NewChildTreeScheduler(root, 0, 2);
@@ -425,13 +468,14 @@ TEST_P(FiberSchedulerTest, TailPointerWhenBoostPriority) {
   auto f5 =
       thread::NewTree(thread::TreeOptions().set_scheduler(child), []() {});
   child->Orphan();
-  s1.WaitForNotification();
-  s2.WaitForNotification();
+  Spin(s1);
+  Spin(s2);
   EXPECT_EQ(2, root->num_queued());   // (f3, f5) and f4
   EXPECT_EQ(2, root->num_running());  // f1 and f2
 
-  e1.store(true, std::memory_order_relaxed);
-  e2.store(true, std::memory_order_relaxed);
+  Set(e1);
+  Set(e2);
+  Yield();
   f1->Join();
   f2->Join();
   f3->Join();
@@ -445,24 +489,25 @@ TEST_P(FiberSchedulerTest, TailPointerWhenBoostPriority) {
 
 TEST_P(FiberSchedulerTest, YieldingDoesNotDeadlock) {
   PriorityAdmissionScheduler* root = NewRootScheduler(1, 1);
-  absl::Notification n1, s1, s2;
+  absl::Notification n1;
+  std::atomic<bool> s1(false), s2(false);
   std::atomic<bool> y2(true);
   auto f1 = NewTestTree(root, 0, [&s1, &n1]() {
-    s1.Notify();
+    Set(s1);
     n1.WaitForNotification();
   });
   auto f2 = NewTestTree(root, 0, [&s2, &y2]() {
-    s2.Notify();
+    Set(s2);
     [[maybe_unused]] int yield = 0;
-    while (y2.load(std::memory_order_relaxed)) {
+    while (IsSet(y2)) {
       ++yield;
       CHECK(Downcalls::CurrentThreadIsCooperative());
       Domain::CurrentDomain()->ScheduleNextFromRoot();
       Downcalls::Reschedule();
     }
   });
-  s1.WaitForNotification();
-  s2.WaitForNotification();
+  Spin(s1);
+  Spin(s2);
   EXPECT_EQ(2, root->num_running());
 
   // The intended behavior is that, as f2 yielding, it should not block f1
@@ -474,7 +519,7 @@ TEST_P(FiberSchedulerTest, YieldingDoesNotDeadlock) {
   Yield();
   EXPECT_EQ(1, root->num_running());
 
-  y2.store(false, std::memory_order_relaxed);
+  y2.store(false, std::memory_order_release);
   f2->Join();
   Yield();
   EXPECT_EQ(0, root->num_queued());
@@ -484,17 +529,17 @@ TEST_P(FiberSchedulerTest, YieldingDoesNotDeadlock) {
 
 TEST_P(FiberSchedulerTest, YieldingChild) {
   PriorityAdmissionScheduler* root = NewRootScheduler(1, 1);
-  absl::Notification s1, s2;
+  std::atomic<bool> s1(false), s2(false);
   std::atomic<bool> y2(true);
   Scheduler* child = NewChildTreeScheduler(root, 0, 1);
   auto f = thread::NewTree(thread::TreeOptions().set_scheduler(child),
                            [&s1, &s2, &y2]() {
                              thread::Bundle bundle;
-                             bundle.Add([&s1]() { s1.Notify(); });
+                             bundle.Add([&s1]() { Set(s1); });
                              bundle.Add([&s2, &y2]() {
-                               s2.Notify();
+                               Set(s2);
                                [[maybe_unused]] int yield = 0;
-                               while (y2.load(std::memory_order_relaxed)) {
+                               while (IsSet(y2)) {
                                  ++yield;
                                  CHECK(Downcalls::CurrentThreadIsCooperative());
                                  Downcalls::Reschedule();
@@ -506,11 +551,11 @@ TEST_P(FiberSchedulerTest, YieldingChild) {
 
   // LIFO within the tree so second child gets scheduled, then it yields,
   // which should get first child running.
-  s1.WaitForNotification();
-  s2.WaitForNotification();
+  Spin(s1);
+  Spin(s2);
   EXPECT_EQ(1, root->num_running());  // 1 child scheduler only
 
-  y2.store(false, std::memory_order_relaxed);
+  y2.store(false, std::memory_order_release);
   f->Join();
   Yield();
   EXPECT_EQ(0, root->num_queued());

@@ -559,15 +559,15 @@ cc_library(
 cc_test(
     name = "priority_admission_scheduler_test",
     srcs = ["priority_admission_scheduler_test.cc"],
-    flaky = True,  # TODO: b/195688344 - Tricky to fix.
     deps = [
+        ":fiber",
+        ":fiber-options",
+        ":fifolifo-schedulers",
         ":priority_admission_scheduler",
+        ":select",
         "//gloop:gloop_test_main",
         "//gloop/base/scheduling",
-        "//gloop/thread/fiber",
-        "//gloop/thread/fiber:fiber-options",
-        "//gloop/thread/fiber:fifolifo-schedulers",
-        "//gloop/thread/fiber:select",
+        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
