@@ -1306,7 +1306,7 @@ TEST_F(IteratorAdaptorTest, ReverseView) {
   using gtl::reversed_view;
 
   int arr[] = {0, 1, 2, 3, 4, 5, 6};
-  int* arr_end = arr + sizeof(arr) / sizeof(arr[0]);
+  int* arr_end = arr + std::size(arr);
   std::vector<int> vec(arr, arr_end);
   const std::vector<int> cvec(arr, arr_end);
 
@@ -1397,7 +1397,7 @@ TEST_F(IteratorAdaptorTest, ReverseViewCxx11) {
   using gtl::reversed_view;
 
   int arr[] = {0, 1, 2, 3, 4, 5, 6};
-  int* arr_end = arr + sizeof(arr) / sizeof(arr[0]);
+  int* arr_end = arr + std::size(arr);
   std::vector<int> vec(arr, arr_end);
 
   // Try updates and demonstrate this work with C++11 for loops.
