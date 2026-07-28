@@ -385,19 +385,11 @@ TEST(BackslashEscape, SingleChar) {
 }
 
 TEST(QuoteStrForCSV, BasicFunctions) {
-  char outbuf[128];
-
   // No quotes test.
   //                         0    0    1    1    2    2    3    3
   //                         0    5    0    5    0    5    0    5
-  EXPECT_EQ(strings::EscapeStrForCSV("some quoteless string, just to test",
-                                     outbuf, 36),
-            35);
-  EXPECT_STREQ(outbuf, "some quoteless string, just to test");
-  // error case: off by one
-  EXPECT_EQ(strings::EscapeStrForCSV("some quoteless string, just to test",
-                                     outbuf, 35),
-            -1);
+  EXPECT_EQ(strings::QuoteStrForCSV("some quoteless string, just to test"),
+            "\"some quoteless string, just to test\"");
 
   // Quotes tests.
   EXPECT_EQ(strings::QuoteStrForCSV("a b"), "a b");
@@ -407,28 +399,14 @@ TEST(QuoteStrForCSV, BasicFunctions) {
   EXPECT_EQ(strings::QuoteStrForCSV("\r\n"), "\"\r\n\"");
   EXPECT_EQ(strings::QuoteStrForCSV("\""), "\"\"\"\"");
   EXPECT_EQ(strings::QuoteStrForCSV("\"\""), "\"\"\"\"\"\"");
-  EXPECT_EQ(strings::EscapeStrForCSV("some \"string\" to test", outbuf, 24),
-            23);
-  EXPECT_STREQ(outbuf, "some \"\"string\"\" to test");
+  EXPECT_EQ(strings::QuoteStrForCSV("some \"string\" to test"),
+            "\"some \"\"string\"\" to test\"");
 
-  // error case: off by one
-  EXPECT_EQ(strings::EscapeStrForCSV("some \"string\" to test", outbuf, 23),
-            -1);
-
-  // Shows pathological output length behavior (2*input size + 1)
-  EXPECT_EQ(strings::EscapeStrForCSV("\"\"\"\"\"", outbuf, 10), -1);
-  EXPECT_EQ(strings::EscapeStrForCSV("\"\"\"\"\"", outbuf, 11), 10);
-  EXPECT_STREQ(outbuf, "\"\"\"\"\"\"\"\"\"\"");
-
-  // error case: off by one
-  EXPECT_EQ(strings::EscapeStrForCSV("\"\"\"\"\"", outbuf, 10), -1);
+  EXPECT_EQ(strings::QuoteStrForCSV("\"\"\"\"\""), "\"\"\"\"\"\"\"\"\"\"\"\"");
 
   // Quotes+Spaces tests
-  EXPECT_EQ(strings::EscapeStrForCSV("   \"   \"   \"   ", outbuf, 19), 18);
-  EXPECT_STREQ(outbuf, "   \"\"   \"\"   \"\"   ");
-
-  // error case: off by one
-  EXPECT_EQ(strings::EscapeStrForCSV("   \"   \"   \"   ", outbuf, 18), -1);
+  EXPECT_EQ(strings::QuoteStrForCSV("   \"   \"   \"   "),
+            "\"   \"\"   \"\"   \"\"   \"");
 
   // Embedded NUL characters for counted-string versions
   EXPECT_EQ(strings::QuoteStrForCSV(absl::string_view("a\0b,\",c,d", 9)),

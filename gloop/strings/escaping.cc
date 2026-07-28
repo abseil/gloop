@@ -243,19 +243,6 @@ std::string QuoteStrForCSV(absl::string_view src) {
   return result;
 }
 
-ptrdiff_t EscapeStrForCSV(const char* absl_nonnull src, char* absl_nonnull dest,
-                          ptrdiff_t dest_len) {
-  const ptrdiff_t used =
-      EscapeStrForCSV(absl::string_view(src), dest, dest_len);
-
-  if (used < 0 || used >= dest_len) {
-    return -1;
-  }
-
-  dest[used] = '\0';
-  return used;
-}
-
 static unsigned int HexDigitToInt(char c) {
   static_assert('0' == 0x30 && 'A' == 0x41 && 'a' == 0x61,
                 "Character set must be ASCII.");

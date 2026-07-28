@@ -248,22 +248,6 @@ inline std::string BackslashUnescape(absl::string_view src,
 }
 
 // ----------------------------------------------------------------------
-// EscapeStrForCSV()
-//
-// Escapes the quotes in 'src' by doubling them. This is necessary for
-// generating CSV files (see SplitCSVLine). Returns the number of characters
-// written into dest (not counting the \0) or -1 if there was insufficient
-// space. To guarantee success, dest_len should be at least 2 * src.size() + 1.
-//
-// Example:
-//
-//   [some "string" to test] --> [some ""string"" to test]
-// ----------------------------------------------------------------------
-[[deprecated("Use QuoteStrForCSV() instead.")]]
-ptrdiff_t EscapeStrForCSV(const char* absl_nonnull src, char* absl_nonnull dest,
-                          ptrdiff_t dest_len);
-
-// ----------------------------------------------------------------------
 // QuoteStrForCSV()
 //
 // Formats `src` as a single CSV field (RFC 4180 compliant).
