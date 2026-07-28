@@ -51,6 +51,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <iterator>
+
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-W#warnings"
 #include <ext/hash_map>
@@ -305,7 +307,7 @@ class IPAddress {
       case IPAddress::Variant::Type::kIpv6:
         return H::combine(H::combine_contiguous(
                               std::move(h), ip.address_.get_ipv6().s6_addr16,
-                              ABSL_ARRAYSIZE(ip.address_.get_ipv6().s6_addr16)),
+                              std::size(ip.address_.get_ipv6().s6_addr16)),
                           AF_INET6, ip.address_.has_scope());
 
       case IPAddress::Variant::Type::kUninitialized:
