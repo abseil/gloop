@@ -33,7 +33,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <iterator>
 #include <new>
 #include <vector>
 
@@ -282,7 +281,7 @@ BaseArena::AllocatedBlock* BaseArena::AllocNewBlock(const size_t block_size,
                                                     const size_t alignment) {
   AllocatedBlock* block;
   // Find the next block.
-  if (blocks_alloced_ < static_cast<int64_t>(std::size(first_blocks_))) {
+  if (blocks_alloced_ < static_cast<int64_t>(ABSL_ARRAYSIZE(first_blocks_))) {
     // Use one of the pre-allocated blocks
     block = &first_blocks_[blocks_alloced_++];
   } else {  // oops, out of space, move to the vector

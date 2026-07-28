@@ -25,7 +25,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
-#include <iterator>
 
 #include "absl/base/config.h"
 #include "absl/base/internal/scheduling_mode.h"
@@ -346,7 +345,7 @@ static void SwitchGroup(const std::string& groupname, const std::string& uid) {
     } else {
       // Restrict access to just the specified group.
       gid_t group_list[] = {new_gid};
-      int group_count = std::size(group_list);
+      int group_count = ABSL_ARRAYSIZE(group_list);
       PCHECK(setgroups(group_count, group_list) == 0)
           << "setgroups(" << group_count << ", {" << new_gid << "}) failed";
     }
