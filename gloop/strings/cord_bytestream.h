@@ -27,10 +27,13 @@
 
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
+#include "absl/flags/declare.h"
 #include "absl/numeric/bits.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
 #include "gloop/strings/bytestream.h"
+
+ABSL_DECLARE_FLAG(bool, cordbytesink_enable_zerocopy_buffering_and_sharing);
 
 namespace strings {
 
@@ -39,23 +42,35 @@ class CordByteSink final : public ByteSink {
   explicit CordByteSink(absl::Cord* absl_nonnull dest) : dest_(dest) {}
   CordByteSink(const CordByteSink&) = delete;
   CordByteSink& operator=(const CordByteSink&) = delete;
+  ~CordByteSink() override;
 
-  void Append(const char* absl_nonnull data, size_t n) override {
-    dest_->Append(absl::string_view(data, n));
-  }
+  void Append(const char* absl_nonnull data, size_t n) override;
+
+  void Append(absl::string_view data) override;
 
   void AppendExternalMemory(
       absl::string_view data, void* absl_nullable arg,
       void (*absl_nonnull memory_releaser)(void* absl_nullable)) override;
 
+  char* absl_nonnull GetAppendBuffer(
+      size_t min_capacity, size_t desired_capacity_hint,
+      char* absl_nonnull scratch, size_t scratch_capacity,
+      size_t* absl_nonnull result_capacity) override;
+
+  void Flush() override;
+
   size_t MinAppendExternalMemoryLength() const override;
 
   strings::TypeId GetTypeId() const override;
 
-  absl::Cord* absl_nonnull cord() { return dest_; }
+  absl::Cord* absl_nonnull cord() {
+    Flush();
+    return dest_;
+  }
 
  private:
   absl::Cord* absl_nonnull dest_;
+  absl::CordBuffer last_buffer_;
 };
 
 // A CordReader yields the sequence of bytes that make up the

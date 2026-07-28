@@ -25,6 +25,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <utility>
 
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
@@ -42,16 +43,83 @@ ABSL_FLAG(int, copy_sharing_threshold, 512,
           "Otherwise, try to share blocks between the source and "
           "destination.");
 
+ABSL_FLAG(bool, cordbytesink_enable_zerocopy_buffering_and_sharing, false,
+          "When true, enables CordByteSink memory and throughput optimizations "
+          "(buffering via CordBuffer, GetAppendBuffer zero-copy override, and "
+          "lower 128B sharing threshold).");
+
 namespace strings {
+
+CordByteSink::~CordByteSink() { Flush(); }
+
+void CordByteSink::Append(const char* data, size_t n) {
+  if (absl::GetFlag(FLAGS_cordbytesink_enable_zerocopy_buffering_and_sharing)) {
+    if (last_buffer_.capacity() > 0 &&
+        data == last_buffer_.data() + last_buffer_.length() &&
+        n <= last_buffer_.capacity() - last_buffer_.length()) {
+      last_buffer_.IncreaseLengthBy(n);
+      return;
+    }
+    Flush();
+    dest_->Append(absl::string_view(data, n));
+    return;
+  }
+  dest_->Append(absl::string_view(data, n));
+}
+
+void CordByteSink::Append(absl::string_view data) {
+  if (absl::GetFlag(FLAGS_cordbytesink_enable_zerocopy_buffering_and_sharing)) {
+    if (last_buffer_.capacity() > 0 &&
+        data.data() == last_buffer_.data() + last_buffer_.length() &&
+        data.size() <= last_buffer_.capacity() - last_buffer_.length()) {
+      last_buffer_.IncreaseLengthBy(data.size());
+      return;
+    }
+    Flush();
+    dest_->Append(data);
+    return;
+  }
+  dest_->Append(data);
+}
 
 void CordByteSink::AppendExternalMemory(
     absl::string_view data, void* absl_nullable arg,
     void (*absl_nonnull releaser)(void* absl_nullable)) {
+  if (absl::GetFlag(FLAGS_cordbytesink_enable_zerocopy_buffering_and_sharing)) {
+    Flush();
+    dest_->AppendExternalMemory(data, arg, releaser);
+    return;
+  }
   dest_->Append(
       absl::MakeCordFromExternal(data, [arg, releaser]() { releaser(arg); }));
 }
 
+char* absl_nonnull CordByteSink::GetAppendBuffer(
+    size_t min_capacity, size_t desired_capacity_hint,
+    char* absl_nonnull scratch, size_t scratch_capacity,
+    size_t* absl_nonnull result_capacity) {
+  if (absl::GetFlag(FLAGS_cordbytesink_enable_zerocopy_buffering_and_sharing)) {
+    Flush();
+    size_t capacity = std::max(min_capacity, desired_capacity_hint);
+    last_buffer_ = dest_->GetAppendBuffer(capacity, min_capacity);
+    *result_capacity = last_buffer_.capacity() - last_buffer_.length();
+    return last_buffer_.data() + last_buffer_.length();
+  }
+  return ByteSink::GetAppendBuffer(min_capacity, desired_capacity_hint, scratch,
+                                   scratch_capacity, result_capacity);
+}
+
+void CordByteSink::Flush() {
+  if (last_buffer_.length() > 0) {
+    dest_->Append(std::move(last_buffer_));
+  }
+  last_buffer_ = {};
+}
+
 size_t CordByteSink::MinAppendExternalMemoryLength() const {
+  if (absl::GetFlag(FLAGS_cordbytesink_enable_zerocopy_buffering_and_sharing)) {
+    return 128;
+  }
   return absl::cord_internal::kMaxBytesToCopy + 1;
 }
 
