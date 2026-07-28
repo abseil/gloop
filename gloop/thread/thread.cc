@@ -28,7 +28,9 @@
 #include <cstdint>
 #include <cstdio>
 #include <functional>
+#include <iterator>
 #include <limits>
+#include <type_traits>
 
 #define _GNU_SOURCE 1
 
@@ -685,7 +687,7 @@ void Thread::Start(absl::SourceLocation loc) {
   }
 
   creator_stack_depth_ =
-      absl::GetStackTrace(creator_stack_, ABSL_ARRAYSIZE(creator_stack_), 0);
+      absl::GetStackTrace(creator_stack_, std::size(creator_stack_), 0);
 
   // Do not access 'this' below this point as
   // it may be destroyed by a detached thread.
@@ -1973,7 +1975,7 @@ void PrintStackTrace(void* print_arg, const LiveThread* thread,
     trace = nullptr;  // Catch mistaken access below
   }
 
-  base::RawPrinter printer(buf->data, ABSL_ARRAYSIZE(buf->data));
+  base::RawPrinter printer(buf->data, std::size(buf->data));
   printer.Printf("--- Thread %" GPRIxPTHREAD " (name: %s) stack: ---\n",
                  PRINTABLE_PTHREAD(thread->tid_), LiveThread_Name(thread));
   if (stack_size_kb != 0) {
@@ -2018,9 +2020,9 @@ void PrintStackTrace(void* print_arg, const LiveThread* thread,
     // string formatting.
     // If we end up hitting this limit, consider extending the API to support
     // reading from offsets and make multiple calls.
-    static_assert(ABSL_ARRAYSIZE(buf->data) >= 2048);
-    int bytes_read = ReadProcFileToBuffer(proc_path, 0,
-                                          ABSL_ARRAYSIZE(buf->data), buf->data);
+    static_assert(std::extent_v<decltype(buf->data)> >= 2048);
+    int bytes_read =
+        ReadProcFileToBuffer(proc_path, 0, std::size(buf->data), buf->data);
     if (bytes_read != -1) {
       // The kernel stack contains addresses, but they cannot be symbolized.
       // We use ThreadStackWriterOptions{.symbolize = false} to tell
@@ -2029,7 +2031,7 @@ void PrintStackTrace(void* print_arg, const LiveThread* thread,
       writer->Write(buf->data, bytes_read,
                     ThreadStackWriterOptions{.symbolize = false});
     } else {
-      int out = absl::SNPrintF(buf->data, ABSL_ARRAYSIZE(buf->data),
+      int out = absl::SNPrintF(buf->data, std::size(buf->data),
                                "ERROR: Failed to read kernel stack from %s.",
                                proc_path);
       if (out != -1) {
@@ -2049,7 +2051,7 @@ void PrintStackTrace(void* print_arg, const LiveThread* thread,
     writer->Write(buf->data, printer.length());
     DumpPCAndStackTrace(nullptr, stack, depth, ThreadDebugWriter, writer);
     if (thread->creator_stack_depth_ > 0) {
-      base::RawPrinter printer2(buf->data, ABSL_ARRAYSIZE(buf->data));
+      base::RawPrinter printer2(buf->data, std::size(buf->data));
       PrintCreatorStack(&printer2, thread);
       writer->Write(buf->data, printer2.length());
     }

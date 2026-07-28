@@ -28,6 +28,7 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <iterator>
 #include <string>
 #include <utility>
 #include <vector>
@@ -429,7 +430,7 @@ void WatchDog::SetCrashReasonFromStuckThread() {
     reason.filename = __FILE__;
     reason.line_number = __LINE__;
     reason.depth =
-        absl::GetStackTrace(reason.stack, ABSL_ARRAYSIZE(reason.stack), 0);
+        absl::GetStackTrace(reason.stack, std::size(reason.stack), 0);
     reason.tc = tc;
     base::SetCrashReason(&reason);
   };
