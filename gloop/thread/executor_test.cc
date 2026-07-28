@@ -282,7 +282,7 @@ TEST(AddCancellableAt, AnyInvocableCancels) {
   // and cancel it immediately.
   AddCancellableAt(
       &executor, absl::Now() + absl::Hours(10), [&] { done.Notify(); }, &h);
-  EXPECT_EQ(Cancel(h, absl::ZeroDuration()), CancelResult::kCancelled);
+  EXPECT_EQ(TryCancel(h), CancelResult::kCancelled);
 
   EXPECT_FALSE(done.HasBeenNotified());
 }
@@ -297,7 +297,7 @@ TEST(AddCancellableAt, AnyInvocableImmediateCancels) {
   absl::Notification done;
 
   AddCancellable(&executor, [&] { done.Notify(); }, &h);
-  EXPECT_EQ(Cancel(h, absl::ZeroDuration()), CancelResult::kCancelled);
+  EXPECT_EQ(TryCancel(h), CancelResult::kCancelled);
 
   EXPECT_FALSE(done.HasBeenNotified());
   hogger_done.Notify();
@@ -345,7 +345,7 @@ TEST(AddCancellable, AnyInvocableCancels) {
   // Schedule the callback to run in a while so we get a chance to cancel it,
   // and cancel it immediately.
   AddCancellable(&executor, absl::Hours(10), [&] { done.Notify(); }, &h);
-  EXPECT_EQ(Cancel(h, absl::ZeroDuration()), CancelResult::kCancelled);
+  EXPECT_EQ(TryCancel(h), CancelResult::kCancelled);
 
   EXPECT_FALSE(done.HasBeenNotified());
 }
@@ -387,7 +387,7 @@ TEST(AddCancellable, CancelDeletesCallbackWhenNonReturning) {
                       }}]() mutable { std::move(on_delete).Cancel(); }),
                  &h);
 
-  EXPECT_EQ(Cancel(h, absl::InfiniteDuration()), CancelResult::kCancelled);
+  EXPECT_EQ(Cancel(h), CancelResult::kCancelled);
   EXPECT_TRUE(was_deleted);
 }
 
@@ -616,7 +616,7 @@ TEST_P(AddCancellableTest, ExecutorDeletesWithoutRunning) {
     if (i == kNumCallbacks / 2) {
       cancelled_half.Notify();
     }
-    thread::Cancel(handles[i], absl::InfiniteDuration());
+    Cancel(handles[i]);
   }
 
   executor_deleted.WaitForNotification();

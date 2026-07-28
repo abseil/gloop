@@ -71,7 +71,7 @@ AbstractThreadPool::~AbstractThreadPool() {}
 
 // Run callback->Run().  To permit a callback to be wrapped in another.
 static void RunCallback(WatchdogCallback callback, WatchDog* watchdog) {
-  (*callback)(watchdog);
+  (callback)(watchdog);
 }
 
 void ThreadPool::RunWorker() {
@@ -88,8 +88,7 @@ void ThreadPool::RunWorker() {
                                     LiveThread_Name(Thread_GetMyLiveThread())),
                                    watchdog_timeout_);
     if (watchdog_callback_ != nullptr) {
-      watchdog->SetCallback(::util::functional::ToPermanentCallback(
-          absl::bind_front(&RunCallback, watchdog_callback_)));
+      watchdog->SetCallback(absl::bind_front(&RunCallback, watchdog_callback_));
     }
   }
 

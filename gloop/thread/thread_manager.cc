@@ -500,8 +500,8 @@ static void TMWorker(ThreadManager::Rep* rep, TMPool* pool, TMThread* self) {
   if (rep->watchdog_callback != nullptr) {
     // WatchDog takes ownership of this callback, it is re-wrapped to avoid
     // premature deletion of rep->watchdog_callback should the watchdog fire.
-    watchdog.SetCallback(::util::functional::ToPermanentCallback(
-        ::util::functional::FromCallback(rep->watchdog_callback)));
+    watchdog.SetCallback(
+        ::util::functional::FromCallback(rep->watchdog_callback));
   }
   watchdog.Disable();
   pool->pool_mu.lock();
@@ -913,8 +913,7 @@ static void TMOverseer() {
   if (absl::GetFlag(FLAGS_threadmanager_overseer_enable_watchdog)) {
     watchdog = std::make_unique<WatchDog>("ThreadManager overseer",
                                           WatchDog::DefaultTimeout());
-    watchdog->SetCallback(
-        ::util::functional::ToPermanentCallback(&TMOverseerTimeout));
+    watchdog->SetCallback(&TMOverseerTimeout);
   }
   std::vector<TMThreadWithPool> exiting_threads;
   for (;;) {
