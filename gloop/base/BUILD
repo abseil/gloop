@@ -111,6 +111,7 @@ cc_library(
     visibility = [
         "//gloop/base:__subpackages__",
         "//gloop/util/functional:__subpackages__",
+        "@protobuf//compiler/cpp:__pkg__",
     ],
     deps = [
         ":context",
