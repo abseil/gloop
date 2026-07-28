@@ -49,6 +49,7 @@
 #include "absl/meta/type_traits.h"
 #include "absl/strings/resize_and_overwrite.h"
 #include "gloop/util/gtl/requires.h"
+#include "util/gtl/labs/set_intersection.h"
 
 namespace gtl {
 namespace internal {
@@ -880,17 +881,36 @@ template <typename Out, typename In1, typename In2>
 Out STLSetIntersectionAs(const In1& a, const In2& b) {
   return STLSetIntersectionAs<Out>(a, b, std::less<>{});
 }
+template <typename C1, typename C2>
+struct SetIntersectionResult {
+  const C1& c1;
+  const C2& c2;
+
+  template <typename Container = std::vector<typename C1::value_type>>
+  operator Container() const {
+    Container result;
+    std::set_intersection(c1.begin(), c1.end(), c2.begin(), c2.end(),
+                          std::back_inserter(result));
+    return result;
+  }
+
+  [[deprecated("Use !gtl::labs::IsIntersectionNonEmpty() instead")]]
+  ABSL_REFACTOR_INLINE bool empty() const {
+    return !gtl::labs::IsIntersectionNonEmpty(c1, c2);
+  }
+};
+
 template <typename In1, typename In2, typename Compare>
 In1 STLSetIntersection(const In1& a, const In2& b, Compare compare) {
   return STLSetIntersectionAs<In1>(a, b, compare);
 }
 template <typename In1, typename In2>
-In1 STLSetIntersection(const In1& a, const In2& b) {
-  return STLSetIntersection(a, b, std::less<>{});
+SetIntersectionResult<In1, In2> STLSetIntersection(const In1& a, const In2& b) {
+  return {a, b};
 }
 template <typename In1>
-In1 STLSetIntersection(const In1& a, const In1& b) {
-  return STLSetIntersection(a, b, std::less<>{});
+SetIntersectionResult<In1, In1> STLSetIntersection(const In1& a, const In1& b) {
+  return {a, b};
 }
 
 // Returns true iff every element in "b" is also in "a". Both containers
