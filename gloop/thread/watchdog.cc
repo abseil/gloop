@@ -165,7 +165,7 @@ WatchDog::~WatchDog() {
   const absl::Time now = ReadApproximateClock();
   const int64_t now_unix_nanos = absl::ToUnixNanos(now);
   for (const DogCall& dog_call : expiry_calls) {
-    (dog_call.cb)(dog_call.dog);
+    (*dog_call.cb)(dog_call.dog);
     // Reset the dog only after we run the callback, so that it may read the
     // correct time while in the callback.
     dog_call.dog->last_called_alive_unix_nanos_.store(

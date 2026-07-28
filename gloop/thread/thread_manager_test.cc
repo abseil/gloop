@@ -712,9 +712,8 @@ TEST(ThreadManagerWatchdogTest, UsesCustomWatchDogCallback) {
   absl::Notification watchdog_fired;
 
   thread::ManagerOptions manager_options;
-  manager_options.watchdog_callback = [&](WatchDog* watchdog) {
-    watchdog_fired.Notify();
-  };
+  manager_options.watchdog_callback = util::functional::ToPermanentCallback(
+      [&](WatchDog* watchdog) { watchdog_fired.Notify(); });
 
   thread::ManagedQueueOptions queue_options;
   queue_options.time_limit_s = 1;

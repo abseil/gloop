@@ -197,7 +197,8 @@ TEST(ThreadLocalTest, ThreadsGetTheirOwnObjects) {
     // Now from the original thread, iterate over the elements of this
     // ThreadLocal. There should be two elements.
     int count = 0;
-    t.ForEachUnlocked(absl::bind_front(&Count, &count));
+    t.ForEachUnlocked(::util::functional::ToPermanentCallback(
+        absl::bind_front(&Count, &count)));
     ASSERT_EQ(2, count);
 
     // Walk all the threadlocal elements with std::function (pointer version)
@@ -218,7 +219,8 @@ TEST(ThreadLocalTest, ThreadsGetTheirOwnObjects) {
 
     // Now do the counting again, and we should get zero.
     count = 0;
-    t.ForEachUnlocked(absl::bind_front(&Count, &count));
+    t.ForEachUnlocked(::util::functional::ToPermanentCallback(
+        absl::bind_front(&Count, &count)));
     ASSERT_EQ(0, count);
   }
   ASSERT_EQ(constructions.load(std::memory_order_relaxed), 2);

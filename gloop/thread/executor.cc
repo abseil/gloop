@@ -503,8 +503,7 @@ void AddCancellable(Executor* executor, absl::Duration delay,
   // the current thread's Context does not stay pinned/referenced if the
   // callback is cancelled.
   base::WithContext wc(base::BackgroundContext());
-  executor->ScheduleAt(executor->clock()->TimeNow() + delay,
-                       std::move(cancellable_callable));
+  executor->ScheduleAfterForMigration(delay, std::move(cancellable_callable));
 }
 
 void AddCancellable(Executor* executor, absl::Duration delay, Closure* closure,
