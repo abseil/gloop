@@ -50,6 +50,7 @@
 #include <stddef.h>
 
 #include <cstdint>
+#include <iterator>
 
 #include "absl/base/attributes.h"
 #include "absl/base/const_init.h"
@@ -961,7 +962,7 @@ static const struct {
 
 // Lookup a standard poly, return nullptr if not found.
 const CRC::Poly* LookupStandardPolyByName(CRC::CRCName name) {
-  for (int i = 0; i < ABSL_ARRAYSIZE(standard_poly_list); i++) {
+  for (int i = 0; i < std::size(standard_poly_list); i++) {
     if (standard_poly_list[i].name == name) {
       return &standard_poly_list[i].poly;
     }
@@ -974,7 +975,7 @@ const CRC::Poly* LookupStandardPolyByName(CRC::CRCName name) {
 static struct {
   CRCImpl* crc;  // 0-terminated linked list of CRC structs with different
                  // roll-lengths
-} crc_defaults[ABSL_ARRAYSIZE(poly_list) + ABSL_ARRAYSIZE(standard_poly_list)];
+} crc_defaults[std::size(poly_list) + std::size(standard_poly_list)];
 ABSL_CONST_INIT static absl::Mutex crc_mu(absl::kConstInit);
 
 // Common code for making a default CRC descriptor
@@ -1206,7 +1207,7 @@ void CRC128::InitTables() {
   }
 
   int j = FillZeroesTable(this->poly_, this->degree_, t.data());
-  ABSL_RAW_CHECK(j <= static_cast<int>(ABSL_ARRAYSIZE(this->zeroes_)), "");
+  ABSL_RAW_CHECK(j <= static_cast<int>(std::size(this->zeroes_)), "");
   for (int i = 0; i < j; i++) {
     this->zeroes_[i] = t[0][i];
   }
@@ -1421,7 +1422,7 @@ void CRC64::InitTables() {
   }
 
   int j = FillZeroesTable(this->poly_, this->degree_, t.data());
-  ABSL_RAW_CHECK(j <= static_cast<int>(ABSL_ARRAYSIZE(this->zeroes_)), "");
+  ABSL_RAW_CHECK(j <= static_cast<int>(std::size(this->zeroes_)), "");
   for (int i = 0; i < j; i++) {
     this->zeroes_[i] = absl::Uint128Low64(t[0][i]);
   }
@@ -1653,7 +1654,7 @@ void CRC32::InitTables() {
   }
 
   int j = FillZeroesTable(this->poly_, this->degree_, t.data());
-  ABSL_RAW_CHECK(j <= static_cast<int>(ABSL_ARRAYSIZE(this->zeroes_)), "");
+  ABSL_RAW_CHECK(j <= static_cast<int>(std::size(this->zeroes_)), "");
   for (int i = 0; i < j; i++) {
     this->zeroes_[i] = static_cast<uint32_t>(absl::Uint128Low64(t[0][i]));
   }
@@ -1849,7 +1850,7 @@ void CRC32::Roll(uint64_t* lo, uint64_t* hi, uint8_t o_byte,
 // Exports the following outside crc_internal
 
 // The number of polynomials in POLYS[].
-const int CRC::N_POLYS = ABSL_ARRAYSIZE(crc_internal::poly_list);
+const int CRC::N_POLYS = std::size(crc_internal::poly_list);
 
 // The externally visible name of poly_list.
 // This guarantees that the size of poly_list is opaque.
@@ -1869,13 +1870,13 @@ CRC* CRC::Default(int degree, size_t roll_length) {
 // The "constructor" for a CRC with a standard polynomial.
 CRC* CRC::Standard(CRC::CRCName name, size_t roll_length) {
   int i = 0;
-  while (i != ABSL_ARRAYSIZE(crc_internal::standard_poly_list) &&
+  while (i != std::size(crc_internal::standard_poly_list) &&
          name != crc_internal::standard_poly_list[i].name) {
     i++;
   }
-  ABSL_RAW_CHECK(i != ABSL_ARRAYSIZE(crc_internal::standard_poly_list),
+  ABSL_RAW_CHECK(i != std::size(crc_internal::standard_poly_list),
                  "CRC implementation doesn't know CRC name");
-  return crc_internal::MakeDefault(ABSL_ARRAYSIZE(crc_internal::poly_list) + i,
+  return crc_internal::MakeDefault(std::size(crc_internal::poly_list) + i,
                                    &crc_internal::standard_poly_list[i].poly,
                                    roll_length);
 }
