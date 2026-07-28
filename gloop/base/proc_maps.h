@@ -27,6 +27,7 @@
 
 #include <cstdint>
 #include <string>
+#include <type_traits>
 
 #ifdef _WIN32
 // clang-format off
@@ -149,7 +150,7 @@ class ProcMapsIterator {
   // Each UTF-16 code unit is encoded in 1 to 3 bytes of UTF-8 (UTF-16 surrogate
   // pairs map 2 UTF-16 code units to 4 bytes of UTF-8, so 2 bytes of UTF-8 for
   // each surrogate code unit), so multiply by 3 for the worst case.
-  char module_filename_utf8_[ABSL_ARRAYSIZE(module_.szExePath) * 3];
+  char module_filename_utf8_[std::extent_v<decltype(module_.szExePath)> * 3];
 #elif defined(__APPLE__)
   int current_image_;     // dll's are called "images" in macos parlance
   int current_load_cmd_;  // the segment of this dll we're examining

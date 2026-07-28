@@ -33,9 +33,11 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <iterator>
 #include <memory>
 #include <ostream>
 #include <string>
+#include <type_traits>
 
 // You're not allowed to use anything outside of base/ here (otherwise
 // the library you use might as well be part of base!).  So, no strutil
@@ -125,7 +127,7 @@ uintptr_t GetSP(void* const vuc) {
 #elif defined(__arm__)
     return context->uc_mcontext.arm_sp;
 #elif defined(__i386__)
-    static_assert(7 < ABSL_ARRAYSIZE(context->uc_mcontext.gregs),
+    static_assert(7 < std::extent_v<decltype(context->uc_mcontext.gregs)>,
                   "gregs_array_too_small");
     return context->uc_mcontext.gregs[REG_ESP];
 #elif defined(__powerpc64__)
@@ -133,7 +135,7 @@ uintptr_t GetSP(void* const vuc) {
 #elif defined(__powerpc__)
     return context->uc_mcontext.regs->gpr[1];
 #elif defined(__x86_64__)
-    static_assert(15 < ABSL_ARRAYSIZE(context->uc_mcontext.gregs),
+    static_assert(15 < std::extent_v<decltype(context->uc_mcontext.gregs)>,
                   "gregs_array_too_small");
     return context->uc_mcontext.gregs[REG_RSP];
 #elif defined(__riscv)
@@ -165,7 +167,8 @@ static bool GetRegister(int i, void* const vuc, uintptr_t* value,
       " gs", " fs", " es", " ds", "edi",    "esi", "ebp", "esp", "ebx", "edx",
       "ecx", "eax", "trp", "err", kNoPrint, " cs", "efl", "usp", " ss"};
   ucontext_t* uc = reinterpret_cast<ucontext_t*>(vuc);
-  static_assert(ABSL_ARRAYSIZE(uc->uc_mcontext.gregs) == reg_names.size());
+  static_assert(std::extent_v<decltype(uc->uc_mcontext.gregs)> ==
+                reg_names.size());
   if (static_cast<size_t>(i) < reg_names.size()) {
     *value = uc->uc_mcontext.gregs[i];
     *name = reg_names[i];
@@ -184,7 +187,8 @@ static bool GetRegister(int i, void* const vuc, uintptr_t* value,
       "rdi", "rsi", "rbp", "rbx", "rdx", "rax", "rcx", "rsp",
       "rip", "efl", "cgf", "err", "trp", "msk", "cr2"};
   ucontext_t* uc = reinterpret_cast<ucontext_t*>(vuc);
-  static_assert(ABSL_ARRAYSIZE(uc->uc_mcontext.gregs) == reg_names.size());
+  static_assert(std::extent_v<decltype(uc->uc_mcontext.gregs)> ==
+                reg_names.size());
 
   if (static_cast<size_t>(i) < reg_names.size()) {
     *value = uc->uc_mcontext.gregs[i];
@@ -214,7 +218,7 @@ static bool GetRegister(int i, void* const vuc, uintptr_t* value,
 #define PPC_GREGS regs->gpr
 #endif
   ucontext_t* uc = reinterpret_cast<ucontext_t*>(vuc);
-  constexpr size_t kNumGregs = ABSL_ARRAYSIZE(uc->uc_mcontext.PPC_GREGS);
+  constexpr size_t kNumGregs = std::size(uc->uc_mcontext.PPC_GREGS);
   static_assert(reg_names.size() == 12 + kNumGregs);
   if (static_cast<size_t>(i) < reg_names.size()) {
     *name = reg_names[i];
@@ -275,7 +279,8 @@ static bool GetRegister(int i, void* const vuc, uintptr_t* value,
       "x27", "x28", "x29", "x30", "sp",  "pc",  "pstate",
   };
   ucontext_t* uc = reinterpret_cast<ucontext_t*>(vuc);
-  constexpr int kNumMcontextRegs = ABSL_ARRAYSIZE(uc->uc_mcontext.regs);
+  constexpr int kNumMcontextRegs =
+      std::extent_v<decltype(uc->uc_mcontext.regs)>;
 
   // For aarch64, we dump 3 additional special registers not
   // in uc_mcontext.regs.
@@ -416,7 +421,7 @@ static bool GetRegister(int i, void* const vuc, uintptr_t* value,
       "t5",
       "t6",
   };
-  static_assert(ABSL_ARRAYSIZE(uc->uc_mcontext.__gregs) == reg_names.size());
+  static_assert(std::size(uc->uc_mcontext.__gregs) == reg_names.size());
   if (static_cast<size_t>(i) < reg_names.size()) {
     *value = uc->uc_mcontext.__gregs[i];
     *name = reg_names[i];
@@ -717,7 +722,7 @@ std::string CurrentStackTrace() {
 }
 
 void SavedStackTrace::CreateCurrent(int skip_count) {
-  depth_ = absl::GetStackTrace(stack_, ABSL_ARRAYSIZE(stack_), 1 + skip_count);
+  depth_ = absl::GetStackTrace(stack_, std::size(stack_), 1 + skip_count);
 }
 
 // Convenient wrapper around DumpPCAndFrameSizesAndSymbol() for signal
