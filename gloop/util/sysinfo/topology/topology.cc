@@ -937,7 +937,7 @@ SysTopology* SysTopologyGenerator::System() const {
 
   // Try each generator in turn - use the one that gives us the most
   // detailed CPU info.
-  for (int i = 0; i < ABSL_ARRAYSIZE(generators); i++) {
+  for (int i = 0; i < std::size(generators); i++) {
     SysTopologyGenerator::Generator g = generators[i];
     // We really don't want this one kicking in unless there's nothing better
     if (g == &SysTopologyGenerator::FromNumCPUs && best) continue;
