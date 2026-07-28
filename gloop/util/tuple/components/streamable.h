@@ -444,7 +444,7 @@ class printer {
             class = ::std::enable_if_t<
                 ::std::is_same_v<::std::remove_all_extents_t<T>, char>>>
   void print(const T& obj, rank<8>) const {
-    constexpr ::size_t size = ABSL_ARRAYSIZE(obj);
+    const ::size_t size = std::size(obj);
     if (size > 0 && obj[size - 1] == '\0')
       writer_(stream_, ::absl::string_view(obj, size - 1));
     else
