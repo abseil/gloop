@@ -34,6 +34,7 @@
 #include "absl/base/nullability.h"
 #include "absl/flags/internal/program_name.h"
 #include "absl/flags/parse.h"
+#include "absl/functional/function_ref.h"
 #include "absl/log/vlog_is_on.h"
 #include "gloop/base/config.h"
 
@@ -812,7 +813,12 @@ struct AllowlistedItem {
 // Private declaration between base/init_google.cc and base/googleinit.cc
 void GoogleInitializerGetModuleRunning(std::set<absl::string_view>* running);
 
-void CheckInitGoogleIsDone(absl::string_view message) {}
+void CheckInitGoogleIsDone(absl::string_view message) {
+  CheckInitGoogleIsDone([&] { return std::string(message); });
+}
+
+void CheckInitGoogleIsDone(absl::FunctionRef<std::string()> message_generator) {
+}
 
 void AssertInitGoogleIsDone() {
 #ifndef NDEBUG

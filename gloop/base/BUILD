@@ -1880,6 +1880,7 @@ cc_library(
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/flags:program_name",
         "@abseil-cpp//absl/flags:usage",
+        "@abseil-cpp//absl/functional:function_ref",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:log_sink_registry",

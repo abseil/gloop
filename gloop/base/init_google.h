@@ -27,6 +27,7 @@
 
 #include "absl/base/nullability.h"
 #include "absl/flags/declare.h"
+#include "absl/functional/function_ref.h"
 #include "absl/strings/string_view.h"
 #include "gloop/base/googleinit.h"
 
@@ -165,6 +166,10 @@ void AssertInitGoogleIsDone();
 // initially, and be converted to crashes once those uses are eliminated.
 // Any error message output is prefixed with "message".
 void CheckInitGoogleIsDone(absl::string_view message);
+
+// Same as above but calls message_generator to generate the message.
+// Prefer to use this if message needs to be constructed dynamically.
+void CheckInitGoogleIsDone(absl::FunctionRef<std::string()> message_generator);
 
 namespace base {
 // Only a limited set of places are allowed to query whether or not InitGoogle
