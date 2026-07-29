@@ -433,7 +433,7 @@ ptrdiff_t UnescapeCEscapeSequences(const char* absl_nonnull source,
   return d - dest;
 }
 
-ptrdiff_t UnescapeCEscapeString(const std::string& src,
+ptrdiff_t UnescapeCEscapeString(absl::string_view src,
                                 std::string* absl_nonnull dest) {
   std::string error;
   if (!absl::CUnescape(src, dest, &error)) {
@@ -443,7 +443,7 @@ ptrdiff_t UnescapeCEscapeString(const std::string& src,
   return static_cast<ptrdiff_t>(dest->size());
 }
 
-std::string UnescapeCEscapeString(const std::string& src) {
+std::string UnescapeCEscapeString(absl::string_view src) {
   std::string unescaped;
   std::string error;
   if (!absl::CUnescape(src, &unescaped, &error)) {
@@ -728,7 +728,7 @@ ptrdiff_t Base32Escape(const unsigned char* absl_nullable src, size_t szsrc,
   return GeneralBase32Escape(src, szsrc, dest, szdest, kBase32Alphabet);
 }
 
-bool Base32Escape(const std::string& src, std::string* absl_nonnull dest) {
+bool Base32Escape(absl::string_view src, std::string* absl_nonnull dest) {
   return GeneralBase32Escape(src, dest, kBase32Alphabet);
 }
 
@@ -748,7 +748,7 @@ ptrdiff_t Base32HexEscape(const unsigned char* absl_nullable src, size_t szsrc,
   return GeneralBase32Escape(src, szsrc, dest, szdest, Base32HexAlphabet);
 }
 
-bool Base32HexEscape(const std::string& src, std::string* absl_nonnull dest) {
+bool Base32HexEscape(absl::string_view src, std::string* absl_nonnull dest) {
   return GeneralBase32Escape(src, dest, Base32HexAlphabet);
 }
 
@@ -876,13 +876,13 @@ std::string QEncodingUnescape(absl::string_view src) {
 //       (1) determines the presence of LF (first one is ok)
 //       (2) if yes, removes any CR, else convert every CR to LF
 // ----------------------------------------------------------------------
-void CleanStringLineEndings(const std::string& src, std::string* dst,
+void CleanStringLineEndings(absl::string_view src, std::string* dst,
                             bool auto_end_last_line) {
   if (dst->empty()) {
     dst->append(src);
     CleanStringLineEndings(dst, auto_end_last_line);
   } else {
-    std::string tmp = src;
+    std::string tmp(src);
     CleanStringLineEndings(&tmp, auto_end_last_line);
     dst->append(tmp);
   }

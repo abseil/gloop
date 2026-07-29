@@ -397,18 +397,18 @@ bool LookupGroupNameByGID(gid_t gid, std::string* groupname) {
   return false;
 }
 
-bool LookupUIDByName(const std::string& username, uid_t* uid) {
+bool LookupUIDByName(absl::string_view username, uid_t* uid) {
   User user;
-  if (user.Lookup(username)) {
+  if (user.Lookup(std::string(username))) {
     *uid = user.data()->pw_uid;
     return true;
   }
   return false;
 }
 
-bool LookupGIDByGroupName(const std::string& groupname, gid_t* gid) {
+bool LookupGIDByGroupName(absl::string_view groupname, gid_t* gid) {
   Group group;
-  if (group.Lookup(groupname)) {
+  if (group.Lookup(std::string(groupname))) {
     *gid = group.data()->gr_gid;
     return true;
   }
@@ -421,9 +421,9 @@ std::shared_ptr<passwd> LookupUserByUID(uid_t uid) {
   return nullptr;
 }
 
-std::shared_ptr<passwd> LookupUserByName(const std::string& username) {
+std::shared_ptr<passwd> LookupUserByName(absl::string_view username) {
   User user;
-  if (user.Lookup(username)) return user.data();
+  if (user.Lookup(std::string(username))) return user.data();
   return nullptr;
 }
 
@@ -433,8 +433,8 @@ std::shared_ptr<group> LookupGroupByGID(gid_t gid) {
   return nullptr;
 }
 
-std::shared_ptr<group> LookupGroupByGroupName(const std::string& groupname) {
+std::shared_ptr<group> LookupGroupByGroupName(absl::string_view groupname) {
   Group group;
-  if (group.Lookup(groupname)) return group.data();
+  if (group.Lookup(std::string(groupname))) return group.data();
   return nullptr;
 }

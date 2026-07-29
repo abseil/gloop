@@ -38,6 +38,8 @@
 extern absl::Flag<int32_t> FLAGS_nsscache_timeout;
 #endif
 
+#include "absl/strings/string_view.h"
+
 bool LookupNameByUID(uid_t uid, std::string* username);
 
 bool LookupGroupNameByGID(gid_t gid, std::string* groupname);
@@ -48,14 +50,14 @@ std::shared_ptr<passwd> LookupUserByUID(uid_t uid);
 // Return the POSIX group struct for the given gid, or null if not found.
 std::shared_ptr<group> LookupGroupByGID(gid_t gid);
 
-bool LookupUIDByName(const std::string& username, uid_t* uid);
+bool LookupUIDByName(absl::string_view username, uid_t* uid);
 
-bool LookupGIDByGroupName(const std::string& groupname, gid_t* gid);
+bool LookupGIDByGroupName(absl::string_view groupname, gid_t* gid);
 
 // Return the POSIX passwd struct for the given username, or null if not found.
-std::shared_ptr<passwd> LookupUserByName(const std::string& username);
+std::shared_ptr<passwd> LookupUserByName(absl::string_view username);
 
 // Return the POSIX group struct for the given groupname, or null if not found.
-std::shared_ptr<group> LookupGroupByGroupName(const std::string& groupname);
+std::shared_ptr<group> LookupGroupByGroupName(absl::string_view groupname);
 
 #endif  // THIRD_PARTY_GLOOP_BASE_NSSCACHE_H_

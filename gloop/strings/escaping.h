@@ -312,7 +312,7 @@ bool Base32HexUnescape(absl::string_view src, std::string* absl_nonnull dest);
 // ----------------------------------------------------------------------
 ptrdiff_t Base32Escape(const unsigned char* absl_nullable src, size_t szsrc,
                        char* absl_nonnull dest, size_t szdest);
-bool Base32Escape(const std::string& src, std::string* absl_nonnull dest);
+bool Base32Escape(absl::string_view src, std::string* absl_nonnull dest);
 
 // ----------------------------------------------------------------------
 // Base32HexEscape()
@@ -327,7 +327,7 @@ bool Base32Escape(const std::string& src, std::string* absl_nonnull dest);
 // ----------------------------------------------------------------------
 ptrdiff_t Base32HexEscape(const unsigned char* absl_nullable src, size_t szsrc,
                           char* absl_nonnull dest, size_t szdest);
-bool Base32HexEscape(const std::string& src, std::string* absl_nonnull dest);
+bool Base32HexEscape(absl::string_view src, std::string* absl_nonnull dest);
 
 // ----------------------------------------------------------------------
 // CalculateBase32EscapedLen()
@@ -403,10 +403,10 @@ ptrdiff_t UnescapeCEscapeSequences(const char* absl_nonnull source,
 //    *** DEPRECATED: Use absl::CUnescape() in new code ***
 // ----------------------------------------------------------------------
 [[deprecated("Use absl::CUnescape()")]]
-ptrdiff_t UnescapeCEscapeString(const std::string& src,
+ptrdiff_t UnescapeCEscapeString(absl::string_view src,
                                 std::string* absl_nonnull dest);
 [[deprecated("Use absl::CUnescape()")]]
-std::string UnescapeCEscapeString(const std::string& src);
+std::string UnescapeCEscapeString(absl::string_view src);
 
 // ----------------------------------------------------------------------
 // QuotedPrintableUnescape()
@@ -464,7 +464,7 @@ std::string QEncodingUnescape(absl::string_view src);
 //     broken programs that do another Unix->DOS conversion on files
 //     that are already in CRLF format.
 // ----------------------------------------------------------------------
-void CleanStringLineEndings(const std::string& src, std::string* dst,
+void CleanStringLineEndings(absl::string_view src, std::string* dst,
                             bool auto_end_last_line);
 
 // Same as above, but transforms the argument in place.
