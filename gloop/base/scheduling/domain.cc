@@ -52,6 +52,19 @@ namespace {
 
 using absl::synchronization_internal::KernelTimeout;
 
+struct ScopedInScheduler {
+  explicit ScopedInScheduler(absl::base_internal::ThreadIdentity* identity)
+      : identity(identity) {
+    identity->scheduler_state.in_scheduler.store(true,
+                                                 std::memory_order_relaxed);
+  }
+  ~ScopedInScheduler() {
+    identity->scheduler_state.in_scheduler.store(false,
+                                                 std::memory_order_release);
+  }
+  absl::base_internal::ThreadIdentity* identity;
+};
+
 // b/35097229: The first construction of a block-scoped thread_local object with
 // a dtor depends on a pthread_once initialization containing a block-scoped
 // static object (for allocating a pthread_key).  When we co-operatively
@@ -144,6 +157,8 @@ void Domain::DomainStartPotentiallyBlockingRegion(Schedulable* current) {
 }
 
 void Domain::DomainFinishPotentiallyBlockingRegion(Schedulable* current) {
+  ScopedInScheduler scoped_in_scheduler(
+      absl::synchronization_internal::GetOrCreateCurrentThreadIdentity());
   Schedulable* to_run = Downcalls::DomainObservedWakeup(current);
   if (to_run) {
     if (to_run == current) {

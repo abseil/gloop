@@ -60,6 +60,21 @@ namespace scheduling {
 
 using absl::synchronization_internal::KernelTimeout;
 
+namespace {
+struct ScopedInScheduler {
+  explicit ScopedInScheduler(absl::base_internal::ThreadIdentity* identity)
+      : identity(identity) {
+    identity->scheduler_state.in_scheduler.store(true,
+                                                 std::memory_order_relaxed);
+  }
+  ~ScopedInScheduler() {
+    identity->scheduler_state.in_scheduler.store(false,
+                                                 std::memory_order_release);
+  }
+  absl::base_internal::ThreadIdentity* identity;
+};
+}  // namespace
+
 // Returns true if this increment resulted in schedulable being woken.
 // Returns false otherwise.
 //
@@ -533,6 +548,8 @@ bool Downcalls::UserSchedule(bool runnable, KernelTimeout t) {
             "Attempt to reschedule within ScheduleGuard region.");
 #endif
   absl::base_internal::SchedulingGuard::ScopedDisable disable_rescheduling;
+  ScopedInScheduler scoped_in_scheduler(
+      absl::synchronization_internal::GetOrCreateCurrentThreadIdentity());
 
   Schedulable* prev = Domain::CurrentThreadSchedulable();
   // NOTE: If TSAN complains about the memory reference in the check below, it's
