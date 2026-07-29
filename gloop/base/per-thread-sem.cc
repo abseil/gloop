@@ -90,6 +90,13 @@ void ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemPost)(
   // We use careful double-checked locking to avoid requiring the association
   // lock for non-cooperative threads.
   if (base::scheduling::Schedulable::GetBoundSchedulable(identity) != nullptr) {
+    if (identity->scheduler_state.scheduling_disabled_depth.load(
+            std::memory_order_relaxed) > 0 &&
+        !identity->scheduler_state.in_scheduler.load(
+            std::memory_order_acquire)) {
+      base::scheduling_internal::Post(identity);
+      return;
+    }
     SpinLockHolder l(*identity->scheduler_state.association_lock());
     // Holding the association lock guarantees a consistent read of the thread's
     // bound schedulable (nullptr for non-cooperative threads).  This
@@ -122,7 +129,11 @@ ABSL_ATTRIBUTE_UNUSED bool ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemWait)(
     identity->blocked_count_ptr->fetch_add(1, std::memory_order_relaxed);
   }
 
-  if (base::scheduling::Schedulable::GetBoundSchedulable(identity) != nullptr) {
+  if (base::scheduling::Schedulable::GetBoundSchedulable(identity) != nullptr &&
+      (identity->scheduler_state.scheduling_disabled_depth.load(
+           std::memory_order_relaxed) == 0 ||
+       identity->scheduler_state.in_scheduler.load(
+           std::memory_order_relaxed))) {
     // We do not require the association lock when blocking as no other thread
     // has the right to modify this field.
     timeout = !base::scheduling::Downcalls::Wait(t);
