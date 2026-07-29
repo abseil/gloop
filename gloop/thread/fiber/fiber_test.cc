@@ -242,16 +242,15 @@ TEST_F(FiberTest, NestedMultiple) {
   struct State {
     static void Doit() {
       static const int N = 100;
-      Fiber* children[N];
+      std::unique_ptr<Fiber> children[N];
       int result[N];
       for (int i = 0; i < N; i++) {
-        children[i] = new Fiber(
+        children[i] = std::make_unique<Fiber>(
             std::bind(Sleep, absl::Seconds(0.1), 300 + i, &result[i]));
       }
       for (int i = 0; i < N; i++) {
         children[i]->Join();
         EXPECT_EQ(300 + i, result[i]);
-        delete children[i];
       }
     }
   };
@@ -264,16 +263,15 @@ TEST_F(FiberTest, NestedMultiple) {
 TEST_F(FiberTest, JoinWaitsForChildJoinNotDestructor) {
   static const absl::Duration kDelay = absl::Milliseconds(10);
   absl::Time start = absl::Now();
-  Fiber* child;
+  std::unique_ptr<Fiber> child;
   Fiber fiber([&child] {
-    child = new Fiber(std::bind(absl::SleepFor, kDelay));
+    child = std::make_unique<Fiber>(std::bind(absl::SleepFor, kDelay));
     child->Join();
   });
   fiber.Join();
 
   const absl::Time finish = absl::Now();
   EXPECT_GT(finish - start, kDelay);
-  delete child;
 }
 
 static void RunThenJoin(std::function<void()> run_in_fiber,
@@ -367,11 +365,12 @@ TEST_F(FiberTest, CancelLargeTree) {
   struct Helper {
     static void Body(int depth) {
       if (depth < kMaxDepth) {
-        Fiber* children[kNumChildren];
+        std::unique_ptr<Fiber> children[kNumChildren];
         int i;
 
         for (i = 0; i < kNumChildren; i++) {
-          children[i] = new Fiber(std::bind(Helper::Body, depth + 1));
+          children[i] =
+              std::make_unique<Fiber>(std::bind(Helper::Body, depth + 1));
         }
 
         // Ensure that SleepFor() correctly reschedules.  While we don't
@@ -381,7 +380,6 @@ TEST_F(FiberTest, CancelLargeTree) {
 
         for (i = 0; i < kNumChildren; i++) {
           children[i]->Join();
-          delete children[i];
         }
       } else {
         // We have a tree of at depth kMaxDepth, trigger a cancellation from the
@@ -699,10 +697,10 @@ TEST_F(FiberTest, FibersRespondToDeadlines) {
   // Check all methods for creating fibers.
   std::vector<std::unique_ptr<Fiber>> fibers;
 
-  fibers.emplace_back(
-      new Fiber(std::bind(CheckDeadlineAndWaitForCancel, deadline)));
+  fibers.push_back(std::make_unique<Fiber>(
+      std::bind(CheckDeadlineAndWaitForCancel, deadline)));
 
-  fibers.emplace_back(new Fiber(
+  fibers.push_back(std::make_unique<Fiber>(
       FiberOptions(), std::bind(CheckDeadlineAndWaitForCancel, deadline)));
 
   for (const auto& f : fibers) {
@@ -746,16 +744,16 @@ TEST_F(FiberTest, TemporaryCallbackFibersRespondToDeadlines) {
   // Check all methods for creating fibers.
   std::vector<std::unique_ptr<Fiber>> fibers;
 
-  fibers.emplace_back(
-      new Fiber(std::bind(CheckDeadlineAndWaitForCancel, deadline)));
+  fibers.push_back(std::make_unique<Fiber>(
+      std::bind(CheckDeadlineAndWaitForCancel, deadline)));
 
-  fibers.emplace_back(new Fiber(
+  fibers.push_back(std::make_unique<Fiber>(
       FiberOptions(), std::bind(CheckDeadlineAndWaitForCancel, deadline)));
 
-  fibers.emplace_back(
-      new Fiber([deadline] { CheckDeadlineAndWaitForCancel(deadline); }));
+  fibers.push_back(std::make_unique<Fiber>(
+      [deadline] { CheckDeadlineAndWaitForCancel(deadline); }));
 
-  fibers.emplace_back(
+  fibers.push_back(
       NewTree(TreeOptions().set_context(base::CurrentContext()),
               absl::bind_front(CheckDeadlineAndWaitForCancel, deadline)));
 
@@ -787,8 +785,8 @@ TEST_F(FiberTest, PermanentCallbackFibersRespondToDeadlines) {
   // Check all methods for creating fibers.
   std::vector<std::unique_ptr<Fiber>> fibers;
 
-  fibers.emplace_back(new Fiber(callback));
-  fibers.emplace_back(
+  fibers.push_back(std::make_unique<Fiber>(callback));
+  fibers.push_back(
       NewTree(TreeOptions().set_context(base::CurrentContext()), callback));
 
   thread::Detach(thread::TreeOptions().set_context(base::CurrentContext()),
@@ -1095,15 +1093,15 @@ TEST_F(FiberTest, MaxOut) {
 
   thread::Bundle children;
   std::vector<std::unique_ptr<Channel<int>>> channels;
-  std::unique_ptr<Channel<int>> parent(new Channel<int>(0));
+  auto parent = std::make_unique<Channel<int>>(0);
   Reader<int>* prev = parent->reader();
   for (int i = 0; i < num_fibers; ++i) {
     absl::Notification started;
-    Channel<int>* chan = new Channel<int>(0);
+    auto chan = std::make_unique<Channel<int>>(0);
     children.Add(std::bind(Helper::Work, &started, prev, chan->writer(), i));
-    channels.emplace_back(chan);
+    channels.push_back(std::move(chan));
     started.WaitForNotification();
-    prev = chan->reader();
+    prev = channels.back()->reader();
     LOG_EVERY_N(INFO, 1000) << "Done with " << i;
   }
 
@@ -1626,7 +1624,7 @@ TEST(PthreadExit, Works) {
   threads.emplace_back(
       std::make_unique<ClosureThread>([]() { pthread_exit(nullptr); }));
 
-  threads.emplace_back(std::make_unique<ClosureThread>([]() {
+  threads.push_back(std::make_unique<ClosureThread>([]() {
 #if defined(__Fuchsia__)
     // Fuchsia does not support pthread_cleanup_push or thread exit handlers,
     // and thus will have an ASAN error due to not clearing a stack fiber
@@ -1638,13 +1636,13 @@ TEST(PthreadExit, Works) {
     pthread_exit(nullptr);
   }));
 
-  threads.emplace_back(std::make_unique<ClosureThread>([]() {
+  threads.push_back(std::make_unique<ClosureThread>([]() {
     absl::LeakCheckDisabler d;
     CHECK(Fiber::Current() != nullptr);
     pthread_exit(nullptr);
   }));
 
-  threads.emplace_back(std::make_unique<ClosureThread>([]() {
+  threads.push_back(std::make_unique<ClosureThread>([]() {
 #if defined(__Fuchsia__)
     // Fuchsia does not support pthread_cleanup_push or thread exit handlers,
     // and thus will have an ASAN error due to not clearing a stack fiber
