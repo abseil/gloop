@@ -3,7 +3,7 @@ module(
     bazel_compatibility = [">=8.0.0"],
 )
 
-bazel_dep(name = "abseil-cpp", version = "20260107.1")
+bazel_dep(name = "abseil-cpp", version = "20260526.0")
 bazel_dep(name = "protobuf", version = "35.1")
 bazel_dep(name = "tcmalloc", version = "0.0.0-20250927-12f2552")
 bazel_dep(name = "platforms", version = "1.1.0")
