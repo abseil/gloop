@@ -179,7 +179,6 @@ cc_test(
         ":coding",
         "//gloop:gloop_test_main",
         "//gloop/util/random:distributions",
-        "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random:distributions",
         "@abseil-cpp//absl/strings",
         "@fuzztest//fuzztest",
