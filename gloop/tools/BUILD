@@ -35,6 +35,7 @@ cc_binary(
     ],
     deps = [
         "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/strings",
         "@boringssl//:crypto",
         "@rules_cc//cc/runfiles",
     ],
