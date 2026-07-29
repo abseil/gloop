@@ -24,7 +24,7 @@
 TEST(Arena, Leakage) {
   UnsafeArena arena(32);
   // Grab just 10 bytes.
-  EXPECT_EQ(arena.bytes_until_next_allocation(), 32);
+  EXPECT_EQ(arena.bytes_until_next_allocation(), 0);
   const char* block = arena.Alloc(10);
   EXPECT_NE(block, nullptr);
   EXPECT_EQ(arena.bytes_until_next_allocation(), 22);

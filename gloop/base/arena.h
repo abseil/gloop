@@ -267,12 +267,15 @@
 #include "absl/base/attributes.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
+#include "absl/flags/declare.h"
 #include "absl/strings/str_format.h"
 #include "absl/synchronization/mutex.h"
 
 #ifdef ABSL_HAVE_ADDRESS_SANITIZER
 #include <sanitizer/asan_interface.h>
 #endif
+
+ABSL_DECLARE_FLAG(bool, gloop_arena_lazy_first_block_allocation);
 
 // This class is "thread-compatible": different threads can access the
 // arena at the same time without locking, as long as they use only
@@ -391,8 +394,8 @@ class BaseArena {
   // alignment.
   // The returned AllocatedBlock* is valid until the next call to AllocNewBlock
   // or Reset (i.e. anything that might affect overflow_blocks_).
-  AllocatedBlock* AllocNewBlock(const size_t block_size,
-                                const size_t alignment);
+  AllocatedBlock* AllocNewBlock(const size_t block_size, const size_t alignment,
+                                bool is_pool_block);
 
   const size_t block_size_;
   char* freestart_;  // beginning of the free space in most recent block

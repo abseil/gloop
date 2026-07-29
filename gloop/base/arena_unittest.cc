@@ -1221,4 +1221,83 @@ TEST(ArenaTest, StrndupWithUnterminatedStringSafe) {
   TestStrndupUnterminated<SafeArena>();
 }
 
+TEST(ArenaTest, LazyFirstBlockAllocation) {
+  // Test lazy allocation with small pool block.
+  {
+    UnsafeArena arena(1024);
+    EXPECT_TRUE(arena.is_empty());
+    EXPECT_EQ(0, arena.status().bytes_allocated());
+
+    char* ptr = arena.Alloc(10);
+    EXPECT_NE(nullptr, ptr);
+    EXPECT_FALSE(arena.is_empty());
+    EXPECT_GT(arena.status().bytes_allocated(), 0);
+
+    arena.Reset();
+    EXPECT_TRUE(arena.is_empty());
+    EXPECT_EQ(arena.block_size(), arena.status().bytes_allocated());
+  }
+
+  // Test lazy allocation where only a large block (> block_size) is allocated.
+  {
+    UnsafeArena arena(1024);
+    EXPECT_TRUE(arena.is_empty());
+    EXPECT_EQ(0, arena.status().bytes_allocated());
+
+    char* ptr = arena.Alloc(2000);  // 2000 > 1024, so this is a large block
+    EXPECT_NE(nullptr, ptr);
+    EXPECT_FALSE(arena.is_empty());
+    EXPECT_GT(arena.status().bytes_allocated(), 0);
+
+    // Resetting when only a large block was used should leave slot 0
+    // unallocated.
+    arena.Reset();
+    EXPECT_TRUE(arena.is_empty());
+    EXPECT_EQ(0, arena.status().bytes_allocated());
+
+    // Now allocate a pool block; slot 0 should be used.
+    char* pool_ptr = arena.Alloc(10);
+    EXPECT_NE(nullptr, pool_ptr);
+    EXPECT_FALSE(arena.is_empty());
+
+    arena.Reset();
+    EXPECT_TRUE(arena.is_empty());
+    EXPECT_EQ(arena.block_size(), arena.status().bytes_allocated());
+  }
+
+  // Test with SafeArena as well.
+  {
+    SafeArena arena(2048);
+    EXPECT_TRUE(arena.is_empty());
+    EXPECT_EQ(0, arena.status().bytes_allocated());
+
+    char* ptr = arena.Alloc(100);
+    EXPECT_NE(nullptr, ptr);
+    EXPECT_FALSE(arena.is_empty());
+    EXPECT_GT(arena.status().bytes_allocated(), 0);
+
+    arena.Reset();
+    EXPECT_TRUE(arena.is_empty());
+  }
+}
+
+TEST(ArenaTest, FlagGateEagerAllocation) {
+  absl::FlagSaver flag_saver;
+  absl::SetFlag(&FLAGS_gloop_arena_lazy_first_block_allocation, false);
+
+  UnsafeArena arena(1024);
+  EXPECT_TRUE(arena.is_empty());
+  EXPECT_EQ(1024, arena.status().bytes_allocated());
+  EXPECT_GT(arena.bytes_until_next_allocation(), 0);
+
+  char* ptr = arena.Alloc(10);
+  EXPECT_NE(nullptr, ptr);
+  EXPECT_FALSE(arena.is_empty());
+  EXPECT_EQ(1024, arena.status().bytes_allocated());
+
+  arena.Reset();
+  EXPECT_TRUE(arena.is_empty());
+  EXPECT_EQ(1024, arena.status().bytes_allocated());
+}
+
 }  // namespace
