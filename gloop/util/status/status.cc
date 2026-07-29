@@ -608,6 +608,38 @@ RegisterStatusPayloadPrinter g_status_payload_printer_register;
 
 }  // namespace status_internal
 
+void SaveStatusAsRpcStatus(const absl::Status& status,
+                           google::rpc::Status& rpc_status) {
+  rpc_status.set_code(static_cast<int>(status.code()));
+  rpc_status.set_message(status.message());
+  status.ForEachPayload(
+      [&](absl::string_view type_url, const absl::Cord& payload) {
+        google::protobuf::Any* any = rpc_status.add_details();
+        any->set_type_url(type_url);
+        any->set_value(std::string(payload));
+      });
+}
+
+google::rpc::Status SaveStatusAsRpcStatus(const absl::Status& status) {
+  google::rpc::Status rpc_status;
+  SaveStatusAsRpcStatus(status, rpc_status);
+  return rpc_status;
+}
+
+absl::Status MakeStatusFromRpcStatus(const google::rpc::Status& status,
+                                     absl::SourceLocation loc) {
+  if (status.code() == 0) return absl::OkStatus();
+  absl::Status ret(static_cast<absl::StatusCode>(status.code()),
+                   status.message(), loc);
+  for (const google::protobuf::Any& detail : status.details()) {
+    if (status_internal::IsStackTracePayloadUrl(detail.type_url())) {
+      continue;
+    }
+    ret.SetPayload(detail.type_url(), absl::Cord(detail.value()));
+  }
+  return ret;
+}
+
 ////////////////////////////////////////////////////////////////////////
 // Payload support
 ////////////////////////////////////////////////////////////////////////

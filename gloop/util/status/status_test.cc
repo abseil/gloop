@@ -54,6 +54,7 @@
 #include "google/protobuf/bridge/message_set.pb.h"
 #include "google/protobuf/text_format.h"
 #include "google/protobuf/wrappers.pb.h"
+#include "google/rpc/status.pb.h"
 #include "gtest/gtest.h"
 
 namespace {
@@ -880,6 +881,29 @@ TEST(Proto, EmptyStatusProto) {
   CheckSourceLocation(dst);
 }
 
+TEST(Proto, EmptyRpcStatus) {
+  absl::Status src;
+  google::rpc::Status rpc_proto = util::SaveStatusAsRpcStatus(src);
+  EXPECT_EQ(rpc_proto.code(), 0);
+  EXPECT_EQ(rpc_proto.message(), "");
+  EXPECT_EQ(rpc_proto.details_size(), 0);
+  absl::Status dst = util::MakeStatusFromRpcStatus(rpc_proto);
+  EXPECT_EQ(src, dst);
+  CheckSourceLocation(dst);
+}
+
+TEST(Proto, EmptyRpcStatusOutParam) {
+  absl::Status src;
+  google::rpc::Status rpc_proto;
+  util::SaveStatusAsRpcStatus(src, rpc_proto);
+  EXPECT_EQ(rpc_proto.code(), 0);
+  EXPECT_EQ(rpc_proto.message(), "");
+  EXPECT_EQ(rpc_proto.details_size(), 0);
+  absl::Status dst = util::MakeStatusFromRpcStatus(rpc_proto);
+  EXPECT_EQ(src, dst);
+  CheckSourceLocation(dst);
+}
+
 TEST(Proto, NonEmptyStatusProto) {
   absl::Status src = util::MakeStatus(MyErrorSpace::Get(), 1, "message");
   util::StatusProto proto;
@@ -897,6 +921,29 @@ TEST(Proto, NonEmptyStatusProto) {
   CheckSourceLocation(dst, {line});
 }
 
+TEST(Proto, NonEmptyRpcStatus) {
+  absl::Status src = util::MakeStatus(MyErrorSpace::Get(), 1, "message");
+  google::rpc::Status rpc_proto = util::SaveStatusAsRpcStatus(src);
+  EXPECT_EQ(rpc_proto.code(), util::error::UNKNOWN);
+  EXPECT_EQ(rpc_proto.message(), "message");
+  absl::Status dst = util::MakeStatusFromRpcStatus(rpc_proto);
+  int line2 = GET_SOURCE_LOCATION(1);
+  EXPECT_EQ(src, dst);
+  CheckSourceLocation(dst, {line2});
+}
+
+TEST(Proto, NonEmptyRpcStatusOutParam) {
+  absl::Status src = util::MakeStatus(MyErrorSpace::Get(), 1, "message");
+  google::rpc::Status rpc_proto;
+  util::SaveStatusAsRpcStatus(src, rpc_proto);
+  EXPECT_EQ(rpc_proto.code(), util::error::UNKNOWN);
+  EXPECT_EQ(rpc_proto.message(), "message");
+  absl::Status dst = util::MakeStatusFromRpcStatus(rpc_proto);
+  int line2 = GET_SOURCE_LOCATION(1);
+  EXPECT_EQ(src, dst);
+  CheckSourceLocation(dst, {line2});
+}
+
 TEST(Proto, WithPayloadStatusProto) {
   const google::protobuf::bridge::MessageSet payload = MakeTestPayload("foo");
   absl::Status src =
@@ -912,6 +959,37 @@ TEST(Proto, WithPayloadStatusProto) {
   EXPECT_TRUE(proto.has_message_set());
   EXPECT_THAT(proto.message_set(), EqualsProto(MakeTestPayload("foo")));
   absl::Status dst = ::util::MakeStatusFromProto(proto);
+  int line = GET_SOURCE_LOCATION(1);
+
+  EXPECT_EQ(src, dst);
+  CheckStatus(dst, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message",
+              "foo", {}, {line});
+}
+
+TEST(Proto, WithPayloadRpcStatus) {
+  const google::protobuf::bridge::MessageSet payload = MakeTestPayload("foo");
+  absl::Status src =
+      util::MakeStatus(MyErrorSpace::Get(), 1, "message", &payload);
+  google::rpc::Status rpc_proto = util::SaveStatusAsRpcStatus(src);
+  EXPECT_EQ(rpc_proto.code(), util::error::UNKNOWN);
+  EXPECT_EQ(rpc_proto.message(), "message");
+  absl::Status dst = ::util::MakeStatusFromRpcStatus(rpc_proto);
+  int line = GET_SOURCE_LOCATION(1);
+
+  EXPECT_EQ(src, dst);
+  CheckStatus(dst, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message",
+              "foo", {}, {line});
+}
+
+TEST(Proto, WithPayloadRpcStatusOutParam) {
+  const google::protobuf::bridge::MessageSet payload = MakeTestPayload("foo");
+  absl::Status src =
+      util::MakeStatus(MyErrorSpace::Get(), 1, "message", &payload);
+  google::rpc::Status rpc_proto;
+  util::SaveStatusAsRpcStatus(src, rpc_proto);
+  EXPECT_EQ(rpc_proto.code(), util::error::UNKNOWN);
+  EXPECT_EQ(rpc_proto.message(), "message");
+  absl::Status dst = ::util::MakeStatusFromRpcStatus(rpc_proto);
   int line = GET_SOURCE_LOCATION(1);
 
   EXPECT_EQ(src, dst);
@@ -951,6 +1029,35 @@ TEST(Proto, WithNonMessageSetPayloadStatusProto) {
               {{kUrl, absl::Cord(kPayload)}}, {GET_SOURCE_LOCATION(3)});
 }
 
+TEST(Proto, WithNonMessageSetPayloadRpcStatus) {
+  absl::Status src = util::MakeStatus(MyErrorSpace::Get(), 1, "message");
+  src.SetPayload(kUrl, absl::Cord(kPayload));
+  google::rpc::Status rpc_proto = util::SaveStatusAsRpcStatus(src);
+  EXPECT_EQ(rpc_proto.code(), util::error::UNKNOWN);
+  EXPECT_EQ(rpc_proto.message(), "message");
+
+  // Source Location is not preserved by status proto.
+  absl::Status dst = ::util::MakeStatusFromRpcStatus(rpc_proto);
+  CheckStatus(dst, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message", "",
+              {{kUrl, absl::Cord(kPayload)}}, {GET_SOURCE_LOCATION(2)});
+  EXPECT_EQ(src, dst);
+}
+
+TEST(Proto, WithNonMessageSetPayloadRpcStatusOutParam) {
+  absl::Status src = util::MakeStatus(MyErrorSpace::Get(), 1, "message");
+  src.SetPayload(kUrl, absl::Cord(kPayload));
+  google::rpc::Status rpc_proto;
+  util::SaveStatusAsRpcStatus(src, rpc_proto);
+  EXPECT_EQ(rpc_proto.code(), util::error::UNKNOWN);
+  EXPECT_EQ(rpc_proto.message(), "message");
+
+  // Source Location is not preserved by status proto.
+  absl::Status dst = ::util::MakeStatusFromRpcStatus(rpc_proto);
+  CheckStatus(dst, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message", "",
+              {{kUrl, absl::Cord(kPayload)}}, {GET_SOURCE_LOCATION(2)});
+  EXPECT_EQ(src, dst);
+}
+
 TEST(Proto, WithBothPayloadsStatusProto) {
   absl::Status src = util::MakeStatus(MyErrorSpace::Get(), 1, "message");
   src.SetPayload(kUrl, absl::Cord(kPayload));
@@ -974,6 +1081,65 @@ TEST(Proto, WithBothPayloadsStatusProto) {
   EXPECT_EQ(src, dst);
   CheckStatus(dst, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message",
               "test", {{kUrl, absl::Cord(kPayload)}}, {GET_SOURCE_LOCATION(3)});
+}
+
+TEST(Proto, WithBothPayloadsRpcStatus) {
+  absl::Status src = util::MakeStatus(MyErrorSpace::Get(), 1, "message");
+  src.SetPayload(kUrl, absl::Cord(kPayload));
+  util::TestPayload payload;
+  payload.set_message("test");
+  util::AttachPayload(&src, payload);
+
+  google::rpc::Status rpc_proto = util::SaveStatusAsRpcStatus(src);
+  EXPECT_EQ(rpc_proto.code(), util::error::UNKNOWN);
+  EXPECT_EQ(rpc_proto.message(), "message");
+  absl::Status dst = ::util::MakeStatusFromRpcStatus(rpc_proto);
+  EXPECT_EQ(src, dst);
+  CheckStatus(dst, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message",
+              "test", {{kUrl, absl::Cord(kPayload)}}, {GET_SOURCE_LOCATION(3)});
+}
+
+TEST(Proto, WithBothPayloadsRpcStatusOutParam) {
+  absl::Status src = util::MakeStatus(MyErrorSpace::Get(), 1, "message");
+  src.SetPayload(kUrl, absl::Cord(kPayload));
+  util::TestPayload payload;
+  payload.set_message("test");
+  util::AttachPayload(&src, payload);
+
+  google::rpc::Status rpc_proto;
+  util::SaveStatusAsRpcStatus(src, rpc_proto);
+  EXPECT_EQ(rpc_proto.code(), util::error::UNKNOWN);
+  EXPECT_EQ(rpc_proto.message(), "message");
+  absl::Status dst = ::util::MakeStatusFromRpcStatus(rpc_proto);
+  EXPECT_EQ(src, dst);
+  CheckStatus(dst, MyErrorSpace::Get(), 1, util::error::UNKNOWN, "message",
+              "test", {{kUrl, absl::Cord(kPayload)}}, {GET_SOURCE_LOCATION(3)});
+}
+
+TEST(Proto, FilterStackTracePayloadFromRpcStatus) {
+  google::rpc::Status rpc_status;
+  rpc_status.set_code(util::error::INTERNAL);
+  rpc_status.set_message("internal error");
+
+  // Add stack trace payload
+  google::protobuf::Any* detail = rpc_status.add_details();
+  detail->set_type_url(std::string(util::status_internal::kStackTraceUrl));
+  detail->set_value("dummy stack trace data");
+
+  // Add another innocent payload
+  google::protobuf::Any* detail2 = rpc_status.add_details();
+  detail2->set_type_url("type.googleapis.com/some.other.Payload");
+  detail2->set_value("some other data");
+
+  absl::Status status = util::MakeStatusFromRpcStatus(rpc_status);
+
+  // The status should NOT contain the stack trace payload.
+  EXPECT_EQ(status.GetPayload(util::status_internal::kStackTraceUrl),
+            std::nullopt);
+
+  // But it should preserve the other payload.
+  EXPECT_THAT(status.GetPayload("type.googleapis.com/some.other.Payload"),
+              Optional(Eq("some other data")));
 }
 
 TEST(Proto, FilterStackTracePayloadFromProto) {
@@ -1034,6 +1200,30 @@ TEST(Proto, UnknownSpaceZeroCanonicalCode) {
   EXPECT_THAT(dst.message(), HasSubstr("msg"));
   EXPECT_THAT(dst.message(), HasSubstr("100"));
   EXPECT_THAT(dst.message(), HasSubstr("unknown_space"));
+}
+
+TEST(Proto, FromRpcStatusWithUnknownSpace) {
+  // b/314132766 - This string represents a serialized RpcProto coming from
+  // another binary.  This test binary does not link the corresponding
+  // ErrorSpace that was used to produce this RpcProto. We need to verify that
+  // we don't crash when we use Status objects that come from this message.
+  absl::string_view serialized = absl::string_view(
+      "\010\002\022\031Needed longer in the "
+      "oven\032B\n*type.googleapis.com/"
+      "util.ErrorSpacePayload\022\024\010\001\022\020BakingErrorSpace",
+      97);
+  google::rpc::Status rpc_proto;
+  ASSERT_TRUE(rpc_proto.ParseFromString(serialized));
+  absl::Status status = util::MakeStatusFromRpcStatus(rpc_proto);
+  EXPECT_EQ(status.code(), absl::StatusCode::kUnknown);
+  EXPECT_THAT(status.message(), Eq("Needed longer in the oven"));
+  // b/314132766 reported that util::StatusToString() could crash.
+  std::string status_str = util::StatusToString(status);
+  EXPECT_THAT(status_str, HasSubstr("UnknownErrorSpace::UNKNOWN"));
+  EXPECT_THAT(status_str, HasSubstr("Needed longer in the oven"));
+
+  std::string status_code_str = util::ErrorSpaceAndStatusToString(status);
+  EXPECT_THAT(status_code_str, Eq("UnknownErrorSpace::UNKNOWN (code=1)"));
 }
 
 TEST(Proto, NegativeCode) {

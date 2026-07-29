@@ -49,6 +49,7 @@
 #include "gloop/util/status/non_message_set_payload.pb.h"
 #include "google/protobuf/any.pb.h"
 #include "google/protobuf/bridge/message_set.pb.h"
+#include "google/rpc/status.pb.h"
 
 ABSL_DECLARE_FLAG(bool, util_status_save_stack_trace);
 
@@ -129,6 +130,37 @@ void InternalSaveStatusToProto(const absl::Status& s, util::StatusProto* proto);
 
 absl::Status MakeStatusFromProto(
     const util::StatusProto& proto,
+    absl::SourceLocation loc = absl::SourceLocation::current());
+
+// Conversion functions between `google.rpc.Status` and `absl::Status`.
+// NOTE: These functions don't handle the corner case where `status` holds a
+// custom error space/code which is mapped to `kOk` canonical code, i.e.
+// `status.code()` is `absl::StatusCode::kOk` but `status.ok()` is false.
+// If you have such `status` object, you should change the mapping of the error
+// code to an non-zero canonical code, or use `util.StatusProto`.
+//
+// ANOTHER NOTE: These functions don't adhere to the gRPC status mapping rules
+// specified in
+// <link>,
+// in particular around handling message set payloads.
+//
+//   // Serialize
+//   google::rpc::Status rpc_status;
+//   rpc_status.ParseFromString(grpc::Status(absl_status).error_details());
+//
+//   // Deserialize (and please add error checks for details)
+//   util::StatusProto util_status_proto;
+//   rpc_status.details(0).UnpackTo(&util_status_proto);
+//   absl::Status absl_status = MakeStatusFromProto(util_status_proto);
+google::rpc::Status SaveStatusAsRpcStatus(const absl::Status& status);
+
+// Same as `SaveStatusAsRpcStatus`, but via an output parameter for arena
+// support.
+void SaveStatusAsRpcStatus(const absl::Status& status,
+                           google::rpc::Status& rpc_status);
+
+absl::Status MakeStatusFromRpcStatus(
+    const google::rpc::Status& status,
     absl::SourceLocation loc = absl::SourceLocation::current());
 
 // Returns a copy of the status object with error message, payload and source
