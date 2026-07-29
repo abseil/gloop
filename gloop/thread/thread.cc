@@ -770,6 +770,8 @@ struct StackTrace {
   uint64_t context_trace_id;
 };
 
+extern const size_t kStackTraceSizeForTesting = sizeof(StackTrace);
+
 namespace {
 
 void CopyUcontext(ucontext_t* dst, const ucontext_t* src) {
