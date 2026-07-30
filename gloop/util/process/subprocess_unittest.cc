@@ -37,6 +37,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <functional>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <set>
@@ -1480,7 +1481,7 @@ TEST_F(SubProcessTest, FdRace) {
   const size_t kNumFds = 64;
   int fds[kNumFds];
 
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(fds); ++i) {
+  for (size_t i = 0; i < std::size(fds); ++i) {
     fds[i] = TEMP_FAILURE_RETRY(open("/dev/null", O_RDONLY));
   }
 
@@ -1517,7 +1518,7 @@ TEST_F(SubProcessTest, FdRace) {
     t->Join();
   }
 
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(fds); ++i) {
+  for (size_t i = 0; i < std::size(fds); ++i) {
     close(fds[i]);
   }
 }
