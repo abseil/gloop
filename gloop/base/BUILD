@@ -736,8 +736,8 @@ cc_test(
     srcs = ["percpu_fork_test.cc"],
     linkstatic = 1,
     deps = [
-        "//gloop/base:percpu",
-        "//gloop/base:raw_logging",
+        ":percpu",
+        ":raw_logging",
         "//gloop/thread:thread_control",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
