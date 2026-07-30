@@ -32,6 +32,7 @@
 #include <cstdint>
 #include <iomanip>
 #include <ios>
+#include <iterator>
 #include <limits>
 #include <ostream>
 #include <sstream>
@@ -39,7 +40,6 @@
 #include <type_traits>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "absl/log/log.h"
 #include "absl/numeric/int128.h"
 #include "benchmark/benchmark.h"
@@ -2840,7 +2840,7 @@ void TestCeilOfRatioUnsigned() {
       {   kMax,         kMax,                        1,                     1 },
   };
   // clang-format on
-  const int kNumTests = ABSL_ARRAYSIZE(kTestData);
+  const int kNumTests = std::size(kTestData);
   TestCeilOfRatio<UnsignedIntegralType>(kTestData, kNumTests);
 }
 
@@ -2893,7 +2893,7 @@ void TestCeilOfRatioSigned() {
       {   kMax,         kMax,                        1,                     1 },
   };
   // clang-format on
-  const int kNumTests = ABSL_ARRAYSIZE(kTestData);
+  const int kNumTests = std::size(kTestData);
   TestCeilOfRatio<SignedInteger>(kTestData, kNumTests);
 }
 
@@ -3598,7 +3598,7 @@ void TestMulDiv() {
       {   kMax - 3, kMax - 2,     kMax,           kMax - 5,                 6 },
   };
   // clang-format on
-  const int kNumTests = ABSL_ARRAYSIZE(kTestData);
+  const int kNumTests = std::size(kTestData);
   TestMulDiv<IntegralType>(kTestData, kNumTests);
 }
 
@@ -3669,7 +3669,7 @@ void TestCeilAndFloorOfPercentage() {
       { kMax - 1,       kMax,                       99,                   100 },
   };
   // clang-format on
-  const int kNumTests = ABSL_ARRAYSIZE(kTestData);
+  const int kNumTests = std::size(kTestData);
   TestCeilAndFloorOfPercentage<IntegralType>(kTestData, kNumTests);
 }
 

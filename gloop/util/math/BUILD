@@ -155,7 +155,6 @@ cc_test(
         ":mathlimits",
         ":mathutil",
         "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/numeric:int128",
         "@fuzztest//fuzztest",
