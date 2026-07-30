@@ -543,11 +543,11 @@ cc_library(
     hdrs = ["priority_admission_scheduler.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":scheduler_types",
         "//gloop:enforce_gloop_support",
         "//gloop/base:raw_logging",
         "//gloop/base/scheduling",
         "//gloop/base/scheduling:low-level-support",
-        "//gloop/thread/fiber:scheduler_types",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/log",

@@ -23,6 +23,7 @@
 #include <atomic>
 #include <cstdint>
 
+#include "absl/base/nullability.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/log/vlog_is_on.h"
@@ -39,7 +40,7 @@ namespace thread {
 
 namespace internal {
 
-Schedulable* LinkedSchedulableList::Pop() {
+Schedulable* absl_nonnull LinkedSchedulableList::Pop() {
   ABSL_RAW_DCHECK(!empty(), "pop empty list");
   Schedulable* result = head_;
   head_ = static_cast<Schedulable*>(head_->manager_ptr1);
@@ -47,7 +48,7 @@ Schedulable* LinkedSchedulableList::Pop() {
   return result;
 }
 
-void LinkedSchedulableList::PushHead(Schedulable* schedulable) {
+void LinkedSchedulableList::PushHead(Schedulable* absl_nonnull schedulable) {
   if (head_ == nullptr) {
     schedulable->manager_ptr1 = nullptr;
     head_ = tail_ = schedulable;
@@ -57,7 +58,7 @@ void LinkedSchedulableList::PushHead(Schedulable* schedulable) {
   }
 }
 
-void LinkedSchedulableList::PushTail(Schedulable* schedulable) {
+void LinkedSchedulableList::PushTail(Schedulable* absl_nonnull schedulable) {
   if (head_ == nullptr) {
     schedulable->manager_ptr1 = nullptr;
     head_ = tail_ = schedulable;
@@ -70,8 +71,8 @@ void LinkedSchedulableList::PushTail(Schedulable* schedulable) {
 
 }  // namespace internal
 
-PriorityAdmissionScheduler::PriorityAdmissionScheduler(Domain* domain,
-                                                       int num_priorities)
+PriorityAdmissionScheduler::PriorityAdmissionScheduler(
+    Domain* absl_nonnull domain, int num_priorities)
     : Scheduler(domain),
       num_priorities_(num_priorities),
       per_priority_(num_priorities),
@@ -81,9 +82,8 @@ PriorityAdmissionScheduler::PriorityAdmissionScheduler(Domain* domain,
   }
 }
 
-PriorityAdmissionScheduler::PriorityAdmissionScheduler(Scheduler* parent,
-                                                       int slots,
-                                                       int num_priorities)
+PriorityAdmissionScheduler::PriorityAdmissionScheduler(
+    Scheduler* absl_nonnull parent, int slots, int num_priorities)
     : Scheduler(parent, slots),
       num_priorities_(num_priorities),
       per_priority_(num_priorities),
@@ -167,7 +167,7 @@ static void SetChildSchedulerPriority(Scheduler* child, int priority) {
 
 // ---------------- end helpers on parent_arg1 encoding ----------------
 
-void PriorityAdmissionScheduler::SetChildPriority(Scheduler* child,
+void PriorityAdmissionScheduler::SetChildPriority(Scheduler* absl_nonnull child,
                                                   int priority) {
   CHECK(priority >= 0 && priority < num_priorities_)
       << priority << " out of [0," << num_priorities_ << ")";
@@ -205,7 +205,7 @@ void PriorityAdmissionScheduler::DeleteManagedSchedulable(
   Unref();
 }
 
-Slot PriorityAdmissionScheduler::Wake(Schedulable* schedulable) {
+Slot PriorityAdmissionScheduler::Wake(Schedulable* absl_nonnull schedulable) {
   struct Combinable {
     struct Args {
       PriorityAdmissionScheduler* scheduler;
@@ -225,7 +225,8 @@ Slot PriorityAdmissionScheduler::Wake(Schedulable* schedulable) {
   return result;
 }
 
-Slot PriorityAdmissionScheduler::WakeLocked(Schedulable* schedulable) {
+Slot PriorityAdmissionScheduler::WakeLocked(
+    Schedulable* absl_nonnull schedulable) {
   Enqueue(schedulable);
   ++queued_or_running_;
   if (idle_slots_.empty()) {
@@ -238,9 +239,8 @@ Slot PriorityAdmissionScheduler::WakeLocked(Schedulable* schedulable) {
   }
 }
 
-Schedulable* PriorityAdmissionScheduler::ScheduleManaged(Slot managing_slot,
-                                                         Schedulable* prev,
-                                                         bool runnable) {
+Schedulable* absl_nullable PriorityAdmissionScheduler::ScheduleManaged(
+    Slot managing_slot, Schedulable* prev, bool runnable) {
   struct Combinable {
     struct Args {
       PriorityAdmissionScheduler* scheduler;
@@ -264,7 +264,7 @@ Schedulable* PriorityAdmissionScheduler::ScheduleManaged(Slot managing_slot,
   return result;
 }
 
-Schedulable* PriorityAdmissionScheduler::ScheduleManagedLocked(
+Schedulable* absl_nullable PriorityAdmissionScheduler::ScheduleManagedLocked(
     Slot managing_slot, Schedulable* prev, bool runnable) {
   Schedulable* result;
   if (prev == nullptr) {
@@ -385,7 +385,7 @@ void PriorityAdmissionScheduler::Enqueue(Schedulable* schedulable) {
   }
 }
 
-Schedulable* PriorityAdmissionScheduler::Dequeue() {
+Schedulable* absl_nullable PriorityAdmissionScheduler::Dequeue() {
   if (!in_progress_.empty()) {
     Schedulable* result = in_progress_.Pop();
     // Enforces some invariants before returning, in debug mode.

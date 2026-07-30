@@ -51,9 +51,9 @@ class LinkedSchedulableList {
   LinkedSchedulableList(const LinkedSchedulableList&) = delete;
   LinkedSchedulableList& operator=(const LinkedSchedulableList&) = delete;
 
-  base::scheduling::Schedulable* Pop();
-  void PushHead(base::scheduling::Schedulable* schedulable);
-  void PushTail(base::scheduling::Schedulable* schedulable);
+  base::scheduling::Schedulable* absl_nonnull Pop();
+  void PushHead(base::scheduling::Schedulable* absl_nonnull schedulable);
+  void PushTail(base::scheduling::Schedulable* absl_nonnull schedulable);
 
   bool empty() const { return head_ == nullptr; }
   base::scheduling::Schedulable* head() const { return head_; }
@@ -77,9 +77,10 @@ class LinkedSchedulableList {
 // Admission within the same priority level is FIFO.
 class PriorityAdmissionScheduler : public base::scheduling::Scheduler {
  public:
-  PriorityAdmissionScheduler(base::scheduling::Domain* domain,
+  PriorityAdmissionScheduler(base::scheduling::Domain* absl_nonnull domain,
                              int num_priorities);
-  PriorityAdmissionScheduler(Scheduler* parent, int slots, int num_priorities);
+  PriorityAdmissionScheduler(Scheduler* absl_nonnull parent, int slots,
+                             int num_priorities);
 
   // This type is neither copyable nor movable.
   PriorityAdmissionScheduler(const PriorityAdmissionScheduler&) = delete;
@@ -96,7 +97,7 @@ class PriorityAdmissionScheduler : public base::scheduling::Scheduler {
   // REQUIRES: child must be a new scheduler with no managed schedulables.
   // REQUIRES: child->parent() == this.
   // REQUIRES: priority >= 0 && priority < num_priorities.
-  void SetChildPriority(Scheduler* child, int priority);
+  void SetChildPriority(Scheduler* absl_nonnull child, int priority);
 
   // Both num_queued and num_running estimate the number of child schedulables
   // that are in different stages. Child schedulables are only counted once,
@@ -111,13 +112,14 @@ class PriorityAdmissionScheduler : public base::scheduling::Scheduler {
       base::scheduling::Schedulable* schedulable) override;
 
   base::scheduling::Slot Wake(
-      base::scheduling::Schedulable* schedulable) override;
-  base::scheduling::Slot WakeLocked(base::scheduling::Schedulable* schedulable);
+      base::scheduling::Schedulable* absl_nonnull schedulable) override;
+  base::scheduling::Slot WakeLocked(
+      base::scheduling::Schedulable* absl_nonnull schedulable);
 
-  base::scheduling::Schedulable* ScheduleManaged(
+  base::scheduling::Schedulable* absl_nullable ScheduleManaged(
       base::scheduling::Slot managing, base::scheduling::Schedulable* prev,
       bool runnable) override;
-  base::scheduling::Schedulable* ScheduleManagedLocked(
+  base::scheduling::Schedulable* absl_nullable ScheduleManagedLocked(
       base::scheduling::Slot managing, base::scheduling::Schedulable* prev,
       bool runnable);
 
@@ -129,7 +131,7 @@ class PriorityAdmissionScheduler : public base::scheduling::Scheduler {
 
   void Enqueue(base::scheduling::Schedulable* schedulable);
 
-  base::scheduling::Schedulable* Dequeue();
+  base::scheduling::Schedulable* absl_nullable Dequeue();
 
   void DeleteChildSlotLocked(base::scheduling::Schedulable* schedulable);
 
