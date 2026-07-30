@@ -111,7 +111,6 @@ cc_test(
         "//gloop/util/gtl:unique_array",
         "//gloop/util/random:acmrandom",
         "//gloop/util/random:distributions",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",

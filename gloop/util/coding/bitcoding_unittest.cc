@@ -26,12 +26,12 @@
 
 #include <array>
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "absl/container/fixed_array.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
@@ -603,7 +603,7 @@ TEST(BitDecoder, GetUnaryNoZeros) {
 
 TEST(BitDecoder, GetBits64NotEnoughBits) {
   char buf[8] = {};  // vlues don't matter
-  BitDecoder d(buf, ABSL_ARRAYSIZE(buf));
+  BitDecoder d(buf, std::size(buf));
   uint32_t v;
   uint64_t u = 0xff;
   // Only 40 bits left after first extraction.
@@ -613,7 +613,7 @@ TEST(BitDecoder, GetBits64NotEnoughBits) {
 
 TEST(BitDecoder, GetGammaNoZeros) {
   unsigned char buf[1] = {0xff};
-  BitDecoder d(buf, ABSL_ARRAYSIZE(buf));
+  BitDecoder d(buf, std::size(buf));
   uint32_t v;
   EXPECT_FALSE(d.GetGamma(&v)) << "Unexpectedly extracted " << v;
 }
@@ -621,7 +621,7 @@ TEST(BitDecoder, GetGammaNoZeros) {
 TEST(BitDecoder, GetGammaNoValue) {
   // Buf is used entirely for the unary encoding.
   char buf[1] = {0x7f};
-  BitDecoder d(buf, ABSL_ARRAYSIZE(buf));
+  BitDecoder d(buf, std::size(buf));
   uint32_t v;
   EXPECT_FALSE(d.GetGamma(&v)) << "Unexpectedly extracted " << v;
 }
@@ -648,14 +648,14 @@ TEST(BitDecoder, GetGamma33BitUnaryValue) {
 
 TEST(BitDecoder, GetRiceNoZeros) {
   unsigned char buf[1] = {static_cast<unsigned char>(0xff)};
-  BitDecoder d(buf, ABSL_ARRAYSIZE(buf));
+  BitDecoder d(buf, std::size(buf));
   uint32_t v;
   EXPECT_FALSE(d.GetRice(5, &v)) << "Unexpectedly extracted " << v;
 }
 
 TEST(BitDecoder, GetRice64NoZeros) {
   unsigned char buf[1] = {static_cast<unsigned char>(0xff)};
-  BitDecoder d(buf, ABSL_ARRAYSIZE(buf));
+  BitDecoder d(buf, std::size(buf));
   uint64_t v;
   EXPECT_FALSE(d.GetRice64(5, &v)) << "Unexpectedly extracted " << v;
 }

@@ -26,6 +26,7 @@
 #include <cstdint>
 #include <iosfwd>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <ostream>
 #include <string>
@@ -657,7 +658,7 @@ static void BM_getvarint32SkewedSlow(benchmark::State& state) {
 BENCHMARK(BM_getvarint32SkewedSlow);
 
 static void BM_length(benchmark::State& state) {
-  Encoder e(encoding_buffer, ABSL_ARRAYSIZE(encoding_buffer));
+  Encoder e(encoding_buffer, std::size(encoding_buffer));
   for (auto _ : state) {
     benchmark::DoNotOptimize(e.length());
   }
@@ -665,7 +666,7 @@ static void BM_length(benchmark::State& state) {
 BENCHMARK(BM_length);
 
 static void BM_avail(benchmark::State& state) {
-  Encoder e(encoding_buffer, ABSL_ARRAYSIZE(encoding_buffer));
+  Encoder e(encoding_buffer, std::size(encoding_buffer));
   for (auto _ : state) {
     benchmark::DoNotOptimize(e.avail());
   }
