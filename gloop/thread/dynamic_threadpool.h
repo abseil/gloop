@@ -181,15 +181,7 @@ class DynamicThreadPool : public AbstractThreadPool {
 
   mutable absl::Mutex mutex_;
   std::unique_ptr<std::deque<Closure*> > queue_;
-  const int queue_capacity_;  // The capacity of the queue
-  // Keeps track of the size of threads_. This is a workaround for the fact
-  // that our std::list::size() is not constant-time, which has nontrivial
-  // performance repercussions in production. See
-  // <link>.
-  //
-  // TODO: remove and revert to std::list::size() after Crosstool
-  // v19 is released, which will contain a constant-time std::list::size().
-  int num_threads_;
+  const int queue_capacity_;                   // The capacity of the queue
   std::unique_ptr<ThreadList> threads_;        // Active (running/idle) threads
   std::unique_ptr<ThreadList> idle_threads_;   // Currently idle threads
   std::unique_ptr<ThreadVec> exited_threads_;  // Threads to join

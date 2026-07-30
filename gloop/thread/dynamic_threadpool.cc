@@ -60,7 +60,6 @@ class DynamicThreadPoolWorker : public Thread {
         exit_(false),
         idle_pos_(parent->idle_threads_->end()) {
     threads_pos_ = parent_->threads_->insert(parent_->threads_->end(), this);
-    parent_->num_threads_++;
   }
 
   virtual ~DynamicThreadPoolWorker() {
@@ -69,7 +68,6 @@ class DynamicThreadPoolWorker : public Thread {
     }
     if (threads_pos_ != parent_->threads_->end()) {
       parent_->threads_->erase(threads_pos_);
-      parent_->num_threads_--;
     }
   }
 
@@ -112,7 +110,6 @@ class DynamicThreadPoolWorker : public Thread {
     MakeNotIdle();
     CHECK(threads_pos_ != parent_->threads_->end());
     parent_->threads_->erase(threads_pos_);
-    parent_->num_threads_--;
     threads_pos_ = parent_->threads_->end();
 
     parent_->exited_threads_->push_back(this);
@@ -198,7 +195,6 @@ DynamicThreadPool::DynamicThreadPool(absl::string_view thread_name_prefix,
                                      int max_threads, int max_idle_ms)
     : queue_(new std::deque<Closure*>()),
       queue_capacity_(queue_capacity),
-      num_threads_(0),
       threads_(new ThreadList()),
       idle_threads_(new ThreadList()),
       exited_threads_(new ThreadVec()),
@@ -298,7 +294,7 @@ int DynamicThreadPool::queue_capacity() const { return queue_capacity_; }
 
 int DynamicThreadPool::num_threads() const {
   absl::ReaderMutexLock lock(mutex_);
-  return num_threads_;
+  return threads_->size();
 }
 
 Thread* DynamicThreadPool::thread(int i) const {
@@ -327,7 +323,7 @@ void DynamicThreadPool::Check() {
 
 bool DynamicThreadPool::ReadyToRunOrQueue() const
     ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
-  return (!idle_threads_->empty() || num_threads_ < max_threads_ ||
+  return (!idle_threads_->empty() || threads_->size() < max_threads_ ||
           queue_->size() < queue_capacity_);
 }
 
@@ -348,7 +344,7 @@ bool DynamicThreadPool::AddInternal(Closure* closure, Caller caller) {
     }
     // Otherwise, if we are below the thread limit, spawn a new thread and add
     // the Closure to it.
-    if (num_threads_ < max_threads_) {
+    if (threads_->size() < max_threads_) {
       CHECK(queue_->empty());
       DynamicThreadPoolWorker* thread = AddThread();
       VLOG(2) << "AddInternal: running using new thread " << thread;
@@ -421,7 +417,7 @@ Closure* DynamicThreadPool::Dequeue(DynamicThreadPoolWorker* thread) {
     // Wait forever (no timeout) if:
     // - no timeout is specified (max_idle_ms_ < 0), or
     // - we're at min_threads_ already
-    if (max_idle_ms_ < 0 || num_threads_ == min_threads_) {
+    if (max_idle_ms_ < 0 || threads_->size() == min_threads_) {
       thread->idle_cond_.Wait(&mutex_);
     } else if (idle_wait > 0) {
       int64_t wait_start = absl::ToUnixMillis(absl::Now());
@@ -448,7 +444,7 @@ void DynamicThreadPool::IncrementMaxThreads() {
   // start up a new thread.
   // NOTE: In the typical case, we will be allowed, but if Decrement &
   // Increment calls come in fast and furious, we may not be.
-  if (!queue_->empty() && (num_threads_ < max_threads_)) {
+  if (!queue_->empty() && (threads_->size() < max_threads_)) {
     Closure* closure = queue_->front();
     // The only time a NULL closure should be added to the queue is
     // from the ThreadPool destructor. In that case, nobody has any
