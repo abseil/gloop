@@ -22,12 +22,20 @@
 
 #include <errno.h>
 #include <sys/mman.h>
+#include <sys/prctl.h>
 
 #include <cstddef>
 #include <cstdint>
 
 #include "absl/log/check.h"
 #include "absl/log/log.h"
+
+#ifndef PR_SET_VMA
+#define PR_SET_VMA 0x53564d41
+#endif
+#ifndef PR_SET_VMA_ANON_NAME
+#define PR_SET_VMA_ANON_NAME 0
+#endif
 
 ScopedMmap::ScopedMmap() { Reset(); }
 
@@ -57,6 +65,10 @@ void* ScopedMmap::Map(const int file_descriptor, const size_t offset,
                  << size;
     Reset();
     return nullptr;
+  }
+  if ((mmap_flags & MAP_ANONYMOUS) != 0) {
+    (void)prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, process_address_,
+                aligned_file_map_size_, "scoped_mmap");
   }
   return static_cast<uint8_t*>(process_address_) + file_map_offset;
 }

@@ -116,3 +116,18 @@ cc_test(
         "@googletest//:gtest",
     ],
 )
+
+cc_test(
+    name = "scoped_mmap_test",
+    size = "small",
+    srcs = ["scoped_mmap_test.cc"],
+    linkstatic = 1,
+    visibility = ["//visibility:private"],
+    deps = [
+        ":memory_mapped_io",
+        "//gloop:gloop_test_main",
+        "//gloop/base:proc_maps",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
