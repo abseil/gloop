@@ -259,7 +259,6 @@ cc_test(
         "//gloop/util/gtl/extend:debug_printing",
         "//gloop/util/tuple:struct",
         "@abseil-cpp//absl/base",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings",

@@ -38,7 +38,6 @@
 #include <vector>
 
 #include "absl/base/casts.h"
-#include "absl/base/macros.h"
 #include "absl/flags/flag.h"
 #include "absl/log/log.h"
 #include "absl/strings/cord.h"
@@ -317,7 +316,7 @@ TEST(StringLiteral, Basic) {
 
 TEST(StringPiece, Basic) {
   const char c[] = "hel\000lo";
-  EXPECT_EQ(to_string(absl::string_view(c, ABSL_ARRAYSIZE(c) - 1)),
+  EXPECT_EQ(to_string(absl::string_view(c, std::size(c) - 1)),
             R"("hel\000lo")");
   EXPECT_EQ(to_string(absl::string_view("")), R"("")");
   EXPECT_EQ(to_string(absl::string_view()), R"(nullptr)");
@@ -329,19 +328,17 @@ TEST(StringPiece, NonAscii) {
 
 TEST(String, Basic) {
   const char c[] = "hel\000lo";
-  EXPECT_EQ(to_string(::std::string(c, ABSL_ARRAYSIZE(c) - 1)),
-            R"("hel\000lo")");
+  EXPECT_EQ(to_string(::std::string(c, std::size(c) - 1)), R"("hel\000lo")");
 }
 
 TEST(StdString, Basic) {
   const char c[] = "hel\000lo";
-  EXPECT_EQ(to_string(::std::string(c, ABSL_ARRAYSIZE(c) - 1)),
-            R"("hel\000lo")");
+  EXPECT_EQ(to_string(::std::string(c, std::size(c) - 1)), R"("hel\000lo")");
 }
 
 TEST(Cord, Basic) {
   const char c[] = "hel\000lo";
-  absl::string_view s(c, ABSL_ARRAYSIZE(c) - 1);
+  absl::string_view s(c, std::size(c) - 1);
   EXPECT_EQ(to_string(absl::Cord(s)), R"("hel\000lo")");
 }
 
@@ -543,13 +540,13 @@ TEST(Oneof, Basic) {
 
 TEST(DerivedFromStringPiece, Basic) {
   const char c[] = "hel\000lo";
-  WeirdString s(::std::string(c, ABSL_ARRAYSIZE(c) - 1));
+  WeirdString s(::std::string(c, std::size(c) - 1));
   EXPECT_EQ(to_string(s), R"("hel\000lo")");
 }
 
 TEST(ConvertibleToStringPiece, Basic) {
   const char c[] = "hel\000lo";
-  ConvertibleToWeirdString s{::std::string(c, ABSL_ARRAYSIZE(c) - 1)};
+  ConvertibleToWeirdString s{::std::string(c, std::size(c) - 1)};
   EXPECT_EQ(to_string(s), R"("hel\000lo")");
 }
 
