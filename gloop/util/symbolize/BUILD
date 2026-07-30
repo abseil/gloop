@@ -214,7 +214,6 @@ cc_test(
         ":symbolize",
         "//gloop:gloop_test_main",
         "//gloop/thread",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:scoped_mock_log",

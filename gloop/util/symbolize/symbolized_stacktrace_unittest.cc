@@ -27,11 +27,11 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <iterator>
 #include <string>
 #include <vector>
 
 #include "absl/base/attributes.h"
-#include "absl/base/macros.h"
 #include "absl/debugging/internal/symbolize.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/flags/flag.h"
@@ -126,7 +126,7 @@ TEST(util, GetSymbolizedStackTraceAsString) {
 
   // Print stack trace using glibc's function.
   void* stack[100];
-  int n = backtrace(stack, ABSL_ARRAYSIZE(stack));
+  int n = backtrace(stack, std::size(stack));
   backtrace_symbols_fd(stack, n, 2);  // To stderr.
 }
 

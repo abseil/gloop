@@ -24,11 +24,11 @@
 
 #include <string.h>
 
+#include <iterator>
 #include <memory>
 #include <string>
 
 #include "absl/base/log_severity.h"
-#include "absl/base/macros.h"
 #include "absl/log/log.h"
 #include "absl/log/scoped_mock_log.h"
 #include "absl/strings/string_view.h"
@@ -80,7 +80,7 @@ TEST_P(SymbolizedStackWriterTest, Write) {
        "  0x00000100: (unknown)\n"},
   };
 
-  for (int i = 0; i < ABSL_ARRAYSIZE(test_cases); ++i) {
+  for (int i = 0; i < std::size(test_cases); ++i) {
     std::string output;
     SymbolizedStackWriter writer(*symbol_map, &output);
     writer.Write(test_cases[i].input, strlen(test_cases[i].input));
@@ -149,7 +149,7 @@ TEST_P(SymbolizedStackWriterTest, Write2) {
        "  0x00000100: (unknown)\n"},
   };
 
-  for (int i = 0; i < ABSL_ARRAYSIZE(test_cases); ++i) {
+  for (int i = 0; i < std::size(test_cases); ++i) {
     std::string output;
     SymbolizedStackWriter writer(*symbol_map, &output);
     writer.Write(test_cases[i].input, strlen(test_cases[i].input));
