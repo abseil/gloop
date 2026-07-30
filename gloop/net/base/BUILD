@@ -74,7 +74,6 @@ cc_test(
         "//gloop:gloop_test_main",
         "//gloop/strings:host_port",
         "//gloop/util/endian",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/container:flat_hash_map",
