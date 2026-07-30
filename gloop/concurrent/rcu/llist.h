@@ -101,7 +101,7 @@ class LList {
    public:
     typedef std::iterator<std::forward_iterator_tag, T> base;
 
-    iterator_impl() : element_(NULL) {}
+    iterator_impl() : element_(nullptr) {}
     explicit iterator_impl(intptr_t x) : element_(reinterpret_cast<T*>(x)) {}
     iterator_impl(const iterator_impl& x) : element_(x.element_) {}
 
