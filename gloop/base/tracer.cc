@@ -242,8 +242,10 @@ void Tracer::set_invalid_inherited_initiator_id() {
   initiator_id_.store(initiator_id, std::memory_order_relaxed);
 }
 
-void Tracer::set_initiator_id() {
-  std::optional<uint64_t> effective_uid = internal::GetEffectiveUserId();
+void Tracer::set_initiator_id(std::optional<uint64_t> initiate_as_prod_uid) {
+  std::optional<uint64_t> effective_uid = initiate_as_prod_uid.has_value()
+                                              ? initiate_as_prod_uid
+                                              : internal::GetEffectiveUserId();
   uint64_t initiator_id =
       effective_uid.has_value()
           ? ((*effective_uid & kInitiatorValueMask) | kInitiatorTypeProdUid)

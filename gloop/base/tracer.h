@@ -1247,7 +1247,8 @@ class Tracer {
 
   // Calculates and sets initiator ID value and metadata for the span initiating
   // the trace.
-  void set_initiator_id();
+  void set_initiator_id(
+      std::optional<uint64_t> initiate_as_prod_uid = std::nullopt);
 
   // Sets the "batch sampling" bit in the tracing initiator ID metadata.
   void set_initiated_by_batch_sampling();

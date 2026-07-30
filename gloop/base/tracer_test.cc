@@ -238,7 +238,9 @@ class TestTracer : public Tracer {
 
   bool TestGetTracingInitiator() const { return tracing_initiator(); }
 
-  void TestSetInitiatorId() { set_initiator_id(); }
+  void TestSetInitiatorId(std::optional<uint64_t> id = std::nullopt) {
+    set_initiator_id(id);
+  }
 
   void TestSetInvalidInheritedInitiatorId() {
     set_invalid_inherited_initiator_id();
