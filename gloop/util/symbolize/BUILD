@@ -102,6 +102,7 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "//gloop/base:commandlineflags",
         "//gloop/base:port",
+        "//gloop/testing/production_stub:testvalue",
         "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
@@ -133,6 +134,18 @@ cc_test(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "elf_reader_sandbox_test",
+    srcs = ["elf_reader_sandbox_test.cc"],
+    deps = [
+        ":elf_reader",
+        "//gloop/base:init_google",
+        "//gloop/testing/production_stub:testvalue",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

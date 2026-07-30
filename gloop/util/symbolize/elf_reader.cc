@@ -82,6 +82,7 @@
 #include "absl/strings/string_view.h"
 #include "gloop/base/commandlineflags.h"
 #include "gloop/base/port.h"  // IWYU pragma: keep
+#include "gloop/testing/production_stub/testvalue.h"
 #include "gloop/util/symbolize/symbol_map_sink.h"
 #include "zlib.h"
 
@@ -1675,6 +1676,24 @@ static bool IsElfFile(const int fd, size_t off) {
   return true;
 }
 
+// Helper function to open the main executable from /proc/self/cmdline.
+// Returns the file descriptor on success, or -1 on failure.
+static int OpenExeFromCmdline() {
+  int fd = TEMP_FAILURE_RETRY(open("/proc/self/cmdline", O_RDONLY | O_CLOEXEC));
+  if (fd == -1) return -1;
+
+  char buf[4096];
+  ssize_t n = TEMP_FAILURE_RETRY(read(fd, buf, sizeof(buf) - 1));
+  close(fd);
+
+  if (n <= 0 || buf[0] == '\0') return -1;
+
+  buf[n] = '\0';
+  // /proc/self/cmdline is a list of null-terminated strings.
+  // The first string is exactly the original argv[0].
+  return TEMP_FAILURE_RETRY(open(buf, O_RDONLY | O_CLOEXEC));
+}
+
 ElfReader::ElfReader(const absl::string_view path, size_t off,
                      bool leak_strtabs, bool mmap_entire_file)
     : path_(path),
@@ -1693,12 +1712,20 @@ ElfReader::ElfReader(const absl::string_view path, size_t off,
   if (path == "[vsyscall]") return;
 
   fd_ = TEMP_FAILURE_RETRY(open(path_.c_str(), O_RDONLY));
-  if (fd_ == -1 && path == "/proc/self/exe") {
-    // /proc/self/exe may be inaccessible (due to setuid, etc.), so try
-    // accessing the binary via argv0.
+  std::string proc_self_exe = "/proc/self/exe";
+  testing::testvalue::Adjust("elf_reader_proc_self_exe", &proc_self_exe);
+  if (fd_ == -1 && path == proc_self_exe) {
+    // /proc/self/exe may be inaccessible (due to setuid, broken symlinks in
+    // bind-mounted /proc inside chroot/NSJail sandboxes, etc.), so try
+    // accessing the binary via argv0. First check base::GetArgv0(), and if
+    // unavailable (e.g., in Deploy JAR launchers that omit base::InitGoogle),
+    // fall back to reading argv[0] directly from /proc/self/cmdline.
     const char* argv0 = base::GetArgv0();
-    if (argv0 != nullptr) {
-      fd_ = TEMP_FAILURE_RETRY(open(argv0, O_RDONLY));
+    if (argv0 != nullptr && *argv0 != '\0') {
+      fd_ = TEMP_FAILURE_RETRY(open(argv0, O_RDONLY | O_CLOEXEC));
+    }
+    if (fd_ == -1) {
+      fd_ = OpenExeFromCmdline();
     }
   }
   if (fd_ == -1) {
