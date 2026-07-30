@@ -539,7 +539,6 @@ cc_test(
         ":stl_util",
         ":unique_array",
         "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:chunked_queue",
         "@abseil-cpp//absl/container:node_hash_map",
         "@abseil-cpp//absl/functional:any_invocable",

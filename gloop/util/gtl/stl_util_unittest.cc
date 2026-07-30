@@ -38,7 +38,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "absl/container/chunked_queue.h"
 #include "absl/container/node_hash_map.h"
 #include "absl/functional/any_invocable.h"
@@ -226,7 +225,7 @@ TYPED_TEST(StringResizeTest, Basic) {
       },
       [](TypeParam* s, size_t size) { STLStringResizeAmortized(s, size); },
   };
-  for (size_t resize_i = 0; resize_i < ABSL_ARRAYSIZE(resizers); ++resize_i) {
+  for (size_t resize_i = 0; resize_i < std::size(resizers); ++resize_i) {
     SCOPED_TRACE(resize_i);
     TypeParam str;
     // Test with increasing lengths
@@ -267,7 +266,7 @@ TYPED_TEST(StringResizeTest, Amortized) {
       },
       [](TypeParam* s, size_t size) { STLStringResizeAmortized(s, size); },
   };
-  for (size_t resize_i = 0; resize_i < ABSL_ARRAYSIZE(resizers); ++resize_i) {
+  for (size_t resize_i = 0; resize_i < std::size(resizers); ++resize_i) {
     SCOPED_TRACE(resize_i);
     TypeParam str;
     size_t prev_cap = str.capacity();
@@ -325,12 +324,12 @@ TEST(HashSetEqualityTest, Basic) {
   std::unordered_set<int> a, b;
   int testdata[] = {1, 87432432, 495839, 2398394, 39832, 2983, -1298354};
 
-  for (int i = 0; i < ABSL_ARRAYSIZE(testdata); ++i) {
+  for (int i = 0; i < std::size(testdata); ++i) {
     SCOPED_TRACE(i);
     a.insert(testdata[i]);
-    b.insert(testdata[(i + 1) % ABSL_ARRAYSIZE(testdata)]);
+    b.insert(testdata[(i + 1) % std::size(testdata)]);
 
-    EXPECT_EQ(i == ABSL_ARRAYSIZE(testdata) - 1, HashSetEquality(a, b));
+    EXPECT_EQ(i == std::size(testdata) - 1, HashSetEquality(a, b));
     EXPECT_EQ(HashSetEquality(a, b), HashSetEquality(b, a));
   }
 
@@ -350,11 +349,11 @@ static void TestHashMapEqualityNonFunctor() {
       std::make_pair(39832, 5),   std::make_pair(2983, 6),
       std::make_pair(-1298354, 7)};
 
-  for (int i = 0; i < ABSL_ARRAYSIZE(testdata); ++i) {
+  for (int i = 0; i < std::size(testdata); ++i) {
     SCOPED_TRACE(i);
     a.insert(testdata[i]);
-    b.insert(testdata[(i + 1) % ABSL_ARRAYSIZE(testdata)]);
-    EXPECT_EQ((i == ABSL_ARRAYSIZE(testdata) - 1), HashMapEquality(a, b));
+    b.insert(testdata[(i + 1) % std::size(testdata)]);
+    EXPECT_EQ((i == std::size(testdata) - 1), HashMapEquality(a, b));
     EXPECT_EQ(HashMapEquality(a, b), HashMapEquality(b, a));
   }
 
@@ -587,8 +586,8 @@ TEST(STLSetDifference, CustomCompare) {
   // Same as above, but a is a set and b is a vector instead of set.
   const int a_arr[] = {3, 2, 1};
   const int b_arr[] = {3, 1};
-  std::set<int, std::greater<int>> a(a_arr, a_arr + ABSL_ARRAYSIZE(a_arr));
-  std::vector<int> b(b_arr, b_arr + ABSL_ARRAYSIZE(b_arr));
+  std::set<int, std::greater<int>> a(a_arr, a_arr + std::size(a_arr));
+  std::vector<int> b(b_arr, b_arr + std::size(b_arr));
   std::vector<int> c;
   STLSetDifference(a, b, &c, a.key_comp());
   EXPECT_THAT(c, ElementsAre(2));
@@ -600,8 +599,8 @@ TEST(STLSetDifference, CustomCompareWithFuncPtr) {
   // Same as above, but a is a set and b is a vector instead of set.
   const int a_arr[] = {1, 2, 3};
   const int b_arr[] = {1, 3};
-  std::vector<int> a(a_arr, a_arr + ABSL_ARRAYSIZE(a_arr));
-  std::vector<int> b(b_arr, b_arr + ABSL_ARRAYSIZE(b_arr));
+  std::vector<int> a(a_arr, a_arr + std::size(a_arr));
+  std::vector<int> b(b_arr, b_arr + std::size(b_arr));
   std::vector<int> c;
   std::sort(a.begin(), a.end(), Greater);
   std::sort(b.begin(), b.end(), Greater);
@@ -973,21 +972,21 @@ TEST(DeleteContainerPointersTest, Basic) {
 
 TEST(STLSortAndRemoveDuplicates, WorksOnVectors) {
   const int ia[] = {2, 4, 1, 3, 2, 1, 3, 0};
-  std::vector<int> v(ia, ia + ABSL_ARRAYSIZE(ia));
+  std::vector<int> v(ia, ia + std::size(ia));
   STLSortAndRemoveDuplicates(&v);
   EXPECT_THAT(v, ElementsAre(0, 1, 2, 3, 4));
 }
 
 TEST(STLSortAndRemoveDuplicates, WorksOnDeque) {
   const int ia[] = {2, 3, 1, 4, 2, 1, 3, 0};
-  std::deque<int> d(ia, ia + ABSL_ARRAYSIZE(ia));
+  std::deque<int> d(ia, ia + std::size(ia));
   STLSortAndRemoveDuplicates(&d);
   EXPECT_THAT(d, ElementsAre(0, 1, 2, 3, 4));
 }
 
 TEST(STLSortAndRemoveDuplicates, CustomComparator) {
   const int ia[] = {2, 4, 1, 3, 2, 1, 3, 0};
-  std::vector<int> v(ia, ia + ABSL_ARRAYSIZE(ia));
+  std::vector<int> v(ia, ia + std::size(ia));
   STLSortAndRemoveDuplicates(&v, std::greater<int>());
   EXPECT_THAT(v, ElementsAre(4, 3, 2, 1, 0));
 }
@@ -1092,8 +1091,8 @@ TEST(STLEraseAllFromSequenceIf, ForwardList) {
 TEST(SortedRangesHaveIntersection, WorksOnVectorSameType) {
   const int ia1[] = {1, 5, 8, 9};
   const int ia2[] = {3, 6, 10};
-  std::vector<int> v1(ia1, ia1 + ABSL_ARRAYSIZE(ia1));
-  std::vector<int> v2(ia2, ia2 + ABSL_ARRAYSIZE(ia2));
+  std::vector<int> v1(ia1, ia1 + std::size(ia1));
+  std::vector<int> v2(ia2, ia2 + std::size(ia2));
 
   EXPECT_FALSE(
       SortedRangesHaveIntersection(v1.begin(), v1.end(), v2.begin(), v2.end()));
@@ -1123,8 +1122,8 @@ TEST(SortedRangesHaveIntersection, WorksOnVectorSameType) {
 TEST(SortedRangesHaveIntersection, WorksOnVectorDifferentType) {
   const int ia1[] = {1, 5, 8, 9};
   const char ca2[] = {3, 6, 10};
-  std::vector<int> v1(ia1, ia1 + ABSL_ARRAYSIZE(ia1));
-  std::vector<char> v2(ca2, ca2 + ABSL_ARRAYSIZE(ca2));
+  std::vector<int> v1(ia1, ia1 + std::size(ia1));
+  std::vector<char> v2(ca2, ca2 + std::size(ca2));
 
   EXPECT_FALSE(
       SortedRangesHaveIntersection(v1.begin(), v1.end(), v2.begin(), v2.end()));
@@ -1155,8 +1154,8 @@ TEST(SortedRangesHaveIntersection, WorksOnDifferentContainers) {
   const int ia1[] = {1, 5, 8, 9};
   const char ca2[] = {3, 6, 10};
 
-  std::set<int> c1(ia1, ia1 + ABSL_ARRAYSIZE(ia1));
-  std::vector<char> c2(ca2, ca2 + ABSL_ARRAYSIZE(ca2));
+  std::set<int> c1(ia1, ia1 + std::size(ia1));
+  std::vector<char> c2(ca2, ca2 + std::size(ca2));
 
   EXPECT_FALSE(
       SortedRangesHaveIntersection(c1.begin(), c1.end(), c2.begin(), c2.end()));
@@ -1283,7 +1282,7 @@ TEST(SortedContainersHaveIntersectionDeathTest,
 TEST(ReleasePointer, Simple) {
   int a[] = {1, 2, 3};
   int* ap[] = {&a[0], &a[1], &a[2]};
-  std::vector<int*> v(ap, ap + ABSL_ARRAYSIZE(ap));
+  std::vector<int*> v(ap, ap + std::size(ap));
 
   // Check that release returns the pointer and sets the
   // element to nullptr.

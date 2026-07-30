@@ -65,7 +65,7 @@ using ::testing::UnorderedElementsAre;
 
 const char* kFirst[] = {"foo", "bar"};
 int kSecond[] = {1, 2};
-const int kCount = ABSL_ARRAYSIZE(kFirst);
+const int kCount = std::size(kFirst);
 
 template <typename T>
 struct IsConst : std::false_type {};
@@ -78,9 +78,7 @@ class IteratorAdaptorTest : public testing::Test {
  protected:
   // Objects declared here can be used by all tests in the test case for Foo.
 
-  void SetUp() override {
-    ASSERT_EQ(ABSL_ARRAYSIZE(kFirst), ABSL_ARRAYSIZE(kSecond));
-  }
+  void SetUp() override { ASSERT_EQ(std::size(kFirst), std::size(kSecond)); }
 
   void TearDown() override {}
 
