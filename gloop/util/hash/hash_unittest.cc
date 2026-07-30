@@ -542,7 +542,7 @@ constexpr uint32_t expected_hash[] = {
 };
 
 TEST(Hash, CompareToKnownValues) {
-  char buf[ABSL_ARRAYSIZE(expected_hash)];
+  char buf[std::size(expected_hash)];
   uint32_t i, h;
 
   LOG(INFO) << "CompareToKnownValues";
@@ -580,12 +580,12 @@ TEST(Hash, CombineFingerprintHalves) {
 TEST(Hash, BasicStats) {
   int a[256 * 256];
   char c[256];
-  for (int i = 0; i < ABSL_ARRAYSIZE(c); i++) {
+  for (int i = 0; i < std::size(c); i++) {
     c[i] = static_cast<char>(i);
   }
-  for (int i = 0; i < ABSL_ARRAYSIZE(a) / 2; i++) {
+  for (int i = 0; i < std::size(a) / 2; i++) {
     a[i] = i * i;
-    a[i + ABSL_ARRAYSIZE(a) / 2] = -i * i;
+    a[i + std::size(a) / 2] = -i * i;
   }
   std::string x1 = std::string(1, c[67]);
   std::string x1000 = std::string(1000, c[67]);
@@ -599,7 +599,7 @@ TEST(Hash, BasicStats) {
   uint64_t max_hash64 = 0;
   uint64_t min_hash64 = ~max_hash64;
   LOG(INFO) << "HashTo32(char)";
-  for (int i = 0; i < ABSL_ARRAYSIZE(c); i++) {
+  for (int i = 0; i < std::size(c); i++) {
     size_t h = HashTo32(c[i]);
     EXPECT_EQ(h, static_cast<uint32_t>(h));
     min_hash32 = std::min<uint32_t>(min_hash32, h);
@@ -613,7 +613,7 @@ TEST(Hash, BasicStats) {
   max_hash32 = 0;
   min_hash32 = ~max_hash32;
   LOG(INFO) << "HashTo32(uint32)";
-  for (int i = 0; i < ABSL_ARRAYSIZE(a); i++) {
+  for (int i = 0; i < std::size(a); i++) {
     size_t h = HashTo32(a[i]);
     EXPECT_EQ(h, static_cast<uint32_t>(h));
     min_hash32 = std::min<uint32_t>(min_hash32, h);
@@ -622,7 +622,7 @@ TEST(Hash, BasicStats) {
   EXPECT_GT(log2(max_hash32 - min_hash32), 31.98);
   LOG(INFO) << " range(hash(0), hash(1), hash(4), hash(9), ...) = " << std::hex
             << min_hash32 << " to " << max_hash32;
-  int k = ABSL_ARRAYSIZE(a) / 3;
+  int k = std::size(a) / 3;
   LOG(INFO) << " sample hash: a[" << k << "] -> " << std::hex << HashTo32(a[k]);
 
   max_hash32 = 0;
@@ -720,7 +720,7 @@ TEST(Hash, BasicStats) {
   min_hash = ~0;
   max_hash = 0;
   LOG(INFO) << "hash<uint128>";
-  for (int i = 0; i < ABSL_ARRAYSIZE(a); i++) {
+  for (int i = 0; i < std::size(a); i++) {
     size_t h = hash<absl::uint128>()(absl::MakeUint128(i, i / 8));
     min_hash = std::min<size_t>(min_hash, h);
     max_hash = std::max<size_t>(max_hash, h);
