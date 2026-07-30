@@ -24,12 +24,12 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <random>
 #include <set>
 #include <string>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "absl/log/check.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
@@ -78,7 +78,7 @@ struct JoinStringsTestCase {
 TEST(JoinStrings, UsingRandom) {
   const char* sample_strings[] = {"one", "two",   "three", "four", "five",
                                   "six", "seven", "eight", "nine", "ten"};
-  const int num_sample_strings = ABSL_ARRAYSIZE(sample_strings);
+  const int num_sample_strings = std::size(sample_strings);
 
   std::vector<JoinStringsTestCase*> testcases;
   // test empty

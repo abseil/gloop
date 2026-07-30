@@ -187,7 +187,6 @@ cc_library(
     hdrs = ["escaping.h"],
     deps = [
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
@@ -206,7 +205,6 @@ cc_test(
     deps = [
         ":escaping",
         "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:scoped_mock_log",
@@ -359,7 +357,6 @@ cc_test(
         ":join",
         ":util",
         "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
@@ -554,7 +551,6 @@ cc_test(
         ":numbers",
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings",

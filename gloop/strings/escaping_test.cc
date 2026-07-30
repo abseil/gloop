@@ -23,13 +23,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <iterator>
 #include <random>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/base/log_severity.h"
-#include "absl/base/macros.h"
 #include "absl/log/check.h"
 #include "absl/log/scoped_mock_log.h"
 #include "absl/strings/charset.h"
@@ -80,7 +80,7 @@ TEST(BackslashEscape, Escape) {
       {__LINE__, "\\:", "\\", "\\\\:"},
       {__LINE__, "\\:", "\\:", "\\\\\\:"},
   };
-  for (const Case* p = cases; p != cases + ABSL_ARRAYSIZE(cases); ++p) {
+  for (const Case* p = cases; p != cases + std::size(cases); ++p) {
     EXPECT_EQ(p->expect, BackslashEscape(p->in, absl::CharSet(p->escapes)))
         << "BackslashEscape('" << p->in << "'" << ", '" << p->escapes
         << "') line:" << p->line;
@@ -142,7 +142,7 @@ TEST(BackslashEscape, Unescape) {
       {__LINE__, "\\\\\\:", "\\", "\\\\:"},
       {__LINE__, "\\\\\\:", "\\:", "\\:"},
   };
-  for (const Case* p = cases; p != cases + ABSL_ARRAYSIZE(cases); ++p) {
+  for (const Case* p = cases; p != cases + std::size(cases); ++p) {
     EXPECT_EQ(p->expect, BackslashUnescape(p->in, absl::CharSet(p->escapes)))
         << "BackslashUnescape('" << p->in << "'" << ", '" << p->escapes
         << "') line:" << p->line;
@@ -224,7 +224,7 @@ TEST(BackslashEscape, UnescapedFind) {
       {__LINE__, "\\\\\\:", "\\", 2},
       {__LINE__, "\\\\\\:", "\\:", npos},  // 2 escaped delimiters
   };
-  for (const Case* p = cases; p != cases + ABSL_ARRAYSIZE(cases); ++p) {
+  for (const Case* p = cases; p != cases + std::size(cases); ++p) {
     EXPECT_EQ(p->expect,
               BackslashUnescapedFind(p->in, absl::CharSet(p->escapes)))
         << "BackslashUnescapedFind('" << p->in << "'" << ", '" << p->escapes
@@ -259,7 +259,7 @@ TEST(BackslashEscape, UsageExample) {
   //  changing the output.
 
   const std::string arr[] = {"a", "bc\\", "", "12:30", "xyz"};
-  std::vector<std::string> fields(arr, arr + ABSL_ARRAYSIZE(arr));
+  std::vector<std::string> fields(arr, arr + std::size(arr));
 
   std::string encoded;
 
@@ -322,7 +322,7 @@ TEST(BackslashEscape, BackslashFreeUsageExample) {
   //  Any ':' occurring in any of the fields will be escaped.
 
   const std::string arr[] = {"a", "bc", "", "12:30", "xyz"};
-  std::vector<std::string> fields(arr, arr + ABSL_ARRAYSIZE(arr));
+  std::vector<std::string> fields(arr, arr + std::size(arr));
 
   std::string encoded;
 

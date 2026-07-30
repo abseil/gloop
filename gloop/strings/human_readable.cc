@@ -26,12 +26,12 @@
 
 #include <cmath>
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <string>
 #include <system_error>  // NOLINT(build/c++11)
 
 #include "absl/base/attributes.h"
-#include "absl/base/macros.h"
 #include "absl/log/check.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/ascii.h"
@@ -234,7 +234,7 @@ std::string HumanReadableNumBytes::ToString(int64_t num_bytes) {
   while (num_bytes >= int64_t{1024} * int64_t{1024}) {
     num_bytes /= int64_t{1024};
     ++unit;
-    CHECK(unit < units + ABSL_ARRAYSIZE(units));
+    CHECK(unit < units + std::size(units));
   }
 
   return absl::StrFormat("%s%.*f%c", neg_str, (*unit == 'K') ? 1 : 2,
@@ -257,7 +257,7 @@ std::string HumanReadableNumBytes::ToStringWithoutRounding(int64_t num_bytes) {
 
   int64_t num_units = num_bytes;
   int unit_type = 0;
-  for (; unit_type < ABSL_ARRAYSIZE(units); unit_type++) {
+  for (; unit_type < std::size(units); unit_type++) {
     if (num_units % 1024 != 0) {
       // Not divisible by the next unit.
       break;
@@ -293,7 +293,7 @@ std::string HumanReadableInt::ToString(int64_t value) {
     while (v >= int64_t{1000000}) {
       v /= int64_t{1000};
       ++unit;
-      CHECK(unit < units + ABSL_ARRAYSIZE(units));
+      CHECK(unit < units + std::size(units));
     }
     absl::StrAppendFormat(&s, "%.2f%c", v / 1000.0, *unit);
   }
@@ -336,7 +336,7 @@ std::string HumanReadableNum::DoubleToString(double value) {
     while (value >= 1e6) {
       value /= 1e3;
       ++unit;
-      CHECK(unit < units + ABSL_ARRAYSIZE(units));
+      CHECK(unit < units + std::size(units));
     }
     absl::StrAppendFormat(&s, "%.2f%c", value / 1000.0, *unit);
   }
@@ -580,7 +580,7 @@ bool HumanReadableElapsedTime::ToDouble(absl::string_view str, double* value) {
     str.remove_prefix(res.ptr - str.data());
     str = absl::StripLeadingAsciiWhitespace(str);
     bool found_unit = false;
-    for (int i = 0; !found_unit && i < ABSL_ARRAYSIZE(kUnits); ++i) {
+    for (int i = 0; !found_unit && i < std::size(kUnits); ++i) {
       absl::string_view unit_sv(kUnits[i].unit);
       if (absl::ConsumePrefix(&str, unit_sv)) {
         work_value += factor * kUnits[i].seconds;

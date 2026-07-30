@@ -21,13 +21,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <ctime>
+#include <iterator>
 #include <limits>
 #include <random>
 #include <string>
 #include <vector>
 
 #include "absl/base/internal/cycleclock.h"
-#include "absl/base/macros.h"
 #include "absl/log/check.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/numbers.h"
@@ -67,8 +67,8 @@ void BM_AutoDigitStrCmp(benchmark::State& state) {
   static const char* parts[] = {"future", "past", ":",  "0",   "1",
                                 "00",     "01",   "12", "012", "0012"};
   RandomEngine rng(CycleClock::Now());
-  std::uniform_int_distribution<int> random_parts_index(
-      0, ABSL_ARRAYSIZE(parts) - 1);
+  std::uniform_int_distribution<int> random_parts_index(0,
+                                                        std::size(parts) - 1);
   std::vector<std::string> v1(kNumStrings), v2(kNumStrings);
   for (int i = 0; i < kNumStrings; i++) {
     v1[i] = absl::StrCat(kPrefix, parts[random_parts_index(rng)],
@@ -98,8 +98,8 @@ void BM_AutoDigitStrCmpZ(benchmark::State& state) {
   static const char* parts[] = {"future", "past", ":",  "0",   "1",
                                 "00",     "01",   "12", "012", "0012"};
   RandomEngine rng(CycleClock::Now());
-  std::uniform_int_distribution<int> random_parts_index(
-      0, ABSL_ARRAYSIZE(parts) - 1);
+  std::uniform_int_distribution<int> random_parts_index(0,
+                                                        std::size(parts) - 1);
   std::vector<std::string> v1(kNumStrings), v2(kNumStrings);
   for (int i = 0; i < kNumStrings; i++) {
     v1[i] = absl::StrCat(kPrefix, parts[random_parts_index(rng)],

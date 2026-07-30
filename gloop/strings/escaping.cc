@@ -29,7 +29,6 @@
 #include <limits>
 #include <string>
 
-#include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
@@ -64,7 +63,7 @@ void BackslashEscape(absl::string_view src, Functor&& delimiter_check,
     if (next != last) {
       // Char at *next needs to be escaped.
       char c[2] = {'\\', *next++};
-      dest->append(c, c + ABSL_ARRAYSIZE(c));
+      dest->append(c, c + std::size(c));
     }
     first = next;
   }

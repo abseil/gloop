@@ -25,13 +25,13 @@
 
 #include <cmath>
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <optional>
 #include <string>
 #include <system_error>  // NOLINT(build/c++11)
 
 #include "absl/base/attributes.h"
-#include "absl/base/macros.h"
 #include "absl/log/check.h"
 #include "absl/strings/charconv.h"
 #include "absl/strings/str_format.h"
@@ -67,7 +67,7 @@ constexpr absl::string_view kSIPositivePrefixes[] = {
 };
 
 // The maximum positive exponent we have a defined abbreviation for.
-constexpr int kMaxExponent = ABSL_ARRAYSIZE(kSIPositivePrefixes);
+constexpr int kMaxExponent = std::size(kSIPositivePrefixes);
 
 // The prefixes used by SI for powers of 10^-3.
 //
@@ -85,8 +85,7 @@ constexpr absl::string_view kSINegativePrefixes[] = {
 };
 
 // The minimum negative exponent we have a defined abbreviation for.
-constexpr int kMinExponent =
-    -static_cast<int>(ABSL_ARRAYSIZE(kSINegativePrefixes));
+constexpr int kMinExponent = -static_cast<int>(std::size(kSINegativePrefixes));
 
 double FastPower(double base, int exponent) {
   double res = 1.0;
