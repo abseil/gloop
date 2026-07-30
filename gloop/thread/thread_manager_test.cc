@@ -29,6 +29,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -36,7 +37,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
@@ -101,13 +101,13 @@ TEST(ThreadManagerTest, TrySchedule) {
     std::unique_ptr<thread::ManagedQueue> queue(
         tm.NewQueue("default", thread::ManagedQueueOptions()));
     absl::Notification started[10];
-    absl::Notification done[ABSL_ARRAYSIZE(started)];
+    absl::Notification done[std::size(started)];
     // TrySchedule on default queue always succeeds
-    for (int i = 0; i != ABSL_ARRAYSIZE(started); i++) {
+    for (int i = 0; i != std::size(started); i++) {
       CHECK(queue->TrySchedule(
           absl::bind_front(&NotifyThenWait, &started[i], &done[i])));
     }
-    for (int i = 0; i != ABSL_ARRAYSIZE(started); i++) {
+    for (int i = 0; i != std::size(started); i++) {
       WaitThenNotify(&started[i], &done[i]);
     }
     queue.reset();
@@ -180,20 +180,20 @@ TEST(ThreadManagerTest, WaitUntilComplete) {
   // closures have indeed finished when WaitUntilComplete() returns.
   thread::ThreadManager tm("test_manager", thread::ManagerOptions());
   static const int limit[] = {1, INT_MAX};
-  for (int i = 0; i != ABSL_ARRAYSIZE(limit); i++) {
-    for (int j = 0; j != ABSL_ARRAYSIZE(limit); j++) {
+  for (int i = 0; i != std::size(limit); i++) {
+    for (int j = 0; j != std::size(limit); j++) {
       thread::ManagedQueueOptions q_options;
       q_options.thread_limit = limit[i];
       q_options.queue_limit = limit[j];
       std::unique_ptr<thread::ManagedQueue> queue(
           tm.NewQueue("test queue", q_options));
       absl::Notification done[10];
-      for (int i = 0; i != ABSL_ARRAYSIZE(done); i++) {
+      for (int i = 0; i != std::size(done); i++) {
         queue->Schedule(absl::bind_front(&SleepThenNotify, &done[i]));
       }
       queue->WaitUntilComplete();
       // All the Notifications should be notified
-      for (int i = 0; i != ABSL_ARRAYSIZE(done); i++) {
+      for (int i = 0; i != std::size(done); i++) {
         CHECK(done[i].HasBeenNotified())
             << "thread limit " << q_options.thread_limit << "queue limit "
             << q_options.queue_limit;
@@ -414,7 +414,7 @@ TEST(ThreadManagerTest, Queues) {
   QueueInfo queue_info[2];
   queue_info[1].queue_options.thread_limit = 2;
   queue_info[1].queue_options.queue_limit = 27;
-  for (int i = 0; i != ABSL_ARRAYSIZE(queue_info); i++) {
+  for (int i = 0; i != std::size(queue_info); i++) {
     queue_info[i].expected_calls = 1000;
     queue_info[i].total_calls = 0;
     queue_info[i].concurrent_calls = 0;
@@ -433,7 +433,7 @@ TEST(ThreadManagerTest, Queues) {
   int64_t start_ms = absl::ToUnixMillis(absl::Now());
   for (int i = 0; i != queue_info[0].expected_calls; i++) {
     int r = rand();
-    int entry = r % ABSL_ARRAYSIZE(queue_info);
+    int entry = r % std::size(queue_info);
     queue_info[entry].queue->Schedule(
         util::functional::FromCallback(queue_info[entry].cb.get()));
   }
@@ -441,19 +441,19 @@ TEST(ThreadManagerTest, Queues) {
   do {
     ::absl::SleepFor(::absl::Milliseconds(40));
     total_calls = 0;
-    for (int i = 0; i != ABSL_ARRAYSIZE(queue_info); i++) {
+    for (int i = 0; i != std::size(queue_info); i++) {
       queue_info[i].mu.lock();
       total_calls += queue_info[i].total_calls;
       queue_info[i].mu.unlock();
     }
   } while (total_calls != queue_info[0].expected_calls);
-  for (int i = 0; i != ABSL_ARRAYSIZE(queue_info); i++) {
+  for (int i = 0; i != std::size(queue_info); i++) {
     queue_info[i].queue.reset();
   }
   tm.reset();
   int64_t end_ms = absl::ToUnixMillis(absl::Now());
   int threads = 0;
-  for (int i = 0; i != ABSL_ARRAYSIZE(queue_info); i++) {
+  for (int i = 0; i != std::size(queue_info); i++) {
     threads += queue_info[i].total_threads;
     LOG(INFO) << "queue " << queue_info[i].name << "  thread_limit "
               << queue_info[i].queue_options.thread_limit << "  queue_limit "

@@ -1002,7 +1002,6 @@ cc_test(
         "//gloop/base:per_thread",
         "//gloop/util/functional:from_callback",
         "//gloop/util/functional:to_callback",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
