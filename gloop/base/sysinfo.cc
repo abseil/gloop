@@ -41,8 +41,10 @@
 #include <unistd.h>
 #endif
 
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
+#include <iterator>
 #include <map>
 #include <set>
 #include <string>
@@ -64,10 +66,6 @@
 #include <processthreadsapi.h>
 #include <stringapiset.h>
 #include <winbase.h>
-
-#include <algorithm>
-
-#include "absl/cleanup/cleanup.h"
 
 #elif defined(__linux__)
 #include <dirent.h>  // for opendir() and readdir()
@@ -802,7 +800,7 @@ time_t BootTime() {
   int mib[2] = {CTL_KERN, KERN_BOOTTIME};
   struct timeval btime;
   size_t btime_len = sizeof(btime);
-  if (sysctl(mib, ABSL_ARRAYSIZE(mib), &btime, &btime_len, nullptr, 0) != 0) {
+  if (sysctl(mib, std::size(mib), &btime, &btime_len, nullptr, 0) != 0) {
     BASE_SYSINFO_LOG_FIRST_N(
         ERROR, 3,
         absl::StrCat("BootTime(): sysctl kern.boottime failed: ",

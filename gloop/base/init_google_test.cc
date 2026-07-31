@@ -24,11 +24,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <iterator>
 #include <memory>
 #include <string>
 
 #include "absl/base/attributes.h"
-#include "absl/base/macros.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "gloop/base/config.h"
@@ -163,9 +163,9 @@ TEST(InitGoogle, ReadAndParseKernelVersionString) {
       "(recipient@example.com) (gcc "
       "version 3.3.3 20040201 (prerelease)) "
       "#175.13 SMP Thu Aug 2512:57:08 PDT 2005\n";
-  ASSERT_EQ(fwrite(kKernelVersionString, 1,
-                   ABSL_ARRAYSIZE(kKernelVersionString), file),
-            ABSL_ARRAYSIZE(kKernelVersionString))
+  ASSERT_EQ(
+      fwrite(kKernelVersionString, 1, std::size(kKernelVersionString), file),
+      std::size(kKernelVersionString))
       << strerror(errno);
   ASSERT_EQ(fclose(file), 0) << strerror(errno);
 

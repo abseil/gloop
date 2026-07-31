@@ -20,14 +20,14 @@
 
 #include "gloop/base/raw_printer.h"
 
+#include <iterator>
 #include <string>
 
-#include "absl/base/macros.h"
 #include "gtest/gtest.h"
 
 TEST(RawPrinter, Empty) {
   char buffer[1];
-  base::RawPrinter printer(buffer, ABSL_ARRAYSIZE(buffer));
+  base::RawPrinter printer(buffer, std::size(buffer));
   EXPECT_EQ(0, printer.length());
   EXPECT_EQ(std::string(""), buffer);
   EXPECT_EQ(0, printer.space_left());
@@ -39,7 +39,7 @@ TEST(RawPrinter, Empty) {
 
 TEST(RawPrinter, PartiallyFilled) {
   char buffer[100];
-  base::RawPrinter printer(buffer, ABSL_ARRAYSIZE(buffer));
+  base::RawPrinter printer(buffer, std::size(buffer));
   printer.Printf("%s %s", "hello", "world");
   EXPECT_EQ(std::string("hello world"), std::string(buffer));
   EXPECT_EQ(11, printer.length());
@@ -48,7 +48,7 @@ TEST(RawPrinter, PartiallyFilled) {
 
 TEST(RawPrinter, Truncated) {
   char buffer[3];
-  base::RawPrinter printer(buffer, ABSL_ARRAYSIZE(buffer));
+  base::RawPrinter printer(buffer, std::size(buffer));
   printer.Printf("%d", 12345678);
   EXPECT_EQ(std::string("12"), std::string(buffer));
   EXPECT_EQ(2, printer.length());
@@ -57,7 +57,7 @@ TEST(RawPrinter, Truncated) {
 
 TEST(RawPrinter, ExactlyFilled) {
   char buffer[12];
-  base::RawPrinter printer(buffer, ABSL_ARRAYSIZE(buffer));
+  base::RawPrinter printer(buffer, std::size(buffer));
   printer.Printf("%s %s", "hello", "world");
   EXPECT_EQ(std::string("hello world"), std::string(buffer));
   EXPECT_EQ(11, printer.length());
@@ -66,7 +66,7 @@ TEST(RawPrinter, ExactlyFilled) {
 
 TEST(RawPrinter, Reset) {
   char buffer[2];
-  base::RawPrinter printer(buffer, ABSL_ARRAYSIZE(buffer));
+  base::RawPrinter printer(buffer, std::size(buffer));
   printer.Printf("x");
   EXPECT_EQ(std::string("x"), std::string(buffer));
   printer.reset();

@@ -33,10 +33,10 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <iterator>
 #include <new>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "absl/log/check.h"
 #include "absl/synchronization/mutex.h"
 #include "gloop/base/config.h"
@@ -281,7 +281,7 @@ BaseArena::AllocatedBlock* BaseArena::AllocNewBlock(const size_t block_size,
                                                     const size_t alignment) {
   AllocatedBlock* block;
   // Find the next block.
-  if (blocks_alloced_ < static_cast<int64_t>(ABSL_ARRAYSIZE(first_blocks_))) {
+  if (blocks_alloced_ < static_cast<int64_t>(std::size(first_blocks_))) {
     // Use one of the pre-allocated blocks
     block = &first_blocks_[blocks_alloced_++];
   } else {  // oops, out of space, move to the vector

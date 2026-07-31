@@ -25,13 +25,13 @@
 
 #include <cstddef>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <set>
 #include <string>
 #include <vector>
 
 #include "absl/base/internal/cycleclock.h"
-#include "absl/base/macros.h"
 #include "absl/container/node_hash_set.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
@@ -60,7 +60,7 @@ static void TestMemory(void* mem, int size) {
   // Do some memory allocation to check that the arena doesn't mess up
   // the internal memory allocator
   char* tmp[100];
-  for (int i = 0; i < ABSL_ARRAYSIZE(tmp); i++) {
+  for (int i = 0; i < std::size(tmp); i++) {
     tmp[i] = new char[i * i + 1];
   }
 
@@ -267,7 +267,7 @@ TEST_P(BasicTest, DoTest) {
 
   // Allocate some memory from heap first
   char* tmp[100];
-  for (int i = 0; i < ABSL_ARRAYSIZE(tmp); i++) {
+  for (int i = 0; i < std::size(tmp); i++) {
     tmp[i] = new char[i * i];
   }
 
@@ -304,7 +304,7 @@ TEST_P(PageAlignedTest, DoTest) {
 
   // Allocate some memory from heap first
   char* tmp[100];
-  for (int i = 0; i < ABSL_ARRAYSIZE(tmp); i++) {
+  for (int i = 0; i < std::size(tmp); i++) {
     tmp[i] = new char[i * i];
   }
   // Initial buffer for testing pre-allocated arenas.
@@ -653,7 +653,7 @@ TEST(ArenaTest, STL) {
     IntSet int_set_;
 
     void Test() {
-      int string_size = ABSL_ARRAYSIZE(test_strings);
+      int string_size = std::size(test_strings);
       int char_size = 0;
 
       for (int i = 0; i < string_size; ++i) {
@@ -666,7 +666,7 @@ TEST(ArenaTest, STL) {
         string_hset_.insert(s);
         string_set_.insert(s);
       }
-      int int_size = ABSL_ARRAYSIZE(test_ints);
+      int int_size = std::size(test_ints);
       for (int i = 0; i < int_size; ++i) {
         uint32_t r = test_ints[i];
         int_vec_.push_back(r);
@@ -713,7 +713,7 @@ TEST(ArenaTest, STL) {
     IntSet int_set_;
 
     void Test() {
-      int string_size = ABSL_ARRAYSIZE(test_strings);
+      int string_size = std::size(test_strings);
       int char_size = 0;
 
       for (int i = 0; i < string_size; ++i) {
@@ -725,7 +725,7 @@ TEST(ArenaTest, STL) {
           ++char_size;
         }
       }
-      int int_size = ABSL_ARRAYSIZE(test_ints);
+      int int_size = std::size(test_ints);
       for (int i = 0; i < int_size; ++i) {
         uint32_t r = test_ints[i];
         int_vec_.push_back(r);
@@ -772,7 +772,7 @@ TEST(ArenaTest, STL) {
     IntSet int_set_;
 
     void Test() {
-      int string_size = ABSL_ARRAYSIZE(test_strings);
+      int string_size = std::size(test_strings);
       int char_size = 0;
 
       for (int i = 0; i < string_size; ++i) {
@@ -785,7 +785,7 @@ TEST(ArenaTest, STL) {
           ++char_size;
         }
       }
-      int int_size = ABSL_ARRAYSIZE(test_ints);
+      int int_size = std::size(test_ints);
       for (int i = 0; i < int_size; ++i) {
         uint32_t r = test_ints[i];
         int_vec_.push_back(r);

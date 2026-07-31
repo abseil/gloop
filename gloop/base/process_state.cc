@@ -49,6 +49,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <iterator>
 #include <limits>
 #include <string>
 #include <tuple>
@@ -62,7 +63,6 @@
 #include "absl/base/const_init.h"
 #include "absl/base/dynamic_annotations.h"
 #include "absl/base/log_severity.h"
-#include "absl/base/macros.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/debugging/internal/examine_stack.h"
 #include "absl/debugging/leak_check.h"
@@ -640,7 +640,7 @@ void EmitSymbolizerURL(void* uc) {
   int min_dropped_frames;
   int depth = absl::GetStackTraceWithContext(
       stack + 1,  // Reserve stack[0] for pc.
-      ABSL_ARRAYSIZE(stack) - 1,
+      std::size(stack) - 1,
       1,  // Do not include this function in stack trace.
       uc, &min_dropped_frames);
   int start = 1;

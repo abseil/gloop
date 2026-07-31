@@ -907,7 +907,6 @@ cc_test(
     deps = [
         ":raw_printer",
         "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/base:core_headers",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -1758,7 +1757,6 @@ cc_test(
         ":arena_allocator",
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:node_hash_set",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",

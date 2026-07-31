@@ -26,11 +26,11 @@
 
 #include <atomic>
 #include <cstdint>
+#include <iterator>
 #include <memory>
 #include <thread>  // NOLINT(build/c++11)
 
 #include "absl/base/attributes.h"
-#include "absl/base/macros.h"
 #include "absl/log/check.h"
 #include "absl/memory/memory.h"
 #include "benchmark/benchmark.h"
@@ -43,8 +43,8 @@ static int destructor_count;
 static char* value_base;
 
 static void TestThread(int offset) {
-  void** my_locations[ABSL_ARRAYSIZE(per_thread)];
-  for (int i = 0; i != ABSL_ARRAYSIZE(per_thread); i++) {
+  void** my_locations[std::size(per_thread)];
+  for (int i = 0; i != std::size(per_thread); i++) {
     my_locations[i] = PerThread::Data(per_thread[i]);
     CHECK(*my_locations[i] == nullptr);
     CHECK(*my_locations[i] == PerThread::GetData(per_thread[i]));
@@ -52,7 +52,7 @@ static void TestThread(int offset) {
         reinterpret_cast<uintptr_t>(value_base) + offset + i);
     CHECK(*my_locations[i] == PerThread::GetData(per_thread[i]));
   }
-  for (int i = 0; i != ABSL_ARRAYSIZE(per_thread); i++) {
+  for (int i = 0; i != std::size(per_thread); i++) {
     CHECK(my_locations[i] == PerThread::Data(per_thread[i]));
     CHECK(*my_locations[i] ==
           reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(value_base) +
@@ -66,7 +66,7 @@ static void Destructor(void* v) {
   CHECK(value_base <= reinterpret_cast<char*>(v)) << v;
   CHECK(reinterpret_cast<char*>(v) <
         reinterpret_cast<char*>(reinterpret_cast<uintptr_t>(value_base) +
-                                ABSL_ARRAYSIZE(per_thread)))
+                                std::size(per_thread)))
       << v;
   destructor_count++;
 }
@@ -82,28 +82,28 @@ static void RunThread(int base) {
 
 TEST(PerThread, Test) {
   // Create several per-thread locations.
-  for (int i = 0; i != ABSL_ARRAYSIZE(per_thread); i++) {
+  for (int i = 0; i != std::size(per_thread); i++) {
     PerThread::Allocate(&per_thread[i], Destructor);
   }
 
   RunThread(0);
 
   // destructor will not be called for entry 0 because value is 0
-  ASSERT_EQ(ABSL_ARRAYSIZE(per_thread) - 1, destructor_count);
+  ASSERT_EQ(std::size(per_thread) - 1, destructor_count);
 
   // zero the values in the main thread
-  for (int i = 0; i != ABSL_ARRAYSIZE(per_thread); i++) {
+  for (int i = 0; i != std::size(per_thread); i++) {
     *PerThread::Data(per_thread[i]) = nullptr;
   }
 
   // Run the test again.
-  RunThread(ABSL_ARRAYSIZE(per_thread));
+  RunThread(std::size(per_thread));
 
-  // destructor_count should have increased by ABSL_ARRAYSIZE(per_thread)
-  ASSERT_EQ(2 * ABSL_ARRAYSIZE(per_thread) - 1, destructor_count);
+  // destructor_count should have increased by std::size(per_thread)
+  ASSERT_EQ(2 * std::size(per_thread) - 1, destructor_count);
 
   // zero the values in the main thread
-  for (int i = 0; i != ABSL_ARRAYSIZE(per_thread); i++) {
+  for (int i = 0; i != std::size(per_thread); i++) {
     *PerThread::Data(per_thread[i]) = nullptr;
   }
 }

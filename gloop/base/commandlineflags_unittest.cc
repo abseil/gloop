@@ -25,6 +25,7 @@
 #include <string.h>
 
 #include <cstdint>
+#include <iterator>
 
 #ifndef _WIN32
 #include <unistd.h>  // for unlink(), access()
@@ -942,7 +943,7 @@ TEST_F(ResetArgvTest, BaseTest) {
   // Test that a call to ResetArgv() modifies argv even after SetArgv() and
   // InitGoogle() have been called below in main().
   const char* test_argv1[] = {"/test/reset/argv", "foo", "bar", "baz"};
-  ResetArgv(ABSL_ARRAYSIZE(test_argv1), test_argv1);
+  ResetArgv(std::size(test_argv1), test_argv1);
   EXPECT_THAT(base::GetArgvs(),
               ElementsAre("/test/reset/argv", "foo", "bar", "baz"));
   EXPECT_EQ("/test/reset/argv foo bar baz", base::GetArgv());
@@ -951,7 +952,7 @@ TEST_F(ResetArgvTest, BaseTest) {
 
   // Test that a second call to ResetArgv() works as expected.
   const char* test_argv2[] = {"/test/reset/argv/again", "foo2", "bar2", "baz2"};
-  ResetArgv(ABSL_ARRAYSIZE(test_argv2), test_argv2);
+  ResetArgv(std::size(test_argv2), test_argv2);
   EXPECT_THAT(base::GetArgvs(),
               ElementsAre("/test/reset/argv/again", "foo2", "bar2", "baz2"));
   EXPECT_EQ("/test/reset/argv/again foo2 bar2 baz2", base::GetArgv());
@@ -959,7 +960,7 @@ TEST_F(ResetArgvTest, BaseTest) {
   EXPECT_EQ(3323, base::GetArgvSum());
 
   // Reset the state of argv to what the other tests expect.
-  ResetArgv(ABSL_ARRAYSIZE(kTestArgv), kTestArgv);
+  ResetArgv(std::size(kTestArgv), kTestArgv);
 }
 
 #if GOOGLE_COMMANDLINEFLAGS_FULL_API
@@ -1087,8 +1088,8 @@ TEST_F(ParseCommandLineFlagsUsesLastDefinitionTest,
       nullptr,
   };
 
-  EXPECT_EQ(2, ParseTestFlag(true, ABSL_ARRAYSIZE(argv) - 1, argv));
-  EXPECT_EQ(2, ParseTestFlag(false, ABSL_ARRAYSIZE(argv) - 1, argv));
+  EXPECT_EQ(2, ParseTestFlag(true, std::size(argv) - 1, argv));
+  EXPECT_EQ(2, ParseTestFlag(false, std::size(argv) - 1, argv));
 }
 
 #if FILESYSTEM_SUPPORTED
@@ -1102,8 +1103,8 @@ TEST_F(ParseCommandLineFlagsUsesLastDefinitionTest,
       nullptr,
   };
 
-  EXPECT_EQ(2, ParseTestFlag(true, ABSL_ARRAYSIZE(argv) - 1, argv));
-  EXPECT_EQ(2, ParseTestFlag(false, ABSL_ARRAYSIZE(argv) - 1, argv));
+  EXPECT_EQ(2, ParseTestFlag(true, std::size(argv) - 1, argv));
+  EXPECT_EQ(2, ParseTestFlag(false, std::size(argv) - 1, argv));
 }
 
 TEST_F(ParseCommandLineFlagsUsesLastDefinitionTest,
@@ -1115,8 +1116,8 @@ TEST_F(ParseCommandLineFlagsUsesLastDefinitionTest,
       nullptr,
   };
 
-  EXPECT_EQ(2, ParseTestFlag(true, ABSL_ARRAYSIZE(argv) - 1, argv));
-  EXPECT_EQ(2, ParseTestFlag(false, ABSL_ARRAYSIZE(argv) - 1, argv));
+  EXPECT_EQ(2, ParseTestFlag(true, std::size(argv) - 1, argv));
+  EXPECT_EQ(2, ParseTestFlag(false, std::size(argv) - 1, argv));
 }
 
 TEST_F(ParseCommandLineFlagsUsesLastDefinitionTest,
@@ -1128,8 +1129,8 @@ TEST_F(ParseCommandLineFlagsUsesLastDefinitionTest,
       nullptr,
   };
 
-  EXPECT_EQ(3, ParseTestFlag(true, ABSL_ARRAYSIZE(argv) - 1, argv));
-  EXPECT_EQ(3, ParseTestFlag(false, ABSL_ARRAYSIZE(argv) - 1, argv));
+  EXPECT_EQ(3, ParseTestFlag(true, std::size(argv) - 1, argv));
+  EXPECT_EQ(3, ParseTestFlag(false, std::size(argv) - 1, argv));
 }
 
 TEST_F(ParseCommandLineFlagsUsesLastDefinitionTest,
@@ -1138,8 +1139,8 @@ TEST_F(ParseCommandLineFlagsUsesLastDefinitionTest,
       "my_test", "--test_flag=0", GetFlagFileFlag(), "--test_flag=3", nullptr,
   };
 
-  EXPECT_EQ(3, ParseTestFlag(true, ABSL_ARRAYSIZE(argv) - 1, argv));
-  EXPECT_EQ(3, ParseTestFlag(false, ABSL_ARRAYSIZE(argv) - 1, argv));
+  EXPECT_EQ(3, ParseTestFlag(true, std::size(argv) - 1, argv));
+  EXPECT_EQ(3, ParseTestFlag(false, std::size(argv) - 1, argv));
 }
 #endif  // FILESYSTEM_SUPPORTED
 
@@ -1153,8 +1154,8 @@ TEST_F(ParseCommandLineFlagsAndDashArgsTest, TwoDashArgFirst) {
       nullptr,
   };
 
-  EXPECT_EQ(-1, ParseTestFlag(true, ABSL_ARRAYSIZE(argv) - 1, argv));
-  EXPECT_EQ(-1, ParseTestFlag(false, ABSL_ARRAYSIZE(argv) - 1, argv));
+  EXPECT_EQ(-1, ParseTestFlag(true, std::size(argv) - 1, argv));
+  EXPECT_EQ(-1, ParseTestFlag(false, std::size(argv) - 1, argv));
 }
 
 TEST_F(ParseCommandLineFlagsAndDashArgsTest, TwoDashArgMiddle) {
@@ -1162,8 +1163,8 @@ TEST_F(ParseCommandLineFlagsAndDashArgsTest, TwoDashArgMiddle) {
       "my_test", "--test_flag=7", "--", "--test_flag=0", nullptr,
   };
 
-  EXPECT_EQ(7, ParseTestFlag(true, ABSL_ARRAYSIZE(argv) - 1, argv));
-  EXPECT_EQ(7, ParseTestFlag(false, ABSL_ARRAYSIZE(argv) - 1, argv));
+  EXPECT_EQ(7, ParseTestFlag(true, std::size(argv) - 1, argv));
+  EXPECT_EQ(7, ParseTestFlag(false, std::size(argv) - 1, argv));
 }
 
 TEST_F(ParseCommandLineFlagsAndDashArgsTest, OneDashArg) {
@@ -1174,8 +1175,8 @@ TEST_F(ParseCommandLineFlagsAndDashArgsTest, OneDashArg) {
       nullptr,
   };
 
-  EXPECT_EQ(0, ParseTestFlag(true, ABSL_ARRAYSIZE(argv) - 1, argv));
-  EXPECT_EQ(0, ParseTestFlag(false, ABSL_ARRAYSIZE(argv) - 1, argv));
+  EXPECT_EQ(0, ParseTestFlag(true, std::size(argv) - 1, argv));
+  EXPECT_EQ(0, ParseTestFlag(false, std::size(argv) - 1, argv));
 }
 
 #if GTEST_HAS_DEATH_TEST
@@ -1189,10 +1190,10 @@ TEST_F(ParseCommandLineFlagsUnknownFlagDeathTest, FlagIsCompletelyUnknown) {
       nullptr,
   };
 
-  EXPECT_EXIT(ParseTestFlag(true, ABSL_ARRAYSIZE(argv) - 1, argv),
+  EXPECT_EXIT(ParseTestFlag(true, std::size(argv) - 1, argv),
               ::testing::ExitedWithCode(1),
               "Unknown command line flag 'this_flag_does_not_exist'");
-  EXPECT_EXIT(ParseTestFlag(false, ABSL_ARRAYSIZE(argv) - 1, argv),
+  EXPECT_EXIT(ParseTestFlag(false, std::size(argv) - 1, argv),
               ::testing::ExitedWithCode(1),
               "Unknown command line flag 'this_flag_does_not_exist'");
 }
@@ -1216,7 +1217,7 @@ TEST_F(ParseCommandLineFlagsUnknownFlagDeathTest,
       "--this_flag_does_not_exist",
       nullptr,
   };
-  EXPECT_EXIT(ParseTestFlag(true, ABSL_ARRAYSIZE(argv) - 1, argv),
+  EXPECT_EXIT(ParseTestFlag(true, std::size(argv) - 1, argv),
               ::testing::ExitedWithCode(1),
               "Unknown command line flag 'this_flag_does_not_exist'");
 
@@ -1232,10 +1233,10 @@ TEST_F(ParseCommandLineFlagsUnknownFlagDeathTest, BoolFlagIsCompletelyUnknown) {
       nullptr,
   };
 
-  EXPECT_EXIT(ParseTestFlag(true, ABSL_ARRAYSIZE(argv) - 1, argv),
+  EXPECT_EXIT(ParseTestFlag(true, std::size(argv) - 1, argv),
               ::testing::ExitedWithCode(1),
               "Unknown command line flag 'nothis_flag_does_not_exist'");
-  EXPECT_EXIT(ParseTestFlag(false, ABSL_ARRAYSIZE(argv) - 1, argv),
+  EXPECT_EXIT(ParseTestFlag(false, std::size(argv) - 1, argv),
               ::testing::ExitedWithCode(1),
               "Unknown command line flag 'nothis_flag_does_not_exist'");
 }
@@ -1247,10 +1248,10 @@ TEST_F(ParseCommandLineFlagsUnknownFlagDeathTest, FlagIsNotABool) {
       nullptr,
   };
 
-  EXPECT_EXIT(ParseTestFlag(true, ABSL_ARRAYSIZE(argv) - 1, argv),
+  EXPECT_EXIT(ParseTestFlag(true, std::size(argv) - 1, argv),
               ::testing::ExitedWithCode(1),
               "Negative form is not valid for the flag 'test_string'");
-  EXPECT_EXIT(ParseTestFlag(false, ABSL_ARRAYSIZE(argv) - 1, argv),
+  EXPECT_EXIT(ParseTestFlag(false, std::size(argv) - 1, argv),
               ::testing::ExitedWithCode(1),
               "Negative form is not valid for the flag 'test_string'");
 }
@@ -1266,7 +1267,7 @@ TEST_F(ParseCommandLineTest, TwoDashArgFirst) {
       "my_test", "arg1",           "--test_flag=11", "arg2",
       "--",      "--test_flag=12", nullptr,
   };
-  int argc = ABSL_ARRAYSIZE(test_argv) - 1;
+  int argc = std::size(test_argv) - 1;
 
   absl::FixedArray<char*, 0> argv_save(argc + 1);
   char** mutable_argv = argv_save.data();
@@ -1412,7 +1413,7 @@ void GetSet(const char* name, absl::Flag<T>* flag, T val1,
     snprintf(arg0, sizeof(arg0), "%s", "my_test");
     snprintf(arg1, sizeof(arg1), "--%s=%s", name, val2str.c_str());
     char* argv[] = {arg0, arg1, nullptr};
-    int argc = ABSL_ARRAYSIZE(argv) - 1;
+    int argc = std::size(argv) - 1;
     char** argvp = argv;
     ParseCommandLineNonHelpFlags(&argc, &argvp, true);
   }
@@ -1535,8 +1536,8 @@ TEST_F(RetiredFlagValueTest, StringArgWithFlagLikeValue) {
       nullptr,
   };
 
-  EXPECT_EQ(-1, ParseTestFlag(true, ABSL_ARRAYSIZE(argv) - 1, argv));
-  EXPECT_EQ(-1, ParseTestFlag(false, ABSL_ARRAYSIZE(argv) - 1, argv));
+  EXPECT_EQ(-1, ParseTestFlag(true, std::size(argv) - 1, argv));
+  EXPECT_EQ(-1, ParseTestFlag(false, std::size(argv) - 1, argv));
 }
 
 // Convert a space separated arg list in *str into an argv array.
@@ -1758,7 +1759,7 @@ int main(int argc, char** argv) {
   // We need to call SetArgv before parsing flags, so our "test" argv will
   // win out over this executable's real argv.  That makes running this
   // test with a real --help flag kinda annoying, unfortunately.
-  SetArgv(ABSL_ARRAYSIZE(kTestArgv), kTestArgv);
+  SetArgv(std::size(kTestArgv), kTestArgv);
 
   // The first arg is the usage message, also important for testing.
   std::string usage_message =

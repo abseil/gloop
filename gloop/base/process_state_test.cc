@@ -35,6 +35,7 @@
 #include <unistd.h>
 
 #include <cstdint>
+#include <iterator>
 #include <optional>
 #include <string>
 #include <utility>
@@ -42,7 +43,6 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"  // IWYU pragma: keep
 #include "absl/base/const_init.h"
-#include "absl/base/macros.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
@@ -188,7 +188,7 @@ TEST(ProcessState, ShouldInstallDefaultSignalHandlers) {
   struct sigaction dfl_sa = {}, prev_sa;
   dfl_sa.sa_handler = SIG_DFL;
 
-  for (int i = 0; i != ABSL_ARRAYSIZE(test); i++) {
+  for (int i = 0; i != std::size(test); i++) {
     absl::SetFlag(&FLAGS_install_named_signal_handlers,
                   test[i].install_named_signal_handlers);
     sigaction(test[i].signal, &dfl_sa, &prev_sa);
@@ -269,7 +269,7 @@ TEST(process_state, ShouldInstallSighupSigpipe) {
       {__LINE__, false, "sig1,-hup,-pipe,sig2", "pipe", false},
   };
 
-  for (int i = 0; i != ABSL_ARRAYSIZE(test); i++) {
+  for (int i = 0; i != std::size(test); i++) {
     absl::SetFlag(&FLAGS_install_signal_handlers,
                   test[i].install_signal_handlers);
     absl::SetFlag(&FLAGS_install_named_signal_handlers,

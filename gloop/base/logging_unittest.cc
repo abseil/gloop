@@ -29,6 +29,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ios>
+#include <iterator>
 #include <limits>
 #include <string>
 #include <vector>
@@ -37,7 +38,6 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/sysinfo.h"
 #include "absl/base/log_severity.h"
-#include "absl/base/macros.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/reflection.h"
@@ -458,13 +458,13 @@ class VLogIsOnTest : public testing::Test {
 TEST_F(VLogIsOnTest, DefaultLevelChange) {
   absl::SetFlag(&FLAGS_v, 0);
   bool before[] = {true, false, false, false, false};
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(before); ++i) {
+  for (size_t i = 0; i < std::size(before); ++i) {
     ASSERT_EQ(before[i], VLOG_IS_ON(i)) << i;
   }
 
   absl::SetFlag(&FLAGS_v, 2);
   bool after[] = {true, true, true, false, false};
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(after); ++i) {
+  for (size_t i = 0; i < std::size(after); ++i) {
     EXPECT_EQ(after[i], VLOG_IS_ON(i)) << i;
   }
 }
@@ -587,7 +587,7 @@ TEST_F(VLogIsOnTest, SetVLogLevel) {
   absl::SetFlag(&FLAGS_v, 0);
   // Arbitrarily test VLOG(0) -> VLOG(4)
   bool before[] = {true, false, false, false, false};
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(before); ++i) {
+  for (size_t i = 0; i < std::size(before); ++i) {
     ASSERT_EQ(before[i], VLOG_IS_ON(i)) << i;
   }
 
@@ -595,10 +595,10 @@ TEST_F(VLogIsOnTest, SetVLogLevel) {
 
   // Change through five different logging levels at the same logging
   // site.
-  for (size_t j = 0; j < ABSL_ARRAYSIZE(after); ++j) {
+  for (size_t j = 0; j < std::size(after); ++j) {
     absl::SetVLogLevel("logging*", j);
     after[j] = true;
-    for (size_t i = 0; i < ABSL_ARRAYSIZE(after); ++i) {
+    for (size_t i = 0; i < std::size(after); ++i) {
       EXPECT_EQ(after[i], VLOG_IS_ON(i)) << j << " " << i;
     }
   }
@@ -607,19 +607,19 @@ TEST_F(VLogIsOnTest, SetVLogLevel) {
 TEST_F(VLogIsOnTest, VModuleFlagChange) {
   absl::SetFlag(&FLAGS_v, 0);
   bool before[] = {true, false, false, false, false};
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(before); ++i) {
+  for (size_t i = 0; i < std::size(before); ++i) {
     ASSERT_EQ(before[i], VLOG_IS_ON(i)) << i;
   }
 
   bool after[] = {false, false, false, false, false};
   // Change through five different logging levels at the same logging
   // site.
-  for (size_t j = 0; j < ABSL_ARRAYSIZE(after); ++j) {
+  for (size_t j = 0; j < std::size(after); ++j) {
     char pattern[] = "log*=?";
-    pattern[ABSL_ARRAYSIZE(pattern) - 2] = '0' + j;
+    pattern[std::size(pattern) - 2] = '0' + j;
     absl::SetFlag(&FLAGS_vmodule, pattern);
     after[j] = true;
-    for (size_t i = 0; i < ABSL_ARRAYSIZE(after); ++i) {
+    for (size_t i = 0; i < std::size(after); ++i) {
       EXPECT_EQ(after[i], VLOG_IS_ON(i)) << j << " " << i;
     }
   }
@@ -640,7 +640,7 @@ TEST_F(VLogIsOnTest, VModuleOrdering) {
 
 TEST_F(VLogIsOnTest, VLogSiteModuleFlagChange) {
   bool before[] = {true, false, false, false, false};
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(before); ++i) {
+  for (size_t i = 0; i < std::size(before); ++i) {
     static absl::log_internal::VLogSite site(__FILE__);
     ASSERT_EQ(before[i], site.IsEnabled(i)) << i;
   }
@@ -648,12 +648,12 @@ TEST_F(VLogIsOnTest, VLogSiteModuleFlagChange) {
   bool after[] = {false, false, false, false, false};
   // Change through five different logging levels at the same logging
   // site.
-  for (size_t j = 0; j < ABSL_ARRAYSIZE(after); ++j) {
+  for (size_t j = 0; j < std::size(after); ++j) {
     char pattern[] = "log*=?";
-    pattern[ABSL_ARRAYSIZE(pattern) - 2] = '0' + j;
+    pattern[std::size(pattern) - 2] = '0' + j;
     absl::SetFlag(&FLAGS_vmodule, pattern);
     after[j] = true;
-    for (size_t i = 0; i < ABSL_ARRAYSIZE(after); ++i) {
+    for (size_t i = 0; i < std::size(after); ++i) {
       static absl::log_internal::VLogSite site(__FILE__);
       EXPECT_EQ(after[i], site.IsEnabled(i)) << "j=" << j << " i=" << i;
     }

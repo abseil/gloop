@@ -23,11 +23,11 @@
 #include <atomic>
 #include <cstring>
 #include <ctime>
+#include <iterator>
 
 #include "absl/base/attributes.h"
 #include "absl/base/call_once.h"
 #include "absl/base/log_severity.h"
-#include "absl/base/macros.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/log/globals.h"
 #include "absl/log/internal/globals.h"
@@ -100,8 +100,8 @@ void Google3AbortHook(const char* file, int line, const char* buf_start,
     crash_reason.line_number = line;
     // Don't include prefix
     crash_reason.message = absl::string_view(prefix_end);
-    crash_reason.depth = absl::GetStackTrace(
-        crash_reason.stack, ABSL_ARRAYSIZE(crash_reason.stack), 2);
+    crash_reason.depth = absl::GetStackTrace(crash_reason.stack,
+                                             std::size(crash_reason.stack), 2);
     base::SetCrashReason(&crash_reason);
   }
 #endif  // BASE_HAVE_CRASHREASON
