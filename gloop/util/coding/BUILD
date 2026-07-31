@@ -61,7 +61,6 @@ cc_library(
         "varint.h",
     ],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:uword",
         "//gloop/util/bits",
         "//gloop/util/endian",
@@ -85,7 +84,6 @@ cc_test(
     srcs = ["coder_unittest.cc"],
     deps = [
         ":coding",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl:unique_array",
         "//gloop/util/random:acmrandom",
         "//gloop/util/random:distributions",
@@ -107,7 +105,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":coding",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl:unique_array",
         "//gloop/util/random:acmrandom",
         "//gloop/util/random:distributions",
@@ -129,7 +126,6 @@ cc_test(
     srcs = ["huffcoding_unittest.cc"],
     deps = [
         ":coding",
-        "//gloop:gloop_test_main",
         "//gloop/util/endian",
         "//gloop/util/gtl:unique_array",
         "//gloop/util/hash",
@@ -151,7 +147,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         ":coding",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl:unique_array",
         "//gloop/util/random:acmrandom",
         "//gloop/util/random:distributions",
@@ -176,7 +171,6 @@ cc_test(
     stamp = 1,
     deps = [
         ":coding",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:distributions",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random:distributions",
@@ -198,7 +192,6 @@ cc_library(
     # optimization, use --per_file_copt=util/coding@-O0.
     copts = ["-O3"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:port",
         "//gloop/util/bits",
         "//gloop/util/endian",
@@ -218,7 +211,6 @@ cc_test(
     malloc = "//gloop:malloc",
     deps = [
         ":shrunk-array",
-        "//gloop:gloop_test_main",
         "//gloop/thread",
         "//gloop/util/endian",
         "@abseil-cpp//absl/log:check",

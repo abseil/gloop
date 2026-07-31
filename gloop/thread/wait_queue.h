@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // A thread-safe version of the STL queue, implementing a fifo or lifo queue.
 //
 // WaitQueue supports locking and waiting for data to appear.

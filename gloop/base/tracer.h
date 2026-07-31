@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Tracer is an interface that programmers can use to annotate the current
 // span of a distributed trace, as captured by the current TraceContext.
 // This is described in more detail below.

@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // X86 compatible cast library is provided to help programmers to clean up
 // float-cast-overflow failures. Before you use one of these calls, please
 // make sure the overflowed float value is expected, and not due to a bug

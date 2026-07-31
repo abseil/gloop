@@ -51,7 +51,6 @@ cc_library(
         ":hash128to64",
         ":jenkins",
         ":string_hash",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:port",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base",
@@ -75,7 +74,6 @@ cc_library(
     hdrs = ["seeds.h"],
     visibility = ["//visibility:private"],
     deps = [
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -88,7 +86,6 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/util/endian",
         "@abseil-cpp//absl/numeric:bits",
         "@abseil-cpp//absl/numeric:int128",
@@ -102,7 +99,6 @@ cc_test(
     srcs = ["farmhashte_test.cc"],
     deps = [
         ":farmhash",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/log",
@@ -117,7 +113,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":jenkins",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base",
     ],
 )
@@ -130,7 +125,6 @@ cc_library(
     ],
     deps = [
         ":city",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/strings:string_view",
     ],
@@ -144,7 +138,6 @@ cc_library(
         ":builtin_type_hash",
         ":hash",
         ":jenkins",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings:string_view",
     ],
 )
@@ -158,7 +151,6 @@ cc_library(
         ":hash",
         ":jenkins",
         ":seeds",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:string_view",
     ],
@@ -176,7 +168,6 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:port",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base",
@@ -207,7 +198,6 @@ cc_test(
         ":legacy_hash",
         ":murmur",
         ":string_hash",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
@@ -231,7 +221,6 @@ cc_test(
     deps = [
         ":builtin_type_hash",
         ":legacy_hash",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -246,7 +235,6 @@ cc_test(
         ":hash",
         ":legacy_hash_cord",
         ":murmur",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:cord_test_helpers",
@@ -262,7 +250,6 @@ cc_library(
     textual_hdrs = ["hash128to64.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/numeric:int128",
     ],
 )
@@ -273,7 +260,6 @@ cc_test(
     srcs = ["cityhash128_test.cc"],
     deps = [
         ":city",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/log",
@@ -294,8 +280,8 @@ cc_library(
     deps = [
         ":builtin_type_hash",
         ":farmhash",
+    ] + [
         ":hash128to64",
-        "//gloop:enforce_gloop_support",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/numeric:int128",
@@ -311,7 +297,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":murmur",
-        "//gloop:enforce_gloop_support",
         "//gloop/strings:cord_bytestream",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base:core_headers",
@@ -328,8 +313,6 @@ cc_library(
     deps = [
         ":fingerprint2011",
         ":hash",
-        "//gloop:enforce_gloop_support",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/log",
@@ -355,7 +338,6 @@ cc_library(
     hdrs = ["murmur.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
@@ -373,7 +355,6 @@ cc_test(
     srcs = ["murmur_test.cc"],
     deps = [
         ":murmur",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/numeric:int128",
@@ -391,7 +372,6 @@ cc_test(
     shard_count = 4,
     deps = [
         ":murmur",
-        "//gloop:gloop_test_main",
         "//gloop/util/endian",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base:config",
@@ -417,7 +397,6 @@ cc_library(
     hdrs = ["crc.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
@@ -439,7 +418,6 @@ cc_test(
     srcs = ["crc_concat_test.cc"],
     deps = [
         ":crc",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
@@ -453,7 +431,6 @@ cc_test(
     srcs = ["crc_unittest.cc"],
     deps = [
         ":crc",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
@@ -476,7 +453,6 @@ cc_test(
     ],
     deps = [
         ":crc",
-        "//gloop:gloop_test_main",
         "//gloop/util/bits",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
@@ -497,7 +473,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":string_hash",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings:string_view",
     ],
 )
@@ -508,7 +483,6 @@ cc_test(
     visibility = ["//visibility:public"],
     deps = [
         ":transparent_hash",
-        "//gloop:gloop_test_main",
         "//gloop/base:arena",
         "//gloop/strings:arena-string",
         "//gloop/util/gtl:stl_util",

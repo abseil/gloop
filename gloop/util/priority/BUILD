@@ -30,7 +30,6 @@ cc_library(
     srcs = ["io-priority.cc"],
     hdrs = ["io-priority.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:linux_syscall_support",
         "//gloop/base:sysinfo",
         "@abseil-cpp//absl/base:core_headers",
@@ -47,7 +46,6 @@ cc_test(
     srcs = ["io-priority_test.cc"],
     deps = [
         ":io-priority",
-        "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
         "//gloop/thread",
         "@abseil-cpp//absl/log:check",

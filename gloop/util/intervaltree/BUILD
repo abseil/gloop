@@ -29,7 +29,6 @@ cc_library(
         "intervaltree-inl.h",
     ],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:arena",
         "//gloop/base:arena_allocator",
         "@abseil-cpp//absl/log",
@@ -44,7 +43,6 @@ cc_test(
     malloc = "//gloop:malloc",
     deps = [
         ":intervaltree",
-        "//gloop:gloop_test_main",
         "//gloop/base:arena",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/container:node_hash_map",
