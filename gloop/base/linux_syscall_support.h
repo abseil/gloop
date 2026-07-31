@@ -974,7 +974,7 @@ static inline int lss_sigaction(int signum, const struct kernel_sigaction* act,
    * This function must have a "magic" signature that the "gdb"
    * (and maybe the kernel?) can recognize.
    */
-  if (act != NULL && !(act->sa_flags & SA_RESTORER)) {
+  if (act != nullptr && !(act->sa_flags & SA_RESTORER)) {
     struct kernel_sigaction a = *act;
     a.sa_flags |= SA_RESTORER;
     a.sa_restorer = sys_restore_rt();
@@ -1065,7 +1065,7 @@ static inline int lss_getresgid32(gid_t* rgid, gid_t* egid, gid_t* sgid,
   int rc;
   if ((rc = lss__getresgid32(rgid, egid, sgid, out_errno)) < 0 &&
       *out_errno == ENOSYS) {
-    if ((rgid == NULL) || (egid == NULL) || (sgid == NULL)) {
+    if ((rgid == nullptr) || (egid == nullptr) || (sgid == nullptr)) {
       return EFAULT;
     }
     // Clear the high bits first, since getresgid only sets 16 bits
@@ -1081,7 +1081,7 @@ static inline int lss_getresuid32(uid_t* ruid, uid_t* euid, uid_t* suid,
   int rc;
   if ((rc = lss__getresuid32(ruid, euid, suid, out_errno)) < 0 &&
       *out_errno == ENOSYS) {
-    if ((ruid == NULL) || (euid == NULL) || (suid == NULL)) {
+    if ((ruid == nullptr) || (euid == nullptr) || (suid == nullptr)) {
       *out_errno = EFAULT;
       return -1;
     }
@@ -1270,7 +1270,7 @@ static inline int lss_sigaction(int signum, const struct kernel_sigaction* act,
                                 int* out_errno) {
   int rc;
   struct kernel_sigaction a;
-  if (act != NULL) {
+  if (act != nullptr) {
     a = *act;
 #ifdef __i386__
     /* On i386, the kernel requires us to always set our own
@@ -1295,7 +1295,7 @@ static inline int lss_sigaction(int signum, const struct kernel_sigaction* act,
   if (rc < 0 && *out_errno == ENOSYS) {
     struct kernel_old_sigaction oa, ooa, *ptr_a = &oa, *ptr_oa = &ooa;
     if (!act) {
-      ptr_a = NULL;
+      ptr_a = nullptr;
     } else {
       oa.sa_handler_ = act->sa_handler_;
       memcpy(&oa.sa_mask, &act->sa_mask, sizeof(oa.sa_mask));
@@ -1303,7 +1303,7 @@ static inline int lss_sigaction(int signum, const struct kernel_sigaction* act,
       oa.sa_flags = act->sa_flags;
     }
     if (!oldact) {
-      ptr_oa = NULL;
+      ptr_oa = nullptr;
     }
     rc = lss__sigaction(signum, ptr_a, ptr_oa, out_errno);
     if (rc == 0 && oldact) {
@@ -1342,8 +1342,8 @@ static inline int lss_sigprocmask(int how, const struct kernel_sigset_t* set,
     if (oldset) {
       lss_sigemptyset(oldset);
     }
-    rc = lss__sigprocmask(how, set ? &set->sig[0] : NULL,
-                          oldset ? &oldset->sig[0] : NULL, out_errno);
+    rc = lss__sigprocmask(how, set ? &set->sig[0] : nullptr,
+                          oldset ? &oldset->sig[0] : nullptr, out_errno);
   }
   return rc;
 }
@@ -1725,9 +1725,9 @@ static inline int lss_poll(struct kernel_pollfd* fds, unsigned int nfds,
     timeout_ts.tv_sec = timeout_in_ms / 1000;
     ts_ptr = &timeout_ts;
   } else {
-    ts_ptr = NULL;
+    ts_ptr = nullptr;
   }
-  return lss_ppoll(fds, nfds, ts_ptr, NULL, 0, out_errno);
+  return lss_ppoll(fds, nfds, ts_ptr, nullptr, 0, out_errno);
 }
 SYS_WRAP_LSS3(int, poll, struct kernel_pollfd*, fds, unsigned int, nfds, int,
               timeout_in_ms);
