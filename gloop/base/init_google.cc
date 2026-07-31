@@ -236,7 +236,7 @@ static bool IsSetgidUser() {
 // enough capabilities, request is ignored.  Various logging messages
 // are generated, and if information about username cannot be obtained,
 // the program will abort with a fatal error.
-static void SwitchUser(const std::string& username) {
+static void SwitchUser(absl::string_view username) {
 #if GOOGLE_ENABLE_SETUID
   uid_t new_uid;
   CHECK(LookupUIDByName(username, &new_uid))
@@ -294,7 +294,7 @@ static void SwitchUser(const std::string& username) {
 // the current uid does not have enough capabilities, request is ignored.
 // Various logging messages are generated, and if information about username
 // cannot be obtained, the program will abort with a fatal error.
-static void SwitchGroup(const std::string& groupname, const std::string& uid) {
+static void SwitchGroup(absl::string_view groupname, absl::string_view uid) {
 #if defined(GOOGLE_ENABLE_SETGID)
   const int kMaxTries = 48;
 
@@ -340,7 +340,7 @@ static void SwitchGroup(const std::string& groupname, const std::string& uid) {
 
     if (!uid.empty()) {
       // initgroups gives access to user's supplementary groups.
-      PCHECK(initgroups(uid.c_str(), new_gid) == 0)
+      PCHECK(initgroups(std::string(uid).c_str(), new_gid) == 0)
           << "initgroups(" << uid << ", " << new_gid << ") failed";
     } else {
       // Restrict access to just the specified group.
