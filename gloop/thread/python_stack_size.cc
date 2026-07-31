@@ -43,6 +43,8 @@ size_t MaybeAdjustStackSize(const size_t requested_stack_size,
   // This value was chosen because 64k-128k defaults caused crashes on some
   // reasonably common Python callbacks.  b/22490382
   static const size_t kPythonMinProdStack = 240 * 1024;
+  // Keep a smaller stack size for test code to help shake out problems.
+  static const size_t kPythonMinTestStack = 180 * 1024;
   // A required test environment variable per <link>.
   // We explicitly chose NOT to key off TEST_SRCDIR as testing.pybase.basetest
   // sets that and gets used by non-test code.
@@ -51,13 +53,19 @@ size_t MaybeAdjustStackSize(const size_t requested_stack_size,
   // A value of 0 is allowed, it requests a huge default via thread.cc.
   if (requested_stack_size && requested_stack_size < kPythonMinProdStack) {
     if (is_a_test) {
-      // Keep the small stack size for test code to help shake out problems.
+      // Keep a smaller stack size for test code to help shake out problems.
       // This also allows C++ code being tested by a Python test to run with
       // the same setting a pure C++ application will have in production.
       LOG_EVERY_POW_2(INFO)
           << requesting_library_name << " thread stack size of "
           << requested_stack_size << " might be too small for Python callbacks."
           << " Crash? Read <link>.";
+      if (requested_stack_size < kPythonMinTestStack) {
+        LOG_FIRST_N(INFO, 1)
+            << requesting_library_name << " thread stack size increased to "
+            << kPythonMinTestStack << " for test Python use.";
+        return kPythonMinTestStack;
+      }
       return requested_stack_size;
     } else {
       // Raise the stack size in non-test Python applications.  This saves a
