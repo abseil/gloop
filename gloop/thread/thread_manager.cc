@@ -151,7 +151,7 @@ ABSL_FLAG(bool, threadmanager_eager_gc_threads, true,
           "of an issue and will be enabled for all users then removed soon. ");
 
 ABSL_FLAG(
-    bool, threadmanager_ignore_policy, true,
+    bool, threadmanager_ignore_policy, false,
     "If true, threadmanager will ignore the policy set and always use the "
     "default policy. "
     "NOTE: This flag is only intended for short-term rollbacks in case "
