@@ -196,7 +196,7 @@ size_t BaseArena::block_count() const {
 // Returns true iff it advances freestart_ to the first position
 // satisfying alignment without exhausting the current block.
 bool BaseArena::SatisfyAlignment(size_t alignment) {
-  const size_t overage = reinterpret_cast<size_t>(freestart_) & (alignment - 1);
+  const size_t overage = reinterpret_cast<size_t>(freestart_) % alignment;
   if (overage > 0) {
     const size_t waste = alignment - overage;
     if (waste >= remaining_) {
@@ -205,7 +205,7 @@ bool BaseArena::SatisfyAlignment(size_t alignment) {
     freestart_ += waste;
     remaining_ -= waste;
   }
-  DCHECK_EQ(0U, reinterpret_cast<size_t>(freestart_) & (alignment - 1));
+  DCHECK_EQ(0U, reinterpret_cast<size_t>(freestart_) % alignment);
   return true;
 }
 
@@ -364,8 +364,8 @@ void* BaseArena::GetMemoryFallback(const size_t size, const size_t alignment) {
     return nullptr;  // stl/stl_alloc.h says this is okay
   }
 
-  // alignment must be a positive power of 2.
-  CHECK(alignment > 0 && 0 == (alignment & (alignment - 1)));
+  // alignment must be positive.
+  CHECK_GT(alignment, 0);
 
   // If the object is more than a quarter of the block size, allocate
   // it separately to avoid wasting too much space in leftover bytes.
