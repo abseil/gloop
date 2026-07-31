@@ -1689,6 +1689,14 @@ Tracer* GetNoopTracer();
 // a TraceContext using perftools::tracing::AdoptTracer()
 std::unique_ptr<Tracer> GetNoopTracerForTesting();
 
+// Registers a provider to override the effective user ID used specifically
+// for tracing initiator attribution in Tracer::set_initiator_id().
+// Indirection via function pointer is used to break a circular build
+// dependency loop (perftools/tracing/public:trace_params depends on
+// gloop/base:tracecontext which depends on tracer).
+using TracingEffectiveUserIdProvider = std::optional<uint32_t> (*)();
+void SetTracingEffectiveUserIdProvider(TracingEffectiveUserIdProvider provider);
+
 }  // namespace base
 
 #endif  // THIRD_PARTY_GLOOP_BASE_TRACER_H_

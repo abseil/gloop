@@ -229,12 +229,36 @@ void Tracer::set_initiator_id_on_child_trace(uint64_t value) {
   initiator_id_.store(value, std::memory_order_relaxed);
 }
 
+static std::atomic<base::TracingEffectiveUserIdProvider>
+    g_tracing_effective_user_id_provider{nullptr};
+
+void SetTracingEffectiveUserIdProvider(
+    TracingEffectiveUserIdProvider provider) {
+  g_tracing_effective_user_id_provider.store(provider,
+                                             std::memory_order_relaxed);
+}
+
+// Returns the effective user ID for tracing initiator attribution. Checks the
+// registered provider (TraceParameters::GetProdUidOverride) first, falling back
+// to base::internal::GetEffectiveUserId() if no override is set.
+static std::optional<uint64_t> GetTracingEffectiveUserId() {
+  base::TracingEffectiveUserIdProvider provider =
+      g_tracing_effective_user_id_provider.load(std::memory_order_relaxed);
+  if (provider != nullptr) {
+    if (std::optional<uint32_t> override_uid = provider();
+        override_uid.has_value()) {
+      return *override_uid;
+    }
+  }
+  return internal::GetEffectiveUserId();
+}
+
 void Tracer::set_invalid_inherited_initiator_id() {
   // The initiator id has been lost. Introduce a new initiator id based on prod
   // UID if available, tagged with a marker that remembers that we synthesized
   // an initiator. See <link> for details. If prod UID is
   // not available, use kInitiatorNotSetByParent as a fallback.
-  std::optional<uint64_t> effective_uid = internal::GetEffectiveUserId();
+  std::optional<uint64_t> effective_uid = GetTracingEffectiveUserId();
   uint64_t initiator_id = effective_uid.has_value()
                               ? ((*effective_uid & kInitiatorValueMask) |
                                  kInitiatorTypeProdUid | kAdoptedInitiatorId)
@@ -245,7 +269,7 @@ void Tracer::set_invalid_inherited_initiator_id() {
 void Tracer::set_initiator_id(std::optional<uint64_t> initiate_as_prod_uid) {
   std::optional<uint64_t> effective_uid = initiate_as_prod_uid.has_value()
                                               ? initiate_as_prod_uid
-                                              : internal::GetEffectiveUserId();
+                                              : GetTracingEffectiveUserId();
   uint64_t initiator_id =
       effective_uid.has_value()
           ? ((*effective_uid & kInitiatorValueMask) | kInitiatorTypeProdUid)
