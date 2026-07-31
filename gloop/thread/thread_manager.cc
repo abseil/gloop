@@ -66,6 +66,8 @@
 
 #include "gloop/thread/thread_manager.h"
 
+#include <time.h>
+
 #include <algorithm>
 #include <atomic>
 #include <climits>
@@ -903,6 +905,12 @@ constexpr double SanitizerSlowdown() {
 #endif
 }
 
+static int64_t MonotonicMillis() {
+  struct timespec ts;
+  PCHECK(clock_gettime(CLOCK_MONOTONIC, &ts) == 0);
+  return static_cast<int64_t>(ts.tv_sec) * 1000 + ts.tv_nsec / 1000000;
+}
+
 // Body of the overseer thread, which starts and kills threads as required.
 // It calls TMOverseePool() for each pool to process.
 // L={}
@@ -933,7 +941,7 @@ static void TMOverseer() {
       watchdog->SetTimeoutDuration(watchdog_timeout);
     }
     tm_mu.lock();
-    int64_t now_ms = absl::ToUnixMillis(absl::Now());
+    int64_t now_ms = MonotonicMillis();
     int64_t delay_until_ms = now_ms + kTMOverseerSleepMS;
     bool ignore_wakeup_requests = false;
     for (ThreadManager::Rep* rep : TMVec()) {
@@ -953,22 +961,24 @@ static void TMOverseer() {
     // overseer sleep below.
     TMDestroyExitingThreads(&exiting_threads, watchdog.get());
     DCHECK(exiting_threads.empty());
-    absl::Time deadline = absl::FromUnixMillis(delay_until_ms);
+    int64_t sleep_duration_ms = delay_until_ms - MonotonicMillis();
+    if (sleep_duration_ms < 0) sleep_duration_ms = 0;
+    absl::Duration timeout = absl::Milliseconds(sleep_duration_ms);
     if (watchdog) {
       watchdog->Alive();
     }
 
     WaitStateScope scope(WaitStateScope::WaitState::kWaitingForWork);
     if (ignore_wakeup_requests) {
-      absl::SleepFor(deadline - absl::Now());
+      absl::SleepFor(timeout);
       // Clear any ignored wakeup request, since the overseer is waking up now.
       tm_overseer_wakeup_mu.lock();
       tm_overseer_wakeup_requested = false;
       tm_overseer_wakeup_mu.unlock();
     } else {
       // Wait until a wakeup request or a timeout.
-      tm_overseer_wakeup_mu.LockWhenWithDeadline(
-          absl::Condition(&tm_overseer_wakeup_requested), deadline);
+      tm_overseer_wakeup_mu.LockWhenWithTimeout(
+          absl::Condition(&tm_overseer_wakeup_requested), timeout);
       tm_overseer_wakeup_requested = false;
       tm_overseer_wakeup_mu.unlock();
     }
@@ -1156,8 +1166,8 @@ static bool TMNeedWakeOverseer(TMPool* pool) {
   // the overseer unless there's some chance it will do something for us.
   // The test against pool->overseer_woken squashes multiple wakeups.
   if (!pool->overseer_woken.load(std::memory_order_relaxed) &&
-      absl::FromUnixMillis(pool->delay_until_ms.load(
-          std::memory_order_relaxed)) <= absl::Now()) {
+      pool->delay_until_ms.load(std::memory_order_relaxed) <=
+          MonotonicMillis()) {
     pool->overseer_woken.store(true, std::memory_order_relaxed);
     return true;
   }
