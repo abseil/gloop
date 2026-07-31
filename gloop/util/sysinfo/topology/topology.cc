@@ -1522,21 +1522,20 @@ bool SysTopology::IsChipletBased() const {
 
 std::string SysTopology::ToString() const {
   std::ostringstream buf;
-  buf << "all_cpus = " << all_cpus_ << std::endl;
+  buf << "all_cpus = " << all_cpus_ << "\n";
   buf << "levels = "
-      << MapToString(std::map(levelnames_.begin(), levelnames_.end()))
-      << std::endl;
+      << MapToString(std::map(levelnames_.begin(), levelnames_.end())) << "\n";
   for (const auto& l : levels_) {
-    buf << std::endl
+    buf << "\n"
         << "level = " << gtl::LogContainer(l.names, gtl::LogLegacyUpTo100())
-        << std::endl;
-    buf << "count = " << std::dec << l.count << std::endl;
+        << "\n";
+    buf << "count = " << std::dec << l.count << "\n";
     buf << "children[] = " << std::hex
-        << gtl::LogContainer(l.children, gtl::LogLegacyUpTo100()) << std::endl;
+        << gtl::LogContainer(l.children, gtl::LogLegacyUpTo100()) << "\n";
     buf << "parents[] = "
-        << gtl::LogContainer(l.parent, gtl::LogLegacyUpTo100()) << std::endl;
+        << gtl::LogContainer(l.parent, gtl::LogLegacyUpTo100()) << "\n";
     buf << "siblings[] = "
-        << gtl::LogContainer(l.siblings, gtl::LogLegacyUpTo100()) << std::endl;
+        << gtl::LogContainer(l.siblings, gtl::LogLegacyUpTo100()) << "\n";
     if (!l.mems.empty()) {
       std::ostringstream tmp_buf;
       tmp_buf << "mems[[]] = ";
@@ -1546,47 +1545,46 @@ std::string SysTopology::ToString() const {
       }
       std::string tmp_str = tmp_buf.str();
       absl::StripTrailingAsciiWhitespace(&tmp_str);
-      buf << std::dec << tmp_str << std::endl;
+      buf << std::dec << tmp_str << "\n";
     }
   }
-  buf << "low_latency_cpus = " << low_latency_cpus_ << std::endl;
+  buf << "low_latency_cpus = " << low_latency_cpus_ << "\n";
 
   // Dump CPUPairCacheLocalityScore info iff:
   //   1) cache info is available; and
   //   2) NumCPUs() <= 64 (log spam).
   if (FindLevel("l2cache") != -1 && NumCPUs() <= 64) {
-    buf << std::endl;
-    buf << "CPUPairCacheLocalityScore:" << std::endl;
+    buf << "\nCPUPairCacheLocalityScore:\n";
     for (int i = 0; i < NumCPUs(); i++) {
       for (int j = 0; j < NumCPUs(); j++) {
         buf << "" << CPUPairCacheLocalityScore(i, j);
         if (j != NumCPUs() - 1) buf << " ";
       }
-      buf << std::endl;
+      buf << "\n";
     }
   }
 
   // dump NodePairMemDistance info on multi-node machines
   if (NumNodes() > 1) {
-    buf << std::endl;
-    buf << "NodePairMemDistance:" << std::endl;
+    buf << "\n";
+    buf << "NodePairMemDistance:" << "\n";
     for (int i = 0; i < NumNodes(); i++) {
       for (int j = 0; j < NumNodes(); j++) {
         buf << "" << std::dec << NodePairMemDistance(i, j);
         if (j != NumNodes() - 1) buf << " ";
       }
-      buf << std::endl;
+      buf << "\n";
     }
   }
 
   // dump cache info
   if (!cache_.empty()) {
-    buf << std::endl;
-    buf << "CacheInfo:" << std::endl;
+    buf << "\n";
+    buf << "CacheInfo:" << "\n";
     for (const auto& cii : cache_) {
       buf << "Level " << cii.level << " " << cii.type << " cache, size "
           << cii.size_kb << " KB,"
-          << " number of caches: " << cii.num << std::endl;
+          << " number of caches: " << cii.num << "\n";
     }
   }
 
