@@ -34,7 +34,7 @@ namespace logging_testing {
 // test to test, e.g. timestamp and thread ID fields.  Returns `absl::nullopt`
 // if the line is to be dropped altogether, e.g. `FlagSaver` lines which only
 // appear on some platforms.
-std::optional<std::string> MungeLine(std::string line);
+std::optional<std::string> MungeLine(absl::string_view line);
 
 // Reads `filename` into a string.
 absl::StatusOr<std::string> ReadFile(absl::string_view filename);

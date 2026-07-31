@@ -44,7 +44,8 @@ namespace logging_testing {
 namespace {
 // Munges the message portion of a log line, i.e. excluding the prefix, to
 // homogenize minor platform differences.
-std::string MungeMessage(std::string message) {
+std::string MungeMessage(absl::string_view message_view) {
+  std::string message(message_view);
   absl::StrReplaceAll(
       {
           // Null pointers print differently on different platforms:
@@ -67,13 +68,13 @@ std::string MungeMessage(std::string message) {
 }
 }  // namespace
 
-std::optional<std::string> MungeLine(std::string line) {
+std::optional<std::string> MungeLine(absl::string_view line) {
   // absl::FlagSaver does some logging we wish to ignore because it is not
   // present on platforms lacking full flags support.
   static constexpr LazyRE2 flagsaver_re = {"(flag.cc):[0-9]+\\] Restore saved"};
   if (RE2::PartialMatch(line, *flagsaver_re)) return std::nullopt;
 
-  if (!line.empty() && line.back() == '\r') line.pop_back();
+  if (absl::EndsWith(line, "\r")) line.remove_suffix(1);
 
   // Matches the severity, filename, and message from a log line so that we can
   // reconstruct a munged line without other (unstable) metadata, e.g.
@@ -88,8 +89,8 @@ std::optional<std::string> MungeLine(std::string line) {
   absl::string_view severity, filename, message;
   if (RE2::FullMatch(line, *prefix_re, &severity, &filename, &message))
     return absl::StrCat(severity, "DATE TIME__ ", filename, ":LINE]",
-                        MungeMessage(std::string(message)));
-  return MungeMessage(std::move(line));
+                        MungeMessage(message));
+  return MungeMessage(line);
 }
 
 absl::StatusOr<std::string> ReadFile(absl::string_view filename) {
@@ -126,7 +127,7 @@ absl::StatusOr<std::string> MungeFile(absl::string_view file,
   std::deque<std::string> munged_lines;
   for (absl::string_view line :
        absl::StrSplit(*raw_contents, absl::ByChar('\n'))) {
-    std::optional<std::string> munged_line = MungeLine(std::string(line));
+    std::optional<std::string> munged_line = MungeLine(line);
     if (munged_line) munged_lines.push_back(*std::move(munged_line));
   }
   const std::string munged_contents = absl::StrJoin(munged_lines, "\n");
