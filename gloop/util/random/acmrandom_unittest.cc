@@ -28,6 +28,7 @@
 #include <string.h>
 
 #include <cstdint>
+#include <iterator>
 #include <string>
 
 #include "absl/base/macros.h"
@@ -98,7 +99,7 @@ TEST(ACMRandomTest, TestExpected64) {
     // against a table of expected values.
     int64_t ref_value = ref_rnd.Next();
     ref_value = (ref_value - 1) * (M - 1) + ref_rnd.Next();
-    if (i < ABSL_ARRAYSIZE(expected)) {
+    if (i < std::size(expected)) {
       CHECK_EQ(ref_value, expected[i]);
     }
     CHECK_EQ(rnd.Next64(), ref_value);

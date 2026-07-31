@@ -28,6 +28,7 @@
 
 #include <cstdint>
 #include <initializer_list>
+#include <iterator>
 #include <vector>
 
 #include "absl/log/check.h"
@@ -119,7 +120,7 @@ class DecrementingSequence : public Sequence {
 //
 // iterator / array ex:
 //   uint64 array[] = { 0, 1, 2, 3 };
-//   VectorSequence s(array, array+ABSL_ARRAYSIZE(array));
+//   VectorSequence s(array, array+std::size(array));
 //
 // vector ex:
 //   vector<uint64> seq = { 0, 1, 2, 3 };
