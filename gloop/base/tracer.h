@@ -917,6 +917,14 @@ class Tracer {
     cpu_profile_ticks_.fetch_add(ticks, std::memory_order_relaxed);
   }
 
+  // Returns the total lock contention delay accumulated in this Tracer, if
+  // supported by the concrete tracer type.
+  virtual uint64_t lock_contention_delay_us() const { return 0; }
+
+  // Increments the lock contention delay by the specified number of
+  // microseconds, if supported by the concrete tracer type.
+  virtual void add_lock_contention_delay_us_safe(uint64_t delay_us) {}
+
   // Registers a notification to be called just before this Tracer's final
   // ref is released by the application.
   //
