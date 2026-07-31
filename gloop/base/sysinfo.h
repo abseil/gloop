@@ -55,6 +55,7 @@
 #include "absl/base/internal/sysinfo.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "gloop/base/auxiliary/parsed_process_stat.h"  // IWYU pragma: export
 #include "gloop/base/port.h"                           // IWYU pragma: keep
@@ -412,7 +413,7 @@ typedef absl::flat_hash_map<std::string, std::string> ProcMap;
 // boundary, and use the left and right sides as key and value to
 // insert into the passed ProcMap. Any lines not containing a colon
 // are ignored. Whitespace is not (currently) stripped from the results.
-bool ReadProcMap(const std::string& path, ProcMap* res);
+bool ReadProcMap(absl::string_view path, ProcMap* res);
 
 #endif /* __linux__ */
 

@@ -95,6 +95,7 @@
 #include "absl/strings/resize_and_overwrite.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
+#include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
@@ -421,8 +422,8 @@ int ReadProcFileToBuffer(const char* filename, pid_t pid, size_t max_size,
 // boundary, and use the left and right sides as key and value to
 // insert into the passed ProcMap.
 
-bool ReadProcMap(const std::string& path, ProcMap* res) {
-  FILE* f = OpenProcFile(path.c_str(), -1);
+bool ReadProcMap(absl::string_view path, ProcMap* res) {
+  FILE* f = OpenProcFile(std::string(path).c_str(), -1);
   if (!f) return false;
 
   // Scan through to find all keywords
