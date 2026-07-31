@@ -1326,7 +1326,7 @@ TEST(RestartableSequences, CorruptedRseqStateDeathTest) {
         // Corrupt rseq state, then try to reinitialize this thread.  We might
         // get preempted while this is happening, so we make several attempts.
         for (int i = 0; i < 10; ++i) {
-          __rseq_abi.cpu_id = -1;
+          rseq_abi.cpu_id = -1;
           CHECK(IsFast());
         }
       },

@@ -60,14 +60,14 @@ TEST(PerCpuTest, ForkSafe) {
 
   const int num_cpus = NumCPUs();
 
-  ASSERT_GE(__rseq_abi.cpu_id, 0);
-  ASSERT_LT(__rseq_abi.cpu_id, num_cpus);
+  ASSERT_GE(rseq_abi.cpu_id, 0);
+  ASSERT_LT(rseq_abi.cpu_id, num_cpus);
 
   ASSERT_GE(*reinterpret_cast<volatile uint16_t*>(
-                reinterpret_cast<volatile char*>(&__rseq_abi) + offset),
+                reinterpret_cast<volatile char*>(&rseq_abi) + offset),
             0);
   ASSERT_LT(*reinterpret_cast<volatile uint16_t*>(
-                reinterpret_cast<volatile char*>(&__rseq_abi) + offset),
+                reinterpret_cast<volatile char*>(&rseq_abi) + offset),
             num_cpus);
 
   pid_t p = fork();
@@ -77,7 +77,7 @@ TEST(PerCpuTest, ForkSafe) {
     // Child.  Do not allocate here, as incorrect CPU IDs may prevent TCMalloc
     // from working correctly.
     for (int i = 0; i < 1000; i++) {
-      int cpu = __rseq_abi.cpu_id;
+      int cpu = rseq_abi.cpu_id;
       if (cpu < 0) {
         ABSL_RAW_LOG(FATAL, "cpu (%d) < 0", cpu);
       } else if (cpu >= num_cpus) {
@@ -85,7 +85,7 @@ TEST(PerCpuTest, ForkSafe) {
       }
 
       int vcpu = *reinterpret_cast<volatile uint16_t*>(
-          reinterpret_cast<volatile char*>(&__rseq_abi) + offset);
+          reinterpret_cast<volatile char*>(&rseq_abi) + offset);
 
       if (vcpu < 0) {
         ABSL_RAW_LOG(FATAL, "vcpu (%d) < 0", vcpu);
@@ -93,10 +93,10 @@ TEST(PerCpuTest, ForkSafe) {
         ABSL_RAW_LOG(FATAL, "vcpu (%d) > num_cpus (%d)", vcpu, num_cpus);
       }
 
-      __rseq_abi.cpu_id = -1;
-      __rseq_abi.numa_node_id = -1;
-      __rseq_abi.vcpu_id = -1;
-      __rseq_abi.mm_cid = -1;
+      rseq_abi.cpu_id = -1;
+      rseq_abi.numa_node_id = -1;
+      rseq_abi.vcpu_id = -1;
+      rseq_abi.mm_cid = -1;
       absl::SleepFor(absl::Milliseconds(1));
     }
 

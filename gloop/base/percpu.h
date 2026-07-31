@@ -106,7 +106,7 @@ int GetCurrentCpu();
 // correct, and base::NumCPUs() is accurate again.
 int NumCPUs();
 
-// Returns whether or not __rseq_abi.vcpu_id is populated using the flat CPU ID
+// Returns whether or not rseq_abi.vcpu_id is populated using the flat CPU ID
 // model, without providing the NUMA node.
 bool UsingRseqVirtualCpus();
 
@@ -267,19 +267,19 @@ inline constexpr int kCpuIdInitialized = 0;
 extern "C" ABSL_CONST_INIT size_t __rseq_virtual_flat_cpu_id_offset;
 
 #if PERCPU_USE_RSEQ
-extern "C" ABSL_CONST_INIT thread_local volatile kernel_rseq __rseq_abi;
+extern "C" ABSL_CONST_INIT thread_local volatile kernel_rseq rseq_abi;
 
-inline int RseqCpuId() { return __rseq_abi.cpu_id; }
+inline uint32_t RseqCpuId() { return rseq_abi.cpu_id; }
 ABSL_DEPRECATED("Prefer RseqVirtualFlatCpuId")
-inline int16_t RseqVcpuId() { return __rseq_abi.vcpu_id; }
+inline int16_t RseqVcpuId() { return rseq_abi.vcpu_id; }
 ABSL_DEPRECATED("Prefer RseqVirtualFlatCpuId")
-inline int RseqVcpuFlat() { return __rseq_abi.vcpu_flat; }
+inline int RseqVcpuFlat() { return rseq_abi.vcpu_flat; }
 inline int16_t RseqVirtualFlatCpuId() {
   return *reinterpret_cast<volatile int16_t*>(
-      reinterpret_cast<volatile char*>(&__rseq_abi) +
+      reinterpret_cast<volatile char*>(&rseq_abi) +
       __rseq_virtual_flat_cpu_id_offset);
 }
-inline volatile kernel_rseq* RseqAbi() { return &__rseq_abi; }
+inline volatile kernel_rseq* RseqAbi() { return &rseq_abi; }
 #else  // !PERCPU_USE_RSEQ
 inline int RseqCpuId() { return kCpuIdUnsupported; }
 inline int16_t RseqVcpuId() { return kCpuIdUnsupported; }

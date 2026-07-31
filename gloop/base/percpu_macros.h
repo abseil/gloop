@@ -121,7 +121,7 @@
 #if PERCPU_USE_RSEQ
 #include "tcmalloc/internal/linux_syscall_support.h"
 
-extern "C" ABSL_CONST_INIT thread_local volatile kernel_rseq __rseq_abi;
+extern "C" ABSL_CONST_INIT thread_local volatile kernel_rseq rseq_abi;
 #endif
 
 namespace base {
@@ -218,7 +218,7 @@ namespace percpu {
       [percpu_vcpu_id] "n"(offsetof(kernel_rseq, vcpu_id))
 
 #define PERCPU_RSEQ_INPUTS \
-  PERCPU_RSEQ_INPUTS_P(&::base::subtle::percpu::__rseq_abi)
+  PERCPU_RSEQ_INPUTS_P(&::base::subtle::percpu::rseq_abi)
 
 #if !defined(__clang_major__) || __clang_major__ >= 9
 #define PERCPU_RSEQ_RELOC ".reloc 0, " PERCPU_RSEQ_RELOC_ARCH ", 1f\n"
