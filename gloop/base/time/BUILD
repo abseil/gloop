@@ -47,10 +47,9 @@ cc_test(
     srcs = ["time_unix_nanos_test.cc"],
     deps = [
         ":time_unix_nanos",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

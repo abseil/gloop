@@ -42,7 +42,6 @@ cc_test(
     srcs = ["acmrandom_unittest.cc"],
     deps = [
         ":acmrandom",
-        "//gloop:gloop_test_main",
         "//gloop/util/math:mathutil",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:fixed_array",
@@ -52,7 +51,7 @@ cc_test(
         "@abseil-cpp//absl/strings:str_format",
         "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -78,13 +77,12 @@ cc_test(
     deps = [
         ":distributions",
         ":mock_distributions",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random:mocking_bit_gen",
         "@abseil-cpp//absl/random/internal:distribution_test_util",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -110,13 +108,12 @@ cc_test(
     shard_count = 2,
     deps = [
         ":global_id",
-        "//gloop:gloop_test_main",
         "//gloop/thread",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -160,12 +157,11 @@ cc_test(
     deps = [
         ":mt_random",
         ":secure_random_testutils",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:btree",
         "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -194,11 +190,10 @@ cc_test(
         ":mt_random",
         ":random_base",
         ":test_random",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/numeric:bits",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -246,10 +241,9 @@ cc_test(
     srcs = ["shared_bit_gen_test.cc"],
     deps = [
         ":shared_bit_gen",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random:distributions",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

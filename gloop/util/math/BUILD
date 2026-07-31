@@ -43,14 +43,13 @@ cc_test(
     srcs = ["constant_divisor_test.cc"],
     deps = [
         ":constant_divisor",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random:bit_gen_ref",
         "@abseil-cpp//absl/random:distributions",
         "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -70,13 +69,12 @@ cc_test(
     deps = [
         ":fastmath",
         ":mathutil",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -100,13 +98,12 @@ cc_test(
     srcs = ["kendalls-tau_test.cc"],
     deps = [
         ":kendalls-tau",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
         "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -124,10 +121,9 @@ cc_test(
     srcs = ["mathlimits_unittest.cc"],
     deps = [
         ":mathlimits",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -154,12 +150,11 @@ cc_test(
     deps = [
         ":mathlimits",
         ":mathutil",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/numeric:int128",
         "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -182,7 +177,6 @@ cc_test(
     srcs = ["round_test.cc"],
     deps = [
         ":round",
-        "//gloop:gloop_test_main",
         "//gloop/strings:numbers",
         "//gloop/util/bits",
         "@abseil-cpp//absl/log:check",
@@ -190,6 +184,6 @@ cc_test(
         "@abseil-cpp//absl/random:distributions",
         "@abseil-cpp//absl/strings:str_format",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

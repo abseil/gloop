@@ -51,7 +51,6 @@ cc_test(
     srcs = ["loop_executor_test.cc"],
     deps = [
         ":loop_executor",
-        "//gloop:gloop_test_main",
         "//gloop/base:atomic_sequence_num",
         "//gloop/base:callback",
         "//gloop/thread",
@@ -60,6 +59,6 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

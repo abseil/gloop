@@ -53,11 +53,10 @@ cc_test(
     srcs = ["backoff_test.cc"],
     deps = [
         ":backoff",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -106,7 +105,6 @@ cc_test(
     srcs = ["monotonic_clock_test.cc"],
     deps = [
         ":monotonic_clock",
-        "//gloop:gloop_test_main",
         "//gloop/base:commandlineflags",
         "//gloop/thread",
         "//gloop/util/random:acmrandom",
@@ -122,7 +120,7 @@ cc_test(
         "@abseil-cpp//absl/time:clock_interface",
         "@abseil-cpp//absl/time:simulated_clock",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -131,12 +129,11 @@ cc_test(
     srcs = ["protoutil_test.cc"],
     deps = [
         ":protoutil",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_matchers",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
         "@protobuf//:duration_cc_proto",
         "@protobuf//:timestamp_cc_proto",
     ],

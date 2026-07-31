@@ -38,12 +38,11 @@ cc_test(
     srcs = ["regexp_flag_test.cc"],
     deps = [
         ":regexp_flag",
-        "//gloop:gloop_test_main",
         "//gloop/base:commandlineflags",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
         "@re2",
     ],
 )

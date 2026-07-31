@@ -76,10 +76,9 @@ cc_test(
     linkstatic = True,
     deps = [
         ":filewrapper_testdata",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

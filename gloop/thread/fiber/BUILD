@@ -127,7 +127,6 @@ cc_test(
         ":probabilistic_test_util",
         ":select",
         ":selectables",
-        "//gloop:gloop_test_main",
         "//gloop/base:config",
         "//gloop/base:context",
         "//gloop/base:walltime",
@@ -137,7 +136,7 @@ cc_test(
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/time:simulated_clock",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -240,14 +239,13 @@ cc_test(
         ":fiber",
         ":fiber-options",
         ":fifolifo-schedulers",
-        "//gloop:gloop_test_main",
         "//gloop/base/scheduling",
         "//gloop/base/scheduling:low-level-support",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -267,7 +265,6 @@ cc_test(
         ":fifolifo-schedulers",
         ":select",
         ":selectables",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/base:cancellation_coloring",
         "//gloop/base:context",
@@ -298,7 +295,7 @@ cc_test(
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/time:clock_interface",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ] + select({
         "//conditions:default": [],
     }),
@@ -315,13 +312,12 @@ cc_test(
     deps = [
         ":fiber",
         ":select",
-        "//gloop:gloop_test_main",
         "//gloop/base:context",
         "//gloop/thread",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -331,10 +327,9 @@ cc_test(
         srcs = ["pthread-domain_test.cc"],
         deps = [
             ":fiber",
-            "//gloop:gloop_test_main",
             "//gloop/base/scheduling:domain-test",
             "@google_benchmark//:benchmark",
-            "@googletest//:gtest",
+            "@googletest//:gtest_main",
         ] + add_deps,
     )
     for suffix, add_deps in [
@@ -348,12 +343,11 @@ cc_test(
     linkstatic = 1,
     deps = [
         ":fiber",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/time:simulated_clock",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -405,11 +399,10 @@ cc_test(
     deps = [
         ":fiber",
         ":fiber-options",
-        "//gloop:gloop_test_main",
         "//gloop/thread/fiber/internal:fiber_thread_options",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -457,11 +450,10 @@ cc_test(
     srcs = ["futex-domain_test.cc"],
     deps = [
         ":futex-domain",
-        "//gloop:gloop_test_main",
         "//gloop/base/scheduling",
         "//gloop/base/scheduling:domain-test",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -483,10 +475,9 @@ cc_library(
     ],
     deps = [
         "//gloop:enforce_gloop_support",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -495,10 +486,9 @@ cc_test(
     srcs = ["probabilistic_test_util_test.cc"],
     deps = [
         ":probabilistic_test_util",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -524,7 +514,6 @@ cc_test(
     srcs = ["scheduler-types_test.cc"],
     deps = [
         ":scheduler_types",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/thread",
         "//gloop/util/functional:to_callback",
@@ -533,7 +522,7 @@ cc_test(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -565,14 +554,13 @@ cc_test(
         ":fifolifo-schedulers",
         ":priority_admission_scheduler",
         ":select",
-        "//gloop:gloop_test_main",
         "//gloop/base/scheduling",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -652,7 +640,6 @@ cc_library(
         ":select",
         ":selectables",
         "//gloop:enforce_gloop_support",
-        "//gloop:gloop_test_main",
         "//gloop/base:cancellation_coloring",
         "//gloop/base:context",
         "//gloop/base:walltime",
@@ -667,7 +654,7 @@ cc_library(
         "@abseil-cpp//absl/time:clock_interface",
         "@abseil-cpp//absl/time:simulated_clock",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
     alwayslink = 1,
 )

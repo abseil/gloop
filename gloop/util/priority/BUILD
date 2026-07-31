@@ -47,11 +47,10 @@ cc_test(
     srcs = ["io-priority_test.cc"],
     deps = [
         ":io-priority",
-        "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
         "//gloop/thread",
         "@abseil-cpp//absl/log:check",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

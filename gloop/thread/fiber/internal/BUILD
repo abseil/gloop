@@ -104,7 +104,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":fiber_thread_pool",
-        "//gloop:gloop_test_main",
         "//gloop/base/scheduling",
         "//gloop/thread/fiber",
         "//gloop/thread/fiber:fiber-options",
@@ -115,6 +114,6 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

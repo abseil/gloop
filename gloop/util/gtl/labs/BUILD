@@ -42,7 +42,6 @@ cc_test(
     srcs = ["sorted_range_test.cc"],
     deps = [
         ":sorted_range",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl:comparator",
         "//gloop/util/gtl:iterator_adaptors",
         "@abseil-cpp//absl/container:flat_hash_map",
@@ -50,6 +49,6 @@ cc_test(
         "@abseil-cpp//absl/container:node_hash_map",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

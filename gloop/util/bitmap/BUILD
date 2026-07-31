@@ -54,12 +54,11 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":bitmap",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base:dynamic_annotations",
         "@abseil-cpp//absl/flags:flag",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -71,7 +70,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":bitmap",
-        "//gloop:gloop_test_main",
         "//gloop/util/coding",
         "//gloop/util/random:acmrandom",
         "//gloop/util/random:mt_random",
@@ -81,7 +79,7 @@ cc_test(
         "@abseil-cpp//absl/hash",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -91,11 +89,10 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":bitmap",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:shared_bit_gen",
         "@abseil-cpp//absl/hash:hash_testing",
         "@abseil-cpp//absl/log",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

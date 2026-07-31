@@ -50,7 +50,6 @@ cc_test(
     srcs = ["blocking_callback_unittest.cc"],
     deps = [
         ":blocking_callback",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/thread",
         "//gloop/util/functional:from_callback",
@@ -59,7 +58,7 @@ cc_test(
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -83,7 +82,6 @@ cc_test(
     srcs = ["cancellable_closure_test.cc"],
     deps = [
         ":cancellable_closure",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/thread",
         "//gloop/util/functional:from_callback",
@@ -92,6 +90,6 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

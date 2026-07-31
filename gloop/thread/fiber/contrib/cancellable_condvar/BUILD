@@ -43,7 +43,6 @@ cc_test(
     shard_count = 5,
     deps = [
         ":cancellable_condvar",
-        "//gloop:gloop_test_main",
         "//gloop/thread/fiber",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/functional:bind_front",
@@ -55,5 +54,6 @@ cc_test(
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

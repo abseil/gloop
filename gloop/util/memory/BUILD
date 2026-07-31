@@ -38,9 +38,8 @@ cc_test(
     srcs = ["free_deleter_test.cc"],
     deps = [
         ":free_deleter",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -109,11 +108,10 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":memory_mapped_io_test_data",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/log:check",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -125,9 +123,8 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":memory_mapped_io",
-        "//gloop:gloop_test_main",
         "//gloop/base:proc_maps",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

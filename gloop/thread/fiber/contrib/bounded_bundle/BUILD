@@ -40,13 +40,12 @@ cc_test(
     srcs = ["bounded_bundle_test.cc"],
     deps = [
         ":bounded_bundle",
-        "//gloop:gloop_test_main",
         "//gloop/thread/fiber",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@gloop//gloop/util/status:codes_cc_proto",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

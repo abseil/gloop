@@ -46,7 +46,6 @@ cc_test(
     srcs = ["fixed_size_object_pool_unittest.cc"],
     deps = [
         ":fixed_size_object_pool",
-        "//gloop:gloop_test_main",
         "//gloop/base:timer",
         "//gloop/thread",
         "@abseil-cpp//absl/container:btree",
@@ -54,6 +53,6 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

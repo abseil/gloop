@@ -50,11 +50,10 @@ cc_test(
     srcs = ["barrier_test.cc"],
     deps = [
         ":barrier",
-        "//gloop:gloop_test_main",
         "//gloop/thread/fiber",
         "@abseil-cpp//absl/synchronization",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -79,9 +78,8 @@ cc_test(
     srcs = ["incremental_barrier_unittest.cc"],
     deps = [
         ":incremental_barrier",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/functional:any_invocable",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

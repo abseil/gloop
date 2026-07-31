@@ -46,7 +46,6 @@ cc_test(
     srcs = ["status_bundle_test.cc"],
     deps = [
         ":status_bundle",
-        "//gloop:gloop_test_main",
         "//gloop/base:context",
         "//gloop/base:tracecontext",
         "//gloop/base:tracer",
@@ -61,6 +60,6 @@ cc_test(
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

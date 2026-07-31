@@ -49,7 +49,6 @@ cc_test(
     srcs = ["selector_test.cc"],
     deps = [
         ":selector",
-        "//gloop:gloop_test_main",
         "//gloop/thread/fiber",
         "//gloop/thread/fiber:channel",
         "//gloop/thread/fiber:select",
@@ -60,6 +59,6 @@ cc_test(
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/time:simulated_clock",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

@@ -39,11 +39,10 @@ cc_test(
     deps = [
         ":auto_function_runner",
         ":to_callback",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "@abseil-cpp//absl/functional:any_invocable",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -75,14 +74,13 @@ cc_test(
     deps = [
         ":from_callback",
         ":to_callback",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/functional:bind_front",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -122,11 +120,10 @@ cc_test(
     srcs = ["to_callback_benchmark.cc"],
     deps = [
         ":to_callback",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/base:context",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -136,14 +133,13 @@ cc_test(
     deps = [
         ":from_callback",
         ":to_callback",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/base:context",
         "//gloop/base:tracecontext",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -164,9 +160,8 @@ cc_test(
     srcs = ["to_shared_function_test.cc"],
     deps = [
         ":to_shared_function",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -202,7 +197,6 @@ cc_test(
     srcs = ["with_context_test.cc"],
     deps = [
         ":with_context",
-        "//gloop:gloop_test_main",
         "//gloop/base:context",
         "//gloop/base:tracecontext",
         "//gloop/perftools/tracing:mock_trace_event_listener",
@@ -210,7 +204,7 @@ cc_test(
         "//gloop/perftools/tracing:with_trace_event_listener",
         "@abseil-cpp//absl/functional:any_invocable",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -219,10 +213,9 @@ cc_test(
     srcs = ["with_context_benchmark.cc"],
     deps = [
         ":with_context",
-        "//gloop:gloop_test_main",
         "//gloop/base:context",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -232,12 +225,11 @@ cc_test(
     deps = [
         ":callable_once",
         ":to_callback",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log:check",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -256,12 +248,11 @@ cc_test(
     srcs = ["transitional_test.cc"],
     deps = [
         ":transitional",
-        "//gloop:gloop_test_main",
         "//gloop/base:context",
         "//gloop/base:tracecontext",
         "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/synchronization",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

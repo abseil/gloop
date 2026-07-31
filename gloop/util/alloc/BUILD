@@ -46,9 +46,8 @@ cc_test(
         ":best-fit-allocator",
         ":block-allocator",
         ":tested-allocator",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -85,10 +84,9 @@ cc_test(
         ":block-allocator",
         ":size-based-allocator",
         ":tested-allocator",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -102,6 +100,6 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest_for_library",
+        "@googletest//:gtest",
     ],
 )

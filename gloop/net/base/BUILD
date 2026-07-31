@@ -71,7 +71,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":ipaddress",
-        "//gloop:gloop_test_main",
         "//gloop/strings:host_port",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base:log_severity",
@@ -95,6 +94,6 @@ cc_test(
         "@abseil-cpp//absl/types:source_location",
         "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

@@ -45,13 +45,12 @@ cc_test(
     srcs = ["testvalue_test.cc"],
     deps = [
         ":testvalue",
-        "//gloop:gloop_test_main",
         "//gloop/thread",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

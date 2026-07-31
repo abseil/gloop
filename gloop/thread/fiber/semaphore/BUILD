@@ -74,7 +74,6 @@ cc_test(
     deps = [
         ":fifo_semaphore",
         ":ordered_semaphore",
-        "//gloop:gloop_test_main",
         "//gloop/thread/fiber",
         "//gloop/thread/fiber:select",
         "@abseil-cpp//absl/functional:bind_front",
@@ -84,6 +83,6 @@ cc_test(
         "@abseil-cpp//absl/status:status_matchers",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

@@ -43,9 +43,8 @@ cc_test(
     srcs = ["bindings_test.cc"],
     deps = [
         ":bindings",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -67,11 +66,10 @@ cc_test(
     srcs = ["tuplify_test.cc"],
     deps = [
         ":tuplify",
-        "//gloop:gloop_test_main",
         "//gloop/util/tuple:intrinsics",
         "//gloop/util/tuple:streamable",
         "//gloop/util/tuple:struct",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

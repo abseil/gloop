@@ -114,7 +114,7 @@ cc_library(
         "//gloop/base:sysinfo",
         "@abseil-cpp//absl/base:cpu_detect",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest_for_library",
+        "@googletest//:gtest",
     ],
 )
 

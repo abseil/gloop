@@ -51,7 +51,6 @@ cc_test(
     srcs = ["blocking_refcount_test.cc"],
     deps = [
         ":blocking_refcount",
-        "//gloop:gloop_test_main",
         "//gloop/base:atomic_stats_counter",
         "//gloop/base:walltime",
         "//gloop/thread",
@@ -61,7 +60,7 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -80,9 +79,8 @@ cc_test(
     deps = [
         ":compact_reference_counted",
         ":test_common",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -104,14 +102,13 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":reffed_ptr",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/container:node_hash_map",
         "@abseil-cpp//absl/hash:hash_testing",
         "@abseil-cpp//absl/log",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -126,7 +123,7 @@ cc_library(
         ":reffed_ptr",
         "//gloop:enforce_gloop_support",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest_for_library",
+        "@googletest//:gtest",
     ],
 )
 
@@ -165,10 +162,9 @@ cc_test(
     deps = [
         ":reference_counted",
         ":test_common",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

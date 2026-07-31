@@ -108,9 +108,8 @@ cc_test(
     srcs = ["nul_terminated_buf_appender_test.cc"],
     deps = [
         ":nul_terminated_buf_appender",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -139,7 +138,6 @@ cc_binary(
     tags = ["notsan"],
     deps = [
         ":process",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/base:file_toc",
         "//gloop/base:linux_syscall_support",
@@ -169,6 +167,7 @@ cc_binary(
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 ) for subprocess_fork_method in [
     "fork",
@@ -189,7 +188,6 @@ cc_binary(
     tags = ["nosan"],
     deps = [
         ":process",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/base:file_toc",
         "//gloop/base:linux_syscall_support",
@@ -219,6 +217,7 @@ cc_binary(
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 ) for subprocess_fork_method in [
     "fork",
@@ -231,9 +230,8 @@ cc_test(
     srcs = ["subprocess_signal_test.cc"],
     deps = [
         ":process",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log:check",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

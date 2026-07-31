@@ -49,7 +49,6 @@ cc_test(
     srcs = ["endian_unittest.cc"],
     deps = [
         ":endian",
-        "//gloop:gloop_test_main",
         "//gloop/base:port",
         "//gloop/base:uword",
         "@abseil-cpp//absl/base",
@@ -59,7 +58,7 @@ cc_test(
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random:distributions",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -68,10 +67,9 @@ cc_test(
     srcs = ["endian-fp_unittest.cc"],
     deps = [
         ":endian",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log:check",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -83,11 +81,10 @@ cc_test(
     shard_count = 25,
     deps = [
         ":endian",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/numeric:int128",
         "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

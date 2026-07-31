@@ -59,14 +59,13 @@ cc_test(
         ":child_task_barrier",
         ":sync_task",
         ":task",
-        "//gloop:gloop_test_main",
         "//gloop/thread",
         "//gloop/util/status",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -97,7 +96,6 @@ cc_test(
         ":sleep",
         ":sync_task",
         ":task",
-        "//gloop:gloop_test_main",
         "//gloop/util/status",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/status",
@@ -105,7 +103,7 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -141,7 +139,6 @@ cc_test(
         ":sleep",
         ":sync_task",
         ":task",
-        "//gloop:gloop_test_main",
         "//gloop/base:context",
         "//gloop/base:timer",
         "//gloop/thread",
@@ -153,7 +150,7 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
         "@protobuf//:protobuf_lite",
     ],
 )
@@ -196,7 +193,6 @@ cc_test(
     srcs = ["task_test.cc"],
     deps = [
         ":task",
-        "//gloop:gloop_test_main",
         "//gloop/base:context",
         "//gloop/base:tracecontext",
         "//gloop/perftools/tracing:mock_trace_event_listener",
@@ -218,7 +214,7 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
         "@protobuf//:protobuf_lite",
     ],
 )

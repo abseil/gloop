@@ -39,9 +39,8 @@ cc_test(
     srcs = ["aggregate_test.cc"],
     deps = [
         ":aggregate",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -60,9 +59,8 @@ cc_test(
     srcs = ["dependencies_test.cc"],
     deps = [
         ":dependencies",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -83,9 +81,8 @@ cc_test(
     srcs = ["num_bases_test.cc"],
     deps = [
         ":num_bases",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -106,9 +103,8 @@ cc_test(
     srcs = ["num_initializers_test.cc"],
     deps = [
         ":num_initializers",
-        "//gloop:gloop_test_main",
         "//gloop/util/intops",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

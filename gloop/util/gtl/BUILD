@@ -42,9 +42,8 @@ cc_test(
     deps = [
         ":associative_view_internal",
         ":set_view",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -64,7 +63,6 @@ cc_test(
     srcs = ["comparator_test.cc"],
     deps = [
         ":comparator",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/functional:any_invocable",
@@ -73,7 +71,7 @@ cc_test(
         "@abseil-cpp//absl/strings:string_view",
         "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -92,9 +90,8 @@ cc_test(
     srcs = ["compressed_tuple_test.cc"],
     deps = [
         ":compressed_tuple",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -112,12 +109,11 @@ cc_test(
     srcs = ["container_logging_test.cc"],
     deps = [
         ":container_logging",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -140,12 +136,11 @@ cc_test(
     srcs = ["env_test.cc"],
     deps = [
         ":env",
-        "//gloop:gloop_test_main",
         "//gloop/thread/fiber",
         "//gloop/thread/fiber:fiber-options",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -169,10 +164,9 @@ cc_test(
     deps = [
         ":flat_internal",
         ":requires",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings:cord",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -195,7 +189,6 @@ cc_test(
     deps = [
         ":flat_map",
         ":stl_util",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/container:inlined_vector",
         "@abseil-cpp//absl/container:test_instance_tracker",
         "@abseil-cpp//absl/hash:hash_testing",
@@ -207,7 +200,7 @@ cc_test(
         "@abseil-cpp//absl/types:source_location",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -230,7 +223,6 @@ cc_test(
         ":flat_set",
         ":stl_util",
         ":switch",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/container:inlined_vector",
@@ -244,7 +236,7 @@ cc_test(
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -265,12 +257,11 @@ cc_test(
         ":comparator",
         ":heapqueue",
         ":stl_util",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:mt_random",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/random",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -306,14 +297,13 @@ cc_test(
     srcs = ["interval_test.cc"],
     deps = [
         ":interval",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/hash:hash_testing",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -340,7 +330,6 @@ cc_test(
     deps = [
         ":interval",
         ":interval_set",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/container:container_memory",
         "@abseil-cpp//absl/hash:hash_testing",
@@ -351,7 +340,7 @@ cc_test(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -374,11 +363,10 @@ cc_test(
     deps = [
         ":intrusive_list",
         ":iterator_adaptors",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -402,7 +390,6 @@ cc_test(
         ":flat_map",
         ":flat_set",
         ":iterator_adaptors",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
@@ -411,7 +398,7 @@ cc_test(
         "@abseil-cpp//absl/container:node_hash_map",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
         "@protobuf//:duration_cc_proto",
     ],
 )
@@ -435,7 +422,6 @@ cc_test(
         ":flat_map",
         ":map_view",
         ":set_view",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:exception_testing",
@@ -447,7 +433,7 @@ cc_test(
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
         "@protobuf//:protobuf_lite",
     ],
 )
@@ -466,11 +452,10 @@ cc_test(
     deps = [
         ":comparator",
         ":priority_queue_util",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -503,7 +488,6 @@ cc_test(
         ":iterator_adaptors",
         ":map_view",
         ":set_view",
-        "//gloop:gloop_test_main",
         "//gloop/strings:case",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base:core_headers",
@@ -515,7 +499,7 @@ cc_test(
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -538,12 +522,11 @@ cc_test(
     deps = [
         ":stl_util",
         ":unique_array",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/container:chunked_queue",
         "@abseil-cpp//absl/container:node_hash_map",
         "@abseil-cpp//absl/functional:any_invocable",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -562,9 +545,8 @@ cc_test(
     srcs = ["switch_test.cc"],
     deps = [
         ":switch",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -584,13 +566,12 @@ cc_test(
     deps = [
         ":stl_util",
         ":top_n",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -608,9 +589,8 @@ cc_test(
     ],
     deps = [
         ":typeid",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -645,7 +625,6 @@ cc_test(
         ":requires",
         ":unaligned",
         ":unaligned_internal",
-        "//gloop:gloop_test_main",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/container:flat_hash_map",
@@ -653,7 +632,7 @@ cc_test(
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -688,7 +667,6 @@ cc_test(
     malloc = "//gloop:malloc",
     deps = [
         ":unique_array",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
@@ -696,7 +674,7 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -719,11 +697,10 @@ cc_test(
     srcs = ["value_or_die_test.cc"],
     deps = [
         ":value_or_die",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -743,9 +720,8 @@ cc_test(
     srcs = ["iterator_range_test.cc"],
     deps = [
         ":iterator_range",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -772,7 +748,6 @@ cc_test(
     copts = ["-DUNORDERED_MAP_CXX17"],
     deps = [
         ":string_hash_map",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/container:hash_policy_testing",
         "@abseil-cpp//absl/container:unordered_map_constructor_test",
         "@abseil-cpp//absl/container:unordered_map_lookup_test",
@@ -780,7 +755,7 @@ cc_test(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:any",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -799,7 +774,6 @@ cc_test(
     deps = [
         ":generic_printer",
         ":generic_printer_test_cc_proto",
-        "//gloop:gloop_test_main",
         "//gloop/base:arena",
         "//gloop/base:arena_allocator",
         "//gloop/base:logging_extensions",
@@ -811,7 +785,7 @@ cc_test(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:optional_ref",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
         "@protobuf//:protobuf_lite",
     ],
 )
@@ -848,7 +822,6 @@ cc_test(
     srcs = ["intervalmap_test.cc"],
     deps = [
         ":intervalmap",
-        "//gloop:gloop_test_main",
         "//gloop/base:arena",
         "//gloop/base:arena_allocator",
         "//gloop/util/random:acmrandom",
@@ -861,7 +834,7 @@ cc_test(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -881,14 +854,13 @@ cc_test(
     srcs = ["intrusive_heap_test.cc"],
     deps = [
         ":intrusive_heap",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/random",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -914,7 +886,6 @@ cc_test(
     ],
     deps = [
         ":lazy_static_ptr",
-        "//gloop:gloop_test_main",
         "//gloop/thread",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/flags:flag",
@@ -925,7 +896,7 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -962,7 +933,6 @@ cc_test(
     srcs = ["lockfree_hashmap_test.cc"],
     deps = [
         ":lockfree_hashmap",
-        "//gloop:gloop_test_main",
         "//gloop/base:atomic_stats_counter",
         "//gloop/base:sysinfo",
         "//gloop/thread:thread_manager",
@@ -981,7 +951,7 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -1016,14 +986,13 @@ cc_test(
     copts = ["-DUNORDERED_SET_CXX17"],
     deps = [
         ":string_hash_set",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/container:hash_policy_testing",
         "@abseil-cpp//absl/container:unordered_set_constructor_test",
         "@abseil-cpp//absl/container:unordered_set_lookup_test",
         "@abseil-cpp//absl/container:unordered_set_modifiers_test",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -1042,12 +1011,11 @@ cc_test(
     srcs = ["subspan_test.cc"],
     deps = [
         ":subspan",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:hardening",
         "@abseil-cpp//absl/types:any_span",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -1076,13 +1044,12 @@ cc_test(
         ":float128",
         ":float128_fuzztest_domain",
         ":float128_matchers",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings:str_format",
         "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -1107,7 +1074,7 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest_for_library",
+        "@googletest//:gtest",
     ],
 )
 
@@ -1127,11 +1094,10 @@ cc_test(
     srcs = ["circularbuffer_unittest.cc"],
     deps = [
         ":circularbuffer",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -1166,7 +1132,6 @@ cc_test(
         ":message_hasher",
         ":message_hasher_unittest_cc_proto",
         ":stl_util",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/container:flat_hash_set",
@@ -1174,7 +1139,7 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
         "@protobuf",
         "@protobuf//:differencer",
         "@protobuf//src/google/protobuf/io",
@@ -1209,11 +1174,10 @@ cc_test(
     srcs = ["c_memset_test.cc"],
     deps = [
         ":c_memset",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:hardening",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

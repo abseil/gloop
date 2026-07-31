@@ -42,7 +42,6 @@ cc_test(
     srcs = ["skewed_low_distribution_test.cc"],
     deps = [
         ":skewed_low_distribution",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/random",
@@ -51,7 +50,7 @@ cc_test(
         "@abseil-cpp//absl/random/internal:sequence_urbg",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -71,7 +70,6 @@ cc_test(
     srcs = ["yule_simon_distribution_test.cc"],
     deps = [
         ":yule_simon_distribution",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random/internal:distribution_test_util",
@@ -79,7 +77,7 @@ cc_test(
         "@abseil-cpp//absl/random/internal:sequence_urbg",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -100,10 +98,9 @@ cc_test(
     srcs = ["small_prime_distribution_test.cc"],
     deps = [
         ":small_prime_distribution",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/random",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

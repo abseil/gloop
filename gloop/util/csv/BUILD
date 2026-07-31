@@ -49,7 +49,6 @@ cc_test(
     data = glob(["testdata/*.csv"]),
     deps = [
         ":csv",
-        "//gloop:gloop_test_main",
         "//gloop/strings:bytestream",
         "//gloop/strings:numbers",
         "//gloop/strings:split",
@@ -61,7 +60,7 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -71,7 +70,6 @@ cc_test(
     srcs = ["writer_test.cc"],
     deps = [
         ":csv",
-        "//gloop:gloop_test_main",
         "//gloop/strings:bytestream",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/container:flat_hash_map",
@@ -80,6 +78,6 @@ cc_test(
         "@abseil-cpp//absl/status:status_matchers",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

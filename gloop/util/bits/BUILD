@@ -47,7 +47,6 @@ cc_test(
     srcs = ["bits_unittest.cc"],
     deps = [
         ":bits",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:log_streamer",
@@ -57,7 +56,7 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -77,11 +76,10 @@ cc_test(
     copts = ["$(STACK_FRAME_UNLIMITED)"],  # bit-copy_unittest.cc
     deps = [
         ":bit-copy",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log:log_streamer",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/strings:str_format",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

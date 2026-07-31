@@ -39,10 +39,9 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":array2d",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl:unique_array",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -64,10 +63,9 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":array3d",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl:unique_array",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 

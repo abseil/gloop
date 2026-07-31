@@ -33,14 +33,13 @@ cc_test(
     srcs = ["canonical_errors_test.cc"],
     deps = [
         ":status",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:source_location",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -49,10 +48,9 @@ cc_test(
     srcs = ["canonical_error_space_find_test.cc"],
     deps = [
         ":status",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -88,12 +86,11 @@ cc_test(
     deps = [
         ":errno_mapping",
         ":status",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_matchers",
         "@abseil-cpp//absl/types:source_location",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -119,12 +116,11 @@ cc_test(
     deps = [
         ":posixerrorspace",
         ":status",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/types:source_location",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -157,7 +153,6 @@ cc_test(
     deps = [
         ":ret_check",
         ":status_macros",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log:scoped_mock_log",
@@ -167,7 +162,7 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -228,7 +223,6 @@ cc_test(
         ":non_message_set_payload_cc_proto",
         ":status",
         ":test_payload_cc_proto",
-        "//gloop:gloop_test_main",
         "//gloop/thread",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/flags:flag",
@@ -249,7 +243,7 @@ cc_test(
         "@gloop//gloop/util/status:status_cc_proto",
         "@google_benchmark//:benchmark",
         "@googleapis//google/rpc:status_cc_proto",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
         "@protobuf",
         "@protobuf//:any_cc_proto",
         "@protobuf//:wrappers_cc_proto",
@@ -295,7 +289,6 @@ cc_test(
         ":status",
         ":status_builder",
         ":status_macros",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/flags:flag",
@@ -318,7 +311,7 @@ cc_test(
         "@gloop//gloop/util/status:codes_cc_proto",
         "@gloop//gloop/util/status:status_cc_proto",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
         "@protobuf//src/google/protobuf/bridge:message_set_cc_proto",
     ],
 )
@@ -342,11 +335,10 @@ cc_test(
     srcs = ["log_test.cc"],
     deps = [
         ":log",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log:scoped_mock_log",
         "@abseil-cpp//absl/status",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -374,14 +366,13 @@ cc_test(
         ":posixerrorspace",
         ":status",
         ":status_macros",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_macros",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/types:source_location",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -449,9 +440,8 @@ cc_test(
     deps = [
         ":return",
         ":status_macros",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/status",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

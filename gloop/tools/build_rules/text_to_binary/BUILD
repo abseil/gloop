@@ -42,7 +42,6 @@ cc_test(
         "//gloop/tools/build_rules/text_to_binary/testdata:test_data.binarypb",
     ],
     deps = [
-        "//gloop:gloop_test_main",
         "//gloop/tools/build_rules/text_to_binary/testdata:test_cc_proto",
         "//gloop/tools/build_rules/text_to_binary/testdata:test_extension_cc_proto",
         "//gloop/tools/build_rules/text_to_binary/testdata:test_nested_cc_proto",
@@ -51,7 +50,7 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
         "@protobuf//:json_util",
     ],
 )

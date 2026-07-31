@@ -43,9 +43,8 @@ cc_test(
     visibility = ["//gloop/base:__pkg__"],
     deps = [
         ":effective_user_id",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -145,9 +144,8 @@ cc_test(
     srcs = ["munge_output_test.cc"],
     deps = [
         ":munge_output",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 

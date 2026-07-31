@@ -59,11 +59,10 @@ cc_test(
     srcs = ["adjustable-heap_test.cc"],
     deps = [
         ":adjustable-heap",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/random",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

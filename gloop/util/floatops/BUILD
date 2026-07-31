@@ -40,10 +40,9 @@ cc_test(
     ],
     deps = [
         ":castops",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/numeric:int128",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -62,8 +61,7 @@ cc_test(
     srcs = ["roundedops_test.cc"],
     deps = [
         ":roundedops",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

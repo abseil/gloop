@@ -109,13 +109,12 @@ cc_test(
     linkstatic = 1,
     deps = [
         ":view",
-        "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -193,7 +192,6 @@ cc_test(
     shard_count = 2,
     deps = [
         ":rcu",
-        "//gloop:gloop_test_main",
         "//gloop/base:googleinit",
         "//gloop/base:signal_util_subtle",
         "//gloop/base:sysinfo",
@@ -212,7 +210,7 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -225,7 +223,6 @@ cc_test(
     shard_count = 2,
     deps = [
         ":rcu",
-        "//gloop:gloop_test_main",
         "//gloop/base:googleinit",
         "//gloop/base:percpu_disable_rseq",
         "//gloop/base:signal_util_subtle",
@@ -245,6 +242,6 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

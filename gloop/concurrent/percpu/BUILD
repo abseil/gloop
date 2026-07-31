@@ -49,13 +49,12 @@ cc_test(
     linkstatic = 1,
     deps = [
         ":counter",
-        "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
         "//gloop/thread",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:no_destructor",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -159,13 +158,12 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":object",
-        "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -178,9 +176,8 @@ cc_test(
     deps = [
         ":counting_mutex",
         ":rseq_clobber_test.lds",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

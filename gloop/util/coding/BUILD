@@ -85,7 +85,6 @@ cc_test(
     srcs = ["coder_unittest.cc"],
     deps = [
         ":coding",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl:unique_array",
         "//gloop/util/random:acmrandom",
         "//gloop/util/random:distributions",
@@ -95,7 +94,7 @@ cc_test(
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -107,7 +106,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":coding",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl:unique_array",
         "//gloop/util/random:acmrandom",
         "//gloop/util/random:distributions",
@@ -120,7 +118,7 @@ cc_test(
         "@abseil-cpp//absl/random:distributions",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -129,7 +127,6 @@ cc_test(
     srcs = ["huffcoding_unittest.cc"],
     deps = [
         ":coding",
-        "//gloop:gloop_test_main",
         "//gloop/util/endian",
         "//gloop/util/gtl:unique_array",
         "//gloop/util/hash",
@@ -138,7 +135,7 @@ cc_test(
         "@abseil-cpp//absl/memory",
         "@abseil-cpp//absl/random",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -151,7 +148,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         ":coding",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl:unique_array",
         "//gloop/util/random:acmrandom",
         "//gloop/util/random:distributions",
@@ -160,7 +156,7 @@ cc_test(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/random",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -176,14 +172,13 @@ cc_test(
     stamp = 1,
     deps = [
         ":coding",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:distributions",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random:distributions",
         "@abseil-cpp//absl/strings",
         "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -218,12 +213,11 @@ cc_test(
     malloc = "//gloop:malloc",
     deps = [
         ":shrunk-array",
-        "//gloop:gloop_test_main",
         "//gloop/thread",
         "//gloop/util/endian",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

@@ -39,13 +39,12 @@ cc_test(
     srcs = ["syscalls_test.cc"],
     deps = [
         ":syscalls",
-        "//gloop:gloop_test_main",
         "//gloop/util/status:errno_mapping",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -80,9 +79,8 @@ cc_test(
         ":cpu_set",
         ":cpu_set_test_util",
         ":test_cc_proto",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 

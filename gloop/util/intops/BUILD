@@ -61,11 +61,10 @@ cc_test(
     srcs = ["lossless_convert_test.cc"],
     deps = [
         ":intops",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_matchers",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -74,9 +73,8 @@ cc_test(
     srcs = ["saturated_test.cc"],
     deps = [
         ":intops",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -86,13 +84,12 @@ cc_test(
     srcs = ["saturated_cast_test.cc"],
     deps = [
         ":intops",
-        "//gloop:gloop_test_main",
         "//gloop/util/symbolize:demangle",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -136,12 +133,11 @@ cc_test(
     deps = [
         ":intops",
         ":strong_containers",
-        "//gloop:gloop_test_main",
         "//gloop/base:uword",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/hash:hash_testing",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -153,7 +149,6 @@ cc_test(
     shard_count = 15,
     deps = [
         ":intops",
-        "//gloop:gloop_test_main",
         "//gloop/base:uword",
         "@abseil-cpp//absl/container:node_hash_map",
         "@abseil-cpp//absl/flags:marshalling",
@@ -165,7 +160,7 @@ cc_test(
         "@abseil-cpp//absl/strings:string_view",
         "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -177,9 +172,8 @@ cc_test(
     shard_count = 16,
     deps = [
         ":intops",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -190,12 +184,11 @@ cc_test(
     shard_count = 20,
     deps = [
         ":intops",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:mt_random",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings:str_format",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

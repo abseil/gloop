@@ -72,13 +72,12 @@ cc_test(
     deps = [
         ":demangle",
         ":demangled_type_name",
-        "//gloop:gloop_test_main",
         "//gloop/thread",
         "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
         "@re2",
     ],
 )
@@ -205,7 +204,6 @@ cc_test(
     deps = [
         ":demangle",
         ":symbolize",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:node_hash_set",
         "@abseil-cpp//absl/debugging:debugging_internal",
@@ -214,7 +212,7 @@ cc_test(
         "@abseil-cpp//absl/memory",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
         "@tcmalloc//tcmalloc:malloc_extension",
     ],
 )
@@ -225,7 +223,6 @@ cc_test(
     deps = [
         ":demangle",
         ":symbolize",
-        "//gloop:gloop_test_main",
         "//gloop/thread",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/log",
@@ -233,6 +230,7 @@ cc_test(
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -284,11 +282,11 @@ cc_test(
     target_compatible_with = ["@platforms//cpu:x86_64"],
     deps = [
         ":foobar_bbsections_all",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -301,14 +299,13 @@ cc_test(
     malloc = "//gloop:malloc",
     deps = [
         ":symbolize",
-        "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
         "//gloop/thread",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/synchronization",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
         "@tcmalloc//tcmalloc:malloc_extension",
     ],
 )
@@ -330,10 +327,9 @@ cc_test(
     deps = [
         ":elf_reader",
         ":symbolize",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings",
         "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
