@@ -472,7 +472,9 @@ class ElfSectionReader {
   char* contents_;
   // size of contents_aligned_ (needed for munmap).
   size_t size_aligned_;
-  // size of contents.
+
+  // Size of contents. Note: for compressed sections may be smaller or larger
+  // than header_.sh_size.
   size_t section_size_;
   const typename ElfArch::Shdr header_;
 };
@@ -564,16 +566,37 @@ class SymbolIterator {
   // Return the name of the current symbol, nullptr if it has none.
   // REQUIRES: !done()
   const char* GetSymbolName() const {
-    const auto* const sym = GetSymbol();
-    if (sym == nullptr) return nullptr;
-    const int name_offset = sym->st_name;
-    if (name_offset == 0) return nullptr;
-    return string_section_->GetOffset(name_offset);
+    return GetSymbolNameInternal(/*verify_nul_termination=*/true);
+  }
+
+  // Perform almost all symbol name validity checks, but don't touch .strtab
+  // REQUIRES: !done()
+  bool SymbolNameValid() const {
+    return GetSymbolNameInternal(/*verify_nul_termination=*/false) != nullptr;
   }
 
   int GetCurrentSymbolIndex() const { return symbol_within_section_; }
 
  private:
+  const char* GetSymbolNameInternal(bool verify_nul_termination) const {
+    const auto* const sym = GetSymbol();
+    if (sym == nullptr) return nullptr;
+    const int name_offset = sym->st_name;
+    const size_t str_section_sz = string_section_->section_size();
+    if (name_offset == 0 || str_section_sz == 0 ||
+        name_offset > str_section_sz - 1) {
+      return nullptr;
+    }
+    const char* name = string_section_->GetOffset(name_offset);
+    if (name != nullptr && verify_nul_termination) {
+      // Make sure it's properly NUL-terminated within the section bounds.
+      if (memchr(name, '\0', str_section_sz - name_offset) == nullptr) {
+        return nullptr;
+      }
+    }
+    return name;
+  }
+
   const ElfSectionReader<ElfArch>* const symbol_section_;
   const ElfSectionReader<ElfArch>* string_section_;
   int num_symbols_in_section_;
@@ -797,7 +820,10 @@ class ElfReaderImpl {
     const int num_sections = GetNumSections();
     for (SymbolIterator<ElfArch> it(this, section_type); !it.done();
          it.Next()) {
-      if (it.GetSymbolName() == nullptr) continue;
+      // Verify the symbol is good without touching .strtab/.dynstr, as doing so
+      // would significantly increase RSS.
+      if (!it.SymbolNameValid()) continue;
+
       const typename ElfArch::Sym* sym = it.GetSymbol();
       if (CanUseSymbol(sym)) {
         const int sec = sym->st_shndx;
@@ -930,7 +956,7 @@ class ElfReaderImpl {
     for (SymbolIterator<ElfArch> it(this, section_type); !it.done();
          it.Next()) {
       const char* name = it.GetSymbolName();
-      if (!name) continue;
+      if (name == nullptr) continue;
       const typename ElfArch::Sym* sym = it.GetSymbol();
 
       // Add a PLT symbol in addition to the main undefined symbol.
@@ -1169,15 +1195,19 @@ class ElfReaderImpl {
       return nullptr;
     }
 
-    info->type = section->header().sh_type;
-    info->flags = section->header().sh_flags;
-    info->addr = section->header().sh_addr;
-    info->offset = section->header().sh_offset;
-    info->size = section->header().sh_size;
-    info->link = section->header().sh_link;
-    info->info = section->header().sh_info;
-    info->addralign = section->header().sh_addralign;
-    info->entsize = section->header().sh_entsize;
+    const auto& header = section->header();
+    info->type = header.sh_type;
+    info->flags = header.sh_flags;
+    info->addr = header.sh_addr;
+    info->offset = header.sh_offset;
+    info->link = header.sh_link;
+    info->info = header.sh_info;
+    info->addralign = header.sh_addralign;
+    info->entsize = header.sh_entsize;
+
+    // Note: section->size() may not be the same as header.sh_size!
+    // See b/537132456.
+    info->size = section->section_size();
     return section->contents();
   }
 
