@@ -87,8 +87,10 @@ using ::testing::Ge;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::Matcher;
+using ::testing::Not;
 using ::testing::Property;
 using ::testing::Test;
+using ::testing::UnorderedElementsAre;
 #if GTEST_HAS_DEATH_TEST
 using ::absl::log_internal::DiedOfFatal;
 #endif
@@ -301,9 +303,9 @@ TEST_F(CopyToStringSinkTest, NonNull) {
   base_logging::CopyToStringSink sink(&str);
   LOG(INFO).ToSinkOnly(&sink) << "hello world";
   if (LoggingEnabledAt(absl::LogSeverity::kError)) {
-    EXPECT_THAT(str, Eq("hello world"));
+    EXPECT_EQ(str, "hello world");
   } else {
-    EXPECT_THAT(str, Eq(""));
+    EXPECT_THAT(str, IsEmpty());
   }
 }
 
@@ -368,8 +370,8 @@ TEST_F(AppendToVectorSinkTest, Concurrency) {
   }  // ThreadPool destructor blocks until all jobs are done.
 
   if (LoggingEnabledAt(absl::LogSeverity::kInfo)) {
-    EXPECT_THAT(vec, testing::UnorderedElementsAre("[from one callback]",
-                                                   "[from another callback]"));
+    EXPECT_THAT(vec, UnorderedElementsAre("[from one callback]",
+                                          "[from another callback]"));
   }
 }
 
@@ -548,9 +550,9 @@ class CrashReasonValidatorLogSink : public absl::LogSink {
 #if GTEST_HAS_DEATH_TEST
 TEST(CrashReasonDeathTest, SetByFatalAndHasCorrectTopFrame) {
   std::array<void*, 1> frames;
-  ASSERT_THAT(
+  ASSERT_EQ(
       absl::GetStackTrace(frames.data(), frames.size(), /* skip_count = */ 0),
-      Eq(1));
+      1);
   CrashReasonValidatorLogSink sink(frames[0], 10);
   EXPECT_EXIT(
       { LOG(FATAL).ToSinkAlso(&sink) << "goodbye world"; }, DiedOfFatal,
@@ -622,7 +624,7 @@ class LargeStackFrameCompileTest {
 // --------------------
 
 TEST(DebugFatalConstantTest, AreTheSameIntegralValue) {
-  EXPECT_THAT(base_logging::DFATAL, Eq(static_cast<int>(absl::kLogDebugFatal)));
+  EXPECT_EQ(base_logging::DFATAL, static_cast<int>(absl::kLogDebugFatal));
 }
 
 }  // namespace
