@@ -77,7 +77,6 @@ using ::base::Tracer;
 using ::perftools::tracing::channels::ChannelID;
 using ::testing::_;
 using ::testing::AllOf;
-using ::testing::Eq;
 using ::testing::Ge;
 using ::testing::Gt;
 using ::testing::IsNull;
@@ -404,36 +403,36 @@ TEST(Tracer, TraceChannels) {
 
   // default (legacy) methods
   tracer.PrintLiteral("this is a test");
-  EXPECT_EQ(TEST_CHANNEL_TEXT, printed_literal);
+  EXPECT_EQ(printed_literal, TEST_CHANNEL_TEXT);
   // NOLINTNEXTLINE: intentionally using PrintString with a literal
   tracer.PrintString("this is a string");
-  EXPECT_EQ(TEST_CHANNEL_TEXT, printed_string);
+  EXPECT_EQ(printed_string, TEST_CHANNEL_TEXT);
   tracer.Printf("here's a %s", "biscuit");
-  EXPECT_EQ(TEST_CHANNEL_TEXT, printed_formatted);
+  EXPECT_EQ(printed_formatted, TEST_CHANNEL_TEXT);
 
   // text() methods
   tracer.text().PrintLiteral("this is a test");
-  EXPECT_EQ(TEST_CHANNEL_TEXT, printed_literal);
+  EXPECT_EQ(printed_literal, TEST_CHANNEL_TEXT);
   tracer.text().PrintString("this is a string");
-  EXPECT_EQ(TEST_CHANNEL_TEXT, printed_string);
+  EXPECT_EQ(printed_string, TEST_CHANNEL_TEXT);
   tracer.text().Printf("here's a %s", "biscuit");
-  EXPECT_EQ(TEST_CHANNEL_TEXT, printed_formatted);
+  EXPECT_EQ(printed_formatted, TEST_CHANNEL_TEXT);
 
   // verbose() methods
   tracer.verbose().PrintLiteral("this is a test");
-  EXPECT_EQ(TEST_CHANNEL_VERBOSE, printed_literal);
+  EXPECT_EQ(printed_literal, TEST_CHANNEL_VERBOSE);
   tracer.verbose().PrintString("this is a string");
-  EXPECT_EQ(TEST_CHANNEL_VERBOSE, printed_string);
+  EXPECT_EQ(printed_string, TEST_CHANNEL_VERBOSE);
   tracer.verbose().Printf("here's a %s", "biscuit");
-  EXPECT_EQ(TEST_CHANNEL_VERBOSE, printed_formatted);
+  EXPECT_EQ(printed_formatted, TEST_CHANNEL_VERBOSE);
 
   // channel() methods
   tracer.channel(TEST_CHANNEL_1).PrintLiteral("this is a test");
-  EXPECT_EQ(TEST_CHANNEL_1, printed_literal);
+  EXPECT_EQ(printed_literal, TEST_CHANNEL_1);
   tracer.channel(TEST_CHANNEL_1).PrintString("this is a string");
-  EXPECT_EQ(TEST_CHANNEL_1, printed_string);
+  EXPECT_EQ(printed_string, TEST_CHANNEL_1);
   tracer.channel(TEST_CHANNEL_1).Printf("here's a %s", "biscuit");
-  EXPECT_EQ(TEST_CHANNEL_1, printed_formatted);
+  EXPECT_EQ(printed_formatted, TEST_CHANNEL_1);
 }
 
 #ifndef NDEBUG
@@ -544,7 +543,7 @@ TEST(Tracer, UnrefNoDeleteRefcountGreaterThanOne) {
 
   EXPECT_THAT(returned_tracer, IsNull());
   EXPECT_FALSE(deleted);
-  EXPECT_THAT(tracer->RefCountForTesting(), Eq(1));
+  EXPECT_EQ(tracer->RefCountForTesting(), 1);
 
   tracer->Unref(owner2);
   EXPECT_TRUE(deleted);
@@ -563,7 +562,7 @@ TEST(Tracer, UnrefNoDeleteRefcountEqualsOneWithUnrefTime) {
   std::unique_ptr<Tracer> returned_tracer = tracer->UnrefNoDelete(owner);
 
   ASSERT_THAT(returned_tracer, NotNull());
-  EXPECT_THAT(returned_tracer.get(), Eq(tracer));
+  EXPECT_EQ(returned_tracer.get(), tracer);
   EXPECT_FALSE(deleted);
 
   returned_tracer.reset();
