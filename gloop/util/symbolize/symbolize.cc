@@ -200,26 +200,30 @@ size_t SymbolMap::bytes_allocated() const {
 
 bool SymbolMap::AddSymbol(const char* name, const char* section_end,
                           uint64_t start, uint64_t size) {
+  // We only verify that `name` is NUL-terminated when `copy_symbol_names_` is
+  // true. It's important not to treat `name` as a C-strring until that's done.
+  const void* unverified_name = static_cast<const void*>(name);
+
   if (section_end <= name) {
-    LOG(ERROR) << "Rejecting invalid symbol: " << static_cast<const void*>(name)
+    LOG(ERROR) << "Rejecting invalid symbol: " << unverified_name
                << " is past string section end: "
                << static_cast<const void*>(section_end);
     return false;
   }
   if (name == nullptr || start + size < start) {
-    LOG(ERROR) << "Rejecting invalid symbol: " << name  //
+    LOG(ERROR) << "Rejecting invalid symbol: " << unverified_name
                << " start=" << std::hex << start << " size: " << size;
     return false;
   }
   CHECK(!finalized_) << " already finalized";
   VLOG(10) << "[" << std::hex << start << ", " << std::hex << start + size
-           << "): " << name;
+           << "): " << unverified_name;
 
   if (copy_symbol_names_) {
     const void* p_name_end = memchr(name, '\0', section_end - name);
     if (p_name_end == nullptr) {
       LOG(ERROR) << "Rejecting invalid symbol: name not NUL-terminated within ["
-                 << static_cast<const void*>(name) << ", "
+                 << unverified_name << ", "
                  << static_cast<const void*>(section_end) << ") range";
       return false;
     }
@@ -232,7 +236,7 @@ bool SymbolMap::AddSymbol(const char* name, const char* section_end,
       name2[name_size - 1] = '\0';
       name = name2;
     } else {
-      name_size = strlen(name) + 1;
+      name_size = reinterpret_cast<const char*>(p_name_end) - name + 1;
       name = name_arena_->Memdup(name, name_size);
     }
     const auto it = names_.find(name);
