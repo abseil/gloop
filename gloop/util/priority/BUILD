@@ -50,7 +50,7 @@ cc_test(
         "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
         "//gloop/thread",
-        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

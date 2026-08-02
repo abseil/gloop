@@ -24,7 +24,7 @@
 #include <limits>
 #include <thread>  // NOLINT
 
-#include "absl/log/check.h"
+#include "absl/strings/str_cat.h"
 #include "gloop/base/sysinfo.h"
 #include "gloop/thread/threadpool.h"
 #include "gtest/gtest.h"
@@ -33,7 +33,7 @@ namespace util {
 
 TEST(IOPriorityTest, SetIOPriorityInvalidInputs) {
   // This can't be represented in IOPRIO_CLASS_SHIFT (13) bits.
-  int bogus_priority = std::numeric_limits<int32_t>::max();
+  const int bogus_priority = std::numeric_limits<int32_t>::max();
   EXPECT_FALSE(SetProcessIOPriority(IOPRIO_CLASS_BE, bogus_priority));
 
   // If the kernel we're running on doesn't support IO Priority,
@@ -41,14 +41,15 @@ TEST(IOPriorityTest, SetIOPriorityInvalidInputs) {
   // will return a "Function not implemented" error.
   EXPECT_FALSE(SetProcessIOPriority(IOPRIO_CLASS_INVALID, 0));
 
-  int bogus_hint = IOPRIO_NR_HINTS;
+  const int bogus_hint = IOPRIO_NR_HINTS;
   EXPECT_FALSE(SetProcessIOPriority(IOPRIO_CLASS_IDLE, 0, bogus_hint));
 }
 
 TEST(IOPriorityTest, SetPriorityLevels) {
   const pid_t tid = GetTID();
-  IOPriorityClass iop_class = IOPRIO_CLASS_BE;
+  const IOPriorityClass iop_class = IOPRIO_CLASS_BE;
   for (int level = 0; level < IOPRIO_NR_LEVELS; level++) {
+    SCOPED_TRACE(absl::StrCat("level=", level));
     EXPECT_TRUE(SetIOPriority(tid, iop_class, level));
 
     IOPriorityClass new_iop_class = IOPRIO_CLASS_NONE;
@@ -64,9 +65,10 @@ TEST(IOPriorityTest, SetPriorityHints) {
   // Linux kernel does not check the level for IOPRIO_CLASS_IDLE.
   // Using IOPRIO_CLASS_BE fails on pre-v6.5 kernels because all 13 bits
   // of DATA are used to check for the level to be in the [0..7] range.
-  IOPriorityClass iop_class = IOPRIO_CLASS_IDLE;
-  int level = 4;
+  const IOPriorityClass iop_class = IOPRIO_CLASS_IDLE;
+  const int level = 4;
   for (int hint = 0; hint < IOPRIO_NR_HINTS; hint++) {
+    SCOPED_TRACE(absl::StrCat("hint=", hint));
     EXPECT_TRUE(SetIOPriority(tid, iop_class, level, hint));
 
     IOPriorityClass new_iop_class = IOPRIO_CLASS_NONE;
@@ -80,16 +82,17 @@ TEST(IOPriorityTest, SetPriorityHints) {
 }
 
 // Sets priority to class BE and 'level' and then verifies it was set.
-// Since this code gets executed by a thread, CHECK is used here rather
-// than EXPECT.
+// EXPECT_* macros are thread-safe in GoogleTest on POSIX systems and are used
+// here for thread assertions.
 static void SetAndCheckThreadPriority(int level) {
+  SCOPED_TRACE(absl::StrCat("SetAndCheckThreadPriority level=", level));
   const pid_t tid = GetTID();
-  CHECK(SetIOPriority(tid, IOPRIO_CLASS_BE, level));
+  EXPECT_TRUE(SetIOPriority(tid, IOPRIO_CLASS_BE, level));
   IOPriorityClass new_iop_class = IOPRIO_CLASS_NONE;
   int new_level = -1;
   EXPECT_TRUE(GetIOPriority(tid, &new_iop_class, &new_level));
-  CHECK_EQ(new_iop_class, IOPRIO_CLASS_BE);
-  CHECK_EQ(new_level, level);
+  EXPECT_EQ(new_iop_class, IOPRIO_CLASS_BE);
+  EXPECT_EQ(new_level, level);
 }
 
 TEST(IOPriorityTest, TestThreads) {
@@ -105,7 +108,7 @@ TEST(IOPriorityTest, TestThreads) {
 
   // main thread's priority level is unaffected by thread setting
   int new_level = -1;
-  EXPECT_TRUE(GetIOPriority(GetTID(), nullptr, &new_level));
+  ASSERT_TRUE(GetIOPriority(GetTID(), nullptr, &new_level));
   EXPECT_EQ(new_level, main_thread_level);
 }
 
@@ -127,8 +130,8 @@ TEST(IOPriorityTest, TestStdThreads) {
 
 TEST(IOPriorityTest, TestMakeSystemIOPriority) {
   // Make sure the default hint is IOPRIO_HINT_NONE
-  int system_priority = MakeSystemIOPriority(IOPRIO_CLASS_RT, 0);
-  int system_priority_hint =
+  const int system_priority = MakeSystemIOPriority(IOPRIO_CLASS_RT, 0);
+  const int system_priority_hint =
       MakeSystemIOPriority(IOPRIO_CLASS_RT, 0, IOPRIO_HINT_NONE);
 
   EXPECT_EQ(system_priority, system_priority_hint);
@@ -137,7 +140,9 @@ TEST(IOPriorityTest, TestMakeSystemIOPriority) {
 TEST(IOPriorityTest, TestExtractIOPriorityHint) {
   for (int io_priority_class = IOPRIO_CLASS_NONE;
        io_priority_class < IOPRIO_CLASS_INVALID; ++io_priority_class) {
+    SCOPED_TRACE(absl::StrCat("io_priority_class=", io_priority_class));
     for (int hint = 0; hint < IOPRIO_NR_HINTS; ++hint) {
+      SCOPED_TRACE(absl::StrCat("hint=", hint));
       const int system_priority = MakeSystemIOPriority(
           static_cast<IOPriorityClass>(io_priority_class), 0, hint);
       EXPECT_EQ(ExtractIOPriorityHint(system_priority), hint);
