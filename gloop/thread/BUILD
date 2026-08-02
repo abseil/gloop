@@ -1005,6 +1005,7 @@ cc_test(
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",

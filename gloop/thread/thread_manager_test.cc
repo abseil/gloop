@@ -40,6 +40,7 @@
 #include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/synchronization/blocking_counter.h"
 #include "absl/synchronization/mutex.h"
@@ -59,11 +60,15 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-using testing::AllOf;
-using testing::ElementsAre;
-using testing::Eq;
-using testing::Field;
-using testing::IsEmpty;
+namespace {
+
+using ::testing::AllOf;
+using ::testing::Contains;
+using ::testing::ElementsAre;
+using ::testing::Eq;
+using ::testing::Field;
+using ::testing::IsEmpty;
+using ::testing::IsNull;
 
 TEST(ThreadManagerTest, DeleteWithoutWork) {
   (void)thread::ThreadManager("test_manager", thread::ManagerOptions());
@@ -86,7 +91,7 @@ TEST(ThreadManagerTest, Add) {
                                           thread::ManagerOptions());
   std::unique_ptr<thread::ManagedQueue> queue(
       tm->NewQueue("default", thread::ManagedQueueOptions()));
-  CHECK_EQ(queue->name(), "default");
+  EXPECT_EQ(queue->name(), "default");
   absl::Notification started;
   absl::Notification done;
   queue->Schedule(absl::bind_front(&NotifyThenWait, &started, &done));
@@ -104,7 +109,8 @@ TEST(ThreadManagerTest, TrySchedule) {
     absl::Notification done[std::size(started)];
     // TrySchedule on default queue always succeeds
     for (int i = 0; i != std::size(started); i++) {
-      CHECK(queue->TrySchedule(
+      SCOPED_TRACE(absl::StrCat("iteration=", i));
+      EXPECT_TRUE(queue->TrySchedule(
           absl::bind_front(&NotifyThenWait, &started[i], &done[i])));
     }
     for (int i = 0; i != std::size(started); i++) {
@@ -126,16 +132,16 @@ TEST(ThreadManagerTest, TrySchedule) {
     absl::Notification done[2];
     Closure* cb = ::util::functional::ToCallback(
         absl::bind_front(&NotifyThenWait, &started[0], &done[0]));
-    CHECK(queue->TrySchedule(::util::functional::FromCallback(
+    EXPECT_TRUE(queue->TrySchedule(::util::functional::FromCallback(
         cb)));  // first attempt should succeed.
     cb = ::util::functional::ToCallback(
         absl::bind_front(&NotifyThenWait, &started[1], &done[1]));
-    CHECK(!queue->TrySchedule(
+    EXPECT_FALSE(queue->TrySchedule(
         ::util::functional::FromCallback(cb)));  // second attempt should fail.
     WaitThenNotify(&started[0], &done[0]);       // let first callback proceed
     ::absl::SleepFor(
         ::absl::Milliseconds(500));  // time for worker thread to become idle
-    CHECK(queue->TrySchedule(::util::functional::FromCallback(
+    EXPECT_TRUE(queue->TrySchedule(::util::functional::FromCallback(
         cb)));  // second callback should be accepted
     WaitThenNotify(&started[1], &done[1]);
     queue.reset();
@@ -157,13 +163,13 @@ TEST(ThreadManagerTest, AddIfReadyToRun) {
   absl::Notification done[2];
   std::function<void()> cb =
       absl::bind_front(&NotifyThenWait, &started[0], &done[0]);
-  CHECK(queue->TrySchedule(cb));  // first attempt should succeed.
+  EXPECT_TRUE(queue->TrySchedule(cb));  // first attempt should succeed.
   cb = absl::bind_front(&NotifyThenWait, &started[1], &done[1]);
-  CHECK(!queue->TrySchedule(cb));         // second attempt should fail.
+  EXPECT_FALSE(queue->TrySchedule(cb));   // second attempt should fail.
   WaitThenNotify(&started[0], &done[0]);  // let first callback proceed
   ::absl::SleepFor(
-      ::absl::Milliseconds(500));  // time for worker thread to become idle
-  CHECK(queue->TrySchedule(cb));   // second callback should be accepted
+      ::absl::Milliseconds(500));       // time for worker thread to become idle
+  EXPECT_TRUE(queue->TrySchedule(cb));  // second callback should be accepted
   WaitThenNotify(&started[1], &done[1]);
   queue.reset();
   tm.reset();
@@ -182,20 +188,22 @@ TEST(ThreadManagerTest, WaitUntilComplete) {
   static const int limit[] = {1, INT_MAX};
   for (int i = 0; i != std::size(limit); i++) {
     for (int j = 0; j != std::size(limit); j++) {
+      SCOPED_TRACE(absl::StrCat("i=", i, ", j=", j));
       thread::ManagedQueueOptions q_options;
       q_options.thread_limit = limit[i];
       q_options.queue_limit = limit[j];
       std::unique_ptr<thread::ManagedQueue> queue(
           tm.NewQueue("test queue", q_options));
       absl::Notification done[10];
-      for (int i = 0; i != std::size(done); i++) {
-        queue->Schedule(absl::bind_front(&SleepThenNotify, &done[i]));
+      for (int k = 0; k != std::size(done); k++) {
+        queue->Schedule(absl::bind_front(&SleepThenNotify, &done[k]));
       }
       queue->WaitUntilComplete();
       // All the Notifications should be notified
-      for (int i = 0; i != std::size(done); i++) {
-        CHECK(done[i].HasBeenNotified())
-            << "thread limit " << q_options.thread_limit << "queue limit "
+      for (int k = 0; k != std::size(done); k++) {
+        SCOPED_TRACE(absl::StrCat("k=", k));
+        EXPECT_TRUE(done[k].HasBeenNotified())
+            << "thread limit " << q_options.thread_limit << " queue limit "
             << q_options.queue_limit;
       }
       queue.reset();
@@ -262,8 +270,8 @@ static void ParameterizedTestClosure(PerThread::Key* key, int sleep_ms,
     queue_info->total_threads++;
   }
   queue_info->concurrent_calls++;
-  CHECK_LE(queue_info->concurrent_calls,
-           queue_info->queue_options.thread_limit);
+  EXPECT_LE(queue_info->concurrent_calls,
+            queue_info->queue_options.thread_limit);
   if (queue_info->max_concurrent_calls < queue_info->concurrent_calls) {
     queue_info->max_concurrent_calls = queue_info->concurrent_calls;
   }
@@ -278,8 +286,8 @@ static void ParameterizedTestClosure(PerThread::Key* key, int sleep_ms,
                            absl::Milliseconds(sleep_ms));
     mu.unlock();
   }
-  CHECK_EQ(thread::Executor::CurrentExecutor(),
-           queue_info->queue->current_executor_for_testing());
+  EXPECT_EQ(thread::Executor::CurrentExecutor(),
+            queue_info->queue->current_executor_for_testing());
   queue_info->mu.lock();
   queue_info->concurrent_calls--;
   queue_info->total_calls++;
@@ -327,11 +335,11 @@ TEST(ThreadManagerTest, SleepingClosures) {
   queue_info.queue.reset();
   tm.reset();
   queue_info.cb.reset();
-  CHECK_GT(elapsed, absl::Milliseconds(500));
+  EXPECT_GT(elapsed, absl::Milliseconds(500));
 #if defined(ABSL_HAVE_THREAD_SANITIZER)
-  CHECK_LT(elapsed, absl::Milliseconds(6000));
+  EXPECT_LT(elapsed, absl::Milliseconds(6000));
 #else
-  CHECK_LT(elapsed, absl::Milliseconds(3000));
+  EXPECT_LT(elapsed, absl::Milliseconds(3000));
 #endif
 }
 
@@ -361,7 +369,7 @@ TEST(ThreadManagerTest, CPUBoundClosures) {
   queue_info.queue.reset();
   tm.reset();
   queue_info.cb.reset();
-  CHECK_LT(queue_info.total_threads, queue_info.total_calls);
+  EXPECT_LT(queue_info.total_threads, queue_info.total_calls);
 }
 
 TEST(ThreadManagerTest, ContendingClosures) {
@@ -397,9 +405,9 @@ TEST(ThreadManagerTest, ContendingClosures) {
   tm.reset();
   queue_info.cb.reset();
 #if defined(ABSL_HAVE_THREAD_SANITIZER)
-  CHECK_LT(queue_info.total_threads, queue_info.total_calls / 2);
+  EXPECT_LT(queue_info.total_threads, queue_info.total_calls / 2);
 #else
-  CHECK_LT(queue_info.total_threads, queue_info.total_calls / 5);
+  EXPECT_LT(queue_info.total_threads, queue_info.total_calls / 5);
 #endif
 }
 
@@ -415,6 +423,7 @@ TEST(ThreadManagerTest, Queues) {
   queue_info[1].queue_options.thread_limit = 2;
   queue_info[1].queue_options.queue_limit = 27;
   for (int i = 0; i != std::size(queue_info); i++) {
+    SCOPED_TRACE(absl::StrCat("i=", i));
     queue_info[i].expected_calls = 1000;
     queue_info[i].total_calls = 0;
     queue_info[i].concurrent_calls = 0;
@@ -427,7 +436,7 @@ TEST(ThreadManagerTest, Queues) {
     queue_info[i].name = absl::StrFormat("queue %d", i);
     queue_info[i].queue.reset(
         tm->NewQueue(queue_info[i].name, queue_info[i].queue_options));
-    CHECK_EQ(queue_info[i].queue->num_pending_closures(), 0);
+    EXPECT_EQ(queue_info[i].queue->num_pending_closures(), 0);
   }
 
   int64_t start_ms = absl::ToUnixMillis(absl::Now());
@@ -454,19 +463,20 @@ TEST(ThreadManagerTest, Queues) {
   int64_t end_ms = absl::ToUnixMillis(absl::Now());
   int threads = 0;
   for (int i = 0; i != std::size(queue_info); i++) {
+    SCOPED_TRACE(absl::StrCat("i=", i));
     threads += queue_info[i].total_threads;
     LOG(INFO) << "queue " << queue_info[i].name << "  thread_limit "
               << queue_info[i].queue_options.thread_limit << "  queue_limit "
               << queue_info[i].queue_options.queue_limit
               << " max_concurrent_calls " << queue_info[i].max_concurrent_calls
               << "  max_pending " << queue_info[i].max_pending_for_queue;
-    CHECK_LE(queue_info[i].max_concurrent_calls,
-             queue_info[i].queue_options.thread_limit);
-    CHECK_EQ(queue_info[i].concurrent_calls, 0);
+    EXPECT_LE(queue_info[i].max_concurrent_calls,
+              queue_info[i].queue_options.thread_limit);
+    EXPECT_EQ(queue_info[i].concurrent_calls, 0);
     if (queue_info[i].queue_options.thread_limit == INT_MAX) {
       // queues with infinite thread_limits should have less queuing
-      CHECK_LE(8, queue_info[i].max_pending_for_queue);
-      CHECK_LE(queue_info[i].max_pending_for_queue, 28);
+      EXPECT_GE(queue_info[i].max_pending_for_queue, 8);
+      EXPECT_LE(queue_info[i].max_pending_for_queue, 28);
     } else {  // others should see more queuing
       // We have a queue limit of 27. However, the callback will normally never
       // see that 27 as it pops the queue and then invokes the callback. The
@@ -479,7 +489,7 @@ TEST(ThreadManagerTest, Queues) {
       // factor is strongly dependent on how much CPUs are available to the
       // machine running the test. To avoid flakes, we check for 'at least 25'.
       ASSERT_GE(queue_info[i].max_pending_for_queue, 25);
-      CHECK_LE(queue_info[i].max_pending_for_queue, 40);
+      EXPECT_LE(queue_info[i].max_pending_for_queue, 40);
     }
     queue_info[i].cb.reset();
   }
@@ -509,22 +519,23 @@ TEST(ThreadManagerTest, AddAfter) {
   n[3].WaitForNotification();
   int64_t end0_ms = absl::ToUnixMillis(absl::Now());
   // At least 1s should have passed ...
-  CHECK_LE(start_ms + 1000, end0_ms);
+  EXPECT_GE(end0_ms, start_ms + 1000);
   // but less than 10s because the TimedCall thread should not have been
   // blocked.
-  CHECK_LT(end0_ms, start_ms + 10000);
+  EXPECT_LT(end0_ms, start_ms + 10000);
   for (int i = 0; i != 3; i++) {
     n[i].WaitForNotification();
   }
   int64_t end1_ms = absl::ToUnixMillis(absl::Now());
   // now 10s should have passed despite the 1ms delay because q0 is
   // single-threaded.
-  CHECK_LT(start_ms + 10000, end1_ms);
+  EXPECT_GT(end1_ms, start_ms + 10000);
   q0.reset();
   q1.reset();
   // Check that WaitUntilComplete() waits even for work passed via
   // AddAfter(), both with bounded and unbounded threads.
   for (int i = 0; i != 2; i++) {
+    SCOPED_TRACE(absl::StrCat("i=", i));
     thread::ManagedQueueOptions options_wait;
     if ((i & 1) == 0) {
       options_wait.thread_limit = 1;
@@ -535,7 +546,7 @@ TEST(ThreadManagerTest, AddAfter) {
     q->ScheduleAt(absl::Now() + absl::Milliseconds(1000),
                   [&add_after_note] { add_after_note.Notify(); });
     q->WaitUntilComplete();
-    CHECK(add_after_note.HasBeenNotified());
+    EXPECT_TRUE(add_after_note.HasBeenNotified());
     q.reset();
   }
   tm.reset();
@@ -543,6 +554,7 @@ TEST(ThreadManagerTest, AddAfter) {
   // Check that deleting the thread_manager waits even for work passed
   // via AddAfter(), and even if WaitUntilComplete() is not called.
   for (int i = 0; i != 2; i++) {
+    SCOPED_TRACE(absl::StrCat("i=", i));
     tm.emplace("test8a", thread::ManagerOptions());
     thread::ManagedQueueOptions options_wait;
     if ((i & 1) == 0) {
@@ -555,7 +567,7 @@ TEST(ThreadManagerTest, AddAfter) {
                   [&add_after_note] { add_after_note.Notify(); });
     q.reset();
     tm.reset();
-    CHECK(add_after_note.HasBeenNotified());
+    EXPECT_TRUE(add_after_note.HasBeenNotified());
   }
 }
 
@@ -563,7 +575,7 @@ TEST(ThreadManagerTest, AddAfter) {
 class VerifyNoCurrentExecutorAtDestruction {
  public:
   ~VerifyNoCurrentExecutorAtDestruction() {
-    CHECK_EQ(thread::Executor::CurrentExecutor(), nullptr);
+    EXPECT_THAT(thread::Executor::CurrentExecutor(), IsNull());
   }
 };
 
@@ -707,6 +719,8 @@ TEST(ThreadManagerTest, ToleratesSlowThreadExit) {
   tm.reset();
 }
 
+}  // namespace
+
 namespace thread {
 TEST(ThreadManagerWatchdogTest, UsesCustomWatchDogCallback) {
   absl::Notification watchdog_fired;
@@ -747,6 +761,8 @@ void PrintTo(const thread::ManagedQueueStats& s, std::ostream* os) {
       << " num_pending_closures=" << s.num_pending_closures;
 }
 }  // namespace thread
+
+namespace {
 
 TEST(QueueStatsTest, OneQueue) {
   std::optional<thread::ThreadManager> tm(std::in_place, "QueueStatsTest",
@@ -934,3 +950,5 @@ static void BM_ThreadPoolStartStop(benchmark::State& state) {
   }
 }
 BENCHMARK(BM_ThreadPoolStartStop)->Arg(1)->Arg(10)->Arg(100)->Arg(1000);
+
+}  // namespace
