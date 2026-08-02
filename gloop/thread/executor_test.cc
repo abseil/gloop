@@ -128,12 +128,11 @@ TEST_P(AddCancellableTest, NoCancellationNoDelay) {
 TEST_P(AddCancellableTest, NoCancellationWithDelay) {
   ExecutorHandle h;
   absl::Notification n;
-  absl::Time before = absl::Now();
+  const absl::Time before = absl::Now();
   AddCancellableHelper(
       executor_, absl::Milliseconds(20), [&n] { n.Notify(); }, &h);
   n.WaitForNotification();
-  absl::Time after = absl::Now();
-  EXPECT_GE(after - before, absl::Milliseconds(20));
+  EXPECT_GE(absl::Now() - before, absl::Milliseconds(20));
 }
 
 TEST_P(AddCancellableTest, CancelledDuringDelay) {
@@ -184,6 +183,7 @@ void StartWaitFinish(Notifications* n) {
 
 TEST_P(AddCancellableTest, CancelWillTimeout) {
   for (int i = 0; i < 20; ++i) {
+    SCOPED_TRACE(absl::StrCat("iteration=", i));
     ExecutorHandle h;
     Notifications n;
     AddCancellableHelper(
@@ -200,6 +200,7 @@ TEST_P(AddCancellableTest, CancelWillTimeout) {
 
 TEST_P(AddCancellableTest, CancelWaitsForFinish) {
   for (int i = 0; i < 20; ++i) {
+    SCOPED_TRACE(absl::StrCat("iteration=", i));
     ExecutorHandle h;
     Notifications n;
     AddCancellableHelper(
@@ -225,6 +226,7 @@ TEST_P(AddCancellableTest, CancelWaitsForFinish) {
 
 TEST_P(AddCancellableTest, CancelAfterFinish) {
   for (int i = 0; i < 20; ++i) {
+    SCOPED_TRACE(absl::StrCat("iteration=", i));
     ExecutorHandle h;
     absl::Notification n;
     AddCancellableHelper(
@@ -237,7 +239,7 @@ TEST_P(AddCancellableTest, CancelAfterFinish) {
     // If the notification is descheduled before the destructor finishes (but
     // after it notifies), cancel with a timeout of zero would fail and return
     // false.  We pass kBlock to avoid that tiny race.
-    Closure* cb;
+    Closure* cb = nullptr;
     EXPECT_EQ(Cancel(h, absl::InfiniteDuration(), &cb),
               CancelResult::kNotScheduled);
     EXPECT_EQ(cb, nullptr);
@@ -250,7 +252,7 @@ TEST_P(AddCancellableTest, MultipleCancellations) {
   absl::Notification n;
   AddCancellableHelper(executor_, absl::Minutes(3), [&n] { n.Notify(); }, &h);
 
-  Closure* cb;
+  Closure* cb = nullptr;
   EXPECT_EQ(Cancel(h, absl::ZeroDuration(), &cb), CancelResult::kCancelled);
   EXPECT_NE(cb, nullptr);
   delete cb;
@@ -394,16 +396,16 @@ TEST(AddCancellable, CancelDeletesCallbackWhenNonReturning) {
 TEST(Executor, CancelWithInvalidHandle) {
   ExecutorHandle handle;  // an invalid/default handle
 
-  Closure* cb1;
+  Closure* cb1 = nullptr;
   EXPECT_EQ(Cancel(handle, absl::ZeroDuration(), &cb1),
             CancelResult::kNotScheduled);
-  EXPECT_TRUE(cb1 == nullptr);
+  EXPECT_EQ(cb1, nullptr);
 
   // The timeout value is irrelevant with an invalid handle.
-  Closure* cb2;
+  Closure* cb2 = nullptr;
   EXPECT_EQ(Cancel(handle, absl::InfiniteDuration(), &cb2),
             CancelResult::kNotScheduled);
-  EXPECT_TRUE(cb2 == nullptr);
+  EXPECT_EQ(cb2, nullptr);
 }
 
 TEST_P(AddCancellableTest, EmptyHandle) {
@@ -412,7 +414,7 @@ TEST_P(AddCancellableTest, EmptyHandle) {
 
   AddCancellableHelper(executor_, absl::Milliseconds(100), [] {}, &handle);
   EXPECT_FALSE(handle.empty());
-  Closure* cb1;
+  Closure* cb1 = nullptr;
   EXPECT_EQ(Cancel(handle, absl::InfiniteDuration(), &cb1),
             CancelResult::kCancelled);
   EXPECT_FALSE(handle.empty());
@@ -425,7 +427,7 @@ TEST_P(AddCancellableTest, EmptyHandle) {
       executor_, absl::Milliseconds(100), [&n] { n.Notify(); }, &handle);
   EXPECT_FALSE(handle.empty());
   n.WaitForNotification();
-  Closure* cb2;
+  Closure* cb2 = nullptr;
   EXPECT_EQ(Cancel(handle, absl::InfiniteDuration(), &cb2),
             CancelResult::kNotScheduled);
   EXPECT_EQ(cb2, nullptr);
@@ -566,7 +568,7 @@ class NonExecutingExecutor : public ::thread::Executor {
 TEST(Executor,
      AddedPermanentCallbackIsNotDeletedIfExecutorDropsScheduledInvocable) {
   DoNothingExecutor executor;
-  bool destructor_called;
+  bool destructor_called = false;
   auto callback = std::make_unique<TestClosure>(&destructor_called, true);
   executor.Schedule(util::functional::FromCallback(callback.get()));
   EXPECT_FALSE(destructor_called);
@@ -575,7 +577,7 @@ TEST(Executor,
 TEST_P(AddCancellableTest, CallbackIsDeletedIfExecutorDropsScheduledInvocable) {
   DoNothingExecutor executor;
   ExecutorHandle handle;
-  bool destructor_called;
+  bool destructor_called = false;
   AddCancellableHelper(
       &executor, absl::ZeroDuration(),
       [c = absl::MakeCleanup(
@@ -677,13 +679,13 @@ INSTANTIATE_TEST_SUITE_P(
 
 class ManyTest : public ::testing::Test {
  public:
-  ManyTest() { executor_ = new ThreadPool(1); }
+  ManyTest() : executor_(std::make_unique<ThreadPool>(1)) {}
 
   void DecrementCounter(absl::BlockingCounter* c) { c->DecrementCount(); }
 
  protected:
   static constexpr int kManySize = 1024;
-  ThreadPool* executor_;
+  std::unique_ptr<ThreadPool> executor_;
 };
 
 TEST_F(ManyTest, ScheduleMany) {
@@ -712,10 +714,10 @@ TEST(InlineExecutorTest, Add) {
   absl::Time saved_deadline = absl::InfiniteFuture();
   absl::Notification notification;
   {
-    std::unique_ptr<base::Context> target_context(
-        new base::Context(base::ContextBuilder(base::BackgroundContext())
-                              .set_deadline(deadline)
-                              .BuildValue()));
+    auto target_context = std::make_unique<base::Context>(
+        base::ContextBuilder(base::BackgroundContext())
+            .set_deadline(deadline)
+            .BuildValue());
     base::WithContext with(*target_context);
     executor->Schedule(absl::bind_front(ValidateCurrentExecutorAndNotify,
                                         executor.get(), &notification,
@@ -733,10 +735,10 @@ TEST(InlineExecutorTest, Schedule) {
   absl::Time saved_deadline = absl::InfiniteFuture();
   absl::Notification notification;
   {
-    std::unique_ptr<base::Context> target_context(
-        new base::Context(base::ContextBuilder(base::BackgroundContext())
-                              .set_deadline(deadline)
-                              .BuildValue()));
+    auto target_context = std::make_unique<base::Context>(
+        base::ContextBuilder(base::BackgroundContext())
+            .set_deadline(deadline)
+            .BuildValue());
     base::WithContext with(*target_context);
     executor->Schedule([&notification, &executor, &saved_deadline] {
       ValidateCurrentExecutorAndNotify(executor.get(), &notification,
@@ -755,10 +757,10 @@ TEST(InlineExecutorTest, TryAdd) {
   absl::Time saved_deadline = absl::InfiniteFuture();
   absl::Notification notification;
   {
-    std::unique_ptr<base::Context> target_context(
-        new base::Context(base::ContextBuilder(base::BackgroundContext())
-                              .set_deadline(deadline)
-                              .BuildValue()));
+    auto target_context = std::make_unique<base::Context>(
+        base::ContextBuilder(base::BackgroundContext())
+            .set_deadline(deadline)
+            .BuildValue());
     base::WithContext with(*target_context);
 
     EXPECT_TRUE(executor->TrySchedule(
@@ -777,10 +779,10 @@ TEST(InlineExecutorTest, TrySchedule) {
   absl::Time saved_deadline = absl::InfiniteFuture();
   absl::Notification notification;
   {
-    std::unique_ptr<base::Context> target_context(
-        new base::Context(base::ContextBuilder(base::BackgroundContext())
-                              .set_deadline(deadline)
-                              .BuildValue()));
+    auto target_context = std::make_unique<base::Context>(
+        base::ContextBuilder(base::BackgroundContext())
+            .set_deadline(deadline)
+            .BuildValue());
     base::WithContext with(*target_context);
     EXPECT_TRUE(
         executor->TrySchedule([&notification, &executor, &saved_deadline] {
@@ -842,7 +844,7 @@ static void BM_AddCancellable(benchmark::State& state) {
     }
     // Run all the closures to clean up (do not time it).
     state.PauseTiming();
-    CHECK_EQ(kBatchSize, add_after_closures.size());
+    CHECK_EQ(add_after_closures.size(), kBatchSize);
     for (int i = 0; i < add_after_closures.size(); ++i) {
       add_after_closures[i]->Run();
     }
@@ -875,7 +877,7 @@ static void BM_Cancel(benchmark::State& state) {
     }
     // Run all the closures to clean up (do not time it).
     state.PauseTiming();
-    CHECK_EQ(kBatchSize, add_after_closures.size());
+    CHECK_EQ(add_after_closures.size(), kBatchSize);
     for (int i = 0; i < add_after_closures.size(); ++i) {
       add_after_closures[i]->Run();
     }
@@ -906,7 +908,7 @@ static void BM_RunUncancelledClosures(benchmark::State& state) {
     for (int i = 0; i < kBatchSize; ++i) {
       add_after_closures[i]->Run();
     }
-    CHECK_EQ(kBatchSize, add_after_closures.size());
+    CHECK_EQ(add_after_closures.size(), kBatchSize);
     add_after_closures.clear();
   }
 
@@ -932,7 +934,7 @@ static void BM_RunCancelledClosures(benchmark::State& state) {
 
       TryCancel(handle);
     }
-    CHECK_EQ(kBatchSize, add_after_closures.size());
+    CHECK_EQ(add_after_closures.size(), kBatchSize);
     state.ResumeTiming();
     for (int i = 0; i < add_after_closures.size(); ++i) {
       add_after_closures[i]->Run();
