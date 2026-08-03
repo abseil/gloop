@@ -52,6 +52,7 @@
 namespace {
 
 using ::testing::ElementsAre;
+using ::testing::Field;
 using ::testing::NanSensitiveDoubleEq;
 using ::testing::NanSensitiveFloatEq;
 using ::testing::Pair;
@@ -88,7 +89,7 @@ using ::gtl::OrderByTupleElement;
 using ::gtl::OrderByTupleElementGreater;
 using ::gtl::Reverse;
 
-typedef std::pair<std::string, int> StringInt;
+using StringInt = std::pair<std::string, int>;
 
 struct A {
   int v;
@@ -114,13 +115,13 @@ struct ThreeWay {
 TEST(OrderByTest, WorksAsTplArgForSet) {
   // Elements in this set is sorted by the first field in descending
   // order.
-  typedef std::set<StringInt, OrderBy<First, Greater>> FirstDescendingSet;
+  using FirstDescendingSet = std::set<StringInt, OrderBy<First, Greater>>;
   FirstDescendingSet s1 = {StringInt("a", 2), StringInt("b", 1)};
 
   EXPECT_THAT(s1, ElementsAre(StringInt("b", 1), StringInt("a", 2)));
 
   // Elements in this set is sorted by the second field, ascending.
-  typedef std::set<StringInt, OrderBy<Second>> SecondAscendingSet;
+  using SecondAscendingSet = std::set<StringInt, OrderBy<Second>>;
   SecondAscendingSet s2 = {StringInt("b", 2), StringInt("a", 1)};
 
   EXPECT_THAT(s2, ElementsAre(StringInt("a", 1), StringInt("b", 2)));
@@ -324,8 +325,8 @@ TEST(OrderByTupleElementTest, WorksWithTupleLikeObjects) {
   std::vector<TupleLike> v = {{3}, {2}};
 
   std::sort(v.begin(), v.end(), OrderByTupleElement<0>());
-  EXPECT_EQ(v[0].value, 2);
-  EXPECT_EQ(v[1].value, 3);
+  EXPECT_THAT(
+      v, ElementsAre(Field(&TupleLike::value, 2), Field(&TupleLike::value, 3)));
 }
 
 TEST(OrderByTupleElementGreaterTest, Works) {
@@ -575,9 +576,9 @@ void PrintTo(const Derived& d, ::std::ostream* os) {
 
 TEST(OrderByPointeeTest, ExtractPointeeBasic) {
   int i = 123;
-  EXPECT_EQ(123, ExtractPointee()(&i));
-  EXPECT_EQ(&i, &ExtractPointee()(&i));  // Make sure it is a ref.
-  EXPECT_EQ('x', ExtractPointee()("x"));
+  EXPECT_EQ(ExtractPointee()(&i), 123);
+  EXPECT_EQ(&ExtractPointee()(&i), &i);  // Make sure it is a ref.
+  EXPECT_EQ(ExtractPointee()("x"), 'x');
 }
 
 TEST(OrderByPointeeTest, ExtractPointeeWithOrderBy) {
@@ -808,12 +809,12 @@ TEST(ChainComparatorsTest, CompareTernary) {
     int y;
   };
   auto cmp = ChainComparators(OrderBy(&X::x), OrderBy(&X::y));
-  EXPECT_GT(0, cmp.Compare(X{1, 1}, X{1, 2}));
-  EXPECT_EQ(0, cmp.Compare(X{1, 2}, X{1, 2}));
-  EXPECT_LT(0, cmp.Compare(X{1, 3}, X{1, 2}));
-  EXPECT_GT(0, cmp.Compare(X{0, 2}, X{1, 2}));
-  EXPECT_EQ(0, cmp.Compare(X{1, 2}, X{1, 2}));
-  EXPECT_LT(0, cmp.Compare(X{2, 2}, X{1, 2}));
+  EXPECT_LT(cmp.Compare(X{1, 1}, X{1, 2}), 0);
+  EXPECT_EQ(cmp.Compare(X{1, 2}, X{1, 2}), 0);
+  EXPECT_GT(cmp.Compare(X{1, 3}, X{1, 2}), 0);
+  EXPECT_LT(cmp.Compare(X{0, 2}, X{1, 2}), 0);
+  EXPECT_EQ(cmp.Compare(X{1, 2}, X{1, 2}), 0);
+  EXPECT_GT(cmp.Compare(X{2, 2}, X{1, 2}), 0);
 }
 
 TEST(ChainComparatorTest, WithCustom3wayCompare) {
@@ -839,12 +840,12 @@ TEST(ChainComparatorTest, WithCustom3wayCompare) {
   };
   auto cmp = ChainComparators(OrderBy(&X::x, CanaryCmp()),
                               OrderBy(&X::y, CanaryCmp()));
-  EXPECT_LT(0, cmp.Compare(X{1, "a"}, X{1, "aaa"}));
-  EXPECT_EQ(0, cmp.Compare(X{1, "foo"}, X{1, "foo"}));
-  EXPECT_GT(0, cmp.Compare(X{1, "zz"}, X{1, "aa"}));
-  EXPECT_LT(0, cmp.Compare(X{-100, "foo"}, X{100, "foo"}));
-  EXPECT_EQ(0, cmp.Compare(X{25, "foo"}, X{25, "foo"}));
-  EXPECT_GT(0, cmp.Compare(X{65, "foo"}, X{3, "foo"}));
+  EXPECT_GT(cmp.Compare(X{1, "a"}, X{1, "aaa"}), 0);
+  EXPECT_EQ(cmp.Compare(X{1, "foo"}, X{1, "foo"}), 0);
+  EXPECT_LT(cmp.Compare(X{1, "zz"}, X{1, "aa"}), 0);
+  EXPECT_GT(cmp.Compare(X{-100, "foo"}, X{100, "foo"}), 0);
+  EXPECT_EQ(cmp.Compare(X{25, "foo"}, X{25, "foo"}), 0);
+  EXPECT_LT(cmp.Compare(X{65, "foo"}, X{3, "foo"}), 0);
 }
 
 TEST(ChainComparatorsTest, NestedCallCount) {
@@ -861,9 +862,7 @@ TEST(ChainComparatorsTest, NestedCallCount) {
       CanaryCmp{&n[0]},
       ChainComparators(CanaryCmp{&n[1]}, ChainComparators(CanaryCmp{&n[2]})));
   EXPECT_FALSE(cmp(MyClass{1, 4}, MyClass{1, 4}));
-  EXPECT_EQ(2, n[0]);
-  EXPECT_EQ(2, n[1]);
-  EXPECT_EQ(1, n[2]);
+  EXPECT_THAT(n, ElementsAre(2, 2, 1));
 }
 
 TEST(ChainComparatorsTest, NestedExtractorCallCount) {
@@ -879,8 +878,8 @@ TEST(ChainComparatorsTest, NestedExtractorCallCount) {
   };
   auto cmp = ChainComparators(OrderBy(extract_x), OrderBy(extract_y));
   EXPECT_FALSE(cmp(MyClass{1, 4}, MyClass{1, 4}));
-  EXPECT_EQ(2, n_x);
-  EXPECT_EQ(2, n_y);
+  EXPECT_EQ(n_x, 2);
+  EXPECT_EQ(n_y, 2);
 }
 
 TEST(ChainComparatorsTest, NestedCallCountWith3wayCompare) {
