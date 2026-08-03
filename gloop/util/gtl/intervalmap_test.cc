@@ -155,67 +155,171 @@ TYPED_TEST_SUITE(IntervalMapTest, MyTypes);
 // Helpers
 
 template <class IMap>
-static void CheckMissingRange(const IMap& m, int start, int limit) {
+static ::testing::AssertionResult VerifyMissingRange(const IMap& m, int start,
+                                                     int limit) {
   for (int i = start; i < limit; i++) {
-    EXPECT_FALSE(m.contains(i));
+    if (m.contains(i)) {
+      return ::testing::AssertionFailure() << "Map contains " << i;
+    }
     typename IMap::mapped_type v;
     typename IMap::key_type s, l;
-    EXPECT_FALSE(m.Lookup(i, &v));
-    EXPECT_FALSE(m.FindInterval(i, &s, &l, &v));
+    if (m.Lookup(i, &v)) {
+      return ::testing::AssertionFailure() << "Lookup succeeded for " << i;
+    }
+    if (m.FindInterval(i, &s, &l, &v)) {
+      return ::testing::AssertionFailure()
+             << "FindInterval succeeded for " << i;
+    }
   }
-  ASSERT_TRUE(m.IsEmptyInterval(start, limit));
-  ASSERT_TRUE(m.IsEmptyInterval(start + 1, limit));
-  ASSERT_TRUE(m.IsEmptyInterval(start + 1, limit - 1));
-  ASSERT_TRUE(m.IsEmptyInterval(start, limit - 1));
+  if (!m.IsEmptyInterval(start, limit)) {
+    return ::testing::AssertionFailure()
+           << "IsEmptyInterval(" << start << ", " << limit << ") is false";
+  }
+  if (!m.IsEmptyInterval(start + 1, limit)) {
+    return ::testing::AssertionFailure()
+           << "IsEmptyInterval(" << start + 1 << ", " << limit << ") is false";
+  }
+  if (!m.IsEmptyInterval(start + 1, limit - 1)) {
+    return ::testing::AssertionFailure() << "IsEmptyInterval(" << start + 1
+                                         << ", " << limit - 1 << ") is false";
+  }
+  if (!m.IsEmptyInterval(start, limit - 1)) {
+    return ::testing::AssertionFailure()
+           << "IsEmptyInterval(" << start << ", " << limit - 1 << ") is false";
+  }
+  return ::testing::AssertionSuccess();
 }
 
 template <class IMap>
-static void CheckPresentRange(const IMap& m, int start, int limit, int val) {
+static ::testing::AssertionResult VerifyPresentRange(const IMap& m, int start,
+                                                     int limit, int val) {
   typename IMap::mapped_type v;
   typename IMap::key_type s, l;
   for (int i = start; i < limit; i++) {
-    ASSERT_TRUE(m.contains(i));
-    ASSERT_TRUE(m.Lookup(i, &v));
-    ASSERT_EQ(v, val);
-    ASSERT_TRUE(m.FindInterval(i, &s, &l, &v));
-    ASSERT_EQ(s, start);
-    ASSERT_EQ(l, limit);
-    ASSERT_EQ(v, val);
-    ASSERT_TRUE(m.FindNext(i, &s, &l, &v));
-    ASSERT_EQ(s, start);
-    ASSERT_EQ(l, limit);
-    ASSERT_EQ(v, val);
+    if (!m.contains(i)) {
+      return ::testing::AssertionFailure() << "Map does not contain " << i;
+    }
+    if (!m.Lookup(i, &v)) {
+      return ::testing::AssertionFailure() << "Lookup failed for " << i;
+    }
+    if (v != val) {
+      return ::testing::AssertionFailure()
+             << "Lookup value mismatch at " << i << ": expected " << val
+             << ", got " << v;
+    }
+    if (!m.FindInterval(i, &s, &l, &v)) {
+      return ::testing::AssertionFailure() << "FindInterval failed for " << i;
+    }
+    if (s != start) {
+      return ::testing::AssertionFailure()
+             << "FindInterval start mismatch at " << i << ": expected " << start
+             << ", got " << s;
+    }
+    if (l != limit) {
+      return ::testing::AssertionFailure()
+             << "FindInterval limit mismatch at " << i << ": expected " << limit
+             << ", got " << l;
+    }
+    if (v != val) {
+      return ::testing::AssertionFailure()
+             << "FindInterval value mismatch at " << i << ": expected " << val
+             << ", got " << v;
+    }
+    if (!m.FindNext(i, &s, &l, &v)) {
+      return ::testing::AssertionFailure() << "FindNext failed for " << i;
+    }
+    if (s != start) {
+      return ::testing::AssertionFailure()
+             << "FindNext start mismatch at " << i << ": expected " << start
+             << ", got " << s;
+    }
+    if (l != limit) {
+      return ::testing::AssertionFailure()
+             << "FindNext limit mismatch at " << i << ": expected " << limit
+             << ", got " << l;
+    }
+    if (v != val) {
+      return ::testing::AssertionFailure()
+             << "FindNext value mismatch at " << i << ": expected " << val
+             << ", got " << v;
+    }
   }
 
   // FindNext() from before range either yields an earlier range or this range
-  ASSERT_TRUE(m.FindNext(start - 1, &s, &l, &v));
+  if (!m.FindNext(start - 1, &s, &l, &v)) {
+    return ::testing::AssertionFailure()
+           << "FindNext failed for " << (start - 1);
+  }
   if (s >= start) {
-    ASSERT_EQ(s, start);
-    ASSERT_EQ(l, limit);
-    ASSERT_EQ(v, val);
+    if (s != start) {
+      return ::testing::AssertionFailure()
+             << "FindNext start mismatch for " << (start - 1) << ": expected "
+             << start << ", got " << s;
+    }
+    if (l != limit) {
+      return ::testing::AssertionFailure()
+             << "FindNext limit mismatch for " << (start - 1) << ": expected "
+             << limit << ", got " << l;
+    }
+    if (v != val) {
+      return ::testing::AssertionFailure()
+             << "FindNext value mismatch for " << (start - 1) << ": expected "
+             << val << ", got " << v;
+    }
   }
 
   // FindNext() from after range does not yield this range
   if (m.FindNext(limit, &s, &l, &v)) {
-    ASSERT_GE(s, limit);
-  }
-
-  if (start < limit) {
-    ASSERT_FALSE(m.IsEmptyInterval(start - 1, limit));
-    ASSERT_FALSE(m.IsEmptyInterval(start - 1, limit + 1));
-    ASSERT_FALSE(m.IsEmptyInterval(start, limit));
-    ASSERT_FALSE(m.IsEmptyInterval(start, limit + 1));
-    ASSERT_FALSE(m.IsEmptyInterval(start, start + 1));
-    ASSERT_FALSE(m.IsEmptyInterval(limit - 1, limit));
-    ASSERT_FALSE(m.IsEmptyInterval(limit - 1, limit + 1));
-
-    if (start < limit - 1) {
-      ASSERT_FALSE(m.IsEmptyInterval(start + 1, limit - 1));
+    if (static_cast<int>(s) < limit) {
+      return ::testing::AssertionFailure()
+             << "FindNext from " << limit << " yielded range starting at "
+             << static_cast<int>(s) << " (expected >= " << limit << ")";
     }
   }
 
-  ASSERT_TRUE(m.IsEmptyInterval(start, start));
-  ASSERT_TRUE(m.IsEmptyInterval(start, start - 1));
+  if (start < limit) {
+    if (m.IsEmptyInterval(start - 1, limit))
+      return ::testing::AssertionFailure() << "IsEmptyInterval(" << (start - 1)
+                                           << ", " << limit << ") is true";
+    if (m.IsEmptyInterval(start - 1, limit + 1))
+      return ::testing::AssertionFailure()
+             << "IsEmptyInterval(" << (start - 1) << ", " << (limit + 1)
+             << ") is true";
+    if (m.IsEmptyInterval(start, limit))
+      return ::testing::AssertionFailure()
+             << "IsEmptyInterval(" << start << ", " << limit << ") is true";
+    if (m.IsEmptyInterval(start, limit + 1))
+      return ::testing::AssertionFailure()
+             << "IsEmptyInterval(" << start << ", " << (limit + 1)
+             << ") is true";
+    if (m.IsEmptyInterval(start, start + 1))
+      return ::testing::AssertionFailure()
+             << "IsEmptyInterval(" << start << ", " << (start + 1)
+             << ") is true";
+    if (m.IsEmptyInterval(limit - 1, limit))
+      return ::testing::AssertionFailure() << "IsEmptyInterval(" << (limit - 1)
+                                           << ", " << limit << ") is true";
+    if (m.IsEmptyInterval(limit - 1, limit + 1))
+      return ::testing::AssertionFailure()
+             << "IsEmptyInterval(" << (limit - 1) << ", " << (limit + 1)
+             << ") is true";
+
+    if (start < limit - 1) {
+      if (m.IsEmptyInterval(start + 1, limit - 1))
+        return ::testing::AssertionFailure()
+               << "IsEmptyInterval(" << (start + 1) << ", " << (limit - 1)
+               << ") is true";
+    }
+  }
+
+  if (!m.IsEmptyInterval(start, start))
+    return ::testing::AssertionFailure()
+           << "IsEmptyInterval(" << start << ", " << start << ") is false";
+  if (!m.IsEmptyInterval(start, start - 1))
+    return ::testing::AssertionFailure() << "IsEmptyInterval(" << start << ", "
+                                         << (start - 1) << ") is false";
+
+  return ::testing::AssertionSuccess();
 }
 
 // Helper routine that returns either the result found by FindNextPoint or -1
@@ -249,7 +353,7 @@ TYPED_TEST(IntervalMapTest, EmptyMap) {
 
   ASSERT_THAT(m, IsEmpty());
   ASSERT_TRUE(m.empty());
-  CheckMissingRange(m, 0, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 100));
 }
 
 TYPED_TEST(IntervalMapTest, SingleMap) {
@@ -258,9 +362,9 @@ TYPED_TEST(IntervalMapTest, SingleMap) {
 
   ASSERT_THAT(m, SizeIs(1));
   ASSERT_FALSE(m.empty());
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 10, 100);
-  CheckMissingRange(m, 10, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 10, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MultipleMap) {
@@ -272,13 +376,13 @@ TYPED_TEST(IntervalMapTest, MultipleMap) {
 
   ASSERT_THAT(m, SizeIs(3));
   ASSERT_FALSE(m.empty());
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 10, 100);
-  CheckMissingRange(m, 10, 15);
-  CheckPresentRange(m, 15, 20, 200);
-  CheckMissingRange(m, 20, 25);
-  CheckPresentRange(m, 25, 30, 300);
-  CheckMissingRange(m, 30, 50);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 10, 15));
+  EXPECT_TRUE(VerifyPresentRange(m, 15, 20, 200));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 25));
+  EXPECT_TRUE(VerifyPresentRange(m, 25, 30, 300));
+  EXPECT_TRUE(VerifyMissingRange(m, 30, 50));
 }
 
 TYPED_TEST(IntervalMapTest, SetResult) {
@@ -319,10 +423,10 @@ TYPED_TEST(IntervalMapTest, SetJustBefore) {
   m.Set(5, 10, 100);
 
   ASSERT_THAT(m, SizeIs(2));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 10, 100);
-  CheckPresentRange(m, 10, 20, 200);
-  CheckMissingRange(m, 20, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 100));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 200));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
 }
 
 TYPED_TEST(IntervalMapTest, SetJustAfter) {
@@ -332,10 +436,10 @@ TYPED_TEST(IntervalMapTest, SetJustAfter) {
   m.Set(10, 20, 200);
 
   ASSERT_THAT(m, SizeIs(2));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 10, 100);
-  CheckPresentRange(m, 10, 20, 200);
-  CheckMissingRange(m, 20, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 100));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 200));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
 }
 
 TYPED_TEST(IntervalMapTest, SetSame) {
@@ -345,9 +449,9 @@ TYPED_TEST(IntervalMapTest, SetSame) {
   m.Set(10, 20, 100);
 
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 10);
-  CheckPresentRange(m, 10, 20, 100);
-  CheckMissingRange(m, 20, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 10));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
 }
 
 TYPED_TEST(IntervalMapTest, SetKillPrefix) {
@@ -357,10 +461,10 @@ TYPED_TEST(IntervalMapTest, SetKillPrefix) {
   m.Set(5, 10, 100);
 
   ASSERT_THAT(m, SizeIs(2));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 10, 100);
-  CheckPresentRange(m, 10, 20, 200);
-  CheckMissingRange(m, 20, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 100));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 200));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
 }
 
 TYPED_TEST(IntervalMapTest, SetKillSuffix) {
@@ -370,10 +474,10 @@ TYPED_TEST(IntervalMapTest, SetKillSuffix) {
   m.Set(10, 20, 200);
 
   ASSERT_THAT(m, SizeIs(2));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 10, 100);
-  CheckPresentRange(m, 10, 20, 200);
-  CheckMissingRange(m, 20, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 100));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 200));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
 }
 
 TYPED_TEST(IntervalMapTest, SetInterior) {
@@ -383,11 +487,11 @@ TYPED_TEST(IntervalMapTest, SetInterior) {
   m.Set(20, 30, 200);
 
   ASSERT_THAT(m, SizeIs(3));
-  CheckMissingRange(m, 0, 9);
-  CheckPresentRange(m, 10, 20, 100);
-  CheckPresentRange(m, 20, 30, 200);
-  CheckPresentRange(m, 30, 40, 100);
-  CheckMissingRange(m, 40, 50);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 9));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 100));
+  EXPECT_TRUE(VerifyPresentRange(m, 20, 30, 200));
+  EXPECT_TRUE(VerifyPresentRange(m, 30, 40, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 40, 50));
 }
 
 TYPED_TEST(IntervalMapTest, SetCoverMultiple) {
@@ -399,10 +503,10 @@ TYPED_TEST(IntervalMapTest, SetCoverMultiple) {
   m.Set(10, 20, 200);
 
   ASSERT_THAT(m, SizeIs(2));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 10, 100);
-  CheckPresentRange(m, 10, 20, 200);
-  CheckMissingRange(m, 20, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 100));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 200));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
 }
 
 TYPED_TEST(IntervalMapTest, SplitAtEmpty) {
@@ -418,10 +522,10 @@ TYPED_TEST(IntervalMapTest, SplitAtMiddle) {
   m.SplitAt(15);
 
   ASSERT_THAT(m, SizeIs(2));
-  CheckMissingRange(m, 0, 10);
-  CheckPresentRange(m, 10, 15, 100);
-  CheckPresentRange(m, 15, 20, 100);
-  CheckMissingRange(m, 20, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 10));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 15, 100));
+  EXPECT_TRUE(VerifyPresentRange(m, 15, 20, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
 }
 
 TYPED_TEST(IntervalMapTest, SplitAtBefore) {
@@ -430,9 +534,9 @@ TYPED_TEST(IntervalMapTest, SplitAtBefore) {
   m.SplitAt(5);
 
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 10);
-  CheckPresentRange(m, 10, 20, 100);
-  CheckMissingRange(m, 20, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 10));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
 }
 
 TYPED_TEST(IntervalMapTest, SplitAtBeginning) {
@@ -441,9 +545,9 @@ TYPED_TEST(IntervalMapTest, SplitAtBeginning) {
   m.SplitAt(10);
 
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 10);
-  CheckPresentRange(m, 10, 20, 100);
-  CheckMissingRange(m, 20, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 10));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
 }
 
 TYPED_TEST(IntervalMapTest, SplitAtEnd) {
@@ -452,9 +556,9 @@ TYPED_TEST(IntervalMapTest, SplitAtEnd) {
   m.SplitAt(20);
 
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 10);
-  CheckPresentRange(m, 10, 20, 100);
-  CheckMissingRange(m, 20, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 10));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
 }
 TYPED_TEST(IntervalMapTest, SplitAtAfterEnd) {
   auto m = TestFixture::ConstructMap();
@@ -462,9 +566,9 @@ TYPED_TEST(IntervalMapTest, SplitAtAfterEnd) {
   m.SplitAt(25);
 
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 10);
-  CheckPresentRange(m, 10, 20, 100);
-  CheckMissingRange(m, 20, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 10));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
 }
 
 TYPED_TEST(IntervalMapTest, Coalesce) {
@@ -481,11 +585,11 @@ TYPED_TEST(IntervalMapTest, Coalesce) {
   m.Set(12, 14, 2);  // Abutment
   m.Coalesce();
 
-  CheckMissingRange(m, 0, 1);
-  CheckPresentRange(m, 1, 8, 1);
-  CheckPresentRange(m, 8, 10, 2);
-  CheckMissingRange(m, 10, 11);
-  CheckPresentRange(m, 11, 14, 2);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 1));
+  EXPECT_TRUE(VerifyPresentRange(m, 1, 8, 1));
+  EXPECT_TRUE(VerifyPresentRange(m, 8, 10, 2));
+  EXPECT_TRUE(VerifyMissingRange(m, 10, 11));
+  EXPECT_TRUE(VerifyPresentRange(m, 11, 14, 2));
 }
 
 template <typename T, typename U>
@@ -511,9 +615,9 @@ TYPED_TEST(IntervalMapTest, MergeValueEmpty) {
   auto m = TestFixture::ConstructMap();
   TestMergeValue(&m, 5, 10, 102);
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 10, 102);
-  CheckMissingRange(m, 10, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 102));
+  EXPECT_TRUE(VerifyMissingRange(m, 10, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeValuePartialOverlapAtBeginning) {
@@ -521,10 +625,10 @@ TYPED_TEST(IntervalMapTest, MergeValuePartialOverlapAtBeginning) {
   m.Set(5, 10, 100);
   TestMergeValue(&m, 5, 7, 102);
   ASSERT_THAT(m, SizeIs(2));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 7, 102);
-  CheckPresentRange(m, 7, 10, 100);
-  CheckMissingRange(m, 10, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 7, 102));
+  EXPECT_TRUE(VerifyPresentRange(m, 7, 10, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 10, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeValuePartialOverlapAtBeginning2) {
@@ -532,10 +636,10 @@ TYPED_TEST(IntervalMapTest, MergeValuePartialOverlapAtBeginning2) {
   m.Set(7, 10, 100);
   TestMergeValue(&m, 5, 10, 102);
   ASSERT_THAT(m, SizeIs(2));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 7, 102);
-  CheckPresentRange(m, 7, 10, 102);
-  CheckMissingRange(m, 10, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 7, 102));
+  EXPECT_TRUE(VerifyPresentRange(m, 7, 10, 102));
+  EXPECT_TRUE(VerifyMissingRange(m, 10, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeValueExactOverlap) {
@@ -543,9 +647,9 @@ TYPED_TEST(IntervalMapTest, MergeValueExactOverlap) {
   m.Set(5, 10, 100);
   TestMergeValue(&m, 5, 10, 102);
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 10, 102);
-  CheckMissingRange(m, 10, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 102));
+  EXPECT_TRUE(VerifyMissingRange(m, 10, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeValuePartialOverlapAtEnd) {
@@ -553,10 +657,10 @@ TYPED_TEST(IntervalMapTest, MergeValuePartialOverlapAtEnd) {
   m.Set(5, 10, 100);
   TestMergeValue(&m, 7, 10, 102);
   ASSERT_THAT(m, SizeIs(2));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 7, 100);
-  CheckPresentRange(m, 7, 10, 102);
-  CheckMissingRange(m, 10, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 7, 100));
+  EXPECT_TRUE(VerifyPresentRange(m, 7, 10, 102));
+  EXPECT_TRUE(VerifyMissingRange(m, 10, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeValueCompletelyCovers) {
@@ -564,10 +668,10 @@ TYPED_TEST(IntervalMapTest, MergeValueCompletelyCovers) {
   m.Set(5, 10, 100);
   TestMergeValue(&m, 0, 20, 102);
   ASSERT_THAT(m, SizeIs(3));
-  CheckPresentRange(m, 0, 5, 102);
-  CheckPresentRange(m, 5, 10, 102);
-  CheckPresentRange(m, 10, 20, 102);
-  CheckMissingRange(m, 20, 100);
+  EXPECT_TRUE(VerifyPresentRange(m, 0, 5, 102));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 102));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 102));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeValueInsideRange) {
@@ -575,10 +679,10 @@ TYPED_TEST(IntervalMapTest, MergeValueInsideRange) {
   m.Set(0, 20, 100);
   TestMergeValue(&m, 5, 10, 102);
   ASSERT_THAT(m, SizeIs(3));
-  CheckPresentRange(m, 0, 5, 100);
-  CheckPresentRange(m, 5, 10, 102);
-  CheckPresentRange(m, 10, 20, 100);
-  CheckMissingRange(m, 20, 100);
+  EXPECT_TRUE(VerifyPresentRange(m, 0, 5, 100));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 102));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 100));
 }
 
 static void Add(const int value, int* dst) { *dst += value; }
@@ -592,17 +696,17 @@ TYPED_TEST(IntervalMapTest, TypeSafeMerge) {
   m.MergeValue(3, 27, 17, &Add);
   m.MergeValue(29, 45, 30, [](const int value, int* dst) { *dst += value; });
   ASSERT_THAT(m, SizeIs(9));
-  CheckMissingRange(m, 0, 3);
-  CheckPresentRange(m, 3, 5, 17);
-  CheckPresentRange(m, 5, 10, 117);
-  CheckPresentRange(m, 10, 15, 17);
-  CheckPresentRange(m, 15, 20, 217);
-  CheckPresentRange(m, 20, 25, 17);
-  CheckPresentRange(m, 25, 27, 317);
-  CheckPresentRange(m, 27, 29, 300);
-  CheckPresentRange(m, 29, 30, 330);
-  CheckPresentRange(m, 30, 45, 30);
-  CheckMissingRange(m, 45, 50);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 3));
+  EXPECT_TRUE(VerifyPresentRange(m, 3, 5, 17));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 117));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 15, 17));
+  EXPECT_TRUE(VerifyPresentRange(m, 15, 20, 217));
+  EXPECT_TRUE(VerifyPresentRange(m, 20, 25, 17));
+  EXPECT_TRUE(VerifyPresentRange(m, 25, 27, 317));
+  EXPECT_TRUE(VerifyPresentRange(m, 27, 29, 300));
+  EXPECT_TRUE(VerifyPresentRange(m, 29, 30, 330));
+  EXPECT_TRUE(VerifyPresentRange(m, 30, 45, 30));
+  EXPECT_TRUE(VerifyMissingRange(m, 45, 50));
 }
 
 // Check that the next entry recorded in r matches start/limit/value
@@ -669,13 +773,13 @@ TYPED_TEST(IntervalMapTest, MergeThatClears) {
   m.Set(10, 15, 2);
   TestMergeThatClears(&m, 3, 20, 102);
   ASSERT_THAT(m, SizeIs(3));
-  CheckMissingRange(m, 0, 3);
-  CheckPresentRange(m, 3, 5, 102);
-  CheckMissingRange(m, 5, 7);
-  CheckPresentRange(m, 7, 10, 102);
-  CheckMissingRange(m, 10, 15);
-  CheckPresentRange(m, 15, 20, 102);
-  CheckMissingRange(m, 20, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 3));
+  EXPECT_TRUE(VerifyPresentRange(m, 3, 5, 102));
+  EXPECT_TRUE(VerifyMissingRange(m, 5, 7));
+  EXPECT_TRUE(VerifyPresentRange(m, 7, 10, 102));
+  EXPECT_TRUE(VerifyMissingRange(m, 10, 15));
+  EXPECT_TRUE(VerifyPresentRange(m, 15, 20, 102));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeValueRandomized) {
@@ -729,12 +833,12 @@ TYPED_TEST(IntervalMapTest, MergeValueMultipleRanges) {
   m.Set(8, 10, 100);
   TestMergeValue(&m, 7, 10, 102);
   ASSERT_THAT(m, SizeIs(4));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 6, 100);
-  CheckPresentRange(m, 6, 7, 100);
-  CheckPresentRange(m, 7, 8, 102);
-  CheckPresentRange(m, 8, 10, 102);
-  CheckMissingRange(m, 10, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 6, 100));
+  EXPECT_TRUE(VerifyPresentRange(m, 6, 7, 100));
+  EXPECT_TRUE(VerifyPresentRange(m, 7, 8, 102));
+  EXPECT_TRUE(VerifyPresentRange(m, 8, 10, 102));
+  EXPECT_TRUE(VerifyMissingRange(m, 10, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeValuePartialOverlapBeginning) {
@@ -742,11 +846,11 @@ TYPED_TEST(IntervalMapTest, MergeValuePartialOverlapBeginning) {
   m.Set(5, 10, 100);
   TestMergeValue(&m, 4, 7, 102);
   ASSERT_THAT(m, SizeIs(3));
-  CheckMissingRange(m, 0, 4);
-  CheckPresentRange(m, 4, 5, 102);
-  CheckPresentRange(m, 5, 7, 102);
-  CheckPresentRange(m, 7, 10, 100);
-  CheckMissingRange(m, 10, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 4));
+  EXPECT_TRUE(VerifyPresentRange(m, 4, 5, 102));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 7, 102));
+  EXPECT_TRUE(VerifyPresentRange(m, 7, 10, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 10, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeValuePartial3) {
@@ -754,11 +858,11 @@ TYPED_TEST(IntervalMapTest, MergeValuePartial3) {
   m.Set(5, 10, 100);
   TestMergeValue(&m, 4, 11, 102);
   ASSERT_THAT(m, SizeIs(3));
-  CheckMissingRange(m, 0, 4);
-  CheckPresentRange(m, 4, 5, 102);
-  CheckPresentRange(m, 5, 10, 102);
-  CheckPresentRange(m, 10, 11, 102);
-  CheckMissingRange(m, 11, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 4));
+  EXPECT_TRUE(VerifyPresentRange(m, 4, 5, 102));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 102));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 11, 102));
+  EXPECT_TRUE(VerifyMissingRange(m, 11, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeValueFullInterval) {
@@ -766,9 +870,9 @@ TYPED_TEST(IntervalMapTest, MergeValueFullInterval) {
   m.Set(5, 10, 100);
   TestMergeValue(&m, 5, 10, 102);
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 10, 102);
-  CheckMissingRange(m, 11, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 102));
+  EXPECT_TRUE(VerifyMissingRange(m, 11, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeValuePartial4) {
@@ -776,9 +880,9 @@ TYPED_TEST(IntervalMapTest, MergeValuePartial4) {
   m.Set(5, 10, 100);
   TestMergeValue(&m, 5, 10, 102);
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 10, 102);
-  CheckMissingRange(m, 11, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 102));
+  EXPECT_TRUE(VerifyMissingRange(m, 11, 100));
 }
 
 TYPED_TEST(IntervalMapTest, EraseResult) {
@@ -807,11 +911,11 @@ TYPED_TEST(IntervalMapTest, EraseJustBefore) {
   m.Erase(8, 10);
 
   ASSERT_THAT(m, SizeIs(2));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 8, 100);
-  CheckMissingRange(m, 8, 10);
-  CheckPresentRange(m, 10, 20, 200);
-  CheckMissingRange(m, 20, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 8, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 8, 10));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 200));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
 }
 
 TYPED_TEST(IntervalMapTest, EraseJustAfter) {
@@ -822,11 +926,11 @@ TYPED_TEST(IntervalMapTest, EraseJustAfter) {
   m.Erase(10, 12);
 
   ASSERT_THAT(m, SizeIs(2));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 10, 100);
-  CheckMissingRange(m, 10, 12);
-  CheckPresentRange(m, 12, 20, 200);
-  CheckMissingRange(m, 20, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 10, 12));
+  EXPECT_TRUE(VerifyPresentRange(m, 12, 20, 200));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
 }
 
 TYPED_TEST(IntervalMapTest, EraseSame) {
@@ -837,9 +941,9 @@ TYPED_TEST(IntervalMapTest, EraseSame) {
   m.Erase(5, 10);
 
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 10);
-  CheckPresentRange(m, 10, 20, 200);
-  CheckMissingRange(m, 20, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 10));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 200));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
 }
 
 TYPED_TEST(IntervalMapTest, ErasePrefix) {
@@ -850,9 +954,9 @@ TYPED_TEST(IntervalMapTest, ErasePrefix) {
   m.Erase(5, 12);
 
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 12);
-  CheckPresentRange(m, 12, 20, 200);
-  CheckMissingRange(m, 20, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 12));
+  EXPECT_TRUE(VerifyPresentRange(m, 12, 20, 200));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
 }
 
 TYPED_TEST(IntervalMapTest, EraseSuffix) {
@@ -863,11 +967,11 @@ TYPED_TEST(IntervalMapTest, EraseSuffix) {
   m.Erase(7, 12);
 
   ASSERT_THAT(m, SizeIs(2));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 7, 100);
-  CheckMissingRange(m, 7, 12);
-  CheckPresentRange(m, 12, 20, 200);
-  CheckMissingRange(m, 20, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 7, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 7, 12));
+  EXPECT_TRUE(VerifyPresentRange(m, 12, 20, 200));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
 }
 
 TYPED_TEST(IntervalMapTest, EraseSuffix2) {
@@ -877,9 +981,9 @@ TYPED_TEST(IntervalMapTest, EraseSuffix2) {
   m.Erase(7, 10);
 
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 7, 100);
-  CheckMissingRange(m, 7, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 7, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 7, 30));
 }
 
 TYPED_TEST(IntervalMapTest, EraseInterior) {
@@ -889,11 +993,11 @@ TYPED_TEST(IntervalMapTest, EraseInterior) {
   m.Erase(20, 30);
 
   ASSERT_THAT(m, SizeIs(2));
-  CheckMissingRange(m, 0, 9);
-  CheckPresentRange(m, 10, 20, 100);
-  CheckMissingRange(m, 20, 30);
-  CheckPresentRange(m, 30, 40, 100);
-  CheckMissingRange(m, 40, 50);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 9));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
+  EXPECT_TRUE(VerifyPresentRange(m, 30, 40, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 40, 50));
 }
 
 TYPED_TEST(IntervalMapTest, EraseMultiple) {
@@ -906,11 +1010,11 @@ TYPED_TEST(IntervalMapTest, EraseMultiple) {
   m.Erase(7, 37);
 
   ASSERT_THAT(m, SizeIs(2));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 7, 100);
-  CheckMissingRange(m, 7, 37);
-  CheckPresentRange(m, 37, 40, 400);
-  CheckMissingRange(m, 40, 50);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 7, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 7, 37));
+  EXPECT_TRUE(VerifyPresentRange(m, 37, 40, 400));
+  EXPECT_TRUE(VerifyMissingRange(m, 40, 50));
 }
 
 TYPED_TEST(IntervalMapTest, EraseMissing) {
@@ -921,11 +1025,11 @@ TYPED_TEST(IntervalMapTest, EraseMissing) {
   m.Erase(12, 14);
 
   ASSERT_THAT(m, SizeIs(2));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 10, 100);
-  CheckMissingRange(m, 10, 15);
-  CheckPresentRange(m, 15, 20, 200);
-  CheckMissingRange(m, 20, 50);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 10, 15));
+  EXPECT_TRUE(VerifyPresentRange(m, 15, 20, 200));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 50));
 }
 
 TYPED_TEST(IntervalMapTest, EraseFromFront) {
@@ -936,11 +1040,11 @@ TYPED_TEST(IntervalMapTest, EraseFromFront) {
   m.Erase(12, 18);
 
   ASSERT_THAT(m, SizeIs(2));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 10, 100);
-  CheckMissingRange(m, 10, 18);
-  CheckPresentRange(m, 18, 20, 200);
-  CheckMissingRange(m, 20, 50);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 10, 18));
+  EXPECT_TRUE(VerifyPresentRange(m, 18, 20, 200));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 50));
 }
 
 TYPED_TEST(IntervalMapTest, EraseFromBehind) {
@@ -951,18 +1055,18 @@ TYPED_TEST(IntervalMapTest, EraseFromBehind) {
   m.Erase(7, 12);
 
   ASSERT_THAT(m, SizeIs(2));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 7, 100);
-  CheckMissingRange(m, 7, 15);
-  CheckPresentRange(m, 15, 20, 200);
-  CheckMissingRange(m, 20, 50);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 7, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 7, 15));
+  EXPECT_TRUE(VerifyPresentRange(m, 15, 20, 200));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 50));
 }
 
 TYPED_TEST(IntervalMapTest, ClearEmpty) {
   auto m = TestFixture::ConstructMap();
   m.Clear();
   ASSERT_THAT(m, IsEmpty());
-  CheckMissingRange(m, 0, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 100));
 }
 
 TYPED_TEST(IntervalMapTest, ClearNonEmpty) {
@@ -972,7 +1076,7 @@ TYPED_TEST(IntervalMapTest, ClearNonEmpty) {
   m.Erase(7, 12);
   m.Clear();
   ASSERT_THAT(m, IsEmpty());
-  CheckMissingRange(m, 0, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 100));
 }
 
 TYPED_TEST(IntervalMapTest, CoversRange) {
@@ -1035,7 +1139,7 @@ TYPED_TEST(IntervalMapTest, Assign2) {
   src.Set(10, 20, 200);
   m = src;
   EXPECT_THAT(m, SizeIs(1));
-  CheckPresentRange(m, 10, 20, 200);
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 200));
 }
 
 TYPED_TEST(IntervalMapTest, SelfAssign) {
@@ -1060,9 +1164,9 @@ TYPED_TEST(IntervalMapTest, MergeFrom_EmptySrc) {
   m.MergeFrom(src);
 
   EXPECT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 10, 100);
-  CheckMissingRange(m, 10, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 10, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeFrom_EmptyDst) {
@@ -1072,9 +1176,9 @@ TYPED_TEST(IntervalMapTest, MergeFrom_EmptyDst) {
   m.MergeFrom(src);
 
   EXPECT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 10, 100);
-  CheckMissingRange(m, 10, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 10, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeFrom_General) {
@@ -1099,26 +1203,26 @@ TYPED_TEST(IntervalMapTest, MergeFrom_General) {
   m.MergeFrom(src);
 
   ASSERT_THAT(m, SizeIs(13));
-  CheckMissingRange(m, 0, 10);
-  CheckPresentRange(m, 10, 15, 100);
-  CheckMissingRange(m, 15, 18);
-  CheckPresentRange(m, 18, 20, 150);
-  CheckPresentRange(m, 20, 25, 250);
-  CheckMissingRange(m, 25, 30);
-  CheckPresentRange(m, 30, 33, 350);
-  CheckPresentRange(m, 33, 35, 300);
-  CheckMissingRange(m, 35, 40);
-  CheckPresentRange(m, 40, 42, 400);
-  CheckPresentRange(m, 42, 47, 450);
-  CheckMissingRange(m, 47, 50);
-  CheckPresentRange(m, 50, 51, 500);
-  CheckPresentRange(m, 51, 52, 550);
-  CheckPresentRange(m, 52, 53, 500);
-  CheckPresentRange(m, 53, 54, 560);
-  CheckPresentRange(m, 54, 55, 500);
-  CheckMissingRange(m, 55, 59);
-  CheckPresentRange(m, 59, 68, 650);
-  CheckMissingRange(m, 68, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 10));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 15, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 15, 18));
+  EXPECT_TRUE(VerifyPresentRange(m, 18, 20, 150));
+  EXPECT_TRUE(VerifyPresentRange(m, 20, 25, 250));
+  EXPECT_TRUE(VerifyMissingRange(m, 25, 30));
+  EXPECT_TRUE(VerifyPresentRange(m, 30, 33, 350));
+  EXPECT_TRUE(VerifyPresentRange(m, 33, 35, 300));
+  EXPECT_TRUE(VerifyMissingRange(m, 35, 40));
+  EXPECT_TRUE(VerifyPresentRange(m, 40, 42, 400));
+  EXPECT_TRUE(VerifyPresentRange(m, 42, 47, 450));
+  EXPECT_TRUE(VerifyMissingRange(m, 47, 50));
+  EXPECT_TRUE(VerifyPresentRange(m, 50, 51, 500));
+  EXPECT_TRUE(VerifyPresentRange(m, 51, 52, 550));
+  EXPECT_TRUE(VerifyPresentRange(m, 52, 53, 500));
+  EXPECT_TRUE(VerifyPresentRange(m, 53, 54, 560));
+  EXPECT_TRUE(VerifyPresentRange(m, 54, 55, 500));
+  EXPECT_TRUE(VerifyMissingRange(m, 55, 59));
+  EXPECT_TRUE(VerifyPresentRange(m, 59, 68, 650));
+  EXPECT_TRUE(VerifyMissingRange(m, 68, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeFrom_SetManyNoOverlap) {
@@ -1133,16 +1237,16 @@ TYPED_TEST(IntervalMapTest, MergeFrom_SetManyNoOverlap) {
   m.SetManyNoOverlap(5, entries);
 
   ASSERT_THAT(m, SizeIs(5));
-  CheckPresentRange(m, 0, 8, 0);
-  CheckMissingRange(m, 8, 10);
-  CheckPresentRange(m, 10, 18, 1000);
-  CheckMissingRange(m, 18, 20);
-  CheckPresentRange(m, 20, 28, 2000);
-  CheckMissingRange(m, 28, 30);
-  CheckPresentRange(m, 30, 38, 3000);
-  CheckMissingRange(m, 38, 40);
-  CheckPresentRange(m, 40, 48, 4000);
-  CheckMissingRange(m, 48, 50);
+  EXPECT_TRUE(VerifyPresentRange(m, 0, 8, 0));
+  EXPECT_TRUE(VerifyMissingRange(m, 8, 10));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 18, 1000));
+  EXPECT_TRUE(VerifyMissingRange(m, 18, 20));
+  EXPECT_TRUE(VerifyPresentRange(m, 20, 28, 2000));
+  EXPECT_TRUE(VerifyMissingRange(m, 28, 30));
+  EXPECT_TRUE(VerifyPresentRange(m, 30, 38, 3000));
+  EXPECT_TRUE(VerifyMissingRange(m, 38, 40));
+  EXPECT_TRUE(VerifyPresentRange(m, 40, 48, 4000));
+  EXPECT_TRUE(VerifyMissingRange(m, 48, 50));
 }
 
 TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_EmptySrc) {
@@ -1154,10 +1258,10 @@ TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_EmptySrc) {
   m.MergeSubRangeFrom(src, 7, 18);
 
   ASSERT_THAT(m, SizeIs(2));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 10, 100);
-  CheckPresentRange(m, 10, 20, 200);
-  CheckMissingRange(m, 20, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 10, 100));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 200));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
 }
 
 TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_ManyRanges) {
@@ -1171,12 +1275,12 @@ TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_ManyRanges) {
   m.MergeSubRangeFrom(src, 6, 95);
 
   ASSERT_THAT(m, SizeIs(86));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 6, 10, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 6, 10, 100));
   for (int i = 10; i < 95; i++) {
-    CheckPresentRange(m, i, i + 1, i);
+    EXPECT_TRUE(VerifyPresentRange(m, i, i + 1, i));
   }
-  CheckMissingRange(m, 95, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 95, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_LeaveNonOverlappingRangesAlone) {
@@ -1190,12 +1294,12 @@ TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_LeaveNonOverlappingRangesAlone) {
   m.MergeSubRangeFrom(src, 7, 18);
 
   ASSERT_THAT(m, SizeIs(3));
-  CheckMissingRange(m, 0, 5);
-  CheckPresentRange(m, 5, 8, 100);
-  CheckMissingRange(m, 8, 9);
-  CheckPresentRange(m, 9, 15, 150);
-  CheckPresentRange(m, 15, 20, 200);
-  CheckMissingRange(m, 20, 30);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 5));
+  EXPECT_TRUE(VerifyPresentRange(m, 5, 8, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 8, 9));
+  EXPECT_TRUE(VerifyPresentRange(m, 9, 15, 150));
+  EXPECT_TRUE(VerifyPresentRange(m, 15, 20, 200));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 30));
 }
 
 TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_NothingAfterStart) {
@@ -1214,9 +1318,9 @@ TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_DropSrcPrefix) {
   m.MergeSubRangeFrom(src, 15, 25);
 
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 15);
-  CheckPresentRange(m, 15, 20, 100);
-  CheckMissingRange(m, 20, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 15));
+  EXPECT_TRUE(VerifyPresentRange(m, 15, 20, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_DropSrcSuffix) {
@@ -1226,9 +1330,9 @@ TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_DropSrcSuffix) {
   m.MergeSubRangeFrom(src, 10, 15);
 
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 10);
-  CheckPresentRange(m, 10, 15, 100);
-  CheckMissingRange(m, 15, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 10));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 15, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 15, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_ExactMatch) {
@@ -1238,9 +1342,9 @@ TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_ExactMatch) {
   m.MergeSubRangeFrom(src, 10, 20);
 
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 10);
-  CheckPresentRange(m, 10, 20, 100);
-  CheckMissingRange(m, 20, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 10));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_Contained) {
@@ -1250,9 +1354,9 @@ TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_Contained) {
   m.MergeSubRangeFrom(src, 5, 25);
 
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 10);
-  CheckPresentRange(m, 10, 20, 100);
-  CheckMissingRange(m, 20, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 10));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_Multiple) {
@@ -1265,15 +1369,15 @@ TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_Multiple) {
   m.MergeSubRangeFrom(src, 5, 42);
 
   ASSERT_THAT(m, SizeIs(4));
-  CheckMissingRange(m, 0, 10);
-  CheckPresentRange(m, 10, 15, 100);
-  CheckMissingRange(m, 15, 20);
-  CheckPresentRange(m, 20, 25, 200);
-  CheckMissingRange(m, 25, 30);
-  CheckPresentRange(m, 30, 35, 300);
-  CheckMissingRange(m, 35, 40);
-  CheckPresentRange(m, 40, 42, 400);
-  CheckMissingRange(m, 42, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 10));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 15, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 15, 20));
+  EXPECT_TRUE(VerifyPresentRange(m, 20, 25, 200));
+  EXPECT_TRUE(VerifyMissingRange(m, 25, 30));
+  EXPECT_TRUE(VerifyPresentRange(m, 30, 35, 300));
+  EXPECT_TRUE(VerifyMissingRange(m, 35, 40));
+  EXPECT_TRUE(VerifyPresentRange(m, 40, 42, 400));
+  EXPECT_TRUE(VerifyMissingRange(m, 42, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_SimpleSubRange) {
@@ -1283,9 +1387,9 @@ TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_SimpleSubRange) {
   m.MergeSubRangeFrom(src, 10, 15);
 
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 10);
-  CheckPresentRange(m, 10, 15, 100);
-  CheckMissingRange(m, 15, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 10));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 15, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 15, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_NonCopiedRangeAfterCopied) {
@@ -1297,9 +1401,9 @@ TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_NonCopiedRangeAfterCopied) {
   m.MergeSubRangeFrom(src, 10, 15);
 
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 10);
-  CheckPresentRange(m, 10, 15, 100);
-  CheckMissingRange(m, 15, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 10));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 15, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 15, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_SkipStuffBeforeStart) {
@@ -1310,9 +1414,9 @@ TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_SkipStuffBeforeStart) {
   m.MergeSubRangeFrom(src, 10, 20);
 
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 10);
-  CheckPresentRange(m, 10, 20, 100);
-  CheckMissingRange(m, 20, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 10));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 100));
 }
 
 TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_SkipStuffAfterLimit) {
@@ -1323,9 +1427,9 @@ TYPED_TEST(IntervalMapTest, MergeSubRangeFrom_SkipStuffAfterLimit) {
   m.MergeSubRangeFrom(src, 10, 20);
 
   ASSERT_THAT(m, SizeIs(1));
-  CheckMissingRange(m, 0, 10);
-  CheckPresentRange(m, 10, 20, 100);
-  CheckMissingRange(m, 20, 100);
+  EXPECT_TRUE(VerifyMissingRange(m, 0, 10));
+  EXPECT_TRUE(VerifyPresentRange(m, 10, 20, 100));
+  EXPECT_TRUE(VerifyMissingRange(m, 20, 100));
 }
 
 TYPED_TEST(IntervalMapTest, FindNextPoint_Empty) {
@@ -1370,12 +1474,12 @@ TYPED_TEST(IntervalMapTest, SwapRefNonEmptyNonEmpty) {
   a.Set(10, 20, 100);
   b.Set(20, 30, 200);
   a.swap(b);
-  CheckMissingRange(a, 0, 20);
-  CheckPresentRange(a, 20, 30, 200);
-  CheckMissingRange(a, 30, 50);
-  CheckMissingRange(b, 0, 10);
-  CheckPresentRange(b, 10, 20, 100);
-  CheckMissingRange(b, 20, 50);
+  EXPECT_TRUE(VerifyMissingRange(a, 0, 20));
+  EXPECT_TRUE(VerifyPresentRange(a, 20, 30, 200));
+  EXPECT_TRUE(VerifyMissingRange(a, 30, 50));
+  EXPECT_TRUE(VerifyMissingRange(b, 0, 10));
+  EXPECT_TRUE(VerifyPresentRange(b, 10, 20, 100));
+  EXPECT_TRUE(VerifyMissingRange(b, 20, 50));
 }
 
 TYPED_TEST(IntervalMapTest, SwapRefEmptyNonEmpty) {
@@ -1383,9 +1487,9 @@ TYPED_TEST(IntervalMapTest, SwapRefEmptyNonEmpty) {
   auto b = TestFixture::ConstructMap();
   b.Set(20, 30, 200);
   a.swap(b);
-  CheckMissingRange(a, 0, 20);
-  CheckPresentRange(a, 20, 30, 200);
-  CheckMissingRange(a, 30, 50);
+  EXPECT_TRUE(VerifyMissingRange(a, 0, 20));
+  EXPECT_TRUE(VerifyPresentRange(a, 20, 30, 200));
+  EXPECT_TRUE(VerifyMissingRange(a, 30, 50));
   EXPECT_THAT(b, IsEmpty());
 }
 
@@ -1403,12 +1507,12 @@ TYPED_TEST(IntervalMapTest, NonmemberSwapNonEmptyNonEmpty) {
   a.Set(10, 20, 100);
   b.Set(20, 30, 200);
   std::swap(a, b);
-  CheckMissingRange(a, 0, 20);
-  CheckPresentRange(a, 20, 30, 200);
-  CheckMissingRange(a, 30, 50);
-  CheckMissingRange(b, 0, 10);
-  CheckPresentRange(b, 10, 20, 100);
-  CheckMissingRange(b, 20, 50);
+  EXPECT_TRUE(VerifyMissingRange(a, 0, 20));
+  EXPECT_TRUE(VerifyPresentRange(a, 20, 30, 200));
+  EXPECT_TRUE(VerifyMissingRange(a, 30, 50));
+  EXPECT_TRUE(VerifyMissingRange(b, 0, 10));
+  EXPECT_TRUE(VerifyPresentRange(b, 10, 20, 100));
+  EXPECT_TRUE(VerifyMissingRange(b, 20, 50));
 }
 
 TYPED_TEST(IntervalMapTest, NonmemberSwapEmptyNonEmpty) {
@@ -1417,9 +1521,9 @@ TYPED_TEST(IntervalMapTest, NonmemberSwapEmptyNonEmpty) {
   auto b = TestFixture::ConstructMap();
   b.Set(20, 30, 200);
   swap(a, b);
-  CheckMissingRange(a, 0, 20);
-  CheckPresentRange(a, 20, 30, 200);
-  CheckMissingRange(a, 30, 50);
+  EXPECT_TRUE(VerifyMissingRange(a, 0, 20));
+  EXPECT_TRUE(VerifyPresentRange(a, 20, 30, 200));
+  EXPECT_TRUE(VerifyMissingRange(a, 30, 50));
   EXPECT_THAT(b, IsEmpty());
 }
 
@@ -1512,15 +1616,24 @@ TYPED_TEST(IntervalMapTest, Iterator_Contains) {
 // each interval in the tested interval map, thus only the start key
 // is checked.
 template <class IMap>
-static void ExpectIntervalMapOrder(const IMap& interval_map,
-                                   absl::Span<const int> start_keys) {
-  ASSERT_THAT(interval_map, SizeIs(start_keys.size()));
+static ::testing::AssertionResult VerifyIntervalMapOrder(
+    const IMap& interval_map, absl::Span<const int> start_keys) {
+  if (interval_map.size() != static_cast<int>(start_keys.size())) {
+    return ::testing::AssertionFailure()
+           << "Size mismatch: map size is " << interval_map.size()
+           << ", expected " << start_keys.size();
+  }
 
   int i = 0;
   for (typename IMap::const_iterator iter = interval_map.begin();
        iter != interval_map.end(); ++iter, ++i) {
-    EXPECT_EQ(iter->start, start_keys[i]);
+    if (iter->start != start_keys[i]) {
+      return ::testing::AssertionFailure()
+             << "Mismatch at index " << i << ": expected start key "
+             << start_keys[i] << ", got " << iter->start;
+    }
   }
+  return ::testing::AssertionSuccess();
 }
 
 // Confirm that iterating through an IntervalMap gets intervals in
@@ -1535,7 +1648,7 @@ TYPED_TEST(IntervalMapTest, Iterator_SortedOrder) {
     auto interval_map = TestFixture::ConstructMap();
     interval_map.Set(111, 155, 0);
     interval_map.Set(222, 255, 0);
-    ExpectIntervalMapOrder(interval_map, start_keys);
+    EXPECT_TRUE(VerifyIntervalMapOrder(interval_map, start_keys));
   }
 
   {
@@ -1543,7 +1656,7 @@ TYPED_TEST(IntervalMapTest, Iterator_SortedOrder) {
     auto interval_map = TestFixture::ConstructMap();
     interval_map.Set(222, 255, 0);
     interval_map.Set(111, 155, 0);
-    ExpectIntervalMapOrder(interval_map, start_keys);
+    EXPECT_TRUE(VerifyIntervalMapOrder(interval_map, start_keys));
   }
 }
 
@@ -1551,10 +1664,8 @@ TYPED_TEST(IntervalMapTest, EqualsWithEmptyMaps) {
   auto m1 = TestFixture::ConstructMap();
   auto m2 = TestFixture::ConstructMap();
 
-  EXPECT_TRUE(m1 == m2);
-  EXPECT_TRUE(m2 == m1);
-  EXPECT_FALSE(m1 != m2);
-  EXPECT_FALSE(m2 != m1);
+  EXPECT_EQ(m1, m2);
+  EXPECT_EQ(m2, m1);
 }
 
 TYPED_TEST(IntervalMapTest, EqualsWithIdenticalSingleIntervalMaps) {
@@ -1563,10 +1674,8 @@ TYPED_TEST(IntervalMapTest, EqualsWithIdenticalSingleIntervalMaps) {
   auto m2 = TestFixture::ConstructMap();
   m2.Set(5, 10, 100);
 
-  EXPECT_TRUE(m1 == m2);
-  EXPECT_TRUE(m2 == m1);
-  EXPECT_FALSE(m1 != m2);
-  EXPECT_FALSE(m2 != m1);
+  EXPECT_EQ(m1, m2);
+  EXPECT_EQ(m2, m1);
 }
 
 TYPED_TEST(IntervalMapTest, EqualsWithIdenticalMultipleIntervalMaps) {
@@ -1577,10 +1686,8 @@ TYPED_TEST(IntervalMapTest, EqualsWithIdenticalMultipleIntervalMaps) {
   m2.Set(15, 20, 200);
   m2.Set(5, 10, 100);
 
-  EXPECT_TRUE(m1 == m2);
-  EXPECT_TRUE(m2 == m1);
-  EXPECT_FALSE(m1 != m2);
-  EXPECT_FALSE(m2 != m1);
+  EXPECT_EQ(m1, m2);
+  EXPECT_EQ(m2, m1);
 }
 
 TYPED_TEST(IntervalMapTest, EqualsWithEmptyAndNonEmptyMaps) {
@@ -1589,10 +1696,8 @@ TYPED_TEST(IntervalMapTest, EqualsWithEmptyAndNonEmptyMaps) {
   m2.Set(5, 10, 100);
   m2.Set(15, 20, 200);
 
-  EXPECT_FALSE(m1 == m2);
-  EXPECT_FALSE(m2 == m1);
-  EXPECT_TRUE(m1 != m2);
-  EXPECT_TRUE(m2 != m1);
+  EXPECT_NE(m1, m2);
+  EXPECT_NE(m2, m1);
 }
 
 TYPED_TEST(IntervalMapTest, EqualsWithMapsOfDifferentSizes) {
@@ -1602,10 +1707,8 @@ TYPED_TEST(IntervalMapTest, EqualsWithMapsOfDifferentSizes) {
   m2.Set(15, 20, 200);
   m2.Set(5, 10, 100);
 
-  EXPECT_FALSE(m1 == m2);
-  EXPECT_FALSE(m2 == m1);
-  EXPECT_TRUE(m1 != m2);
-  EXPECT_TRUE(m2 != m1);
+  EXPECT_NE(m1, m2);
+  EXPECT_NE(m2, m1);
 }
 
 TYPED_TEST(IntervalMapTest, EqualsWithDifferentSingleIntervalMaps) {
@@ -1618,18 +1721,12 @@ TYPED_TEST(IntervalMapTest, EqualsWithDifferentSingleIntervalMaps) {
   auto m4 = TestFixture::ConstructMap();
   m4.Set(0, 10, 100);
 
-  EXPECT_FALSE(m1 == m2);
-  EXPECT_FALSE(m1 == m3);
-  EXPECT_FALSE(m1 == m4);
-  EXPECT_FALSE(m2 == m1);
-  EXPECT_FALSE(m3 == m1);
-  EXPECT_FALSE(m4 == m1);
-  EXPECT_TRUE(m1 != m2);
-  EXPECT_TRUE(m1 != m3);
-  EXPECT_TRUE(m1 != m4);
-  EXPECT_TRUE(m2 != m1);
-  EXPECT_TRUE(m3 != m1);
-  EXPECT_TRUE(m4 != m1);
+  EXPECT_NE(m1, m2);
+  EXPECT_NE(m1, m3);
+  EXPECT_NE(m1, m4);
+  EXPECT_NE(m2, m1);
+  EXPECT_NE(m3, m1);
+  EXPECT_NE(m4, m1);
 }
 
 TYPED_TEST(IntervalMapTest, EqualsWithDifferentTwoIntervalsMaps) {
@@ -1646,18 +1743,12 @@ TYPED_TEST(IntervalMapTest, EqualsWithDifferentTwoIntervalsMaps) {
   m4.Set(5, 10, 100);
   m4.Set(15, 20, 200);
 
-  EXPECT_FALSE(m1 == m2);
-  EXPECT_FALSE(m1 == m3);
-  EXPECT_FALSE(m1 == m4);
-  EXPECT_FALSE(m2 == m1);
-  EXPECT_FALSE(m3 == m1);
-  EXPECT_FALSE(m4 == m1);
-  EXPECT_TRUE(m1 != m2);
-  EXPECT_TRUE(m1 != m3);
-  EXPECT_TRUE(m1 != m4);
-  EXPECT_TRUE(m2 != m1);
-  EXPECT_TRUE(m3 != m1);
-  EXPECT_TRUE(m4 != m1);
+  EXPECT_NE(m1, m2);
+  EXPECT_NE(m1, m3);
+  EXPECT_NE(m1, m4);
+  EXPECT_NE(m2, m1);
+  EXPECT_NE(m3, m1);
+  EXPECT_NE(m4, m1);
 }
 
 // IntervalMapDanglingReferencesTests are designed to catch potential issues
@@ -1677,7 +1768,7 @@ TEST(IntervalMapDanglingReferencesTest, Erase) {
   map.Set(35, 36, 7);
 
   auto it = map.find(18);
-  CHECK(it != map.end());
+  ASSERT_NE(it, map.end());
   EXPECT_EQ(it->start, 16);
   EXPECT_EQ(it->limit, 19);
   EXPECT_EQ(map.begin()->limit, 10);
@@ -1761,7 +1852,7 @@ TEST(IntervalMapDanglingReferencesTest, MergeValue) {
   map.Set(35, 36, 7);
 
   auto it = map.find(32);
-  CHECK(it != map.end());
+  ASSERT_NE(it, map.end());
   EXPECT_EQ(it->start, 30);
   EXPECT_EQ(it->limit, 33);
   EXPECT_EQ(map.begin()->limit, 10);
@@ -1889,12 +1980,14 @@ TEST(IntervalMapArgumentForwarding, SetWithMoveableValue) {
 
   int copy_count = 0;
   int move_count = 0;
-  ConstructorCounter value(&copy_count, &move_count);
+  ConstructorCounter value1(&copy_count, &move_count);
+  ConstructorCounter value2(&copy_count, &move_count);
+  ConstructorCounter value3(&copy_count, &move_count);
 
   // Reading and writing can be done with zero copies.
-  imap.Set(1, 2, std::move(value));
-  imap.SetNoOverlap(2, 3, std::move(value));
-  imap.SetAndCoalesce(2, 3, std::move(value));
+  imap.Set(1, 2, std::move(value1));
+  imap.SetNoOverlap(2, 3, std::move(value2));
+  imap.SetAndCoalesce(2, 3, std::move(value3));
 
   auto it = imap.find(1);
   ASSERT_NE(it, imap.end());
@@ -1984,8 +2077,8 @@ struct Tester {
   // Populates map from ents, calls SetAndCoalesce.
   Tester& Go(int start, int limit, const absl::string_view val) {
     std::string value = std::string(val);
-    for (int i = 0; i < ents.size(); ++i) {
-      map.Set(ents[i].start, ents[i].limit, ents[i].value);
+    for (const auto& ent : ents) {
+      map.Set(ent.start, ent.limit, ent.value);
     }
     map.SetAndCoalesce(SpecialType(start), SpecialType(limit), value);
     return *this;
