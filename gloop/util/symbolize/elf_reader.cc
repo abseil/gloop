@@ -472,7 +472,9 @@ class ElfSectionReader {
   char* contents_;
   // size of contents_aligned_ (needed for munmap).
   size_t size_aligned_;
-  // size of contents.
+
+  // Size of contents. Note: for compressed sections may be smaller or larger
+  // than header_.sh_size.
   size_t section_size_;
   const typename ElfArch::Shdr header_;
 };
@@ -1169,15 +1171,19 @@ class ElfReaderImpl {
       return nullptr;
     }
 
-    info->type = section->header().sh_type;
-    info->flags = section->header().sh_flags;
-    info->addr = section->header().sh_addr;
-    info->offset = section->header().sh_offset;
-    info->size = section->header().sh_size;
-    info->link = section->header().sh_link;
-    info->info = section->header().sh_info;
-    info->addralign = section->header().sh_addralign;
-    info->entsize = section->header().sh_entsize;
+    const auto& header = section->header();
+    info->type = header.sh_type;
+    info->flags = header.sh_flags;
+    info->addr = header.sh_addr;
+    info->offset = header.sh_offset;
+    info->link = header.sh_link;
+    info->info = header.sh_info;
+    info->addralign = header.sh_addralign;
+    info->entsize = header.sh_entsize;
+
+    // Note: section->size() may not be the same as header.sh_size!
+    // See b/537132456.
+    info->size = section->section_size();
     return section->contents();
   }
 
