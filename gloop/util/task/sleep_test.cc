@@ -20,7 +20,9 @@
 
 #include "gloop/util/task/sleep.h"
 
-#include "absl/functional/bind_front.h"
+#include <functional>
+#include <string>
+
 #include "absl/status/status.h"
 #include "absl/status/status_matchers.h"
 #include "absl/synchronization/notification.h"
@@ -36,6 +38,9 @@ namespace {
 
 using ::absl_testing::IsOk;
 using ::absl_testing::StatusIs;
+using ::testing::AllOf;
+using ::testing::Ge;
+using ::testing::Le;
 
 constexpr absl::Duration kEpsilon = absl::Milliseconds(500);
 
@@ -44,28 +49,38 @@ TEST(SleepUntil, Future) {
   SyncTask s;
   SleepUntil(t, s.task());
   s.WaitIgnoresCancel();
-  EXPECT_GE(absl::Now(), t);
-  EXPECT_LE(absl::Now(), t + kEpsilon);
+  EXPECT_THAT(absl::Now(), AllOf(Ge(t), Le(t + kEpsilon)));
   EXPECT_THAT(s.status(), IsOk());
 }
 
-TEST(SleepUntil, Past) {
+struct PastDeadlineTestCase {
+  std::string name;
+  std::function<absl::Time()> deadline_fn;
+};
+
+class SleepUntilPastTest
+    : public ::testing::TestWithParam<PastDeadlineTestCase> {};
+
+TEST_P(SleepUntilPastTest, CompletesImmediately) {
   const absl::Time now = absl::Now();
   SyncTask s;
-  SleepUntil(now - absl::Seconds(1), s.task());
+  SleepUntil(GetParam().deadline_fn(), s.task());
   s.WaitIgnoresCancel();
-  EXPECT_LE(absl::Now(), now + kEpsilon);
+  EXPECT_THAT(absl::Now(), Le(now + kEpsilon));
   EXPECT_THAT(s.status(), IsOk());
 }
 
-TEST(SleepUntil, InfinitePast) {
-  const absl::Time now = absl::Now();
-  SyncTask s;
-  SleepUntil(absl::InfinitePast(), s.task());
-  s.WaitIgnoresCancel();
-  EXPECT_LE(absl::Now(), now + kEpsilon);
-  EXPECT_THAT(s.status(), IsOk());
-}
+INSTANTIATE_TEST_SUITE_P(
+    , SleepUntilPastTest,
+    ::testing::Values(
+        PastDeadlineTestCase{"OneSecondInPast",
+                             [] { return absl::Now() - absl::Seconds(1); }},
+        PastDeadlineTestCase{"InfinitePast",
+                             [] { return absl::InfinitePast(); }},
+        PastDeadlineTestCase{"UnixEpoch", [] { return absl::Time(); }}),
+    [](const ::testing::TestParamInfo<PastDeadlineTestCase>& info) {
+      return info.param.name;
+    });
 
 TEST(SleepUntil, CancelLongSleep) {
   const absl::Time now = absl::Now();
@@ -73,26 +88,24 @@ TEST(SleepUntil, CancelLongSleep) {
   SleepUntil(now + absl::Seconds(1000000), s.task());
   s.task()->Cancel();
   s.WaitIgnoresCancel();
-  EXPECT_LE(absl::Now(), now + kEpsilon);
+  EXPECT_THAT(absl::Now(), Le(now + kEpsilon));
   EXPECT_THAT(s.status(), StatusIs(absl::StatusCode::kCancelled));
-}
-
-void CancelTask(absl::Notification* n, absl::Status* s, Task* task) {
-  // We cancel the task, though it is too late for the cancellation to
-  // have any effect.
-  task->Cancel();
-  *s = task->status();
-  n->Notify();
 }
 
 TEST(SleepUntil, CancelDuringCallback) {
   absl::Notification n;
   absl::Status s;
-  Task t(absl::bind_front(CancelTask, &n, &s));
+  Task t([&n, &s](Task* task) {
+    // We cancel the task, though it is too late for the cancellation to
+    // have any effect.
+    task->Cancel();
+    s = task->status();
+    n.Notify();
+  });
   const absl::Time now = absl::Now();
   SleepUntil(now - absl::Seconds(1), &t);
   n.WaitForNotification();
-  EXPECT_LE(absl::Now(), now + kEpsilon);
+  EXPECT_THAT(absl::Now(), Le(now + kEpsilon));
   EXPECT_THAT(s, IsOk());
 }
 

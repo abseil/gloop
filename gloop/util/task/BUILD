@@ -98,8 +98,6 @@ cc_test(
         ":sync_task",
         ":task",
         "//gloop:gloop_test_main",
-        "//gloop/util/status",
-        "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_matchers",
         "@abseil-cpp//absl/synchronization",
