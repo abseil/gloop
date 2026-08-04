@@ -45,7 +45,6 @@
 #include <atomic>
 #include <cstdint>
 #include <iterator>
-#include <map>
 #include <set>
 #include <string>
 #include <utility>
@@ -86,6 +85,7 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/sysinfo.h"
 #include "absl/cleanup/cleanup.h"
+#include "absl/container/flat_hash_map.h"
 #include "absl/log/vlog_is_on.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -93,6 +93,7 @@
 #include "absl/strings/resize_and_overwrite.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
+#include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
@@ -127,18 +128,21 @@ const int kTicksPerSecond = 100;  // 100 is standard on Unix.
 // -- these functions might be called a lot, and would give the same
 // error each time!
 ABSL_CONST_INIT static absl::Mutex error_map_lock(absl::kConstInit);
-// TODO: Determine whether std::unordered_map would outperform
-// std::map.
-static std::map<std::string, int>* error_map = nullptr;
+static absl::flat_hash_map<std::string, int>* error_map = nullptr;
 
 // Increment the count for the error class associated with "name", and
 // return the old value of the count.  We use this to avoid logging a
 // particular message too often.
-static int NumTimesLogged(const char* name) {
+static int NumTimesLogged(absl::string_view name) {
   absl::MutexLock l(error_map_lock);
-  if (error_map == nullptr) error_map = new std::map<std::string, int>;
-  int num_times_logged = (*error_map)[std::string(name)]++;
-  return num_times_logged;
+  if (error_map == nullptr) {
+    error_map = new absl::flat_hash_map<std::string, int>;
+  }
+  auto it = error_map->find(name);
+  if (it == error_map->end()) {
+    it = error_map->emplace(name, 0).first;
+  }
+  return it->second++;
 }
 
 static std::string DescribeErr(int err) {
