@@ -2008,7 +2008,7 @@ cc_library(
 cc_test(
     name = "logging_unittest",
     size = "small",
-    timeout = "moderate",
+    timeout = "long",  # needed by android_arm
     srcs = ["logging_unittest.cc"],
     data = ["//gloop/base/testdata:logging_test_golden_files"],
     deps = [
