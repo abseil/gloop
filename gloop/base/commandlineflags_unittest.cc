@@ -185,6 +185,22 @@ ABSL_RETIRED_FLAG(int32_t, legacy_int32, , );
 ABSL_RETIRED_FLAG(std::string, legacy_string, , );
 ABSL_RETIRED_FLAG(int32_t, legacy_encap, , );
 
+static bool ValidatePositive(const int& v, std::string*) { return v >= 0; }
+
+static bool ValidatePrefix(const std::string& v, std::string*) {
+  return absl::StartsWith(v, "str");
+}
+
+ABSL_FLAG(base::LegacyValidatedFlag<ValidatePositive>, positive_int_flag, -1,
+          "");
+ABSL_FLAG(base::LegacyValidatedFlag<ValidatePrefix>, str_prefix_flag, "", "");
+
+static bool ValidateDependentBool(const bool& v, std::string*) {
+  return v || absl::GetFlag(FLAGS_positive_int_flag).Get() > 10;
+}
+ABSL_FLAG(base::LegacyValidatedFlag<ValidateDependentBool>, dep_bool_flag, true,
+          "");
+
 namespace base {
 class FlagTest : public ::testing::Test {
  public:
@@ -258,6 +274,31 @@ static const char* GetFlagFileFlag() {
   return flagfile_flag.c_str();
 }
 #endif  // FILESYSTEM_SUPPORTED
+
+// Defining a variable of type CompileAssertTypesEqual<T1, T2> will cause a
+// compiler error iff T1 and T2 are different types.
+template <typename T1, typename T2>
+struct CompileAssertTypesEqual;
+
+template <typename T>
+struct CompileAssertTypesEqual<T, T> {};
+
+template <typename Expected, typename Actual>
+void AssertIsType(Actual& x) {
+  CompileAssertTypesEqual<Expected, Actual>();
+}
+
+using FlagTypesTest = base::FlagTest;
+
+// Verify all the flags are the right type.
+TEST_F(FlagTypesTest, FlagTypes) {
+  AssertIsType<bool>(FLAGS_test_bool);
+  AssertIsType<int32_t>(FLAGS_test_int32);
+  AssertIsType<int64_t>(FLAGS_test_int64);
+  AssertIsType<uint64_t>(FLAGS_test_uint64);
+  AssertIsType<double>(FLAGS_test_double);
+  AssertIsType<std::string>(FLAGS_test_string);
+}
 
 template <typename Type>
 void ExpectFlagParseRoundTrip(absl::string_view text, Type expected_value) {
@@ -872,6 +913,60 @@ TEST_F(FromEnvExitTest, IllegalValues) {
 
 using FlagFileNameTest = base::FlagTest;
 
+TEST_F(FlagFileNameTest, CanParseFileNamesCorrectly) {
+  // These flags are defined at the bottom of the file with custom #line pragmas
+  std::string flag_prefix = "flags_test_filename_";
+
+  std::string flaga = flag_prefix + "a";
+  CommandLineFlagInfo fi;
+  EXPECT_TRUE(GetCommandLineFlagInfo(flaga, &fi));
+  EXPECT_STREQ("", fi.filename.c_str());
+
+  std::string flagb = flag_prefix + "b";
+  EXPECT_TRUE(GetCommandLineFlagInfo(flagb, &fi));
+  EXPECT_STREQ("foo", fi.filename.c_str());
+
+  std::string flagc = flag_prefix + "c";
+  EXPECT_TRUE(GetCommandLineFlagInfo(flagc, &fi));
+  EXPECT_STREQ("foo", fi.filename.c_str());
+
+  std::string flagd = flag_prefix + "d";
+  EXPECT_TRUE(GetCommandLineFlagInfo(flagd, &fi));
+  EXPECT_STREQ("foo/bar.cc", fi.filename.c_str());
+
+  std::string flage = flag_prefix + "e";
+  EXPECT_TRUE(GetCommandLineFlagInfo(flage, &fi));
+  EXPECT_STREQ("foo/bar.cc", fi.filename.c_str());
+
+  std::string flagg = flag_prefix + "g";
+  EXPECT_TRUE(GetCommandLineFlagInfo(flagg, &fi));
+  EXPECT_STREQ("x/z.cc", fi.filename.c_str());
+
+  std::string flagh = flag_prefix + "h";
+  EXPECT_TRUE(GetCommandLineFlagInfo(flagh, &fi));
+  EXPECT_STREQ("foo.cc", fi.filename.c_str());
+}
+
+#if GOOGLE_COMMANDLINEFLAGS_FULL_API
+using GetAllFlagsTest = base::FlagTest;
+
+TEST_F(GetAllFlagsTest, BaseTest) {
+  std::vector<CommandLineFlagInfo> flags;
+  GetAllFlags(&flags);
+  bool found_test_bool = false;
+  for (const CommandLineFlagInfo& flag : flags) {
+    if (flag.name == "test_bool") {
+      found_test_bool = true;
+      EXPECT_EQ(flag.type, "bool");
+      EXPECT_EQ(flag.default_value, "false");
+      EXPECT_EQ(flag.flag_ptr, &FLAGS_test_bool);
+      break;
+    }
+  }
+  EXPECT_TRUE(found_test_bool);
+}
+#endif  // GOOGLE_COMMANDLINEFLAGS_FULL_API
+
 using ShowUsageWithFlagsTest = base::FlagTest;
 
 TEST_F(ShowUsageWithFlagsTest, BaseTest) {
@@ -1001,6 +1096,7 @@ TEST_F(GetCommandLineOptionTest, NameExistsAndWasNotSet) {
   const bool r = GetCommandLineOption("test_int32", &value);
   EXPECT_TRUE(r);
   EXPECT_EQ("800", value);
+  EXPECT_TRUE(GetCommandLineFlagInfoOrDie("test_int32").is_default);
 
   // Restore defaults, since flag saver does not do it.
   absl::SetFlag(&FLAGS_test_int32, -1);
@@ -1020,6 +1116,136 @@ TEST_F(GetCommandLineOptionTest, NameDoesNotExist) {
   const bool r = GetCommandLineOption("test_int3210", &value);
   EXPECT_FALSE(r);
   EXPECT_EQ("will not be changed", value);
+}
+
+using GetCommandLineFlagInfoTest = base::FlagTest;
+
+TEST_F(GetCommandLineFlagInfoTest, FlagExists) {
+  CommandLineFlagInfo info;
+  bool r = GetCommandLineFlagInfo("test_int32", &info);
+  EXPECT_TRUE(r);
+  EXPECT_EQ("test_int32", info.name);
+  EXPECT_EQ("int32", info.type);
+  EXPECT_EQ("", info.description);
+  EXPECT_EQ("-1", info.current_value);
+  EXPECT_EQ("-1", info.default_value);
+  EXPECT_TRUE(info.is_default);
+  EXPECT_FALSE(info.has_validator_fn);
+  EXPECT_EQ(&FLAGS_test_int32, info.flag_ptr);
+
+  absl::SetFlag(&FLAGS_test_bool, true);
+  r = GetCommandLineFlagInfo("test_bool", &info);
+  EXPECT_TRUE(r);
+  EXPECT_EQ("test_bool", info.name);
+  EXPECT_EQ("bool", info.type);
+  EXPECT_EQ("tests bool-ness", info.description);
+  EXPECT_EQ("true", info.current_value);
+  EXPECT_EQ("false", info.default_value);
+  EXPECT_FALSE(info.is_default);
+  EXPECT_FALSE(info.has_validator_fn);
+  EXPECT_EQ(&FLAGS_test_bool, info.flag_ptr);
+
+  absl::SetFlag(&FLAGS_test_bool, false);
+  r = GetCommandLineFlagInfo("test_bool", &info);
+  EXPECT_TRUE(r);
+  EXPECT_EQ("test_bool", info.name);
+  EXPECT_EQ("bool", info.type);
+  EXPECT_EQ("tests bool-ness", info.description);
+  EXPECT_EQ("false", info.current_value);
+  EXPECT_EQ("false", info.default_value);
+  EXPECT_FALSE(info.is_default);  // value is same, but flag *was* modified
+  EXPECT_FALSE(info.has_validator_fn);
+  EXPECT_EQ(&FLAGS_test_bool, info.flag_ptr);
+}
+
+TEST_F(GetCommandLineFlagInfoTest, FlagDoesNotExist) {
+  CommandLineFlagInfo info;
+  // Set to some random values that GetCommandLineFlagInfo should not change
+  info.name = "name";
+  info.type = "type";
+  info.current_value = "curr";
+  info.default_value = "def";
+  info.filename = "/";
+  info.is_default = false;
+  info.has_validator_fn = true;
+  info.flag_ptr = nullptr;
+  bool r = GetCommandLineFlagInfo("test_int3210", &info);
+  EXPECT_FALSE(r);
+  EXPECT_EQ("name", info.name);
+  EXPECT_EQ("type", info.type);
+  EXPECT_EQ("", info.description);
+  EXPECT_EQ("curr", info.current_value);
+  EXPECT_EQ("def", info.default_value);
+  EXPECT_EQ("/", info.filename);
+  EXPECT_FALSE(info.is_default);
+  EXPECT_TRUE(info.has_validator_fn);
+  EXPECT_EQ(nullptr, info.flag_ptr);
+}
+
+using GetCommandLineFlagInfoOrDieTest = base::FlagTest;
+
+TEST_F(GetCommandLineFlagInfoOrDieTest, FlagExistsAndIsDefault) {
+  CommandLineFlagInfo info;
+  info = GetCommandLineFlagInfoOrDie("test_int32");
+  EXPECT_EQ("test_int32", info.name);
+  EXPECT_EQ("int32", info.type);
+  EXPECT_EQ("", info.description);
+  EXPECT_EQ("-1", info.current_value);
+  EXPECT_EQ("-1", info.default_value);
+  EXPECT_TRUE(info.is_default);
+  EXPECT_EQ(&FLAGS_test_int32, info.flag_ptr);
+  info = GetCommandLineFlagInfoOrDie("test_bool");
+  EXPECT_EQ("test_bool", info.name);
+  EXPECT_EQ("bool", info.type);
+  EXPECT_EQ("tests bool-ness", info.description);
+  EXPECT_EQ("false", info.current_value);
+  EXPECT_EQ("false", info.default_value);
+  EXPECT_TRUE(info.is_default);
+  EXPECT_FALSE(info.has_validator_fn);
+  EXPECT_EQ(&FLAGS_test_bool, info.flag_ptr);
+}
+
+TEST_F(GetCommandLineFlagInfoOrDieTest, FlagExistsAndWasAssigned) {
+  absl::SetFlag(&FLAGS_test_int32, 400);
+  CommandLineFlagInfo info;
+  info = GetCommandLineFlagInfoOrDie("test_int32");
+  EXPECT_EQ("test_int32", info.name);
+  EXPECT_EQ("int32", info.type);
+  EXPECT_EQ("", info.description);
+  EXPECT_EQ("400", info.current_value);
+  EXPECT_EQ("-1", info.default_value);
+  EXPECT_FALSE(info.is_default);
+  EXPECT_EQ(&FLAGS_test_int32, info.flag_ptr);
+  absl::SetFlag(&FLAGS_test_bool, true);
+  info = GetCommandLineFlagInfoOrDie("test_bool");
+  EXPECT_EQ("test_bool", info.name);
+  EXPECT_EQ("bool", info.type);
+  EXPECT_EQ("tests bool-ness", info.description);
+  EXPECT_EQ("true", info.current_value);
+  EXPECT_EQ("false", info.default_value);
+  EXPECT_FALSE(info.is_default);
+  EXPECT_FALSE(info.has_validator_fn);
+  EXPECT_EQ(&FLAGS_test_bool, info.flag_ptr);
+}
+
+#if GTEST_HAS_DEATH_TEST
+
+using GetCommandLineFlagInfoOrDieExitTest = base::FlagDeathTest;
+
+TEST_F(GetCommandLineFlagInfoOrDieExitTest, FlagDoesNotExist) {
+  EXPECT_DEATH(GetCommandLineFlagInfoOrDie("test_int3210"), "");
+}
+
+#endif  // GTEST_HAS_DEATH_TEST
+
+using DeprecatedFunctionsTest = base::FlagTest;
+
+// These are lightly tested because they're deprecated.  Basically,
+// the tests are meant to cover how existing users use these functions,
+// but not necessarily how new users could use them.
+TEST_F(DeprecatedFunctionsTest, CommandlineFlagsIntoString) {
+  std::string s = CommandlineFlagsIntoString();
+  EXPECT_NE(std::string::npos, s.find("--test_bool="));
 }
 
 #if FILESYSTEM_SUPPORTED
@@ -1428,6 +1654,11 @@ void GetSet(const char* name, absl::Flag<T>* flag, T val1,
   EXPECT_EQ(val2, absl::GetFlag(*flag)) << name;
 
   absl::SetFlag(flag, val1);
+  // Check GetCommandLineFlagInfo after ensuring default/current are different.
+  CommandLineFlagInfo fi;
+  EXPECT_TRUE(GetCommandLineFlagInfo(name, &fi));
+  EXPECT_EQ(val2str, fi.default_value);
+  EXPECT_EQ(val1str, fi.current_value);
 
   // Check GetByName.
   T result;
@@ -1512,22 +1743,253 @@ TEST_F(EncapsulatedFlagTest, SetFlagConversion) {
   EXPECT_EQ(100, absl::GetFlag(FLAGS_test_int_conversion));
 }
 
+#if GOOGLE_COMMANDLINEFLAGS_FULL_API
+// Test that encapsulated flags show up in list of all flags.
+TEST_F(EncapsulatedFlagTest, GetAllFlags) {
+  std::vector<CommandLineFlagInfo> flags;
+  GetAllFlags(&flags);
+  absl::flat_hash_map<std::string, std::string> flagmap;
+  for (const CommandLineFlagInfo& flag : flags) {
+    flagmap[flag.name] = flag.current_value;
+  }
+  EXPECT_EQ(1, flagmap.count("test_string_conversion"));
+  EXPECT_EQ(1, flagmap.count("test_int_conversion"));
+}
+#endif  // GOOGLE_COMMANDLINEFLAGS_FULL_API
+
 }  // namespace
 
 ABSL_FLAG(int32_t, test_direct_int, 100, "help");
 
 namespace {
+using DirectAccessFlagTest = base::FlagTest;
+
+// Test that GetFlag/SetFlag can be used on old-style direct access flags.
+TEST_F(DirectAccessFlagTest, GetAndSet) {
+  absl::SetFlag(&FLAGS_test_direct_int, 200);
+  EXPECT_EQ(200, absl::GetFlag(FLAGS_test_direct_int));
+  EXPECT_EQ(200, absl::GetFlag(FLAGS_test_direct_int));
+
+  absl::SetFlag(&FLAGS_test_direct_int, 300);
+  EXPECT_EQ(300, absl::GetFlag(FLAGS_test_direct_int));
+  EXPECT_EQ(300, absl::GetFlag(FLAGS_test_direct_int));
+}
+
+#if GOOGLE_COMMANDLINEFLAGS_FULL_API
+using GetByNameTest = base::FlagTest;
+
+TEST_F(GetByNameTest, NameNotFound) {
+  UserType result;
+  EXPECT_FALSE(base::GetByName("this_flag_does_not_exist", &result));
+}
+
+TEST_F(GetByNameTest, CorrectType) {
+  UserType result;
+  EXPECT_TRUE(base::GetByName("test_encap_user", &result));
+  EXPECT_EQ(absl::GetFlag(FLAGS_test_encap_user), result);
+}
+
+TEST_F(GetByNameTest, WrongType) {
+  int32_t result;
+  EXPECT_FALSE(base::GetByName("test_encap_user", &result));
+}
+#endif  // GOOGLE_COMMANDLINEFLAGS_FULL_API
+
+static int g_validate_test_flag_is_5_counter = 0;
+
+static bool ValidateTestFlagIs5(const char* flagname, int32_t flagval) {
+  g_validate_test_flag_is_5_counter++;
+  if (flagval == 5) return true;
+  printf("%s isn't 5!\n", flagname);
+  return false;
+}
+
+static bool ValidateTestFlagIs10(const char* flagname, int32_t flagval) {
+  return flagval == 10;
+}
+
+#if GOOGLE_COMMANDLINEFLAGS_FULL_API
+using FlagsValidatorTest = base::FlagTest;
+
+TEST_F(FlagsValidatorTest, ValidFlagViaSetDefault) {
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, &ValidateTestFlagIs5));
+  // SetCommandLineOptionWithMode returns the empty string on error.
+  EXPECT_NE(
+      "", SetCommandLineOptionWithMode("test_flag", "5", SET_FLAG_IF_DEFAULT));
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, nullptr));
+}
+
+TEST_F(FlagsValidatorTest, ValidFlagViaSetValue) {
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, &ValidateTestFlagIs5));
+  absl::SetFlag(&FLAGS_test_flag, 100);  // doesn't trigger the validator
+  // SetCommandLineOptionWithMode returns the empty string on error.
+  EXPECT_NE("",
+            SetCommandLineOptionWithMode("test_flag", "5", SET_FLAGS_VALUE));
+  EXPECT_NE("",
+            SetCommandLineOptionWithMode("test_flag", "5", SET_FLAGS_DEFAULT));
+  EXPECT_NE("", SetCommandLineOption("test_flag", "5"));
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, nullptr));
+  // Restore defaults, since flag saver does not do it.
+  absl::SetFlag(&FLAGS_test_flag, -1);
+  SetCommandLineOptionWithMode("test_flag", "-1", SET_FLAGS_DEFAULT);
+}
+
+static bool ValidateStringTestFlagNotEmpty(const char* flagname,
+                                           const std::string& value) {
+  return !value.empty();
+}
+
+TEST_F(FlagsValidatorTest, RegisterStringFlagValidator) {
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_string,
+                                    &ValidateStringTestFlagNotEmpty));
+  // SetCommandLineOptionWithMode returns the empty string on error.
+  EXPECT_NE(
+      "", SetCommandLineOptionWithMode("test_string", "foo", SET_FLAGS_VALUE));
+  EXPECT_EQ("",
+            SetCommandLineOptionWithMode("test_string", "", SET_FLAGS_VALUE));
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_string, nullptr));
+}
+
+#if GTEST_HAS_DEATH_TEST
+
+using FlagsValidatorDeathTest = base::FlagDeathTest;
+
+TEST_F(FlagsValidatorDeathTest, InvalidFlagViaArgv) {
+  const char* argv[] = {
+      "my_test",
+      "--test_flag=50",
+      nullptr,
+  };
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, &ValidateTestFlagIs5));
+  EXPECT_NE("",
+            SetCommandLineOptionWithMode("test_flag", "5", SET_FLAGS_DEFAULT));
+  EXPECT_DEATH(ParseTestFlag(true, std::size(argv) - 1, argv),
+               "Failed validation of new value '50' for flag 'test_flag'");
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, nullptr));
+
+  // Restore defaults, since flag saver does not do it.
+  absl::SetFlag(&FLAGS_test_flag, -1);
+  SetCommandLineOptionWithMode("test_flag", "-1", SET_FLAGS_DEFAULT);
+}
+
+#endif
+
+TEST_F(FlagsValidatorTest, InvalidFlagViaSetDefault) {
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, &ValidateTestFlagIs5));
+  // SetCommandLineOptionWithMode returns the empty string on error.
+  EXPECT_EQ(
+      "", SetCommandLineOptionWithMode("test_flag", "50", SET_FLAG_IF_DEFAULT));
+  EXPECT_EQ(-1, absl::GetFlag(
+                    FLAGS_test_flag));  // the setting-to-50 should have failed
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, nullptr));
+}
+
+TEST_F(FlagsValidatorTest, InvalidFlagViaSetValue) {
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, &ValidateTestFlagIs5));
+  absl::SetFlag(&FLAGS_test_flag, 100);  // doesn't trigger the validator
+  // SetCommandLineOptionWithMode returns the empty string on error.
+  EXPECT_EQ("",
+            SetCommandLineOptionWithMode("test_flag", "50", SET_FLAGS_VALUE));
+  EXPECT_EQ("",
+            SetCommandLineOptionWithMode("test_flag", "50", SET_FLAGS_DEFAULT));
+  EXPECT_EQ("", SetCommandLineOption("test_flag", "50"));
+  EXPECT_EQ(100, absl::GetFlag(
+                     FLAGS_test_flag));  // the setting-to-50 should have failed
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, nullptr));
+
+  // Restore defaults, since flag saver does not do it.
+  absl::SetFlag(&FLAGS_test_flag, -1);
+  SetCommandLineOptionWithMode("test_flag", "-1", SET_FLAGS_DEFAULT);
+}
+
+#if GTEST_HAS_DEATH_TEST
+
+TEST_F(FlagsValidatorDeathTest, InvalidFlagNeverSet) {
+  // If a flag keeps its default value, and that default value is
+  // invalid, we should die at argv-parse time.
+  const char* argv[] = {
+      "my_test",
+      nullptr,
+  };
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, &ValidateTestFlagIs5));
+  EXPECT_DEATH(ParseTestFlag(true, std::size(argv) - 1, argv),
+               "default value fails validation");
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, nullptr));
+}
+
+#endif
+
+TEST_F(FlagsValidatorTest, InvalidFlagPtr) {
+  int32_t dummy;
+  EXPECT_FALSE(RegisterFlagValidator(nullptr, &ValidateTestFlagIs5));
+  EXPECT_FALSE(RegisterFlagValidator(&dummy, &ValidateTestFlagIs5));
+}
+
+TEST_F(FlagsValidatorTest, RegisterValidatorTwice) {
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, &ValidateTestFlagIs5));
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, &ValidateTestFlagIs5));
+  EXPECT_FALSE(RegisterFlagValidator(&FLAGS_test_flag, &ValidateTestFlagIs10));
+  EXPECT_FALSE(RegisterFlagValidator(&FLAGS_test_flag, &ValidateTestFlagIs10));
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, &ValidateTestFlagIs5));
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, nullptr));
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, &ValidateTestFlagIs10));
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, nullptr));
+}
+
+TEST_F(FlagsValidatorTest, CommandLineFlagInfo) {
+  CommandLineFlagInfo info;
+  info = GetCommandLineFlagInfoOrDie("test_flag");
+  EXPECT_FALSE(info.has_validator_fn);
+
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, &ValidateTestFlagIs5));
+  info = GetCommandLineFlagInfoOrDie("test_flag");
+  EXPECT_TRUE(info.has_validator_fn);
+
+  EXPECT_TRUE(RegisterFlagValidator(&FLAGS_test_flag, nullptr));
+  info = GetCommandLineFlagInfoOrDie("test_flag");
+  EXPECT_FALSE(info.has_validator_fn);
+}
+
+TEST_F(FlagsValidatorTest, UsingLegacyValidatedFlag) {
+  EXPECT_EQ(absl::GetFlag(FLAGS_positive_int_flag).Get(), -1);
+
+  // SetCommandLineOptionWithMode returns the empty string on error.
+  EXPECT_EQ("", SetCommandLineOptionWithMode("positive_int_flag", "-10",
+                                             SET_FLAGS_VALUE));
+  EXPECT_NE("", SetCommandLineOptionWithMode("positive_int_flag", "3",
+                                             SET_FLAGS_VALUE));
+  EXPECT_EQ(absl::GetFlag(FLAGS_positive_int_flag).Get(), 3);
+  absl::SetFlag(&FLAGS_positive_int_flag, -13);
+  EXPECT_EQ(absl::GetFlag(FLAGS_positive_int_flag).Get(), -13);
+
+  EXPECT_EQ(absl::GetFlag(FLAGS_str_prefix_flag).Get(), "");
+
+  EXPECT_EQ("", SetCommandLineOptionWithMode("str_prefix_flag", "abc123",
+                                             SET_FLAGS_VALUE));
+  EXPECT_NE("", SetCommandLineOptionWithMode("str_prefix_flag", "strict",
+                                             SET_FLAGS_VALUE));
+  EXPECT_EQ(absl::GetFlag(FLAGS_str_prefix_flag).Get(), "strict");
+  EXPECT_EQ("strict", absl::GetFlag(FLAGS_str_prefix_flag).Get());
+  EXPECT_EQ(absl::GetFlag(FLAGS_str_prefix_flag).Get(),
+            absl::GetFlag(FLAGS_str_prefix_flag).Get());
+
+  absl::SetFlag(&FLAGS_dep_bool_flag, false);
+  EXPECT_FALSE(absl::GetFlag(FLAGS_dep_bool_flag).Get());
+}
 
 using RetiredFlagValueTest = base::FlagTest;
 
 TEST_F(RetiredFlagValueTest, Values) {
   std::string value;
+  CommandLineFlagInfo info;
 
   EXPECT_FALSE(GetCommandLineOption("legacy_bool", &value));
   EXPECT_EQ("", SetCommandLineOption("legacy_bool", "false"));
+  EXPECT_FALSE(GetCommandLineFlagInfo("legacy_bool", &info));
 
   EXPECT_FALSE(GetCommandLineOption("legacy_encap", &value));
   EXPECT_EQ("", SetCommandLineOption("legacy_encap", "100"));
+  EXPECT_FALSE(GetCommandLineFlagInfo("legacy_encap", &info));
 }
 
 TEST_F(RetiredFlagValueTest, StringArgWithFlagLikeValue) {
@@ -1677,6 +2139,17 @@ static void BM_FlagSaver(benchmark::State& state) {
 }
 BENCHMARK(BM_FlagSaver);
 
+static void BM_GetAllFlags(benchmark::State& state) {
+  int64_t items = 0;
+  for (auto _ : state) {
+    std::vector<CommandLineFlagInfo> flags;
+    GetAllFlags(&flags);
+    items += flags.size();
+  }
+  state.SetItemsProcessed(items);
+}
+BENCHMARK(BM_GetAllFlags);
+
 static void BM_GetFlagNum(benchmark::State& state) {
   uint64_t r = 0;
   for (auto _ : state) {
@@ -1747,6 +2220,14 @@ static void BM_SetFlag(benchmark::State& state) {
 }
 BENCHMARK(BM_SetFlag);
 
+static void BM_SetFlagDirect(benchmark::State& state) {
+  std::string value(10000, 'x');
+  for (auto _ : state) {
+    absl::SetFlag(&FLAGS_test_bm_direct_string, value);
+  }
+  VLOG(1) << absl::GetFlag(FLAGS_test_bm_direct_string).size();
+}
+BENCHMARK(BM_SetFlagDirect);
 #endif  // BENCHMARK_SUPPORTED
 
 }  // unnamed namespace
@@ -1805,3 +2286,20 @@ int main(int argc, char** argv) {
   ShutDownCommandLineFlags();
   return exit_status;
 }
+
+// Define these flags here so that we can alter the file/line number.
+
+#line 100 "/"
+ABSL_FLAG(bool, flags_test_filename_a, false, "");
+#line 100 "/foo"
+ABSL_FLAG(bool, flags_test_filename_b, false, "");
+#line 100 "foo/<path>"
+ABSL_FLAG(bool, flags_test_filename_c, false, "");
+#line 100 "/bar/<path>"
+ABSL_FLAG(bool, flags_test_filename_d, false, "");
+#line 100 "/<path>"
+ABSL_FLAG(bool, flags_test_filename_e, false, "");
+#line 100 "/home/temp/<path>"
+ABSL_FLAG(bool, flags_test_filename_g, false, "");
+#line 100 "foo.cc"
+ABSL_FLAG(bool, flags_test_filename_h, false, "");

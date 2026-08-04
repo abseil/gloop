@@ -19,6 +19,39 @@
 // clang-format on
 
 // This file contains the commandlineflags implementation.
+// Flavors of flags
+// ----------------
+// (a) Encapsulated flags created by ABSL_FLAG.  These can be of any
+// type T that supports parsing, unparsing, etc.  Each such flag is
+// represented by a programmer visible object of type Flag<T>.
+//
+// (b) Direct access flags created by DEFINE_<type> for a few types (bool,
+// int32_t, int64_t, uint64_t, double, string).  Each such flag is represented
+// by a global variable of type <type>.
+//
+// (c) Retired flags: these just reserve a flag name but are not actually
+// made available for programs to inspect/modify.
+//
+// Important types
+// ---------------
+// Every flag (regardless of flavor) is represented by a
+// CommandLineFlag object. CommandLineFlag holds all information about
+// a single flag such as its name and type.
+//
+// CommandLineFlag holds all flag state.
+//
+// CommandLineFlag::op is a pointer to a function that provides all
+// type-specific operations like parsing, unparsing, allocation, etc.
+//
+// FlagRegistry is a collection of CommandLineFlag objects.  There's
+// just a single global registry, where all defined flags live.
+//
+// FlagRegisterer is the helper class used by the DEFINE_* macros to
+// allow work to be done at global initialization time.
+//
+// CommandLineFlagParser is the class that reads from the commandline
+// and instantiates flag values based on that.  It operates on the
+// contents of the global registry.
 
 #include "gloop/base/commandlineflags.h"
 
@@ -91,6 +124,453 @@
 namespace {
 namespace absl_flags = absl::flags_internal;
 }  // namespace
+
+namespace base {
+namespace {
+
+// Return true iff flag value was changed via direct-access.
+// `flag` is the pointer to the flag object beging tested
+// `a` is the pointer to a flag value being compared
+// `b` is the pointer to a flag value being compared
+// This function compares values of `a` and 'b' according to the flag's value
+// type.
+bool ChangedDirectly(absl::CommandLineFlag* flag, const void* a,
+                     const void* b) {
+#define CHANGED_FOR_TYPE(T)                                                  \
+  if (flag->IsOfType<T>()) {                                                 \
+    return *reinterpret_cast<const T*>(a) != *reinterpret_cast<const T*>(b); \
+  }
+
+  CHANGED_FOR_TYPE(bool);
+  CHANGED_FOR_TYPE(int32_t);
+  CHANGED_FOR_TYPE(int64_t);
+  CHANGED_FOR_TYPE(uint64_t);
+  CHANGED_FOR_TYPE(double);
+  CHANGED_FOR_TYPE(std::string);
+#undef CHANGED_FOR_TYPE
+
+  return false;
+}
+
+using FlagValidator = bool (*)();
+class CommandLineV1Flag;
+
+class V1FlagState : public absl_flags::FlagStateInterface {
+ public:
+  V1FlagState(CommandLineV1Flag* flag, int64_t counter, FlagValidator validator,
+              bool modified, bool on_command_line, void* current,
+              absl_flags::FlagOpFn op)
+      : flag_(flag),
+        counter_(counter),
+        validator_(validator),
+        modified_(modified),
+        on_command_line_(on_command_line),
+        current_(current),
+        op_(op) {}
+
+  ~V1FlagState() override { absl::flags_internal::Delete(op_, current_); }
+
+ private:
+  friend class CommandLineV1Flag;
+
+  // Restores the flag to the saved state.
+  void Restore() && override;
+
+  // Flag and saved state.
+  CommandLineV1Flag* flag_;
+  int64_t counter_;
+  FlagValidator validator_;
+  bool modified_;
+  bool on_command_line_;
+  void* current_;
+  absl_flags::FlagOpFn op_;
+};
+
+class CommandLineV1Flag final : public absl::CommandLineFlag {
+ public:
+  constexpr CommandLineV1Flag(const char* name, const char* help,
+                              const char* filename,
+                              const absl_flags::FlagOpFn op,
+                              void* defvalue_storage, void* current_storage)
+      : name_(name),
+        filename_(filename),
+        op_(op),
+        help_(help),
+        def_(defvalue_storage),
+        cur_(current_storage) {}
+
+  // Non-polymorphic access methods
+  void* GetAddr() const { return cur_; }
+  void* GetDefault() const { return def_; }
+  void SetModified(bool is_modified) {
+    absl::MutexLock l(*DataGuard());
+    modified_ = is_modified;
+  }
+  bool HasValidatorFn() const {
+    absl::MutexLock l(*DataGuard());
+    return validator_ != nullptr;
+  }
+  bool SetValidator(FlagValidator fn) {
+    absl::MutexLock l(*DataGuard());
+    return SetValidatorLocked(fn);
+  }
+  bool SetValidatorLocked(FlagValidator fn)
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(data_guard_) {
+    // ok to register the same function over and over again
+    if (fn == validator_) return true;
+
+    // Can't set validator to a different function, unless reset first.
+    if (fn != nullptr && validator_ != nullptr) {
+      ABSL_INTERNAL_LOG(
+          WARNING, absl::StrCat("Ignoring SetValidator() for flag '", Name(),
+                                "': validate-fn already registered"));
+
+      return false;
+    }
+
+    validator_ = fn;
+    counter_++;
+    return true;
+  }
+
+  // Polymorphic access methods
+  absl::string_view Name() const override { return name_; }
+  std::string Filename() const override {
+    return absl_flags::GetUsageConfig().normalize_filename(filename_);
+  }
+  absl::string_view Typename() const {
+    if (IsOfType<bool>()) return "bool";
+    if (IsOfType<int32_t>()) return "int32";
+    if (IsOfType<int64_t>()) return "int64";
+    if (IsOfType<uint64_t>()) return "uint64";
+    if (IsOfType<double>()) return "double";
+    if (IsOfType<std::string>()) return "string";
+
+    return "";
+  }
+  std::string Help() const override { return help_; }
+  bool IsAbseilFlag() const override { return false; }
+  absl_flags::FlagFastTypeId TypeId() const override {
+    return absl_flags::FastTypeId(op_);
+  }
+  bool IsModified() const override {
+    absl::MutexLock l(*DataGuard());
+    return modified_;
+  }
+  bool IsSpecifiedOnCommandLine() const override {
+    absl::MutexLock l(*DataGuard());
+    return on_command_line_;
+  }
+  std::string DefaultValue() const override {
+    absl::MutexLock l(*DataGuard());
+    return absl::flags_internal::Unparse(op_, def_);
+  }
+  std::string CurrentValue() const override {
+    absl::MutexLock l(*DataGuard());
+    return absl::flags_internal::Unparse(op_, cur_);
+  }
+  bool ValidateDefaultValue() const override {
+    absl::MutexLock lock(*DataGuard());
+    if (modified_) return true;
+    return InvokeValidator(def_);
+  }
+  bool ValidateInputValue(absl::string_view value) const override {
+    absl::MutexLock l(*DataGuard());
+
+    void* obj = absl::flags_internal::Clone(op_, def_);
+    std::string ignored_error;
+    const bool result = absl_flags::Parse(op_, value, obj, &ignored_error) &&
+                        InvokeValidator(obj);
+    absl::flags_internal::Delete(op_, obj);
+    return result;
+  }
+  std::unique_ptr<absl_flags::FlagStateInterface> SaveState() override {
+    absl::MutexLock l(*DataGuard());
+    return std::make_unique<V1FlagState>(
+        this, counter_, validator_, modified_, on_command_line_,
+        absl::flags_internal::Clone(op_, cur_), op_);
+  }
+  // Restores the flag state to the supplied state object.
+  bool RestoreState(const V1FlagState& flag_state) {
+    {
+      absl::MutexLock l(*DataGuard());
+      modified_ = flag_state.modified_;
+      on_command_line_ = flag_state.on_command_line_;
+
+      if (counter_ == flag_state.counter_ &&
+          !ChangedDirectly(this, flag_state.current_, cur_))
+        return false;
+
+      absl::flags_internal::Copy(op_, flag_state.current_, cur_);
+
+      counter_++;
+
+      SetValidatorLocked(flag_state.validator_);
+    }
+
+    // Revalidate the flag because the validator might store state based
+    // on the flag's value, which just changed due to the restore.
+    // Failing validation is ignored because it's assumed that the flag
+    // was valid previously and there's little that can be done about it
+    // here, anyway.
+    if (!ValidateInputValue(CurrentValue())) {
+      LOG(WARNING) << "Saved value " << CurrentValue()
+                   << " did not pass validation for flag " << Name();
+    }
+    return true;
+  }
+  bool ParseFrom(absl::string_view value, absl_flags::FlagSettingMode set_mode,
+                 absl_flags::ValueSource source, std::string& err) override {
+    absl::MutexLock l(*DataGuard());
+
+    // Direct-access flags can be modified without going through the
+    // flag API. Detect such changes and update the flag->modified_ bit.
+    if (!modified_ && ChangedDirectly(this, cur_, def_)) {
+      modified_ = true;
+    }
+
+    switch (set_mode) {
+      case absl_flags::FlagSettingMode::SET_FLAGS_VALUE: {
+        // set or modify the flag's value
+        if (!TryParseLocked(cur_, value, err)) return false;
+        modified_ = true;
+
+        if (source == absl_flags::kCommandLine) {
+          on_command_line_ = true;
+        }
+        break;
+      }
+      case absl_flags::FlagSettingMode::SET_FLAG_IF_DEFAULT: {
+        // set the flag's value, but only if it hasn't been set by someone else
+        if (!modified_) {
+          if (!TryParseLocked(cur_, value, err)) return false;
+          modified_ = true;
+        } else {
+          // TODO: review and fix this semantic. Currently we do not
+          // fail in this case if flag is modified. This is misleading since the
+          // flag's value is not updated even though we return true.
+          //   *err = absl::StrCat(Name(), " is already set to ",
+          //                       CurrentValue(), "\n");
+          //   return false;
+          return true;
+        }
+        break;
+      }
+      case absl_flags::FlagSettingMode::SET_FLAGS_DEFAULT: {
+        // modify the flag's default-value
+        if (!TryParseLocked(def_, value, err)) return false;
+
+        if (!modified_) {
+          // Need to set both defvalue *and* current, in this case
+          absl::flags_internal::Copy(op_, def_, cur_);
+        }
+        break;
+      }
+    }
+
+    return true;
+  }
+
+  void CheckDefaultValueParsingRoundtrip() const override {}
+
+ private:
+  absl::Mutex* DataGuard() const ABSL_LOCK_RETURNED(data_guard_) {
+    if (ABSL_PREDICT_FALSE(!inited_.load(std::memory_order_acquire))) {
+      ABSL_CONST_INIT static absl::Mutex init_lock(absl::kConstInit);
+
+      absl::MutexLock lock(init_lock);
+      if (!data_guard_.has_value()) {  // Must initialize Mutex for this flag.
+        const_cast<CommandLineV1Flag*>(this)->data_guard_.emplace();
+      }
+
+      inited_.store(true, std::memory_order_release);
+    }
+
+    return const_cast<absl::Mutex*>(&*data_guard_);
+  }
+
+  void Read(void* dst) const override {
+    absl::ReaderMutexLock l(*DataGuard());
+    absl::flags_internal::CopyConstruct(op_, cur_, dst);
+  }
+
+  bool InvokeValidator(const void* value) const
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(data_guard_) {
+    if (!validator_) {
+      return true;
+    }
+
+#define ABSL_FLAGS_HANDLE_TYPE(T, ArgType)                                     \
+  if (IsOfType<T>()) {                                                         \
+    const T* v = reinterpret_cast<const T*>(value);                            \
+    return reinterpret_cast<bool (*)(const char*, ArgType)>(validator_)(name_, \
+                                                                        *v);   \
+  }
+
+    ABSL_FLAGS_HANDLE_TYPE(bool, bool);
+    ABSL_FLAGS_HANDLE_TYPE(int32_t, int32_t);
+    ABSL_FLAGS_HANDLE_TYPE(int64_t, int64_t);
+    ABSL_FLAGS_HANDLE_TYPE(uint64_t, uint64_t);
+    ABSL_FLAGS_HANDLE_TYPE(double, double);
+    ABSL_FLAGS_HANDLE_TYPE(std::string, const std::string&);
+#undef ABSL_FLAGS_HANDLE_TYPE
+
+    ABSL_INTERNAL_LOG(
+        FATAL,
+        absl::StrCat("Flag '", Name(),
+                     "' of encapsulated type should not have a validator"));
+
+    return false;
+  }
+
+  // Attempts to parse supplied `value` string using parsing routine in the
+  // `flag` argument. If parsing is successful, it will try to validate that the
+  // parsed value is valid for the specified 'flag'. Finally this function
+  // stores the parsed value in 'dst' assuming it is a pointer to the flag's
+  // value type. In case if any error is encountered in either step, the error
+  // message is stored in 'err'
+  bool TryParseLocked(void* dst, absl::string_view value, std::string& err)
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(data_guard_) {
+    void* tentative_value = absl::flags_internal::Clone(op_, def_);
+    std::string parse_err;
+    if (!absl_flags::Parse(op_, value, tentative_value, &parse_err)) {
+      auto type_name = Typename();
+      absl::string_view err_sep = parse_err.empty() ? "" : "; ";
+      absl::string_view typename_sep = type_name.empty() ? "" : " ";
+      err = absl::StrCat("Illegal value '", value, "' specified for",
+                         typename_sep, type_name, " flag '", Name(), "'",
+                         err_sep, parse_err);
+      absl::flags_internal::Delete(op_, tentative_value);
+      return false;
+    }
+
+    if (!InvokeValidator(tentative_value)) {
+      err = absl::StrCat("Failed validation of new value '",
+                         absl::flags_internal::Unparse(op_, tentative_value),
+                         "' for flag '", Name(), "'");
+      absl::flags_internal::Delete(op_, tentative_value);
+      return false;
+    }
+
+    counter_++;
+    absl::flags_internal::Copy(op_, tentative_value, dst);
+    absl::flags_internal::Delete(op_, tentative_value);
+    return true;
+  }
+
+  // Immutable state (after initialization).
+  // Flags name passed to DEFINE_<type> as second arg.
+  const char* const name_;
+  // The file name where DEFINE_<type> resides.
+  const char* const filename_;
+  // Type-specific handler.
+  const absl_flags::FlagOpFn op_;
+  // Help message literal.
+  const char* help_;
+  // Lazily initialized mutex for this flag's data.
+  std::optional<absl::Mutex> data_guard_;
+
+  // True is data_guard_ has been lazily initialized.
+  mutable std::atomic<bool> inited_{false};
+
+  // Mutable state (guarded by data_guard).
+  bool modified_ = false;              // Has flag value been modified?
+  bool on_command_line_ = false;       // Specified on command line.
+  void* def_;                          // Pointer to default value.
+  void* cur_;                          // Pointer to current value.
+  int64_t counter_ = 0;                // Mutation counter.
+  FlagValidator validator_ = nullptr;  // Validator function, or nullptr.
+};
+
+void V1FlagState::Restore() && {
+  if (flag_->RestoreState(*this)) {
+    LOG(INFO) << "Restore saved value of " << flag_->Name()
+              << " to: " << flag_->CurrentValue();
+  }
+}
+
+// A map from flag address to absl::CommandLineFlag*. Used when
+// registering validators.
+class FlagAddressToFlagMap {
+ public:
+  void Register(CommandLineV1Flag* flag) {
+    absl::MutexLock lock(guard_);
+
+    auto& vec = buckets_[BucketForFlag(flag->GetAddr())];
+    if (vec.size() == vec.capacity()) {
+      // Bypass default 2x growth factor with 1.25 so we have fuller vectors.
+      // This saves 4% memory compared to default growth.
+      vec.reserve(vec.size() * 1.25 + 0.5);
+    }
+    vec.push_back(flag);
+  }
+
+  CommandLineV1Flag* FindFlagByAddress(const void* flag_addr) {
+    absl::MutexLock lock(guard_);
+
+    const auto& flag_vector = buckets_[BucketForFlag(flag_addr)];
+    for (CommandLineV1Flag* entry : flag_vector) {
+      if (entry->GetAddr() == flag_addr) {
+        return entry;
+      }
+    }
+    return nullptr;
+  }
+
+ private:
+  // Instead of std::map, we use a custom hash table where each bucket stores
+  // flags in a vector. This reduces memory usage 40% of the memory that would
+  // have been used by std::map.
+  //
+  // kNumBuckets was picked as a large enough prime. As of writing this code, a
+  // typical large binary has ~8k (old-style) flags, and this would gives
+  // buckets with roughly 50 elements each.
+  //
+  // Note that reads to this hash table are rare: exactly as many as we have
+  // flags with validators. As of writing, a typical binary only registers 52
+  // validated flags.
+  static constexpr size_t kNumBuckets = 163;
+  std::vector<CommandLineV1Flag*> buckets_[kNumBuckets];
+  absl::Mutex guard_;
+
+  static int BucketForFlag(const void* ptr) {
+    // Modulo a prime is good enough here. On a real program, bucket size stddev
+    // after registering 8k flags is ~5 (mean size at 51).
+    return reinterpret_cast<uintptr_t>(ptr) % kNumBuckets;
+  }
+};
+constexpr size_t FlagAddressToFlagMap::kNumBuckets;
+
+FlagAddressToFlagMap* GlobalFlagAddressToFlagMap() {
+  static FlagAddressToFlagMap* global_flag_addr_map = new FlagAddressToFlagMap;
+  return global_flag_addr_map;
+}
+
+CommandLineV1Flag* FindCommandLineV1Flag(const void* flag_addr) {
+  return GlobalFlagAddressToFlagMap()->FindFlagByAddress(flag_addr);
+}
+
+}  // namespace
+
+bool IsAbseilFlag(const absl::CommandLineFlag& f) {
+  return absl_flags::PrivateHandleAccessor::IsAbseilFlag(f);
+}
+
+bool FlagHasValidatorFn(const absl::CommandLineFlag& f) {
+  if (base::IsAbseilFlag(f)) return false;
+  const auto* v1_flag = dynamic_cast<const CommandLineV1Flag*>(&f);
+  return v1_flag && v1_flag->HasValidatorFn();
+}
+
+bool IsValidFlagValue(absl::string_view name, absl::string_view value) {
+  absl::CommandLineFlag* flag = absl::FindCommandLineFlag(name);
+
+  return flag != nullptr &&
+         (flag->IsRetired() ||
+          absl_flags::PrivateHandleAccessor::ValidateInputValue(*flag, value));
+}
+
+}  // namespace base
 
 namespace {
 
@@ -248,6 +728,10 @@ static absl::CommandLineFlag* SplitArgument(const char* arg, std::string* key,
     }
     if (!flag->IsOfType<bool>()) {
       absl::string_view type_name;
+      if (!absl_flags::PrivateHandleAccessor::IsAbseilFlag(*flag)) {
+        auto* v1_flag = static_cast<base::CommandLineV1Flag*>(flag);
+        type_name = v1_flag->Typename();
+      }
       absl::string_view typename_sep = type_name.empty() ? "" : " ";
 
       // 'x' exists but is not boolean, so we're not in the exception case.
@@ -634,6 +1118,14 @@ std::string CommandLineFlagParser::ProcessOptionsFromString(
   return retval;
 }
 
+// --------------------------------------------------------------------
+// GetFromEnv()
+// AddFlagValidator()
+//    These are helper functions for routines like BoolFromEnv() and
+//    RegisterFlagValidator, defined below.  They're defined here so
+//    they can live in the unnamed namespace (which makes friendship
+//    declarations for these classes possible).
+// --------------------------------------------------------------------
 #if GOOGLE_COMMANDLINEFLAGS_FULL_API
 template <typename T>
 static T GetFromEnv(const char* varname, const char* type, T dflt) {
@@ -654,9 +1146,99 @@ static T GetFromEnv(const char* varname, const char* type, T dflt) {
 }
 #endif
 
+bool AddFlagValidator(const void* flag_addr,
+                      base::FlagValidator validate_fn_proto,
+                      absl::SourceLocation loc) {
+  // Encapsulated flags do not support validators, and there is no
+  // exported RegisterFlagValidator() that can be passed the address
+  // of an encapsulated flag.  So this path is only reached for
+  // direct-access flags.
+  //
+  // For such a flag, flag_addr is the address of the variable that
+  // holds the current value of the flag.  Find the associated
+  // CommandLineFlag object using the map from address to
+  // absl::CommandLineFlag* maintained inside the registry.
+  base::CommandLineV1Flag* flag = base::FindCommandLineV1Flag(flag_addr);
+  if (!flag) {
+    LOG(WARNING) << loc.file_name() << ":" << loc.line()
+                 << " Ignoring RegisterValidateFunction() for flag address "
+                 << flag_addr << ": no flag found at that address";
+    return false;
+  }
+
+  return flag->SetValidator(validate_fn_proto);
+}
+
+// Special type used when invalid type is passed to FlagRegisterer.
+struct UnknownType {};
+bool AbslParseFlag(absl::string_view text, UnknownType*, std::string*) {
+  return false;
+}
+std::string AbslUnparseFlag(UnknownType v) { return ""; }
+
 }  // namespace
 
 // Now define the functions that are exported via the .h file
+
+// --------------------------------------------------------------------
+// FlagRegisterer
+//    This class exists merely to have a global constructor (the
+//    kind that runs before main(), that goes and initializes each
+//    flag that's been declared.  Note that it's very important we
+//    don't have a destructor that deletes flag_, because that would
+//    cause us to delete current_storage/defvalue_storage as well,
+//    which can cause a crash if anything tries to access the flag
+//    values in a global destructor.
+// --------------------------------------------------------------------
+
+FlagRegisterer::FlagRegisterer(const char* name, const char* type,
+                               const char* help, const char* filename,
+                               void* current_storage, void* defvalue_storage) {
+  if (help == nullptr) help = "";
+  // Callers expects the type-name to not include any namespace
+  // components, so we get rid of those, if any.
+  if (strchr(type, ':')) type = strrchr(type, ':') + 1;
+
+  // Find the op function for this type.
+  absl_flags::FlagOpFn op = nullptr;
+#define HANDLE_BUILTIN_TYPE(t, name)    \
+  if (!op && strcmp(type, name) == 0) { \
+    op = &absl_flags::FlagOps<t>;       \
+  }
+
+  HANDLE_BUILTIN_TYPE(bool, "bool");
+  HANDLE_BUILTIN_TYPE(int32_t, "int32");
+  HANDLE_BUILTIN_TYPE(int64_t, "int64");
+  HANDLE_BUILTIN_TYPE(uint64_t, "uint64");
+  HANDLE_BUILTIN_TYPE(double, "double");
+#undef HANDLE_BUILTIN_TYPE
+
+  if (!op && strcmp(type, "string") == 0) {
+    op = &absl_flags::FlagOps<std::string>;
+  }
+
+  if (!op) {
+    LOG(DFATAL) << "Unknown flag type '" << type << "'";
+    op = absl_flags::FlagOps<UnknownType>;
+  }
+
+  auto* flag = new base::CommandLineV1Flag(name, help, filename, op,
+                                           defvalue_storage, current_storage);
+
+  // TODO: move into CommandLineV1Flag in next CL
+  if (op != &absl_flags::FlagOps<std::string>) {
+    // Ensure that both Sizeof() and s are used even if
+    // ANNOTATE_BENIGN_RACE_SIZED is a no-op to avoid compiler
+    // warnings about unused function/variable.
+    const size_t s = absl::flags_internal::Sizeof(op);
+    if (s > 0) {
+      ABSL_ANNOTATE_BENIGN_RACE_SIZED(flag->GetAddr(), s, "FLAGS value");
+    }
+  }
+
+  absl_flags::RegisterCommandLineFlag(*flag, nullptr);
+  base::GlobalFlagAddressToFlagMap()->Register(flag);
+}
 
 // --------------------------------------------------------------------
 // SetArgv()
@@ -801,6 +1383,118 @@ bool WasPresentOnCommandLine(absl::string_view name) {
 
 }  // namespace base
 
+// --------------------------------------------------------------------
+// Old style type erased flag information storage and interfaces to access it.
+
+struct FilenameFlagnameLess {
+  bool operator()(const CommandLineFlagInfo& a,
+                  const CommandLineFlagInfo& b) const {
+    int cmp = absl::string_view(a.filename).compare(b.filename);
+    if (cmp != 0) return cmp < 0;
+    return a.name < b.name;
+  }
+};
+
+static void FillCommandLineFlagInfo(absl::CommandLineFlag& flag,
+                                    CommandLineFlagInfo* result) {
+  assert(!flag.IsRetired());
+
+  result->name = std::string(flag.Name());
+  result->description = flag.Help();
+  result->filename = flag.Filename();
+
+  if (absl_flags::PrivateHandleAccessor::IsAbseilFlag(flag)) {
+    result->has_validator_fn = false;
+  } else {
+    auto* v1_flag = static_cast<base::CommandLineV1Flag*>(&flag);
+
+    if (!v1_flag->IsModified() &&
+        ChangedDirectly(v1_flag, v1_flag->GetAddr(), v1_flag->GetDefault())) {
+      v1_flag->SetModified(true);
+    }
+
+    result->type = std::string(v1_flag->Typename());
+    result->has_validator_fn = v1_flag->HasValidatorFn();
+  }
+
+  result->current_value = flag.CurrentValue();
+  result->default_value = flag.DefaultValue();
+  result->is_default = !absl_flags::PrivateHandleAccessor::IsModified(flag);
+  result->flag_ptr =
+      absl_flags::PrivateHandleAccessor::IsAbseilFlag(flag)
+          ? nullptr
+          : static_cast<base::CommandLineV1Flag*>(&flag)->GetAddr();
+}
+
+bool GetCommandLineFlagInfo(absl::string_view name,
+                            CommandLineFlagInfo* output_info) {
+  if (name.empty()) return false;
+
+  absl::CommandLineFlag* flag = absl::FindCommandLineFlag(name);
+  if (flag == nullptr || flag->IsRetired()) {
+    return false;
+  }
+
+  assert(output_info);
+  FillCommandLineFlagInfo(*flag, output_info);
+  return true;
+}
+
+CommandLineFlagInfo GetCommandLineFlagInfoOrDie(absl::string_view name) {
+  CommandLineFlagInfo info;
+  if (!GetCommandLineFlagInfo(name, &info)) {
+#if GOOGLE_COMMANDLINEFLAGS_FULL_API
+    LOG(FATAL) << "Flag '" << name << "' does not exist.";
+#else
+    LOG(FATAL) << "GOOGLE_COMMANDLINEFLAGS_FULL_API=0 in this build; "
+                  "GetCommandLineFlagInfoOrDie() should not be called.";
+#endif
+  }
+  return info;
+}
+
+void GetAllFlags(std::vector<CommandLineFlagInfo>* output_vector) {
+  absl_flags::ForEachFlag([&](absl::CommandLineFlag& flag) {
+    if (flag.IsRetired()) return;
+
+    CommandLineFlagInfo fi;
+    FillCommandLineFlagInfo(flag, &fi);
+    output_vector->push_back(fi);
+  });
+
+  // Now sort the flags, first by filename they occur in, then alphabetically
+  std::sort(output_vector->begin(), output_vector->end(),
+            FilenameFlagnameLess());
+}
+
+// --------------------------------------------------------------------
+// CommandlineFlagsIntoString()
+// ReadFlagsFromString()
+//    These are mostly-deprecated routines that stick the
+//    commandline flags into a string and read them back
+//    out again.  I can see a use for CommandlineFlagsIntoString,
+//    for creating a flagfile
+//    -- some, I think, are a poor-man's attempt at absl::FlagSaver --
+//    and are included only until we can delete them from callers.
+//    Note they don't save --flagfile flags (though they do save
+//    the result of having called the flagfile, of course).
+// --------------------------------------------------------------------
+
+static std::string TheseCommandlineFlagsIntoString(
+    absl::Span<const CommandLineFlagInfo> flags) {
+  std::string retval;
+  for (const CommandLineFlagInfo& flag : flags) {
+    absl::StrAppend(&retval, "--", flag.name, "=", flag.current_value, "\n");
+  }
+  return retval;
+}
+
+std::string CommandlineFlagsIntoString() {
+  std::vector<CommandLineFlagInfo> sorted_flags;
+  GetAllFlags(&sorted_flags);
+  return TheseCommandlineFlagsIntoString(sorted_flags);
+}
+
 bool ReadFlagsFromString(const std::string& flagfilecontents,
                          const char* /*prog_name*/,  // TODO: nix this
                          bool errors_are_fatal) {
@@ -861,6 +1555,55 @@ const char* StringFromEnv(const char* varname, const char* defval) {
   return val ? val : defval;
 }
 #endif
+
+// --------------------------------------------------------------------
+// RegisterFlagValidator()
+//    RegisterFlagValidator() is the function that clients use to
+//    'decorate' a flag with a validation function.  Once this is
+//    done, every time the flag is set (including when the flag
+//    is parsed from argv), the validator-function is called.
+//       These functions return true if the validator was added
+//    successfully, or false if not: the flag already has a validator,
+//    (only one allowed per flag), the 1st arg isn't a flag, etc.
+//       This function is not thread-safe.
+// --------------------------------------------------------------------
+
+bool RegisterFlagValidator(const bool* flag,
+                           bool (*validate_fn)(const char*, bool),
+                           absl::SourceLocation loc) {
+  return AddFlagValidator(
+      flag, reinterpret_cast<base::FlagValidator>(validate_fn), loc);
+}
+bool RegisterFlagValidator(const int32_t* flag,
+                           bool (*validate_fn)(const char*, int32_t),
+                           absl::SourceLocation loc) {
+  return AddFlagValidator(
+      flag, reinterpret_cast<base::FlagValidator>(validate_fn), loc);
+}
+bool RegisterFlagValidator(const int64_t* flag,
+                           bool (*validate_fn)(const char*, int64_t),
+                           absl::SourceLocation loc) {
+  return AddFlagValidator(
+      flag, reinterpret_cast<base::FlagValidator>(validate_fn), loc);
+}
+bool RegisterFlagValidator(const uint64_t* flag,
+                           bool (*validate_fn)(const char*, uint64_t),
+                           absl::SourceLocation loc) {
+  return AddFlagValidator(
+      flag, reinterpret_cast<base::FlagValidator>(validate_fn), loc);
+}
+bool RegisterFlagValidator(const double* flag,
+                           bool (*validate_fn)(const char*, double),
+                           absl::SourceLocation loc) {
+  return AddFlagValidator(
+      flag, reinterpret_cast<base::FlagValidator>(validate_fn), loc);
+}
+bool RegisterFlagValidator(const std::string* flag,
+                           bool (*validate_fn)(const char*, const std::string&),
+                           absl::SourceLocation loc) {
+  return AddFlagValidator(
+      flag, reinterpret_cast<base::FlagValidator>(validate_fn), loc);
+}
 
 // --------------------------------------------------------------------
 // ParseCommandLineFlags()
