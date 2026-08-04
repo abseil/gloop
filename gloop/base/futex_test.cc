@@ -44,6 +44,7 @@ using absl::Duration;
 using absl::synchronization_internal::KernelTimeout;
 using base::Futex;
 
+namespace base {
 namespace {
 
 TEST(FutexTest, RelTimeout) {
@@ -53,7 +54,7 @@ TEST(FutexTest, RelTimeout) {
   absl::Time start = absl::Now();
   for (int i = 0; i < 5; ++i) {
     absl::Time before = absl::Now();
-    ASSERT_EQ(-ETIMEDOUT, Futex::WaitRelativeTimeout(&futex, 0, &timeout));
+    ASSERT_EQ(Futex::WaitRelativeTimeout(&futex, 0, &timeout), -ETIMEDOUT);
     EXPECT_GE(absl::Now(), before + kDur);
   }
   absl::Time stop = absl::Now();
@@ -70,7 +71,7 @@ TEST(FutexTest, AbsTimeout) {
     absl::Time limit = before + kDur;
     const struct timespec timeout = absl::ToTimespec(limit);
 
-    ASSERT_EQ(-ETIMEDOUT, Futex::WaitAbsoluteTimeout(&futex, 0, &timeout));
+    ASSERT_EQ(Futex::WaitAbsoluteTimeout(&futex, 0, &timeout), -ETIMEDOUT);
     EXPECT_GE(absl::Now(), limit);
   }
   absl::Time stop = absl::Now();
@@ -82,7 +83,7 @@ TEST(FutexTest, NegativeTimeout) {
   std::atomic<int32_t> futex(0);
   const KernelTimeout t(absl::UnixEpoch() - absl::Hours(100) -
                         absl::Seconds(1));
-  EXPECT_EQ(-ETIMEDOUT, Futex::WaitUntil(&futex, 0, t));
+  EXPECT_EQ(Futex::WaitUntil(&futex, 0, t), -ETIMEDOUT);
 }
 
 TEST(FutexTest, Swap) {
@@ -93,11 +94,11 @@ TEST(FutexTest, Swap) {
 
   ClosureThread other([&]() {
     // Start, wait for the main thread to swap into this thread.
-    CHECK_EQ(0, steps.load());
+    EXPECT_EQ(steps.load(), 0);
     steps.store(1);
     Futex::Wait(&futex_other, 0);
-    CHECK_EQ(1, futex_other.load());
-    CHECK_EQ(2, steps.load());
+    EXPECT_EQ(futex_other.load(), 1);
+    EXPECT_EQ(steps.load(), 2);
 
     // Wake the main thread.
     steps.store(3);
@@ -118,8 +119,8 @@ TEST(FutexTest, Swap) {
   Futex::Swap(&futex_main, 0, nullptr, &futex_other);
 
   // Validate that the other thread woke and woke the main thread.
-  CHECK_EQ(3, steps.load());
-  CHECK_EQ(1, futex_main.load());
+  EXPECT_EQ(steps.load(), 3);
+  EXPECT_EQ(futex_main.load(), 1);
 
   other.Join();
 }
@@ -378,3 +379,4 @@ BENCHMARK(BM_FutexWakeNFutexesNThreadsSingleWake<
     ->Arg(10000)
     ->Arg(100000);
 }  // namespace
+}  // namespace base
