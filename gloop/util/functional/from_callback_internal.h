@@ -143,39 +143,6 @@ internal::OwningCallbackFunctor<CallbackType> FromCallbackWithOwnership(
 
 namespace internal {
 
-template <typename R, typename... Args>
-struct CallbackTypeImpl;
-
-template <>
-struct CallbackTypeImpl<void> {
-  using type = Closure;
-};
-
-template <typename R>
-struct CallbackTypeImpl<R> {
-  using type = internal::Callback<R>;
-};
-
-template <typename A1>
-struct CallbackTypeImpl<void, A1> {
-  using type = internal::Callback<void, A1>;
-};
-
-template <typename R, typename A1>
-struct CallbackTypeImpl<R, A1> {
-  using type = internal::Callback<R, A1>;
-};
-
-template <typename A1, typename A2>
-struct CallbackTypeImpl<void, A1, A2> {
-  using type = internal::Callback<void, A1, A2>;
-};
-
-template <typename R, typename A1, typename A2>
-struct CallbackTypeImpl<R, A1, A2> {
-  using type = internal::Callback<R, A1, A2>;
-};
-
 // A base class holding the impl_, call operator and Run function for each
 // arity.
 //
@@ -195,7 +162,6 @@ class ResultCallbackFunctorImplBase<R> {
   ABSL_DEPRECATE_AND_INLINE() R Run() const { return (*this)(); }
 
  protected:
-  using CallbackType = typename CallbackTypeImpl<R>::type;
   using Impl = std::function<R()>;
 
   ResultCallbackFunctorImplBase() = default;
@@ -216,7 +182,6 @@ class ResultCallbackFunctorImplBase<R, A0> {
   }
 
  protected:
-  using CallbackType = typename CallbackTypeImpl<R, A0>::type;
   using Impl = std::function<R(A0)>;
 
   ResultCallbackFunctorImplBase() = default;
@@ -239,7 +204,6 @@ class ResultCallbackFunctorImplBase<R, A0, A1> {
   }
 
  protected:
-  using CallbackType = typename CallbackTypeImpl<R, A0, A1>::type;
   using Impl = std::function<R(A0, A1)>;
 
   ResultCallbackFunctorImplBase() = default;
@@ -269,10 +233,10 @@ class ABSL_NULLABILITY_COMPATIBLE ResultCallbackFunctorImpl
     : public ResultCallbackFunctorImplBase<R, Args...> {
   using Base = ResultCallbackFunctorImplBase<R, Args...>;
   using Impl = typename Base::Impl;
+  constexpr static bool kIsClosure =
+      std::is_same_v<R, void> && sizeof...(Args) == 0;
 
  public:
-  using CallbackType = typename Base::CallbackType;
-
   // Converting constructor from a functor.
   template <typename F>
     requires(!std::is_same_v<std::decay_t<F>, ResultCallbackFunctorImpl> &&
@@ -299,15 +263,21 @@ class ABSL_NULLABILITY_COMPATIBLE ResultCallbackFunctorImpl
                  : Impl(ToCopyableFunction(::util::functional::CallAtMostOnce(
                        std::forward<F>(functor))))) {}
 
+  // Converting constructor to change BlockingClosure usage to not rely on
+  // callback inheritance.
+  template <typename C>
+    requires(kIsClosure && std::is_same_v<C, BlockingClosure>)
+  ABSL_DEPRECATE_AND_INLINE()
+  ResultCallbackFunctorImpl(C* c)  // NOLINT(google-explicit-constructor)
+      : ResultCallbackFunctorImpl(std::ref(*c)) {}
+
   // Converting constructor from a raw callback pointer (likely a derived
   // callback implementation)
-  ABSL_DEPRECATE_AND_INLINE()
-  ResultCallbackFunctorImpl(  // NOLINT(google-explicit-constructor,
-                              // google3-runtime-inliner-validation)
-                              // b/411142993
-      CallbackType* cb)
-      : Base(cb ? Impl(::util::functional::FromCallbackWithOwnership(cb))
-                : Impl()) {}
+  template <typename C>
+    requires(kIsClosure && std::is_base_of_v<Closure, C> &&
+             !std::is_same_v<C, BlockingClosure>)
+  ResultCallbackFunctorImpl(C* c)  // NOLINT(google-explicit-constructor)
+      : Base(c ? Impl(FromCallbackWithOwnership(c)) : Impl()) {}
 
   // Converting constructor to change MockCallback usage to not rely on callback
   // inheritance.
@@ -316,15 +286,6 @@ class ABSL_NULLABILITY_COMPATIBLE ResultCallbackFunctorImpl
   ResultCallbackFunctorImpl(  // NOLINT(google-explicit-constructor)
       ::testing::MockCallback<F>* cb)
       : ResultCallbackFunctorImpl(std::ref(*cb)) {}
-
-  // Converting constructor to change BlockingClosure usage to not rely on
-  // callback inheritance.
-  template <typename C, typename = std::enable_if_t<std::conjunction_v<
-                            std::is_same<CallbackType, Closure>,
-                            std::is_same<C, BlockingClosure>>>>
-  ABSL_DEPRECATE_AND_INLINE()
-  ResultCallbackFunctorImpl(C* c)  // NOLINT(google-explicit-constructor)
-      : ResultCallbackFunctorImpl(std::ref(*c)) {}
 
   // NOLINTNEXTLINE(google-explicit-constructor)
   ResultCallbackFunctorImpl(std::nullptr_t) : Base() {}

@@ -326,41 +326,26 @@ TEST(CallbackToFunctor, ReferenceCountTemporaryInvoked) {
   // Underlying callback should be freed exactly once.
 }
 
-struct CallbackDerived
-    : util::functional::ResultCallbackFunctor<int, int, int>::CallbackType {
-  int Run(int a, int b) override { return a + b; }
+struct CallbackDerived : Closure {
+  void Run() override {}
   bool IsRepeatable() const override { return true; }
 };
 
 TEST(CallbackToFunctor, FromCallbackDerived) {
   CallbackDerived a;
   auto f = FromCallback(&a);
-  EXPECT_EQ(f(3, 4), 7);
+  f();
 }
 
-struct CallbackDerived2
-    : util::functional::ResultCallbackFunctor<void, int, int>::CallbackType {
-  void Run(int a, int b) override {}
-  bool IsRepeatable() const override { return true; }
-};
-
-TEST(CallbackToFunctor, FromCallbackDerived2) {
-  CallbackDerived2 a;
-  auto f = FromCallback(&a);
-  f(3, 4);
-}
-
-struct CallbackDerived3 : ::util::functional::ResultCallbackFunctor<
-                              bool, const std::pair<int, int>&>::CallbackType {
-  bool Run(const std::pair<int, int>& p) override { return p.first > p.second; }
+struct CallbackDerived2 : Closure {
+  void Run() override {}
   bool IsRepeatable() const override { return true; }
 };
 
 TEST(CallbackToFunctor, FromCallbackConstMethod) {
-  CallbackDerived3 a;
+  CallbackDerived2 a;
   const auto& cfunctor = FromCallback(&a);
-  EXPECT_TRUE(cfunctor(std::make_pair(42, 12)));
-  EXPECT_FALSE(cfunctor(std::make_pair(12, 42)));
+  cfunctor();
 }
 
 TEST(CallbackFunctor, CanBeCalledLikeCallback) {
