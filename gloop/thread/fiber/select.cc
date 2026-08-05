@@ -20,9 +20,9 @@
 
 #include "gloop/thread/fiber/select.h"
 
+#include <atomic>
 #include <cstdint>
 
-#include "absl/base/no_destructor.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/container/fixed_array.h"
@@ -31,29 +31,27 @@
 #include "absl/synchronization/mutex.h"
 #include "absl/time/clock_interface.h"
 #include "absl/time/time.h"
-#include "gloop/concurrent/percpu/object.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/tracing.h"
 #include "gloop/util/random/shared_bit_gen.h"
 
 namespace thread {
 
+static std::atomic<int32_t> last_rand32 = 0;
+
 // Pseudo-random number generator using Linear Shift Feedback Register (LSFR)
 static uint32_t Rand32() {
   // Primitive polynomial: x^32+x^22+x^2+x^1+1
   static const uint32_t poly = (1 << 22) | (1 << 2) | (1 << 1) | (1 << 0);
-  static absl::NoDestructor<concurrent::percpu::PerCpu<int32_t>> last_rand32;
 
-  auto ptr = last_rand32->get();  // lock is held until `ptr` goes out of scope.
-  uint32_t r = *ptr;
+  uint32_t r = last_rand32.load(std::memory_order_relaxed);
   if (ABSL_PREDICT_FALSE(r == 0)) {
     r = absl::Uniform<uint32_t>(util_random::SharedBitGen());
-    // Avoid 0 which generates a sequence of 0s.
-    if (r == 0) r = 1;
+  } else {
+    r = (r << 1) ^
+        ((static_cast<int32_t>(r) >> 31) & poly);  // shift sign-extends
   }
-  r = (r << 1) ^
-      ((static_cast<int32_t>(r) >> 31) & poly);  // shift sign-extends
-  *ptr = r;
+  last_rand32.store(r, std::memory_order_relaxed);
   return r;
 }
 
