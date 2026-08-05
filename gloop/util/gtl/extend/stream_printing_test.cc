@@ -65,11 +65,12 @@ TEST(StreamPrinting, ManyFields) {
   }
 
   Streamer printer;
-  EXPECT_THAT(printer(ManyFields{}), MatchesFieldSpec({
-                                         {"num", "3"},
-                                         {"b", "true"},
-                                         {"message", R"("hello")"},
-                                     }));
+  EXPECT_THAT(printer(ManyFields{}),
+              MatchesFieldSpec({
+                  {"num", "3"},
+                  {"b", "true"},
+                  {"message", R"("pi\\xc3\\xb1\\x61ta")"},
+              }));
   EXPECT_THAT(printer(ManyFields{{}, 3, true, "some-\"other\"-message"}),
               MatchesFieldSpec({
                   {"num", "3"},
@@ -90,15 +91,16 @@ TEST(StreamPrinting, Nested) {
   }
 
   Streamer printer;
-  EXPECT_THAT(printer(Nested{{}, 1, {}}), MatchesFieldSpec({
-                                              {"num", "1"},
-                                              {"fields",
-                                               std::vector<FieldSpec>{
-                                                   {"num", "3"},
-                                                   {"b", "true"},
-                                                   {"message", R"("hello")"},
-                                               }},
-                                          }));
+  EXPECT_THAT(printer(Nested{{}, 1, {}}),
+              MatchesFieldSpec({
+                  {"num", "1"},
+                  {"fields",
+                   std::vector<FieldSpec>{
+                       {"num", "3"},
+                       {"b", "true"},
+                       {"message", R"("pi\\xc3\\xb1\\x61ta")"},
+                   }},
+              }));
   EXPECT_THAT(printer(Nested{{}, 3, {{}, 3, true}}),
               MatchesFieldSpec({
                   {"num", "3"},
@@ -106,7 +108,7 @@ TEST(StreamPrinting, Nested) {
                    std::vector<FieldSpec>{
                        {"num", "3"},
                        {"b", "true"},
-                       {"message", R"("hello")"},
+                       {"message", R"("pi\\xc3\\xb1\\x61ta")"},
                    }},
               }));
 

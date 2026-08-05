@@ -70,11 +70,12 @@ TYPED_TEST(DebugPrinting, ManyFields) {
   }
 
   TypeParam printer;
-  EXPECT_THAT(printer(ManyFields{}), MatchesFieldSpec({
-                                         {"num", "3"},
-                                         {"b", "true"},
-                                         {"message", R"("hello")"},
-                                     }));
+  EXPECT_THAT(printer(ManyFields{}),
+              MatchesFieldSpec({
+                  {"num", "3"},
+                  {"b", "true"},
+                  {"message", R"("pi\\xc3\\xb1\\x61ta")"},
+              }));
   EXPECT_THAT(printer(ManyFields{{}, 3, true, "some-\"other\"-message"}),
               MatchesFieldSpec({
                   {"num", "3"},
@@ -95,15 +96,16 @@ TYPED_TEST(DebugPrinting, Nested) {
   }
 
   TypeParam printer;
-  EXPECT_THAT(printer(Nested{{}, 1, {}}), MatchesFieldSpec({
-                                              {"num", "1"},
-                                              {"fields",
-                                               std::vector<FieldSpec>{
-                                                   {"num", "3"},
-                                                   {"b", "true"},
-                                                   {"message", R"("hello")"},
-                                               }},
-                                          }));
+  EXPECT_THAT(printer(Nested{{}, 1, {}}),
+              MatchesFieldSpec({
+                  {"num", "1"},
+                  {"fields",
+                   std::vector<FieldSpec>{
+                       {"num", "3"},
+                       {"b", "true"},
+                       {"message", R"("pi\\xc3\\xb1\\x61ta")"},
+                   }},
+              }));
   EXPECT_THAT(printer(Nested{{}, 3, {{}, 3, true}}),
               MatchesFieldSpec({
                   {"num", "3"},
@@ -111,18 +113,18 @@ TYPED_TEST(DebugPrinting, Nested) {
                    std::vector<FieldSpec>{
                        {"num", "3"},
                        {"b", "true"},
-                       {"message", R"("hello")"},
+                       {"message", R"("pi\\xc3\\xb1\\x61ta")"},
                    }},
               }));
 
-  EXPECT_THAT(printer(Nested{{}, 3, {{}, 4, false, "hello"}}),
+  EXPECT_THAT(printer(Nested{{}, 3, {{}, 4, false, "piñata"}}),
               MatchesFieldSpec({
                   {"num", "3"},
                   {"fields",
                    std::vector<FieldSpec>{
                        {"num", "4"},
                        {"b", "false"},
-                       {"message", R"("hello")"},
+                       {"message", R"("pi\\xc3\\xb1\\x61ta")"},
                    }},
               }));
 }

@@ -122,7 +122,7 @@ struct ManyFields
     : gtl::Extend<ManyFields<Extension>>::template With<Extension> {
   int num = 3;
   bool b = true;
-  std::string message = "hello";
+  std::string message = "piñata";
 };
 
 template <template <typename> typename Ext>
