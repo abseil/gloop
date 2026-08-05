@@ -88,6 +88,9 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/str_append.h"
+#include "absl/strings/str_cat.h"
+
 #define LITE_MD5_CTX MD5_CTX
 #define MD5_DIGEST_SIZE MD5_DIGEST_LENGTH
 
@@ -534,11 +537,11 @@ std::pair<std::string, std::string> GetNamespaces() {
   std::string outro;
   if (!FLAGS_namespace.empty()) {
     for (const auto& ns : Split(FLAGS_namespace, "::")) {
-      intro = intro + "namespace " + ns + " {\n";
-      outro = "}  // namespace " + ns + "\n" + outro;
+      absl::StrAppend(&intro, "namespace ", ns, " {\n");
+      outro = absl::StrCat("}  // namespace ", ns, "\n", outro);
     }
-    intro = intro + "\n";
-    outro = "\n" + outro;
+    absl::StrAppend(&intro, "\n");
+    outro = absl::StrCat("\n", outro);
   }
   return std::make_pair(intro, outro);
 }
