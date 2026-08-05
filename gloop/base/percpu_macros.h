@@ -149,8 +149,8 @@ namespace percpu {
 #define PERCPU_RSEQ_CLOBBERS "cc"
 
 #define PERCPU_RSEQ_PREPARE(fn, var)                                    \
-  "lea __rseq_cs_" PERCPU_RSEQ_STRINGIZE(fn) "_%=(%%rip), %["           \
-  PERCPU_RSEQ_STRINGIZE(var) "];\n"                                     \
+  "mov __rseq_cs_" PERCPU_RSEQ_STRINGIZE(fn) "_%=@GOTPCREL(%%rip), %["  \
+  PERCPU_RSEQ_STRINGIZE(var) "]\n"                                      \
   "mov %[" PERCPU_RSEQ_STRINGIZE(var) "]"                               \
   ", %c[percpu_rseq_cs](%[percpu_rseq_abi])\n"
 

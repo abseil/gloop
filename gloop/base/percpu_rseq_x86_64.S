@@ -143,7 +143,7 @@ label##_trampoline:                                 \
 #define FETCH_CPU(dest) movl 4(%rdi), dest;
 #define START_RSEQ(src)                     \
    .L##src##_abort:                             \
-   leaq __rseq_cs_##src(%rip), %rax;            \
+   movq __rseq_cs_##src@GOTPCREL(%rip), %rax;   \
    movq %rax, 8(%rdi);                          \
    .L##src##_start:
 
