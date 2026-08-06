@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-#ifndef NDEBUG
-
 #include "gloop/base/cancellation_coloring.h"
 
 #include <ostream>
@@ -30,9 +28,6 @@
 #include "gloop/base/sysinfo.h"
 
 namespace base::internal {
-
-ABSL_CONST_INIT static thread_local CancellationColor t_active_color_ =
-    CancellationColor::kUnknown;
 
 static absl::string_view GetCancellationColorName(
     const CancellationColor color) {
@@ -66,6 +61,11 @@ std::ostream& operator<<(std::ostream& os, const CancellationColor color) {
   return os << GetCancellationColorName(color);
 }
 
+#ifndef NDEBUG
+
+ABSL_CONST_INIT static thread_local CancellationColor t_active_color_ =
+    CancellationColor::kUnknown;
+
 CancellationColor GetActiveCancellationColor() { return t_active_color_; }
 
 WithCancellationColor::WithCancellationColor(const CancellationColor color)
@@ -86,6 +86,6 @@ WithCancellationColor::~WithCancellationColor() {
   t_active_color_ = prev_color_;
 }
 
-}  // namespace base::internal
-
 #endif  // NDEBUG
+
+}  // namespace base::internal

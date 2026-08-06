@@ -21,12 +21,11 @@
 #ifndef THIRD_PARTY_GLOOP_BASE_CANCELLATION_COLORING_H_
 #define THIRD_PARTY_GLOOP_BASE_CANCELLATION_COLORING_H_
 
-// We make cancellation coloring checks only in debug builds.
-#ifndef NDEBUG
-
 #include <sys/types.h>
 
 #include <ostream>
+
+#include "absl/base/attributes.h"
 
 namespace base::internal {
 
@@ -84,6 +83,9 @@ enum class CancellationColor {
 // Support printing color names, for example in CHECK_EQ statements.
 std::ostream& operator<<(std::ostream& os, CancellationColor color);
 
+// We make cancellation coloring checks only in debug builds.
+#ifndef NDEBUG
+
 // Return the current active cancellation color for the calling thread.
 CancellationColor GetActiveCancellationColor();
 
@@ -106,7 +108,19 @@ class WithCancellationColor final {
   const pid_t creating_thread_;
 };
 
-}  // namespace base::internal
+#else  // NDEBUG
+
+inline CancellationColor GetActiveCancellationColor() {
+  return CancellationColor::kUnknown;
+}
+
+class WithCancellationColor final {
+ public:
+  explicit WithCancellationColor(CancellationColor) {}
+};
 
 #endif  // NDEBUG
+
+}  // namespace base::internal
+
 #endif  // THIRD_PARTY_GLOOP_BASE_CANCELLATION_COLORING_H_

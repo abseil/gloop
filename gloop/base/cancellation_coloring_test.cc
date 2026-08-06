@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-#ifndef NDEBUG
-
 #include "gloop/base/cancellation_coloring.h"
 
 #include "gloop/thread/thread.h"
@@ -57,7 +55,11 @@ TEST(CancellationColoring, SetAndRestoreColor) {
 
   {
     const WithCancellationColor wcc(CancellationColor::kCoroutine);
+#ifdef NDEBUG
+    EXPECT_EQ(CancellationColor::kUnknown, GetActiveCancellationColor());
+#else   // NDEBUG
     EXPECT_EQ(CancellationColor::kCoroutine, GetActiveCancellationColor());
+#endif  // NDEBUG
   }
 
   EXPECT_EQ(CancellationColor::kUnknown, GetActiveCancellationColor());
@@ -70,14 +72,26 @@ TEST(CancellationColoring, NestingColors) {
 
   {
     const WithCancellationColor wcc1(CancellationColor::kCoroutine);
-    ASSERT_EQ(CancellationColor::kCoroutine, GetActiveCancellationColor());
+#ifdef NDEBUG
+    EXPECT_EQ(CancellationColor::kUnknown, GetActiveCancellationColor());
+#else   // NDEBUG
+    EXPECT_EQ(CancellationColor::kCoroutine, GetActiveCancellationColor());
+#endif  // NDEBUG
 
     {
       const WithCancellationColor wcc2(CancellationColor::kFibers);
+#ifdef NDEBUG
+      EXPECT_EQ(CancellationColor::kUnknown, GetActiveCancellationColor());
+#else   // NDEBUG
       EXPECT_EQ(CancellationColor::kFibers, GetActiveCancellationColor());
+#endif  // NDEBUG
     }
 
+#ifdef NDEBUG
+    EXPECT_EQ(CancellationColor::kUnknown, GetActiveCancellationColor());
+#else   // NDEBUG
     EXPECT_EQ(CancellationColor::kCoroutine, GetActiveCancellationColor());
+#endif  // NDEBUG
   }
 
   EXPECT_EQ(CancellationColor::kUnknown, GetActiveCancellationColor());
@@ -85,5 +99,3 @@ TEST(CancellationColoring, NestingColors) {
 
 }  // namespace
 }  // namespace base::internal
-
-#endif  // NDEBUG
