@@ -561,6 +561,9 @@ extern "C" ABSL_ATTRIBUTE_WEAK void RegisterWallProfiler() {}
 
 // Try to syslog() on program start-up.  We collect these logs to
 // identify used (vs obsolete) binaries.
+//
+// Please add someone from //devtools/toolindex/OWNERS as reviewer for any
+// changes.
 static void MaybeSyslogOnStart() {
 #if GOOGLE_ENABLE_SYSLOG
   if (!absl::GetFlag(FLAGS_syslog_on_start)) return;
