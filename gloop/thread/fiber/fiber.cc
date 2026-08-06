@@ -352,7 +352,6 @@ void Fiber::Start() {
   base::scheduling::Downcalls::Post(schedulable);
 }
 
-#ifndef NDEBUG
 static void CheckCancellationColorForFiberBody() {
   // Assumption check: we're about to block on fiber-colored work, making no
   // effort to respect another ecosystem's cancellation semantics. So we'd
@@ -361,17 +360,12 @@ static void CheckCancellationColorForFiberBody() {
   // In practice this should always be satisfied, because we are running near
   // the top of the thread call stack, with no ability for other ecosystems to
   // interpose.
-  switch (const base::internal::CancellationColor c =
-              base::internal::GetActiveCancellationColor()) {
-    case base::internal::CancellationColor::kUnknown:
-    case base::internal::CancellationColor::kFibers:
-      break;
-
-    default:
-      LOG(FATAL) << "Unexpected cancellation color: " << c;
-  }
+  const base::internal::CancellationColor c =
+      base::internal::GetActiveCancellationColor();
+  DCHECK(c == base::internal::CancellationColor::kUnknown ||
+         c == base::internal::CancellationColor::kFibers)
+      << "Unexpected cancellation color: " << c;
 }
-#endif
 
 // Runs the work associated with this fiber, in the thread associated with this
 // fiber.

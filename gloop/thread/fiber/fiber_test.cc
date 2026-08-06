@@ -1471,10 +1471,10 @@ TEST_F(FiberTest, TestMultipleStackSizes) {
   }
 }
 
-#ifndef NDEBUG
 // Code run in a newly-created fiber should have the kFibers cancellation color,
 // no matter how the fiber is created.
 TEST_F(FiberTest, CancellationColoring) {
+  if (!DEBUG_MODE) GTEST_SKIP();
   // Child fiber
   thread::Fiber([] {
     EXPECT_EQ(base::internal::CancellationColor::kFibers,
@@ -1510,7 +1510,6 @@ TEST_F(FiberTest, CancellationColoring) {
     done.WaitForNotification();
   }
 }
-#endif
 
 TEST(Concurrency, EmptyFiber) {
   thread::NewTree(std::move(thread::TreeOptions().set_max_cpu_slots(4)), []() {

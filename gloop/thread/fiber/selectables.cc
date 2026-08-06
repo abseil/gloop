@@ -134,26 +134,17 @@ Case AlwaysSelectableCase() {
 }
 
 void internal::CheckActiveCancellationColor() {
-#ifndef NDEBUG
   // It doesn't make sense to query or select on cancellation of a fiber from a
   // function that respects some other ecosystem's cancellation system.
   //
   // Note that we must allow both kFibers and kUnknown here because fiber
   // cancellation APIs can't rely on a color being annotated
   // (http://shortn/_RaEFhLTkg3).
-  switch (const auto active_color =
-              base::internal::GetActiveCancellationColor()) {
-    case base::internal::CancellationColor::kFibers:
-    case base::internal::CancellationColor::kUnknown:
-      break;
-
-    default:
-      LOG(FATAL) << "Must not select on fiber cancellation from functions of "
-                    "other colors; see <link>. "
-                    "Current active color on this thread: "
-                 << active_color;
-  }
-#endif
+  const base::internal::CancellationColor active_color =
+      base::internal::GetActiveCancellationColor();
+  DCHECK(active_color == base::internal::CancellationColor::kUnknown ||
+         active_color == base::internal::CancellationColor::kFibers)
+      << "Unexpected cancellation color: " << active_color;
 }
 
 }  // namespace thread

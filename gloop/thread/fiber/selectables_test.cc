@@ -297,6 +297,7 @@ TEST(SelectablesDeathTest, UseCancellationEventUnderOtherCancellationColor) {
                                                       t::HasSubstr("kFake"),
                                                   }));
 }
+#endif  // !defined(NDEBUG) && defined(GTEST_HAS_DEATH_TEST)
 
 // In contrast to the situations covered by the death test above, it should
 // still be legal to do several operations under non-fiber cancellation colors.
@@ -358,7 +359,6 @@ TEST_F(SelectablesTest, LegalUsesUnderOtherCancellationColor) {
                    [] {});
   }
 }
-#endif
 
 static void BM_SelectPerm(benchmark::State& state) {
   PermanentEvent event;
