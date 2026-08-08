@@ -125,7 +125,7 @@ bool IsInitializedRange(const IPRange& range);
 class IPAddress {
  public:
   // Default constructor. Leaves the object in an empty state.
-  // The empty state is analogous to a NULL pointer; the only operations
+  // The empty state is analogous to a nullptr pointer; the only operations
   // that are allowed on the object are:
   //
   //   * Assignment and copy construction.
@@ -463,7 +463,7 @@ class IPAddress {
 class SocketAddress {
  public:
   // Default constructor. Leaves the object in an empty state.
-  // The empty state is analogous to a NULL pointer; the only operations
+  // The empty state is analogous to a nullptr pointer; the only operations
   // that are allowed on the object are:
   //
   //   * Assignment and copy construction.
@@ -716,7 +716,7 @@ int IPAddressLength(const IPAddress& ip);
 class IPRange {
  public:
   // Default constructor. Leaves the object in an empty state.
-  // The empty state is analogous to a NULL pointer; the only operations
+  // The empty state is analogous to a nullptr pointer; the only operations
   // that are allowed on the object are:
   //
   //   * Assignment and copy construction.
@@ -1105,7 +1105,7 @@ inline SocketAddress PackedStringToSocketAddressOrDie(absl::string_view str) {
 
 // A free function to parse hexadecimal strings like
 // "fe80000000000000000573fffea00065" in to an IPv6 IPAddress.  @ip6 may be
-// NULL, in which case the function still behaves as a boolean test for
+// nullptr, in which case the function still behaves as a boolean test for
 // the validity of a given string being converted to an IPv6 IPAddress.
 bool ColonlessHexToIPv6Address(absl::string_view hex_str, IPAddress* ip6);
 
@@ -1415,8 +1415,8 @@ inline SocketAddress DualstackSocketAddress(const SocketAddress& addr) {
 //         on the held address_family.  Use of this mode is discouraged,
 //         because it doesn't interact conveniently with dualstack sockets.
 //   sa: The SocketAddress to convert.
-//   addr_out: Stores the resulting address.  Must not be NULL.
-//   size_out: Stores the number of bytes produced.  NULL is permitted.
+//   addr_out: Stores the resulting address.  Must not be nullptr.
+//   size_out: Stores the number of bytes produced.  nullptr is permitted.
 //
 // This function will never CHECK-fail; errors are signaled by returning false.
 // To prevent accidental misuse, this also writes a nonsensical address family

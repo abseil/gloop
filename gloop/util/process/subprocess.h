@@ -604,7 +604,7 @@ class SubProcess {
 
   // GetDirectory()
   //   the directory that the child process will chdir to before
-  //   exec-ing, or NULL.
+  //   exec-ing, or nullptr.
   virtual const char* GetDirectory() const {
     return chdir_.empty() ? nullptr : chdir_.c_str();
   }
@@ -623,7 +623,7 @@ class SubProcess {
 
   // GetChrootDirectory()
   //   the directory that the child process will chroot to before
-  //   exec-ing, or NULL.
+  //   exec-ing, or nullptr.
   virtual const char* GetChrootDirectory() const {
     return chroot_dir_.empty() ? nullptr : chroot_dir_.c_str();
   }
@@ -736,7 +736,7 @@ class SubProcess {
   //
   //    @param file The file containing the program.
   //    @param argv The argument list.
-  //                The array must be terminated with a NULL pointer.
+  //                The array must be terminated with a nullptr pointer.
   virtual void SetProgram(absl::string_view file, const char* const argv[]);
 
   // SetProgram()
@@ -761,7 +761,7 @@ class SubProcess {
   //              File descriptor is not owned by this class and must to be
   //              different than Channels.
   //    @param argv The argument list.
-  //                This must be terminated with a NULL.
+  //                This must be terminated with a nullptr.
   virtual void SetProgram(int fd, const char* const argv[]);
 
   // SetArgv()
