@@ -917,6 +917,25 @@ class Tracer {
     cpu_profile_ticks_.fetch_add(ticks, std::memory_order_relaxed);
   }
 
+  // Returns the total lock contention delay accumulated in this Tracer, if
+  // supported by the concrete tracer type.
+  // Note that this only works when the --dapper_lock_contention_reporting flag
+  // is set.
+  absl::Duration lock_contention_delay() const {
+    return absl::Microseconds(
+        lock_contention_delay_us_.load(std::memory_order_relaxed));
+  }
+
+  // Increments the lock contention delay by the specified duration, if
+  // supported by the concrete tracer type.
+  // Note that this only works when the --dapper_lock_contention_reporting flag
+  // is set.
+  void add_lock_contention_delay_safe(absl::Duration duration) {
+    lock_contention_delay_us_.fetch_add(
+        static_cast<uint64_t>(absl::ToInt64Microseconds(duration)),
+        std::memory_order_relaxed);
+  }
+
   // Registers a notification to be called just before this Tracer's final
   // ref is released by the application.
   //
@@ -1369,6 +1388,9 @@ class Tracer {
   // directly, as it has no meaning without a profiling tick frequency. This is
   // meant to be used by Dapper/Census internal libraries only.
   std::atomic<int32_t> cpu_profile_ticks_ = 0;
+
+  // Stores the lock contention delay in microseconds.
+  std::atomic<uint64_t> lock_contention_delay_us_{0};
 
   // An optional callback to invoked the first time the Tracer's reference count
   // drops to zero. This allows an application to capture the Tracer without
