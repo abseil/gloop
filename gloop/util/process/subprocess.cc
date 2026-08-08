@@ -699,7 +699,7 @@ void SubProcess::SetCommand(const std::vector<std::string>& argv) {
 #endif
   argc_ = argv.size() + 1;
   argv_ = new char*[argc_ + 1];
-  argv_[0] = strdup(filename_->c_str());
+  argv_[0] = strdup(filename_.has_value() ? filename_->c_str() : "");
   for (int i = 0; i < argv.size(); i++) argv_[i + 1] = strdup(argv[i].c_str());
   argv_[argc_] = nullptr;
 }
@@ -726,7 +726,7 @@ void SubProcess::SetShellCommand(absl::string_view command) {
 #else
   filename_ = "/bin/sh";
 #endif
-  argv_[0] = strdup(filename_->c_str());
+  argv_[0] = strdup(filename_.has_value() ? filename_->c_str() : "");
   argv_[1] = strdup("-c");
   argv_[2] = StrDup(command);
   argv_[3] = nullptr;
@@ -2007,9 +2007,13 @@ void SubProcess::ExecChild() {
     const char* const* envp = envp_ ? envp_ : (const char* const*)environ;
     lss_execveat(execve_fd_, "", argv_, envp, AT_EMPTY_PATH, &child_errno_);
   } else if (envp_) {
-    lss_execve(filename_->c_str(), argv_, envp_, &child_errno_);
+    if (filename_.has_value()) {
+      lss_execve(filename_->c_str(), argv_, envp_, &child_errno_);
+    }
   } else {
-    lss_execv(filename_->c_str(), argv_, &child_errno_);
+    if (filename_.has_value()) {
+      lss_execv(filename_->c_str(), argv_, &child_errno_);
+    }
   }
   // Alas, we cannot call LOG(FATAL) from the child process. The caller
   // will do this for us, when we return from this method.
@@ -2125,7 +2129,8 @@ void SubProcess::Close(Channel chan) {
 // L < subproc_mu
 void SubProcess::HandleExit(pid_t pid, int status, const struct rusage* usage) {
   finish_time_ = absl::Now();
-  VLOG(2) << "SubProcess::HandleExit " << *filename_ << "[" << pid
+  VLOG(2) << "SubProcess::HandleExit "
+          << (filename_.has_value() ? *filename_ : "unknown") << "[" << pid
           << "] status=" << status;
 
   //  Don't clear running_, because regular handlers might get called
