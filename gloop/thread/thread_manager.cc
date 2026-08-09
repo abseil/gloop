@@ -44,9 +44,9 @@
 // also affects the time between policy invocations, as specified by delay_ms.
 
 // Data structures:
-// ThreadManager::Rep
+// ThreadManagerRep
 //   The internal representation of a ThreadManager. It contains one or more
-//   (and always a power of 2) TMPools.   All existing ThreadManager::Reps
+//   (and always a power of 2) TMPools.   All existing ThreadManagerReps
 //   are references by the vector tm_vec so they can be found and managed
 //   by a single overseer thread.
 // TMPool
@@ -56,7 +56,7 @@
 //   Represents a thread in a pool.
 // ManagedQueueRep
 //   The internal representation of a ManagedQueue. It points to the
-//   ThreadManager::Rep, and sends work to it.  It has a queue of work
+//   ThreadManagerRep, and sends work to it.  It has a queue of work
 //   (possibly of finite size) that holds work that cannot be given to a pool
 //   because the ThreadManager is running too many threads on behalf of
 //   this queue already.
@@ -241,6 +241,8 @@ class ManagedQueueImpl final : public ManagedQueue {
   ManagedQueueRep* q_rep_;
 };
 
+struct ThreadManagerRep;
+
 struct ManagedQueueRep {
   // queue_external is given to CurrentExecutor() so it's always valid, even if
   // the original ManagedQueue is deleted.
@@ -249,7 +251,7 @@ struct ManagedQueueRep {
 
   std::string queue_name;             // name; read-only after init
   ManagedQueueOptions queue_options;  // options; read-only after init
-  ThreadManager::Rep* parent_rep;     // Rep of parent ThreadManager;
+  ThreadManagerRep* parent_rep;       // Rep of parent ThreadManager;
                                       // read-only after init
   uint32_t queue_id;                  // unique id; read-only after init
                       // queue_id is used to distinguish the work of one queue
@@ -334,13 +336,17 @@ struct TMPool {
   int create_pending;          // Number of tasks waiting to create
   std::atomic<int> blocked;    // Count of blocked threads.
                                // Value is maintained by PerThreadSem.
-  int32_t pool_index;          // index of pool within ThreadManager::Rep::pool.
+  int32_t pool_index;          // index of pool within ThreadManagerRep::pool.
                                // read-only after init
   std::string
       name_prefix;  // Manager prefix + pool number; read-only after init.
 };
 
-struct ThreadManager::Rep {
+struct ThreadManagerRep final : public ThreadManager::RepBase {
+  ~ThreadManagerRep() override;
+  ManagedQueue* NewQueue(absl::string_view name,
+                         const ManagedQueueOptions& queue_options) override;
+
   int n_pools;  // number of pools in use in pool[]; power of 2;
                 // read-only after init.
   int index;    // Index of this Rep in tm_vec; under tm_mu.
@@ -400,8 +406,8 @@ ABSL_CONST_INIT static absl::Mutex tm_mu(absl::kConstInit);
 static void TMOverseer();  // Overseer thread.
 
 // TM instances; under tm_mu.
-static std::vector<ThreadManager::Rep*>& TMVec() {
-  static absl::NoDestructor<std::vector<ThreadManager::Rep*>> tm_vec;
+static std::vector<ThreadManagerRep*>& TMVec() {
+  static absl::NoDestructor<std::vector<ThreadManagerRep*>> tm_vec;
   [[maybe_unused]] static bool need_init = [] {
     thread::Options overseer_options;
     overseer_options.set_stack_size(128 * 1024);
@@ -421,7 +427,7 @@ ABSL_CONST_INIT static absl::Mutex qu_mu(absl::kConstInit);
 static absl::flat_hash_set<ManagedQueue*>* qu_set ABSL_GUARDED_BY(qu_mu);
 
 // Forward declarations.
-static void TMQueueRepDelete(ThreadManager::Rep* rep, ManagedQueueRep* q_rep);
+static void TMQueueRepDelete(ThreadManagerRep* rep, ManagedQueueRep* q_rep);
 
 // Return whether *q_rep should be deleted.
 // L >= q_rep->queue_mu
@@ -491,7 +497,7 @@ static int TMActiveThreads(TMPool* pool) {
 
 // The body of a worker thread.
 // L={}
-static void TMWorker(ThreadManager::Rep* rep, TMPool* pool, TMThread* self) {
+static void TMWorker(ThreadManagerRep* rep, TMPool* pool, TMThread* self) {
   VLOG(1) << "TMWorker entry. self=" << self << " rep=" << rep
           << " name_prefix=" << pool->name_prefix;
   Executor** exec_ptr = Executor::CurrentExecutorPointerInternal();
@@ -662,7 +668,7 @@ static void TMDestroyExitingThreads(
 
 // Create a new worker for queue *pool.
 // L >= pool->pool_mu
-static void TMCreateWorker(ThreadManager::Rep* rep, TMPool* pool,
+static void TMCreateWorker(ThreadManagerRep* rep, TMPool* pool,
                            ThreadStarter* new_threads) {
   TMThread* t = new TMThread;
   t->t = new ClosureThread(rep->thread_options, pool->name_prefix,
@@ -732,7 +738,7 @@ static void TMKillIdleThreads(TMPool* pool, int64_t now_ms) {
 // Run the thread creation policy for queue *pool in pool *rep.
 // The current time is now_ms.   The result is place in *result.
 // L >= pool->pool_mu
-static void TMRunCreationPolicy(ThreadManager::Rep* rep, TMPool* pool,
+static void TMRunCreationPolicy(ThreadManagerRep* rep, TMPool* pool,
                                 int64_t now_ms,
                                 ThreadManagerAction* action /*OUT*/) {
   DVLOG(3) << "TMRunCreationPolicy entry. pool=" << pool;
@@ -831,7 +837,7 @@ static void TMQueueKillThreads(TMPool* pool, int to_kill) {
 // Called by TMOverseer()
 // L >= tm_mu,  L < pool->pool_mu
 static int64_t TMOverseePoolInterval(
-    ThreadManager::Rep* rep, TMPool* pool, WatchDog* watchdog, int64_t now_ms,
+    ThreadManagerRep* rep, TMPool* pool, WatchDog* watchdog, int64_t now_ms,
     bool* ignore_wakeup_requests,
     std::vector<TMThreadWithPool>* exiting_threads) {
   int64_t pool_delay_until_ms =
@@ -936,7 +942,7 @@ static void TMOverseer() {
     int64_t now_ms = absl::ToUnixMillis(absl::Now());
     int64_t delay_until_ms = now_ms + kTMOverseerSleepMS;
     bool ignore_wakeup_requests = false;
-    for (ThreadManager::Rep* rep : TMVec()) {
+    for (ThreadManagerRep* rep : TMVec()) {
       DVLOG(5) << "TMOverseer for_Rep. repi=" << (&rep - &TMVec()[0]);
       for (TMPool& pool : absl::MakeSpan(rep->pool, rep->n_pools)) {
         DVLOG(5) << "TMOverseer. Check policy for pool=" << (&pool - rep->pool);
@@ -988,7 +994,7 @@ static void TMWakeOverseer() {
 
 // Register *rep with the overseer; start the overseer if necessary.
 // L < tm_mu
-static void TMEnsureRegisteredWithOverseer(ThreadManager::Rep* rep) {
+static void TMEnsureRegisteredWithOverseer(ThreadManagerRep* rep) {
   tm_mu.lock();
   if (rep->index == -1) {
     rep->index = TMVec().size();
@@ -999,9 +1005,9 @@ static void TMEnsureRegisteredWithOverseer(ThreadManager::Rep* rep) {
 
 // Called by the constructor
 // L < tm_mu
-static ThreadManager::Rep* TMRepNew(absl::string_view name_prefix,
-                                    const ManagerOptions& options) {
-  ThreadManager::Rep* rep = new ThreadManager::Rep;
+static ThreadManagerRep* TMRepNew(absl::string_view name_prefix,
+                                  const ManagerOptions& options) {
+  ThreadManagerRep* rep = new ThreadManagerRep;
   rep->n_pools = 1;
   if (options.n_pools >= 1) {
     // round up n_pools to power of two no greater than kTMMaxPools
@@ -1069,7 +1075,7 @@ static ThreadManager::Rep* TMRepNew(absl::string_view name_prefix,
 // Common destructor code.
 // Delete *rep; called when rep->refcount falls to zero.
 // L < rep->pool[*].pool_mu, tm_mu
-static void TMRepDelete(ThreadManager::Rep* rep) {
+static void TMRepDelete(ThreadManagerRep* rep) {
   DCHECK_EQ(rep->refcount, 0);
   // Let the work queues drain
   for (int pool_i = 0; pool_i != rep->n_pools; pool_i++) {
@@ -1123,12 +1129,11 @@ static void TMRepDelete(ThreadManager::Rep* rep) {
 
   delete rep->policy;
   delete rep->subcontainer;
-  delete rep;
 }
 
 // Return a pointer to a randomly-chosen pool within the thread manager.
 // L=*
-static TMPool* TMRandomPool(ThreadManager::Rep* rep) {
+static TMPool* TMRandomPool(ThreadManagerRep* rep) {
   int pool_i = 0;
   if (rep->n_pools != 1) {
     DCHECK_EQ((rep->n_pools & (rep->n_pools - 1)), 0)
@@ -1171,9 +1176,8 @@ static bool TMNeedWakeOverseer(TMPool* pool) {
 // q_rep->queue_options.thread_limit == INT_MAX.  Return whether *cb was added
 // to the queue.
 // L < rep->pool[*].pool_mu, q_rep->queue_mu, tm_mu
-static bool TMQueueAdd(ThreadManager::Rep* rep,
-                       absl::AnyInvocable<void() &&> cb, ManagedQueueRep* q_rep,
-                       int queue_limit, int flags) {
+static bool TMQueueAdd(ThreadManagerRep* rep, absl::AnyInvocable<void() &&> cb,
+                       ManagedQueueRep* q_rep, int queue_limit, int flags) {
   DVLOG(3) << "TMQueueAdd entry.";
   CHECK(cb != nullptr);
   // Store the current context, per the Schedule contract.
@@ -1240,7 +1244,7 @@ static bool TMQueueAdd(ThreadManager::Rep* rep,
 
 // Remove *q_rep and its reference from *rep.
 // L < rep->rep_mu, tm_mu, pool_mu
-static void TMQueueRepDelete(ThreadManager::Rep* rep, ManagedQueueRep* q_rep) {
+static void TMQueueRepDelete(ThreadManagerRep* rep, ManagedQueueRep* q_rep) {
   VLOG(3) << "TMQueueRepDelete entry.";
   rep->rep_mu.lock();
   rep->refcount--;
@@ -1275,36 +1279,34 @@ ThreadManager::ThreadManager(absl::string_view name_prefix,
     : rep_(TMRepNew(name_prefix, options)) {}
 
 // L < tm_mu, this->rep_->pool[*].pool_mu, this->rep->rep_mu
-ThreadManager::~ThreadManager() {
+ThreadManagerRep::~ThreadManagerRep() {
   VLOG(3) << "~ThreadManager entry";
-  ThreadManager::Rep* rep = this->rep_;
-  rep->rep_mu.lock();
-  while (rep->refcount != 0) {  // wait until all references go away
-    rep->refcount_cv.Wait(&rep->rep_mu);
+  rep_mu.lock();
+  while (refcount != 0) {  // wait until all references go away
+    refcount_cv.Wait(&rep_mu);
   }
-  rep->rep_mu.unlock();
-  TMRepDelete(rep);
-  VLOG(3) << "~ThreadManager exit. Rep=" << rep;
+  rep_mu.unlock();
+  TMRepDelete(this);
+  VLOG(3) << "~ThreadManager exit. Rep=" << this;
 }
 
 // L < this->rep_->rep_mu, tm_mu
-ManagedQueue* ThreadManager::NewQueue(
+ManagedQueue* ThreadManagerRep::NewQueue(
     absl::string_view name, const ManagedQueueOptions& queue_options) {
-  ThreadManager::Rep* rep = this->rep_;
-  TMEnsureRegisteredWithOverseer(rep);  // need an overseer to hand out a queue
-  rep->rep_mu.lock();
+  TMEnsureRegisteredWithOverseer(this);  // need an overseer to hand out a queue
+  rep_mu.lock();
   ManagedQueueRep* q_rep;
   q_rep = new ManagedQueueRep;
   q_rep->queue_name = std::string(name);
   q_rep->queue_options = queue_options;
-  q_rep->parent_rep = rep;
-  q_rep->queue_id = rep->next_q_id++;
+  q_rep->parent_rep = this;
+  q_rep->queue_id = next_q_id++;
   ABSL_TS_UNCHECKED_READ(q_rep->queue_refcount) = 1;
   ABSL_TS_UNCHECKED_READ(q_rep->queue_running) = 0;
   ABSL_TS_UNCHECKED_READ(q_rep->add_after_count) = 0;
   ABSL_TS_UNCHECKED_READ(q_rep->queue_waiters) = 0;
-  rep->refcount++;
-  rep->rep_mu.unlock();
+  refcount++;
+  rep_mu.unlock();
   // queue_options is read-only after this point
   return new ManagedQueueImpl(q_rep);
 }
@@ -1449,7 +1451,7 @@ static void TMCountAllWorkFromQueue(ManagedQueueRep* q_rep,
     q_rep->force_queue_running_tracking.fetch_add(1);
   }
 
-  ThreadManager::Rep* parent_rep = q_rep->parent_rep;
+  ThreadManagerRep* parent_rep = q_rep->parent_rep;
   for (int pool_i = 0; pool_i != parent_rep->n_pools; pool_i++) {
     TMPool* pool = &parent_rep->pool[pool_i];
     pool->pool_mu.lock();
@@ -1525,7 +1527,7 @@ bool ManagedQueueImpl::TrySchedule(absl::AnyInvocable<void() &&> callback) {
 // TMQueueAdd(), without blocking or testing for the queue limit,
 // then decrement add_after_count----used with AddAfter().
 // L < rep->pool[*].pool_mu, q_rep->queue_mu, tm_mu
-static void TMQueueAddAlways(ThreadManager::Rep* rep, Closure* cb,
+static void TMQueueAddAlways(ThreadManagerRep* rep, Closure* cb,
                              ManagedQueueRep* q_rep) {
   // Add, and request that add_after_count be decremented.
   CHECK(TMQueueAdd(rep, util::functional::FromCallback(cb), q_rep, INT_MAX,

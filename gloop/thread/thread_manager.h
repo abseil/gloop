@@ -85,6 +85,7 @@
 //    Creation options for ManagedQueue.
 
 #include <climits>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -177,9 +178,9 @@ class ThreadManager {
   ThreadManager(const ThreadManager&) = delete;
   ThreadManager& operator=(const ThreadManager&) = delete;
 
-  ~ThreadManager();  // The destructor blocks until all outstanding Queues
-                     // have been deleted and the work associated with them
-                     // has completed.
+  ~ThreadManager() = default;  // The destructor blocks until all outstanding
+                               // Queues have been deleted and the work
+                               // associated with them has completed.
 
   // Return a pointer to a named work queue serviced by this ThreadManager with
   // limits given by queue_options.  Repeated calls to NewQueue() with the same
@@ -188,7 +189,9 @@ class ThreadManager {
   // underlying data structures will be discarded when all pending work is
   // complete.
   ManagedQueue* NewQueue(absl::string_view name,
-                         const ManagedQueueOptions& queue_options);
+                         const ManagedQueueOptions& queue_options) {
+    return rep_->NewQueue(name, queue_options);
+  }
 
   // Set the num_cpus argument to DefaultThreadManagerPolicy() (see
   // thread_manager_policy.h) used to create any ThreadManager whose policy is
@@ -200,11 +203,17 @@ class ThreadManager {
   // Return stats for all ManagedQueues, for monitoring (eg. streamz).
   static std::vector<ManagedQueueStats> QueueStats();
 
-  // Implementation details follow.
-  struct Rep;
-
  private:
-  Rep* rep_;
+  struct RepBase {
+    virtual ~RepBase() = default;
+
+    virtual ManagedQueue* NewQueue(
+        absl::string_view name, const ManagedQueueOptions& queue_options) = 0;
+  };
+
+  std::unique_ptr<RepBase> rep_;
+
+  friend struct ThreadManagerRep;
 };
 
 // -----------------------------------------------------------------------
