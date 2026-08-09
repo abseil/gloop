@@ -24,6 +24,7 @@
 
 #include <algorithm>  // max()
 #include <atomic>
+#include <climits>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -91,6 +92,14 @@ ABSL_FLAG(
     "NOTE: This flag is only intended for short-term rollbacks in case "
     "of an issue and will be enabled for all users then removed soon. ");
 
+ABSL_FLAG(
+    bool, default_executor_threadpool_unbounded, true,
+    "If false, when either default_executor is set to threadpool or EM2 is "
+    "not linked in, the historical behavior of using a bounded thread pool "
+    "will be used. If true, the thread pool will be unbounded.\n\n"
+    "NOTE: This flag is only intended for short-term rollbacks in case "
+    "of an issue and will be enabled for all users then removed soon. ");
+
 namespace thread_internal {
 
 // Weak function that supplies the default EventManager2 executor. Overridden in
@@ -101,6 +110,11 @@ ABSL_ATTRIBUTE_WEAK thread::Executor* DefaultEventManager2Executor() {
 
 // Choose the number of threads for the default thread pool executor.
 static int ChooseNumThreads() {
+  // If the pool is unbounded, return INT_MAX.
+  if (absl::GetFlag(FLAGS_default_executor_threadpool_unbounded)) {
+    return INT_MAX;
+  }
+
   // If the flag gives a particular number, use that directly.
   if (const int n = absl::GetFlag(FLAGS_default_executor_threads); n > 0) {
     return n;
