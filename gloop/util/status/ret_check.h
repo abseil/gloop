@@ -256,18 +256,38 @@ inline unsigned long long GetReferenceableValue(unsigned long long t) {
                                                               rhs)           \
   RET_CHECK((lhs)op(rhs))
 #else
-#define UTIL_TASK_CONTRIB_STATUS_MACROS_INTERNAL_RET_CHECK_OP(name, op, lhs,   \
-                                                              rhs)             \
-  while (                                                                      \
-      std::string* _result =                                                   \
-          ::util::internal_status_macros_ret_check::Check_##name##Impl(        \
-              ::util::internal_status_macros_ret_check::GetReferenceableValue( \
-                  lhs),                                                        \
-              ::util::internal_status_macros_ret_check::GetReferenceableValue( \
-                  rhs),                                                        \
-              #lhs " " #op " " #rhs))                                          \
-  return ::util::internal_status_macros_ret_check::RetCheckFailSlowPath(       \
-      ::absl::SourceLocation::current(), _result)
+// On the success path, additionally feed the comparison fact to Clang
+// dataflow-based analyses via the shared `ABSL_ANALYZER_ASSUME` primitive (see
+// "absl/base/optimization.h"), so they learn `lhs op rhs` (e.g.
+// `p != nullptr`) from one shared vocabulary instead of per-analysis
+// special-casing of the `Check_*Impl` helpers. `ABSL_ANALYZER_ASSUME` expands
+// to nothing outside a static analyzer, so this single definition serves both
+// production and analysis builds. `GetReferenceableValue` is kept on the real
+// `Check_##name##Impl` call for ODR-safety of header-only integral constants;
+// the assume reads the operands by value (`(lhs) op (rhs)`), so it never
+// ODR-uses them. The failure path stays in the textually-last `else` so the
+// returned `StatusBuilder` still chains `<< msg`, `.With(...)`, and
+// `.SetNoLogging()`. The `switch (0) case 0: default:` blocker keeps the whole
+// expansion a single, dangling-else-safe statement.
+// NOLINTBEGIN(readability/braces)
+#define UTIL_TASK_CONTRIB_STATUS_MACROS_INTERNAL_RET_CHECK_OP(name, op, lhs, \
+                                                              rhs)           \
+  switch (0)                                                                 \
+  case 0:                                                                    \
+  default:                                                                   \
+    if (std::string* _result =                                               \
+            ::util::internal_status_macros_ret_check::Check_##name##Impl(    \
+                ::util::internal_status_macros_ret_check::                   \
+                    GetReferenceableValue(lhs),                              \
+                ::util::internal_status_macros_ret_check::                   \
+                    GetReferenceableValue(rhs),                              \
+                #lhs " " #op " " #rhs);                                      \
+        _result == nullptr) {                                                \
+      ABSL_ANALYZER_ASSUME((lhs)op(rhs));                                    \
+    } else                                                                   \
+      return ::util::internal_status_macros_ret_check::RetCheckFailSlowPath( \
+          ::absl::SourceLocation::current(), _result)
+// NOLINTEND(readability/braces)
 #endif
 
 #define RET_CHECK_EQ(lhs, rhs) \
