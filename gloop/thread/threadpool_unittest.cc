@@ -89,7 +89,8 @@ TEST(ThreadPoolTest, Closure) {
 TEST(ThreadPoolTest, Try) {
   MyCall m;
   std::optional<ThreadPool> p;
-  p.emplace(5, ThreadPool::Options{.queue_capacity = 10});
+  p.emplace(5, ThreadPool::Options{.queue_capacity = 10,
+                                   .force_eager_thread_creation = true});
   AbstractThreadPool* abstract_p = &*p;  // Used to check CurrentExecutor
   util::BlockingRefcount initial_running;
   initial_running.IncN(4);

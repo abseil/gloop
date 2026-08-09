@@ -67,6 +67,16 @@ ABSL_FLAG(
     "behavior long term, set force_eager_thread_creation on ThreadPool "
     "construction.");
 
+ABSL_FLAG(
+    bool, thread_pool_gc_workers, true,
+    "If false, ThreadPool will use the historical default behavior of "
+    "never cleaning up threads. If true, ThreadPool will use the new behavior "
+    "of cleaning up inactive workers.\n\n"
+    "NOTE: This flag will be REMOVED in the near future, it is only intended "
+    "for quick production fixes. If you determine that you need to retain this "
+    "behavior long term, set force_eager_thread_creation on ThreadPool "
+    "construction.");
+
 AbstractThreadPool::~AbstractThreadPool() {}
 
 // Run callback->Run().  To permit a callback to be wrapped in another.
@@ -74,11 +84,27 @@ static void RunCallback(WatchdogCallback callback, WatchDog* watchdog) {
   (*callback)(watchdog);
 }
 
-void ThreadPool::RunWorker() {
+void ThreadPool::ThreadPoolWorker::Run() {
   {
-    absl::MutexLock lock(mutex_);
-    running_threads_++;
+    absl::MutexLock lock(pool_->mutex_);
+    ++pool_->running_threads_;
   }
+  pool_->RunWorker();
+  Thread* dead_thread;
+  {
+    absl::MutexLock lock(pool_->mutex_);
+    --pool_->exiting_threads_;
+    --pool_->running_threads_;
+    --pool_->num_threads_;
+    dead_thread = std::exchange(pool_->dead_thread_, this);
+  }
+  if (dead_thread) {
+    dead_thread->Join();
+    delete dead_thread;
+  }
+}
+
+void ThreadPool::RunWorker() {
   *thread::Executor::CurrentExecutorPointerInternal() = this;
   std::unique_ptr<WatchDog> watchdog;
   if (watchdog_timeout_ > absl::ZeroDuration() &&
@@ -136,6 +162,8 @@ ThreadPool::ThreadPool(int num_threads, Options options)
       eager_thread_creation_(
           options.force_eager_thread_creation ||
           !absl::GetFlag(FLAGS_thread_pool_lazy_spawn_workers)),
+      gc_workers_(!options.force_eager_thread_creation &&
+                  absl::GetFlag(FLAGS_thread_pool_gc_workers)),
       add_after_helper_(nullptr,
                         [this](auto cb) {
                           absl::MutexLock l(mutex_);
@@ -156,12 +184,13 @@ ThreadPool::ThreadPool(int num_threads, Options options)
   CHECK_GT(max_threads_, 0u);
   CHECK_GT(options.queue_capacity, 0);
 
-  // Spawn a single thread to handle work by default, spawn more on an
-  // as-needed basis.
-  const size_t to_start = eager_thread_creation_ ? max_threads_ : 1;
-  absl::MutexLock lock(mutex_);
-  for (size_t i = 0; i < to_start; ++i) {
-    SpawnThread();
+  // Spawn threads on an as-needed basis, unless eager thread creation is
+  // requested.
+  if (eager_thread_creation_) {
+    absl::MutexLock lock(mutex_);
+    for (size_t i = 0; i < max_threads_; ++i) {
+      SpawnThread();
+    }
   }
 }
 
@@ -178,29 +207,32 @@ ThreadPool::~ThreadPool() {
     for (Waiter& waiter : waiters_) {
       waiter.cv.Signal();
     }
-    // Wait until the queue is empty. This implies no new threads will be
-    // spawned, and all existing threads are exiting.
-    auto queue_empty = [this]() ABSL_SHARED_LOCKS_REQUIRED(mutex_) {
-      return queue_.empty();
+    // Wait until all threads are about to exit.
+    auto no_threads = [this]() ABSL_SHARED_LOCKS_REQUIRED(mutex_) {
+      return num_threads_ == 0;
     };
-    mutex_.Await(absl::Condition(&queue_empty));
+    mutex_.Await(absl::Condition(&no_threads));
   }
-  // Join and delete all threads. Because the queue is empty, we know no new
-  // threads will be added to threads_.
-  for (Thread* worker : threads_) {
-    worker->Join();
-    delete worker;
+  // Join the last worker thread. Because all threads are guaranteed to be
+  // joined, we can safely delete subcontainer_.
+  if (dead_thread_) {
+    dead_thread_->Join();
+    delete dead_thread_;
   }
 
   delete subcontainer_;
 }
 
+ThreadPool::ThreadPoolWorker::ThreadPoolWorker(ThreadPool* pool)
+    : Thread(pool->thread_options_, pool->name_prefix_), pool_(pool) {
+  SetInitialCpuSubContainer(pool->subcontainer_);
+  Start();
+}
+
 void ThreadPool::SpawnThread() {
-  CHECK_LE(threads_.size(), max_threads_);
-  Thread* thread = threads_.emplace_back(new ClosureThread(
-      thread_options_, name_prefix_, [this] { RunWorker(); }));
-  thread->SetInitialCpuSubContainer(subcontainer_);
-  thread->Start();
+  CHECK_LT(num_threads_ - exiting_threads_, max_threads_);
+  ++num_threads_;
+  (void)new ThreadPoolWorker(this);
 }
 
 void ThreadPool::Schedule(absl::AnyInvocable<void() &&> callback) {
@@ -283,8 +315,11 @@ bool ThreadPool::PutIfReadyToRun(
 void ThreadPool::SignalWaiter() {
   DCHECK(!queue_.empty());
   if (waiters_.empty()) {
-    // If there are no waiters, try spawning a new thread to pick up work.
-    if (running_threads_ == threads_.size() && threads_.size() < max_threads_) {
+    bool no_spawning_threads = running_threads_ == num_threads_;
+    bool can_spawn_thread = num_threads_ - exiting_threads_ < max_threads_;
+    // If there are no waiters and no actively spawning threads, try spawning a
+    // new thread to pick up work.
+    if (no_spawning_threads && can_spawn_thread) {
       SpawnThread();
     }
   } else {
@@ -311,14 +346,25 @@ std::unique_ptr<ThreadPool::Entry> ThreadPool::DequeueWork() {
       thread::WaitStateScope::WaitState::kWaitingForWork);
   // Wait for queue to be not-empty
   absl::MutexLock m(mutex_);
+  // The maximum amount of time a thread can be idle before it is cleaned up.
+  // Matches the equivalent value in FiberThreadPool.
+  static constexpr absl::Duration kMaxIdleTime = absl::Minutes(1);
+  absl::Duration wait_time =
+      gc_workers_ ? kMaxIdleTime : absl::InfiniteDuration();
   while (queue_.empty() && !stopping_) {
     Waiter self;
     waiters_.push_front(&self);
-    self.cv.Wait(&mutex_);
+    bool timed_out = self.cv.WaitWithTimeout(&mutex_, wait_time);
     waiters_.erase(&self);
+    if (timed_out) {
+      // The thread has been idle for too long, it should exit.
+      break;
+    }
   }
   if (queue_.empty()) {
-    DCHECK(stopping_);
+    // Ensure that any racing attempt to enqueue work will spawn a new thread to
+    // do so if needed.
+    ++exiting_threads_;
     return nullptr;
   }
   absl_nonnull std::unique_ptr<Entry> entry = std::move(queue_.front());
