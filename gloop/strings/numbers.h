@@ -300,9 +300,7 @@ uint64_t ParseLeadingUDec64Value(absl::string_view str, uint64_t deflt);
 // if a valid double is found; else returns deflt. It does not
 // check if str is entirely consumed.
 double ParseLeadingDoubleValue(const char* str, double deflt);
-inline double ParseLeadingDoubleValue(const std::string& str, double deflt) {
-  return ParseLeadingDoubleValue(str.c_str(), deflt);
-}
+double ParseLeadingDoubleValue(absl::string_view str, double deflt);
 
 // A recognizer of boolean string values. Returns the parsed value
 // if a valid value is found; else returns deflt.  This skips leading

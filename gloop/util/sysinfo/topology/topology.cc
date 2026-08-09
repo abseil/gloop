@@ -51,7 +51,6 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/base/internal/cpu_detect.h"
-#include "absl/base/macros.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
@@ -1446,7 +1445,7 @@ SysTopology::SysTopology(TopologyInfo ti) : topology_info_(ti) {
   }
 }
 
-int SysTopology::FindLevel(const std::string& name) const {
+int SysTopology::FindLevel(absl::string_view name) const {
   absl::flat_hash_map<std::string, int>::const_iterator it =
       levelnames_.find(name);
   if (it == levelnames_.end()) return -1;

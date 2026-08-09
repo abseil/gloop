@@ -539,6 +539,11 @@ double ParseLeadingDoubleValue(const char* str, double deflt) {
 //    whitespace, is case insensitive, and recognizes these forms:
 //    0/1, false/true, no/yes, n/y
 // --------------------------------------------------------------------
+
+double ParseLeadingDoubleValue(absl::string_view str, double deflt) {
+  return ParseLeadingDoubleValue(ZeroTerminated(str), deflt);
+}
+
 bool ParseLeadingBoolValue(absl::string_view str, bool deflt) {
   strings::RemoveLeadingWhitespace(&str);
   // Keep alphanumeric

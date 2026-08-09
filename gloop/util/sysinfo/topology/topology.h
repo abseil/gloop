@@ -57,7 +57,7 @@ class SysTopology {
   // may map to the same level if the topology has been collapsed to remove
   // redundancy. Currently the possible levels are: core, cpu, l1cache, l2cache,
   // l3cache, node, package, and machine.
-  virtual int FindLevel(const std::string& name) const;
+  virtual int FindLevel(absl::string_view name) const;
 
   // The number of entities at a given level
   virtual int LevelCount(int level) const;

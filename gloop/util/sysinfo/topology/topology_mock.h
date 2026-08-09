@@ -45,7 +45,7 @@ class SysTopologyMock : public SysTopology {
             absl::base_internal::NumContextsPerCPU())) {}
   MOCK_METHOD(int, NumLevels, (), (const, override));
   MOCK_METHOD(int64_t, Order, (), (const, override));
-  MOCK_METHOD(int, FindLevel, (const std::string& name), (const, override));
+  MOCK_METHOD(int, FindLevel, (absl::string_view name), (const, override));
   MOCK_METHOD(int, LevelCount, (int level), (const, override));
   MOCK_METHOD(const std::set<std::string>&, LevelNames, (int level),
               (const, override));

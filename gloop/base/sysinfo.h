@@ -412,7 +412,7 @@ typedef absl::flat_hash_map<std::string, std::string> ProcMap;
 // boundary, and use the left and right sides as key and value to
 // insert into the passed ProcMap. Any lines not containing a colon
 // are ignored. Whitespace is not (currently) stripped from the results.
-bool ReadProcMap(const std::string& path, ProcMap* res);
+bool ReadProcMap(absl::string_view path, ProcMap* res);
 
 #endif /* __linux__ */
 
