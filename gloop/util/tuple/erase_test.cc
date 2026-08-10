@@ -25,161 +25,162 @@
 #include <type_traits>
 
 #include "gloop/util/tuple/test_util.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace util {
 namespace tuple {
 namespace {
 
-using ::std::make_tuple;
+using ::testing::FieldsAre;
+using ::testing::Ref;
 
 class Erase : public TestValues {};
 
 TEST_F(Erase, NoOp) {
-  EXPECT_EQ(make_tuple(), erase(make_tuple()));
-  EXPECT_EQ(make_tuple(a, b), erase(make_tuple(a, b)));
+  EXPECT_EQ(erase(std::tuple()), std::tuple());
+  EXPECT_THAT(erase(std::make_tuple(a, b)), FieldsAre(a, b));
 }
 
 TEST_F(Erase, EraseAll) {
-  EXPECT_EQ(make_tuple(), (erase<0, 1>(make_tuple(a, b))));
+  EXPECT_EQ((erase<0, 1>(std::make_tuple(a, b))), std::tuple());
 }
 
 TEST_F(Erase, EraseFirst) {
-  EXPECT_EQ(make_tuple(b), erase<0>(make_tuple(a, b)));
+  EXPECT_THAT(erase<0>(std::make_tuple(a, b)), FieldsAre(b));
 }
 
 TEST_F(Erase, EraseLast) {
-  EXPECT_EQ(make_tuple(a), erase<1>(make_tuple(a, b)));
+  EXPECT_THAT(erase<1>(std::make_tuple(a, b)), FieldsAre(a));
 }
 
 TEST_F(Erase, EraseMiddle) {
-  EXPECT_EQ(make_tuple(a, c), erase<1>(make_tuple(a, b, c)));
+  EXPECT_THAT(erase<1>(std::make_tuple(a, b, c)), FieldsAre(a, c));
 }
 
 TEST_F(Erase, EraseEven) {
-  EXPECT_EQ(make_tuple(b), (erase<0, 2>(make_tuple(a, b, c))));
+  EXPECT_THAT((erase<0, 2>(std::make_tuple(a, b, c))), FieldsAre(b));
 }
 
 TEST_F(Erase, DuplicateIndex) {
-  EXPECT_EQ(make_tuple(b), (erase<0, 0>(make_tuple(a, b))));
+  EXPECT_THAT((erase<0, 0>(std::make_tuple(a, b))), FieldsAre(b));
 }
 
 TEST_F(Erase, ReverseOrder) {
-  EXPECT_EQ(make_tuple(b), (erase<2, 0>(make_tuple(a, b, c))));
+  EXPECT_THAT((erase<2, 0>(std::make_tuple(a, b, c))), FieldsAre(b));
 }
 
 TEST_F(Erase, NonConst) {
-  ::std::tuple<A&, B&> t(a, b);
-  ::std::tuple<B&> q = erase<0>(t);
-  EXPECT_EQ(&b, &get<0>(q));
+  std::tuple<A&, B&> t(a, b);
+  std::tuple<B&> q = erase<0>(t);
+  EXPECT_THAT(q, FieldsAre(Ref(b)));
 }
 
 TEST_F(Erase, Constexpr) {
-  constexpr ::std::tuple<int, char, double> kTuple(42, 'A', 2.5);
+  constexpr std::tuple<int, char, double> kTuple(42, 'A', 2.5);
   constexpr auto kErased = erase<1>(kTuple);
-  constexpr ::std::tuple<int, double> kExpected(42, 2.5);
-  EXPECT_EQ(kExpected, kErased);
+  EXPECT_THAT(kErased, FieldsAre(42, 2.5));
 }
 
 class EraseRange : public TestValues {};
 
 TEST_F(EraseRange, NoOp) {
-  EXPECT_EQ(make_tuple(), (erase_range<0, 0>(make_tuple())));
+  EXPECT_EQ((erase_range<0, 0>(std::tuple())), std::tuple());
 
-  auto t = make_tuple(a, b);
-  EXPECT_EQ(t, (erase_range<0, 0>(t)));
-  EXPECT_EQ(t, (erase_range<1, 1>(t)));
-  EXPECT_EQ(t, (erase_range<2, 2>(t)));
+  const auto t = std::make_tuple(a, b);
+  EXPECT_THAT((erase_range<0, 0>(t)), FieldsAre(a, b));
+  EXPECT_THAT((erase_range<1, 1>(t)), FieldsAre(a, b));
+  EXPECT_THAT((erase_range<2, 2>(t)), FieldsAre(a, b));
 }
 
 TEST_F(EraseRange, EraseAll) {
-  EXPECT_EQ(make_tuple(), (erase_range<0, 1>(make_tuple(a))));
-  EXPECT_EQ(make_tuple(), (erase_range<0, 2>(make_tuple(a, b))));
+  EXPECT_EQ((erase_range<0, 1>(std::make_tuple(a))), std::tuple());
+  EXPECT_EQ((erase_range<0, 2>(std::make_tuple(a, b))), std::tuple());
 }
 
 TEST_F(EraseRange, EraseFirst) {
-  EXPECT_EQ(make_tuple(b), (erase_range<0, 1>(make_tuple(a, b))));
+  EXPECT_THAT((erase_range<0, 1>(std::make_tuple(a, b))), FieldsAre(b));
 }
 
 TEST_F(EraseRange, EraseLast) {
-  EXPECT_EQ(make_tuple(a), (erase_range<1, 2>(make_tuple(a, b))));
+  EXPECT_THAT((erase_range<1, 2>(std::make_tuple(a, b))), FieldsAre(a));
 }
 
 TEST_F(EraseRange, EraseMiddle) {
-  EXPECT_EQ(make_tuple(a, c), (erase_range<1, 2>(make_tuple(a, b, c))));
+  EXPECT_THAT((erase_range<1, 2>(std::make_tuple(a, b, c))), FieldsAre(a, c));
 }
 
 TEST_F(EraseRange, LeaveFirst) {
-  EXPECT_EQ(make_tuple(a), (erase_range<1, 3>(make_tuple(a, b, c))));
+  EXPECT_THAT((erase_range<1, 3>(std::make_tuple(a, b, c))), FieldsAre(a));
 }
 
 TEST_F(EraseRange, LeaveLast) {
-  EXPECT_EQ(make_tuple(c), (erase_range<0, 2>(make_tuple(a, b, c))));
+  EXPECT_THAT((erase_range<0, 2>(std::make_tuple(a, b, c))), FieldsAre(c));
 }
 
 TEST_F(EraseRange, NonConst) {
-  ::std::tuple<A&, B&> t(a, b);
-  ::std::tuple<B&> q = erase_range<0, 1>(t);
-  EXPECT_EQ(&b, &get<0>(q));
+  std::tuple<A&, B&> t(a, b);
+  std::tuple<B&> q = erase_range<0, 1>(t);
+  EXPECT_THAT(q, FieldsAre(Ref(b)));
 }
 
 TEST_F(EraseRange, Constexpr) {
-  constexpr ::std::tuple<int, char, double> kTuple(42, 'A', 2.5);
+  constexpr std::tuple<int, char, double> kTuple(42, 'A', 2.5);
   constexpr auto kErased = erase_range<0, 2>(kTuple);
-  constexpr ::std::tuple<double> kExpected(2.5);
-  EXPECT_EQ(kExpected, kErased);
+  EXPECT_THAT(kErased, FieldsAre(2.5));
 }
 
 class EraseIfIndex : public TestValues {};
 
 struct IndexNeValue {
-  template <::size_t I, class T>
-  struct apply : ::std::integral_constant<bool, I != T::value> {};
+  template <std::size_t I, class T>
+  struct apply : std::integral_constant<bool, I != T::value> {};
 };
 
 TEST_F(EraseIfIndex, Functional) {
-  EXPECT_EQ(make_tuple(), erase_if_index<IndexNeValue>(make_tuple()));
-  EXPECT_EQ(make_tuple(), erase_if_index<IndexNeValue>(make_tuple(x)));
-  EXPECT_EQ(make_tuple(a), erase_if_index<IndexNeValue>(make_tuple(a)));
-  EXPECT_EQ(make_tuple(a), erase_if_index<IndexNeValue>(make_tuple(a, x)));
-  EXPECT_EQ(make_tuple(b), erase_if_index<IndexNeValue>(make_tuple(x, b)));
-  EXPECT_EQ(make_tuple(a, c),
-            erase_if_index<IndexNeValue>(make_tuple(a, x, c)));
-  EXPECT_EQ(make_tuple(b), erase_if_index<IndexNeValue>(make_tuple(x, b, y)));
+  EXPECT_EQ(erase_if_index<IndexNeValue>(std::tuple()), std::tuple());
+  EXPECT_EQ(erase_if_index<IndexNeValue>(std::make_tuple(x)), std::tuple());
+  EXPECT_THAT(erase_if_index<IndexNeValue>(std::make_tuple(a)), FieldsAre(a));
+  EXPECT_THAT(erase_if_index<IndexNeValue>(std::make_tuple(a, x)),
+              FieldsAre(a));
+  EXPECT_THAT(erase_if_index<IndexNeValue>(std::make_tuple(x, b)),
+              FieldsAre(b));
+  EXPECT_THAT(erase_if_index<IndexNeValue>(std::make_tuple(a, x, c)),
+              FieldsAre(a, c));
+  EXPECT_THAT(erase_if_index<IndexNeValue>(std::make_tuple(x, b, y)),
+              FieldsAre(b));
 }
 
 TEST_F(EraseIfIndex, Constexpr) {
-  constexpr auto kTuple = make_tuple(::std::integral_constant<::size_t, 0>{},
-                                     ::std::integral_constant<::size_t, 5>{});
+  constexpr auto kTuple =
+      std::make_tuple(std::integral_constant<std::size_t, 0>{},
+                      std::integral_constant<std::size_t, 5>{});
   constexpr auto kErased = erase_if_index<IndexNeValue>(kTuple);
-  constexpr auto kExpected =
-      make_tuple(::std::integral_constant<::size_t, 0>{});
-  EXPECT_EQ(kExpected, kErased);
+  EXPECT_THAT(kErased, FieldsAre(std::integral_constant<std::size_t, 0>{}));
 }
 
 class EraseIf : public TestValues {};
 
 struct Negative {
   template <class T>
-  struct apply : ::std::integral_constant<bool, (T::value < 0)> {};
+  struct apply : std::integral_constant<bool, (T::value < 0)> {};
 };
 
 TEST_F(EraseIf, Functional) {
-  EXPECT_EQ(make_tuple(), erase_if<Negative>(make_tuple()));
-  EXPECT_EQ(make_tuple(), erase_if<Negative>(make_tuple(x)));
-  EXPECT_EQ(make_tuple(a), erase_if<Negative>(make_tuple(a)));
-  EXPECT_EQ(make_tuple(a), erase_if<Negative>(make_tuple(x, a)));
-  EXPECT_EQ(make_tuple(a), erase_if<Negative>(make_tuple(a, x)));
-  EXPECT_EQ(make_tuple(a, b), erase_if<Negative>(make_tuple(a, x, b)));
-  EXPECT_EQ(make_tuple(a), erase_if<Negative>(make_tuple(x, a, y)));
+  EXPECT_EQ(erase_if<Negative>(std::tuple()), std::tuple());
+  EXPECT_EQ(erase_if<Negative>(std::make_tuple(x)), std::tuple());
+  EXPECT_THAT(erase_if<Negative>(std::make_tuple(a)), FieldsAre(a));
+  EXPECT_THAT(erase_if<Negative>(std::make_tuple(x, a)), FieldsAre(a));
+  EXPECT_THAT(erase_if<Negative>(std::make_tuple(a, x)), FieldsAre(a));
+  EXPECT_THAT(erase_if<Negative>(std::make_tuple(a, x, b)), FieldsAre(a, b));
+  EXPECT_THAT(erase_if<Negative>(std::make_tuple(x, a, y)), FieldsAre(a));
 }
 
 TEST_F(EraseIf, Constexpr) {
-  constexpr auto kTuple = make_tuple(::std::integral_constant<int, -1>{},
-                                     ::std::integral_constant<int, 42>{});
+  constexpr auto kTuple = std::make_tuple(std::integral_constant<int, -1>{},
+                                          std::integral_constant<int, 42>{});
   constexpr auto kErased = erase_if<Negative>(kTuple);
-  constexpr auto kExpected = make_tuple(::std::integral_constant<int, 42>{});
-  EXPECT_EQ(kExpected, kErased);
+  EXPECT_THAT(kErased, FieldsAre(std::integral_constant<int, 42>{}));
 }
 
 }  // namespace
