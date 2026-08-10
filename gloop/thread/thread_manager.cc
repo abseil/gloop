@@ -157,6 +157,13 @@ ABSL_FLAG(
     "NOTE: This flag is only intended for short-term rollbacks in case "
     "of an issue and will be enabled for all users then removed soon. ");
 
+namespace thread_internal {
+
+// Forward declaration from executor.cc
+thread::Executor* DefaultEventManager2Executor();
+
+}  // namespace thread_internal
+
 namespace thread {
 
 // Max number of independent pools per ThreadManager.  This number should be
@@ -1386,9 +1393,10 @@ static void TMMakeDefault() {
       absl::GetFlag(FLAGS_threadmanager_default_manager_pools);
   tm_default_thread_manager =
       new ThreadManager("default_ThreadManager", manager_options);
-  if (absl::GetFlag(FLAGS_threadmanager_default_queue_executor)) {
-    tm_default_queue =
-        new ExecutorManagedQueue(*thread::Executor::DefaultExecutor());
+  auto* executor = thread_internal::DefaultEventManager2Executor();
+  if (absl::GetFlag(FLAGS_threadmanager_default_queue_executor) &&
+      executor != nullptr) {
+    tm_default_queue = new ExecutorManagedQueue(*executor);
   } else {
     tm_default_queue = tm_default_thread_manager->NewQueue(
         "default_queue", ManagedQueueOptions());
