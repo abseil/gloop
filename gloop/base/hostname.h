@@ -42,8 +42,4 @@ absl::string_view Hostname();
 
 }  // namespace base
 
-// TODO: remove this deprecated alias.
-ABSL_DEPRECATED("Use base::Hostname().")
-const char* Hostname();
-
 #endif  // THIRD_PARTY_GLOOP_BASE_HOSTNAME_H_

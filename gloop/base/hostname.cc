@@ -73,7 +73,3 @@ const std::string& HostnameString() {
 }  // namespace hostname_internal
 absl::string_view Hostname() { return hostname_internal::HostnameString(); }
 }  // namespace base
-
-const char* Hostname() {
-  return base::hostname_internal::HostnameString().c_str();
-}

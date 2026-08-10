@@ -40,11 +40,4 @@ TEST(BaseHostname, ReturnsAHostname) {
   EXPECT_THAT(hostname, Not(IsEmpty()));
 }
 
-TEST(Hostname, ReturnsAHostname) {
-  const char* const hostname_ptr = ::Hostname();
-  ASSERT_THAT(hostname_ptr, NotNull());
-  const absl::string_view hostname(hostname_ptr);
-  EXPECT_THAT(hostname, Not(IsEmpty()));
-}
-
 }  // namespace
