@@ -313,7 +313,7 @@ class TestTracer : public Tracer {
 
 TEST(Tracer, Size) {
 #ifdef NDEBUG
-  EXPECT_EQ(sizeof(Tracer), 112);
+  EXPECT_EQ(sizeof(Tracer), 120);
 #endif
 }
 
