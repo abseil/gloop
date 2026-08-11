@@ -62,6 +62,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/optimization.h"
+#include "absl/base/static_analysis.h"
 #include "absl/flags/declare.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -258,14 +259,14 @@ inline unsigned long long GetReferenceableValue(unsigned long long t) {
 #else
 #define UTIL_TASK_CONTRIB_STATUS_MACROS_INTERNAL_RET_CHECK_OP(name, op, lhs,   \
                                                               rhs)             \
-  while (                                                                      \
-      std::string* _result =                                                   \
-          ::util::internal_status_macros_ret_check::Check_##name##Impl(        \
-              ::util::internal_status_macros_ret_check::GetReferenceableValue( \
-                  lhs),                                                        \
-              ::util::internal_status_macros_ret_check::GetReferenceableValue( \
-                  rhs),                                                        \
-              #lhs " " #op " " #rhs))                                          \
+  for (std::string* _result =                                                  \
+           ::util::internal_status_macros_ret_check::Check_##name##Impl(       \
+               ::util::internal_status_macros_ret_check::                      \
+                   GetReferenceableValue(lhs),                                 \
+               ::util::internal_status_macros_ret_check::                      \
+                   GetReferenceableValue(rhs),                                 \
+               #lhs " " #op " " #rhs);                                         \
+       ABSL_ANALYZER_ASSUME_EQUIVALENCE(_result != nullptr, !((lhs)op(rhs)));) \
   return ::util::internal_status_macros_ret_check::RetCheckFailSlowPath(       \
       ::absl::SourceLocation::current(), _result)
 #endif
