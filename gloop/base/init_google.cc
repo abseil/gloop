@@ -30,7 +30,6 @@
 #include "absl/base/config.h"
 #include "absl/base/internal/scheduling_mode.h"
 #include "absl/base/log_severity.h"
-#include "absl/base/macros.h"
 #include "absl/base/no_destructor.h"
 #include "absl/base/nullability.h"
 #include "absl/flags/internal/program_name.h"
@@ -237,10 +236,10 @@ static bool IsSetgidUser() {
 // enough capabilities, request is ignored.  Various logging messages
 // are generated, and if information about username cannot be obtained,
 // the program will abort with a fatal error.
-static void SwitchUser(const std::string& username) {
+static void SwitchUser(absl::string_view username) {
 #if GOOGLE_ENABLE_SETUID
   uid_t new_uid;
-  CHECK(LookupUIDByName(username, &new_uid))
+  CHECK(LookupUIDByName(std::string(username), &new_uid))
       << " User " << username << " not found";
 
   if (!absl::GetFlag(FLAGS_silent_init)) {

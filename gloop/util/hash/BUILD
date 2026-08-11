@@ -456,7 +456,6 @@ cc_test(
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:flags",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/strings:str_format",

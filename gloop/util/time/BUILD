@@ -54,7 +54,6 @@ cc_test(
     deps = [
         ":backoff",
         "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

@@ -144,7 +144,6 @@ cc_library(
         "//gloop/base:scoped_sigmask",
         "//gloop/base:signal_util_subtle",
         "//gloop/util/atomic_danger",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:malloc_internal",
         "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/base:raw_logging_internal",
