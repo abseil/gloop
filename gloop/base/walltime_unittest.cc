@@ -151,7 +151,7 @@ static void BM_syscall_gettimeofday(benchmark::State& state) {
   WallTime w = 1;
   for (auto _ : state) {
     struct timeval tv;
-    syscall(__NR_gettimeofday, &tv, NULL);
+    syscall(__NR_gettimeofday, &tv, nullptr);
     w = tv.tv_sec + tv.tv_usec / 1000000.0;
   }
   CHECK_GE(w, 0);
