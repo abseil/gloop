@@ -16,4 +16,7 @@ message Test {
 
   // TestExtension
   extensions 100 [verification = UNVERIFIED];
+
+  reserved 10 to 15;
+  reserved res_field;
 }

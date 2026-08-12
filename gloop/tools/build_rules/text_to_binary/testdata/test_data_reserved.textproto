@@ -1,0 +1,13 @@
+# proto-file: tools/build_rules/text_to_binary/testdata/test.proto
+# proto-message Test
+
+# Input to proto_data with a reserved field.
+
+int_value: 3
+nested_value {
+  string_value: "three"
+}
+[tools.build_rules.text_to_binary.testdata.TestExtension.ext]: {
+  bool_value: true
+}
+res_field: 99

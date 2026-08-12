@@ -40,6 +40,7 @@ cc_test(
         "//gloop/tools/build_rules/text_to_binary/testdata:deterministic_abc",
         "//gloop/tools/build_rules/text_to_binary/testdata:deterministic_cba",
         "//gloop/tools/build_rules/text_to_binary/testdata:test_data.binarypb",
+        "//gloop/tools/build_rules/text_to_binary/testdata:test_data_reserved.binarypb",
     ],
     deps = [
         "//gloop:gloop_test_main",
