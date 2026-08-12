@@ -73,6 +73,17 @@ proto_data(
 )
 
 proto_data(
+    name = "test_data_reserved",
+    src = "test_data_reserved.textproto",
+    disallow_reserved_field = False,
+    proto_deps = [
+        ":test_extension_proto",
+        ":test_proto",
+    ],
+    proto_name = "tools.build_rules.text_to_binary.testdata.Test",
+)
+
+proto_data(
     name = "deterministic_abc",
     src = "deterministic_abc.textproto",
     proto_deps = ["@protobuf//:struct_proto"],

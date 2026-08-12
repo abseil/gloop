@@ -47,6 +47,7 @@ def proto_data(
         descriptor_set = None,
         include_test = False,
         test_tags = [],
+        disallow_reserved_field = False,
         **kwargs):
     """Converts a protocol buffer in text format into the standard binary format.
 
@@ -67,6 +68,7 @@ def proto_data(
       include_test: (optional) If true a build_test will be created for the proto_data rule. The
           default is false.
       test_tags: Tag supplied by user for the build_test.
+      disallow_reserved_field: (optional) Whether to disallow reserved fields when parsing text proto.
       **kwargs: Other args to be passed on to anticodex_tool.
     """
     anticodex_tool(
@@ -81,6 +83,7 @@ def proto_data(
         proto_deps = proto_deps,
         output_to_bindir = output_to_bindir,
         descriptor_set = descriptor_set,
+        disallow_reserved_field = disallow_reserved_field,
         **kwargs
     )
 
@@ -102,6 +105,7 @@ def anticodex_tool(
         proto_deps = None,
         output_to_bindir = None,
         descriptor_set = None,
+        disallow_reserved_field = False,
         **kwargs):
     """Converts text file into binary file.
 
@@ -115,13 +119,14 @@ def anticodex_tool(
       output_to_bindir: output_to_bindir attribute for genrule.
       descriptor_set: A transitive_descriptor_set target. If this is
           provided, don't set proto_deps.
+      disallow_reserved_field: (optional) Whether to disallow reserved fields when parsing text proto.
       **kwargs: Other args to be passed on to genrules.
     """
 
     if proto_deps == None:
         proto_deps = []
 
-    if output == "protobuf":
+    if output == "protobuf" and not disallow_reserved_field:
         # Simple conversion, use protocol_compiler
         if output_to_bindir:
             rule = _run_protoc_bin
