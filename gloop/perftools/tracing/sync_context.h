@@ -251,6 +251,11 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   // This function is a no-op if `listener` is null.
   // If `listener` is not present in this instance, then this function will
   // check fail in debug builds, and release the listener in production builds.
+  // Any call to `ReleaseEventListener()` on the provided `listener` or any
+  // embedded (multiplexed) listeners inside `listeners` is guaranteed to
+  // occur _after_ the current active listener for the instance has been
+  // updated. I.e.: The listener is no longer invoked from traced calls from
+  // non trivial code executed by any listener specific release logic.
   void RemoveListenerFromCurrent(Access, TraceEventListener* listener);
 
   // Returns `true` if the provided listener is present in this instance.
