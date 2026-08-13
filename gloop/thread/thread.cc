@@ -169,6 +169,16 @@
 #error Feature macros and BUILD file are out of sync.
 #endif
 
+// There are toolchains which unambiguously #define sched_priority to
+// __sched_priority. This is needed to handle this case regardless of whether it
+// is defined in that way.
+static void set_sched_priority(sched_param& p, int priority) {
+  p.sched_priority = priority;
+}
+#ifdef sched_priority
+#undef sched_priority
+#endif
+
 extern "C" void CoreDumpSanitization_SetupAlternateSignalHandlerStack()
     ABSL_ATTRIBUTE_WEAK;
 
@@ -660,7 +670,7 @@ void Thread::Start(absl::SourceLocation loc) {
       pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
 #endif
       if (options_.sched_priority() < 0) {
-        sched_param.sched_priority = sched_get_priority_max(SCHED_FIFO) - 1;
+        set_sched_priority(sched_param, sched_get_priority_max(SCHED_FIFO) - 1);
       } else {
 #ifdef THREAD_HAVE_IOPRIORITY
         // pthread_attr_setinheritsched call below is needed for the
@@ -677,7 +687,7 @@ void Thread::Start(absl::SourceLocation loc) {
         // is set.
         pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
 #endif
-        sched_param.sched_priority = options_.sched_priority();
+        set_sched_priority(sched_param, options_.sched_priority());
       }
       pthread_attr_setschedparam(&attr, &sched_param);
       break;

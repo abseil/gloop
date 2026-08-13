@@ -46,15 +46,12 @@ POSIX_PORT_DEPS = [
 
 POSIX_PORT_SOURCES = [
     "add_after_helper.cc",
-    "cpu_subcontainer.h",  # Stubbed out, private.
     "executor.cc",
     "logger.h",
     "pcqueue.h",  # private.
-    "port/cpu_subcontainer.cc",
     "python_stack_size.h",
     "timedcall.cc",
     "thread.cc",
-    "thread_options.cc",
     "threadlocal.cc",
     "threadlocal-internal.h",
     "threadpool.cc",
@@ -70,7 +67,6 @@ POSIX_PORT_HEADERS = [
     "thread.h",
     "threadlocal.h",
     "threadpool.h",
-    "thread_options.h",
     "timedcall.h",
     "wait_queue_thread.h",
 ]
@@ -221,17 +217,42 @@ cc_library(
 )
 
 cc_library(
+    name = "thread_options",
+    srcs = ["thread_options.cc"],
+    hdrs = ["thread_options.h"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/flags:flag",
+    ],
+)
+
+cc_library(
+    name = "cpu_subcontainer_stub",
+    srcs = ["cpu_subcontainer_stub.cc"],
+    hdrs = ["cpu_subcontainer.h"],
+    visibility = ["//visibility:private"],
+    deps = ["//gloop:enforce_gloop_support"],
+)
+
+cc_library(
+    name = "cpu_subcontainer",
+    hdrs = ["cpu_subcontainer.h"],
+    deps = [
+        ":cpu_subcontainer_stub",
+        "//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_library(
     name = "thread",
     srcs = select({
         "//conditions:default": [
             "add_after_helper.cc",
             "executor.cc",
             "logger.cc",
-            "port/cpu_subcontainer.cc",
             "stack_reclaimer.cc",
             "stack_reclaimer.h",
             "thread.cc",
-            "thread_options.cc",
             "threadlocal.cc",
             "threadlocal-internal.h",
             "threadpool.cc",
@@ -239,9 +260,11 @@ cc_library(
             "watchdog.cc",
         ],
     }),
-    hdrs = select({
+    hdrs = [
+        "cpu_subcontainer.h",
+        "thread_options.h",
+    ] + select({
         "//conditions:default": POSIX_PORT_HEADERS + [
-            "cpu_subcontainer.h",
             "logger.h",
             "pcqueue.h",
             "watchdog.h",
@@ -252,12 +275,14 @@ cc_library(
     }),
     deps = [
         ":config",
+        ":cpu_subcontainer",
         ":exit_timeout_seconds",
         ":os_semaphore",
         ":prioritized_wait_queue",
         ":python_stack_size",
         ":sync_queue",
         ":thread-internal",
+        ":thread_options",
         ":wait_queue",
         ":wait_state",
         "//gloop:enforce_gloop_support",
