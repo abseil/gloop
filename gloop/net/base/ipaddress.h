@@ -76,6 +76,7 @@
 #include "absl/log/log.h"
 #include "absl/numeric/int128.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/compare.h"
@@ -828,7 +829,14 @@ class IPRange {
   // A string representation of the subnet, in "host/length" format.
   // Examples would be "127.0.0.0/8" or "2001:700:300:1800::/64".
   std::string ToString() const {
-    return absl::StrCat(host_.ToString(), "/", length());
+    if (ABSL_PREDICT_FALSE(host_.address_family() == AF_UNSPEC)) {
+      return "";
+    }
+    char buf[INET6_ADDRSTRLEN + 1 + 5];
+    char* s = host_.ToCharBuf(buf);
+    *s++ = '/';
+    s = absl::numbers_internal::FastIntToBuffer(length(), s);
+    return std::string(buf, s - buf);
   }
 
   // Convert an IPRange into a sequence of bytes suitable for writing to a
