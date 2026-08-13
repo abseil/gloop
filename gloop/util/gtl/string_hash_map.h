@@ -414,7 +414,7 @@ struct Policy
         });
   }
 
-  template <class Hash, bool kIsDefault>
+  template <class Hash, bool kIsDefault, size_t kSeedShift>
   static constexpr absl::container_internal::HashSlotFn get_hash_slot_fn() {
     return nullptr;
   }
