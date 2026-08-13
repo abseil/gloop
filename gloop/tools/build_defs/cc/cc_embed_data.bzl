@@ -247,6 +247,10 @@ def _cc_skylark_embed_data_impl(ctx):
             command = "fail",
         )
 
+    supports_dynamic_linker = cc_common.is_enabled(
+        feature_configuration = feature_configuration,
+        feature_name = "supports_dynamic_linker",
+    )
     (linking_context, _linking_outputs) = cc_common.create_linking_context_from_compilation_outputs(
         name = ctx.label.name,
         actions = ctx.actions,
@@ -254,7 +258,7 @@ def _cc_skylark_embed_data_impl(ctx):
         cc_toolchain = cc_toolchain,
         compilation_outputs = compilation_outputs,
         alwayslink = ctx.attr.alwayslink,
-        disallow_dynamic_library = ctx.attr.linkstatic,
+        disallow_dynamic_library = ctx.attr.linkstatic or not supports_dynamic_linker,
     )
 
     return [
