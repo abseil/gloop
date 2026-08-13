@@ -52,21 +52,15 @@
 //
 // THREAD_HAVE_ALTERNATE_THREAD_POOL:
 // Indicates ThreadPool is a limited capability substitute.
-//
-// THREAD_HAVE_ALTERNATE_THREAD_LOCAL:
-// Indicates ThreadLocal is a limited capability substitute.
 #ifdef THREAD_HAVE_THREAD_CLASS
 #error THREAD_HAVE_THREAD_CLASS cannot be set directly
 #elif THREAD_HAVE_ALTERNATE_THREAD_POOL
 #error THREAD_HAVE_ALTERNATE_THREAD_POOL cannot be set directly
-#elif defined(THREAD_HAVE_ALTERNATE_THREAD_LOCAL)
-#error THREAD_HAVE_ALTERNATE_THREAD_LOCAL cannot be set directly
 #elif defined(__linux__) || defined(__APPLE__)
 #define THREAD_HAVE_THREAD_CLASS 1
 #define THREAD_HAVE_FIBER 1
 #else
 #define THREAD_HAVE_ALTERNATE_THREAD_POOL 1
-#define THREAD_HAVE_ALTERNATE_THREAD_LOCAL 1
 #endif
 
 // Indicates that this platform supports/uses pthreads and can both include the

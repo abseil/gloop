@@ -55,8 +55,6 @@ POSIX_PORT_SOURCES = [
     "timedcall.cc",
     "thread.cc",
     "thread_options.cc",
-    "threadlocal.cc",
-    "threadlocal-internal.h",
     "threadpool.cc",
     "watchdog.h",  # private.
     "watchdog.cc",
@@ -68,7 +66,6 @@ POSIX_PORT_HEADERS = [
     "executor.h",
     "ordered-producer-consumer-queue.h",
     "thread.h",
-    "threadlocal.h",
     "threadpool.h",
     "thread_options.h",
     "timedcall.h",
@@ -78,13 +75,11 @@ POSIX_PORT_HEADERS = [
 # Sources of portable implementation of //thread for non-posix platforms.
 PORT_SOURCES = [
     "port/threadpool.cc",
-    "port/threadlocal.h",
     "port/threadpool.h",
 ]
 
 # Headers of portable implementation of //thread for non-posix platforms.
 PORT_HEADERS = [
-    "threadlocal.h",
     "threadpool.h",
 ]
 
@@ -221,6 +216,30 @@ cc_library(
 )
 
 cc_library(
+    name = "threadlocal",
+    srcs = [
+        "threadlocal.cc",
+    ],
+    hdrs = [
+        "threadlocal.h",
+        "threadlocal-internal.h",
+    ],
+    deps = [
+        ":config",
+        "//gloop:enforce_gloop_support",
+        "//gloop/base:signal-handler",
+        "//gloop/base:static_threadlocal",
+        "//gloop/util/functional:from_callback",
+        "//gloop/util/gtl:intrusive_list",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/debugging:leak_check",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/types:span",
+    ],
+)
+
+cc_library(
     name = "thread",
     srcs = select({
         "//conditions:default": [
@@ -232,14 +251,12 @@ cc_library(
             "stack_reclaimer.h",
             "thread.cc",
             "thread_options.cc",
-            "threadlocal.cc",
-            "threadlocal-internal.h",
             "threadpool.cc",
             "timedcall.cc",
             "watchdog.cc",
         ],
     }),
-    hdrs = select({
+    hdrs = ["threadlocal.h"] + select({
         "//conditions:default": POSIX_PORT_HEADERS + [
             "cpu_subcontainer.h",
             "logger.h",
@@ -258,6 +275,7 @@ cc_library(
         ":python_stack_size",
         ":sync_queue",
         ":thread-internal",
+        ":threadlocal",
         ":wait_queue",
         ":wait_state",
         "//gloop:enforce_gloop_support",
@@ -783,19 +801,6 @@ cc_test(
         "@abseil-cpp//absl/log:log_sink_registry",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-    ],
-)
-
-cc_test(
-    name = "port_threadlocal_test",
-    size = "small",
-    srcs = ["port/threadlocal_test.cc"],
-    deps = [
-        ":thread",
-        "@abseil-cpp//absl/functional:bind_front",
-        "@abseil-cpp//absl/log:check",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest_main",
     ],
 )
 

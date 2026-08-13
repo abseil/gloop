@@ -92,24 +92,9 @@
 #ifndef THIRD_PARTY_GLOOP_THREAD_THREADLOCAL_H_
 #define THIRD_PARTY_GLOOP_THREAD_THREADLOCAL_H_
 
-#include <functional>
-
 #include "gloop/thread/config.h"  // IWYU pragma: keep
-
-// When building some platforms, this file is effectively replaced by its analog
-// in port/.
-#if THREAD_HAVE_ALTERNATE_THREAD_LOCAL
-
-#include "gloop/thread/port/threadlocal.h"
-
-#else
-
-#include <pthread.h>
-
-#include <functional>
-
-#include "gloop/base/callback.h"
 #include "gloop/thread/threadlocal-internal.h"
+#include "gloop/util/functional/from_callback.h"
 
 template <class Type>
 class ThreadLocal {
@@ -202,7 +187,5 @@ class ThreadLocal {
   ThreadLocal(const ThreadLocal<Type>&);
   void operator=(const ThreadLocal<Type>&);
 };
-
-#endif  // !THREAD_HAVE_ALTERNATE_THREAD_LOCAL
 
 #endif  // THIRD_PARTY_GLOOP_THREAD_THREADLOCAL_H_

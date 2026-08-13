@@ -33,10 +33,6 @@
 #include "gloop/base/static_threadlocal.h"
 #include "gloop/thread/threadlocal-internal.h"
 
-#if THREAD_HAVE_ALTERNATE_THREAD_LOCAL
-#error Feature macros and BUILD file are out of sync.
-#endif
-
 namespace thread {
 namespace local {
 namespace internal {
