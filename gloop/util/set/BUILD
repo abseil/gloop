@@ -26,7 +26,6 @@ cc_library(
     name = "disjoint_set_forest",
     hdrs = ["disjoint_set_forest.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/container:node_hash_map",
         "@abseil-cpp//absl/log:check",
@@ -39,7 +38,6 @@ cc_test(
     srcs = ["disjoint_set_forest_test.cc"],
     deps = [
         ":disjoint_set_forest",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/hash",
         "@abseil-cpp//absl/strings:string_view",

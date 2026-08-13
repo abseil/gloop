@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 /* This file provides Linux-specific direct system call access and a couple
  * symbols missing from standard headers. Functions prefixed sys_ set errno in
  * the event of errors while those prefixed lss_ take an out argument that is

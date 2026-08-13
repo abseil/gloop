@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 //  Kendall's Tau is a non-parametric (or rank) correlation metric
 //  described on pp.642-3 of the Numerical Recipes.  Briefly, given N
 //  data points (xi,yi) where xi is f1(i) and yi is f2(i), the tau
