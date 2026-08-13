@@ -56,6 +56,11 @@
 
 namespace {
 
+struct AlignedBlock {
+  char* mem;
+  size_t size;
+};
+
 size_t pagesize() {
 #ifdef GOOGLE_HAVE_GETPAGESIZE
   static const size_t kPageSize = getpagesize();
@@ -77,9 +82,10 @@ char* AllocateBytes(size_t size) {
 //
 // For alignments <=__STDCPP_DEFAULT_NEW_ALIGNMENT__, AllocateBytes() will
 // provide the correct alignment.
-char* AllocateAlignedBytes(size_t size, size_t alignment) {
+AlignedBlock AllocateAlignedBytes(size_t size, size_t alignment) {
   DCHECK_GT(alignment, __STDCPP_DEFAULT_NEW_ALIGNMENT__);
-  return static_cast<char*>(::operator new(size, std::align_val_t(alignment)));
+  return {static_cast<char*>(::operator new(size, std::align_val_t(alignment))),
+          size};
 }
 
 void DeallocateBytes(void* ptr, size_t size, size_t alignment) {
@@ -102,8 +108,8 @@ void DeallocateBytes(void* ptr, size_t size, size_t alignment) {
 
 char* AllocateBytes(size_t size) { return static_cast<char*>(malloc(size)); }
 
-char* AllocateAlignedBytes(size_t size, size_t alignment) {
-  return static_cast<char*>(aligned_malloc(size, alignment));
+AlignedBlock AllocateAlignedBytes(size_t size, size_t alignment) {
+  return {static_cast<char*>(aligned_malloc(size, alignment)), size};
 }
 
 void DeallocateBytes(void* ptr, size_t size, size_t alignment) { free(ptr); }
@@ -152,14 +158,16 @@ BaseArena::BaseArena(char* first, const size_t orig_block_size,
       // boundary.
       CHECK_EQ(block_size_ & (kPageSize - 1), 0U) << "block_size is not a"
                                                   << "multiple of kPageSize";
-      first_blocks_[0].mem = AllocateAlignedBytes(block_size_, kPageSize);
+      auto res = AllocateAlignedBytes(block_size_, kPageSize);
+      first_blocks_[0].mem = res.mem;
+      first_blocks_[0].size = res.size;
       first_blocks_[0].alignment = kPageSize;
       PCHECK(nullptr != first_blocks_[0].mem);
     } else {
       first_blocks_[0].mem = AllocateBytes(block_size_);
       first_blocks_[0].alignment = 0;
+      first_blocks_[0].size = block_size_;
     }
-    first_blocks_[0].size = block_size_;
   }
 
   Reset();
@@ -328,11 +336,13 @@ BaseArena::AllocatedBlock* BaseArena::AllocNewBlock(const size_t block_size,
       size_t num_pages = ((adjusted_block_size - 1) / kPageSize) + 1;
       adjusted_block_size = num_pages * kPageSize;
     }
-    block->mem = AllocateAlignedBytes(adjusted_block_size, adjusted_alignment);
+    auto res = AllocateAlignedBytes(adjusted_block_size, adjusted_alignment);
+    block->mem = res.mem;
+    block->size = res.size;
   } else {
     block->mem = AllocateBytes(adjusted_block_size);
+    block->size = adjusted_block_size;
   }
-  block->size = adjusted_block_size;
   block->alignment = adjusted_alignment;
   PCHECK(nullptr != block->mem)
       << "block_size=" << block_size
