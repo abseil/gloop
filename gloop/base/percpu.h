@@ -443,7 +443,7 @@ static inline int RseqFunction_PerCpuTryLock(volatile kernel_rseq* rseq_abi,
       PERCPU_RSEQ_PROLOGUE(RseqFunction_PerCpuTryLock, scratch)
 
       "4:\n"
-      PERCPU_RSEQ_LOAD_CPU_ID(cpu)
+      PERCPU_RSEQ_LOAD_VIRTUAL_FLAT_CPU_ID(cpu)
       "mov %[cpu], %[scratch]\n"
       "shl %[shift], %[scratch]\n"
       "cmpq $0, (%[scratch], %[base])\n"

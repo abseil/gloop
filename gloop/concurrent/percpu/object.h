@@ -294,7 +294,11 @@ class iterator : public std::iterator<std::random_access_iterator_tag, T> {
 
 template <typename T>
 template <typename... Args>
-PerCpu<T>::PerCpu(Args... args) : lock_(), array_(NumCPUs()) {
+PerCpu<T>::PerCpu(Args... args)
+    : lock_(),
+      array_(base::subtle::percpu::UsingRseqVirtualCpus()
+                 ? base::AvailableCPUs()
+                 : NumCPUs()) {
   for (std::size_t i = 0; i != size(); ++i) {
     new (&array_[i]) T(args...);
   }

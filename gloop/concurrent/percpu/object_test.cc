@@ -100,7 +100,7 @@ TEST_F(PerCpuTest, SetSomethingAndIterate) {
   // We should see zero (for default-initialization) NumCPUs - 1 times, since we
   // never touch the other CPUs' values, and 3 once.
   EXPECT_THAT(observations,
-              testing::UnorderedElementsAre(testing::Pair(0, NumCPUs() - 1),
+              testing::UnorderedElementsAre(testing::Pair(0, pc.size() - 1),
                                             testing::Pair(3, 1)));
 }
 
@@ -183,7 +183,7 @@ TEST_F(PerCpuTest, Initialization) {
   // We should see one (for the initialization we did in the constructor)
   // NumCPUs - 1 times, since we never touch the other CPUs' values, and 3 once.
   EXPECT_THAT(observations,
-              testing::UnorderedElementsAre(testing::Pair(1, NumCPUs() - 1),
+              testing::UnorderedElementsAre(testing::Pair(1, pc.size() - 1),
                                             testing::Pair(3, 1)));
 }
 
@@ -197,7 +197,7 @@ TEST_F(PerCpuTest, DestructorsMustBeCalled) {
 
   {
     PerCpu<TrackableObject> pc;
-    EXPECT_EQ(outstanding_objects, NumCPUs());
+    EXPECT_EQ(outstanding_objects, pc.size());
   }
   EXPECT_EQ(outstanding_objects, 0);
 }
