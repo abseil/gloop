@@ -85,11 +85,9 @@ class ExecutorManagedQueue final
       : rep_(rep),
         tm_ref_(rep.refcount.GetRef()),
         name_(std::move(name)),
-        options_(options) {
-    RegisterQueueForStats();
-  }
+        options_(options) {}
 
-  ~ExecutorManagedQueue() override { UnregisterQueueForStats(); }
+  ~ExecutorManagedQueue() override = default;
 
   std::string name() const override { return name_; }
 

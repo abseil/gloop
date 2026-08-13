@@ -27,17 +27,14 @@
 namespace thread {
 
 WaitStateScope::WaitStateScope(WaitState state)
-    : WaitStateScope(absl::base_internal::CurrentThreadIdentityIfPresent(),
-                     state) {}
+    : WaitStateScope(base::GetCurrentThreadIdentityIfPresent(), state) {}
 
 WaitStateScope::WaitStateScope(WaitState state, bool enabled)
-    : WaitStateScope(enabled
-                         ? absl::base_internal::CurrentThreadIdentityIfPresent()
-                         : nullptr,
-                     state) {}
+    : WaitStateScope(
+          enabled ? base::GetCurrentThreadIdentityIfPresent() : nullptr,
+          state) {}
 
-WaitStateScope::WaitStateScope(absl::base_internal::ThreadIdentity* ti,
-                               WaitState state)
+WaitStateScope::WaitStateScope(base::ThreadIdentity* ti, WaitState state)
     : ti_(ti) {
   if (ti_ == nullptr) {
     return;

@@ -1025,6 +1025,8 @@ struct default_writer_t {
                                                      rec.hook())
             .print(obj, rank_selector);
         break;
+      default:
+        break;
     }
   }
 };
