@@ -79,6 +79,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/call_once.h"
+#include "absl/base/casts.h"
 #include "absl/base/const_init.h"
 #include "absl/base/no_destructor.h"
 #include "absl/base/nullability.h"
@@ -101,15 +102,16 @@
 #include "gloop/base/sysinfo.h"
 #include "gloop/thread/cpu_subcontainer.h"
 #include "gloop/thread/executor.h"
+#include "gloop/thread/executor_managed_queue.h"
 #include "gloop/thread/python_stack_size.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_manager_policy.h"
+#include "gloop/thread/threadpool.h"
 #include "gloop/thread/wait_state.h"
 #include "gloop/thread/watchdog.h"
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
 #include "gloop/util/functional/with_context.h"
-#include "gloop/util/refcount/blocking_refcount.h"
 
 ABSL_FLAG(int32_t, threadmanager_overseer_watchdog_s,
           IsDebuggerAttached() ? 100000000 : 120,
@@ -150,12 +152,18 @@ ABSL_FLAG(bool, threadmanager_eager_gc_threads, true,
           "NOTE: This flag is only intended for short-term rollbacks in case "
           "of an issue and will be enabled for all users then removed soon. ");
 
-ABSL_FLAG(
-    bool, threadmanager_ignore_policy, true,
-    "If true, threadmanager will ignore the policy set and always use the "
-    "default policy. "
-    "NOTE: This flag is only intended for short-term rollbacks in case "
-    "of an issue and will be enabled for all users then removed soon. ");
+ABSL_FLAG(bool, threadmanager_ignore_policy, true,
+          "If true, threadmanager will ignore the policy set and always use "
+          "the default policy. "
+          "NOTE: This flag is only intended for short-term rollbacks in case "
+          "of an issue and will be enabled for all users then removed soon. ");
+
+ABSL_FLAG(bool, threadmanager_use_executor_impl, false,
+          "If true, threadmanager implementations will be backed by a shared "
+          "thread pool. If false, they will use the historical ThreadManager "
+          "implementation. "
+          "NOTE: This flag is only intended for short-term rollbacks in case "
+          "of an issue and will be enabled for all users then removed soon. ");
 
 namespace thread {
 
@@ -1264,12 +1272,45 @@ static void TMQueueRepUnref(ManagedQueueRep* q_rep) {
   }
 }
 
+static bool TMCanUseDefaultExecutor(const Options& options) {
+  Options base = ManagerOptions().thread_options;
+  if (options.stack_size() > base.stack_size()) return false;
+  if (options.guard_size() > base.guard_size()) return false;
+  if (options.scheduling_policy() != base.scheduling_policy()) return false;
+  if (options.sched_priority() != base.sched_priority()) return false;
+  if (options.nice_priority_level() != base.nice_priority_level()) return false;
+  if (options.io_class() != base.io_class()) return false;
+  if (options.io_priority_level() != base.io_priority_level()) return false;
+  return true;
+}
+
+static internal::ThreadManagerExecutorRep* TMExecutorRepNew(
+    absl::string_view name_prefix, const ManagerOptions& options) {
+  delete options.policy;
+  if (TMCanUseDefaultExecutor(options.thread_options)) {
+    return new internal::ThreadManagerExecutorRep(*Executor::DefaultExecutor());
+  }
+  // TODO: Remove the fake port threadpool code.
+#if THREAD_HAVE_ALTERNATE_THREAD_POOL
+  LOG(FATAL) << "Illegal non POSIX use of thread::Executor";
+#else
+  return new internal::ThreadManagerExecutorRep(std::make_unique<ThreadPool>(
+      INT_MAX, ThreadPool::Options{.name_prefix = std::string(name_prefix),
+                                   .thread_options = options.thread_options}));
+#endif
+}
+
 // -----------------------------------------------------------------------
 // public interface
 
 ThreadManager::ThreadManager(absl::string_view name_prefix,
                              const ManagerOptions& options)
-    : rep_(TMRepNew(name_prefix, options)) {}
+    : rep_(
+          absl::GetFlag(FLAGS_threadmanager_use_executor_impl)
+              ? absl::implicit_cast<RepBase*>(
+                    TMExecutorRepNew(name_prefix, options))
+              : absl::implicit_cast<RepBase*>(TMRepNew(name_prefix, options))) {
+}
 
 // L < tm_mu, this->rep_->pool[*].pool_mu, this->rep->rep_mu
 ThreadManagerRep::~ThreadManagerRep() {
@@ -1317,60 +1358,6 @@ std::vector<ManagedQueueStats> ThreadManager::QueueStats()
   return stats;
 }
 
-// A ManagedQueue backed by an Executor. This class may never be deleted, it is
-// only intended to replace DefaultQueue().
-class ExecutorManagedQueue final : public ManagedQueue {
- public:
-  explicit ExecutorManagedQueue(Executor& impl) : impl_(impl) {}
-  ~ExecutorManagedQueue() override = default;
-
-  std::string name() const override { return "default_queue"; }
-  ManagedQueueOptions queue_options() const override {
-    return ManagedQueueOptions();
-  }
-
-  void Schedule(absl::AnyInvocable<void() &&> callback) override {
-    impl_.Schedule(Wrap(std::move(callback)));
-  }
-  bool TrySchedule(absl::AnyInvocable<void() &&> callback) override {
-    return impl_.TrySchedule(Wrap(std::move(callback)));
-  }
-  void ScheduleAt(absl::Time when,
-                  absl::AnyInvocable<void() &&> callback) override {
-    impl_.ScheduleAt(when, Wrap(std::move(callback)));
-  }
-  int num_pending_closures() const override { return 0; }
-
-  void WaitUntilComplete() override { refcount_.WaitForZero(); }
-
-  // Return stats for the ManagedQueue. Stats may be slightly inconsistent and
-  // should just be used for status pages and monitoring.
-  ManagedQueueStats Stats() const override {
-    return {.queue_name = "default_queue",
-            .queue_running = static_cast<int>(refcount_.count()),
-            .num_pending_closures = 0};
-  }
-
-  // for testing
-  ManagedQueue* current_executor_for_testing() const override {
-    return const_cast<ExecutorManagedQueue*>(this);
-  }
-
- private:
-  absl::AnyInvocable<void() &&> Wrap(absl::AnyInvocable<void() &&> callback) {
-    return [this, callback = std::move(callback),
-            ref = refcount_.GetRef()]() mutable {
-      Executor* old =
-          std::exchange(*Executor::CurrentExecutorPointerInternal(), this);
-      std::exchange(callback, nullptr)();
-      *Executor::CurrentExecutorPointerInternal() = old;
-    };
-  }
-
-  Executor& impl_;
-  util::BlockingRefcount refcount_;
-};
-
 // The default ThreadManager and ManagedQueue
 
 // The default ThreadManager and ManagedQueue are initilized under
@@ -1386,9 +1373,11 @@ static void TMMakeDefault() {
       absl::GetFlag(FLAGS_threadmanager_default_manager_pools);
   tm_default_thread_manager =
       new ThreadManager("default_ThreadManager", manager_options);
-  if (absl::GetFlag(FLAGS_threadmanager_default_queue_executor)) {
-    tm_default_queue =
-        new ExecutorManagedQueue(*thread::Executor::DefaultExecutor());
+  if (absl::GetFlag(FLAGS_threadmanager_default_queue_executor) &&
+      !absl::GetFlag(FLAGS_threadmanager_use_executor_impl)) {
+    auto* rep =
+        new internal::ThreadManagerExecutorRep(*Executor::DefaultExecutor());
+    tm_default_queue = rep->NewQueue("default_queue", ManagedQueueOptions());
   } else {
     tm_default_queue = tm_default_thread_manager->NewQueue(
         "default_queue", ManagedQueueOptions());
@@ -1465,14 +1454,25 @@ static void TMCountAllWorkFromQueue(ManagedQueueRep* q_rep,
   }
 }
 
+void ManagedQueue::RegisterQueueForStats() {
+  qu_mu.lock();
+  if (qu_set == nullptr) {
+    qu_set = new absl::flat_hash_set<ManagedQueue*>;
+  }
+  qu_set->insert(this);
+  qu_mu.unlock();
+}
+
+void ManagedQueue::UnregisterQueueForStats() {
+  qu_mu.lock();
+  size_t erased = qu_set->erase(this);
+  DCHECK_EQ(1, erased);
+  qu_mu.unlock();
+}
+
 ManagedQueueImpl::ManagedQueueImpl(ManagedQueueRep* q_rep) : q_rep_(q_rep) {
   if (this != &this->q_rep_->queue_external) {
-    qu_mu.lock();
-    if (qu_set == nullptr) {
-      qu_set = new absl::flat_hash_set<ManagedQueue*>;
-    }
-    qu_set->insert(this);
-    qu_mu.unlock();
+    RegisterQueueForStats();
   }
 }
 
@@ -1481,11 +1481,7 @@ ManagedQueue::~ManagedQueue() = default;
 // L < q_rep->queue_mu, q_rep->parent_rep->rep_mu, tm_mu, pool_mu
 ManagedQueueImpl::~ManagedQueueImpl() {
   if (this != &this->q_rep_->queue_external) {  // Don't unref queue_external.
-    qu_mu.lock();
-    size_t erased = qu_set->erase(this);
-    DCHECK_EQ(1, erased);
-    qu_mu.unlock();
-
+    UnregisterQueueForStats();
     // We use queue_running as a reference count to control the deletion
     // of the queue data structure.  However for infinite queues, we do
     // not update the running count to reduce cost.  Make sure that all

@@ -37,6 +37,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/flags/declare.h"
+#include "absl/flags/flag.h"
 #include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
@@ -64,6 +66,8 @@ using testing::ElementsAre;
 using testing::Eq;
 using testing::Field;
 using testing::IsEmpty;
+
+ABSL_DECLARE_FLAG(bool, threadmanager_use_executor_impl);
 
 TEST(ThreadManagerTest, DeleteWithoutWork) {
   (void)thread::ThreadManager("test_manager", thread::ManagerOptions());
@@ -404,6 +408,10 @@ TEST(ThreadManagerTest, ContendingClosures) {
 }
 
 TEST(ThreadManagerTest, Queues) {
+  if (absl::GetFlag(FLAGS_threadmanager_use_executor_impl)) {
+    GTEST_SKIP()
+        << "Skipping test that assumes a fixed set of backing threads.";
+  }
   PerThread::Key key{PerThread::kInvalid};
   PerThread::Allocate(&key, nullptr);
   std::optional<thread::ThreadManager> tm(std::in_place, "test_manager",
@@ -642,6 +650,10 @@ class ClassWithSlowDestructor {
 // will decide to kill some of them and since we inject Notifications in order
 // to synchronize the test so that it covers the desired scenario.)
 TEST(ThreadManagerTest, ToleratesSlowThreadExit) {
+  if (absl::GetFlag(FLAGS_threadmanager_use_executor_impl)) {
+    GTEST_SKIP()
+        << "Skipping test that assumes a fixed set of backing threads.";
+  }
   // We must start enough threads that ThreadManager will decide to kill some
   // when they become idle.
   const int kNumThreads = 100;
@@ -709,6 +721,12 @@ TEST(ThreadManagerTest, ToleratesSlowThreadExit) {
 
 namespace thread {
 TEST(ThreadManagerWatchdogTest, UsesCustomWatchDogCallback) {
+  if (absl::GetFlag(FLAGS_threadmanager_use_executor_impl)) {
+    GTEST_SKIP()
+        << "Executor implementation does not support time_limit_s or watchdog "
+           "timeouts at all. There is only one user of custom callbacks and it "
+           "is not worth supporting watchdog timeouts just to support this.";
+  }
   absl::Notification watchdog_fired;
 
   thread::ManagerOptions manager_options;
