@@ -38,6 +38,7 @@
 #include <unistd.h>
 #endif
 
+#define THREAD_HAVE_CPU_SUBCONTAINERS 0
 #define THREAD_HAVE_THREAD_CONTROL 1
 
 // THREAD_HAVE_THREAD_CLASS:
