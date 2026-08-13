@@ -34,6 +34,7 @@
 #include "benchmark/benchmark.h"
 #include "gloop/base/init_google.h"
 #include "gloop/util/gtl/stl_util.h"
+#include "gloop/util/pq/adjustable_priority_queue-inl.h"
 #include "gloop/util/random/acmrandom.h"
 #include "gtest/gtest.h"
 
