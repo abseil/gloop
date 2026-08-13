@@ -218,6 +218,12 @@ void StringByteSink::Append(const char* absl_nonnull data, size_t n) {
   // In case there is an unused append buffer.
   UndoAppendBuffer();
 
+  const size_t new_size = dest_->size() + n;
+  if (new_size > dest_->capacity()) {
+    dest_->reserve(
+        std::max(new_size, dest_->capacity() + dest_->capacity() / 2));
+  }
+
   dest_->append(data, n);
 }
 
@@ -243,7 +249,8 @@ char* absl_nonnull StringByteSink::GetAppendBuffer(
   if (new_size > dest_->capacity()) {
     // Use amortized exponential growth.
     // Ask it to reallocate first...
-    dest_->reserve(std::max(new_size, 2 * dest_->capacity()));
+    dest_->reserve(
+        std::max(new_size, dest_->capacity() + dest_->capacity() / 2));
   }
 
   // then ask it to resize to its current capacity to take advantage of it.

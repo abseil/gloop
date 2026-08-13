@@ -200,13 +200,16 @@ TEST(StringByteSinkTest, GetAppendBufferGrowthRate) {
       return s;
     };
 
-    const size_t push0 = push(1024);
-    const size_t push1 = push(1024);
+    push(1024);
+    push(1024);
     const size_t push2 = push(1024);
+    const size_t push3 = push(1024);
+    const size_t push4 = push(1024);
 
-    // Test that we grew by some implementation specific multiple and not by
-    // a constant N bytes.
-    EXPECT_GT(1. * (push2 - push1) / (push1 - push0), 1.5);
+    // With 1.5x growth optimization, early steps might be linear due to
+    // step size being larger than capacity/2.
+    // We test later steps to verify exponential growth.
+    EXPECT_GT(1. * (push4 - push3) / (push3 - push2), 1.4);
   }
 }
 
