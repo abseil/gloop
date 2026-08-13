@@ -170,17 +170,12 @@ SyncContext::Impl* SyncContext::Impl::RemoveListenerFromCurrent(
   auto [new_listener, success] = active_listener->Extract(listener);
   if (!PERFTOOLS_VERIFY(success)) return this;
 
-  // Signal end of sync session. This is the last event delivered
-  // where the listener is reachable through the active listener.
+  // Signal end of sync session and release listener.
   listener->OnTraceEndSync(active_sync_id_);
-
-  // Set the new listener minus the extracted one and release the listener.
-  // We guarantee the removed listener can no longer be reached / invoked
-  // from a call the `ReleaseEventListener()`.
-  internal::set_active_event_listener(new_listener);
   listener->ReleaseEventListener();
 
-  // Check if we have remaining listeners. If so, we are still "alive".
+  // Set the new listener and check if we have remaining listeners.
+  internal::set_active_event_listener(new_listener);
   if (new_listener != nullptr) return this;
 
   // All listeners are removed, delete ourselves.

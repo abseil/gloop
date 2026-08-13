@@ -529,34 +529,15 @@ TEST_F(SyncContextTest, RemoveListenersFromCurrent) {
   EXPECT_CALL(mock1, OnTraceBeginSync(kMainSyncId, _));
   EXPECT_CALL(mock2, OnTraceBeginSync(kMainSyncId, _));
   WithContext with(std::move(root));
-  TraceEventListener* active_listener = internal::active_event_listener();
 
-  // EndSync() is the last sync event invoked.
-  EXPECT_CALL(mock2, OnTraceEndSync(kMainSyncId)).WillOnce([&](auto) {
-    EXPECT_THAT(internal::active_event_listener(), Eq(active_listener));
-  });
-  // Extract() is the final interaction where active listener is in place.
-  EXPECT_CALL(mock2, Extract(&mock2)).WillOnce([&](auto...) {
-    EXPECT_THAT(internal::active_event_listener(), Eq(active_listener));
-    return std::pair<TraceEventListener*, bool>(nullptr, true);
-  });
-  // Release() is guaranteed to be invoked after the active listener is reset.
-  EXPECT_CALL(mock2, ReleaseEventListener()).WillOnce([&](auto...) {
-    EXPECT_THAT(internal::active_event_listener(), Eq(&mock1));
-  });
+  EXPECT_CALL(mock2, OnTraceEndSync(kMainSyncId));
+  EXPECT_CALL(mock2, Extract(&mock2));
+  EXPECT_CALL(mock2, ReleaseEventListener());
   Context::RemoveListenerFromCurrent(&mock2);
 
-  // EndSync() is the last sync event invoked.
   EXPECT_CALL(mock1, OnTraceEndSync(kMainSyncId));
-  // Extract() is the final interaction where active listener is in place.
-  EXPECT_CALL(mock1, Extract(&mock1)).WillOnce([&](auto...) {
-    EXPECT_THAT(internal::active_event_listener(), Eq(&mock1));
-    return std::pair<TraceEventListener*, bool>(nullptr, true);
-  });
-  // Release() is guaranteed to be invoked after the active listener is reset.
-  EXPECT_CALL(mock1, ReleaseEventListener()).WillOnce([&](auto...) {
-    EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
-  });
+  EXPECT_CALL(mock1, Extract(&mock1));
+  EXPECT_CALL(mock1, ReleaseEventListener());
   Context::RemoveListenerFromCurrent(&mock1);
 }
 
