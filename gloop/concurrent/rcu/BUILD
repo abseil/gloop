@@ -69,6 +69,7 @@ cc_library(
     hdrs = ["global_domain.h"],
     visibility = [
         "//gloop/concurrent/rcu:__subpackages__",
+        "//monitoring/monarch/alerts/platform:__pkg__",
     ],
     deps = [
         ":rcu",
