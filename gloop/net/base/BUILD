@@ -33,7 +33,6 @@ cc_library(
         "//conditions:default": [],
     }),
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:port",
         "//gloop/strings:host_port",
         "//gloop/strings:numbers",
@@ -71,7 +70,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":ipaddress",
-        "//gloop:gloop_test_main",
         "//gloop/strings:host_port",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base:log_severity",

@@ -27,7 +27,6 @@ cc_library(
         "//gloop/util/gtl/extend:__subpackages__",
     ],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/util/gtl/extend:extension",
         "//gloop/util/gtl/internal:aggregate",
     ],
@@ -39,10 +38,7 @@ cc_library(
     visibility = [
         "//gloop/util/gtl/extend:__subpackages__",
     ],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/hash",
-    ],
+    deps = ["@abseil-cpp//absl/hash"],
 )
 
 cc_library(
@@ -53,7 +49,6 @@ cc_library(
     ],
     deps = [
         ":reflection",
-        "//gloop:enforce_gloop_support",
         "//gloop/util/gtl/extend:reflection_extension",
     ],
 )
@@ -66,7 +61,6 @@ cc_library(
         "//gloop/util/gtl/extend:__subpackages__",
     ],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",

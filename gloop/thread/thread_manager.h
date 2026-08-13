@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 #ifndef THIRD_PARTY_GLOOP_THREAD_THREAD_MANAGER_H_
 #define THIRD_PARTY_GLOOP_THREAD_THREAD_MANAGER_H_
 // ThreadManager maintains a collection of threads; work may be given to
@@ -32,16 +26,16 @@
 // when they have been left idle for several seconds.
 // Closures presented to the threads will be run as soon as possible.  Closures
 // may run in any order; there is no attempt to maintain FIFO ordering.
-
+//
 // The default stack size for ThreadManager threads is 64k.  You are strongly
 // encouraged to make your stacks fit within that limit.  ThreadManager is
 // intended to be a default choice for clients that wish not to have to tune
 // threadpools.  If you wish to tune your threadpools, use another
 // implementation.
-
+//
 // For production monitoring of ThreadManager, see:
 //   //gloop/thread/thread_manager_streamz.cc
-
+//
 // EXPECTED USE:
 //  Most programs can use just one ThreadManager, the default one returned
 //  by thread::DefaultManager().
@@ -94,12 +88,13 @@
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "gloop/thread/executor.h"
+#include "gloop/thread/thread_manager_policy.h"
 #include "gloop/thread/thread_options.h"
 #include "gloop/thread/watchdog.h"
 #include "gtest/gtest_prod.h"
 
 namespace ipc::pubsub2::server {
-class ThreadManagerOptions;  // TODO: Delete this.
+class ThreadManagerOptions;
 }  // namespace ipc::pubsub2::server
 
 namespace thread {
@@ -107,8 +102,9 @@ namespace internal {
 struct ThreadManagerExecutorRep;
 }  // namespace internal
 
-class ThreadManagerPolicy;   // see thread_manager_policy.h
-class ManagedQueue;          // forward declaration
+class ThreadManagerPolicy;  // see thread_manager_policy.h
+class ManagedQueue;         // forward declaration
+class ManagedQueuePtr;
 struct ManagedQueueOptions;  // forward declaration
 class ThreadManager;         // forward declaration
 
@@ -134,16 +130,15 @@ struct ManagerOptions {
   ABSL_DEPRECATED(
       "n_pools is almost never set in google3. Remaining callers are being "
       "removed to remove this option.")
-  int n_pools;  // TODO: Delete this.
+  int n_pools;
   // Expert clients may set "policy" to control thread-creation policy; see
   // thread_manager_policy.h.  Most users should use the default: 0.
-  // The ThreadManager destructor will "delete policy".
+  // The ThreadManager takes ownership of this policy.
   ABSL_DEPRECATED(
       "ThreadManagerPolicy is almost never set in google3. "
       "Remaining callers are being removed to remove this option.")
-  ThreadManagerPolicy* policy;  // TODO: Delete this.
+  ThreadManagerPolicy* policy;
 
-  // TODO: Delete this.
   WatchdogCallback get_watchdog_callback() const { return watchdog_callback; }
 
  private:
@@ -152,7 +147,7 @@ struct ManagerOptions {
   // ManagedQueueOptions below). The callback must satisfy the requirements
   // specified by WatchDog::SetCallback, and the ThreadManager takes ownership
   // of this callback.
-  WatchdogCallback watchdog_callback;  // TODO: Delete this.
+  WatchdogCallback watchdog_callback;
 
   // TODO: Decide whether to make custom watchdog callbacks part of
   // the public API after initial data have been gathered. The watchdog callback
@@ -176,8 +171,7 @@ struct ManagedQueueStats {
 
 class ThreadManager {
  public:
-  ThreadManager(absl::string_view thread_name_prefix,
-                const ManagerOptions& options);
+  ThreadManager(absl::string_view thread_name_prefix, ManagerOptions options);
 
   // This type is neither copyable nor movable.
   ThreadManager(const ThreadManager&) = delete;
@@ -230,8 +224,6 @@ struct ManagedQueueOptions {   // options to NewQueue()
   int thread_limit = INT_MAX;  // Max concurrent threads to run closures from.
   int queue_limit = INT_MAX;   // Max closures to be on queue before Schedule()
                                // blocks.
-
-  // TODO: Delete this.
   int time_limit_s = INT_MAX;  // Max interval in seconds for a closure to run
                                // if a closure runs longer, the entire process
                                // aborts.
@@ -258,11 +250,6 @@ class ManagedQueue : public thread::Executor {
 
   // for testing
   virtual ManagedQueue* current_executor_for_testing() const = 0;
-
- protected:
-  // Register or unregister this queue for global stats collection.
-  void RegisterQueueForStats();
-  void UnregisterQueueForStats();
 };
 
 }  // namespace thread

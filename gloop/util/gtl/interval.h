@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // An Interval<T> is a data structure used to represent a contiguous, mutable
 // range over an ordered type T. Supported operations include testing a value to
 // see whether it is included in the interval, comparing two intervals, and

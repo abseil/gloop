@@ -36,7 +36,6 @@ cc_library(
         ":policy",
         ":rcu",
         ":snapshot",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -44,10 +43,7 @@ cc_library(
     name = "snapshot",
     hdrs = ["snapshot.h"],
     visibility = ["//visibility:public"],
-    deps = [
-        ":snapshot_rcu_deleter",
-        "//gloop:enforce_gloop_support",
-    ],
+    deps = [":snapshot_rcu_deleter"],
 )
 
 cc_library(
@@ -59,7 +55,6 @@ cc_library(
     deps = [
         ":global_domain",
         ":rcu",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
     ],
 )
@@ -72,7 +67,6 @@ cc_library(
     ],
     deps = [
         ":rcu",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
     ],
 )
@@ -89,7 +83,6 @@ cc_library(
         ":rcu",
         ":snapshot",
         ":snapshot_rcu_deleter",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
     ],
 )
@@ -100,7 +93,6 @@ cc_library(
     visibility = [
         "//gloop/concurrent:__subpackages__",
     ],
-    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -109,7 +101,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         ":view",
-        "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
@@ -125,10 +116,7 @@ cc_library(
     visibility = [
         "//gloop/concurrent/rcu:__subpackages__",
     ],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "//gloop/util/atomic_danger",
-    ],
+    deps = ["//gloop/util/atomic_danger"],
 )
 
 cc_library(
@@ -139,7 +127,6 @@ cc_library(
         "//gloop/concurrent/rcu:__subpackages__",
     ],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:percpu",
         "//gloop/base:scoped_sigmask",
         "//gloop/base:signal_util_subtle",
@@ -169,7 +156,6 @@ cc_library(
     deps = [
         ":llist",
         ":pile",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:percpu",
         "//gloop/base:spinlock",
         "//gloop/base/scheduling:scheduling_mode",
@@ -192,7 +178,6 @@ cc_test(
     shard_count = 2,
     deps = [
         ":rcu",
-        "//gloop:gloop_test_main",
         "//gloop/base:googleinit",
         "//gloop/base:signal_util_subtle",
         "//gloop/base:sysinfo",
@@ -224,7 +209,6 @@ cc_test(
     shard_count = 2,
     deps = [
         ":rcu",
-        "//gloop:gloop_test_main",
         "//gloop/base:googleinit",
         "//gloop/base:percpu_disable_rseq",
         "//gloop/base:signal_util_subtle",

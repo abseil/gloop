@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // A test for CancellableCondVar.
 
 #include "gloop/thread/fiber/contrib/cancellable_condvar/cancellable_condvar.h"

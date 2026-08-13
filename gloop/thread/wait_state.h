@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 #ifndef THIRD_PARTY_GLOOP_THREAD_WAIT_STATE_H_
 #define THIRD_PARTY_GLOOP_THREAD_WAIT_STATE_H_
 
@@ -54,7 +48,7 @@ namespace thread {
 //  }
 class WaitStateScope {
  public:
-  using WaitState = absl::base_internal::ThreadIdentity::WaitState;
+  using WaitState = base::ThreadIdentity::WaitState;
 
   // TODO: b/357097463 - Use `using enum WaitState` once C++20 is allowed here.
   inline static constexpr WaitState kActive = WaitState::kActive;
@@ -71,10 +65,10 @@ class WaitStateScope {
   ~WaitStateScope();
 
  private:
-  WaitStateScope(absl::base_internal::ThreadIdentity* ti, WaitState state);
+  WaitStateScope(base::ThreadIdentity* ti, WaitState state);
 
   // Pointer to this thread's metadata. If nullptr, this scope is not enabled.
-  absl::base_internal::ThreadIdentity* ti_;
+  base::ThreadIdentity* ti_;
   // Only set if ti_ != nullptr.
   WaitState old_state_;
 };

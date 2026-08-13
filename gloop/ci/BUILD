@@ -53,7 +53,6 @@ platform(
 cc_binary(
     name = "toolchain_test",
     srcs = ["toolchain_test.cc"],
-    deps = ["//gloop:enforce_gloop_support"],
 )
 
 # Architecture verification tests

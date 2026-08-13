@@ -31,7 +31,6 @@ cc_library(
         "//gloop/base:__subpackages__",
     ],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
@@ -45,7 +44,6 @@ cc_test(
     srcs = ["parsed_process_stat_test.cc"],
     deps = [
         ":parsed_process_stat",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_matchers",
         "@abseil-cpp//absl/strings",
@@ -69,5 +67,4 @@ cc_library(
     visibility = [
         "//gloop/base:__pkg__",
     ],
-    deps = ["//gloop:enforce_gloop_support"],
 )

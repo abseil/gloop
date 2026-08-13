@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Unit tests for saturated_cast. Since there is some trickiness in terms with
 // conversions between types, especially between signed and unsigned, types, we
 // test from all supported types to all supported types, including uint128.
