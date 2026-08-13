@@ -254,7 +254,6 @@ static void InitRseqForProcess() {
 
     if (rseq_errno == 0) {
       // Save globals.
-      using_rseq_vcpu_mode = vcpu_mode;
       rseq_register_flags = flags;
       switch (vcpu_mode) {
         case RseqVcpuMode::kFlat:
@@ -269,6 +268,7 @@ static void InitRseqForProcess() {
         case RseqVcpuMode::kNone:
           break;
       }
+      using_rseq_vcpu_mode = vcpu_mode;
 
       return true;
     } else if (rseq_errno != ENOSYS && rseq_errno != EINVAL &&
@@ -331,6 +331,7 @@ static void InitRseqForProcess() {
 }
 
 bool UsingRseqVirtualCpus() {
+  IsFast();  // Make sure the thread is initialized.
   switch (using_rseq_vcpu_mode) {
     case RseqVcpuMode::kFlat:
     case RseqVcpuMode::kFlatPerL3:

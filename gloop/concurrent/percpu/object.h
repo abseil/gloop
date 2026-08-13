@@ -28,6 +28,7 @@
 //
 // You can get() a T for the current CPU, and you can iterate over all Ts.
 
+#include <algorithm>
 #include <cstddef>
 #include <iterator>
 #include <memory>
@@ -44,6 +45,7 @@
 #endif
 
 #if PERCPU_USE_RSEQ_GOTO  // RSEQ CpuSpinLock functions require asm goto
+#include "gloop/base/percpu.h"
 #include "gloop/concurrent/percpu/object_native.inc"
 #else
 #include "gloop/concurrent/percpu/object_emulated.inc"
@@ -290,11 +292,30 @@ class iterator : public std::iterator<std::random_access_iterator_tag, T> {
   std::size_t cpu_ = 0;
   remote_pointer<T> pointer_;
 };
+#if PERCPU_USE_RSEQ_GOTO
+inline int GetVcpuShardCount() {
+  if (base::subtle::percpu::IsFast() &&
+      base::subtle::percpu::UsingRseqVirtualCpus() &&
+      base::subtle::percpu::GetRseqVcpuMode() !=
+          base::subtle::percpu::RseqVcpuMode::kFlatPerL3) {
+    return std::clamp(base::AvailableCPUs(), 1, NumCPUs());
+  }
+  return 0;
+}
+#endif
 }  // namespace percpu_internal
 
 template <typename T>
 template <typename... Args>
-PerCpu<T>::PerCpu(Args... args) : lock_(), array_(NumCPUs()) {
+PerCpu<T>::PerCpu(Args... args)
+#if PERCPU_USE_RSEQ_GOTO
+    : lock_(percpu_internal::GetVcpuShardCount()),
+      array_(lock_.max_vcpus() > 0 ? lock_.max_vcpus() : NumCPUs())
+#else
+    : lock_(),
+      array_(NumCPUs())
+#endif
+{
   for (std::size_t i = 0; i != size(); ++i) {
     new (&array_[i]) T(args...);
   }

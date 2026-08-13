@@ -50,6 +50,28 @@ void PerCpuSpinLock::Delay(int iteration) {
       absl::base_internal::SpinLockSuggestedDelayNS(iteration) / 16));
 }
 
+int PerCpuSpinLock::TryLockVcpuSlow() {
+  int raw_cpu = percpu::IsFast() ? RseqVirtualFlatCpuId() : GetCurrentCpu();
+  if (raw_cpu < 0) {
+    raw_cpu = 0;
+  }
+  const int cpu = raw_cpu % max_vcpus_;
+  std::atomic<int64_t>* const word = GetPointerAtomic(percpu_lock_, cpu);
+  const int64_t lock_value = static_cast<int64_t>(absl::base_internal::GetTID())
+                             << kLockerShift;
+  if (atomic_danger::CompareAndSwap(word, 0, lock_value,
+                                    std::memory_order_acquire) != 0) {
+    return -1;
+  }
+  if (percpu::IsFast()) {
+    percpu::Fence();
+    if (word->load(std::memory_order_relaxed) != lock_value) {
+      return -1;
+    }
+  }
+  return AnnotateAcquiredCpuForTsan(cpu);
+}
+
 void PerCpuSpinLock::LockOn(int cpu) {
   std::atomic<int64_t>* const word = GetPointerAtomic(percpu_lock_, cpu);
   const int64_t unique = absl::base_internal::GetTID();
@@ -86,7 +108,11 @@ void PerCpuSpinLock::LockOn(int cpu) {
                                             std::memory_order_acquire) != 0) {
             return -1;
           }
-          percpu::FenceCpu(cpu);
+          if (max_vcpus_ > 0) {
+            percpu::Fence();
+          } else {
+            percpu::FenceCpu(cpu);
+          }
           return word->load(std::memory_order_relaxed) == lock_value
                      ? AnnotateAcquiredCpuForTsan(cpu)
                      : -1;

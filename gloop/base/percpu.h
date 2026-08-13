@@ -472,6 +472,97 @@ int RseqFunction_PerCpuTryLock(volatile kernel_rseq* rseq_abi,
                                Handle percpu_data, int64_t lock_value);
 #endif
 
+// Like RseqFunction_PerCpuTryLock, but loads the virtual flat CPU ID and
+// checks `0 <= vcpu < max_vcpus`. Returns the locked vCPU on success, -1 on
+// contention, or -2 if `vcpu >= max_vcpus`.
+#if PERCPU_USE_RSEQ_GOTO && defined(__x86_64__)
+static inline int RseqFunction_PerVcpuTryLock(volatile kernel_rseq* rseq_abi,
+                                              Handle percpu_data,
+                                              int64_t lock_value,
+                                              int max_vcpus) {
+  ABSL_RAW_DCHECK(IsFastNoInit(), "Must be using fast per-CPU");
+  uint64_t scratch;
+  int64_t cpu;
+  asm goto (
+      // clang-format off
+      PERCPU_RSEQ_PROLOGUE(RseqFunction_PerVcpuTryLock, scratch)
+
+      "4:\n"
+      PERCPU_RSEQ_LOAD_VIRTUAL_FLAT_CPU_ID(cpu)
+      "cmp %[max_vcpus], %[cpu]\n"
+      "jae %l[out_of_bounds]\n"
+      "mov %[cpu], %[scratch]\n"
+      "shl %[shift], %[scratch]\n"
+      "cmpq $0, (%[scratch], %[base])\n"
+      "jne %l[fail_contended]\n"
+      "mov %[lock_value], (%[scratch], %[base])\n"
+      "5:\n"
+
+      // clang-format on
+      : [scratch] "=&r"(scratch), [cpu] "=&r"(cpu)
+      : PERCPU_RSEQ_INPUTS_P(rseq_abi),
+        [base] "r"(percpu_data),
+        [lock_value] "r"(lock_value),
+        [max_vcpus] "r"(static_cast<int64_t>(max_vcpus)),
+        [shift] "n"(PERCPU_BYTES_PER_REGION_SHIFT)
+      : PERCPU_RSEQ_CLOBBERS, "memory"
+      : fail_contended, out_of_bounds);
+  ABSL_ASSUME(cpu >= kCpuIdInitialized);
+  return static_cast<int>(cpu);
+fail_contended:
+  return -1;
+out_of_bounds:
+  return -2;
+}
+#elif PERCPU_USE_RSEQ_GOTO && defined(__aarch64__)
+static inline int RseqFunction_PerVcpuTryLock(volatile kernel_rseq* rseq_abi,
+                                              Handle percpu_data,
+                                              int64_t lock_value,
+                                              int max_vcpus) {
+  ABSL_RAW_DCHECK(IsFastNoInit(), "Must be using fast per-CPU");
+  uint64_t scratch;
+  int64_t cpu;
+  uint64_t current_val;
+  asm goto (
+      // clang-format off
+      PERCPU_RSEQ_PROLOGUE(RseqFunction_PerVcpuTryLock, scratch)
+
+      "4:\n"
+      PERCPU_RSEQ_LOAD_VIRTUAL_FLAT_CPU_ID(cpu)
+      "cmp %[cpu], %[max_vcpus]\n"
+      "b.hs %l[out_of_bounds]\n"
+      "lsl %[scratch], %[cpu], %c[shift]\n"
+#ifdef __ARM_FEATURE_RCPC
+      "add %[scratch], %[base], %[scratch]\n"
+      "ldapr %[current_val], [%[scratch]]\n"
+      "cbnz %[current_val], %l[fail_contended]\n"
+      "str %[lock_value], [%[scratch]]\n"
+#else
+      "ldr %[current_val], [%[base], %[scratch]]\n"
+      "cbnz %[current_val], %l[fail_contended]\n"
+      "str %[lock_value], [%[base], %[scratch]]\n"
+#endif
+      "5:\n"
+
+      // clang-format on
+      : [scratch] "=&r"(scratch), [cpu] "=&r"(cpu),
+        [current_val] "=&r"(current_val)
+      : PERCPU_RSEQ_INPUTS_P(rseq_abi),
+        [base] "r"(percpu_data.rep),
+        [lock_value] "r"(lock_value),
+        [max_vcpus] "r"(static_cast<int64_t>(max_vcpus)),
+        [shift] "n"(PERCPU_BYTES_PER_REGION_SHIFT)
+      : PERCPU_RSEQ_CLOBBERS, "memory"
+      : fail_contended, out_of_bounds);
+  ABSL_ASSUME(cpu >= kCpuIdInitialized);
+  return static_cast<int>(cpu);
+fail_contended:
+  return -1;
+out_of_bounds:
+  return -2;
+}
+#endif
+
 // Primitives
 }
 

@@ -55,10 +55,14 @@ namespace percpu {
 
 class ABSL_LOCKABLE PerCpuSpinLock {
  public:
-  PerCpuSpinLock() : percpu_lock_(AllocHandle()) {}
+  PerCpuSpinLock() : percpu_lock_(AllocHandle()), max_vcpus_(0) {}
+  explicit PerCpuSpinLock(int max_vcpus)
+      : percpu_lock_(AllocHandle()), max_vcpus_(max_vcpus) {}
   PerCpuSpinLock(const PerCpuSpinLock&) = delete;
   PerCpuSpinLock& operator=(const PerCpuSpinLock&) = delete;
   ~PerCpuSpinLock() { FreeHandle(percpu_lock_); }
+
+  int max_vcpus() const { return max_vcpus_; }
 
   // Acquires the lock.  Returns the CPU on which it was acquired.
   //   e.g. int cpu = percpu_lock.Lock();
@@ -132,6 +136,16 @@ class ABSL_LOCKABLE PerCpuSpinLock {
   // successful, returns the locked CPU; otherwise, returns -1.
   ABSL_ATTRIBUTE_HOT int TryLockImpl(int64_t lock_value) {
     if (ABSL_PREDICT_TRUE(percpu::IsFastNoInit())) {
+#if PERCPU_USE_RSEQ_GOTO
+      if (max_vcpus_ > 0) {
+        const int res = RseqFunction_PerVcpuTryLock(RseqAbi(), percpu_lock_,
+                                                    lock_value, max_vcpus_);
+        if (ABSL_PREDICT_TRUE(res >= -1)) {
+          return AnnotateAcquiredCpuForTsan(res);
+        }
+        return TryLockVcpuSlow();
+      }
+#endif
       return AnnotateAcquiredCpuForTsan(
           RseqFunction_PerCpuTryLock(RseqAbi(), percpu_lock_, lock_value));
     } else {
@@ -142,9 +156,22 @@ class ABSL_LOCKABLE PerCpuSpinLock {
           // This may force percpu initialization; the fast path in
           // TryLockImpl() uses IsFastNoInit().
           if (percpu::IsFast()) {
+#if PERCPU_USE_RSEQ_GOTO
+            if (self->max_vcpus_ > 0) {
+              const int res = RseqFunction_PerVcpuTryLock(
+                  RseqAbi(), self->percpu_lock_, lock_value, self->max_vcpus_);
+              if (ABSL_PREDICT_TRUE(res >= -1)) {
+                return self->AnnotateAcquiredCpuForTsan(res);
+              }
+              return self->TryLockVcpuSlow();
+            }
+#endif
             return self->AnnotateAcquiredCpuForTsan(RseqFunction_PerCpuTryLock(
                 RseqAbi(), self->percpu_lock_, lock_value));
           } else {
+            if (self->max_vcpus_ > 0) {
+              return self->TryLockVcpuSlow();
+            }
             const int cpu = GetCurrentCpu();
             int64_t previous = 0;
             if (GetPointerAtomic(self->percpu_lock_, cpu)
@@ -202,6 +229,7 @@ class ABSL_LOCKABLE PerCpuSpinLock {
 
   // Delays for iteration number `iteration`.
   static void Delay(int iteration);
+  int TryLockVcpuSlow();
 
   // Iff running under tsan, this annotates that we successfully acquired the
   // lock for CPU `cpu`; otherwise, has no effect. Returns `cpu`.
@@ -257,7 +285,7 @@ class ABSL_LOCKABLE PerCpuSpinLock {
     // before or after the call to RseqCpuId.
     const int current_cpu = RseqCpuId();
 
-    if (ABSL_PREDICT_TRUE(current_cpu == cpu)) {
+    if (ABSL_PREDICT_TRUE(max_vcpus_ == 0 && current_cpu == cpu)) {
       word.store(0, std::memory_order_relaxed);
       return;
     }
@@ -267,7 +295,11 @@ class ABSL_LOCKABLE PerCpuSpinLock {
     // `FenceCpu` call here forms a release/acquire pair with the next call to
     // `RseqFunction_PerCpuTryLock` for `current_cpu`.
     if (ABSL_PREDICT_TRUE(current_cpu >= kCpuIdInitialized)) {
-      FenceCpu(cpu);
+      if (max_vcpus_ > 0) {
+        Fence();
+      } else {
+        FenceCpu(cpu);
+      }
       word.store(0, std::memory_order_relaxed);
       return;
     }
@@ -279,6 +311,7 @@ class ABSL_LOCKABLE PerCpuSpinLock {
   }
 
   Handle percpu_lock_;
+  int max_vcpus_;
 };
 
 class ABSL_SCOPED_LOCKABLE PerCpuSpinLockHolder {

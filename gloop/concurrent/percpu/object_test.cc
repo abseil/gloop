@@ -22,12 +22,15 @@
 
 #include <sched.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <iterator>
 #include <map>
 #include <numeric>
 #include <set>
+#include <thread>  // NOLINT(build/c++11)
 #include <utility>
+#include <vector>
 
 #include "absl/base/optimization.h"
 #include "absl/log/check.h"
@@ -97,18 +100,27 @@ TEST_F(PerCpuTest, SetSomethingAndIterate) {
   for (int n : pc) {
     ++observations[n];
   }
-  // We should see zero (for default-initialization) NumCPUs - 1 times, since we
-  // never touch the other CPUs' values, and 3 once.
-  EXPECT_THAT(observations,
-              testing::UnorderedElementsAre(testing::Pair(0, NumCPUs() - 1),
-                                            testing::Pair(3, 1)));
+  if (pc.size() == 1) {
+    EXPECT_THAT(observations,
+                testing::UnorderedElementsAre(testing::Pair(3, 1)));
+  } else {
+    // We should see zero (for default-initialization) size() - 1 times, since
+    // we never touch the other shards' values, and 3 once.
+    EXPECT_THAT(observations,
+                testing::UnorderedElementsAre(testing::Pair(0, pc.size() - 1),
+                                              testing::Pair(3, 1)));
+  }
 }
 
 TEST_F(PerCpuTest, DifferentCpus) {
   PerCpu<int> pc;
   *pc.remote_get(0) = 1;
-  *pc.remote_get(1) = 2;
-  EXPECT_THAT(std::accumulate(pc.begin(), pc.end(), 0), testing::Eq(3));
+  if (pc.size() > 1) {
+    *pc.remote_get(1) = 2;
+    EXPECT_THAT(std::accumulate(pc.begin(), pc.end(), 0), testing::Eq(3));
+  } else {
+    EXPECT_THAT(std::accumulate(pc.begin(), pc.end(), 0), testing::Eq(1));
+  }
 }
 
 TEST_F(PerCpuTest, NoOps) {
@@ -132,17 +144,20 @@ TEST_F(PerCpuTest, NoOps) {
 #if HAVE_SCHED_SETAFFINITY
 TEST_F(PerCpuTest, MoveOperators) {
   PerCpu<int> pc;
+  PerCpu<int> pc2;
   {
     const int first_cpu = PinToOneCpu();
     PerCpu<int>::pointer p1 = pc.get();
     PinToDifferentCpu(first_cpu);
-    PerCpu<int>::pointer p2 = pc.get();
+    PerCpu<int>::pointer p2 = pc2.get();
     p1 = std::move(p2);
   }
   {
     PerCpu<int>::iterator it1 = pc.begin();
-    ++it1;
-    PerCpu<int>::iterator it2 = pc.begin();
+    if (pc.size() > 1) {
+      ++it1;
+    }
+    PerCpu<int>::iterator it2 = pc2.begin();
     it1 = std::move(it2);
   }
 }
@@ -180,11 +195,17 @@ TEST_F(PerCpuTest, Initialization) {
   for (int n : pc) {
     ++observations[n];
   }
-  // We should see one (for the initialization we did in the constructor)
-  // NumCPUs - 1 times, since we never touch the other CPUs' values, and 3 once.
-  EXPECT_THAT(observations,
-              testing::UnorderedElementsAre(testing::Pair(1, NumCPUs() - 1),
-                                            testing::Pair(3, 1)));
+  if (pc.size() == 1) {
+    EXPECT_THAT(observations,
+                testing::UnorderedElementsAre(testing::Pair(3, 1)));
+  } else {
+    // We should see one (for the initialization we did in the constructor)
+    // size() - 1 times, since we never touch the other shards' values, and 3
+    // once.
+    EXPECT_THAT(observations,
+                testing::UnorderedElementsAre(testing::Pair(1, pc.size() - 1),
+                                              testing::Pair(3, 1)));
+  }
 }
 
 TEST_F(PerCpuTest, DestructorsMustBeCalled) {
@@ -197,7 +218,7 @@ TEST_F(PerCpuTest, DestructorsMustBeCalled) {
 
   {
     PerCpu<TrackableObject> pc;
-    EXPECT_EQ(outstanding_objects, NumCPUs());
+    EXPECT_EQ(outstanding_objects, pc.size());
   }
   EXPECT_EQ(outstanding_objects, 0);
 }
@@ -236,6 +257,34 @@ TEST_F(PerCpuTest, LargeObject) {
     EXPECT_EQ(v % alignof(LargeObject), 0);
     last = v;
   }
+}
+
+TEST_F(PerCpuTest, ConcurrentOversubscribedThreads) {
+  PerCpu<int> pc(0);
+  EXPECT_GE(pc.size(), 1);
+  EXPECT_LE(pc.size(), static_cast<std::size_t>(NumCPUs()));
+  constexpr int kNumThreads = 8;
+  constexpr int kIterations = 500;
+  std::vector<std::thread> threads;
+  threads.reserve(kNumThreads);
+  for (int t = 0; t < kNumThreads; ++t) {
+    threads.emplace_back([&pc]() {
+      for (int i = 0; i < kIterations; ++i) {
+        ++(*pc.get());
+      }
+    });
+  }
+  // Exercise concurrent iteration (LockOn) while worker threads call get().
+  int sweep_sum = 0;
+  for (int n : pc) {
+    sweep_sum += n;
+  }
+  EXPECT_GE(sweep_sum, 0);
+  for (auto& th : threads) {
+    th.join();
+  }
+  EXPECT_EQ(std::accumulate(pc.begin(), pc.end(), 0),
+            kNumThreads * kIterations);
 }
 
 #if !GUNIT_NO_GOOGLE3
