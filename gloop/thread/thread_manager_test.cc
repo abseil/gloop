@@ -205,8 +205,9 @@ TEST(ThreadManagerTest, WaitUntilComplete) {
 
 TEST(ThreadManagerTest, SchedulingDuringManagedQueueDestruction) {
   thread::ManagerOptions mgr_options;
-  mgr_options.policy = thread::EagerThreadManagerPolicy(/*max_threads=*/1);
-  auto tm = std::make_unique<thread::ThreadManager>("a", mgr_options);
+  mgr_options.policy.reset(thread::EagerThreadManagerPolicy(/*max_threads=*/1));
+  auto tm =
+      std::make_unique<thread::ThreadManager>("a", std::move(mgr_options));
 
   std::unique_ptr<thread::ManagedQueue> q(
       tm->NewQueue("b", thread::ManagedQueueOptions()));
@@ -315,8 +316,7 @@ TEST(ThreadManagerTest, SleepingClosures) {
   queue_info.cb.reset(::util::functional::ToPermanentCallback(
       absl::bind_front(&ParameterizedTestClosure, &key, 1000, 0, &queue_info)));
   queue_info.name = "sleeping";
-  queue_info.queue.reset(
-      tm->NewQueue(queue_info.name, queue_info.queue_options));
+  queue_info.queue = tm->NewQueue(queue_info.name, queue_info.queue_options);
   const absl::Time start_time = absl::Now();
   for (int i = 0; i != queue_info.expected_calls; i++) {
     queue_info.queue->Schedule(
@@ -351,8 +351,7 @@ TEST(ThreadManagerTest, CPUBoundClosures) {
   queue_info.cb.reset(::util::functional::ToPermanentCallback(absl::bind_front(
       &ParameterizedTestClosure, &key, 0, kSpin, &queue_info)));
   queue_info.name = "cpu_bound";
-  queue_info.queue.reset(
-      tm->NewQueue(queue_info.name, queue_info.queue_options));
+  queue_info.queue = tm->NewQueue(queue_info.name, queue_info.queue_options);
   for (int i = 0; i != queue_info.expected_calls; i++) {
     queue_info.queue->Schedule(
         util::functional::FromCallback(queue_info.cb.get()));
@@ -383,8 +382,7 @@ TEST(ThreadManagerTest, ContendingClosures) {
   queue_info.cb.reset(::util::functional::ToPermanentCallback(
       absl::bind_front(&ParameterizedTestClosure, &key, 0, 0, &queue_info)));
   queue_info.name = "contending";
-  queue_info.queue.reset(
-      tm->NewQueue(queue_info.name, queue_info.queue_options));
+  queue_info.queue = tm->NewQueue(queue_info.name, queue_info.queue_options);
   for (int i = 0; i != queue_info.expected_calls; i++) {
     queue_info.queue->Schedule(
         util::functional::FromCallback(queue_info.cb.get()));
@@ -425,8 +423,8 @@ TEST(ThreadManagerTest, Queues) {
         ::util::functional::ToPermanentCallback(absl::bind_front(
             &ParameterizedTestClosure, &key, kSleepMS, 0, &queue_info[i])));
     queue_info[i].name = absl::StrFormat("queue %d", i);
-    queue_info[i].queue.reset(
-        tm->NewQueue(queue_info[i].name, queue_info[i].queue_options));
+    queue_info[i].queue =
+        tm->NewQueue(queue_info[i].name, queue_info[i].queue_options);
     CHECK_EQ(queue_info[i].queue->num_pending_closures(), 0);
   }
 
@@ -718,8 +716,9 @@ TEST(ThreadManagerWatchdogTest, UsesCustomWatchDogCallback) {
   thread::ManagedQueueOptions queue_options;
   queue_options.time_limit_s = 1;
 
-  std::optional<thread::ThreadManager> tm(
-      std::in_place, "custom_watchdog_callback_test", manager_options);
+  std::optional<thread::ThreadManager> tm(std::in_place,
+                                          "custom_watchdog_callback_test",
+                                          std::move(manager_options));
   std::unique_ptr<thread::ManagedQueue> q(
       tm->NewQueue("custom_watchdog_callback_test_queue", queue_options));
 
@@ -832,9 +831,9 @@ static void BM_ThreadManagerRun(benchmark::State& state) {
   // Make a single-thread manager
   thread::ManagerOptions options;
   options.n_pools = 1;
-  options.policy = new SingleThreadPolicy;
-  std::optional<thread::ThreadManager> manager(std::in_place,
-                                               "benchmark_manager", options);
+  options.policy = std::make_unique<SingleThreadPolicy>();
+  std::optional<thread::ThreadManager> manager(
+      std::in_place, "benchmark_manager", std::move(options));
 
   // Make a queue with the specified thread limit
   thread::ManagedQueueOptions qoptions;
@@ -852,9 +851,9 @@ static void BM_ThreadManagerSchedule(benchmark::State& state) {
   // Make a single-thread manager
   thread::ManagerOptions options;
   options.n_pools = 1;
-  options.policy = new SingleThreadPolicy;
-  std::optional<thread::ThreadManager> manager(std::in_place,
-                                               "benchmark_manager", options);
+  options.policy = std::make_unique<SingleThreadPolicy>();
+  std::optional<thread::ThreadManager> manager(
+      std::in_place, "benchmark_manager", std::move(options));
 
   // Make a queue with the specified thread limit
   thread::ManagedQueueOptions qoptions;
@@ -881,7 +880,8 @@ BENCHMARK(BM_ThreadManagerSchedule)->Arg(1)->Arg(INT_MAX);
 static void BM_ThreadManagerDefaultPolicyRun(benchmark::State& state) {
   // Make a thread manager with the default policy
   thread::ManagerOptions options;
-  thread::ThreadManager manager("benchmark_manager_with_defaults", options);
+  thread::ThreadManager manager("benchmark_manager_with_defaults",
+                                std::move(options));
 
   // Make a queue with the specified thread limit
   thread::ManagedQueueOptions qoptions;
@@ -903,8 +903,9 @@ static void BM_ThreadManagerDefaultPolicyQueuedInAdvance(
   // Make a thread manager with the default policy
   thread::ManagerOptions options;
   options.n_pools = 1;
-  options.policy = new SingleThreadPolicy;
-  thread::ThreadManager manager("benchmark_manager_with_defaults", options);
+  options.policy = std::make_unique<SingleThreadPolicy>();
+  thread::ThreadManager manager("benchmark_manager_with_defaults",
+                                std::move(options));
   // Make a queue with the specified thread limit
   thread::ManagedQueueOptions qoptions;
   std::unique_ptr<thread::ManagedQueue> q(

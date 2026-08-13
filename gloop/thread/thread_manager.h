@@ -94,6 +94,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "gloop/thread/executor.h"
+#include "gloop/thread/thread_manager_policy.h"
 #include "gloop/thread/thread_options.h"
 #include "gloop/thread/watchdog.h"
 #include "gtest/gtest_prod.h"
@@ -133,11 +134,11 @@ struct ManagerOptions {
   int n_pools;
   // Expert clients may set "policy" to control thread-creation policy; see
   // thread_manager_policy.h.  Most users should use the default: 0.
-  // The ThreadManager destructor will "delete policy".
+  // The ThreadManager takes ownership of this policy.
   ABSL_DEPRECATED(
       "ThreadManagerPolicy is almost never set in google3. "
       "Remaining callers are being removed to remove this option.")
-  ThreadManagerPolicy* policy;
+  std::unique_ptr<ThreadManagerPolicy> policy;
 
   WatchdogCallback get_watchdog_callback() const { return watchdog_callback; }
 
@@ -171,8 +172,7 @@ struct ManagedQueueStats {
 
 class ThreadManager {
  public:
-  ThreadManager(absl::string_view thread_name_prefix,
-                const ManagerOptions& options);
+  ThreadManager(absl::string_view thread_name_prefix, ManagerOptions options);
 
   // This type is neither copyable nor movable.
   ThreadManager(const ThreadManager&) = delete;
@@ -182,14 +182,13 @@ class ThreadManager {
                                // Queues have been deleted and the work
                                // associated with them has completed.
 
-  // Return a pointer to a named work queue serviced by this ThreadManager with
+  // Return a named work queue serviced by this ThreadManager with
   // limits given by queue_options.  Repeated calls to NewQueue() with the same
-  // name will provide distinct queues.  Queues should be discarded with
-  // "delete" when no longer needed; delete will return immediately, but the
-  // underlying data structures will be discarded when all pending work is
-  // complete.
-  ManagedQueue* NewQueue(absl::string_view name,
-                         const ManagedQueueOptions& queue_options) {
+  // name will provide distinct queues.  The returned unique_ptr handles the
+  // lifetime; when it is destroyed, the underlying data structures will be
+  // discarded when all pending work is complete.
+  std::unique_ptr<ManagedQueue> NewQueue(
+      absl::string_view name, const ManagedQueueOptions& queue_options) {
     return rep_->NewQueue(name, queue_options);
   }
 
@@ -207,7 +206,7 @@ class ThreadManager {
   struct RepBase {
     virtual ~RepBase() = default;
 
-    virtual ManagedQueue* NewQueue(
+    virtual std::unique_ptr<ManagedQueue> NewQueue(
         absl::string_view name, const ManagedQueueOptions& queue_options) = 0;
   };
 
