@@ -45,7 +45,8 @@ namespace thread {
 namespace internal {
 struct Selector {
   absl::Mutex mu;
-  int picked;  // kNonePicked until a case is picked, or index of picked case
+  int picked;  // kNonePicked until a case is picked, kExpired after deadline
+               // expires, or index of picked case
   absl::CondVar cv;  // Select() call waits on this until picked >= 0
 
   // The implementation reserves picked values <0 for internal use.
@@ -54,6 +55,7 @@ struct Selector {
   //  i. mu is held
   //  ii. picked == Selector::kNonePicked
   static constexpr int kNonePicked = -1;
+  static constexpr int kExpired = -2;
 };
 
 class Selectable;

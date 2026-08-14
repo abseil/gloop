@@ -172,7 +172,7 @@ int SelectUntil(absl::Clock* clock, absl::Time deadline, const CaseArray& cases,
     DCHECK(expirable || !expired);
     if (expired) {
       // Deadline expiry. Ensure nothing is picked from this point.
-      sel.picked = num_cases;
+      sel.picked = internal::Selector::kExpired;
     }
   }
 
@@ -187,9 +187,10 @@ int SelectUntil(absl::Clock* clock, absl::Time deadline, const CaseArray& cases,
     }
   }
 
-  // sel.picked == num_cases denotes expiry
-  const int picked = sel.picked < num_cases ? sel.picked : -1;
-  trace_wait.SetBarrierId(picked >= 0 ? cases[picked].event : nullptr);
+  static_assert(internal::Selector::kExpired < 0);
+  static_assert(internal::Selector::kNonePicked < 0);
+  const int picked = sel.picked >= 0 ? sel.picked : -1;
+  trace_wait.SetBarrierId(sel.picked >= 0 ? cases[picked].event : nullptr);
   return picked;
 }
 
