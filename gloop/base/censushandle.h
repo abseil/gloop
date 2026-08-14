@@ -31,8 +31,10 @@
 
 class CensusHandle;
 
-namespace stats_census {
+namespace stats_census::censushandle_internal {
 class CensusHandleManager;
+}
+namespace stats_census {
 bool IsDefaultHandle(const CensusHandle&);
 }  // namespace stats_census
 
@@ -141,7 +143,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI CensusHandle {
 
  private:
   friend class base::subtle::WithLifetimeBoundContext;
-  friend class stats_census::CensusHandleManager;
+  friend class stats_census::censushandle_internal::CensusHandleManager;
   friend bool ::stats_census::IsDefaultHandle(const CensusHandle&);
   friend class TestEntry;  // Defined/used in censushandle_test.cc.
 
