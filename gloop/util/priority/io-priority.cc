@@ -20,6 +20,7 @@
 
 #include "gloop/util/priority/io-priority.h"
 
+#include <linux/ioprio.h>
 #include <unistd.h>
 
 #include <string>

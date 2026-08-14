@@ -89,12 +89,9 @@
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
 #include "gloop/util/gtl/container_logging.h"
+#include "gloop/util/priority/io-priority.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-
-#ifdef THREAD_HAVE_IOPRIORITY
-#include "gloop/util/priority/io-priority.h"
-#endif
 
 #if !PORTABLE_BASE
 #define AVOID_TRACECONTEXT 1
@@ -2221,7 +2218,7 @@ TEST(ThreadTest, NicePriorityAppliedToOS) {
 }
 #endif
 
-#ifdef THREAD_HAVE_IOPRIORITY
+#if defined(__linux__) && !defined(__ANDROID__)
 TEST(ThreadTest, IOPriorityAppliedToThread) {
   thread::Options options;
   options.set_io_priority(2, 5);

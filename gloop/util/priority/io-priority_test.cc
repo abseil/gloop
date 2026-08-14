@@ -20,6 +20,8 @@
 
 #include "gloop/util/priority/io-priority.h"
 
+#include <linux/ioprio.h>
+
 #include <cstdint>
 #include <limits>
 #include <thread>  // NOLINT
