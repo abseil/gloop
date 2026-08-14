@@ -310,7 +310,6 @@ cc_library(
         "//gloop/util/gtl:intrusive_heap",
         "//gloop/util/gtl:iterator_adaptors",
         "//gloop/util/intops",
-        "//gloop/util/priority:io-priority",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:dynamic_annotations",
@@ -343,6 +342,7 @@ cc_library(
         "@tcmalloc//tcmalloc:malloc_extension",
     ] + select({
         "//conditions:default": POSIX_PORT_DEPS + [
+            "//gloop/util/priority:io-priority",
         ],
     }),
 )
@@ -612,7 +612,6 @@ cc_test(
         "//gloop/util/functional:to_callback",
         "//gloop/util/gtl:container_logging",
         "//gloop/util/gtl:intrusive_list",
-        "//gloop/util/priority:io-priority",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
@@ -633,7 +632,11 @@ cc_test(
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
-    ],
+    ] + select({
+        "//conditions:default": [
+            "//gloop/util/priority:io-priority",
+        ],
+    }),
 )
 
 cc_library(

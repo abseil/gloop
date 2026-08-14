@@ -21,12 +21,13 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_PRIORITY_IO_PRIORITY_H_
 #define THIRD_PARTY_GLOOP_UTIL_PRIORITY_IO_PRIORITY_H_
 
+#include <linux/ioprio.h>
 #include <sys/types.h>
 
 #include <string>
 
 #include "absl/flags/declare.h"
-#include "gloop/base/port.h"
+#include "gloop/base/sysinfo.h"
 
 using IOPriorityClass = int;
 
@@ -40,17 +41,17 @@ namespace util {
 // is valid for class IDLE.  It is not legal to set to class NONE.
 // Returns false on error.
 bool SetIOPriority(pid_t pid, IOPriorityClass io_priority_class, int level,
-                   int hint = 0 /*IOPRIO_HINT_NONE*/);
+                   int hint = IOPRIO_HINT_NONE);
 
 // Same as above, but applies to current pid.
 bool SetProcessIOPriority(IOPriorityClass priority_class, int level,
-                          int hint = 0 /*IOPRIO_HINT_NONE*/);
+                          int hint = IOPRIO_HINT_NONE);
 
 // Convenience function to set I/O priority on thread tid. If io_class or
 // io_priority_level is < 0, this function has no effect.
 // The return value is void so it can be used as a closure.
 void SetThreadIOPriority(int io_class, int io_priority_level,
-                         int hint = 0 /*IOPRIO_HINT_NONE*/);
+                         int hint = IOPRIO_HINT_NONE);
 
 // Returns I/O priority settings for the given process.  Either output
 // parameter may be NULL if you aren't interested in it. Always returns true.
@@ -61,7 +62,7 @@ bool GetIOPriority(pid_t pid, IOPriorityClass* io_priority_class, int* level,
 // and level. Should only be used by low-level code that must directly set
 // IO priority via system calls.
 int MakeSystemIOPriority(IOPriorityClass io_priority_class, int level,
-                         int hint = 0 /*IOPRIO_HINT_NONE*/);
+                         int hint = IOPRIO_HINT_NONE);
 
 // Extracts the CDL hint from the system IO priority (reverse of
 // `MakeSystemIOPriority`).

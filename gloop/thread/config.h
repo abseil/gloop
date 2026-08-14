@@ -71,4 +71,12 @@
 #define THREAD_HAVE_POSIX_THREADS 1
 #endif
 
+// Indicates that the io_priority_level and io_class fields in thread::Options
+// take effect on this platform.
+#ifdef THREAD_HAVE_IOPRIORITY
+#error THREAD_HAVE_IOPRIORITY cannot be set directly
+#elif defined(__linux__) && !defined(__ANDROID__)
+#define THREAD_HAVE_IOPRIORITY 1
+#endif
+
 #endif  // THIRD_PARTY_GLOOP_THREAD_CONFIG_H_

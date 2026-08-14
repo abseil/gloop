@@ -138,8 +138,11 @@
 #include "gloop/thread/watchdog.h"
 #include "gloop/util/functional/with_context.h"
 #include "gloop/util/gtl/intrusive_list.h"
-#include "gloop/util/priority/io-priority.h"
 #include "tcmalloc/malloc_extension.h"
+
+#ifdef THREAD_HAVE_IOPRIORITY
+#include "gloop/util/priority/io-priority.h"
+#endif
 
 #ifdef MAP_STACK
 // Linux specific, available since 2.6.27 and glibc-2.19
@@ -659,7 +662,7 @@ void Thread::Start(absl::SourceLocation loc) {
       if (options_.sched_priority() < 0) {
         sched_param.sched_priority = sched_get_priority_max(SCHED_FIFO) - 1;
       } else {
-#if !defined(__Fuchsia__) && !defined(__ANDROID__)
+#ifdef THREAD_HAVE_IOPRIORITY
         // pthread_attr_setinheritsched call below is needed for the
         // sched policy and priority to work in ThreadTest.SchedPriority
         // test in thread_unittest.cc (when it is run manually as root).
@@ -1418,6 +1421,7 @@ void* Thread::ThreadBody(void* arg) {
   }
 #endif  // defined(__Fuchsia__)
 
+#ifdef THREAD_HAVE_IOPRIORITY
   int io_priority_level = this_thread->options_.io_priority_level();
   IOPriorityClass io_class =
       static_cast<IOPriorityClass>(this_thread->options_.io_class());
@@ -1430,6 +1434,7 @@ void* Thread::ThreadBody(void* arg) {
   if (this_thread->subcontainer_ != nullptr) {
     this_thread->subcontainer_->RegisterThread();
   }
+#endif
 
 #ifdef HAVE_GOOGLE_THREAD_STACK
   // Retrieve the current thread's stack and annotate it with a named VMA to

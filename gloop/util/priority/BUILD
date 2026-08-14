@@ -21,42 +21,17 @@ load("@rules_cc//cc:cc_test.bzl", "cc_test")
 
 package(
     default_applicable_licenses = ["//gloop:license"],
+    default_visibility = ["//visibility:public"],
     features = ["header_modules"],
 )
 
 cc_library(
     name = "io-priority",
-    hdrs = ["io-priority.h"],
-    visibility = ["//visibility:public"],
-    deps = select({
-        "@platforms//os:linux": [":io-priority_real"],
-        "//conditions:default": [":io-priority_stub"],
-    }) + [
-        "//gloop:enforce_gloop_support",
-        "//gloop/base:port",
-        "@abseil-cpp//absl/flags:flag",
-    ],
-)
-
-cc_library(
-    name = "io-priority_stub",
-    srcs = ["io-priority_stub.cc"],
-    hdrs = ["io-priority.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "//gloop/base:port",
-        "@abseil-cpp//absl/flags:flag",
-    ],
-)
-
-cc_library(
-    name = "io-priority_real",
     srcs = ["io-priority.cc"],
     hdrs = ["io-priority.h"],
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base:linux_syscall_support",
-        "//gloop/base:port",
         "//gloop/base:sysinfo",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/flags:flag",
