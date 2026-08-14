@@ -20,13 +20,11 @@
 
 #include "gloop/thread/simple_weighted_semaphore.h"
 
-#include <stdio.h>
-#include <unistd.h>
-
 #include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <string>
 
 #include "absl/base/attributes.h"
 #include "absl/base/const_init.h"
@@ -34,14 +32,17 @@
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/random/random.h"
+#include "absl/strings/str_cat.h"
 #include "absl/synchronization/blocking_counter.h"
 #include "absl/synchronization/mutex.h"
-#include "gloop/base/init_google.h"
+#include "absl/time/clock.h"
+#include "absl/time/time.h"
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
 #include "gloop/thread/threadlocal.h"
 #include "gloop/thread/threadpool.h"
 #include "gloop/util/random/acmrandom.h"
+#include "gtest/gtest.h"
 
 namespace {
 
@@ -123,7 +124,7 @@ SemaphoreTest::SemaphoreTest(uint64_t limit, int count_tasks,
   throttle_ = new SimpleWeightedSemaphore(limit_);
   LOG(INFO) << "Throttle limit " << limit_ << " Oscillation range "
             << oscillation_range_;
-  CHECK(count_controllers < kNumWorkerThreads)
+  CHECK_LT(count_controllers, kNumWorkerThreads)
       << ": This test doesn't support having all its threads used as "
          "controllers";
 }
@@ -152,7 +153,7 @@ void SemaphoreTest::Run() {
   // while other threads may be using it...)
   finished_.Wait();
 
-  CHECK_EQ(done_ + skipped_ + adjusts_, count_tasks_);
+  EXPECT_EQ(done_ + skipped_ + adjusts_, count_tasks_);
   LOG(INFO) << " Max cost: " << max_cost_
             << " Average: " << static_cast<double>(total_cost_) / done_;
 }
@@ -204,7 +205,7 @@ void SemaphoreTest::StartTasks(int num) {
 }
 
 void SemaphoreTest::WriteDone(int task_num, uint64_t cost, uint64_t msec) {
-  CHECK(throttle_ != nullptr);
+  CHECK_NE(throttle_, nullptr);
   uint64_t pending = throttle_->pending_cost();
 
   {
@@ -212,7 +213,7 @@ void SemaphoreTest::WriteDone(int task_num, uint64_t cost, uint64_t msec) {
     done_++;
     total_cost_ += pending;
     max_cost_ = std::max(max_cost_, pending);
-    CHECK_LE(done_ + skipped_ + adjusts_, count_tasks_);
+    EXPECT_LE(done_ + skipped_ + adjusts_, count_tasks_);
     if (done_ % 1000 == 0) VLOG(1) << done_ << " done";
     VLOG(1) << "Task " << task_num << " executed: " << done_ << " done, "
             << pending << " pending";
@@ -237,28 +238,59 @@ void SemaphoreTest::WriteDone(int task_num, uint64_t cost, uint64_t msec) {
   finished_.DecrementCount();
 }
 
-void Test(uint64_t throttle_limit, int count_tasks, int count_controllers,
-          bool test_oscillation) {
-  LOG(INFO) << "Starting test: Throttle limit " << throttle_limit << ", "
-            << count_tasks << " tasks started from " << count_controllers
-            << " threads";
-  if (test_oscillation) LOG(INFO) << "Testing capacity oscillation";
-  SemaphoreTest test(throttle_limit, count_tasks, count_controllers,
-                     test_oscillation);
+struct SemaphoreTestParams {
+  uint64_t throttle_limit;
+  int count_tasks;
+  int count_controllers;
+  bool test_oscillation;
+};
+
+class SimpleWeightedSemaphoreThrottleTest
+    : public ::testing::TestWithParam<SemaphoreTestParams> {};
+
+TEST_P(SimpleWeightedSemaphoreThrottleTest, Throttle) {
+  const SemaphoreTestParams& params = GetParam();
+  SemaphoreTest test(params.throttle_limit, params.count_tasks,
+                     params.count_controllers, params.test_oscillation);
   test.Run();
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    , SimpleWeightedSemaphoreThrottleTest,
+    ::testing::Values(
+        // Test the throttle at a range of speeds
+        SemaphoreTestParams{1, 500, 1, false},
+        SemaphoreTestParams{10, 5000, 1, false},
+        SemaphoreTestParams{50, 5000, 1, false},
+        SemaphoreTestParams{500, 50000, 1, false},
+        SemaphoreTestParams{5000, 50000, 1, false},
+        // Test starting tasks from multiple threads
+        SemaphoreTestParams{50, 50000, 5, false},
+        SemaphoreTestParams{5000, 50000, -1, false},
+        // Test oscillating capacity
+        SemaphoreTestParams{50, 50000, 5, true}),
+    [](const ::testing::TestParamInfo<SemaphoreTestParams>& info) {
+      std::string controllers =
+          info.param.count_controllers == -1
+              ? "Max"
+              : absl::StrCat(info.param.count_controllers);
+      return absl::StrCat("Limit", info.param.throttle_limit, "_Tasks",
+                          info.param.count_tasks, "_Controllers", controllers,
+                          info.param.test_oscillation ? "_Oscillating" : "");
+    });
 
 // Helper thread for OverflowAcquireTest().
 class OverflowAcquireTestThread : public Thread {
  public:
   explicit OverflowAcquireTestThread(SimpleWeightedSemaphore* sem) : sem_(sem) {
-    CHECK(sem_);
+    CHECK_NE(sem_, nullptr);
     SetJoinable(true);
   }
 
  protected:
-  virtual void Run() {
-    sleep(2);  // Give the Acquire() call a chance to run first.
+  void Run() override {
+    absl::SleepFor(
+        absl::Seconds(2));  // Give the Acquire() call a chance to run first.
     sem_->Release(1);
   }
 
@@ -270,14 +302,14 @@ class OverflowAcquireTestThread : public Thread {
 // SimpleWeightedSemaphore::Acquire() where if pending_cost_ + cost would
 // overflow a uint64, we would allow the acquisition to happen, but then CHECK
 // and crash the program.  Ensure that we've fixed this bug.
-void OverflowAcquireTest() {
+TEST(SimpleWeightedSemaphoreTest, OverflowAcquire) {
   LOG(INFO) << "Starting test: Overflow Acquire.";
   SimpleWeightedSemaphore sem(std::numeric_limits<uint64_t>::max());
-  CHECK(sem.Acquire(std::numeric_limits<uint64_t>::max()));
+  ASSERT_TRUE(sem.Acquire(std::numeric_limits<uint64_t>::max()));
   OverflowAcquireTestThread thread(&sem);
   thread.Start();
   // We won't be able to Acquire() until |thread| has called Release().
-  CHECK(sem.Acquire(1));
+  EXPECT_TRUE(sem.Acquire(1));
   thread.Join();
   sem.Release(std::numeric_limits<uint64_t>::max());
   LOG(INFO) << "Finishing test: Overflow Acquire.";
@@ -289,14 +321,14 @@ void TryToAcquireAlways(SimpleWeightedSemaphore* s, bool* started) {
   {
     absl::MutexLock l(always_acquire_mutex_);
     *started = true;
-    CHECK(s->stopped());
+    EXPECT_TRUE(s->stopped());
   }
   s->AcquireAlways(1);
-  CHECK(!s->stopped());
+  EXPECT_FALSE(s->stopped());
   s->Release(1);
 }
 
-void AcquireAlwaysTest() {
+TEST(SimpleWeightedSemaphoreTest, AcquireAlways) {
   SimpleWeightedSemaphore s(10);
   s.Stop();
 
@@ -316,40 +348,14 @@ void AcquireAlwaysTest() {
   ct.Join();
 }
 
-void SimpleWeightedSemaphoreLockTest() {
+TEST(SimpleWeightedSemaphoreTest, SimpleWeightedSemaphoreLock) {
   SimpleWeightedSemaphore s(1);
   {
     SimpleWeightedSemaphoreLock lock(&s, 1);
-    CHECK(!s.TryAcquire(1));
+    EXPECT_FALSE(s.TryAcquire(1));
   }
   s.AcquireAlways(1);
   s.Release(1);
 }
 
 }  // namespace
-
-int main(int argc, char** argv) {
-  InitGoogle(argv[0], &argc, &argv, true);
-
-  // Test the throttle at a range of speeds
-  Test(1, 500, 1, false);
-  Test(10, 5000, 1, false);
-  Test(50, 5000, 1, false);
-  Test(500, 50000, 1, false);
-  Test(5000, 50000, 1, false);
-
-  // Test starting tasks from multiple threads
-  Test(50, 50000, 5, false);
-  Test(5000, 50000, -1, false);
-
-  // Test oscillating capacity
-  Test(50, 50000, 5, true);
-
-  OverflowAcquireTest();
-
-  AcquireAlwaysTest();
-
-  SimpleWeightedSemaphoreLockTest();
-
-  printf("PASS\n");
-}
