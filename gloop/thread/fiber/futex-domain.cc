@@ -58,15 +58,15 @@ namespace {
 #define SHOULD_TRACE 0
 
 #if SHOULD_TRACE
-#define FUTEX_DOMAIN_TRACE(...)       \
-  do {                                \
-    ABSL_RAW_LOG(ERROR, __VA_ARGS__); \
+#define FUTEX_DOMAIN_TRACE(format, ...)         \
+  do {                                          \
+    ABSL_RAW_LOG(ERROR, format, ##__VA_ARGS__); \
   } while (0)
 #else
 void UNUSED(...) {}
-#define FUTEX_DOMAIN_TRACE(...) \
-  do {                          \
-    UNUSED(__VA_ARGS__);        \
+#define FUTEX_DOMAIN_TRACE(format, ...) \
+  do {                                  \
+    UNUSED(format, ##__VA_ARGS__);      \
   } while (0)
 #endif
 
@@ -394,7 +394,8 @@ inline bool FutexDomain::RawSwap(FutexDomainThread* curr,
   }
 
   // Step 3: do the Swap.
-  FUTEX_DOMAIN_TRACE("RawSwap %p => %p %p", curr, next, abs_timeout);
+  FUTEX_DOMAIN_TRACE("RawSwap %p => %p timeout=%d", curr, next,
+                     abs_timeout.has_timeout());
   int ret;
   if (!abs_timeout.has_timeout()) {
     ret = Futex::Swap(curr->futex(), FutexDomainThread::kBlocked, nullptr,
