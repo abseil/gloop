@@ -54,7 +54,6 @@ cc_library(
         "//gloop/util/gtl:container_logging",
         "//gloop/util/os/core:cpu_set",
         "@abseil-cpp//absl/algorithm:container",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:cpu_detect",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/flags:flag",
