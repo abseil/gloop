@@ -1,4 +1,4 @@
-syntax = "proto2";
+edition = "2023";
 
 package util.error;
 
@@ -25,6 +25,8 @@ option objc_class_prefix = "GERR";  // Google Error
 //
 // For mapping between these codes and HTTP codes, see <link>
 enum Code {
+  option features.enum_type = CLOSED;
+
   // Not an error; returned on success.
   OK = 0;
 
