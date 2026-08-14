@@ -28,10 +28,8 @@ cc_library(
     name = "io-priority",
     hdrs = ["io-priority.h"],
     visibility = ["//visibility:public"],
-    deps = select({
-        "@platforms//os:linux": [":io-priority_real"],
-        "//conditions:default": [":io-priority_stub"],
-    }) + [
+    deps = [
+        ":io-priority_stub",
         "//gloop:enforce_gloop_support",
         "//gloop/base:port",
         "@abseil-cpp//absl/flags:flag",
