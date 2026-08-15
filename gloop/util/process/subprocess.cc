@@ -1079,8 +1079,8 @@ void SubProcess::ForkedChild(struct ChildArgs* args) {
   // executing synchronous signals (such as SIGILL, SIGFPE, SIGSEGV, SIGBUS,
   // or SIGTRAP). Reset them to SIG_DFL.
   for (int signo : {SIGABRT, SIGILL, SIGFPE, SIGSEGV, SIGBUS}) {
-    static constexpr struct kernel_sigaction act = {.sa_handler_ = SIG_DFL,
-                                                    .sa_flags = SA_RESTART};
+    static const struct kernel_sigaction act = {.sa_handler_ = SIG_DFL,
+                                                .sa_flags = SA_RESTART};
     lss_sigaction(signo, &act, nullptr, &child_errno_);
   }
 
