@@ -76,12 +76,12 @@ std::string StringToHexASCIIDumpAtOffset(int offset,
   return s;
 }
 
-bool HexASCIIDumpToString(const std::string& in_dump, std::string* out_string,
+bool HexASCIIDumpToString(absl::string_view in_dump, std::string* out_string,
                           std::string* error) {
   return false;
 }
 
-std::string HexASCIIDumpToStringOrDie(const std::string& in_dump) {
+std::string HexASCIIDumpToStringOrDie(absl::string_view in_dump) {
   std::string out_string;
   std::string error;
   CHECK(HexASCIIDumpToString(in_dump, &out_string, &error))
