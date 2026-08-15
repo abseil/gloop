@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // This defines some convenience functions for manipulating cpu_set_t
 // provided by glibc.  Use this if you need to deal with syscalls which expect
 // to use cpu_set_t arguments, such as sched_setaffinity().
@@ -70,7 +64,7 @@ bool HexStringToCpuSet(absl::string_view in_str, cpu_set_t* cpu_set);
 // Converts a hex string (with or without prefix) to a cpu_set_t and returns the
 // result. The LSB is assumed to be CPU 0. Generates a fatal log error if the
 // string does not parse.
-cpu_set_t HexStringToCpuSet(const std::string& in_str);
+cpu_set_t HexStringToCpuSet(absl::string_view in_str);
 
 // Clear all the bits in a cpu_set_t. This is a type-safe wrapper around
 // CPU_ZERO.

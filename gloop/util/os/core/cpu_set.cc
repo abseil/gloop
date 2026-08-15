@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Implementation of the convenience functions for manipulating cpu_set_t
 // provided by glibc.
 
@@ -143,7 +137,7 @@ bool HexStringToCpuSet(absl::string_view in_str, cpu_set_t* cpu_set) {
   return true;
 }
 
-cpu_set_t HexStringToCpuSet(const std::string& in_str) {
+cpu_set_t HexStringToCpuSet(absl::string_view in_str) {
   cpu_set_t cpu_set;
   if (!HexStringToCpuSet(in_str, &cpu_set)) {
     LOG(FATAL) << "Cannot parse hex string: " << in_str;

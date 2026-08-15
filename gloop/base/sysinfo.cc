@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 //
 // Typically, these routines will all be os, and possibly processor,
 // specific.  Every routine should thus be protected by ifdefs so
@@ -45,11 +39,13 @@
 #include <atomic>
 #include <cstdint>
 #include <iterator>
-#include <map>
 #include <set>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "absl/container/flat_hash_map.h"
+#include "absl/strings/string_view.h"
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>  // for TARGET_OS_* defines
@@ -127,18 +123,17 @@ const int kTicksPerSecond = 100;  // 100 is standard on Unix.
 // -- these functions might be called a lot, and would give the same
 // error each time!
 ABSL_CONST_INIT static absl::Mutex error_map_lock(absl::kConstInit);
-// TODO: Determine whether std::unordered_map would outperform
-// std::map.
-static std::map<std::string, int>* error_map = nullptr;
+static absl::flat_hash_map<std::string, int>* error_map = nullptr;
 
 // Increment the count for the error class associated with "name", and
 // return the old value of the count.  We use this to avoid logging a
 // particular message too often.
-static int NumTimesLogged(const char* name) {
-  absl::MutexLock l(error_map_lock);
-  if (error_map == nullptr) error_map = new std::map<std::string, int>;
-  int num_times_logged = (*error_map)[std::string(name)]++;
-  return num_times_logged;
+static int NumTimesLogged(absl::string_view name) {
+  if (error_map == nullptr) {
+    error_map = new absl::flat_hash_map<std::string, int>;
+  }
+  auto [it, inserted] = error_map->try_emplace(name, 0);
+  return it->second++;
 }
 
 static std::string DescribeErr(int err) {
@@ -419,8 +414,8 @@ int ReadProcFileToBuffer(const char* filename, pid_t pid, size_t max_size,
 // boundary, and use the left and right sides as key and value to
 // insert into the passed ProcMap.
 
-bool ReadProcMap(const std::string& path, ProcMap* res) {
-  FILE* f = OpenProcFile(path.c_str(), -1);
+bool ReadProcMap(absl::string_view path, ProcMap* res) {
+  FILE* f = OpenProcFile(std::string(path).c_str(), -1);
   if (!f) return false;
 
   // Scan through to find all keywords

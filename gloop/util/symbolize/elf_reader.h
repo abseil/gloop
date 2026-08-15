@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // ElfReader handles reading in ELF. It can extract symbols from the
 // current process, which may be used to symbolize stack traces
 // without having to make a potentially dangerous call to fork().
@@ -223,12 +217,12 @@ class ElfReader {
 
   // Check if "path" is an ELF binary that has not been stripped of symbol
   // tables.  This function supports both 32-bit and 64-bit ELF binaries.
-  static bool IsNonStrippedELFBinary(const std::string& path);
+  static bool IsNonStrippedELFBinary(absl::string_view path);
 
   // Check if "path" is an ELF binary that has not been stripped of debug
   // info. Unlike IsNonStrippedELFBinary, this function will return
   // false for binaries passed through "strip -S".
-  static bool IsNonDebugStrippedELFBinary(const std::string& path);
+  static bool IsNonDebugStrippedELFBinary(absl::string_view path);
 
  private:
   // Lazily initialize impl32_ and return it.

@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 #include "gloop/base/process_state.h"
 
 #if defined(BASE_PROCESS_STATE_USE_SYS_RESOURCE_H)
@@ -1531,16 +1525,17 @@ KernelVersionInfo* ReadAndParseKernelVersionString(const char* filename) {
   return info;
 }
 
-bool ParseKernelVersionString(const std::string& raw_string,
+bool ParseKernelVersionString(absl::string_view raw_string,
                               KernelVersion* const parsed_version) {
   // We assume that g_kernel_version (read from /proc/version) is of the form
   // "Linux version x.y.(z?) ...  #p ..."
   size_t pos = raw_string.find('.');
-  if (pos == std::string::npos) return false;
+  if (pos == absl::string_view::npos) return false;
   pos = raw_string.rfind(' ', pos);
-  if (pos == std::string::npos) return false;
+  if (pos == absl::string_view::npos) return false;
 
-  switch (sscanf(raw_string.c_str() + pos + 1, "%d.%d.%d",
+  std::string raw_str_copy(raw_string);
+  switch (sscanf(raw_str_copy.c_str() + pos + 1, "%d.%d.%d",
                  &parsed_version->major, &parsed_version->minor,
                  &parsed_version->micro)) {
     case 0:
@@ -1560,9 +1555,9 @@ bool ParseKernelVersionString(const std::string& raw_string,
     default:
       LOG(FATAL) << "unexpected parse result ";
   }
-  pos = raw_string.find('#', pos);
+  pos = raw_str_copy.find('#', pos);
   if (pos != std::string::npos) {
-    const char* patchpos = raw_string.c_str() + pos + 1;
+    const char* patchpos = raw_str_copy.c_str() + pos + 1;
     if (!strncmp("DEV", patchpos, 3) || !strncmp("gg", patchpos, 2)) {
       // Handle e.g. 2.4.18-smp #DEV (not from a release branch) or
       // 2.6.32-gg129 (gg129 = google build #)

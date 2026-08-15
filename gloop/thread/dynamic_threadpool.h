@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // DynamicThreadPool is an implementation of a ThreadPool which can be
 // configured to have at least a fixed minimum number of workers and can grow
 // dynamically to have atmost a fixed maximum number of workers.  The maximum

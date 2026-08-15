@@ -37,7 +37,6 @@ cc_library(
     hdrs = ["child_task_barrier.h"],
     deps = [
         ":task",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:callback",
         "//gloop/concurrent/barrier:incremental_barrier",
         "//gloop/thread",
@@ -59,7 +58,6 @@ cc_test(
         ":child_task_barrier",
         ":sync_task",
         ":task",
-        "//gloop:gloop_test_main",
         "//gloop/thread",
         "//gloop/util/status",
         "@abseil-cpp//absl/status",
@@ -79,7 +77,6 @@ cc_library(
     }),
     deps = [
         ":task",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:walltime",
         "//gloop/thread",
         "//gloop/thread:thread_manager",
@@ -97,7 +94,6 @@ cc_test(
         ":sleep",
         ":sync_task",
         ":task",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_matchers",
         "@abseil-cpp//absl/synchronization",
@@ -116,7 +112,6 @@ cc_library(
     }),
     deps = [
         ":task",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:context",
         "//gloop/thread",
         "//gloop/thread:config",
@@ -139,7 +134,6 @@ cc_test(
         ":sleep",
         ":sync_task",
         ":task",
-        "//gloop:gloop_test_main",
         "//gloop/base:context",
         "//gloop/base:timer",
         "//gloop/thread",
@@ -164,7 +158,6 @@ cc_library(
         "//conditions:default": [],
     }),
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:context",
         "//gloop/base:spinlock",
         "//gloop/perftools/tracing:trace_source_location",
@@ -194,7 +187,6 @@ cc_test(
     srcs = ["task_test.cc"],
     deps = [
         ":task",
-        "//gloop:gloop_test_main",
         "//gloop/base:context",
         "//gloop/base:tracecontext",
         "//gloop/perftools/tracing:mock_trace_event_listener",
