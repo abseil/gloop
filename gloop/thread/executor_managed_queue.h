@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // This is an alternative implementation of ThreadManager that leverages another
 // executor as a source for underlying parallelism. That executor could be a
 // global executor or a bespoke one.

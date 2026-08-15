@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Utilities for dealing with hex+ASCII dumps.
 
 #include "gloop/strings/hex_ascii_dump.h"
@@ -76,12 +70,12 @@ std::string StringToHexASCIIDumpAtOffset(int offset,
   return s;
 }
 
-bool HexASCIIDumpToString(const std::string& in_dump, std::string* out_string,
+bool HexASCIIDumpToString(absl::string_view in_dump, std::string* out_string,
                           std::string* error) {
   return false;
 }
 
-std::string HexASCIIDumpToStringOrDie(const std::string& in_dump) {
+std::string HexASCIIDumpToStringOrDie(absl::string_view in_dump) {
   std::string out_string;
   std::string error;
   CHECK(HexASCIIDumpToString(in_dump, &out_string, &error))
