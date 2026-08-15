@@ -251,7 +251,11 @@ bool Domain::TryCleanupLocked(size_t* fences) {
 }
 
 void Domain::RunCallbacksLocked(size_t phase) {
-  callbacks_[phase].Iterate(+[](CallData cd) { cd.func(cd.data); });
+  callbacks_[phase].Iterate(+[](CallData cd) {
+    if (cd.func != nullptr) {
+      cd.func(cd.data);
+    }
+  });
 }
 
 void Domain::MaybeInitStaticHandlesLocked() {
@@ -355,6 +359,7 @@ void Domain::Enqueue() {
 void Domain::CallRaw(void (*func)(void*), void* data) {
   ABSL_RAW_CHECK(internal::CleanupEnabled(),
                  "did not call Domain::EnableCleanup");
+  if (func == nullptr) return;
   CallData cd = {func, data};
   QueueCallback(cd);
   Enqueue();
