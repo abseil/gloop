@@ -242,7 +242,9 @@ class WrapperManagedQueue final : public ManagedQueue {
                   absl::AnyInvocable<void() &&> callback) override {
     impl_->ScheduleAt(when, std::move(callback));
   }
-  int num_pending_closures() const override { return 0; }
+  int num_pending_closures() const override {
+    return impl_->num_pending_closures();
+  }
   void WaitUntilComplete() override { impl_->WaitUntilComplete(); }
 
   ManagedQueueStats Stats() const override { return impl_->Stats(); }
