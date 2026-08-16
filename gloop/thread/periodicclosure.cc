@@ -33,6 +33,7 @@
 #include "absl/time/time.h"
 #include "absl/types/source_location.h"
 #include "gloop/thread/thread.h"
+#include "gloop/thread/thread_options.h"
 #include "gloop/thread/wait_state.h"
 
 namespace thread {
@@ -64,8 +65,7 @@ void PeriodicClosure::Start(absl::SourceLocation loc) {
   // a large time delay immediately after calling Start.)
   auto c = absl::bind_front(&PeriodicClosure::RunLoop, this,
                             options_.clock()->TimeNow());
-  thread_ =
-      new ClosureThread(options_.thread_options(), options_.name_prefix(), c);
+  thread_ = new ClosureThread(thread::Options(), options_.name_prefix(), c);
 
   thread_->SetJoinable(true);
   thread_->Start(loc);

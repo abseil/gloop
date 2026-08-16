@@ -85,16 +85,6 @@ class PeriodicClosureOptions {
  public:
   PeriodicClosureOptions();
 
-  // Any standard thread options, such as stack size, should
-  // be passed via "thread_options".
-  const thread::Options& thread_options() const { return thread_options_; }
-  thread::Options* mutable_thread_options() { return &thread_options_; }
-  PeriodicClosureOptions& set_thread_options(
-      const thread::Options& thread_options) {
-    thread_options_ = thread_options;
-    return *this;
-  }
-
   // Specifies the thread name prefix (see the description in class Thread).
   const std::string& name_prefix() const { return name_prefix_; }
   PeriodicClosureOptions& set_name_prefix(absl::string_view name_prefix) {
@@ -123,7 +113,6 @@ class PeriodicClosureOptions {
   }
 
  private:
-  thread::Options thread_options_;
   std::string name_prefix_;
   absl::Clock* clock_;
   absl::Duration startup_delay_;
