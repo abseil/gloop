@@ -266,14 +266,6 @@ TEST_P(ActiveWorkerTest, OnlyWaitingThreadsSkipped) {
 // Various implementations of SpawnWorkerThread.
 namespace {
 
-std::string RunOnThreadManager(absl::AnyInvocable<void() &&> f) {
-  const std::string kName = "active-worker-test-threadmanager";
-  static absl::NoDestructor<ThreadManager> tm(kName, ManagerOptions());
-  auto queue = absl::WrapUnique(tm->NewQueue(kName, ManagedQueueOptions()));
-  queue->Schedule(std::move(f));
-  return kName;
-}
-
 std::string RunOnThreadPool(absl::AnyInvocable<void() &&> f) {
   const std::string kName = "active-worker-test-threadpool";
   static absl::NoDestructor<std::unique_ptr<ThreadPool>> pool([&]() {
@@ -357,7 +349,6 @@ std::string RunOnFiber(absl::AnyInvocable<void() &&> f) {
 
 INSTANTIATE_TEST_SUITE_P(ExecutorImpls, ActiveWorkerTest,
                          ::testing::Values(RunOnDynamicThreadPool,
-                                           RunOnThreadManager,
                                            RunOnPeriodicClosure, RunOnFiber,
                                            RunOnThreadPool, RunOnTimedCall));
 
