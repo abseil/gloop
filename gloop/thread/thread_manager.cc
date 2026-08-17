@@ -1277,7 +1277,7 @@ static bool TMCanUseDefaultExecutor(const Options& options) {
   if (options.stack_size() > base.stack_size()) return false;
   if (options.guard_size() > base.guard_size()) return false;
   if (options.scheduling_policy() != base.scheduling_policy()) return false;
-  if (options.sched_priority() != base.sched_priority()) return false;
+  if (options.get_sched_priority() != base.get_sched_priority()) return false;
   if (options.nice_priority_level() != base.nice_priority_level()) return false;
   if (options.io_class() != base.io_class()) return false;
   if (options.io_priority_level() != base.io_priority_level()) return false;

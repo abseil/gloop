@@ -148,7 +148,10 @@ class Options {
     return *this;
   }
 
-  int sched_priority() const { return sched_priority_; }
+  /** Return the scheduling priority. This is named differently because some
+   *  targets define a macro named `sched_priority` in global scope.
+   */
+  int get_sched_priority() const { return sched_priority_; }
 
   //
   // CAUTION: The following methods are not for general use

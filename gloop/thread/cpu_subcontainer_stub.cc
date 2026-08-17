@@ -20,13 +20,9 @@
 
 // Stub implementation for unsupported platforms.
 
+#include <string>
+
 #include "gloop/thread/cpu_subcontainer.h"
-
-#include "gloop/thread/config.h"
-
-#if THREAD_HAVE_CPU_SUBCONTAINERS
-#error Feature macros and BUILD file are out of sync.
-#endif
 
 thread::CpuSubContainer::CpuSubContainer(const std::string& path)
     : path_(path) {}

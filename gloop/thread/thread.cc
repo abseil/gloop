@@ -656,7 +656,7 @@ void Thread::Start(absl::SourceLocation loc) {
 #if !defined(__Fuchsia__)
       pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
 #endif
-      if (options_.sched_priority() < 0) {
+      if (options_.get_sched_priority() < 0) {
         sched_param.sched_priority = sched_get_priority_max(SCHED_FIFO) - 1;
       } else {
 #if !defined(__Fuchsia__) && !defined(__ANDROID__)
@@ -674,7 +674,7 @@ void Thread::Start(absl::SourceLocation loc) {
         // is set.
         pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
 #endif
-        sched_param.sched_priority = options_.sched_priority();
+        sched_param.sched_priority = options_.get_sched_priority();
       }
       pthread_attr_setschedparam(&attr, &sched_param);
       break;
