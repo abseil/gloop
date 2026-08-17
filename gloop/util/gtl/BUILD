@@ -1118,6 +1118,7 @@ cc_library(
         ":container_logging",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
     ],
 )
