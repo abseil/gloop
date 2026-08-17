@@ -191,6 +191,16 @@ TEST(PeriodicClosureTest, MinInterval) {
   pc.Stop();
 }
 
+TEST(PeriodicClosureTest, ThreadOptionsJoinable) {
+  PeriodicClosureOptions pco;
+  pco.mutable_thread_options()->set_joinable(false);
+  pco.set_name_prefix("not_joinable_thread_options");
+  PeriodicClosure pc([] {}, absl::ZeroDuration(), pco);
+
+  pc.Start();
+  pc.Stop();  // we should be able to Stop()
+}
+
 // Block until *run is true.  *run is protected by *mu.
 static void ProceedWhenTrue(absl::Mutex* mu, bool* run) {
   mu->LockWhen(absl::Condition(run));
