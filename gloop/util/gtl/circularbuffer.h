@@ -43,6 +43,7 @@
 #include <utility>
 
 #include "absl/algorithm/container.h"
+#include "absl/base/macros.h"
 #include "absl/log/check.h"
 #include "gloop/util/gtl/container_logging.h"
 
@@ -310,12 +311,12 @@ class CircularBuffer {
   // For pos < 0, returns the item at logical position 'pos + size()'
   reference at(difference_type pos) {
     size_type logical = pos + (pos < 0) * size_;
-    DCHECK_LT(logical, size_);
+    ABSL_HARDENING_ASSERT(logical < size_);
     return space_[logical_to_absolute(logical)];
   }
   const_reference at(difference_type pos) const {
     size_type logical = pos + (pos < 0) * size_;
-    DCHECK_LT(logical, size_);
+    ABSL_HARDENING_ASSERT(logical < size_);
     return space_[logical_to_absolute(logical)];
   }
 
@@ -381,19 +382,19 @@ class CircularBuffer {
 
   // Pre: logical in [0, size).
   size_type logical_to_absolute(size_type logical) const {
-    DCHECK_LT(logical, size_);
+    ABSL_HARDENING_ASSERT(logical < size_);
     size_type absolute = begin_ + logical;
     if (absolute >= capacity_) absolute -= capacity_;
-    DCHECK_LT(absolute, capacity_);
+    ABSL_HARDENING_ASSERT(absolute < capacity_);
     return absolute;
   }
 
   // Pre: absolute in [0, capacity).
   size_type absolute_to_logical(size_type absolute) const {
-    DCHECK_LT(absolute, capacity_);
+    ABSL_HARDENING_ASSERT(absolute < capacity_);
     size_type logical = capacity_ - begin_ + absolute;
     if (logical >= capacity_) logical -= capacity_;
-    DCHECK_LE(logical, capacity_);
+    ABSL_HARDENING_ASSERT(logical <= capacity_);
     return logical;
   }
 
