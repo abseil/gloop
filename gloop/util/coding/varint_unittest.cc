@@ -22,27 +22,30 @@
 
 #include "gloop/util/coding/varint.h"
 
-#include <stdio.h>
-#include <time.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <ctime>
 #include <limits>
 #include <string>
 #include <vector>
 
 #include "absl/container/fixed_array.h"
-#include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/random/random.h"
 #include "benchmark/benchmark.h"
 #include "gloop/util/gtl/unique_array.h"
 #include "gloop/util/random/acmrandom.h"
 #include "gloop/util/random/distributions.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+namespace {
+
+using ::testing::IsNull;
+using ::testing::NotNull;
+
 // A straightforward implementation of Length64 for testing and benchmarking
-inline int Varint_Length64Old(uint64_t v) {
+int Varint_Length64Old(uint64_t v) {
   // Each byte of output stores 7 bits of "v" until "v" becomes zero
   int nbytes = 0;
   do {
@@ -52,7 +55,7 @@ inline int Varint_Length64Old(uint64_t v) {
   return nbytes;
 }
 
-inline int Varint_Length32Old(uint32_t v) {
+int Varint_Length32Old(uint32_t v) {
   // Each byte of output stores 7 bits of "v" until "v" becomes zero
   int nbytes = 0;
   do {
@@ -62,7 +65,7 @@ inline int Varint_Length32Old(uint32_t v) {
   return nbytes;
 }
 
-static char* Varint_Encode64Old(char* ptr, uint64_t v) {
+char* Varint_Encode64Old(char* ptr, uint64_t v) {
   static const int B = 128;
   do {
     // Encode next 7 bits + terminator bit
@@ -74,63 +77,61 @@ static char* Varint_Encode64Old(char* ptr, uint64_t v) {
 }
 
 TEST(VarintTest, Length32) {
-  CHECK_EQ(Varint::Length32(0), 1);
-  CHECK_EQ(Varint::Length32(1), 1);
-  CHECK_EQ(Varint::Length32(127), 1);
-  CHECK_EQ(Varint::Length32(128), 2);
-  CHECK_EQ(Varint::Length32(16383), 2);
-  CHECK_EQ(Varint::Length32(16384), 3);
-  CHECK_EQ(Varint::Length32((uint32_t)1 << 31), Varint::kMax32);
+  EXPECT_EQ(Varint::Length32(0), 1);
+  EXPECT_EQ(Varint::Length32(1), 1);
+  EXPECT_EQ(Varint::Length32(127), 1);
+  EXPECT_EQ(Varint::Length32(128), 2);
+  EXPECT_EQ(Varint::Length32(16383), 2);
+  EXPECT_EQ(Varint::Length32(16384), 3);
+  EXPECT_EQ(Varint::Length32(uint32_t{1} << 31), Varint::kMax32);
   // Check around each power of two
   for (int i = 0; i < 32; i++) {
     uint32_t v = (1ull << i);
-    CHECK_EQ(Varint::Length32(v - 1), Varint_Length32Old(v - 1));
-    CHECK_EQ(Varint::Length32(v), Varint_Length32Old(v));
-    CHECK_EQ(Varint::Length32(v + 1), Varint_Length32Old(v + 1));
+    EXPECT_EQ(Varint::Length32(v - 1), Varint_Length32Old(v - 1));
+    EXPECT_EQ(Varint::Length32(v), Varint_Length32Old(v));
+    EXPECT_EQ(Varint::Length32(v + 1), Varint_Length32Old(v + 1));
   }
-  CHECK_EQ(Varint::Length32(((uint32_t)1 << 21) - 1), 3);
-  CHECK_EQ(Varint::Length32((uint32_t)1 << 21), 4);
-  CHECK_EQ(Varint::Length32((uint32_t)1 << 31), Varint::kMax32);
-  CHECK_EQ(Varint::Length32(~0u), Varint::kMax32);
+  EXPECT_EQ(Varint::Length32((uint32_t{1} << 21) - 1), 3);
+  EXPECT_EQ(Varint::Length32(uint32_t{1} << 21), 4);
+  EXPECT_EQ(Varint::Length32(uint32_t{1} << 31), Varint::kMax32);
+  EXPECT_EQ(Varint::Length32(~0u), Varint::kMax32);
 
   char buf[Varint::kMax32];
   ACMRandom rnd(301);
   for (int i = 0; i < 100000; i++) {
     uint32_t v = absl::Uniform<uint32_t>(rnd);
     const char* p = Varint::Encode32(buf, v);
-    CHECK_EQ(Varint::Length32(v), Varint_Length32Old(v));
-    CHECK_EQ(Varint::Length32(v), p - buf);
-    CHECK_EQ(Varint::Length32(v), p - buf);
+    EXPECT_EQ(Varint::Length32(v), Varint_Length32Old(v));
+    EXPECT_EQ(Varint::Length32(v), p - buf);
   }
 }
 
 TEST(VarintTest, Length64) {
-  CHECK_EQ(Varint::Length64(0), 1);
-  CHECK_EQ(Varint::Length64(1), 1);
-  CHECK_EQ(Varint::Length64(127), 1);
-  CHECK_EQ(Varint::Length64(128), 2);
-  CHECK_EQ(Varint::Length64(16383), 2);
-  CHECK_EQ(Varint::Length64(16384), 3);
+  EXPECT_EQ(Varint::Length64(0), 1);
+  EXPECT_EQ(Varint::Length64(1), 1);
+  EXPECT_EQ(Varint::Length64(127), 1);
+  EXPECT_EQ(Varint::Length64(128), 2);
+  EXPECT_EQ(Varint::Length64(16383), 2);
+  EXPECT_EQ(Varint::Length64(16384), 3);
   // Check around each power of two
   for (int i = 0; i < 63; i++) {
     uint64_t v = (1ull << i);
-    CHECK_EQ(Varint::Length64(v - 1), Varint_Length64Old(v - 1));
-    CHECK_EQ(Varint::Length64(v), Varint_Length64Old(v));
-    CHECK_EQ(Varint::Length64(v + 1), Varint_Length64Old(v + 1));
+    EXPECT_EQ(Varint::Length64(v - 1), Varint_Length64Old(v - 1));
+    EXPECT_EQ(Varint::Length64(v), Varint_Length64Old(v));
+    EXPECT_EQ(Varint::Length64(v + 1), Varint_Length64Old(v + 1));
   }
-  CHECK_EQ(Varint::Length64(((uint64_t)1 << 21) - 1), 3);
-  CHECK_EQ(Varint::Length64((uint64_t)1 << 21), 4);
-  CHECK_EQ(Varint::Length64((uint64_t)1 << 63), Varint::kMax64);
-  CHECK_EQ(Varint::Length64(~0ull), Varint::kMax64);
+  EXPECT_EQ(Varint::Length64((uint64_t{1} << 21) - 1), 3);
+  EXPECT_EQ(Varint::Length64(uint64_t{1} << 21), 4);
+  EXPECT_EQ(Varint::Length64(uint64_t{1} << 63), Varint::kMax64);
+  EXPECT_EQ(Varint::Length64(~0ull), Varint::kMax64);
 
   char buf[Varint::kMax64];
   ACMRandom rnd(301);
   for (int i = 0; i < 100000; i++) {
     uint64_t v = absl::Uniform<uint64_t>(rnd);
     const char* p = Varint::Encode64(buf, v);
-    CHECK_EQ(Varint::Length64(v), Varint_Length64Old(v));
-    CHECK_EQ(Varint::Length64(v), p - buf);
-    CHECK_EQ(Varint::Length64(v), p - buf);
+    EXPECT_EQ(Varint::Length64(v), Varint_Length64Old(v));
+    EXPECT_EQ(Varint::Length64(v), p - buf);
   }
 }
 
@@ -146,17 +147,17 @@ TEST(VarintTest, EncodeParse32) {
   unsigned char n_encrypt[5] = {0xe7, 0xb0, 0xa6, 0x72, '\0'};
   char* end_s = Varint::Encode32(s, n);
   // now end_s - s represents the encryption length
-  CHECK_EQ(end_s - s, Varint::Length32(n));
+  EXPECT_EQ(end_s - s, Varint::Length32(n));
   *end_s = '\0';  // terminate the string
-  CHECK_STREQ(s, reinterpret_cast<char*>(n_encrypt));
+  EXPECT_STREQ(s, reinterpret_cast<char*>(n_encrypt));
 
   // now decrypt it and make sure that we get (a) the original result and
   // (b) the same encryption length
-  CHECK_EQ(end_s, Varint::Parse32(s, &n_decrypt));
-  CHECK_EQ(n, n_decrypt);
+  EXPECT_EQ(Varint::Parse32(s, &n_decrypt), end_s);
+  EXPECT_EQ(n_decrypt, n);
 
-  CHECK_EQ(end_s, Varint::Parse32Inline(s, &n_decrypt));
-  CHECK_EQ(n, n_decrypt);
+  EXPECT_EQ(Varint::Parse32Inline(s, &n_decrypt), end_s);
+  EXPECT_EQ(n_decrypt, n);
 }
 
 TEST(VarintTest, EncodeParse64) {
@@ -175,14 +176,14 @@ TEST(VarintTest, EncodeParse64) {
                                  0x8c, 0xe6, 0xa4, 0x0e, '\0'};
   char* end_s = Varint::Encode64(s, n);
   // now end_s - s represents the encryption length
-  CHECK_EQ(end_s - s, Varint::Length64(n));
+  EXPECT_EQ(end_s - s, Varint::Length64(n));
   *end_s = '\0';  // terminate the string
-  CHECK_STREQ(s, reinterpret_cast<char*>(n_encrypt));
+  EXPECT_STREQ(s, reinterpret_cast<char*>(n_encrypt));
 
   // now decrypt it and make sure that we get (a) the original result and
   // (b) the same encryption length
-  CHECK_EQ(end_s, Varint::Parse64(s, &n_decrypt));
-  CHECK_EQ(n, n_decrypt);
+  EXPECT_EQ(Varint::Parse64(s, &n_decrypt), end_s);
+  EXPECT_EQ(n_decrypt, n);
 }
 
 TEST(VarintTest, EncodeParseSkipExtensive) {
@@ -201,22 +202,22 @@ TEST(VarintTest, EncodeParseSkipExtensive) {
   for (int p = 0; p < 64; p++) {
     if (p < 32) {
       ptrc = Varint::Parse32(ptrc, &val32);
-      CHECK_EQ(val32, (1u << p));
+      EXPECT_EQ(val32, 1u << p);
     }
     ptrc = Varint::Parse64(ptrc, &val64);
-    CHECK_EQ(val64, (uint64_t{1} << p));
+    EXPECT_EQ(val64, uint64_t{1} << p);
   }
 
   // decode backward ('ptr' already points just past the end)
   for (int p = 63; p >= 0; --p) {
     if (p < 32) {
       ptrc = Varint::Parse32Backward(ptrc, buf.data(), &val32);
-      CHECK_EQ(val32, (1u << p));
+      EXPECT_EQ(val32, 1u << p);
     }
     ptrc = Varint::Parse64Backward(ptrc, buf.data(), &val64);
-    CHECK_EQ(val64, (uint64_t{1} << p));
+    EXPECT_EQ(val64, uint64_t{1} << p);
   }
-  CHECK(ptrc == buf.data());
+  EXPECT_EQ(ptrc, buf.data());
 
   // skip forward
   ptrc = buf.data();
@@ -230,14 +231,14 @@ TEST(VarintTest, EncodeParseSkipExtensive) {
     if (p < 32) ptrc = Varint::Skip32Backward(ptrc, buf.data());
     ptrc = Varint::Skip64Backward(ptrc, buf.data());
   }
-  CHECK(ptrc == buf.data());
+  EXPECT_EQ(ptrc, buf.data());
 
   // encode/decode 1000 random numbers in varint32 and varint64
   auto buf32 = gtl::MakeUniqueArrayForOverwrite<char>(1000 * Varint::kMax32);
   auto buf64 = gtl::MakeUniqueArrayForOverwrite<char>(1000 * Varint::kMax64);
   char* ptr32 = buf32.data();
   char* ptr64 = buf64.data();
-  ACMRandom rgen(time(nullptr));
+  ACMRandom rgen(std::time(nullptr));
   std::vector<uint64_t> values;
 
   for (int i = 0; i < 1000; ++i) {
@@ -253,24 +254,24 @@ TEST(VarintTest, EncodeParseSkipExtensive) {
   for (int i = 0; i < values.size(); ++i) {
     ptr32c = Varint::Parse32(ptr32c, &val32);
     ptr64c = Varint::Parse64(ptr64c, &val64);
-    CHECK_EQ(val32, static_cast<uint32_t>(values[i]));
-    CHECK_EQ(val64, values[i]);
+    EXPECT_EQ(val32, static_cast<uint32_t>(values[i]));
+    EXPECT_EQ(val64, values[i]);
   }
   // decode backward
   for (int i = values.size() - 1; i >= 0; --i) {
     ptr32c = Varint::Parse32Backward(ptr32c, buf32.data(), &val32);
     ptr64c = Varint::Parse64Backward(ptr64c, buf64.data(), &val64);
-    CHECK_EQ(val32, static_cast<uint32_t>(values[i]));
-    CHECK_EQ(val64, values[i]);
+    EXPECT_EQ(val32, static_cast<uint32_t>(values[i]));
+    EXPECT_EQ(val64, values[i]);
   }
-  CHECK(ptr32c == buf32.data());
-  CHECK(ptr64c == buf64.data());
+  EXPECT_EQ(ptr32c, buf32.data());
+  EXPECT_EQ(ptr64c, buf64.data());
 }
 
 TEST(VarintTest, Parse32WithLimitEmpty) {
   const char storage[1] = {0};
   uint32_t val = 0;
-  EXPECT_EQ(Varint::Parse32WithLimit(storage, storage, &val), nullptr);
+  EXPECT_THAT(Varint::Parse32WithLimit(storage, storage, &val), IsNull());
 }
 
 TEST(VarintTest, Parse32WithLimitBeforePtr) {
@@ -278,12 +279,12 @@ TEST(VarintTest, Parse32WithLimitBeforePtr) {
   uint32_t val = 0;
   // This is not a valid STL range.  Parse32WithLimit happens to support it,
   // but it's not clear whether we should promise this.
-  EXPECT_EQ(Varint::Parse32WithLimit(storage + 1, storage, &val), nullptr);
+  EXPECT_THAT(Varint::Parse32WithLimit(storage + 1, storage, &val), IsNull());
 }
 
 TEST(VarintTest, Parse32WithLimitNull) {
   uint32_t val = 0;
-  EXPECT_EQ(Varint::Parse32WithLimit(nullptr, nullptr, &val), nullptr);
+  EXPECT_THAT(Varint::Parse32WithLimit(nullptr, nullptr, &val), IsNull());
 }
 
 TEST(VarintTest, Parse32WithLimit) {
@@ -292,46 +293,48 @@ TEST(VarintTest, Parse32WithLimit) {
   char* s = reinterpret_cast<char*>(s_storage);
   uint32_t bogus = 0;
   // Parsing should fail here and return nullptr, because s is too long
-  CHECK_EQ(Varint::Parse32WithLimit(s, s + 10, &bogus), nullptr);
+  EXPECT_THAT(Varint::Parse32WithLimit(s, s + 10, &bogus), IsNull());
   bogus = 0;
 
   // Should fail because it doesn't terminate even though
   // we have exactly the right length
   unsigned char t_storage[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
   char* t = reinterpret_cast<char*>(t_storage);
-  CHECK_EQ(Varint::Parse32WithLimit(t, t + Varint::kMax32, &bogus), nullptr);
+  EXPECT_THAT(Varint::Parse32WithLimit(t, t + Varint::kMax32, &bogus),
+              IsNull());
   bogus = 0;
 
   // Should fail because it doesn't terminate, slow path.
   unsigned char t2_storage[4] = {0xFF, 0xFF, 0xFF, 0xFF};
   char* t2 = reinterpret_cast<char*>(t2_storage);
-  CHECK_EQ(Varint::Parse32WithLimit(t2, t2 + 4, &bogus), nullptr);
+  EXPECT_THAT(Varint::Parse32WithLimit(t2, t2 + 4, &bogus), IsNull());
   bogus = 0;
 
   // Should succeed
   unsigned char u_storage[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0x0F};
   char* u = reinterpret_cast<char*>(u_storage);
-  CHECK_EQ(Varint::Parse32WithLimit(u, u + Varint::kMax32, &bogus), u + 5);
-  CHECK_EQ(bogus, 0xFFFFFFFF);
+  EXPECT_EQ(Varint::Parse32WithLimit(u, u + Varint::kMax32, &bogus), u + 5);
+  EXPECT_EQ(bogus, 0xFFFFFFFF);
   bogus = 0;
 
   // Should succeed, slow path
   unsigned char u2_storagte[4] = {0xFF, 0xFF, 0xFF, 0x7F};
   char* u2 = reinterpret_cast<char*>(u2_storagte);
-  CHECK_EQ(Varint::Parse32WithLimit(u2, u2 + 4, &bogus), u2 + 4);
-  CHECK_EQ(bogus, 0x0FFFFFFF);
+  EXPECT_EQ(Varint::Parse32WithLimit(u2, u2 + 4, &bogus), u2 + 4);
+  EXPECT_EQ(bogus, 0x0FFFFFFF);
   bogus = 0;
 
   // Should fail because it's a bad code word
   unsigned char v_storage[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0x7F};
   char* v = reinterpret_cast<char*>(v_storage);
-  CHECK_EQ(Varint::Parse32WithLimit(v, v + Varint::kMax32, &bogus), nullptr);
+  EXPECT_THAT(Varint::Parse32WithLimit(v, v + Varint::kMax32, &bogus),
+              IsNull());
 }
 
 TEST(VarintTest, Parse64WithLimitEmpty) {
   const char storage[1] = {0};
   uint64_t val = 0;
-  EXPECT_EQ(Varint::Parse64WithLimit(storage, storage, &val), nullptr);
+  EXPECT_THAT(Varint::Parse64WithLimit(storage, storage, &val), IsNull());
 }
 
 TEST(VarintTest, Parse64WithLimitBeforePtr) {
@@ -339,12 +342,12 @@ TEST(VarintTest, Parse64WithLimitBeforePtr) {
   uint64_t val = 0;
   // This is not a valid STL range.  Parse64WithLimit happens to support it,
   // but it's not clear whether we should promise this.
-  EXPECT_EQ(Varint::Parse64WithLimit(storage + 1, storage, &val), nullptr);
+  EXPECT_THAT(Varint::Parse64WithLimit(storage + 1, storage, &val), IsNull());
 }
 
 TEST(VarintTest, Parse64WithLimitNull) {
   uint64_t val = 0;
-  EXPECT_EQ(Varint::Parse64WithLimit(nullptr, nullptr, &val), nullptr);
+  EXPECT_THAT(Varint::Parse64WithLimit(nullptr, nullptr, &val), IsNull());
 }
 
 TEST(VarintTest, Parse64WithLimit) {
@@ -354,7 +357,7 @@ TEST(VarintTest, Parse64WithLimit) {
   char* s = reinterpret_cast<char*>(s_storagte);
   uint64_t bogus = 0;
   // Parsing will fail because this is too long
-  EXPECT_EQ(nullptr, Varint::Parse64WithLimit(s, s + 15, &bogus));
+  EXPECT_THAT(Varint::Parse64WithLimit(s, s + 15, &bogus), IsNull());
   bogus = 0;
 
   // Should fail because it doesn't terminate even though
@@ -362,81 +365,85 @@ TEST(VarintTest, Parse64WithLimit) {
   unsigned char t_storage[10] = {0x80, 0x81, 0x82, 0x83, 0x84,
                                  0x85, 0x86, 0x87, 0x88, 0x89};
   char* t = reinterpret_cast<char*>(t_storage);
-  EXPECT_EQ(nullptr, Varint::Parse64WithLimit(t, t + Varint::kMax64, &bogus));
+  EXPECT_THAT(Varint::Parse64WithLimit(t, t + Varint::kMax64, &bogus),
+              IsNull());
   bogus = 0;
 
   // Should fail because it doesn't terminate, slow path.
   unsigned char t2_storage[9] = {0x80, 0x81, 0x82, 0x83, 0x84,
                                  0x85, 0x86, 0x87, 0x88};
   char* t2 = reinterpret_cast<char*>(t2_storage);
-  EXPECT_EQ(nullptr, Varint::Parse64WithLimit(t2, t2 + 9, &bogus));
+  EXPECT_THAT(Varint::Parse64WithLimit(t2, t2 + 9, &bogus), IsNull());
   bogus = 0;
 
   // Should succeed
   unsigned char u_storage[10] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                                  0xFF, 0xFF, 0xFF, 0xFF, 0x1};
   char* u = reinterpret_cast<char*>(u_storage);
-  EXPECT_EQ(u + 10, Varint::Parse64WithLimit(u, u + Varint::kMax64, &bogus));
-  EXPECT_EQ(uint64_t{0xFFFFFFFFFFFFFFFFu}, bogus);
+  EXPECT_EQ(Varint::Parse64WithLimit(u, u + Varint::kMax64, &bogus), u + 10);
+  EXPECT_EQ(bogus, uint64_t{0xFFFFFFFFFFFFFFFFu});
   bogus = 0;
 
   // Should succeed, slow path
   unsigned char u2_storage[9] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                                  0xFF, 0xFF, 0xFF, 0x7F};
   char* u2 = reinterpret_cast<char*>(u2_storage);
-  CHECK_EQ(u2 + 9, Varint::Parse64WithLimit(u2, u2 + 9, &bogus));
-  CHECK_EQ(bogus, uint64_t{0x7FFFFFFFFFFFFFFF});
+  EXPECT_EQ(Varint::Parse64WithLimit(u2, u2 + 9, &bogus), u2 + 9);
+  EXPECT_EQ(bogus, uint64_t{0x7FFFFFFFFFFFFFFF});
   bogus = 0;
 
   // Should fail because it's a bad code word
   unsigned char v_storage[10] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                                  0xFF, 0xFF, 0xFF, 0xFF, 0x7F};
   char* v = reinterpret_cast<char*>(v_storage);
-  EXPECT_EQ(nullptr, Varint::Parse64WithLimit(v, v + Varint::kMax64, &bogus));
+  EXPECT_THAT(Varint::Parse64WithLimit(v, v + Varint::kMax64, &bogus),
+              IsNull());
 }
 
 TEST(VarintTest, Skip32) {
   // Should fail because it's a bad code word
   unsigned char v[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0x7F};
-  CHECK_EQ(Varint::Skip32(reinterpret_cast<char*>(v)), nullptr);
+  EXPECT_THAT(Varint::Skip32(reinterpret_cast<char*>(v)), IsNull());
 }
 
 TEST(VarintTest, Skip32WithLimitEmpty) {
   const char storage[1] = {0};
-  EXPECT_EQ(Varint::Skip32WithLimit(storage, storage), nullptr);
+  EXPECT_THAT(Varint::Skip32WithLimit(storage, storage), IsNull());
 }
 
 TEST(VarintTest, Skip32WithLimitBeforePtr) {
   const char storage[1] = {0};
-  EXPECT_EQ(Varint::Skip32WithLimit(storage + 1, storage), nullptr);
+  // This is not a valid STL range.  Parse32WithLimit happens to support it,
+  // but it's not clear whether we should promise this.
+  EXPECT_THAT(Varint::Skip32WithLimit(storage + 1, storage), IsNull());
 }
 
 TEST(VarintTest, Skip32WithLimitNullLimit) {
   const char storage[1] = {0};
-  EXPECT_EQ(Varint::Skip32WithLimit(storage, nullptr), nullptr);
+  EXPECT_THAT(Varint::Skip32WithLimit(storage, nullptr), IsNull());
 }
 
 TEST(VarintTest, Skip32WithLimitNull) {
-  EXPECT_EQ(Varint::Skip32WithLimit(nullptr, nullptr), nullptr);
+  EXPECT_THAT(Varint::Skip32WithLimit(nullptr, nullptr), IsNull());
 }
 
 TEST(VarintTest, Skip32WithLimitLongerThanMax) {
   unsigned char storage[10] = {0x80, 0x81, 0x82, 0x83, 0x84,
                                0x85, 0x86, 0x87, 0x88, '\0'};
   char* v = reinterpret_cast<char*>(storage);
-  EXPECT_EQ(Varint::Skip32WithLimit(v, v + 10), nullptr);
+  EXPECT_THAT(Varint::Skip32WithLimit(v, v + 10), IsNull());
 }
 
 TEST(VarintTest, Skip32WithLimitInvalidLastByte) {
   unsigned char storage[5] = {0xFF, 0xFF, 0xFF, 0xFF, 0x7F};
   char* v = reinterpret_cast<char*>(storage);
-  EXPECT_EQ(Varint::Skip32WithLimit(v, v + 5), nullptr);
+  EXPECT_THAT(Varint::Skip32WithLimit(v, v + 5), IsNull());
 }
 
 TEST(VarintTest, Skip32WithLimitInvalidMissingLastByte) {
   unsigned char storage[4] = {0xFF, 0xFF, 0xFF, 0xFF};
   char* v = reinterpret_cast<char*>(storage);
-  EXPECT_EQ(Varint::Skip32WithLimit(v, v + 4), nullptr);
+  EXPECT_THAT(Varint::Skip32WithLimit(v, v + 4), IsNull());
 }
 
 TEST(VarintTest, Skip32WithLimitValidOneByte) {
@@ -461,26 +468,28 @@ TEST(VarintTest, Skip64) {
   // Should fail because it's a bad code word
   unsigned char v[10] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                          0xFF, 0xFF, 0xFF, 0xFF, 0x7F};
-  CHECK_EQ(Varint::Skip64(reinterpret_cast<char*>(v)), nullptr);
+  EXPECT_THAT(Varint::Skip64(reinterpret_cast<char*>(v)), IsNull());
 }
 
 TEST(VarintTest, Skip64WithLimitEmpty) {
   const char storage[1] = {0};
-  EXPECT_EQ(Varint::Skip64WithLimit(storage, storage), nullptr);
+  EXPECT_THAT(Varint::Skip64WithLimit(storage, storage), IsNull());
 }
 
 TEST(VarintTest, Skip64WithLimitBeforePtr) {
   const char storage[1] = {0};
-  EXPECT_EQ(Varint::Skip64WithLimit(storage + 1, storage), nullptr);
+  // This is not a valid STL range.  Parse64WithLimit happens to support it,
+  // but it's not clear whether we should promise this.
+  EXPECT_THAT(Varint::Skip64WithLimit(storage + 1, storage), IsNull());
 }
 
 TEST(VarintTest, Skip64WithLimitNullLimit) {
   const char storage[1] = {0};
-  EXPECT_EQ(Varint::Skip64WithLimit(storage, nullptr), nullptr);
+  EXPECT_THAT(Varint::Skip64WithLimit(storage, nullptr), IsNull());
 }
 
 TEST(VarintTest, Skip64WithLimitNull) {
-  EXPECT_EQ(Varint::Skip64WithLimit(nullptr, nullptr), nullptr);
+  EXPECT_THAT(Varint::Skip64WithLimit(nullptr, nullptr), IsNull());
 }
 
 TEST(VarintTest, Skip64WithLimitLongerThanMax) {
@@ -488,21 +497,21 @@ TEST(VarintTest, Skip64WithLimitLongerThanMax) {
                                0x87, 0x88, 0xFF, 0x80, 0x81, 0x82, 0x83,
                                0x84, 0x85, 0x86, 0x87, 0x88, '\0'};
   char* v = reinterpret_cast<char*>(storage);
-  EXPECT_EQ(Varint::Skip64WithLimit(v, v + 20), nullptr);
+  EXPECT_THAT(Varint::Skip64WithLimit(v, v + 20), IsNull());
 }
 
 TEST(VarintTest, Skip64WithLimitInvalidLastByte) {
   unsigned char storage[10] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                                0xFF, 0xFF, 0xFF, 0xFF, 0x7F};
   char* v = reinterpret_cast<char*>(storage);
-  EXPECT_EQ(Varint::Skip64WithLimit(v, v + 10), nullptr);
+  EXPECT_THAT(Varint::Skip64WithLimit(v, v + 10), IsNull());
 }
 
 TEST(VarintTest, Skip64WithLimitInvalidMissingLastByte) {
   unsigned char storage[9] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                               0xFF, 0xFF, 0xFF, 0xFF};
   char* v = reinterpret_cast<char*>(storage);
-  EXPECT_EQ(Varint::Skip64WithLimit(v, v + 9), nullptr);
+  EXPECT_THAT(Varint::Skip64WithLimit(v, v + 9), IsNull());
 }
 
 TEST(VarintTest, Skip64WithLimitValidOneByte) {
@@ -540,63 +549,71 @@ TEST_P(VarintTestWithParam, Append) {
     } else {
       p = Varint::Parse32(p, &val);
     }
-    CHECK(p != nullptr);
-    CHECK_EQ(i, val);
-    LOG(INFO) << i << " " << val;
+    ASSERT_THAT(p, NotNull());
+    EXPECT_EQ(val, i);
+    VLOG(1) << i << " " << val;
     uint64_t val64 = 0ull;
     p = Varint::Parse64(p, &val64);
-    CHECK(p != nullptr);
-    CHECK_EQ(static_cast<uint64_t>(i) << ((16 + i) % 64), val64);
-    LOG(INFO) << i << " " << val64;
+    ASSERT_THAT(p, NotNull());
+    EXPECT_EQ(val64, static_cast<uint64_t>(i) << ((16 + i) % 64));
+    VLOG(1) << i << " " << val64;
   }
-  CHECK_EQ(p, s.data() + s.size());
+  EXPECT_EQ(p, s.data() + s.size());
 }
-INSTANTIATE_TEST_SUITE_P(ConditionallyInline, VarintTestWithParam,
-                         ::testing::Values(false, true));
+INSTANTIATE_TEST_SUITE_P(, VarintTestWithParam, ::testing::Bool(),
+                         [](const ::testing::TestParamInfo<bool>& info) {
+                           return info.param ? "Inlined" : "NotInlined";
+                         });
 
 TEST(VarintTest, Skip64Backward) {
   unsigned char s_storage[12] = {0x80, 0x81, 0x82, 0x83, 0x84, 0x85,
                                  0x86, 0x87, 0x88, 0x89, 0x80, 0x00};
   char* s = reinterpret_cast<char*>(s_storage);
-  EXPECT_EQ(nullptr, Varint::Skip64Backward(s + 11, s));
+  EXPECT_THAT(Varint::Skip64Backward(s + 11, s), IsNull());
 }
 
-static void CheckFastDecodeDeltas(uint64_t* deltas, int num_deltas,
-                                  int64_t goal) {
-  absl::FixedArray<char, 0> buf(num_deltas * Varint::kMax64);
+struct FastDecodeDeltaTestCase {
+  std::vector<uint64_t> deltas;
+  int64_t goal;
+};
+
+class FastDecodeDeltasTest
+    : public ::testing::TestWithParam<FastDecodeDeltaTestCase> {};
+
+TEST_P(FastDecodeDeltasTest, DecodesDeltasToGoal) {
+  const FastDecodeDeltaTestCase& param = GetParam();
+  absl::FixedArray<char, 0> buf(param.deltas.size() * Varint::kMax64);
   char* p = buf.data();
   int64_t sum = 0;
   // Calculate the correct sum and pointer position.
-  for (int i = 0; i < num_deltas; i++) {
-    sum += deltas[i];
-    CHECK_LE(sum, std::numeric_limits<int64_t>::max());
-    p = Varint::Encode64(p, deltas[i]);
-    if (sum >= goal) break;
+  for (uint64_t delta : param.deltas) {
+    sum += delta;
+    p = Varint::Encode64(p, delta);
+    if (sum >= param.goal) break;
   }
-  CHECK_GE(sum, goal);
 
-  int64_t sum2;
-  const char* p2 = Varint::FastDecodeDeltas(buf.data(), goal, &sum2);
-  CHECK_EQ(sum2, sum);
-  CHECK_EQ(p2, p);
+  int64_t sum2 = 0;
+  const char* p2 = Varint::FastDecodeDeltas(buf.data(), param.goal, &sum2);
+  EXPECT_EQ(sum2, sum);
+  EXPECT_EQ(p2, p);
 }
 
-TEST(VarintTest, FastDecodeDeltas) {
-  // basic stuff
-  uint64_t d1[] = {8, 0, 11, 12345, 1234567};
-  CheckFastDecodeDeltas(d1, 5, 1);
-  CheckFastDecodeDeltas(d1, 5, 19);
-  CheckFastDecodeDeltas(d1, 5, 12300);
-  CheckFastDecodeDeltas(d1, 5, 1234500);
-
-  // large 32 bit deltas
-  uint64_t d2[] = {std::numeric_limits<uint32_t>::max() - 1000, 100, 900};
-  CheckFastDecodeDeltas(d2, 3, std::numeric_limits<uint32_t>::max());
-
-  // large 64 bit deltas
-  uint64_t d3[] = {999, 1, std::numeric_limits<int64_t>::max() - 1001, 1};
-  CheckFastDecodeDeltas(d3, 4, std::numeric_limits<int64_t>::max());
-}
+INSTANTIATE_TEST_SUITE_P(
+    , FastDecodeDeltasTest,
+    ::testing::Values(
+        // basic stuff
+        FastDecodeDeltaTestCase{{8, 0, 11, 12345, 1234567}, 1},
+        FastDecodeDeltaTestCase{{8, 0, 11, 12345, 1234567}, 19},
+        FastDecodeDeltaTestCase{{8, 0, 11, 12345, 1234567}, 12300},
+        FastDecodeDeltaTestCase{{8, 0, 11, 12345, 1234567}, 1234500},
+        // large 32 bit deltas
+        FastDecodeDeltaTestCase{
+            {std::numeric_limits<uint32_t>::max() - 1000, 100, 900},
+            std::numeric_limits<uint32_t>::max()},
+        // large 64 bit deltas
+        FastDecodeDeltaTestCase{
+            {999, 1, std::numeric_limits<int64_t>::max() - 1001, 1},
+            std::numeric_limits<int64_t>::max()}));
 
 TEST(VarintTest, Parse32BackwardSlowInvalid) {
   // Test Parse32BackwardSlow with invalid input that triggers the slow path.
@@ -607,7 +624,7 @@ TEST(VarintTest, Parse32BackwardSlowInvalid) {
   uint32_t val = 0xdeadbeef;
   const char* base = reinterpret_cast<char*>(buf);
   const char* p = base + 5;
-  EXPECT_EQ(Varint::Parse32Backward(p, base, &val), nullptr);
+  EXPECT_THAT(Varint::Parse32Backward(p, base, &val), IsNull());
   EXPECT_EQ(val, 0xdeadbeef);  // Should not be written
 }
 
@@ -620,7 +637,7 @@ TEST(VarintTest, Parse64BackwardSlowInvalid) {
   uint64_t val = 0xdeadbeefdeadbeefull;
   const char* base = reinterpret_cast<char*>(buf);
   const char* p = base + 10;
-  EXPECT_EQ(Varint::Parse64Backward(p, base, &val), nullptr);
+  EXPECT_THAT(Varint::Parse64Backward(p, base, &val), IsNull());
   EXPECT_EQ(val, 0xdeadbeefdeadbeefull);  // Should not be written
 }
 
@@ -1091,3 +1108,5 @@ static void BM_Append64_Growing(benchmark::State& state) {
   }
 }
 BENCHMARK(BM_Append64_Growing)->Range(1, 1 << 16);
+
+}  // namespace
