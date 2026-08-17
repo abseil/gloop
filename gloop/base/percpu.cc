@@ -290,12 +290,12 @@ static void InitRseqForProcess() {
       if (TryRegister(vcpu_mode)) {
         break;
       }
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case RseqVcpuMode::kFlat:
       if (TryRegister(RseqVcpuMode::kFlat)) {
         break;
       }
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case RseqVcpuMode::kNone:
       if (TryRegister(RseqVcpuMode::kNone)) {
         break;

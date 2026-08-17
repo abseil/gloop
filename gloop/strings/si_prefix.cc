@@ -372,7 +372,7 @@ static ABSL_MUST_USE_RESULT bool ConsumePrefixAbbreviation(
       *exponent = 2;
       break;
     case 'k':
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 'K':
       *exponent = 1;
       break;

@@ -82,23 +82,23 @@ bool HumanReadableNumBytes::ToInt64(absl::string_view str, int64_t* num_bytes) {
     // NB: an int64 can only go up to <8 EB.
     case 'E':
       scale <<= 10;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 'P':
       scale <<= 10;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 'T':
       scale <<= 10;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 'G':
       scale <<= 10;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 'M':
       scale <<= 10;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 'K':
     case 'k':
       scale <<= 10;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 'B':
       str.remove_suffix(1);
       break;
@@ -137,29 +137,29 @@ bool HumanReadableNumBytes::ToDouble(absl::string_view str, double* num_bytes) {
   switch (str.back()) {
     case 'Y':
       scale *= 1024;  // That's a yotta bytes!
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 'Z':
       scale *= 1024;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 'E':
       scale *= 1024;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 'P':
       scale *= 1024;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 'T':
       scale *= 1024;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 'G':
       scale *= 1024;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 'M':
       scale *= 1024;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 'K':
     case 'k':
       scale *= 1024;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 'B':
       str.remove_suffix(1);
       break;

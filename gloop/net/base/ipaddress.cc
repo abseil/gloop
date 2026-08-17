@@ -1522,7 +1522,7 @@ static SocketAddress MakeSocketAddressFromSockaddr(const sockaddr& sa) {
       LOG(DFATAL) << "Unknown address family "
                   << static_cast<int>(sa.sa_family);
 
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
 
     case AF_UNSPEC:
       return SocketAddress();

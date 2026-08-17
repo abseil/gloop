@@ -1391,7 +1391,7 @@ void SubProcess::ForkedChild(struct ChildArgs* args) {
       // And the best part of all: getpriority returns numbers in
       // [1, 39], but setpriority expects them in [-20,19].
       priority_ += (20 - lss_getpriority(PRIO_PROCESS, 0, &child_errno_));
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case ABSOLUTE:
       lss_setpriority(PRIO_PROCESS, 0, priority_, &child_errno_);
       break;

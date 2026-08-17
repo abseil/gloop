@@ -73,22 +73,22 @@ uint64_t MurmurHash64Reference(const void* key, size_t len) {
   switch (len & 7) {
     case 7:
       h ^= uint64_t{data2[6]} << 48;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 6:
       h ^= uint64_t{data2[5]} << 40;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 5:
       h ^= uint64_t{data2[4]} << 32;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 4:
       h ^= uint64_t{data2[3]} << 24;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 3:
       h ^= uint64_t{data2[2]} << 16;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 2:
       h ^= uint64_t{data2[1]} << 8;
-      ABSL_FALLTHROUGH_INTENDED;
+      [[fallthrough]];
     case 1:
       h ^= uint64_t{data2[0]};
       h *= m;

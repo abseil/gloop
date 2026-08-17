@@ -562,7 +562,7 @@ static void FormatSignalMessage(char* buf, int bufsize, int signo,
 #if !PORTABLE_BASE
 #endif
 
-        ABSL_FALLTHROUGH_INTENDED;
+        [[fallthrough]];
       case SIGILL:
 #if defined(__x86_64__)
         if (signo == SIGILL && si->si_code == ILL_ILLOPN) {
@@ -579,7 +579,7 @@ static void FormatSignalMessage(char* buf, int bufsize, int signo,
             break;
           }
         }
-        ABSL_FALLTHROUGH_INTENDED;
+        [[fallthrough]];
 #endif
       case SIGTRAP:
 #if defined(__aarch64__)
@@ -598,7 +598,7 @@ static void FormatSignalMessage(char* buf, int bufsize, int signo,
             break;
           }
         }
-        ABSL_FALLTHROUGH_INTENDED;
+        [[fallthrough]];
 #endif
       case SIGFPE:  // fall through
       case SIGBUS: {

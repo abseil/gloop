@@ -109,7 +109,7 @@ class HashingOutputStream final : public ZeroCopyOutputStream {
     switch (i_) {
       case kBufSize:
         Mix(buf_, kBufSize);
-        ABSL_FALLTHROUGH_INTENDED;
+        [[fallthrough]];
       case 0:
         *data = buf_;
         *size = kBufSize;
