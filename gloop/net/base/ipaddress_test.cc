@@ -126,6 +126,11 @@ class ScopedMockLogVerifier {
   ::absl::ScopedMockLog log_;
 };
 
+struct BogusTestCase {
+  absl::string_view test_name;
+  absl::string_view str;
+};
+
 // Portably constructs an in_addr. (The in_addr layout differs between Windows
 // and POSIX.)
 constexpr in_addr InAddrFromUint32(uint32_t quad) {
@@ -141,7 +146,7 @@ constexpr in_addr InAddrFromUint32(uint32_t quad) {
 IPAddress MakeScopedIP(const IPAddress& addr, uint32_t scope_id) {
   if (scope_id == 0) return addr;
 
-  CHECK_EQ(AF_INET6, addr.address_family());
+  CHECK_EQ(addr.address_family(), AF_INET6);
   return MakeIPAddressWithScopeId(addr.ipv6_address(), scope_id).value();
 }
 
@@ -242,7 +247,7 @@ TEST_P(UnsafeIPv4StringsParamTest, StringToIPAddressFails) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    UnsafeIPv4Strings, UnsafeIPv4StringsParamTest,
+    , UnsafeIPv4StringsParamTest,
     testing::Values("016.016.016",          // 14.14.0.14
                     "016.016",              // 14.0.0.14
                     "016",                  // 0.0.0.14
@@ -315,8 +320,6 @@ TEST(IPAddressTest, IPv4TooManyFieldsInvalid) {
 TEST(IPAddressTest, ToAndFromString6) {
   const std::string kIPString = "2001:db8:300:1800::f";
   const std::string kIPLiteral = "[2001:db8:300:1800::f]";
-  const std::string kBogusIPString = "2001:db8:300:1800:1:2:3:4:5";
-  const std::string kBogusIPString2 = "2001:db8::g";
   const std::string kPTRString =
       "f.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0."
       "0.0.8.1.0.0.3.0.8.b.d.0.1.0.0.2.ip6.arpa";
@@ -325,10 +328,6 @@ TEST(IPAddressTest, ToAndFromString6) {
   ASSERT_GT(inet_pton(AF_INET6, kIPString.c_str(), &addr6), 0);
 
   IPAddress addr;
-  EXPECT_FALSE(StringToIPAddress(kBogusIPString, nullptr));
-  EXPECT_FALSE(StringToIPAddress(kBogusIPString, &addr));
-  EXPECT_FALSE(StringToIPAddress(kBogusIPString2, nullptr));
-  EXPECT_FALSE(StringToIPAddress(kBogusIPString2, &addr));
   ASSERT_TRUE(StringToIPAddress(kIPString, nullptr));
   ASSERT_TRUE(StringToIPAddress(kIPString, &addr));
 
@@ -360,24 +359,12 @@ TEST(IPAddressTest, ToAndFromString6) {
 TEST(IPAddressTest, ToAndFromString6WithOptionalScope) {
   constexpr char kIPString[] = "2001:db8:300:1800::f";
   constexpr char kIPLiteral[] = "[2001:db8:300:1800::f]";
-  constexpr char const* kBogusIPStrings[] = {
-      "2001:db8:300:1800:1:2:3:4:5", "2001:db8::g",
-      "2001:db8:300:1800:1:2:3:4:5%1", "2001:db8::g%1"};
   constexpr char kPTRString[] =
       "f.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0."
       "0.0.8.1.0.0.3.0.8.b.d.0.1.0.0.2.ip6.arpa";
 
   in6_addr addr6;
   ASSERT_GT(inet_pton(AF_INET6, kIPString, &addr6), 0);
-
-  for (const auto& bogus_ip_string : kBogusIPStrings) {
-    // This sets the environment for an error-handling bug which would only
-    // trigger when errno == 0.  The bug has since been fixed, and this allows
-    // us to detect regressions.
-    errno = 0;
-    EXPECT_FALSE(StringToIPAddressWithOptionalScope(bogus_ip_string).ok())
-        << "failed to reject bogus IP string \"" << bogus_ip_string << "\"";
-  }
 
   auto addr_or = StringToIPAddressWithOptionalScope(kIPString);
   ABSL_ASSERT_OK(addr_or.status());
@@ -402,6 +389,46 @@ TEST(IPAddressTest, ToAndFromString6WithOptionalScope) {
   EXPECT_TRUE(PTRStringToIPAddress(kPTRString, &addr));
   EXPECT_EQ(addr.ToString(), kIPString);
 }
+
+class BogusIPAddressTest : public testing::TestWithParam<BogusTestCase> {};
+
+TEST_P(BogusIPAddressTest, StringToIPAddressFails) {
+  IPAddress addr;
+  EXPECT_FALSE(StringToIPAddress(GetParam().str, nullptr));
+  EXPECT_FALSE(StringToIPAddress(GetParam().str, &addr));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    , BogusIPAddressTest,
+    testing::Values(BogusTestCase{"TooManyGroups",
+                                  "2001:db8:300:1800:1:2:3:4:5"},
+                    BogusTestCase{"InvalidHex", "2001:db8::g"}),
+    [](const testing::TestParamInfo<BogusTestCase>& info) {
+      return std::string(info.param.test_name);
+    });
+
+class BogusIPAddressWithOptionalScopeTest
+    : public testing::TestWithParam<BogusTestCase> {};
+
+TEST_P(BogusIPAddressWithOptionalScopeTest, FailsOnBogusInput) {
+  // This sets the environment for an error-handling bug which would only
+  // trigger when errno == 0.  The bug has since been fixed, and this allows
+  // us to detect regressions.
+  errno = 0;
+  EXPECT_FALSE(StringToIPAddressWithOptionalScope(GetParam().str).ok());
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    , BogusIPAddressWithOptionalScopeTest,
+    testing::Values(BogusTestCase{"TooManyGroups",
+                                  "2001:db8:300:1800:1:2:3:4:5"},
+                    BogusTestCase{"InvalidHex", "2001:db8::g"},
+                    BogusTestCase{"TooManyGroupsWithScope",
+                                  "2001:db8:300:1800:1:2:3:4:5%1"},
+                    BogusTestCase{"InvalidHexWithScope", "2001:db8::g%1"}),
+    [](const testing::TestParamInfo<BogusTestCase>& info) {
+      return std::string(info.param.test_name);
+    });
 
 TEST(IPAddressTest, EmptyStrings) {
   IPAddress ip;
@@ -925,7 +952,7 @@ TEST_P(ChooseRandomAddressParamTest, Vector) {
   }
 }
 
-INSTANTIATE_TEST_SUITE_P(EntryCounts, ChooseRandomAddressParamTest,
+INSTANTIATE_TEST_SUITE_P(, ChooseRandomAddressParamTest,
                          testing::Values(1, 2, 10, 40));
 
 TEST(IPAddressTest, ChooseRandomAddressInvalid) {
@@ -1078,8 +1105,8 @@ TEST(IPAddressTest, v6Mapped) {
   ASSERT_TRUE(StringToIPAddress(kIPv4String, &addr4));
   ASSERT_TRUE(StringToIPAddress(kCompatibleIPString, &compatible_addr));
   ASSERT_TRUE(StringToIPAddress(kMappedIPString, &mapped_addr));
-  EXPECT_EQ(kMappedIPString, mapped_addr.ToString());
-  EXPECT_EQ(kCompatibleIPString, compatible_addr.ToString());
+  EXPECT_EQ(mapped_addr.ToString(), kMappedIPString);
+  EXPECT_EQ(compatible_addr.ToString(), kCompatibleIPString);
 
   // We've specified explicitly that these should be distinct --
   // one might agree or disagree with the decision, but as long as
@@ -1380,10 +1407,10 @@ TEST(IPAddressTest, GetTeredoInfo) {
   EXPECT_FALSE(GetTeredoInfo(addr4c, nullptr, nullptr, nullptr, nullptr));
   EXPECT_TRUE(GetTeredoInfo(addr6, nullptr, nullptr, nullptr, nullptr));
   EXPECT_TRUE(GetTeredoInfo(addr6, &server, &flags, &port, &client));
-  EXPECT_TRUE(addr4s == server);
-  EXPECT_EQ(kFlags, flags);
-  EXPECT_EQ(kPort, port);
-  EXPECT_TRUE(addr4c == client);
+  EXPECT_EQ(server, addr4s);
+  EXPECT_EQ(flags, kFlags);
+  EXPECT_EQ(port, kPort);
+  EXPECT_EQ(client, addr4c);
 }
 
 TEST(IPAddressTest, GetEmbeddedIPv4ClientAddress) {
@@ -1825,24 +1852,33 @@ TEST(IPAddressDeathTest, InvalidPackedStringConversion) {
   EXPECT_EQ(PackedStringToIPAddressOrDie(packed).ToString(), "1.2.3.4");
 }
 
-TEST(ColonlessHexToIPv6AddressTest, BogusInput) {
-  const char* bogus[] = {
-      "",
-      "bogus",
-      "deadbeef",
-      "fe80000000000000000573fffea000650",  // too long by one character
-      "fe80000000000000000573fffea0006",    // too short by one character
-      "fe80000000000000000573fffea0006x",   // not all hex
-      "+e80000000000000000573fffea00065",   // not all hex
-      "0x80000000000000000573fffea00065",   // not all hex
-  };
+class BogusColonlessHexToIPv6AddressTest
+    : public testing::TestWithParam<BogusTestCase> {};
 
+TEST_P(BogusColonlessHexToIPv6AddressTest, FailsOnBogusInput) {
   IPAddress dummy;
-  for (int i = 0; i < std::size(bogus); ++i) {
-    EXPECT_FALSE(ColonlessHexToIPv6Address(bogus[i], nullptr));
-    EXPECT_FALSE(ColonlessHexToIPv6Address(bogus[i], &dummy));
-  }
+  EXPECT_FALSE(ColonlessHexToIPv6Address(GetParam().str, nullptr));
+  EXPECT_FALSE(ColonlessHexToIPv6Address(GetParam().str, &dummy));
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    , BogusColonlessHexToIPv6AddressTest,
+    testing::Values(BogusTestCase{"Empty", ""},
+                    BogusTestCase{"BogusString", "bogus"},
+                    BogusTestCase{"Deadbeef", "deadbeef"},
+                    BogusTestCase{"TooLongByOneCharacter",
+                                  "fe80000000000000000573fffea000650"},
+                    BogusTestCase{"TooShortByOneCharacter",
+                                  "fe80000000000000000573fffea0006"},
+                    BogusTestCase{"NotAllHexTrailing",
+                                  "fe80000000000000000573fffea0006x"},
+                    BogusTestCase{"NotAllHexLeadingPlus",
+                                  "+e80000000000000000573fffea00065"},
+                    BogusTestCase{"NotAllHexLeading0x",
+                                  "0x80000000000000000573fffea00065"}),
+    [](const testing::TestParamInfo<BogusTestCase>& info) {
+      return std::string(info.param.test_name);
+    });
 
 TEST(ColonlessHexToIPv6AddressTest, BasicValidity) {
   const char* hex_str = "fe80000000000000000573fFfEa00065";
@@ -1871,38 +1907,40 @@ TEST(SocketAddressTest, BasicTest4) {
   ASSERT_TRUE(StringToIPAddress("1.2.3.4", &addr4));
   SocketAddress sockaddr(addr4, kPort);
 
-  EXPECT_EQ(addr4, sockaddr.host());
-  EXPECT_EQ(kPort, sockaddr.port());
+  EXPECT_EQ(sockaddr.host(), addr4);
+  EXPECT_EQ(sockaddr.port(), kPort);
 
   sockaddr_in returned_addr4 = sockaddr.ipv4_address();
-  EXPECT_EQ(AF_INET, returned_addr4.sin_family);
-  EXPECT_EQ(addr4, IPAddress(returned_addr4.sin_addr));
-  EXPECT_EQ(kNetworkByteOrderPort, returned_addr4.sin_port);
+  EXPECT_EQ(returned_addr4.sin_family, AF_INET);
+  EXPECT_EQ(IPAddress(returned_addr4.sin_addr), addr4);
+  EXPECT_EQ(returned_addr4.sin_port, kNetworkByteOrderPort);
 
   std::string packed = sockaddr.ToPackedString();
-  EXPECT_EQ(sizeof(returned_addr4.sin_addr) + 2, packed.length());
-  EXPECT_EQ(0, memcmp(packed.data(), &returned_addr4.sin_addr,
-                      sizeof(returned_addr4.sin_addr)));
-  EXPECT_EQ(0, memcmp(packed.data() + sizeof(returned_addr4.sin_addr),
-                      &kNetworkByteOrderPort, sizeof(kNetworkByteOrderPort)));
+  EXPECT_EQ(packed.length(), sizeof(returned_addr4.sin_addr) + 2);
+  EXPECT_EQ(memcmp(packed.data(), &returned_addr4.sin_addr,
+                   sizeof(returned_addr4.sin_addr)),
+            0);
+  EXPECT_EQ(memcmp(packed.data() + sizeof(returned_addr4.sin_addr),
+                   &kNetworkByteOrderPort, sizeof(kNetworkByteOrderPort)),
+            0);
 
   EXPECT_TRUE(PackedStringToSocketAddress(packed, nullptr));
   SocketAddress unpacked;
   EXPECT_TRUE(PackedStringToSocketAddress(packed, &unpacked));
-  EXPECT_EQ(sockaddr, unpacked);
+  EXPECT_EQ(unpacked, sockaddr);
 
   sockaddr_storage returned_addr_generic = sockaddr.generic_address();
-  EXPECT_EQ(AF_INET, returned_addr_generic.ss_family);
+  EXPECT_EQ(returned_addr_generic.ss_family, AF_INET);
   sockaddr_in* cast_addr4 =
       reinterpret_cast<sockaddr_in*>(&returned_addr_generic);
 
-  EXPECT_EQ(addr4, IPAddress(cast_addr4->sin_addr));
-  EXPECT_EQ(kNetworkByteOrderPort, cast_addr4->sin_port);
+  EXPECT_EQ(IPAddress(cast_addr4->sin_addr), addr4);
+  EXPECT_EQ(cast_addr4->sin_port, kNetworkByteOrderPort);
 
   // Test copy construction.
   SocketAddress another_sockaddr = sockaddr;
-  EXPECT_EQ(addr4, another_sockaddr.host());
-  EXPECT_EQ(kPort, another_sockaddr.port());
+  EXPECT_EQ(another_sockaddr.host(), addr4);
+  EXPECT_EQ(another_sockaddr.port(), kPort);
 }
 
 TEST(SocketAddressTest, BasicTest6) {
@@ -1913,39 +1951,41 @@ TEST(SocketAddressTest, BasicTest6) {
   ASSERT_TRUE(StringToIPAddress("2001:700:300:1800::f", &addr6));
   SocketAddress sockaddr(addr6, kPort);
 
-  EXPECT_EQ(addr6, sockaddr.host());
-  EXPECT_EQ(kPort, sockaddr.port());
+  EXPECT_EQ(sockaddr.host(), addr6);
+  EXPECT_EQ(sockaddr.port(), kPort);
 
   sockaddr_in6 returned_addr6 = sockaddr.ipv6_address();
-  EXPECT_EQ(AF_INET6, returned_addr6.sin6_family);
-  EXPECT_EQ(addr6, IPAddress(returned_addr6.sin6_addr));
-  EXPECT_EQ(kNetworkByteOrderPort, returned_addr6.sin6_port);
+  EXPECT_EQ(returned_addr6.sin6_family, AF_INET6);
+  EXPECT_EQ(IPAddress(returned_addr6.sin6_addr), addr6);
+  EXPECT_EQ(returned_addr6.sin6_port, kNetworkByteOrderPort);
 
   std::string packed = sockaddr.ToPackedString();
-  EXPECT_EQ(sizeof(returned_addr6.sin6_addr) + 2, packed.length());
-  EXPECT_EQ(0, memcmp(packed.data(), &returned_addr6.sin6_addr,
-                      sizeof(returned_addr6.sin6_addr)));
-  EXPECT_EQ(0, memcmp(packed.data() + sizeof(returned_addr6.sin6_addr),
-                      &kNetworkByteOrderPort, sizeof(kNetworkByteOrderPort)));
+  EXPECT_EQ(packed.length(), sizeof(returned_addr6.sin6_addr) + 2);
+  EXPECT_EQ(memcmp(packed.data(), &returned_addr6.sin6_addr,
+                   sizeof(returned_addr6.sin6_addr)),
+            0);
+  EXPECT_EQ(memcmp(packed.data() + sizeof(returned_addr6.sin6_addr),
+                   &kNetworkByteOrderPort, sizeof(kNetworkByteOrderPort)),
+            0);
 
   EXPECT_TRUE(PackedStringToSocketAddress(packed, nullptr));
   SocketAddress unpacked;
   EXPECT_TRUE(PackedStringToSocketAddress(packed, &unpacked));
-  EXPECT_EQ(sockaddr, unpacked);
+  EXPECT_EQ(unpacked, sockaddr);
 
   sockaddr_storage returned_addr_generic = sockaddr.generic_address();
-  EXPECT_EQ(AF_INET6, returned_addr_generic.ss_family);
+  EXPECT_EQ(returned_addr_generic.ss_family, AF_INET6);
   sockaddr_in6* cast_addr6 =
       reinterpret_cast<sockaddr_in6*>(&returned_addr_generic);
 
-  EXPECT_EQ(addr6, IPAddress(cast_addr6->sin6_addr));
-  EXPECT_EQ(kNetworkByteOrderPort, cast_addr6->sin6_port);
+  EXPECT_EQ(IPAddress(cast_addr6->sin6_addr), addr6);
+  EXPECT_EQ(cast_addr6->sin6_port, kNetworkByteOrderPort);
 
   // Test assignment.
   SocketAddress another_sockaddr;
   another_sockaddr = sockaddr;
-  EXPECT_EQ(addr6, another_sockaddr.host());
-  EXPECT_EQ(kPort, another_sockaddr.port());
+  EXPECT_EQ(another_sockaddr.host(), addr6);
+  EXPECT_EQ(another_sockaddr.port(), kPort);
 }
 
 TEST(SocketAddressTest, GenericInput4) {
@@ -1961,12 +2001,12 @@ TEST(SocketAddressTest, GenericInput4) {
   SocketAddress sockaddr1(*sockaddr_cast(addr4));
   SocketAddress sockaddr2(addr4_storage);
 
-  ASSERT_EQ(AF_INET, sockaddr1.host().address_family());
-  ASSERT_EQ(AF_INET, sockaddr2.host().address_family());
-  EXPECT_EQ(kIPAddress, sockaddr1.host().ToString());
-  EXPECT_EQ(kIPAddress, sockaddr2.host().ToString());
-  EXPECT_EQ(kPort, sockaddr1.port());
-  EXPECT_EQ(kPort, sockaddr2.port());
+  ASSERT_EQ(sockaddr1.host().address_family(), AF_INET);
+  ASSERT_EQ(sockaddr2.host().address_family(), AF_INET);
+  EXPECT_EQ(sockaddr1.host().ToString(), kIPAddress);
+  EXPECT_EQ(sockaddr2.host().ToString(), kIPAddress);
+  EXPECT_EQ(sockaddr1.port(), kPort);
+  EXPECT_EQ(sockaddr2.port(), kPort);
 }
 
 TEST(SocketAddressTest, GenericInput6) {
@@ -1982,12 +2022,12 @@ TEST(SocketAddressTest, GenericInput6) {
   SocketAddress sockaddr1(*sockaddr_cast(addr6));
   SocketAddress sockaddr2(addr6_storage);
 
-  ASSERT_EQ(AF_INET6, sockaddr1.host().address_family());
-  ASSERT_EQ(AF_INET6, sockaddr2.host().address_family());
-  EXPECT_EQ(kIPAddress, sockaddr1.host().ToString());
-  EXPECT_EQ(kIPAddress, sockaddr2.host().ToString());
-  EXPECT_EQ(kPort, sockaddr1.port());
-  EXPECT_EQ(kPort, sockaddr2.port());
+  ASSERT_EQ(sockaddr1.host().address_family(), AF_INET6);
+  ASSERT_EQ(sockaddr2.host().address_family(), AF_INET6);
+  EXPECT_EQ(sockaddr1.host().ToString(), kIPAddress);
+  EXPECT_EQ(sockaddr2.host().ToString(), kIPAddress);
+  EXPECT_EQ(sockaddr1.port(), kPort);
+  EXPECT_EQ(sockaddr2.port(), kPort);
 }
 
 TEST(SocketAddressTest, GenericInputInvalid) {
@@ -2027,8 +2067,8 @@ TEST(SocketAddressTest, EmptySockaddr) {
   SocketAddress empty1(empty);
   SocketAddress empty2(empty_generic);
 
-  EXPECT_EQ(AF_UNSPEC, empty1.host().address_family());
-  EXPECT_EQ(AF_UNSPEC, empty2.host().address_family());
+  EXPECT_EQ(empty1.host().address_family(), AF_UNSPEC);
+  EXPECT_EQ(empty2.host().address_family(), AF_UNSPEC);
   EXPECT_EQ(empty1, empty2);
 }
 
@@ -2036,50 +2076,26 @@ TEST(SocketAddressTest, ToAndFromString4) {
   const std::string kIPString = "1.2.3.4";
   const int kPort = 1234;
   const std::string kSockaddrString = kIPString + absl::StrFormat(":%u", kPort);
-  const std::string kBogusSockaddrString1 = "1.2.3.256:1234";
-  const std::string kBogusSockaddrString2 = "1.2.3.4:123456";
-  const std::string kBogusSockaddrString3 = "1.2.3.4:-1";
-  const std::string kBogusSockaddrString4 = "1.2.3.4:+1";
-  const std::string kBogusSockaddrString5 = "1.2.3.4:";
-  const std::string kBogusSockaddrString6 = "1.2.3.4:1:2";
-  const std::string kBogusSockaddrString7 = "1.2.3.4:1234 ";
-  const std::string kBogusSockaddrString8 = " 1.2.3.4:1234";
-  const std::string kBogusSockaddrString9 = "1.2.3.4 :1234";
-  const std::string kBogusSockaddrString10 = "1.2.3.4";
-  const std::string kBogusSockaddrString11 = "[1.2.3.4]:5";
-  const std::string kEdgeSockaddrString1 = "1.2.3.4:0";
-  const std::string kEdgeSockaddrString2 = "1.2.3.4:65535";
 
   sockaddr_in addr4;
   addr4.sin_family = AF_INET;
-  CHECK_GT(inet_pton(AF_INET, kIPString.c_str(), &addr4.sin_addr), 0);
+  ASSERT_GT(inet_pton(AF_INET, kIPString.c_str(), &addr4.sin_addr), 0);
   addr4.sin_port = htons(kPort);
 
   SocketAddress addr;
-  EXPECT_FALSE(StringToSocketAddress(kBogusSockaddrString1, &addr));
-  EXPECT_FALSE(StringToSocketAddress(kBogusSockaddrString2, &addr));
-  EXPECT_FALSE(StringToSocketAddress(kBogusSockaddrString3, &addr));
-  EXPECT_FALSE(StringToSocketAddress(kBogusSockaddrString4, &addr));
-  EXPECT_FALSE(StringToSocketAddress(kBogusSockaddrString5, &addr));
-  EXPECT_FALSE(StringToSocketAddress(kBogusSockaddrString6, &addr));
-  EXPECT_FALSE(StringToSocketAddress(kBogusSockaddrString7, &addr));
-  EXPECT_FALSE(StringToSocketAddress(kBogusSockaddrString8, &addr));
-  EXPECT_FALSE(StringToSocketAddress(kBogusSockaddrString9, &addr));
-  EXPECT_FALSE(StringToSocketAddress(kBogusSockaddrString10, &addr));
-  EXPECT_FALSE(StringToSocketAddress(kBogusSockaddrString11, &addr));
-  EXPECT_TRUE(StringToSocketAddress(kEdgeSockaddrString1, &addr));
-  EXPECT_TRUE(StringToSocketAddress(kEdgeSockaddrString2, &addr));
+  EXPECT_TRUE(StringToSocketAddress("1.2.3.4:0", &addr));
+  EXPECT_TRUE(StringToSocketAddress("1.2.3.4:65535", &addr));
   ASSERT_TRUE(StringToSocketAddress(kSockaddrString, nullptr));
   ASSERT_TRUE(StringToSocketAddress(kSockaddrString, &addr));
 
   sockaddr_in returned_addr4 = addr.ipv4_address();
-  EXPECT_EQ(addr4.sin_family, returned_addr4.sin_family);
+  EXPECT_EQ(returned_addr4.sin_family, addr4.sin_family);
   EXPECT_EQ(
       memcmp(&addr4.sin_addr, &returned_addr4.sin_addr, sizeof(addr4.sin_addr)),
       0);
-  EXPECT_EQ(addr4.sin_port, returned_addr4.sin_port);
+  EXPECT_EQ(returned_addr4.sin_port, addr4.sin_port);
 
-  EXPECT_EQ(kSockaddrString, addr.ToString());
+  EXPECT_EQ(addr.ToString(), kSockaddrString);
 }
 
 TEST(SocketAddressTest, ToAndFromString6) {
@@ -2087,29 +2103,51 @@ TEST(SocketAddressTest, ToAndFromString6) {
   const int kPort = 50000;
   const std::string kSockaddrString =
       absl::StrFormat("[%s]:%u", kIPString, kPort);
-  constexpr char kEdgeSockaddrString1[] = "[2001:700:300:1800::f]:0";
-  constexpr char kEdgeSockaddrString2[] = "[2001:700:300:1800::f]:65535";
 
   sockaddr_in6 addr6;
   addr6.sin6_family = AF_INET6;
-  CHECK_GT(inet_pton(AF_INET6, kIPString, &addr6.sin6_addr), 0);
+  ASSERT_GT(inet_pton(AF_INET6, kIPString, &addr6.sin6_addr), 0);
   addr6.sin6_port = htons(kPort);
 
   SocketAddress addr;
-  EXPECT_TRUE(StringToSocketAddress(kEdgeSockaddrString1, &addr));
-  EXPECT_TRUE(StringToSocketAddress(kEdgeSockaddrString2, &addr));
+  EXPECT_TRUE(StringToSocketAddress("[2001:700:300:1800::f]:0", &addr));
+  EXPECT_TRUE(StringToSocketAddress("[2001:700:300:1800::f]:65535", &addr));
   ASSERT_TRUE(StringToSocketAddress(kSockaddrString, nullptr));
   ASSERT_TRUE(StringToSocketAddress(kSockaddrString, &addr));
 
   sockaddr_in6 returned_addr6 = addr.ipv6_address();
-  EXPECT_EQ(addr6.sin6_family, returned_addr6.sin6_family);
+  EXPECT_EQ(returned_addr6.sin6_family, addr6.sin6_family);
   EXPECT_EQ(memcmp(&addr6.sin6_addr, &returned_addr6.sin6_addr,
                    sizeof(addr6.sin6_addr)),
             0);
-  EXPECT_EQ(addr6.sin6_port, returned_addr6.sin6_port);
+  EXPECT_EQ(returned_addr6.sin6_port, addr6.sin6_port);
 
-  EXPECT_EQ(kSockaddrString, addr.ToString());
+  EXPECT_EQ(addr.ToString(), kSockaddrString);
 }
+
+class BogusSocketAddressTest : public testing::TestWithParam<BogusTestCase> {};
+
+TEST_P(BogusSocketAddressTest, StringToSocketAddressFails) {
+  SocketAddress addr;
+  EXPECT_FALSE(StringToSocketAddress(GetParam().str, &addr));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    , BogusSocketAddressTest,
+    testing::Values(BogusTestCase{"OctetOutOfRange", "1.2.3.256:1234"},
+                    BogusTestCase{"PortOutOfRange", "1.2.3.4:123456"},
+                    BogusTestCase{"NegativePort", "1.2.3.4:-1"},
+                    BogusTestCase{"PlusSignInPort", "1.2.3.4:+1"},
+                    BogusTestCase{"MissingPort", "1.2.3.4:"},
+                    BogusTestCase{"MultipleColons", "1.2.3.4:1:2"},
+                    BogusTestCase{"TrailingSpace", "1.2.3.4:1234 "},
+                    BogusTestCase{"LeadingSpace", " 1.2.3.4:1234"},
+                    BogusTestCase{"SpaceBeforeColon", "1.2.3.4 :1234"},
+                    BogusTestCase{"NoPort", "1.2.3.4"},
+                    BogusTestCase{"IPv4InBrackets", "[1.2.3.4]:5"}),
+    [](const testing::TestParamInfo<BogusTestCase>& info) {
+      return std::string(info.param.test_name);
+    });
 
 TEST(SocketAddressTest, Equality) {
   const std::string kIPv4String1 = "1.2.3.4:1234";
@@ -2270,101 +2308,95 @@ TEST(SocketAddressDeathTest, InvalidSocketAddressString) {
 
 TEST(SocketAddressTest, FromStringWithDefaultPort4) {
   const int kDefaultPort = 50000;
-  const std::string kBogusSockaddrString1 = "1.2.3.256:1234";
-  const std::string kBogusSockaddrString2 = "1.2.3.4:123456";
-  const std::string kBogusSockaddrString3 = "1.2.3.4:-1";
-  const std::string kBogusSockaddrString4 = "1.2.3.4:+1";
-  const std::string kBogusSockaddrString5 = "1.2.3.4:";
-  const std::string kBogusSockaddrString6 = "1.2.3.4:1:2";
-  const std::string kBogusSockaddrString7 = "1.2.3.4:1234 ";
-  const std::string kBogusSockaddrString8 = " 1.2.3.4:1234";
-  const std::string kBogusSockaddrString9 = "1.2.3.4 :1234";
   const std::string kSockaddrStringWithoutPort = "1.2.3.4";
   const std::string kEdgeSockaddrString1 = "1.2.3.4:0";
   const std::string kEdgeSockaddrString2 = "1.2.3.4:65535";
 
   SocketAddress addr;
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString1,
-                                                    kDefaultPort, &addr));
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString2,
-                                                    kDefaultPort, &addr));
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString3,
-                                                    kDefaultPort, &addr));
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString4,
-                                                    kDefaultPort, &addr));
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString5,
-                                                    kDefaultPort, &addr));
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString6,
-                                                    kDefaultPort, &addr));
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString7,
-                                                    kDefaultPort, &addr));
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString8,
-                                                    kDefaultPort, &addr));
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString9,
-                                                    kDefaultPort, &addr));
-
   EXPECT_TRUE(StringToSocketAddressWithDefaultPort(kSockaddrStringWithoutPort,
                                                    kDefaultPort, &addr));
-  EXPECT_EQ(kDefaultPort, addr.port());
+  EXPECT_EQ(addr.port(), kDefaultPort);
   EXPECT_TRUE(StringToSocketAddressWithDefaultPort(kEdgeSockaddrString1,
                                                    kDefaultPort, &addr));
-  EXPECT_EQ(0, addr.port());
+  EXPECT_EQ(addr.port(), 0);
   EXPECT_TRUE(StringToSocketAddressWithDefaultPort(kEdgeSockaddrString2,
                                                    kDefaultPort, &addr));
-  EXPECT_EQ(65535, addr.port());
+  EXPECT_EQ(addr.port(), 65535);
 }
 
 TEST(SocketAddressTest, FromStringWithDefaultPort6) {
   const int kDefaultPort = 50000;
-  const std::string kBogusSockaddrString1 = "[2001:700:300:180g::f]:1234";
-  const std::string kBogusSockaddrString2 = "[2001:700:300:1800::f]:123456";
-  const std::string kBogusSockaddrString3 = "[2001:700:300:1800::f]:-1";
-  const std::string kBogusSockaddrString4 = "[2001:700:300:1800::f]:+1";
-  const std::string kBogusSockaddrString5 = "[2001:700:300:1800::f]:";
-  const std::string kBogusSockaddrString6 = "[2001:700:300:1800::f]:1:2";
-  const std::string kBogusSockaddrString7 = "[2001:700:300:1800::f]:1234 ";
-  const std::string kBogusSockaddrString8 = "[ 2001:700:300:1800::f]:1234";
-  const std::string kBogusSockaddrString9 = "[2001:700:300:1800::f ]:1234";
-  const std::string kBogusSockaddrString10 = "[2001:700:300:1800::f]]:1234";
-  const std::string kBogusSockaddrString11 = "[2001:700:300:1800::f:1234";
   const std::string kSockaddrStringWithoutPort = "[2001:700:300:1800::f]";
   const std::string kEdgeSockaddrString1 = "[2001:700:300:1800::f]:0";
   const std::string kEdgeSockaddrString2 = "[2001:700:300:1800::f]:65535";
 
   SocketAddress addr;
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString1,
-                                                    kDefaultPort, &addr));
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString2,
-                                                    kDefaultPort, &addr));
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString3,
-                                                    kDefaultPort, &addr));
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString4,
-                                                    kDefaultPort, &addr));
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString5,
-                                                    kDefaultPort, &addr));
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString6,
-                                                    kDefaultPort, &addr));
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString7,
-                                                    kDefaultPort, &addr));
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString8,
-                                                    kDefaultPort, &addr));
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString9,
-                                                    kDefaultPort, &addr));
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString10,
-                                                    kDefaultPort, &addr));
-  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(kBogusSockaddrString11,
-                                                    kDefaultPort, &addr));
-
   EXPECT_TRUE(StringToSocketAddressWithDefaultPort(kSockaddrStringWithoutPort,
                                                    kDefaultPort, &addr));
-  EXPECT_EQ(kDefaultPort, addr.port());
+  EXPECT_EQ(addr.port(), kDefaultPort);
   EXPECT_TRUE(StringToSocketAddressWithDefaultPort(kEdgeSockaddrString1,
                                                    kDefaultPort, &addr));
-  EXPECT_EQ(0, addr.port());
+  EXPECT_EQ(addr.port(), 0);
   EXPECT_TRUE(StringToSocketAddressWithDefaultPort(kEdgeSockaddrString2,
                                                    kDefaultPort, &addr));
-  EXPECT_EQ(65535, addr.port());
+  EXPECT_EQ(addr.port(), 65535);
 }
+
+class BogusSocketAddressWithDefaultPort4Test
+    : public testing::TestWithParam<BogusTestCase> {};
+
+TEST_P(BogusSocketAddressWithDefaultPort4Test,
+       StringToSocketAddressWithDefaultPortFails) {
+  const int kDefaultPort = 50000;
+  SocketAddress addr;
+  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(GetParam().str,
+                                                    kDefaultPort, &addr));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    , BogusSocketAddressWithDefaultPort4Test,
+    testing::Values(BogusTestCase{"OctetOutOfRange", "1.2.3.256:1234"},
+                    BogusTestCase{"PortOutOfRange", "1.2.3.4:123456"},
+                    BogusTestCase{"NegativePort", "1.2.3.4:-1"},
+                    BogusTestCase{"PlusSignInPort", "1.2.3.4:+1"},
+                    BogusTestCase{"MissingPort", "1.2.3.4:"},
+                    BogusTestCase{"MultipleColons", "1.2.3.4:1:2"},
+                    BogusTestCase{"TrailingSpace", "1.2.3.4:1234 "},
+                    BogusTestCase{"LeadingSpace", " 1.2.3.4:1234"},
+                    BogusTestCase{"SpaceBeforeColon", "1.2.3.4 :1234"}),
+    [](const testing::TestParamInfo<BogusTestCase>& info) {
+      return std::string(info.param.test_name);
+    });
+
+class BogusSocketAddressWithDefaultPort6Test
+    : public testing::TestWithParam<BogusTestCase> {};
+
+TEST_P(BogusSocketAddressWithDefaultPort6Test,
+       StringToSocketAddressWithDefaultPortFails) {
+  const int kDefaultPort = 50000;
+  SocketAddress addr;
+  EXPECT_FALSE(StringToSocketAddressWithDefaultPort(GetParam().str,
+                                                    kDefaultPort, &addr));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    , BogusSocketAddressWithDefaultPort6Test,
+    testing::Values(
+        BogusTestCase{"InvalidHex", "[2001:700:300:180g::f]:1234"},
+        BogusTestCase{"PortOutOfRange", "[2001:700:300:1800::f]:123456"},
+        BogusTestCase{"NegativePort", "[2001:700:300:1800::f]:-1"},
+        BogusTestCase{"PlusSignInPort", "[2001:700:300:1800::f]:+1"},
+        BogusTestCase{"MissingPort", "[2001:700:300:1800::f]:"},
+        BogusTestCase{"MultipleColonsInPort", "[2001:700:300:1800::f]:1:2"},
+        BogusTestCase{"TrailingSpace", "[2001:700:300:1800::f]:1234 "},
+        BogusTestCase{"LeadingSpace", "[ 2001:700:300:1800::f]:1234"},
+        BogusTestCase{"SpaceBeforeClosingBracket",
+                      "[2001:700:300:1800::f ]:1234"},
+        BogusTestCase{"DoubleClosingBracket", "[2001:700:300:1800::f]]:1234"},
+        BogusTestCase{"MissingClosingBracket", "[2001:700:300:1800::f:1234"}),
+    [](const testing::TestParamInfo<BogusTestCase>& info) {
+      return std::string(info.param.test_name);
+    });
 
 TEST(SocketAddressTest, Logging) {
   const std::string kIPv4String = "1.2.3.4:1337";
@@ -2536,7 +2568,7 @@ TEST_P(NormalizeSocketAddressTest, NormalizesCorrectly) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    NormalizeSocketAddress, NormalizeSocketAddressTest,
+    , NormalizeSocketAddressTest,
     testing::Values(
         NormalizeSocketAddressCase{"IPv4", "129.241.93.35:21",
                                    "129.241.93.35:21"},
@@ -3005,30 +3037,6 @@ TEST(IPRangeTest, DottedQuadNetmasks) {
   const std::string kDottedQuadSubnetString =
       kIPString + "/" + kDottedQuadNetmaskString;
 
-  const std::string kBogusDottedQuadStrings[] = {
-      "192.168.0.0/128.255.0.0",
-      "3ffe::1/255.255.0.0",
-      "1.2.3.4/255",
-      "1.2.3.4/255.",
-      "1.2.3.4/255.255",
-      "1.2.3.4/255.255.",
-      "1.2.3.4/255.255.255",
-      "1.2.3.4/255.255.255.",
-      "1.2.3.4/255.255.255.256",
-      "1.2.3.4/255.255.255.-255",
-      "1.2.3.4/255.255.255.+255",
-      "1.2.3.4/255.255.255.garbage",
-      "1.2.3.4/0255.255.255.255",
-      "1.2.3.4/255.255.255.000255",
-  };
-
-  // Check bogus strings.
-  for (size_t i = 0; i < std::size(kBogusDottedQuadStrings); ++i) {
-    const std::string& bogus = kBogusDottedQuadStrings[i];
-    EXPECT_FALSE(StringToIPRangeAndTruncate(bogus, nullptr))
-        << "Apparently '" << bogus << "' is actually valid?";
-  }
-
   // Check valid strings.
   IPRange cidr;
   IPRange dotted_quad;
@@ -3082,6 +3090,35 @@ TEST(IPRangeTest, DottedQuadNetmasks) {
         << " length equality expectation failed";
   }
 }
+
+class BogusDottedQuadNetmaskTest
+    : public testing::TestWithParam<BogusTestCase> {};
+
+TEST_P(BogusDottedQuadNetmaskTest, StringToIPRangeAndTruncateFails) {
+  EXPECT_FALSE(StringToIPRangeAndTruncate(GetParam().str, nullptr));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    , BogusDottedQuadNetmaskTest,
+    testing::Values(
+        BogusTestCase{"NonContiguousMask", "192.168.0.0/128.255.0.0"},
+        BogusTestCase{"IPv6WithDottedQuadMask", "3ffe::1/255.255.0.0"},
+        BogusTestCase{"OneOctetMask", "1.2.3.4/255"},
+        BogusTestCase{"OneOctetTrailingDotMask", "1.2.3.4/255."},
+        BogusTestCase{"TwoOctetMask", "1.2.3.4/255.255"},
+        BogusTestCase{"TwoOctetTrailingDotMask", "1.2.3.4/255.255."},
+        BogusTestCase{"ThreeOctetMask", "1.2.3.4/255.255.255"},
+        BogusTestCase{"ThreeOctetTrailingDotMask", "1.2.3.4/255.255.255."},
+        BogusTestCase{"MaskOctetOutOfRange", "1.2.3.4/255.255.255.256"},
+        BogusTestCase{"NegativeMaskOctet", "1.2.3.4/255.255.255.-255"},
+        BogusTestCase{"PlusSignInMask", "1.2.3.4/255.255.255.+255"},
+        BogusTestCase{"GarbageInMask", "1.2.3.4/255.255.255.garbage"},
+        BogusTestCase{"LeadingZeroInMask", "1.2.3.4/0255.255.255.255"},
+        BogusTestCase{"MultipleLeadingZerosInMask",
+                      "1.2.3.4/255.255.255.000255"}),
+    [](const testing::TestParamInfo<BogusTestCase>& info) {
+      return std::string(info.param.test_name);
+    });
 
 TEST(IPRangeTest, FromAddressString4) {
   const std::string kIPString = "192.168.0.0";
@@ -4554,7 +4591,7 @@ TEST_P(MaskLengthToIPAddressIPv4Test, ConvertsCorrectly) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    Cases, MaskLengthToIPAddressIPv4Test,
+    , MaskLengthToIPAddressIPv4Test,
     testing::Values(
         MaskLengthIPv4Case{32, "255.255.255.255"},
         MaskLengthIPv4Case{31, "255.255.255.254"},
@@ -4602,7 +4639,7 @@ TEST_P(MaskLengthToIPAddressIPv6Test, ConvertsCorrectly) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    Cases, MaskLengthToIPAddressIPv6Test,
+    , MaskLengthToIPAddressIPv6Test,
     testing::Values(
         MaskLengthIPv6Case{0, "::"}, MaskLengthIPv6Case{1, "8000::"},
         MaskLengthIPv6Case{15, "fffe::"}, MaskLengthIPv6Case{31, "ffff:fffe::"},
@@ -4631,7 +4668,7 @@ TEST_P(NetMaskToMaskLengthInvalidTest, Fails) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    InvalidMasks, NetMaskToMaskLengthInvalidTest,
+    , NetMaskToMaskLengthInvalidTest,
     testing::Values("127.0.0.0", "255.255.0.255", "255.254.255.255",
                     "255.0.0.1", "ffff:ffff:7fff::", "7fff:ffff:ffff::",
                     "ffff:ff7f:ffff::", "ffff:ffff:ffff:7fff::",
@@ -4652,8 +4689,7 @@ TEST_P(NetMaskToMaskLengthIPv4Test, RoundTrip) {
   EXPECT_EQ(result_length, length);
 }
 
-INSTANTIATE_TEST_SUITE_P(Range, NetMaskToMaskLengthIPv4Test,
-                         testing::Range(0, 33));
+INSTANTIATE_TEST_SUITE_P(, NetMaskToMaskLengthIPv4Test, testing::Range(0, 33));
 
 class NetMaskToMaskLengthIPv6Test : public testing::TestWithParam<int> {};
 
@@ -4667,14 +4703,13 @@ TEST_P(NetMaskToMaskLengthIPv6Test, RoundTrip) {
   EXPECT_EQ(result_length, length);
 }
 
-INSTANTIATE_TEST_SUITE_P(Range, NetMaskToMaskLengthIPv6Test,
-                         testing::Range(0, 129));
+INSTANTIATE_TEST_SUITE_P(, NetMaskToMaskLengthIPv6Test, testing::Range(0, 129));
 
 TEST(AddressFamilyToString, BasicTest) {
-  EXPECT_EQ("IPv4", AddressFamilyToString(AF_INET));
-  EXPECT_EQ("IPv6", AddressFamilyToString(AF_INET6));
-  EXPECT_EQ("unspecified", AddressFamilyToString(AF_UNSPEC));
-  EXPECT_EQ("unknown", AddressFamilyToString(-1));
+  EXPECT_EQ(AddressFamilyToString(AF_INET), "IPv4");
+  EXPECT_EQ(AddressFamilyToString(AF_INET6), "IPv6");
+  EXPECT_EQ(AddressFamilyToString(AF_UNSPEC), "unspecified");
+  EXPECT_EQ(AddressFamilyToString(-1), "unknown");
 }
 
 sockaddr_storage InitSockaddrStorage(int family) {
