@@ -42,7 +42,6 @@ cc_test(
         "//gloop/tools/build_rules/text_to_binary/testdata:test_data.binarypb",
     ],
     deps = [
-        "//gloop:gloop_test_main",
         "//gloop/tools/build_rules/text_to_binary/testdata:test_cc_proto",
         "//gloop/tools/build_rules/text_to_binary/testdata:test_extension_cc_proto",
         "//gloop/tools/build_rules/text_to_binary/testdata:test_nested_cc_proto",

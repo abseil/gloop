@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // StrongInt<T> is a simple template class mechanism for defining "logical"
 // integer-like class types that support almost all of the same functionality
 // as native integer types, but which prevents assignment, construction, and
@@ -693,8 +687,12 @@ StrongIntRange<IntType> MakeStrongIntRange(IntType begin, IntType end) {
 // Allow StrongInt to be used as a key to hashable containers.
 HASH_NAMESPACE_DECLARATION_START
 template <typename Tag, typename Value, typename Validator>
-struct hash<util_intops::StrongInt<Tag, Value, Validator>>
-    : ::util_intops::StrongInt<Tag, Value, Validator>::Hasher {};
+struct hash<util_intops::StrongInt<Tag, Value, Validator>> {
+  size_t operator()(
+      const util_intops::StrongInt<Tag, Value, Validator>& x) const {
+    return static_cast<size_t>(x.value());
+  }
+};
 HASH_NAMESPACE_DECLARATION_END
 
 // Numeric_limits override for strong int.

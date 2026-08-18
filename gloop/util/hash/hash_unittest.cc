@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 //
 // This file tests hash.h
 // For some hash functions it calls the function once and prints the output.
@@ -55,6 +49,7 @@
 #include "absl/base/port.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/node_hash_map.h"
+#include "absl/hash/hash.h"
 #include "absl/log/log.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/str_cat.h"
@@ -239,139 +234,109 @@ TEST(Hash, PairBool) {
   EXPECT_EQ(hm1[std::make_pair(1, false)], 1);
   EXPECT_EQ(hm1[std::make_pair(1, true)], 2);
 
-  __gnu_cxx::hash_map<T, int, GoodFastHash<T>> hm2;
+  absl::node_hash_map<T, int, absl::Hash<T>> hm2;
   hm2[std::make_pair(1, false)] = 1;
   hm2[std::make_pair(1, true)] = 2;
   EXPECT_EQ(hm2[std::make_pair(1, false)], 1);
   EXPECT_EQ(hm2[std::make_pair(1, true)], 2);
 }
 
-// Check that GoodFastHash<pair<T, U>> recursively calls GoodFashHash<T> and
-// GoodFastHash<U>, where these classes exist.  Also check that we compile OK if
-// T or U only has a GoodFastHash.
-//
-// GoodFastHash<pair<T, U>> only invokes GoodFastHash<T/U> in C++11; this test
-// doesn't work (and in fact won't compile) otherwise.
+// Check that absl::Hash<pair<T, U>> recursively calls AbslHashValue for T and
+// U.
 
-// Dummy1 has hash and GoodFastHash, while Dummy2 only has GoodFastHash.
-struct Dummy1 {};
-struct Dummy2 {};
+struct Dummy1 {
+  static size_t num_calls;
+  template <typename H>
+  friend H AbslHashValue(H h, const Dummy1& d) {
+    num_calls++;
+    return H::combine(std::move(h), 0);
+  }
+};
+size_t Dummy1::num_calls = 0;
+
+struct Dummy2 {
+  static size_t num_calls;
+  template <typename H>
+  friend H AbslHashValue(H h, const Dummy2& d) {
+    num_calls++;
+    return H::combine(std::move(h), 0);
+  }
+};
+size_t Dummy2::num_calls = 0;
 
 struct NotCopyable {
   NotCopyable() {}
+  template <typename H>
+  friend H AbslHashValue(H h, const NotCopyable& d) {
+    return H::combine(std::move(h), 0);
+  }
 
  private:
   NotCopyable(const NotCopyable&) = delete;
   NotCopyable& operator=(const NotCopyable&) = delete;
 };
 
-HASH_NAMESPACE_DECLARATION_START
-template <>
-struct hash<Dummy1> {
-  static size_t num_calls;
-  size_t operator()(const Dummy1& dummy) const {
-    num_calls++;
-    return 0;
-  }
-};
-size_t hash<Dummy1>::num_calls = 0;
-HASH_NAMESPACE_DECLARATION_END
-
-template <>
-struct GoodFastHash<Dummy1> {
-  static size_t num_calls;
-  size_t operator()(const Dummy1& dummy) const {
-    num_calls++;
-    return 0;
-  }
-};
-size_t GoodFastHash<Dummy1>::num_calls = 0;
-
-template <>
-struct GoodFastHash<Dummy2> {
-  static size_t num_calls;
-  size_t operator()(const Dummy2& dummy) const {
-    num_calls++;
-    return 0;
-  }
-};
-size_t GoodFastHash<Dummy2>::num_calls = 0;
-
-template <>
-struct GoodFastHash<NotCopyable> {
-  size_t operator()(const NotCopyable& dummy) const { return 0; }
-};
-
 void ClearHashersNumCalls() {
-  hash<Dummy1>::num_calls = 0;
-  GoodFastHash<Dummy1>::num_calls = 0;
-  GoodFastHash<Dummy2>::num_calls = 0;
+  Dummy1::num_calls = 0;
+  Dummy2::num_calls = 0;
 }
 
-TEST(Hash, GoodFastHashPair_Dummy1Dummy1) {
+TEST(Hash, AbslHashPair_Dummy1Dummy1) {
   ClearHashersNumCalls();
-  GoodFastHash<std::pair<Dummy1, Dummy1>>()({Dummy1(), Dummy1()});
-  EXPECT_EQ(2, GoodFastHash<Dummy1>::num_calls);
-  EXPECT_EQ(0, hash<Dummy1>::num_calls);
-  EXPECT_EQ(0, GoodFastHash<Dummy2>::num_calls);
+  absl::Hash<std::pair<Dummy1, Dummy1>>()({Dummy1(), Dummy1()});
+  EXPECT_EQ(2, Dummy1::num_calls);
+  EXPECT_EQ(0, Dummy2::num_calls);
 }
 
-TEST(Hash, GoodFastHashPair_Dummy1Dummy2) {
+TEST(Hash, AbslHashPair_Dummy1Dummy2) {
   ClearHashersNumCalls();
-  GoodFastHash<std::pair<Dummy1, Dummy2>>()({Dummy1(), Dummy2()});
-  EXPECT_EQ(1, GoodFastHash<Dummy1>::num_calls);
-  EXPECT_EQ(0, hash<Dummy1>::num_calls);
-  EXPECT_EQ(1, GoodFastHash<Dummy2>::num_calls);
+  absl::Hash<std::pair<Dummy1, Dummy2>>()({Dummy1(), Dummy2()});
+  EXPECT_EQ(1, Dummy1::num_calls);
+  EXPECT_EQ(1, Dummy2::num_calls);
 }
 
-TEST(Hash, GoodFastHashPair_Dummy2Dummy1) {
+TEST(Hash, AbslHashPair_Dummy2Dummy1) {
   ClearHashersNumCalls();
-  GoodFastHash<std::pair<Dummy2, Dummy1>>()({Dummy2(), Dummy1()});
-  EXPECT_EQ(1, GoodFastHash<Dummy1>::num_calls);
-  EXPECT_EQ(0, hash<Dummy1>::num_calls);
-  EXPECT_EQ(1, GoodFastHash<Dummy2>::num_calls);
+  absl::Hash<std::pair<Dummy2, Dummy1>>()({Dummy2(), Dummy1()});
+  EXPECT_EQ(1, Dummy1::num_calls);
+  EXPECT_EQ(1, Dummy2::num_calls);
 }
 
-TEST(Hash, GoodFastHashPair_Dummy2Dummy2) {
+TEST(Hash, AbslHashPair_Dummy2Dummy2) {
   ClearHashersNumCalls();
-  GoodFastHash<std::pair<Dummy2, Dummy2>>()({Dummy2(), Dummy2()});
-  EXPECT_EQ(0, GoodFastHash<Dummy1>::num_calls);
-  EXPECT_EQ(0, hash<Dummy1>::num_calls);
-  EXPECT_EQ(2, GoodFastHash<Dummy2>::num_calls);
+  absl::Hash<std::pair<Dummy2, Dummy2>>()({Dummy2(), Dummy2()});
+  EXPECT_EQ(0, Dummy1::num_calls);
+  EXPECT_EQ(2, Dummy2::num_calls);
 }
 
-// Check that util_hash::Hash calls GoodFastHash where appropriate.
+// Check that absl::HashOf calls AbslHashValue where appropriate.
 
 TEST(Hash, HashTwo_Dummy1Dummy1) {
   ClearHashersNumCalls();
-  ::util_hash::Hash(Dummy1(), Dummy1());
-  EXPECT_EQ(2, GoodFastHash<Dummy1>::num_calls);
-  EXPECT_EQ(0, hash<Dummy1>::num_calls);
-  EXPECT_EQ(0, GoodFastHash<Dummy2>::num_calls);
+  absl::HashOf(Dummy1(), Dummy1());
+  EXPECT_EQ(2, Dummy1::num_calls);
+  EXPECT_EQ(0, Dummy2::num_calls);
 }
 
 TEST(Hash, HashTwo_Dummy1Dummy2) {
   ClearHashersNumCalls();
-  ::util_hash::Hash(Dummy1(), Dummy2());
-  EXPECT_EQ(1, GoodFastHash<Dummy1>::num_calls);
-  EXPECT_EQ(0, hash<Dummy1>::num_calls);
-  EXPECT_EQ(1, GoodFastHash<Dummy2>::num_calls);
+  absl::HashOf(Dummy1(), Dummy2());
+  EXPECT_EQ(1, Dummy1::num_calls);
+  EXPECT_EQ(1, Dummy2::num_calls);
 }
 
 TEST(Hash, HashTwo_Dummy2Dummy1) {
   ClearHashersNumCalls();
-  ::util_hash::Hash(Dummy2(), Dummy1());
-  EXPECT_EQ(1, GoodFastHash<Dummy1>::num_calls);
-  EXPECT_EQ(0, hash<Dummy1>::num_calls);
-  EXPECT_EQ(1, GoodFastHash<Dummy2>::num_calls);
+  absl::HashOf(Dummy2(), Dummy1());
+  EXPECT_EQ(1, Dummy1::num_calls);
+  EXPECT_EQ(1, Dummy2::num_calls);
 }
 
 TEST(Hash, HashTwo_Dummy2Dummy2) {
   ClearHashersNumCalls();
-  ::util_hash::Hash(Dummy2(), Dummy2());
-  EXPECT_EQ(0, GoodFastHash<Dummy1>::num_calls);
-  EXPECT_EQ(0, hash<Dummy1>::num_calls);
-  EXPECT_EQ(2, GoodFastHash<Dummy2>::num_calls);
+  absl::HashOf(Dummy2(), Dummy2());
+  EXPECT_EQ(0, Dummy1::num_calls);
+  EXPECT_EQ(2, Dummy2::num_calls);
 }
 
 namespace {
@@ -808,13 +773,13 @@ TEST(FarmHashWithSeeds, Basic) {
   };
   Basic<__gnu_cxx::hash_map<std::string, int, F>>();
 }
-TEST(GoodFastHash, Basic) {
-  Basic<__gnu_cxx::hash_map<std::string, int, GoodFastHash<std::string>>>();
+TEST(AbslHash, Basic) {
+  Basic<absl::flat_hash_map<std::string, int, absl::Hash<std::string>>>();
 }
 
-TEST(GoodFastHash, Enum) {
+TEST(AbslHash, Enum) {
   enum class Enum { ONE, TWO };
-  GoodFastHash<std::pair<std::string, Enum>> hasher;
+  absl::Hash<std::pair<std::string, Enum>> hasher;
   std::pair<std::string, Enum> one = {"ONE", Enum::ONE},
                                two = {"TWO", Enum::TWO};
   EXPECT_EQ(hasher(one), hasher({"ONE", Enum::ONE}));
@@ -823,22 +788,23 @@ TEST(GoodFastHash, Enum) {
 
 enum class SpecializedEnum { ONE, TWO };
 
-template <>
-struct GoodFastHash<SpecializedEnum> {
-  size_t operator()(const SpecializedEnum& v) const { return 123; }
-};
+template <typename H>
+H AbslHashValue(H h, SpecializedEnum) {
+  return H::combine(std::move(h), 123);
+}
 
-TEST(GoodFastHash, EnumWithSpecialization) {
-  // Test that explicit specialization is correctly chosen.
-  EXPECT_EQ(GoodFastHash<SpecializedEnum>()(SpecializedEnum::ONE), 123);
-  GoodFastHash<std::pair<std::string, SpecializedEnum>> hasher;
+TEST(AbslHash, EnumWithSpecialization) {
+  // Test that AbslHashValue is correctly chosen.
+  EXPECT_EQ(absl::Hash<SpecializedEnum>()(SpecializedEnum::ONE),
+            absl::Hash<SpecializedEnum>()(SpecializedEnum::TWO));
+  absl::Hash<std::pair<std::string, SpecializedEnum>> hasher;
   EXPECT_EQ(hasher({"ONE", SpecializedEnum::ONE}),
             hasher({"ONE", SpecializedEnum::TWO}));
 }
 
-TEST(GoodFastHash, IsConsistentOnStrings) {
-  GoodFastHash<std::string> hasher1;
-  GoodFastHash<absl::string_view> hasher2;
+TEST(AbslHash, IsConsistentOnStrings) {
+  absl::Hash<std::string> hasher1;
+  absl::Hash<absl::string_view> hasher2;
   for (const char* const input :
        {"", "1", " ", "ab", "ba", "Hello World.",
         "This string is too long to fit into any reasonable SSO buffer."}) {
@@ -915,39 +881,33 @@ TEST(Hash, NestedTuple) {
   // Basic nested tuples test (thanks, Roman!)
   const std::tuple<int, int> t32{3, 2};
   const std::tuple<int, int> t23{2, 3};
-  EXPECT_NE(util_hash::Hash(make_tuple(1, t32)),
-            util_hash::Hash(make_tuple(1, t23)));
-  EXPECT_NE(util_hash::Hash(make_tuple(t32, 1)),
-            util_hash::Hash(make_tuple(t23, 1)));
+  EXPECT_NE(absl::HashOf(make_tuple(1, t32)), absl::HashOf(make_tuple(1, t23)));
+  EXPECT_NE(absl::HashOf(make_tuple(t32, 1)), absl::HashOf(make_tuple(t23, 1)));
   auto x = make_tuple(make_tuple(666, 42), 1337);
   auto y = make_tuple(make_tuple(666, 1337), 42);
-  EXPECT_NE(util_hash::Hash(x), util_hash::Hash(y));
+  EXPECT_NE(absl::HashOf(x), absl::HashOf(y));
 
   // Slightly harder nested tuples test, times out on MSAN.
 #ifndef ABSL_HAVE_MEMORY_SANITIZER
   absl::flat_hash_map<size_t, std::string> hashes;
-  const int kMax = sizeof(decltype(util_hash::Hash(0))) == 4 ? 7 : 18;
+  const int kMax = sizeof(decltype(absl::HashOf(0))) == 4 ? 7 : 18;
   for (int i = 0; i < kMax; i++)
     for (int j = 0; j < kMax; j++)
       for (int k = 0; k < kMax; k++)
         for (int l = 0; l < kMax; l++) {
           size_t hash0 =
-              util_hash::Hash(make_tuple(i, make_tuple(j, make_tuple(k, l))));
+              absl::HashOf(make_tuple(i, make_tuple(j, make_tuple(k, l))));
           size_t hash1 =
-              util_hash::Hash(make_tuple(make_tuple(i, j), make_tuple(k, l)));
+              absl::HashOf(make_tuple(make_tuple(i, j), make_tuple(k, l)));
           size_t hash2 =
-              util_hash::Hash(make_tuple(make_tuple(make_tuple(i, j), k), l));
+              absl::HashOf(make_tuple(make_tuple(make_tuple(i, j), k), l));
           std::string s = absl::StrCat("[", i, " ", j, " ", k, " ", l, "]");
           VLOG(1) << s << " " << std::hex << hash0 << " " << hash1 << " "
                   << hash2;
+          EXPECT_EQ(hash0, hash1);
+          EXPECT_EQ(hash0, hash2);
           EXPECT_TRUE(hashes.emplace(hash0, s).second)
               << "hash collision " << hash0 << " between " << hashes[hash0]
-              << " and " << s << " (hashes.size=" << hashes.size() << ")";
-          EXPECT_TRUE(hashes.emplace(hash1, s).second)
-              << "hash collision " << hash1 << " between " << hashes[hash1]
-              << " and " << s << " (hashes.size=" << hashes.size() << ")";
-          EXPECT_TRUE(hashes.emplace(hash2, s).second)
-              << "hash collision " << hash2 << " between " << hashes[hash2]
               << " and " << s << " (hashes.size=" << hashes.size() << ")";
         }
 #endif  // !ABSL_HAVE_MEMORY_SANITIZER
@@ -977,10 +937,10 @@ TEST(Hash, ArrayWithTuples) {
                       std::string>>();
 }
 
-TEST(Hash, UtilHash_Hash_Simple) {
-  using ::util_hash::Hash;
-  ASSERT_NE(Hash(1, 0), Hash(0, 0));
-  ASSERT_NE(Hash(1, std::array<int, 2>{{2, 3}}), Hash(0, 1, 2));
+TEST(Hash, AbslHashOf_Simple) {
+  using absl::HashOf;
+  ASSERT_NE(HashOf(1, 0), HashOf(0, 0));
+  ASSERT_NE(HashOf(1, std::array<int, 2>{{2, 3}}), HashOf(0, 1, 2));
 }
 
 // Apply the given function to all permutations, including repeats, of v.
@@ -1028,7 +988,7 @@ void TestPermutation(const std::vector<T>& v) {
   auto hasher0 = [](absl::Span<const T> u) {
     auto combine = [](size_t a, T b) {
       // Note the order of the arguments!
-      return util_hash::Hash(b, a);
+      return absl::HashOf(b, a);
     };
     return std::accumulate(u.begin(), u.end(), static_cast<size_t>(0), combine);
   };
@@ -1036,18 +996,18 @@ void TestPermutation(const std::vector<T>& v) {
   auto hasher1 = [](absl::Span<const T> u) {
     switch (u.size()) {
       case 2:
-        return util_hash::Hash(u[0], u[1]);
+        return absl::HashOf(u[0], u[1]);
       case 3:
-        return util_hash::Hash(u[0], u[1], u[2]);
+        return absl::HashOf(u[0], u[1], u[2]);
       case 4:
-        return util_hash::Hash(u[0], u[1], u[2], u[3]);
+        return absl::HashOf(u[0], u[1], u[2], u[3]);
       case 5:
-        return util_hash::Hash(u[0], u[1], u[2], u[3], u[4]);
+        return absl::HashOf(u[0], u[1], u[2], u[3], u[4]);
       case 6:
-        return util_hash::Hash(u[0], u[1], u[2], u[3], u[4], u[5]);
+        return absl::HashOf(u[0], u[1], u[2], u[3], u[4], u[5]);
       default:
         LOG_IF(FATAL, u.size() != 7) << "unsupported u.size()=" << u.size();
-        return util_hash::Hash(u[0], u[1], u[2], u[3], u[4], u[5], u[6]);
+        return absl::HashOf(u[0], u[1], u[2], u[3], u[4], u[5], u[6]);
     }
   };
 
@@ -1055,7 +1015,7 @@ void TestPermutation(const std::vector<T>& v) {
   TestPermutationWithHasher(v, hasher1);
 }
 
-TEST(Hash, UtilHash_Hash_Permutations) {
+TEST(Hash, AbslHashOf_Permutations) {
   TestPermutation(std::vector<int>{0, 1});
   TestPermutation(std::vector<int>{1, 2, 3});
   TestPermutation(std::vector<int>{0, 5, 10});
@@ -1073,7 +1033,7 @@ TEST(Hash, UtilHash_Hash_Permutations) {
       std::vector<std::string>{"0", "1", "4", "9", "16", "25", "36"});
 }
 
-TEST(Hash, UtilHash_Hash_DoesntCopy) { ::util_hash::Hash(NotCopyable()); }
+TEST(Hash, AbslHashOf_DoesntCopy) { absl::HashOf(NotCopyable()); }
 
 // ---------------------------------------------------------------------------
 // Fuzz tests for the Gloop hash library.

@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Template class for doing different kinds of NSS lookups and caching them
 // Note: This library calls the underlying NSS routines, so gives Prod
 // UIDs/GIDs in Prod and Corp UIDs/GIDs when run in Corp.
