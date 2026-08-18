@@ -79,8 +79,8 @@ class NSSInfo {
   // Lookup Takes an appropriate "key" value, and looks up the
   // specified object in the cache or via NSS. Returns true if the
   // data() member has been bound to valid data.
-  ABSL_MUST_USE_RESULT
-  bool Lookup(const UserKey& key) ABSL_LOCKS_EXCLUDED(cache_lock_, getXY_lock_);
+  [[nodiscard]] bool Lookup(const UserKey& key)
+      ABSL_LOCKS_EXCLUDED(cache_lock_, getXY_lock_);
 
   std::shared_ptr<Data> data() const;
 

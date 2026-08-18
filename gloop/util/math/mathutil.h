@@ -941,17 +941,17 @@ class MathUtil {
   // <T> explicitly and those that don't. Those that pass it explicitly will be
   // inlined with an explicit template parameter.
   template <int&..., typename T>  // T models LessThanComparable.
-  ABSL_DEPRECATE_AND_INLINE() ABSL_MUST_USE_RESULT
-      static const T& Clamp(const T& low, const T& high, const T& value) {
+  ABSL_DEPRECATE_AND_INLINE()
+      [[nodiscard]] static const T& Clamp(const T& low, const T& high,
+                                          const T& value) {
     return std::clamp(value, low, high);
   }
 
   template <typename T>
   ABSL_DEPRECATE_AND_INLINE()
-  ABSL_MUST_USE_RESULT
-      static const T& Clamp(const absl::type_identity_t<T>& low,
-                            const absl::type_identity_t<T>& high,
-                            const absl::type_identity_t<T>& value) {
+  [[nodiscard]] static const T& Clamp(const absl::type_identity_t<T>& low,
+                                      const absl::type_identity_t<T>& high,
+                                      const absl::type_identity_t<T>& value) {
     return std::clamp<T>(value, low, high);
   }
 

@@ -126,7 +126,7 @@ class ABSL_LOCKABLE FifoSemaphore {
   // On success, the caller must eventually Release() the acquired amount.
   //
   // REQUIRES: amount <= the semaphore's capacity.
-  ABSL_MUST_USE_RESULT bool TryAcquire(uintptr_t amount);
+  [[nodiscard]] bool TryAcquire(uintptr_t amount);
 
   // Releases resources from the semaphore.  Callers waiting to acquire the
   // semaphore will be woken in FIFO order if there are sufficient resources.

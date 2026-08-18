@@ -1037,8 +1037,7 @@ absl::StatusOr<SocketAddress> MakeSocketAddressFromSockaddrIn6(
 //
 // Note that in particular, this function does not do DNS lookup.
 //
-ABSL_MUST_USE_RESULT bool StringToIPAddress(absl::string_view str,
-                                            IPAddress* out);
+[[nodiscard]] bool StringToIPAddress(absl::string_view str, IPAddress* out);
 
 // Parse an IPv4 or IPv6 address in textual form to an IPAddress.
 //
@@ -1068,11 +1067,10 @@ inline IPAddress StringToIPAddressOrDie(absl::string_view str) {
 // since it can fail (in which case it returns false, and the contents of
 // "out" is undefined). If only validation is required, "out" can be set to
 // nullptr.
-ABSL_MUST_USE_RESULT bool PackedStringToIPAddress(absl::string_view str,
-                                                  IPAddress* out);
-ABSL_MUST_USE_RESULT inline bool PackedStringToIPAddress(const char* str,
-                                                         size_t len,
-                                                         IPAddress* out) {
+[[nodiscard]] bool PackedStringToIPAddress(absl::string_view str,
+                                           IPAddress* out);
+[[nodiscard]] inline bool PackedStringToIPAddress(const char* str, size_t len,
+                                                  IPAddress* out) {
   return PackedStringToIPAddress(absl::string_view(str, len), out);
 }
 
@@ -1092,8 +1090,8 @@ inline IPAddress PackedStringToIPAddressOrDie(const char* str, size_t len) {
 // SocketAddress. Not a constructor since it can fail (in which case
 // it returns false, and the contents of "out" is undefined). If only
 // validation is required, "out" can be set to nullptr.
-ABSL_MUST_USE_RESULT bool PackedStringToSocketAddress(absl::string_view str,
-                                                      SocketAddress* out);
+[[nodiscard]] bool PackedStringToSocketAddress(absl::string_view str,
+                                               SocketAddress* out);
 
 // Binary packed string conversion method that CHECK()-fails on invalid input.
 inline SocketAddress PackedStringToSocketAddressOrDie(absl::string_view str) {
@@ -1133,8 +1131,8 @@ std::string IPAddressToPTRString(const IPAddress& ip);
 
 // Free function to return an IPAddress from the corresponding PTR
 // representation, e.g. the inverse of IPAddressToPtrString.
-ABSL_MUST_USE_RESULT bool PTRStringToIPAddress(absl::string_view ptr_address,
-                                               IPAddress* out);
+[[nodiscard]] bool PTRStringToIPAddress(absl::string_view ptr_address,
+                                        IPAddress* out);
 
 // Specific JoinFormatters for IPAddress, SocketAddress, and IPRange.
 typedef ipaddress_internal::ToStringJoinFormatter<IPAddress>
@@ -1339,8 +1337,8 @@ IPAddress DualstackIPAddress(const IPAddress& ip);
 //
 // The format accepted is the same that is output by SocketAddress::ToString().
 // The port section of the string is mandatory.
-ABSL_MUST_USE_RESULT bool StringToSocketAddress(absl::string_view str,
-                                                SocketAddress* out);
+[[nodiscard]] bool StringToSocketAddress(absl::string_view str,
+                                         SocketAddress* out);
 
 // Parses an IPv4 or IPv6 address with included port number and optional scope
 // identifier to a SocketAddress. Not a constructor since it can fail.
@@ -1368,8 +1366,9 @@ inline SocketAddress StringToSocketAddressOrDie(absl::string_view str) {
 
 // Similar to StringToSocketAddress, but allows the port be omitted, in which
 // case the passed-in default port value is used.
-ABSL_MUST_USE_RESULT bool StringToSocketAddressWithDefaultPort(
-    absl::string_view str, uint16_t default_port, SocketAddress* out);
+[[nodiscard]] bool StringToSocketAddressWithDefaultPort(absl::string_view str,
+                                                        uint16_t default_port,
+                                                        SocketAddress* out);
 
 // Normalizes the host part of an IPv6 SocketAddress.  All other values are left
 // unchanged.  See NormalizeIPAddress for more information.
@@ -1435,10 +1434,10 @@ inline SocketAddress DualstackSocketAddress(const SocketAddress& addr) {
 //     // Handle the failure.
 //   }
 //
-ABSL_MUST_USE_RESULT bool SocketAddressToFamily(int output_family,
-                                                const SocketAddress& sa,
-                                                sockaddr_storage* addr_out,
-                                                socklen_t* size_out);
+[[nodiscard]] bool SocketAddressToFamily(int output_family,
+                                         const SocketAddress& sa,
+                                         sockaddr_storage* addr_out,
+                                         socklen_t* size_out);
 
 // This behaves like SocketAddressToFamily, with the exception that converting
 // 0.0.0.0 to AF_INET6 yields ::, rather than ::ffff:0.0.0.0.  This should be
@@ -1448,9 +1447,10 @@ ABSL_MUST_USE_RESULT bool SocketAddressToFamily(int output_family,
 // However, this is not suitable for sending packets, because :: behaves like
 // an IPv6 loopback destination, and IPv6 packets cannot be received by AF_INET
 // sockets bound to 0.0.0.0.
-ABSL_MUST_USE_RESULT bool SocketAddressToFamilyForBind(
-    int output_family, const SocketAddress& sa, sockaddr_storage* addr_out,
-    socklen_t* size_out);
+[[nodiscard]] bool SocketAddressToFamilyForBind(int output_family,
+                                                const SocketAddress& sa,
+                                                sockaddr_storage* addr_out,
+                                                socklen_t* size_out);
 
 // Returns whether the socket address is initialized or not.
 inline bool IsInitializedSocketAddress(const SocketAddress& addr) {
@@ -1475,7 +1475,7 @@ inline bool IsInitializedSocketAddress(const SocketAddress& addr) {
 // family (e.g. /32 or /128).  Additionally, IPv4 ranges may have a netmask
 // specifier in the older dotted quad format, e.g. "/255.255.0.0".
 //
-ABSL_MUST_USE_RESULT bool StringToIPRange(absl::string_view str, IPRange* out);
+[[nodiscard]] bool StringToIPRange(absl::string_view str, IPRange* out);
 
 // StringToIPRange conversion methods that CHECK()-fail on invalid input.
 // Not a good idea to use on user-provided input.
@@ -1490,8 +1490,8 @@ inline IPRange StringToIPRangeOrDie(absl::string_view str) {
 // of returning an error in the event of an improperly zeroed out mask (ie.,
 // 192.168.0.0/8 will automatically be changed to 192.0.0.0/8).
 //
-ABSL_MUST_USE_RESULT bool StringToIPRangeAndTruncate(absl::string_view str,
-                                                     IPRange* out);
+[[nodiscard]] bool StringToIPRangeAndTruncate(absl::string_view str,
+                                              IPRange* out);
 inline IPRange StringToIPRangeAndTruncateOrDie(absl::string_view str) {
   IPRange ipr;
   CHECK(StringToIPRangeAndTruncate(str, &ipr)) << "Invalid IP range " << str;
@@ -1515,8 +1515,7 @@ inline IPRange TruncatedAddressToIPRange(const IPAddress& host, int length) {
 // Parse a "binary" or packed string containing a *truncated* IPRange of IPv4
 // or IPv6 addresses. If this string contains an IPRange that is not truncated
 // then it will return false. See IPRange::ToPackedString for more information.
-ABSL_MUST_USE_RESULT bool PackedStringToIPRange(absl::string_view str,
-                                                IPRange* out);
+[[nodiscard]] bool PackedStringToIPRange(absl::string_view str, IPRange* out);
 
 // Binary packed string conversion method that CHECK()-fails on invalid input.
 inline IPRange PackedStringToIPRangeOrDie(absl::string_view str) {
@@ -1620,8 +1619,8 @@ absl::uint128 IndexInRange(const IPRange& range, const IPAddress& ip);
 // Returns false if the family is unknown or if the length is
 // invalid for the family specified. In both cases, address is
 // not modified.
-ABSL_MUST_USE_RESULT bool MaskLengthToIPAddress(int family, int length,
-                                                IPAddress* address);
+[[nodiscard]] bool MaskLengthToIPAddress(int family, int length,
+                                         IPAddress* address);
 
 // Computes the length of a netmask. For example, '255.255.255.0'
 // is converted to 24, and returned in the length parameter.
@@ -1630,8 +1629,7 @@ ABSL_MUST_USE_RESULT bool MaskLengthToIPAddress(int family, int length,
 // Returns false if the address family is not supported, or the
 // supplied address does not look like a valid netmask.
 // length can be null, in which case the address is still verified.
-ABSL_MUST_USE_RESULT bool NetMaskToMaskLength(const IPAddress& address,
-                                              int* length);
+[[nodiscard]] bool NetMaskToMaskLength(const IPAddress& address, int* length);
 
 // If (n > 0), it returns the nth IP address after the given addr.
 // If (n < 0), it returns the nth IP address before the given addr.
@@ -1647,8 +1645,8 @@ ABSL_MUST_USE_RESULT bool NetMaskToMaskLength(const IPAddress& address,
 // It returns false iff the result crosses the IP address space, in which case
 // the contents of "result" is undefined.
 // For example, "192.0.0.0" + 0x40000000.
-ABSL_MUST_USE_RESULT bool IPAddressPlusN(const IPAddress& addr, absl::int128 n,
-                                         IPAddress* result);
+[[nodiscard]] bool IPAddressPlusN(const IPAddress& addr, absl::int128 n,
+                                  IPAddress* result);
 
 // Subtract the IP range "sub_range" from the less specific IP range "range"
 // and return the resulting collection of disjoint IP ranges in "diff_range".

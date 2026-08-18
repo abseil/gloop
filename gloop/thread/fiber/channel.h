@@ -433,7 +433,7 @@ class WriterCloser {
 //   auto closer = thread::MakeWriterCloser(writer);
 //
 template <typename T>
-ABSL_MUST_USE_RESULT WriterCloser<T> MakeWriterCloser(Writer<T>* writer) {
+[[nodiscard]] WriterCloser<T> MakeWriterCloser(Writer<T>* writer) {
   return WriterCloser<T>(writer);
 }
 

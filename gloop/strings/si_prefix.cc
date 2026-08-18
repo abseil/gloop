@@ -319,8 +319,8 @@ std::optional<ParseResult> Parse(const absl::string_view str) {
 }
 
 // Consume a leading double value.
-static bool ABSL_MUST_USE_RESULT ConsumeDouble(absl::string_view* const str,
-                                               double* const value) {
+[[nodiscard]] static bool ConsumeDouble(absl::string_view* const str,
+                                        double* const value) {
   const absl::from_chars_result result =
       absl::from_chars(str->data(), str->data() + str->size(), *value);
 
@@ -335,7 +335,7 @@ static bool ABSL_MUST_USE_RESULT ConsumeDouble(absl::string_view* const str,
 // Consume a prefix of the supplied string as an SI or IEC prefix abbreviation,
 // setting *exponent. On failure, return false and leave the string and
 // *exponent unmodified.
-static ABSL_MUST_USE_RESULT bool ConsumePrefixAbbreviation(
+[[nodiscard]] static bool ConsumePrefixAbbreviation(
     absl::string_view* const str, int* const exponent) {
   if (str->empty()) {
     return false;

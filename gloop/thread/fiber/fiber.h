@@ -415,8 +415,7 @@ class DynamicFiber {
 // An older name for the Fiber constructor that creates a root fiber. The result
 // is provided as a unique pointer.
 template <typename F>
-ABSL_MUST_USE_RESULT std::unique_ptr<Fiber> NewTree(TreeOptions tree_options,
-                                                    F&& f) {
+[[nodiscard]] std::unique_ptr<Fiber> NewTree(TreeOptions tree_options, F&& f) {
   return std::make_unique<Fiber>(Fiber::RootFiber{}, std::move(tree_options),
                                  std::forward<F>(f));
 }
@@ -498,7 +497,7 @@ class DistinctFiberScope {
 // Wrap a functor in DistinctFiberScope. Can be used with
 // non-fiber-aware executors: executor->Schedule(thread::FiberScoped(callback)).
 template <typename F>
-ABSL_MUST_USE_RESULT inline absl::AnyInvocable<void() &&> FiberScoped(
+[[nodiscard]] inline absl::AnyInvocable<void() &&> FiberScoped(
     const FiberOptions& options, F&& fn) {
   return [fn = std::forward<F>(fn), options]() mutable {
     DistinctFiberScope scope(options);
@@ -507,7 +506,7 @@ ABSL_MUST_USE_RESULT inline absl::AnyInvocable<void() &&> FiberScoped(
 }
 
 template <typename F>
-ABSL_MUST_USE_RESULT inline absl::AnyInvocable<void() &&> FiberScoped(F&& fn) {
+[[nodiscard]] inline absl::AnyInvocable<void() &&> FiberScoped(F&& fn) {
   return FiberScoped(FiberOptions(), std::forward<F>(fn));
 }
 
@@ -526,15 +525,14 @@ ABSL_MUST_USE_RESULT inline absl::AnyInvocable<void() &&> FiberScoped(F&& fn) {
 //
 // REQUIRES: Fiber::IsFiber().
 template <typename F>
-ABSL_MUST_USE_RESULT absl::AnyInvocable<void() &&> ChildFiberScoped(
+[[nodiscard]] absl::AnyInvocable<void() &&> ChildFiberScoped(
     const FiberOptions& options, F&& invocable) {
   return internal::InternalChildFiberScoped(options,
                                             std::forward<F>(invocable));
 }
 
 template <typename F>
-ABSL_MUST_USE_RESULT absl::AnyInvocable<void() &&> ChildFiberScoped(
-    F&& invocable) {
+[[nodiscard]] absl::AnyInvocable<void() &&> ChildFiberScoped(F&& invocable) {
   return internal::InternalChildFiberScoped(std::forward<F>(invocable));
 }
 

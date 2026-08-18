@@ -45,7 +45,7 @@ namespace util::functional {
 // }
 // AutoFunctionRunner is primarily intended for cleanup operations that are
 // relatively independent from other code.
-class ABSL_MUST_USE_RESULT AutoFunctionRunner {
+class [[nodiscard]] AutoFunctionRunner {
  public:
   AutoFunctionRunner() = default;
 
@@ -98,7 +98,7 @@ class ABSL_MUST_USE_RESULT AutoFunctionRunner {
   // an empty AnyInvocable.
   //
   // If you do not intend to run the returned callable, use Cancel() instead.
-  ABSL_MUST_USE_RESULT absl::AnyInvocable<void() &&> ReleaseInvocable() {
+  [[nodiscard]] absl::AnyInvocable<void() &&> ReleaseInvocable() {
     return std::exchange(callable_, nullptr);
   }
 

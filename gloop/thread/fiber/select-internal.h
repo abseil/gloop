@@ -63,7 +63,7 @@ class Selectable;
 // and untyped arguments for it specific to this case. Not in the internal
 // namespace since callers can pass around and copy objects of this type, though
 // they are not allowed to assume anything about its internals.
-struct ABSL_MUST_USE_RESULT Case {
+struct [[nodiscard]] Case {
   internal::Selectable* event;
   intptr_t arg1;  // Optional
   intptr_t arg2;  // Optional

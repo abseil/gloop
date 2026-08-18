@@ -119,7 +119,7 @@ class RefCount final {
   // Drops one or more references to this object.  Returns true if the final
   // reference has been released. This class can no longer be modified once this
   // returns true. `decrement` must be positive.
-  ABSL_MUST_USE_RESULT bool Dec(IntType decrement = 1);
+  [[nodiscard]] bool Dec(IntType decrement = 1);
 
   // Returns true if and only if, for every Inc() call that happens-before C,
   // there is a Dec() call that happens-before C. The constructor does *not*
@@ -129,16 +129,16 @@ class RefCount final {
   //
   // This can be used to implement copy-on-write logic with an optimization that
   // avoids a copy if the caller is the sole owner of the instance.
-  ABSL_MUST_USE_RESULT bool IsUnique() const;
+  [[nodiscard]] bool IsUnique() const;
 
   // Returns true if and only if all references have been released. This class
   // can no longer be modified if this returns true.
-  ABSL_MUST_USE_RESULT bool IsZero() const;
+  [[nodiscard]] bool IsZero() const;
 
   // Returns a string that can be used to log the current reference count. This
   // is intended for debug use only; writing program logic against the returned
   // value is an error.
-  ABSL_MUST_USE_RESULT std::string DebugString() const;
+  [[nodiscard]] std::string DebugString() const;
 
  private:
   std::atomic<IntType> ref_count_;

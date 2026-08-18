@@ -78,7 +78,7 @@ class Executor {
   // cause the caller to block, do nothing and return false.  When using
   // TrySchedule() the caller should make sure that the callback is deleted if
   // necessary in this case.
-  virtual ABSL_MUST_USE_RESULT bool TrySchedule(
+  [[nodiscard]] virtual bool TrySchedule(
       absl::AnyInvocable<void() &&> callback) = 0;
 
   // Schedule given callback for execution in this executor no sooner than

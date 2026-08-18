@@ -699,7 +699,7 @@ class TaskReturn {
 
 // TaskHold object that Holds up a task for its lifetime.
 // Moveable but not copyable.
-class ABSL_MUST_USE_RESULT TaskHold {
+class [[nodiscard]] TaskHold {
  public:
   inline explicit TaskHold(Task* t) : task_(t) { t->AddHold(); }
   TaskHold(const TaskHold&) = delete;

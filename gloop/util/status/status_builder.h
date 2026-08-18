@@ -269,8 +269,8 @@ inline util::error::Code GetCanonicalCode(const StatusBuilder& builder) {
 // `ErrorSpace` class documentation for details. Also, `code` must not be a
 // `util::error::Code`.
 template <typename Enum>
-ABSL_MUST_USE_RESULT decltype(::util::HasErrorCode(
-    std::declval<const absl::Status&>(), std::declval<Enum>()))
+[[nodiscard]] decltype(::util::HasErrorCode(std::declval<const absl::Status&>(),
+                                            std::declval<Enum>()))
 HasErrorCode(const StatusBuilder& builder, Enum code) {
   auto* rep =
       absl::status_internal::StatusBuilderPrivateAccessor::GetRep(builder);

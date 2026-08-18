@@ -49,9 +49,8 @@ template <typename T, class Ex, class Des,
           typename = absl::enable_if_t<std::is_integral<T>::value &&
                                        std::is_convertible<Ex, T>::value &&
                                        std::is_convertible<Des, T>::value>>
-ABSL_MUST_USE_RESULT T CompareAndSwap(std::atomic<T>* ptr, Ex&& expected,
-                                      Des&& desired,
-                                      std::memory_order success_order) {
+[[nodiscard]] T CompareAndSwap(std::atomic<T>* ptr, Ex&& expected,
+                               Des&& desired, std::memory_order success_order) {
   T expected_t = std::forward<Ex>(expected);
   ptr->compare_exchange_strong(expected_t, std::forward<Des>(desired),
                                success_order);
@@ -65,8 +64,7 @@ ABSL_MUST_USE_RESULT T CompareAndSwap(std::atomic<T>* ptr, Ex&& expected,
 template <typename T, class U,
           typename = absl::enable_if_t<std::is_integral<T>::value &&
                                        std::is_convertible<U, T>::value>>
-ABSL_MUST_USE_RESULT bool IsZeroAfterDecrement(std::atomic<T>* ptr,
-                                               U&& decrement) {
+[[nodiscard]] bool IsZeroAfterDecrement(std::atomic<T>* ptr, U&& decrement) {
   const T dec = std::forward<U>(decrement);
   return ptr->fetch_sub(dec, std::memory_order_seq_cst) - dec == 0;
 }

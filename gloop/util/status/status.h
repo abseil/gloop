@@ -274,7 +274,7 @@ template <typename Enum,
           typename = typename std::enable_if<
               EnumHasErrorSpace<Enum>::value &&
               !std::is_same<Enum, ::util::error::Code>::value>::type>
-ABSL_MUST_USE_RESULT bool HasErrorCode(const absl::Status& status, Enum code) {
+[[nodiscard]] bool HasErrorCode(const absl::Status& status, Enum code) {
   int value = static_cast<int>(code);
   if (value == 0) return status.ok();
   return HasErrorCode(status, GetErrorSpaceForEnum(code), value);
@@ -282,8 +282,8 @@ ABSL_MUST_USE_RESULT bool HasErrorCode(const absl::Status& status, Enum code) {
 
 // Returns true iff this status has the code and canonical error space.
 // `HasErrorCode(absl::Status(code, ""), code)` is always true.
-ABSL_MUST_USE_RESULT inline bool HasErrorCode(const absl::Status& status,
-                                              absl::StatusCode code) {
+[[nodiscard]] inline bool HasErrorCode(const absl::Status& status,
+                                       absl::StatusCode code) {
   return status.code() == code &&
          RetrieveErrorSpace(status) == CanonicalErrorSpace();
 }

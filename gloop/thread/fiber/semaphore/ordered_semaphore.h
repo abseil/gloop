@@ -131,7 +131,7 @@ class OrderedSemaphore {
   // On success, the caller must eventually Release() the acquired amount.
   //
   // REQUIRES: amount <= the semaphore's capacity.
-  ABSL_MUST_USE_RESULT bool TryAcquire(uintptr_t amount)
+  [[nodiscard]] bool TryAcquire(uintptr_t amount)
       ABSL_LOCKS_EXCLUDED(resource_.mu());
 
   // Returns the semaphore's current value (between 0 and capacity, inclusive).

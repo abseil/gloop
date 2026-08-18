@@ -536,7 +536,7 @@ class STLValueDeleter {
 //   // v[1] is now nullptr and the Foo it previously pointed to is now
 //   // stored in "safe"
 template <typename T>
-ABSL_MUST_USE_RESULT T* release_ptr(T** ptr) {
+[[nodiscard]] T* release_ptr(T** ptr) {
   assert(ptr);
   return std::exchange(*ptr, nullptr);
 }

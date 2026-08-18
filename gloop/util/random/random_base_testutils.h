@@ -56,7 +56,7 @@ ABSL_DECLARE_FLAG(int32_t, chi_square_samples);
 
 // If a unit test creates a generator that has been deterministically
 // seeded then we expect that it passes on the first attempt.
-bool Statistics(const char* name, RandomBase* gen) ABSL_MUST_USE_RESULT;
+[[nodiscard]] bool Statistics(const char* name, RandomBase* gen);
 
 // If a unit test wishes to create a generator is non-determinstically
 // seeded, this function will repeatedly create new generators and retry
@@ -77,10 +77,10 @@ bool Statistics(const char* name, RandomBase* gen) ABSL_MUST_USE_RESULT;
 // Yes, arguably this might belong in a regression test instead, but
 // it is good to run this more frequently (as w/ unit tests) to ensure
 // that generators do not generate bad outputs.
-bool RepeatedStatistics(
+[[nodiscard]] bool RepeatedStatistics(
     const char* name,
     util::functional::ResultCallbackFunctor<RandomBase*> generator_factory,
-    int required_passes, int num_attempts) ABSL_MUST_USE_RESULT;
+    int required_passes, int num_attempts);
 
 ABSL_DECLARE_FLAG(int32_t, clone_count);
 

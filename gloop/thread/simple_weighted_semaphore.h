@@ -106,13 +106,11 @@ class SimpleWeightedSemaphore {
   // available. If acquires are no longer possible, because the semaphore
   // is in a stop state, it returns false and does not acquire the resource.
   // Callers should handle that case appropriately.
-  bool Acquire(uint64_t cost) ABSL_MUST_USE_RESULT {
-    return Acquire(cost, nullptr);
-  }
+  [[nodiscard]] bool Acquire(uint64_t cost) { return Acquire(cost, nullptr); }
 
   // Just like Acquire, but returns the number of milliseconds spent
   // blocking.
-  bool Acquire(uint64_t cost, uint64_t* msec) ABSL_MUST_USE_RESULT;
+  [[nodiscard]] bool Acquire(uint64_t cost, uint64_t* msec);
 
   // Try to acquire use of so much cost, but don't block if it isn't
   // immediately available or if the semaphore is stopped. Returns true

@@ -162,7 +162,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI CensusHandle {
 
     // Decrements the reference count and returns true if it is the last
     // reference.
-    ABSL_MUST_USE_RESULT bool UnrefNoDelete() const {
+    [[nodiscard]] bool UnrefNoDelete() const {
       // If we read rc_ and it is 1, this is the only reference.  We can avoid
       // doing the decrement in that case, and just delete.
       // Note: load is much faster than fetch_sub, so doing the read makes the
