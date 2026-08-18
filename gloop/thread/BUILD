@@ -410,6 +410,7 @@ cc_library(
         ":wait_state",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log",

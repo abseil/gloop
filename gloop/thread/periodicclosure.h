@@ -64,17 +64,15 @@
 #ifndef THIRD_PARTY_GLOOP_THREAD_PERIODICCLOSURE_H_
 #define THIRD_PARTY_GLOOP_THREAD_PERIODICCLOSURE_H_
 
-#include <cstdint>
+#include <memory>
 #include <string>
 
-#include "absl/base/thread_annotations.h"
+#include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "absl/synchronization/mutex.h"
 #include "absl/time/clock_interface.h"
 #include "absl/time/time.h"
 #include "absl/types/source_location.h"
-#include "gloop/thread/thread_options.h"
 
 class Thread;
 namespace thread {
@@ -83,7 +81,8 @@ namespace thread {
 // Passed to constructor of PeriodicClosure.
 class PeriodicClosureOptions {
  public:
-  PeriodicClosureOptions();
+  PeriodicClosureOptions(
+      absl::SourceLocation loc = absl::SourceLocation::current());
 
   // Specifies the thread name prefix (see the description in class Thread).
   const std::string& name_prefix() const { return name_prefix_; }
@@ -128,10 +127,8 @@ class PeriodicClosure {
   PeriodicClosure(const PeriodicClosure&) = delete;
   PeriodicClosure& operator=(const PeriodicClosure&) = delete;
 
-  ~PeriodicClosure();
-
   // Start the background thread which will be calling the closure.
-  void Start(absl::SourceLocation loc = absl::SourceLocation::current());
+  void Start() { impl_->Start(); }
 
   // (Blocking.) Wait until the closure is not running, then trigger an
   // immediate new run of the closure in the background thread.  Return once
@@ -142,7 +139,7 @@ class PeriodicClosure {
   // callers to block until a single run has both started and finished.
   //
   // Must not be called after or concurrently with Stop().
-  void RunNow() { ForceRunInternal(true); }
+  void RunNow() { impl_->RunNow(); }
 
   // Non-blocking version of RunNow(): ensures, that a new run of the closure
   // will happen soon, whenever the background thread is scheduled, without
@@ -152,57 +149,45 @@ class PeriodicClosure {
   // Calling RunSoon() multiple times from different threads while the
   // background thread does not get a chance to start the requested run will
   // force only one single out-of-schedule run.
-  void RunSoon() { ForceRunInternal(false); }
+  void RunSoon() { impl_->RunSoon(); }
 
   // (Blocking.) Prevents the PeriodicClosure from starting any new runs of
   // the closure, and blocks until any current run of the closure has
   // completed.  The PeriodicClosure must be Start()'d before it is Stop()'d and
   // Stop()'d before it is destroyed.
-  void Stop();
+  void Stop() { impl_->Stop(); }
 
   // Get the interval to wait between runs.
-  absl::Duration Interval() const {
-    absl::MutexLock l(mutex_);
-    return interval_;
-  }
+  absl::Duration Interval() const { return impl_->Interval(); }
 
   // Change the interval to wait between runs.
   //
   // Note that this can race with an ongoing run of the closure, and so:
   //   * May not apply immediately
   //   * Will not change how long an existing waiting closure is stopped
-  void SetInterval(absl::Duration interval) {
-    absl::MutexLock l(mutex_);
-    interval_ = interval;
-  }
+  void SetInterval(absl::Duration interval) { impl_->SetInterval(interval); }
 
  private:
-  // (Blocking.) Loops forever calling "closure_" every "interval_".
-  void RunLoop(absl::Time start) ABSL_LOCKS_EXCLUDED(mutex_);
+  class Impl {
+   public:
+    virtual ~Impl() = default;
 
-  // Multiplexing RunNow and RunSoon to share code
-  void ForceRunInternal(bool blocking) ABSL_LOCKS_EXCLUDED(mutex_);
+    virtual void Start() = 0;
 
-  // Conditions used to signal between ForceRun()/Stop() and RunLoop().
-  bool QuitOrForceRun() const ABSL_SHARED_LOCKS_REQUIRED(mutex_);
-  bool ForceRunDone(int64_t target_run) const
-      ABSL_SHARED_LOCKS_REQUIRED(mutex_);
+    virtual void RunNow() = 0;
 
-  // Protects state below.
-  mutable absl::Mutex mutex_;
+    virtual void RunSoon() = 0;
 
-  // How many runs we've finished.
-  int64_t finished_runs_ ABSL_GUARDED_BY(mutex_) = 0;
-  // How many runs we've started.
-  int64_t started_runs_ ABSL_GUARDED_BY(mutex_) = 0;
-  // Account for calls to RunNow().
-  int64_t forced_run_ ABSL_GUARDED_BY(mutex_) = 0;
+    virtual void Stop() = 0;
 
-  // Thread for running "closure_"
-  Thread* thread_ ABSL_GUARDED_BY(mutex_) = nullptr;
-  absl::Duration interval_ ABSL_GUARDED_BY(mutex_);  // Interval between calls
-  absl::AnyInvocable<void()> callback_;              // Actual client closure
-  const PeriodicClosureOptions options_;
+    virtual absl::Duration Interval() const = 0;
+
+    virtual void SetInterval(absl::Duration interval) = 0;
+  };
+
+  friend class ThreadPeriodicClosure;
+
+  const absl_nonnull std::unique_ptr<Impl> impl_;
 };
 
 }  // namespace thread

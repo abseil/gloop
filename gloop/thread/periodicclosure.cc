@@ -20,10 +20,14 @@
 
 #include "gloop/thread/periodicclosure.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <memory>
+#include <string>
 #include <utility>
 
+#include "absl/base/thread_annotations.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
@@ -37,24 +41,90 @@
 #include "gloop/thread/wait_state.h"
 
 namespace thread {
+namespace {
 
-PeriodicClosureOptions::PeriodicClosureOptions()
-    : clock_(&absl::Clock::GetRealClock()),
+std::string ThreadNameFromSourceLocation(absl::SourceLocation loc) {
+  std::string file_name = std::string(loc.file_name());
+  // Erase file extension.
+  size_t dot = file_name.rfind('.');
+  if (dot != std::string::npos) file_name.erase(dot);
+  return thread::SanitizeThreadNamePrefix(std::move(file_name));
+}
+
+}  // namespace
+
+PeriodicClosureOptions::PeriodicClosureOptions(absl::SourceLocation loc)
+    : name_prefix_(ThreadNameFromSourceLocation(loc)),
+      clock_(&absl::Clock::GetRealClock()),
       startup_delay_(absl::ZeroDuration()) {}
 
-PeriodicClosure::PeriodicClosure(absl::AnyInvocable<void()> fun,
-                                 absl::Duration interval,
-                                 const PeriodicClosureOptions& options)
+class ThreadPeriodicClosure final : public PeriodicClosure::Impl {
+ public:
+  ThreadPeriodicClosure(
+      absl::AnyInvocable<void()> fun, absl::Duration interval,
+      const PeriodicClosureOptions& options = PeriodicClosureOptions());
+
+  ~ThreadPeriodicClosure() override;
+
+  void Start() override;
+
+  void RunNow() override { ForceRunInternal(true); }
+
+  void RunSoon() override { ForceRunInternal(false); }
+
+  void Stop() override;
+
+  absl::Duration Interval() const override {
+    absl::MutexLock l(mutex_);
+    return interval_;
+  }
+
+  void SetInterval(absl::Duration interval) override {
+    absl::MutexLock l(mutex_);
+    interval_ = interval;
+  }
+
+ private:
+  void RunLoop(absl::Time start) ABSL_LOCKS_EXCLUDED(mutex_);
+
+  // Multiplexing RunNow and RunSoon to share code
+  void ForceRunInternal(bool blocking) ABSL_LOCKS_EXCLUDED(mutex_);
+
+  // Conditions used to signal between ForceRun()/Stop() and RunLoop().
+  bool QuitOrForceRun() const ABSL_SHARED_LOCKS_REQUIRED(mutex_);
+  bool ForceRunDone(int64_t target_run) const
+      ABSL_SHARED_LOCKS_REQUIRED(mutex_);
+
+  // Protects state below.
+  mutable absl::Mutex mutex_;
+
+  // How many runs we've finished.
+  int64_t finished_runs_ ABSL_GUARDED_BY(mutex_) = 0;
+  // How many runs we've started.
+  int64_t started_runs_ ABSL_GUARDED_BY(mutex_) = 0;
+  // Account for calls to RunNow().
+  int64_t forced_run_ ABSL_GUARDED_BY(mutex_) = 0;
+
+  // Thread for running "closure_"
+  Thread* thread_ ABSL_GUARDED_BY(mutex_) = nullptr;
+  absl::Duration interval_ ABSL_GUARDED_BY(mutex_);  // Interval between calls
+  absl::AnyInvocable<void()> callback_;              // Actual client closure
+  const PeriodicClosureOptions options_;
+};
+
+ThreadPeriodicClosure::ThreadPeriodicClosure(
+    absl::AnyInvocable<void()> fun, absl::Duration interval,
+    const PeriodicClosureOptions& options)
     : interval_(interval), callback_(std::move(fun)), options_(options) {
   CHECK_GE(interval, absl::ZeroDuration())
       << " The value of 'interval' should be >= 0";
 }
 
-PeriodicClosure::~PeriodicClosure() {
+ThreadPeriodicClosure::~ThreadPeriodicClosure() {
   CHECK(thread_ == nullptr) << "must be Stop()'d before destructed";
 }
 
-void PeriodicClosure::Start(absl::SourceLocation loc) {
+void ThreadPeriodicClosure::Start() {
   absl::MutexLock lock(mutex_);
 
   CHECK(thread_ == nullptr) << "already running";
@@ -63,15 +133,15 @@ void PeriodicClosure::Start(absl::SourceLocation loc) {
   // is a delay starting RunLoop, that does not affect the timing of the first
   // closure.  (Such a delay can often happen in tests where the test simulates
   // a large time delay immediately after calling Start.)
-  auto c = absl::bind_front(&PeriodicClosure::RunLoop, this,
+  auto c = absl::bind_front(&ThreadPeriodicClosure::RunLoop, this,
                             options_.clock()->TimeNow());
   thread_ = new ClosureThread(thread::Options(), options_.name_prefix(), c);
 
   thread_->SetJoinable(true);
-  thread_->Start(loc);
+  thread_->Start();
 }
 
-void PeriodicClosure::ForceRunInternal(bool blocking) {
+void ThreadPeriodicClosure::ForceRunInternal(bool blocking) {
   absl::MutexLock lock(mutex_);
   CHECK(thread_ != nullptr) << "PeriodicClosure not Start()'d";
 
@@ -82,7 +152,7 @@ void PeriodicClosure::ForceRunInternal(bool blocking) {
 
   // Wait for our internal thread to "signal" that its done.
   std::function<bool()> c =
-      absl::bind_front(&PeriodicClosure::ForceRunDone, this, forced_run_);
+      absl::bind_front(&ThreadPeriodicClosure::ForceRunDone, this, forced_run_);
   mutex_.Await(absl::Condition(&c));
 }
 
@@ -90,19 +160,19 @@ void PeriodicClosure::ForceRunInternal(bool blocking) {
 // which will set thread_ == nullptr, or a forced run which we haven't executed
 // yet.
 // L >= mutex_
-bool PeriodicClosure::QuitOrForceRun() const {
+bool ThreadPeriodicClosure::QuitOrForceRun() const {
   return thread_ == nullptr || forced_run_ > started_runs_;
 }
 
 // Used with Condition() to wait for a given "target_run" to complete.
 // L >= mutex_
-bool PeriodicClosure::ForceRunDone(int64_t target_run) const {
+bool ThreadPeriodicClosure::ForceRunDone(int64_t target_run) const {
   CHECK(thread_ != nullptr)
       << "PeriodicClosure stopped while RunNow() was waiting";
   return finished_runs_ >= target_run;
 }
 
-void PeriodicClosure::Stop() {
+void ThreadPeriodicClosure::Stop() {
   Thread* internal_thread = nullptr;
 
   {
@@ -119,12 +189,12 @@ void PeriodicClosure::Stop() {
   delete internal_thread;
 }
 
-void PeriodicClosure::RunLoop(absl::Time start) {
+void ThreadPeriodicClosure::RunLoop(absl::Time start) {
   absl::MutexLock lock(mutex_);
 
   if (options_.startup_delay() > absl::ZeroDuration()) {
     absl::Condition cond =
-        absl::Condition(this, &PeriodicClosure::QuitOrForceRun);
+        absl::Condition(this, &ThreadPeriodicClosure::QuitOrForceRun);
     const absl::Time deadline = start + options_.startup_delay();
 
     WaitStateScope scope(WaitStateScope::WaitState::kWaitingForWork);
@@ -151,11 +221,17 @@ void PeriodicClosure::RunLoop(absl::Time start) {
     // We want to sleep until 'deadline' but to allow Stop() to
     // instantly quit and RunNow() to trigger a run.
     absl::Condition cond =
-        absl::Condition(this, &PeriodicClosure::QuitOrForceRun);
+        absl::Condition(this, &ThreadPeriodicClosure::QuitOrForceRun);
 
     WaitStateScope scope(WaitStateScope::WaitState::kWaitingForWork);
     options_.clock()->AwaitWithDeadline(&mutex_, cond, deadline);
   }
 }
+
+PeriodicClosure::PeriodicClosure(absl::AnyInvocable<void()> fun,
+                                 absl::Duration interval,
+                                 const PeriodicClosureOptions& options)
+    : impl_(std::make_unique<ThreadPeriodicClosure>(std::move(fun), interval,
+                                                    options)) {}
 
 }  // namespace thread
