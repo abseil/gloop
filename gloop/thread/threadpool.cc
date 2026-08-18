@@ -56,16 +56,7 @@
 #error Feature macros and BUILD file are out of sync.
 #endif
 
-ABSL_FLAG(
-    bool, thread_pool_lazy_spawn_workers, true,
-    "If false, ThreadPool will use the historical default behavior of "
-    "spawning all threads when StartWorkers is called. If true, "
-    "ThreadPool will use the new behavior of lazily spawning workers "
-    "when there is not one actively ready to handle new work.\n\n"
-    "NOTE: This flag will be REMOVED in the near future, it is only intended "
-    "for quick production fixes. If you determine that you need to retain this "
-    "behavior long term, set force_eager_thread_creation on ThreadPool "
-    "construction.");
+ABSL_RETIRED_FLAG(bool, thread_pool_lazy_spawn_workers, true, "Retired.");
 
 ABSL_FLAG(
     bool, thread_pool_gc_workers, true,
@@ -159,9 +150,7 @@ ThreadPool::ThreadPool(int num_threads, Options options)
               // <link>
               .set_stack_size(thread::python::MaybeAdjustStackSize(
                   options.thread_options.stack_size(), "ThreadPool"))),
-      eager_thread_creation_(
-          options.force_eager_thread_creation ||
-          !absl::GetFlag(FLAGS_thread_pool_lazy_spawn_workers)),
+      eager_thread_creation_(options.force_eager_thread_creation),
       gc_workers_(!options.force_eager_thread_creation &&
                   absl::GetFlag(FLAGS_thread_pool_gc_workers)),
       add_after_helper_(nullptr,
