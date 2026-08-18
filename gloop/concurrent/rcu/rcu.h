@@ -229,7 +229,6 @@ class ABSL_LOCKABLE Domain : public ::base::LListEntry<Domain> {
         callbacks_(),
         queued_for_run_(false),
         num_queues_(0),
-        in_cleanup_list_(false),
         destruct_(false) {}
 
   // It is unsafe to race ~Domain() with any use (including
@@ -328,14 +327,6 @@ class ABSL_LOCKABLE Domain : public ::base::LListEntry<Domain> {
   Pile<CallData> callbacks_[kNumPhases];
   std::atomic<bool> queued_for_run_;
   std::atomic<int32_t> num_queues_;
-
-  // Set to true when the domain is enqueued in run_domain_callbacks_thread's
-  // local work list (domains), and reset to false when callbacks complete.
-  //
-  // NOTE: This field is read and written exclusively by
-  // run_domain_callbacks_thread, never accessed by client threads.
-  bool in_cleanup_list_;
-
   SpinLock update_lock_;
   const bool destruct_;  // true if not using kConstInit
 
@@ -354,7 +345,6 @@ class ABSL_LOCKABLE Domain : public ::base::LListEntry<Domain> {
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(update_lock_);
   friend bool RunDomain(Domain* d);
   friend bool AddNewDomains(std::vector<Domain*>* domains);
-  friend class DomainTestPeer;
   // Slow path is necessary for safe absl::kConstInit Domain (i.e. global RCU.)
   Token ReaderLockInit();
   // Slow path for !IsFastNoInit to trigger fast restartable sequence
@@ -363,13 +353,6 @@ class ABSL_LOCKABLE Domain : public ::base::LListEntry<Domain> {
   Token ReaderLockSlow(int64_t handle);
   void MaybeInitStaticHandlesLocked()
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(update_lock_);
-};
-
-class DomainTestPeer {
- public:
-  static int32_t num_queues(const Domain& d) {
-    return d.num_queues_.load(std::memory_order_acquire);
-  }
 };
 
 namespace internal {
