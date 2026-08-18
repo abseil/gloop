@@ -1306,7 +1306,9 @@ static internal::ThreadManagerExecutorRep* TMExecutorRepNew(
 ThreadManager::ThreadManager(absl::string_view name_prefix,
                              const ManagerOptions& options)
     : rep_(
-          absl::GetFlag(FLAGS_threadmanager_use_executor_impl)
+          absl::GetFlag(FLAGS_threadmanager_use_executor_impl) &&
+                  absl::GetFlag(FLAGS_threadmanager_ignore_policy) &&
+                  absl::GetFlag(FLAGS_threadmanager_default_queue_executor)
               ? absl::implicit_cast<RepBase*>(
                     TMExecutorRepNew(name_prefix, options))
               : absl::implicit_cast<RepBase*>(TMRepNew(name_prefix, options))) {
