@@ -283,8 +283,7 @@ class IntervalMap {
   // Same as Lookup() but returns a pointer to the value found, nullptr if none.
   // Returns a non-null pointer iff contains(key).
   // More efficient than Lookup() if values are large objects.
-  // Pointer-stability is guaranteed only after mutations that do not remove or
-  // coalesce intervals, such as SetNoOverlap().
+  // Pointer-stability is not guaranteed after mutations.
   template <typename K1 = K>
   const V* absl_nullable LookupPtr(const key_arg<K1>& key) const;
 
