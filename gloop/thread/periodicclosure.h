@@ -74,6 +74,10 @@
 #include "absl/time/time.h"
 #include "absl/types/source_location.h"
 
+namespace eventmanager {
+class PeriodicClosure;
+}  // namespace eventmanager
+
 class Thread;
 namespace thread {
 
@@ -111,10 +115,26 @@ class PeriodicClosureOptions {
     return *this;
   }
 
+  // If true, forces this PeriodicClosure to use a dedicated thread. NOTE: doing
+  // so can have substantial memory cost to google if used in a widely used
+  // library. See <link>.
+  //
+  // This option should *only* be set as a temporary measure. Blocking code
+  // using PeriodicClosure should use fibers or <link> instead.
+  //
+  // TODO: Remove this option.
+  bool force_exclusive_thread() const { return force_exclusive_thread_; }
+  PeriodicClosureOptions& set_force_exclusive_thread(
+      bool force_exclusive_thread) {
+    force_exclusive_thread_ = force_exclusive_thread;
+    return *this;
+  }
+
  private:
   std::string name_prefix_;
   absl::Clock* clock_;
   absl::Duration startup_delay_;
+  bool force_exclusive_thread_;
 };
 
 class PeriodicClosure {
@@ -185,7 +205,12 @@ class PeriodicClosure {
     virtual void SetInterval(absl::Duration interval) = 0;
   };
 
+  static Impl* CreateEventManagerPeriodicClosure(
+      absl::AnyInvocable<void()>& fun, absl::Duration interval,
+      const PeriodicClosureOptions& options);
+
   friend class ThreadPeriodicClosure;
+  friend class eventmanager::PeriodicClosure;
 
   const absl_nonnull std::unique_ptr<Impl> impl_;
 };

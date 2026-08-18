@@ -27,6 +27,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/functional/bind_front.h"
@@ -56,7 +57,8 @@ std::string ThreadNameFromSourceLocation(absl::SourceLocation loc) {
 PeriodicClosureOptions::PeriodicClosureOptions(absl::SourceLocation loc)
     : name_prefix_(ThreadNameFromSourceLocation(loc)),
       clock_(&absl::Clock::GetRealClock()),
-      startup_delay_(absl::ZeroDuration()) {}
+      startup_delay_(absl::ZeroDuration()),
+      force_exclusive_thread_(false) {}
 
 class ThreadPeriodicClosure final : public PeriodicClosure::Impl {
  public:
@@ -228,10 +230,23 @@ void ThreadPeriodicClosure::RunLoop(absl::Time start) {
   }
 }
 
+// Weak definition, overridden in eventmanager/eventmanager_default.cc.
+ABSL_ATTRIBUTE_WEAK PeriodicClosure::Impl*
+PeriodicClosure::CreateEventManagerPeriodicClosure(
+    absl::AnyInvocable<void()>& fun, absl::Duration interval,
+    const PeriodicClosureOptions& options) {
+  return nullptr;
+}
+
 PeriodicClosure::PeriodicClosure(absl::AnyInvocable<void()> fun,
                                  absl::Duration interval,
                                  const PeriodicClosureOptions& options)
-    : impl_(std::make_unique<ThreadPeriodicClosure>(std::move(fun), interval,
-                                                    options)) {}
+    : impl_([&]() -> Impl* {
+        if (auto* impl =
+                CreateEventManagerPeriodicClosure(fun, interval, options)) {
+          return impl;
+        }
+        return new ThreadPeriodicClosure(std::move(fun), interval, options);
+      }()) {}
 
 }  // namespace thread
