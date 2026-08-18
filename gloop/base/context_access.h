@@ -40,9 +40,9 @@ class LinkContextsImpl;
 }  // namespace tracing
 }  // namespace perftools
 
-namespace stats_census {
+namespace stats_census::censushandle_internal {
 class CensusHandleManager;
-}  // namespace stats_census
+}  // namespace stats_census::censushandle_internal
 
 namespace security::context {
 class WithSecurityContext;
@@ -105,7 +105,7 @@ class CensusAccess {
   static const CensusHandle& GetHandleFromContext(const Context& c);
 
   friend class ContextTest;
-  friend class ::stats_census::CensusHandleManager;
+  friend class ::stats_census::censushandle_internal::CensusHandleManager;
 };
 
 class SharedContextAccess {
