@@ -70,6 +70,7 @@ cc_test(
     size = "large",
     srcs = ["fifo_semaphore_test.cc"],
     linkstatic = 1,
+    shard_count = 8,
     visibility = ["//visibility:private"],
     deps = [
         ":fifo_semaphore",

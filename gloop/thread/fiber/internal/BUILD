@@ -101,6 +101,7 @@ cc_test(
         "--switchto_domain_idle_thread_timeout_ms=1",
         "--fiber_thread_reaper_cooldown_ms=5",
     ],
+    shard_count = 8,
     visibility = ["//visibility:private"],
     deps = [
         ":fiber_thread_pool",
