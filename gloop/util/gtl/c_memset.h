@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Utility functions to call memset on a container with a byte value. Before
 // writing the value, it checks that the container has enough space to hold the
 // number of bytes to write. This is to replace std::memset.

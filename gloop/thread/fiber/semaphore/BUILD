@@ -31,7 +31,6 @@ cc_library(
         "//thread/fiber/semaphore:__subpackages__",
     ],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/thread/fiber:select",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
@@ -50,7 +49,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":ordered_semaphore",
-        "//gloop:enforce_gloop_support",
         "//gloop/thread/fiber",
         "//gloop/thread/fiber:select",
         "@abseil-cpp//absl/base:core_headers",
@@ -74,7 +72,6 @@ cc_test(
     deps = [
         ":fifo_semaphore",
         ":ordered_semaphore",
-        "//gloop:gloop_test_main",
         "//gloop/thread/fiber",
         "//gloop/thread/fiber:select",
         "@abseil-cpp//absl/functional:bind_front",

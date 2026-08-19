@@ -60,10 +60,7 @@ cc_library(
     hdrs = ["demangle.h"],
     copts = COPTS,
     features = ["-use_header_modules"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/debugging:demangle_rust",
-    ],
+    deps = ["@abseil-cpp//absl/debugging:demangle_rust"],
 )
 
 cc_test(
@@ -72,7 +69,6 @@ cc_test(
     deps = [
         ":demangle",
         ":demangled_type_name",
-        "//gloop:gloop_test_main",
         "//gloop/thread",
         "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/log",
@@ -86,10 +82,7 @@ cc_test(
 cc_library(
     name = "demangled_type_name",
     hdrs = ["demangled_type_name.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/strings:string_view",
-    ],
+    deps = ["@abseil-cpp//absl/strings:string_view"],
 )
 
 cc_library(
@@ -99,7 +92,6 @@ cc_library(
     copts = COPTS,
     deps = [
         ":symbol_map_sink",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:commandlineflags",
         "//gloop/base:port",
         "//gloop/testing/production_stub:testvalue",
@@ -169,9 +161,7 @@ cc_library(
     features = ["-use_header_modules"],
     deps = [
         ":demangle",
-        ":elf_reader",
         ":symbol_map_sink",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:arena",
         "//gloop/base:proc_maps",
         "//gloop/strings:util",
@@ -195,7 +185,11 @@ cc_library(
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
-    ],
+    ] + select({
+        "//conditions:default": [
+            ":elf_reader",
+        ],
+    }),
 )
 
 cc_test(
@@ -205,7 +199,6 @@ cc_test(
     deps = [
         ":demangle",
         ":symbolize",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:node_hash_set",
         "@abseil-cpp//absl/debugging:debugging_internal",
@@ -225,7 +218,6 @@ cc_test(
     deps = [
         ":demangle",
         ":symbolize",
-        "//gloop:gloop_test_main",
         "//gloop/thread",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/log",
@@ -266,7 +258,6 @@ cc_library(
     target_compatible_with = ["@platforms//cpu:x86_64"],
     deps = [
         ":symbolize",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
     ],
 )
@@ -275,7 +266,6 @@ cc_library(
     name = "symbolize_dlopen_with_offset_test_helper",
     testonly = True,
     srcs = ["symbolize_dlopen_with_offset_test_helper.cc"],
-    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -284,7 +274,6 @@ cc_test(
     target_compatible_with = ["@platforms//cpu:x86_64"],
     deps = [
         ":foobar_bbsections_all",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
@@ -301,7 +290,6 @@ cc_test(
     malloc = "//gloop:malloc",
     deps = [
         ":symbolize",
-        "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
         "//gloop/thread",
         "@abseil-cpp//absl/flags:flag",
@@ -321,7 +309,6 @@ cc_library(
     visibility = [
         "//gloop/util/symbolize:__subpackages__",
     ],
-    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -330,7 +317,6 @@ cc_test(
     deps = [
         ":elf_reader",
         ":symbolize",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings",
         "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",

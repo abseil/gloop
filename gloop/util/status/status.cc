@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 #include "gloop/util/status/status.h"
 
 #include <stdint.h>
@@ -91,29 +85,6 @@ class absl::status_internal::StatusPrivateAccessor {
  public:
   static absl::Status MakeNonOkStatusWithOkCode(absl::string_view message) {
     return absl::Status::MakeNonOkStatusWithOkCode(message);
-  }
-
-  static absl::Status SetMessageWithoutPayloadsOrSourceLocations(
-      const absl::Status& status, absl::string_view message) {
-    if (status.ok()) {
-      return status;
-    }
-
-    if (message.empty()) {
-      return absl::Status(status.code(), message, absl::SourceLocation());
-    }
-
-    using StatusRep =
-        std::remove_cv_t<std::remove_pointer_t<decltype(Status::RepToPointer(
-            std::declval<uintptr_t>()))>>;
-    StatusRep* rep;
-    if (Status::IsInlined(status.rep_)) {
-      rep = new StatusRep(Status::InlinedRepToCode(status.rep_), message,
-                          nullptr);
-    } else {
-      rep = Status::RepToPointer(status.rep_)->Clone(message, false, false);
-    }
-    return absl::Status(Status::PointerToRep(rep));
   }
 };
 

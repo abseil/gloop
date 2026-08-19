@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Function templates direct_initialize and brace_initialize create an instance
 // of an object by passing all elements from the supplied tuple to the objects
 // constructor. The difference between the two functions is the initialization
