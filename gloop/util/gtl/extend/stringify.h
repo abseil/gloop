@@ -21,8 +21,11 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_GTL_EXTEND_STRINGIFY_H_
 #define THIRD_PARTY_GLOOP_UTIL_GTL_EXTEND_STRINGIFY_H_
 
-#include <sstream>
+#include <memory>
+#include <ostream>
+#include <streambuf>
 
+#include "absl/strings/string_view.h"
 #include "gloop/util/gtl/extend/extension.h"
 #include "gloop/util/gtl/extend/internal/debug_print_value.h"
 #include "gloop/util/gtl/extend/reflection_extension.h"
@@ -54,6 +57,41 @@ namespace gtl {
 // // generates something like "Value: {x = 3, y = 4}" or maybe "Value: {3,  4}"
 // std::string stringified = absl::StrFormat("Value: %v", p1);
 
+namespace internal_stringify {
+
+template <typename Sink>
+class SinkStreamBuf : public std::streambuf {
+ public:
+  explicit SinkStreamBuf(Sink& sink) : sink_(sink) {}
+
+ protected:
+  std::streamsize xsputn(const char* s, std::streamsize n) override {
+    sink_.Append(absl::string_view(s, n));
+    return n;
+  }
+  int overflow(int c) override {
+    if (c != traits_type::eof()) {
+      char ch = c;
+      sink_.Append(absl::string_view(&ch, 1));
+    }
+    return c;
+  }
+
+ private:
+  Sink& sink_;
+};
+
+template <typename Sink>
+class SinkOStream : public std::ostream {
+ public:
+  explicit SinkOStream(Sink& sink) : std::ostream(&buf_), buf_(sink) {}
+
+ private:
+  SinkStreamBuf<Sink> buf_;
+};
+
+}  // namespace internal_stringify
+
 template <typename T>
 struct StringifyExtension : Extension<StringifyExtension, T> {
   using deps = void(ReflectionExtension<T>);
@@ -61,11 +99,8 @@ struct StringifyExtension : Extension<StringifyExtension, T> {
   friend void AbslStringify(Sink& sink, const T& value) {
     internal_extend::DebugPrintValue(
         [&](const auto& v) { sink.Append(v); },
-        [&, ss = std::stringstream()](const auto& v) mutable {
-          ss.str("");
-          ss << gtl::GenericPrint(v);
-          sink.Append(ss.str());
-        },
+        [ss = std::make_unique<internal_stringify::SinkOStream<Sink>>(sink)](
+            const auto& v) { *ss << gtl::GenericPrint(v); },
         value);
   }
 };
