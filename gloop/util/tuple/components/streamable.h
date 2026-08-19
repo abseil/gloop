@@ -465,10 +465,25 @@ class printer {
     // convertible to a type derived from string_view that invalidates the
     // string in its destructor.
     [&](::absl::string_view s) {
-      if (s.data() == nullptr)
+      if (s.data() == nullptr) {
         writer_(stream_, nullptr);
-      else
-        stream_ << '"' << ::absl::CEscape(s) << '"';
+      } else {
+        bool needs_escape = false;
+        for (char c : s) {
+          unsigned char uc = static_cast<unsigned char>(c);
+          if (uc < 32 || uc >= 127 || uc == '"' || uc == '\\' || uc == '\'') {
+            needs_escape = true;
+            break;
+          }
+        }
+        stream_ << '"';
+        if (needs_escape) {
+          stream_ << ::absl::CEscape(s);
+        } else {
+          stream_ << s;
+        }
+        stream_ << '"';
+      }
     }(obj);
   }
 
@@ -636,15 +651,22 @@ class printer {
     // insert new lines between fields. google::protobuf::ShortFormat() is used
     // when the output size is <= kMaxProtoOneliner.
     constexpr ::size_t kMaxProtoOneliner = 200;
-    ::std::string oneliner = google::protobuf::ShortFormat(obj);
-    if (oneliner.size() <= kMaxProtoOneliner && obj.ByteSizeLong() == 0) {
+    size_t byte_size = obj.ByteSizeLong();
+    if (byte_size == 0) {
       // Empty protocol buffers are special-cased to avoid non-useful debug
       // annotations.
       stream_ << "<>";
-    } else if (oneliner.size() <= kMaxProtoOneliner) {
-      stream_ << "<" << oneliner << ">";
-    } else {
+    } else if (byte_size > kMaxProtoOneliner) {
+      // ByteSizeLong() is a lower bound for text format size. If it exceeds
+      // kMaxProtoOneliner, ShortFormat will definitely exceed it too. Skip it.
       stream_ << absl::StrCat("<\n", obj, ">");
+    } else {
+      ::std::string oneliner = google::protobuf::ShortFormat(obj);
+      if (oneliner.size() <= kMaxProtoOneliner) {
+        stream_ << "<" << oneliner << ">";
+      } else {
+        stream_ << absl::StrCat("<\n", obj, ">");
+      }
     }
   }
 #endif
