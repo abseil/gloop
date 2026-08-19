@@ -24,7 +24,6 @@
 #include <string>
 #include <vector>
 
-#include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
 #include "absl/types/span.h"
 #include "gmock/gmock.h"
@@ -141,8 +140,6 @@ TEST(CMemsetNDeathTest, CrashesOnOutOfBoundsWrite) {
 
 #if GTEST_HAS_DEATH_TEST
   if (IsHardened()) {
-    absl::base_internal::ScopedSetAbslHardeningForTesting test_hardening(true);
-
     EXPECT_DEATH(gtl::c_memset_n(vec_int, 0, 13), "");
   }
 #endif
@@ -154,8 +151,6 @@ TEST(CMemsetNDeathTest, CrashesOnOutOfBoundsWrite) {
 
 #if GTEST_HAS_DEATH_TEST
   if (IsHardened()) {
-    absl::base_internal::ScopedSetAbslHardeningForTesting test_hardening(true);
-
     EXPECT_DEATH(gtl::c_memset_n(vec_char, 'x', 4), "");
   }
 #endif

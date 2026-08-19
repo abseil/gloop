@@ -90,7 +90,6 @@ cc_test(
         "//gloop/util/random:acmrandom",
         "//gloop/util/random:distributions",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:hardening",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings:string_view",

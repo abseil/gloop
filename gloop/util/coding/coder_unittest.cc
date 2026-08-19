@@ -33,7 +33,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
 #include "absl/log/check.h"
 #include "absl/numeric/int128.h"
@@ -310,7 +309,6 @@ TEST(CoderDeathTest, Hardening) {
     GTEST_SKIP() << "This test requires ABSL_HARDENING_ASSERT is enabled";
   }
 
-  absl::base_internal::ScopedSetAbslHardeningForTesting hardener(true);
   const std::string str = "abcdefghijklmnopqrstuvwxyz";
   Encoder e(encoding_buffer, 0);
   EXPECT_DEATH(e.put8(0), "");
