@@ -33,6 +33,7 @@
 #include <variant>
 
 #include "absl/base/attributes.h"
+#include "absl/base/no_destructor.h"
 #include "absl/base/nullability.h"
 #include "absl/container/fixed_array.h"
 #include "absl/flags/flag.h"
@@ -69,11 +70,15 @@ absl::Status MakeStatusInternal(absl::StatusCode code, absl::string_view msg,
 // TODO: b/284176655 - remove this
 static std::string LegacyUnredactedShortDebugString(
     google::protobuf::Message& message) {
+  static const absl::NoDestructor<google::protobuf::TextFormat::Printer>
+      printer([] {
+        google::protobuf::TextFormat::Printer p;
+        p.SetSingleLineMode(true);
+        p.SetExpandAny(true);
+        return p;
+      }());
   std::string debug_string;
-  google::protobuf::TextFormat::Printer printer;
-  printer.SetSingleLineMode(true);
-  printer.SetExpandAny(true);
-  (void)printer.PrintToString(message, &debug_string);
+  (void)printer->PrintToString(message, &debug_string);
   if (!debug_string.empty() && debug_string.back() == ' ') {
     debug_string.pop_back();
   }
