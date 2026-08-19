@@ -61,6 +61,7 @@ cc_library(
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base",
+        "@highway//:hwy",
     ],
 )
 

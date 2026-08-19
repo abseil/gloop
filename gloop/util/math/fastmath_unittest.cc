@@ -30,6 +30,7 @@
 #include <iostream>
 #include <limits>
 #include <ostream>
+#include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/log/log.h"
@@ -209,6 +210,57 @@ TEST(FastMathTest, fLogOdds2Prob) {
   // 88 and -88 exercises fLogOdds2Prob outside this range.
   EXPECT_FLOAT_EQ(1.0, fLogOdds2Prob(88));
   EXPECT_FLOAT_EQ(0.0, fLogOdds2Prob(-88));
+}
+
+TEST(FastMathTest, VectorParity) {
+  constexpr size_t kSizes[] = {1,  3,  4,  7,  8,   15,  16,
+                               31, 32, 63, 64, 100, 1024};
+  for (size_t size : kSizes) {
+    std::vector<float> in(size);
+    std::vector<float> out_vec(size, 0.0f);
+    std::vector<float> out_scalar(size, 0.0f);
+
+    for (size_t i = 0; i < size; ++i) {
+      in[i] =
+          -80.0f + 160.0f * (static_cast<float>(i) / static_cast<float>(size));
+    }
+
+    // FastExpVector
+    FastExpVector(in.data(), out_vec.data(), size);
+    for (size_t i = 0; i < size; ++i) {
+      out_scalar[i] = fexp(in[i]);
+      EXPECT_FLOAT_EQ(out_vec[i], out_scalar[i])
+          << "Mismatch at index " << i << " for size " << size;
+    }
+
+    // FastExp2Vector
+    FastExp2Vector(in.data(), out_vec.data(), size);
+    for (size_t i = 0; i < size; ++i) {
+      out_scalar[i] = fexp2(in[i]);
+      EXPECT_FLOAT_EQ(out_vec[i], out_scalar[i])
+          << "Mismatch at index " << i << " for size " << size;
+    }
+
+    // FastLogVector (positive inputs)
+    for (size_t i = 0; i < size; ++i) {
+      in[i] = 0.001f +
+              1000.0f * (static_cast<float>(i + 1) / static_cast<float>(size));
+    }
+    FastLogVector(in.data(), out_vec.data(), size);
+    for (size_t i = 0; i < size; ++i) {
+      out_scalar[i] = flog(in[i]);
+      EXPECT_FLOAT_EQ(out_vec[i], out_scalar[i])
+          << "Mismatch at index " << i << " for size " << size;
+    }
+
+    // FastLog2Vector
+    FastLog2Vector(in.data(), out_vec.data(), size);
+    for (size_t i = 0; i < size; ++i) {
+      out_scalar[i] = flog2(in[i]);
+      EXPECT_FLOAT_EQ(out_vec[i], out_scalar[i])
+          << "Mismatch at index " << i << " for size " << size;
+    }
+  }
 }
 
 namespace print_precise_internal {
@@ -679,5 +731,57 @@ void BM_Vfpowd05(benchmark::State& state) {
   }
 }
 BENCHMARK(BM_Vfpowd05);
+
+void BM_ScalarExpBatch(benchmark::State& state) {
+  constexpr size_t kSize = 1024;
+  std::vector<float> in(kSize, 1.5f);
+  std::vector<float> out(kSize, 0.0f);
+  for (auto _ : state) {
+    for (size_t i = 0; i < kSize; ++i) {
+      out[i] = fexp(in[i]);
+    }
+    benchmark::DoNotOptimize(out.data());
+  }
+  state.SetItemsProcessed(state.iterations() * kSize);
+}
+BENCHMARK(BM_ScalarExpBatch);
+
+void BM_FastExpVector(benchmark::State& state) {
+  constexpr size_t kSize = 1024;
+  std::vector<float> in(kSize, 1.5f);
+  std::vector<float> out(kSize, 0.0f);
+  for (auto _ : state) {
+    FastExpVector(in.data(), out.data(), kSize);
+    benchmark::DoNotOptimize(out.data());
+  }
+  state.SetItemsProcessed(state.iterations() * kSize);
+}
+BENCHMARK(BM_FastExpVector);
+
+void BM_ScalarLogBatch(benchmark::State& state) {
+  constexpr size_t kSize = 1024;
+  std::vector<float> in(kSize, 1.5f);
+  std::vector<float> out(kSize, 0.0f);
+  for (auto _ : state) {
+    for (size_t i = 0; i < kSize; ++i) {
+      out[i] = flog(in[i]);
+    }
+    benchmark::DoNotOptimize(out.data());
+  }
+  state.SetItemsProcessed(state.iterations() * kSize);
+}
+BENCHMARK(BM_ScalarLogBatch);
+
+void BM_FastLogVector(benchmark::State& state) {
+  constexpr size_t kSize = 1024;
+  std::vector<float> in(kSize, 1.5f);
+  std::vector<float> out(kSize, 0.0f);
+  for (auto _ : state) {
+    FastLogVector(in.data(), out.data(), kSize);
+    benchmark::DoNotOptimize(out.data());
+  }
+  state.SetItemsProcessed(state.iterations() * kSize);
+}
+BENCHMARK(BM_FastLogVector);
 
 }  // namespace

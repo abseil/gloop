@@ -48,8 +48,10 @@
 
 #include <cassert>
 #include <cmath>
+#include <cstddef>
 
 #include "absl/base/casts.h"
+#include "hwy/highway.h"
 
 #ifdef M_LN2
 const float FASTMATH_LOG_2_F = M_LN2;
@@ -66,6 +68,94 @@ const double FASTMATH_INV_LOG_2_D = M_LOG2E;
 const float FASTMATH_INV_LOG_2_F = 1.44269504088896340736;
 const double FASTMATH_INV_LOG_2_D = 1.44269504088896340736;
 #endif
+
+namespace fastmath_internal {
+namespace hn = hwy::HWY_NAMESPACE;
+
+// Highway Remez minimax vector approximation for 2^x
+template <class D, class V = hn::VFromD<D>>
+HWY_INLINE V FastExp2Vec(D d, V x) {
+  const hn::RebindToSigned<D> di;
+  const auto q_i = hn::NearestInt(x);
+  const auto q_f = hn::ConvertTo(d, q_i);
+  const auto r = hn::Sub(x, q_f);
+
+  // Remez minimax polynomial for 2^r on [-0.5, 0.5]
+  const auto c0 = hn::Set(d, 1.0000000015f);
+  const auto c1 = hn::Set(d, 0.6931471806f);
+  const auto c2 = hn::Set(d, 0.2402265070f);
+  const auto c3 = hn::Set(d, 0.0555041087f);
+  const auto c4 = hn::Set(d, 0.0096181291f);
+  const auto c5 = hn::Set(d, 0.0013333558f);
+
+  auto p = hn::MulAdd(c5, r, c4);
+  p = hn::MulAdd(p, r, c3);
+  p = hn::MulAdd(p, r, c2);
+  p = hn::MulAdd(p, r, c1);
+  p = hn::MulAdd(p, r, c0);
+
+  // IEEE 754 exponent bit synthesis: 2^q = (q + 127) << 23
+  const auto exp_bits = hn::ShiftLeft<23>(hn::Add(q_i, hn::Set(di, 127)));
+  const auto scale = hn::BitCast(d, exp_bits);
+
+  return hn::Mul(p, scale);
+}
+
+// Highway Remez minimax vector approximation for e^x
+template <class D, class V = hn::VFromD<D>>
+HWY_INLINE V FastExpVec(D d, V x) {
+  const auto kInvLn2 = hn::Set(d, FASTMATH_INV_LOG_2_F);
+  return FastExp2Vec(d, hn::Mul(x, kInvLn2));
+}
+
+// Highway Remez minimax vector approximation for log2(x)
+template <class D, class V = hn::VFromD<D>>
+HWY_INLINE V FastLog2Vec(D d, V x) {
+  const hn::RebindToSigned<D> di;
+  const hn::RebindToUnsigned<D> du;
+
+  // Range reduction: shift exponent boundary by sqrt(0.5) ~ 0.70710678
+  // kExpMagicDiff = 0x3F800000 - 0x3F3504F3 = 0x004AFB0D
+  const auto kExpMagicDiff = hn::Set(di, 0x004AFB0D);
+  const auto u = hn::BitCast(di, x);
+  const auto exp_bits = hn::Add(u, kExpMagicDiff);
+  const auto kBias = hn::Set(di, 127);
+  const auto q_i = hn::Sub(
+      hn::BitCast(di, hn::ShiftRight<23>(hn::BitCast(du, exp_bits))), kBias);
+  const auto exp_int_shifted = hn::ShiftLeft<23>(q_i);
+  const auto y_bits = hn::Sub(u, exp_int_shifted);
+  const auto y = hn::BitCast(d, y_bits);
+
+  const auto z = hn::Sub(y, hn::Set(d, 1.0f));
+
+  // Remez minimax polynomial for log2(1+z) / z on [-0.2929, 0.4142]
+  const auto c1 = hn::Set(d, 1.4426975712963104f);
+  const auto c2 = hn::Set(d, -0.7213638661111215f);
+  const auto c3 = hn::Set(d, 0.48057606259606056f);
+  const auto c4 = hn::Set(d, -0.3593981546865238f);
+  const auto c5 = hn::Set(d, 0.29628281298406994f);
+  const auto c6 = hn::Set(d, -0.26890557881560556f);
+  const auto c7 = hn::Set(d, 0.16918863644276905f);
+
+  auto p = hn::MulAdd(c7, z, c6);
+  p = hn::MulAdd(p, z, c5);
+  p = hn::MulAdd(p, z, c4);
+  p = hn::MulAdd(p, z, c3);
+  p = hn::MulAdd(p, z, c2);
+  p = hn::MulAdd(p, z, c1);
+
+  const auto q_f = hn::ConvertTo(d, q_i);
+  return hn::MulAdd(z, p, q_f);
+}
+
+// Highway Remez minimax vector approximation for ln(x)
+template <class D, class V = hn::VFromD<D>>
+HWY_INLINE V FastLogVec(D d, V x) {
+  const auto kLn2 = hn::Set(d, FASTMATH_LOG_2_F);
+  return hn::Mul(FastLog2Vec(d, x), kLn2);
+}
+
+}  // namespace fastmath_internal
 
 // fast logs and exps on floating point numbers.
 class FastMathClass {
@@ -87,10 +177,9 @@ class FastMathClass {
   // fast binary log (~7ns).
   float FastLog2(float f) const {
     assert(f > 0);
-    const int x = absl::bit_cast<int>(f);
-    const int y = x >> (23 - kBits) & kMask1;
-    return ((x >> 23) & 0xFF) - 127 + cache_.log[y] +
-           (x & kMask3) * cache_.log_diff[y];
+    const hwy::HWY_NAMESPACE::ScalableTag<float> d;
+    return hwy::HWY_NAMESPACE::GetLane(
+        fastmath_internal::FastLog2Vec(d, hwy::HWY_NAMESPACE::Set(d, f)));
   }
 
   // really fast and inaccurate binary log (~3ns)
@@ -104,11 +193,9 @@ class FastMathClass {
   // fast 2^f (~9ns)
   float FastExp2(float f) const {
     assert(fabs(f) <= 126);
-    const float g = f + (127 + (1 << 8));
-    const int x = absl::bit_cast<int>(g);
-    int ret =
-        ((x & 0x007F8000) << 8) | cache_.exp1[(x >> (15 - kBits)) & kMask1];
-    return absl::bit_cast<float>(ret) * cache_.exp2[x & kMask4];
+    const hwy::HWY_NAMESPACE::ScalableTag<float> d;
+    return hwy::HWY_NAMESPACE::GetLane(
+        fastmath_internal::FastExp2Vec(d, hwy::HWY_NAMESPACE::Set(d, f)));
   }
 
   // really fast and inaccurate 2^f (~4ns)
@@ -128,6 +215,67 @@ class FastMathClass {
   float FastLog(float f) const { return FastLog2(f) * FASTMATH_LOG_2_F; }
   float VeryFastLog(float f) const {
     return VeryFastLog2(f) * FASTMATH_LOG_2_F;
+  }
+
+  // Vectorized batch evaluation functions
+  void FastExpVector(const float* HWY_RESTRICT in, float* HWY_RESTRICT out,
+                     size_t size) const {
+    const hwy::HWY_NAMESPACE::ScalableTag<float> d;
+    const size_t N = hwy::HWY_NAMESPACE::Lanes(d);
+    size_t i = 0;
+    for (; i + N <= size; i += N) {
+      const auto vx = hwy::HWY_NAMESPACE::LoadU(d, in + i);
+      const auto vy = fastmath_internal::FastExpVec(d, vx);
+      hwy::HWY_NAMESPACE::StoreU(vy, d, out + i);
+    }
+    for (; i < size; ++i) {
+      out[i] = FastExp(in[i]);
+    }
+  }
+
+  void FastLogVector(const float* HWY_RESTRICT in, float* HWY_RESTRICT out,
+                     size_t size) const {
+    const hwy::HWY_NAMESPACE::ScalableTag<float> d;
+    const size_t N = hwy::HWY_NAMESPACE::Lanes(d);
+    size_t i = 0;
+    for (; i + N <= size; i += N) {
+      const auto vx = hwy::HWY_NAMESPACE::LoadU(d, in + i);
+      const auto vy = fastmath_internal::FastLogVec(d, vx);
+      hwy::HWY_NAMESPACE::StoreU(vy, d, out + i);
+    }
+    for (; i < size; ++i) {
+      out[i] = FastLog(in[i]);
+    }
+  }
+
+  void FastExp2Vector(const float* HWY_RESTRICT in, float* HWY_RESTRICT out,
+                      size_t size) const {
+    const hwy::HWY_NAMESPACE::ScalableTag<float> d;
+    const size_t N = hwy::HWY_NAMESPACE::Lanes(d);
+    size_t i = 0;
+    for (; i + N <= size; i += N) {
+      const auto vx = hwy::HWY_NAMESPACE::LoadU(d, in + i);
+      const auto vy = fastmath_internal::FastExp2Vec(d, vx);
+      hwy::HWY_NAMESPACE::StoreU(vy, d, out + i);
+    }
+    for (; i < size; ++i) {
+      out[i] = FastExp2(in[i]);
+    }
+  }
+
+  void FastLog2Vector(const float* HWY_RESTRICT in, float* HWY_RESTRICT out,
+                      size_t size) const {
+    const hwy::HWY_NAMESPACE::ScalableTag<float> d;
+    const size_t N = hwy::HWY_NAMESPACE::Lanes(d);
+    size_t i = 0;
+    for (; i + N <= size; i += N) {
+      const auto vx = hwy::HWY_NAMESPACE::LoadU(d, in + i);
+      const auto vy = fastmath_internal::FastLog2Vec(d, vx);
+      hwy::HWY_NAMESPACE::StoreU(vy, d, out + i);
+    }
+    for (; i < size; ++i) {
+      out[i] = FastLog2(in[i]);
+    }
   }
 
   struct InternalTestAccess {
@@ -202,6 +350,19 @@ inline float vflog(float f) { return FastMathInstance.VeryFastLog(f); }
 inline float flog(float f) { return FastMathInstance.FastLog(f); }
 inline float vfexp(float f) { return FastMathInstance.VeryFastExp(f); }
 inline float fexp(float f) { return FastMathInstance.FastExp(f); }
+
+inline void FastExpVector(const float* in, float* out, size_t size) {
+  FastMathInstance.FastExpVector(in, out, size);
+}
+inline void FastLogVector(const float* in, float* out, size_t size) {
+  FastMathInstance.FastLogVector(in, out, size);
+}
+inline void FastExp2Vector(const float* in, float* out, size_t size) {
+  FastMathInstance.FastExp2Vector(in, out, size);
+}
+inline void FastLog2Vector(const float* in, float* out, size_t size) {
+  FastMathInstance.FastLog2Vector(in, out, size);
+}
 
 inline double vflog2d(double d) { return FastMathDInstance.VeryFastLog2(d); }
 inline double flog2d(double d) { return FastMathDInstance.FastLog2(d); }
