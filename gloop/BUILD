@@ -89,6 +89,7 @@ cc_library(
         ":msan_enabled": [],
         "//conditions:default": ["@tcmalloc//tcmalloc"],
     }) + [":enforce_gloop_support"],
+    alwayslink = 1,
 )
 
 cc_library(
@@ -105,4 +106,5 @@ cc_library(
         "@google_benchmark//:benchmark",
         "@googletest//:gtest_for_library",
     ],
+    alwayslink = 1,
 )
