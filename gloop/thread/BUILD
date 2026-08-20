@@ -245,6 +245,18 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "thread_options_test",
+    srcs = ["thread_options_test.cc"],
+    deps = [
+        ":thread_options",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/flags:flag",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 cc_library(
     name = "cpu_subcontainer_stub",
     srcs = ["cpu_subcontainer_stub.cc"],
