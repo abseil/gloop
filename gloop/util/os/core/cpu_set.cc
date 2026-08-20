@@ -90,7 +90,7 @@ std::string CpuSetToHexString(const cpu_set_t* cpu_set, bool add_prefix) {
   // Turn the result into a hex string.
   std::string result;
   for (int b = bytes.size() - 1; b >= 0; --b) {
-    result += absl::StrCat(absl::Hex(bytes[b], absl::kZeroPad2));
+    absl::StrAppend(&result, absl::Hex(bytes[b], absl::kZeroPad2));
   }
   // Strip leading '0' if it exists, to make the result more consistent with
   // standard hex formatting.
