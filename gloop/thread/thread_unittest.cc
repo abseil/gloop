@@ -18,7 +18,7 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// This tests common/thread.h/thread.cc/thread_options.h/thread_options.cc.
+// This tests common/thread.h/thread.cc.
 // I actually only test the periodic-thread stuff
 
 #include "gloop/thread/thread.h"
@@ -379,23 +379,6 @@ bool ShouldRunSignalTest() {
          "\"-install_named_signal_handlers=stackdump\"; skipping";
   return ok;
 #endif  // ABSL_HAVE_THREAD_SANITIZER
-}
-
-TEST(ThreadTest, CheckOptions) {
-  thread::Options opt;
-
-  opt.set_joinable(false);
-  opt.set_stack_size(17);
-  EXPECT_FALSE(opt.joinable());
-  EXPECT_EQ(opt.stack_size(), 17);
-
-  opt.set_joinable(true).set_stack_size(18);
-  EXPECT_TRUE(opt.joinable());
-  EXPECT_EQ(opt.stack_size(), 18);
-
-  opt.set_io_priority(2, 6);
-  EXPECT_EQ(opt.io_class(), 2);
-  EXPECT_EQ(opt.io_priority_level(), 6);
 }
 
 class TestThreadStackWriter : public ThreadStackWriter {
