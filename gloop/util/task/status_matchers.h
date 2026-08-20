@@ -71,6 +71,31 @@
 
 namespace util {
 
+// Executes an expression that returns an absl::StatusOr, and assigns the
+// contained variable to lhs if the error code is OK.
+// If the Status is non-OK, generates a test failure and returns from the
+// current function, which must have a void return type.
+//
+// Example: Declaring and initializing a new value
+//   ABSL_ASSERT_OK_AND_ASSIGN(const ValueType& value, MaybeGetValue(arg));
+//
+// Example: Assigning to an existing value
+//   ValueType value;
+//   ABSL_ASSERT_OK_AND_ASSIGN(value, MaybeGetValue(arg));
+//
+// The value assignment example would expand into something like:
+//   absl::StatusOr<ValueType> new_value = MaybeGetValue(arg);
+//   ASSERT_THAT(new_value, ::absl_testing::IsOk());
+//   value = *std::move(new_value);
+//
+// WARNING: Like ABSL_ASSIGN_OR_RETURN, ABSL_ASSERT_OK_AND_ASSIGN expands into
+// multiple statements; it cannot be used in a single statement (e.g. as the
+// body of an if statement without {})!
+#define ABSL_ASSERT_OK_AND_ASSIGN(lhs, rexpr)                 \
+  ABSL_ASSIGN_OR_RETURN(/* NOLINT(clang-diagnostic-shadow) */ \
+                        lhs, rexpr,                           \
+                        ::util::status_internal::AddFatalFailure(#rexpr, _))
+
 // This gMock matcher matches a Status or StatusOr<T> or StatusProto value if
 // all of the following are true:
 //

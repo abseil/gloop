@@ -42,6 +42,22 @@ using ::absl_testing::StatusIs;
 using ::testing::_;
 using ::testing::Eq;
 
+TEST(StatusMatchersTest, AssertOkAndAssign) {
+  absl::StatusOr<int> status_or = 42;
+  ABSL_ASSERT_OK_AND_ASSIGN(int result, status_or);
+  EXPECT_THAT(result, Eq(42));
+}
+
+TEST(StatusMatchersTest, AssertOkAndAssignFail) {
+  EXPECT_FATAL_FAILURE(
+      {
+        absl::StatusOr<int> status_or = absl::UnknownError("inconnu");
+        ABSL_ASSERT_OK_AND_ASSIGN(int b, status_or);
+        (void)b;
+      },
+      "inconnu");
+}
+
 // Canonical Status tests.
 TEST(StatusMatcherTest, ErrorSpaceIsCanonical) {
   absl::Status status = absl::OkStatus();
