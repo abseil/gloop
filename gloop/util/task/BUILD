@@ -220,3 +220,60 @@ cc_test(
         "@protobuf//:protobuf_lite",
     ],
 )
+
+cc_library(
+    name = "status_matchers",
+    testonly = True,
+    hdrs = ["status_matchers.h"],
+    deps = [
+        ":status_matchers_internal",
+        "//gloop:enforce_gloop_support",
+        "//gloop/util/status:status_macros",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest_for_library",
+    ],
+)
+
+cc_test(
+    name = "status_matchers_test",
+    size = "small",
+    srcs = ["status_matchers_test.cc"],
+    deps = [
+        ":status_matchers",
+        "//gloop:gloop_test_main",
+        "//gloop/util/status",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_matchers",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings:string_view",
+        "@gloop//gloop/util/status:status_cc_proto",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "status_matchers_internal",
+    testonly = True,
+    srcs = ["status_matchers_internal.cc"],
+    hdrs = ["status_matchers_internal.h"],
+    textual_hdrs = ["status_matchers.h"],
+    visibility = [
+        "//visibility:private",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "//gloop/util/status",
+        "//gloop/util/status:status_builder",
+        "//gloop/util/status:status_macros",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_matchers",
+        "@abseil-cpp//absl/strings",
+        "@gloop//gloop/util/status:codes_cc_proto",
+        "@gloop//gloop/util/status:status_cc_proto",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest_for_library",
+    ],
+)
