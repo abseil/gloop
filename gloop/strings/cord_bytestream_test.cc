@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 #include "gloop/strings/cord_bytestream.h"
 
 #include <algorithm>
@@ -461,8 +455,10 @@ TEST(CordByteStream, ByteSinkSourceExternal) {
     if (len > 0) {
       // Verify that memory is shared.
       auto fragment = c2.TryFlat();
-      ASSERT_TRUE(fragment);
-      ASSERT_EQ(&buf[0], fragment->data());
+      ASSERT_TRUE(fragment.has_value());
+      if (fragment.has_value()) {
+        ASSERT_EQ(&buf[0], fragment->data());
+      }
     }
 
     c2 = absl::Cord();

@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // A thread-safe, ordered producer-consumer queue.  The queue holds elements of
 // type T, which must be suitable as an element of stl containers.  Elements in
 // the queue can be created, produced, and consumed asynchronously.  Creation

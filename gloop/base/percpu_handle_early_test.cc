@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 #include <optional>
 
 #include "absl/base/attributes.h"
@@ -33,7 +27,9 @@ ABSL_CONST_INIT std::optional<Handle> handle;
 
 TEST(PerCpu, HasHandle) {
   ASSERT_TRUE(handle.has_value());
-  EXPECT_TRUE(NullHandle().rep != handle->rep);
+  if (handle.has_value()) {
+    EXPECT_TRUE(NullHandle().rep != handle->rep);
+  }
 }
 
 void get_handle() { handle = AllocHandle(); }

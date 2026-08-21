@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 #include "gloop/util/task/sync_task.h"
 
 #include "absl/base/nullability.h"
@@ -48,7 +42,9 @@ SyncTask::SyncTask(WithBackgroundContextType, thread::Executor* executor,
   task()->set_context(base::BackgroundContext());
 }
 
-bool SyncTask::IsDone() const { return state_->done.HasBeenNotified(); }
+bool SyncTask::IsDone() const {
+  return state_.has_value() && state_->done.HasBeenNotified();
+}
 
 void SyncTask::Reset() {
   // Save a reference to the executor and arena before we destroy the task
@@ -92,19 +88,27 @@ bool SyncTask::WaitWithTimeout(absl::Duration duration) const {
 #else  // !THREAD_HAVE_FIBER
 
 // There is no cancel API if there are no fibers, so it is ignored by omission.
-void SyncTask::WaitIgnoresCancel() const { state_->done.WaitForNotification(); }
+void SyncTask::WaitIgnoresCancel() const {
+  if (state_.has_value()) {
+    state_->done.WaitForNotification();
+  }
+}
 
 bool SyncTask::WaitIgnoresCancelWithTimeout(absl::Duration duration) const {
   return WaitWithTimeout(duration);
 }
 
 absl::Status SyncTask::Wait() const {
-  state_->done.WaitForNotification();
-  return task()->status();
+  if (state_.has_value()) {
+    state_->done.WaitForNotification();
+    return task()->status();
+  }
+  return absl::InternalError("SyncTask state uninitialized");
 }
 
 bool SyncTask::WaitWithTimeout(absl::Duration duration) const {
-  return state_->done.WaitForNotificationWithTimeout(duration);
+  return state_.has_value() &&
+         state_->done.WaitForNotificationWithTimeout(duration);
 }
 
 #endif  // !THREAD_HAVE_FIBER

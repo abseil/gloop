@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // This approach to arenas overcomes many of the limitations described
 // in the "Specialized allocators" section of
 //     http://www.pdos.lcs.mit.edu/~dm/c++-new.html

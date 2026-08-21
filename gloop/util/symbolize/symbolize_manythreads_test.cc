@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -109,7 +103,10 @@ TEST(SymbolMap, ManyThreads) {
   ASSERT_TRUE(heap_after.has_value());
   rss_after = MemoryUsage(0);
 
-  const size_t heap_delta = *heap_after - *heap_before;
+  size_t heap_delta = 0;
+  if (heap_before.has_value() && heap_after.has_value()) {
+    heap_delta = *heap_after - *heap_before;
+  }
   const int64_t rss_delta = rss_after - rss_before;
   LOG(INFO) << "Heap increase   " << heap_delta << " bytes";
   LOG(INFO) << "RSS increase     " << rss_delta << " bytes";

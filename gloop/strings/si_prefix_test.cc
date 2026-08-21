@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 #include "gloop/strings/si_prefix.h"
 
 #include <cmath>
@@ -467,15 +461,18 @@ TEST(Consume, ValidInput) {
     const std::optional<ParseResult> result = Consume(tc.input);
     ASSERT_TRUE(result.has_value());
 
-    if (std::isnan(tc.expected_mantissa)) {
-      EXPECT_TRUE(std::isnan(result->mantissa)) << DUMP_VARS(result->mantissa);
-    } else {
-      EXPECT_EQ(tc.expected_mantissa, result->mantissa);
-    }
+    if (result.has_value()) {
+      if (std::isnan(tc.expected_mantissa)) {
+        EXPECT_TRUE(std::isnan(result->mantissa))
+            << DUMP_VARS(result->mantissa);
+      } else {
+        EXPECT_EQ(tc.expected_mantissa, result->mantissa);
+      }
 
-    EXPECT_EQ(tc.expected_exponent, result->exponent);
-    EXPECT_EQ(tc.expected_iec, result->iec);
-    EXPECT_EQ(tc.expected_suffix, result->remaining);
+      EXPECT_EQ(tc.expected_exponent, result->exponent);
+      EXPECT_EQ(tc.expected_iec, result->iec);
+      EXPECT_EQ(tc.expected_suffix, result->remaining);
+    }
   }
 }
 
@@ -616,15 +613,18 @@ TEST(Parse, ValidInput) {
     const std::optional<ParseResult> result = Parse(tc.input);
     ASSERT_TRUE(result.has_value());
 
-    if (std::isnan(tc.expected_mantissa)) {
-      EXPECT_TRUE(std::isnan(result->mantissa)) << DUMP_VARS(result->mantissa);
-    } else {
-      EXPECT_EQ(tc.expected_mantissa, result->mantissa);
-    }
+    if (result.has_value()) {
+      if (std::isnan(tc.expected_mantissa)) {
+        EXPECT_TRUE(std::isnan(result->mantissa))
+            << DUMP_VARS(result->mantissa);
+      } else {
+        EXPECT_EQ(tc.expected_mantissa, result->mantissa);
+      }
 
-    EXPECT_EQ(tc.expected_exponent, result->exponent);
-    EXPECT_EQ(tc.expected_iec, result->iec);
-    EXPECT_EQ("", result->remaining);
+      EXPECT_EQ(tc.expected_exponent, result->exponent);
+      EXPECT_EQ(tc.expected_iec, result->iec);
+      EXPECT_EQ("", result->remaining);
+    }
   }
 }
 

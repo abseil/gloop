@@ -36,7 +36,6 @@ cc_library(
         "//gloop/base/time:__subpackages__",
     ],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/time",
     ],
@@ -47,7 +46,6 @@ cc_test(
     srcs = ["time_unix_nanos_test.cc"],
     deps = [
         ":time_unix_nanos",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",

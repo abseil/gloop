@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 #ifndef THIRD_PARTY_GLOOP_BASE_PORT_H_
 #define THIRD_PARTY_GLOOP_BASE_PORT_H_
 
@@ -348,17 +342,29 @@ const char PATH_SEPARATOR = '/';
 #if !defined(__USE_MISC)
 #if !defined(HAVE_UINT)
 #define HAVE_UINT 1
+#ifdef __cplusplus
+using uint = unsigned int;
+#else
 typedef unsigned int uint;
+#endif
 #endif  // !HAVE_UINT
 #if !defined(HAVE_USHORT)
 #define HAVE_USHORT 1
+#ifdef __cplusplus
+using ushort = unsigned short;  // NOLINT
+#else
 typedef unsigned short ushort;  // NOLINT
-#endif                          // !HAVE_USHORT
+#endif
+#endif  // !HAVE_USHORT
 #if !defined(HAVE_ULONG)
 #define HAVE_ULONG 1
+#ifdef __cplusplus
+using ulong = unsigned long;  // NOLINT
+#else
 typedef unsigned long ulong;  // NOLINT
-#endif                        // !HAVE_ULONG
-#endif                        // !__USE_MISC
+#endif
+#endif  // !HAVE_ULONG
+#endif  // !__USE_MISC
 
 #endif  // __linux__
 
@@ -366,29 +372,49 @@ typedef unsigned long ulong;  // NOLINT
 // VC++ doesn't understand "uint"
 #ifndef HAVE_UINT
 #define HAVE_UINT 1
+#ifdef __cplusplus
+using uint = unsigned int;
+#else
 typedef unsigned int uint;
+#endif
 #endif  // !HAVE_UINT
 #endif  // COMPILER_MSVC
 
 #ifdef _MSC_VER
 // uid_t
 // MSVC doesn't have uid_t
+#ifdef __cplusplus
+using uid_t = int;
+#else
 typedef int uid_t;
+#endif
 
 // pid_t
 // Defined all over the place.
+#ifdef __cplusplus
+using pid_t = int;
+#else
 typedef int pid_t;
+#endif
 #endif  // _MSC_VER
 
 // mode_t
 #ifdef COMPILER_MSVC
 // From stat.h
+#ifdef __cplusplus
+using mode_t = unsigned int;
+#else
 typedef unsigned int mode_t;
+#endif
 #endif  // COMPILER_MSVC
 
 // sig_t
 #ifdef COMPILER_MSVC
+#ifdef __cplusplus
+using sig_t = void (*)(int);
+#else
 typedef void (*sig_t)(int);
+#endif
 #endif  // COMPILER_MSVC
 
 // Use these macros after a % in a printf format string

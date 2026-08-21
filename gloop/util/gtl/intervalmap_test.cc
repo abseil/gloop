@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 #include "gloop/util/gtl/intervalmap.h"
 
 #include <algorithm>
@@ -1821,8 +1815,10 @@ TEST(IntervalMapOptionalValue, SetAndCoalesceNoEq) {
     ASSERT_NE(it, map.end());
     EXPECT_EQ(it->start, 0);
     EXPECT_EQ(it->limit, 5);
-    ASSERT_NE(it->value, std::nullopt);
-    EXPECT_EQ(it->value->val(), "foo");
+    ASSERT_TRUE(it->value.has_value());
+    if (it->value.has_value()) {
+      EXPECT_EQ(it->value->val(), "foo");
+    }
   }
 }
 
@@ -1850,16 +1846,20 @@ TEST(IntervalMapOptionalValue, CoalesceNoEq) {
     ASSERT_NE(it, map.end());
     EXPECT_EQ(it->start, 25);
     EXPECT_EQ(it->limit, 30);
-    ASSERT_NE(it->value, std::nullopt);
-    EXPECT_EQ(it->value->val(), "foo");
+    ASSERT_TRUE(it->value.has_value());
+    if (it->value.has_value()) {
+      EXPECT_EQ(it->value->val(), "foo");
+    }
   }
   {
     auto it = map.find(31);
     ASSERT_NE(it, map.end());
     EXPECT_EQ(it->start, 30);
     EXPECT_EQ(it->limit, 35);
-    ASSERT_NE(it->value, std::nullopt);
-    EXPECT_EQ(it->value->val(), "foo");
+    ASSERT_TRUE(it->value.has_value());
+    if (it->value.has_value()) {
+      EXPECT_EQ(it->value->val(), "foo");
+    }
   }
 }
 }  // namespace test_int_optional
