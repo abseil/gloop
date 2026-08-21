@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 #include "gloop/base/callback.h"
 
 #include <string>
@@ -27,6 +21,7 @@
 #include "absl/log/log.h"
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
+#include "gloop/util/functional/with_context.h"
 #include "gtest/gtest.h"
 
 namespace {

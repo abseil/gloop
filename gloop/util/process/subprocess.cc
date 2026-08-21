@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 //  This does all of the dirty work required to manage a large number
 //  of subprocesses - or even just properly fork and exec a single
 //  process.
@@ -699,7 +693,7 @@ void SubProcess::SetCommand(const std::vector<std::string>& argv) {
 #endif
   argc_ = argv.size() + 1;
   argv_ = new char*[argc_ + 1];
-  argv_[0] = strdup(filename_->c_str());
+  argv_[0] = strdup(filename_.has_value() ? filename_->c_str() : "");
   for (int i = 0; i < argv.size(); i++) argv_[i + 1] = strdup(argv[i].c_str());
   argv_[argc_] = nullptr;
 }
@@ -726,7 +720,7 @@ void SubProcess::SetShellCommand(absl::string_view command) {
 #else
   filename_ = "/bin/sh";
 #endif
-  argv_[0] = strdup(filename_->c_str());
+  argv_[0] = strdup(filename_.has_value() ? filename_->c_str() : "");
   argv_[1] = strdup("-c");
   argv_[2] = StrDup(command);
   argv_[3] = nullptr;
@@ -1079,8 +1073,8 @@ void SubProcess::ForkedChild(struct ChildArgs* args) {
   // executing synchronous signals (such as SIGILL, SIGFPE, SIGSEGV, SIGBUS,
   // or SIGTRAP). Reset them to SIG_DFL.
   for (int signo : {SIGABRT, SIGILL, SIGFPE, SIGSEGV, SIGBUS}) {
-    static const struct kernel_sigaction act = {.sa_handler_ = SIG_DFL,
-                                                .sa_flags = SA_RESTART};
+    static constexpr struct kernel_sigaction act = {.sa_handler_ = SIG_DFL,
+                                                    .sa_flags = SA_RESTART};
     lss_sigaction(signo, &act, nullptr, &child_errno_);
   }
 
@@ -1391,7 +1385,7 @@ void SubProcess::ForkedChild(struct ChildArgs* args) {
       // And the best part of all: getpriority returns numbers in
       // [1, 39], but setpriority expects them in [-20,19].
       priority_ += (20 - lss_getpriority(PRIO_PROCESS, 0, &child_errno_));
-      [[fallthrough]];
+      ABSL_FALLTHROUGH_INTENDED;
     case ABSOLUTE:
       lss_setpriority(PRIO_PROCESS, 0, priority_, &child_errno_);
       break;
@@ -2007,9 +2001,13 @@ void SubProcess::ExecChild() {
     const char* const* envp = envp_ ? envp_ : (const char* const*)environ;
     lss_execveat(execve_fd_, "", argv_, envp, AT_EMPTY_PATH, &child_errno_);
   } else if (envp_) {
-    lss_execve(filename_->c_str(), argv_, envp_, &child_errno_);
+    if (filename_.has_value()) {
+      lss_execve(filename_->c_str(), argv_, envp_, &child_errno_);
+    }
   } else {
-    lss_execv(filename_->c_str(), argv_, &child_errno_);
+    if (filename_.has_value()) {
+      lss_execv(filename_->c_str(), argv_, &child_errno_);
+    }
   }
   // Alas, we cannot call LOG(FATAL) from the child process. The caller
   // will do this for us, when we return from this method.
@@ -2125,7 +2123,8 @@ void SubProcess::Close(Channel chan) {
 // L < subproc_mu
 void SubProcess::HandleExit(pid_t pid, int status, const struct rusage* usage) {
   finish_time_ = absl::Now();
-  VLOG(2) << "SubProcess::HandleExit " << *filename_ << "[" << pid
+  VLOG(2) << "SubProcess::HandleExit "
+          << (filename_.has_value() ? *filename_ : "unknown") << "[" << pid
           << "] status=" << status;
 
   //  Don't clear running_, because regular handlers might get called

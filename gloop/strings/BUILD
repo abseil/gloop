@@ -34,7 +34,6 @@ cc_library(
     name = "arena-string",
     hdrs = ["arena-string.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:arena",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base:core_headers",
@@ -72,7 +71,7 @@ cc_library(
     srcs = ["bytestream.cc"],
     hdrs = ["bytestream.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/memory",
@@ -87,7 +86,6 @@ cc_test(
     srcs = ["bytestream_test.cc"],
     deps = [
         ":bytestream",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings:internal",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
@@ -101,7 +99,6 @@ cc_library(
     hdrs = ["case.h"],
     deps = [
         ":memutil",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/hash",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
@@ -115,7 +112,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":case",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/strings",
@@ -134,7 +130,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":case",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
@@ -148,7 +143,6 @@ cc_library(
     hdrs = ["cord_bytestream.h"],
     deps = [
         ":bytestream",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/flags:flag",
@@ -165,7 +159,6 @@ cc_test(
     deps = [
         ":bytestream",
         ":cord_bytestream",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/random",
@@ -182,7 +175,6 @@ cc_library(
     srcs = ["escaping.cc"],
     hdrs = ["escaping.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
@@ -200,7 +192,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":escaping",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:scoped_mock_log",
@@ -217,7 +208,6 @@ cc_test(
     srcs = ["escaping_fuzz_test.cc"],
     deps = [
         ":escaping",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
         "@fuzztest//fuzztest",
@@ -231,7 +221,6 @@ cc_library(
     srcs = ["hex_ascii_dump.cc"],
     hdrs = ["hex_ascii_dump.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
@@ -245,7 +234,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":hex_ascii_dump",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -259,7 +247,6 @@ cc_library(
     deps = [
         ":numbers",
         ":util",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
     ],
@@ -272,7 +259,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":host_port",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
@@ -288,7 +274,6 @@ cc_library(
     hdrs = ["human_readable.h"],
     deps = [
         ":si_prefix",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/numeric:int128",
@@ -306,7 +291,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":human_readable",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings",
@@ -323,10 +307,7 @@ cc_library(
     testonly = 1,
     srcs = ["interntable_benchmark.cc"],
     hdrs = ["interntable_benchmark.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:core_headers",
-    ],
+    deps = ["@abseil-cpp//absl/base:core_headers"],
 )
 
 cc_library(
@@ -334,7 +315,6 @@ cc_library(
     srcs = ["join.cc"],
     hdrs = ["join.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
@@ -352,7 +332,6 @@ cc_test(
     deps = [
         ":join",
         ":util",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
@@ -365,7 +344,6 @@ cc_library(
     hdrs = ["keyed_intern_table.h"],
     deps = [
         ":arena-string",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:arena",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/hash",
@@ -382,7 +360,6 @@ cc_test(
     deps = [
         ":interntable_benchmark",
         ":keyed_intern_table",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl:stl_util",
         "//gloop/util/intops",
         "@abseil-cpp//absl/flags:flag",
@@ -399,7 +376,6 @@ cc_library(
     srcs = ["memblock.cc"],
     hdrs = ["memblock.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:config",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
@@ -423,7 +399,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":memblock",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
@@ -442,7 +417,6 @@ cc_library(
     srcs = ["memutil.cc"],
     hdrs = ["memutil.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings",
     ],
 )
@@ -470,7 +444,6 @@ cc_library(
     srcs = ["numberformat.cc"],
     hdrs = ["numberformat.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/util/math:fastmath",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
@@ -486,7 +459,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":numberformat",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
@@ -501,7 +473,6 @@ cc_library(
     deps = [
         ":string_view_utils",
         ":util",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:fprint",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
@@ -521,7 +492,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":numbers",
-        "//gloop:gloop_test_main",
         "//gloop/base:fprint",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/log",
@@ -545,7 +515,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":numbers",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/numeric:int128",
@@ -560,7 +529,6 @@ cc_library(
     name = "ostringstream",
     srcs = ["ostringstream.cc"],
     hdrs = ["ostringstream.h"],
-    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -570,7 +538,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":ostringstream",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -582,7 +549,6 @@ cc_library(
     hdrs = ["serialize.h"],
     deps = [
         ":numbers",
-        "//gloop:enforce_gloop_support",
         "//gloop/util/endian",
         "//gloop/util/gtl:stl_util",
         "@abseil-cpp//absl/base",
@@ -607,7 +573,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":serialize",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/container:node_hash_map",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
@@ -629,7 +594,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":serialize",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
@@ -643,7 +607,6 @@ cc_library(
     srcs = ["si_prefix.cc"],
     hdrs = ["si_prefix.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/util/math:mathutil",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
@@ -661,7 +624,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":si_prefix",
-        "//gloop:gloop_test_main",
         "//gloop/util/tuple/components:dump_vars",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
@@ -675,7 +637,6 @@ cc_library(
     hdrs = ["split.h"],
     deps = [
         ":util",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:strtoint",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/base:raw_logging_internal",
@@ -693,7 +654,6 @@ cc_test(
     srcs = ["split_benchmark.cc"],
     deps = [
         ":split",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -707,7 +667,6 @@ cc_test(
     deps = [
         ":numbers",
         ":split",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
@@ -724,7 +683,6 @@ cc_library(
     srcs = ["strip.cc"],
     hdrs = ["strip.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:charset",
@@ -739,7 +697,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":strip",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/strings:string_view",
@@ -753,7 +710,6 @@ cc_library(
     srcs = ["string_view_utils.cc"],
     hdrs = ["string_view_utils.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/strings",
@@ -768,7 +724,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":string_view_utils",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random:distributions",
@@ -786,7 +741,6 @@ cc_library(
     hdrs = ["util.h"],
     deps = [
         ":string_view_utils",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
@@ -805,7 +759,6 @@ cc_test(
     ],
     deps = [
         ":util",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
