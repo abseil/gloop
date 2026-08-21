@@ -44,8 +44,9 @@ using ::testing::InSequence;
 using ::testing::StrictMock;
 
 // This should not be needed b/356628268
-using ::absl::base_internal::AbslInternalTraceWait;  // NOLINT
-using ::absl::base_internal::ObjectKind;             // NOLINT
+using ::absl::base_internal::ABSL_INTERNAL_C_SYMBOL(
+    AbslInternalTraceWait);               // NOLINT
+using ::absl::base_internal::ObjectKind;  // NOLINT
 
 TraceSourceLocation SourceLocation(const char* file, int line) {
   return TraceSourceLocation(

@@ -37,6 +37,7 @@
 #include <atomic>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/flags/flag.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
@@ -58,7 +59,7 @@ ABSL_FLAG(absl::Duration, experimental_spinlock_wait_max_delay, {},
 extern "C" {
 
 // TODO ABSL_ATTRIBUTE_UNUSED is to suppress scythe.
-ABSL_ATTRIBUTE_UNUSED void AbslInternalSpinLockDelay(
+ABSL_ATTRIBUTE_UNUSED void ABSL_INTERNAL_C_SYMBOL(AbslInternalSpinLockDelay)(
     std::atomic<uint32_t>* w, uint32_t value, int loop,
     absl::base_internal::SchedulingMode scheduling_mode) {
   int save_errno = errno;
@@ -69,8 +70,8 @@ ABSL_ATTRIBUTE_UNUSED void AbslInternalSpinLockDelay(
   errno = save_errno;
 }
 
-ABSL_ATTRIBUTE_UNUSED void AbslInternalSpinLockWake(std::atomic<uint32_t>* w,
-                                                    bool all) {
+ABSL_ATTRIBUTE_UNUSED void ABSL_INTERNAL_C_SYMBOL(AbslInternalSpinLockWake)(
+    std::atomic<uint32_t>* w, bool all) {
   syscall(SYS_futex, w, FUTEX_WAKE_PRIVATE, all ? INT_MAX : 1, 0);
 }
 

@@ -31,6 +31,7 @@
 #include <limits>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/time/time.h"
 #include "gloop/base/per-thread-sem.h"
 #include "gloop/base/scheduling/domain.h"
@@ -39,7 +40,8 @@ extern "C" {
 
 // This version is scheduling-aware, and cooperates with fibers.
 // TODO ABSL_ATTRIBUTE_UNUSED is to suppress scythe.
-ABSL_ATTRIBUTE_UNUSED void AbslInternalSleepFor(absl::Duration duration) {
+ABSL_ATTRIBUTE_UNUSED void ABSL_INTERNAL_C_SYMBOL(AbslInternalSleepFor)(
+    absl::Duration duration) {
   std::atomic<int>* blocked_count_ptr =
       absl::synchronization_internal::PerThreadSem::GetThreadBlockedCounter();
   if (blocked_count_ptr != nullptr) {

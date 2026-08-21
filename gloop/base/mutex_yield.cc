@@ -21,6 +21,7 @@
 #include <thread>  // NOLINT(build/c++11)
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "gloop/base/scheduling/downcalls.h"
 
 extern "C" {
@@ -34,7 +35,7 @@ extern "C" {
 //
 // TODO ABSL_ATTRIBUTE_UNUSED is to suppress dead code deletion.
 ABSL_ATTRIBUTE_UNUSED
-void AbslInternalMutexYield() {
+void ABSL_INTERNAL_C_SYMBOL(AbslInternalMutexYield)() {
   if (base::scheduling::Downcalls::CurrentThreadIsCooperative()) {
     base::scheduling::Downcalls::Reschedule();
   } else {

@@ -531,6 +531,7 @@ cc_library(
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base/scheduling",
+        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
     ],
     alwayslink = 1,
@@ -987,6 +988,7 @@ cc_library(
         ":per-thread-sem",
         "//gloop:enforce_gloop_support",
         "//gloop/base/scheduling",
+        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/time",
     ],
@@ -1063,6 +1065,7 @@ cc_library(
         "//gloop/base/scheduling",
         "//gloop/base/scheduling:scheduling_mode",
         "@abseil-cpp//absl/base:base_internal",
+        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/base:spinlock_wait",

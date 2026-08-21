@@ -123,7 +123,10 @@ jobs:
             expected_error: Gloop does not support signed chars
           - config: Bazel less than 8.0
             bazel-version: 7.7.1
-            expected_error: Bazel compatibility check failed
+            # Note: this error message is very specific to Bazel 7.x. Once we
+            # drop support for Bazel 8, this test can check "Bazel compatibility
+            # check failed".
+            expected_error: with compatibility level 0 which is different
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2

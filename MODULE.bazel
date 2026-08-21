@@ -3,9 +3,9 @@ module(
     bazel_compatibility = [">=8.0.0"],
 )
 
-bazel_dep(name = "abseil-cpp", version = "20260107.1")
-bazel_dep(name = "protobuf", version = "35.1")
-bazel_dep(name = "tcmalloc", version = "0.0.0-20250927-12f2552")
+bazel_dep(name = "abseil-cpp", version = "20260817.0")
+bazel_dep(name = "protobuf", version = "36.0")
+bazel_dep(name = "tcmalloc", version = "0.0.0-20260818-15db23d")
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "rules_license", version = "1.0.0")
@@ -31,17 +31,6 @@ bazel_dep(name = "gloop_examples", version = "0.1", dev_dependency = True, repo_
 bazel_dep(name = "docker_toolchain", version = "0.1", dev_dependency = True)
 
 # Pin certain dependencies to more recent commits than released to keep consistent with monorepo.
-git_override(
-    module_name = "abseil-cpp",
-    commit = "2424af2367325310e8e0caba7da3a022858346c4",
-    remote = "https://github.com/abseil/abseil-cpp",
-)
-
-git_override(
-    module_name = "tcmalloc",
-    commit = "2d46390fcd72107eb662d478a2f382c359539e17",
-    remote = "https://github.com/google/tcmalloc",
-)
 
 local_path_override(
     module_name = "gloop_examples",
