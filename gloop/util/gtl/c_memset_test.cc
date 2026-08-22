@@ -50,7 +50,7 @@ TEST(CMemsetTest, WorksForRvalueSpans) {
   EXPECT_THAT(v, ElementsAre(1, 0, 0, 0, 5));
 
   std::string s = "abcde";
-  gtl::c_memset(absl::MakeSpan(s).subspan(1, 3), 'x');
+  absl::c_fill(absl::MakeSpan(s).subspan(1, 3), 'x');
   EXPECT_EQ(s, "axxxe");
 }
 
@@ -80,7 +80,7 @@ TEST(CMemsetTest, WorksForCustomTrivialType) {
 
 TEST(CMemsetTest, WorksForContainersOfSingleByteType) {
   std::array<char, 4> a = {'1', '2', '3', '4'};
-  gtl::c_memset(a, '9');
+  absl::c_fill(a, '9');
   EXPECT_THAT(a, ElementsAre('9', '9', '9', '9'));
 }
 
