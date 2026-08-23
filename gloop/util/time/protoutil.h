@@ -27,7 +27,6 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_TIME_PROTOUTIL_H_
 #define THIRD_PARTY_GLOOP_UTIL_TIME_PROTOUTIL_H_
 
-#include "absl/base/attributes.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
@@ -145,18 +144,6 @@ inline google::protobuf::Timestamp MakeGoogleApiTimestampProtoMin() {
 inline absl::Time MakeGoogleApiTimeMin() {
   return absl::UnixEpoch() + absl::Seconds(-62135596800);
 }
-
-// Deprecated because out-of-range protos are allowed.
-ABSL_DEPRECATED("Use util_time::EncodeGoogleApiProto()")
-google::protobuf::Duration ToProto(absl::Duration d);
-ABSL_DEPRECATED("Use util_time::EncodeGoogleApiProto()")
-google::protobuf::Timestamp ToProto(absl::Time t);
-
-// Deprecated because out-of-range protos are allowed.
-ABSL_DEPRECATED("Use util_time::DecodeGoogleApiProto()")
-absl::Duration FromProto(const google::protobuf::Duration& proto);
-ABSL_DEPRECATED("Use util_time::DecodeGoogleApiProto()")
-absl::Time FromProto(const google::protobuf::Timestamp& proto);
 
 }  // namespace util_time
 

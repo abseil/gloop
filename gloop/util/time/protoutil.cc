@@ -21,7 +21,6 @@
 #include "gloop/util/time/protoutil.h"
 
 #include <cstdint>
-#include <limits>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -112,53 +111,6 @@ absl::StatusOr<absl::Time> DecodeGoogleApiProto(
     const google::protobuf::Timestamp& proto) {
   absl::Status status = Validate(proto);
   if (!status.ok()) return status;
-  return absl::FromUnixSeconds(proto.seconds()) +
-         absl::Nanoseconds(proto.nanos());
-}
-
-// DEPRECATED
-google::protobuf::Duration ToProto(absl::Duration d) {
-  google::protobuf::Duration proto;
-  if (d == absl::InfiniteDuration()) {
-    proto.set_seconds(std::numeric_limits<int64_t>::max());
-    proto.set_nanos(999999999);
-  } else if (d == -absl::InfiniteDuration()) {
-    proto.set_seconds(std::numeric_limits<int64_t>::min());
-    proto.set_nanos(-999999999);
-  } else {
-    // s and n may both be negative, per the Duration proto spec.
-    const int64_t s = absl::IDivDuration(d, absl::Seconds(1), &d);
-    const int64_t n = absl::IDivDuration(d, absl::Nanoseconds(1), &d);
-    proto.set_seconds(s);
-    proto.set_nanos(n);
-  }
-  return proto;
-}
-
-// DEPRECATED
-google::protobuf::Timestamp ToProto(absl::Time t) {
-  google::protobuf::Timestamp proto;
-  if (t == absl::InfinitePast()) {
-    proto.set_seconds(std::numeric_limits<int64_t>::min());
-    proto.set_nanos(0);
-  } else if (t == absl::InfiniteFuture()) {
-    proto.set_seconds(std::numeric_limits<int64_t>::max());
-    proto.set_nanos(999999999);
-  } else {
-    const int64_t s = absl::ToUnixSeconds(t);
-    proto.set_seconds(s);
-    proto.set_nanos((t - absl::FromUnixSeconds(s)) / absl::Nanoseconds(1));
-  }
-  return proto;
-}
-
-// DEPRECATED
-absl::Duration FromProto(const google::protobuf::Duration& proto) {
-  return absl::Seconds(proto.seconds()) + absl::Nanoseconds(proto.nanos());
-}
-
-// DEPRECATED
-absl::Time FromProto(const google::protobuf::Timestamp& proto) {
   return absl::FromUnixSeconds(proto.seconds()) +
          absl::Nanoseconds(proto.nanos());
 }
