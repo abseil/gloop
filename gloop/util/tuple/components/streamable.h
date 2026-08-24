@@ -582,7 +582,7 @@ class printer {
     writer_(stream_, obj.status());
     if (obj.ok()) {
       stream_ << ": ";
-      writer_(stream_, obj.ValueOrDie());
+      writer_(stream_, *obj);
     }
   }
 
