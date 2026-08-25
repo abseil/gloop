@@ -219,6 +219,14 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   // identify the execution context in 'Spawn', 'Begin' and 'End' trace events.
   SyncContext CreateThread(StringRef label = {}) const;
 
+  // Returns a 'no-op' copy of this `SyncContext` instance with the intention
+  // that this new instance will be scoped inside this (active) sync context.
+  // Such nested contexts are no-ops as the outer-most synchronous execution
+  // defines the traced synchronous execution, and the inner sync context will
+  // be ignored other than that they result in `ENTER' and `LEAVE` events as
+  // the nested contexts are scoped, identifying owning spans.
+  SyncContext CreateNoop() const;
+
   // Adds a processing event listener to this instance.
   // Requires the current instance not to be the (embedded) current thread
   // local active context.
@@ -363,6 +371,9 @@ class SyncContext::Impl {
 
   // Implementation of SyncContext::CreateThread.
   Impl* CreateThread(StringRef label) const;
+
+  // Implementation used for SyncContext::CreateNoop.
+  Impl* CreateNoop() const;
 
   // Implementation of SyncContext::AddListenerToCurrent()
   void AddListenerToCurrent(TraceEventListener* listener, StringRef label);
@@ -523,6 +534,10 @@ inline bool SyncContext::same_trace(const SyncContext& other) const {
 
 inline SyncContext SyncContext::CreateThread(StringRef label) const {
   return SyncContext(impl_ ? impl_->CreateThread(label) : nullptr);
+}
+
+inline SyncContext SyncContext::CreateNoop() const {
+  return SyncContext(impl_ ? impl_->CreateNoop() : nullptr);
 }
 
 inline void SyncContext::BeforeSwapCurrent(Access, const SyncContext& to) {

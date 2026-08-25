@@ -29,6 +29,7 @@
 #include "gloop/base/mock_tracer.h"
 #include "gloop/base/tracecontext.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
+#include "gloop/perftools/tracing/noop_trace_event_listener.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
@@ -105,6 +106,13 @@ class Context {
   static Context CreateThread(StringRef label = {}) {
     Context context;
     context.sync_ = thread_context_.sync_.CreateThread(label);
+    return context;
+  }
+
+  // Returns a context that is a 'no-op' child of the current thread.
+  static Context CreateNoop() {
+    Context context;
+    context.sync_ = thread_context_.sync_.CreateNoop();
     return context;
   }
 
@@ -220,6 +228,7 @@ TEST(SyncContextValueSemantics, OperationsOnDefaultInstanceAreNops) {
   MockTraceEventListener mock;
   SyncContext context, other;
   EXPECT_FALSE(context.CreateThread("Thread").has_listeners());
+  EXPECT_FALSE(context.CreateNoop().has_listeners());
   context.BeforeSwapCurrent(access(), other);
   context.AfterSwapCurrent(access(), /*span_id=*/1, "Swap");
   context.BeforeRestoreCurrent(access(), other);
@@ -587,6 +596,19 @@ TEST_F(SyncContextTest, CreateThread) {
   Context context = Context::CreateThread("Child");
   EXPECT_TRUE(context.has_listeners());
   EXPECT_THAT(context.sync_id(), Eq(sync_id));
+}
+
+TEST_F(SyncContextTest, CreateNoop) {
+  StrictMock<MockTraceEventListener> mock;
+  SyncContext root;
+  root.AddListener(&mock);
+
+  SyncContext noop = root.CreateNoop();
+  EXPECT_TRUE(noop.same_trace(root));
+  EXPECT_TRUE(noop.ContainsListener(NoopTraceEventListener()));
+  EXPECT_THAT(noop.sync_id(), Eq(kFirstAutoSyncId));
+
+  EXPECT_CALL(mock, ReleaseEventListener());
 }
 
 TEST_F(SyncContextTest, SameTrace) {

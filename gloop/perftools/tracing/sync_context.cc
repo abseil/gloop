@@ -29,6 +29,7 @@
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "gloop/perftools/tracing/multiplex_trace_event_listener.h"
+#include "gloop/perftools/tracing/noop_trace_event_listener.h"
 #include "gloop/perftools/tracing/perftools_verify.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
@@ -135,6 +136,10 @@ SyncContext::Impl* SyncContext::Impl::Copy() const {
   SyncId sync_id = shared_->NewSyncId();
   TraceEventListener* new_listener = this_listener->GetEventListener(sync_id);
   return new_listener ? new Impl(shared_, new_listener, sync_id) : nullptr;
+}
+
+SyncContext::Impl* SyncContext::Impl::CreateNoop() const {
+  return new Impl(shared_, NoopTraceEventListener(), shared_->NewSyncId());
 }
 
 void SyncContext::Impl::AddListenerToCurrent(TraceEventListener* listener,

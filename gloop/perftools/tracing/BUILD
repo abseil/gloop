@@ -318,6 +318,7 @@ cc_library(
     ],
     deps = [
         ":multiplex_trace_event_listener",
+        ":noop_trace_event_listener",
         ":perftools_verify",
         ":trace_event_listener",
         ":trace_source_location",
@@ -334,6 +335,7 @@ cc_test(
     srcs = ["sync_context_test.cc"],
     deps = [
         ":mock_trace_event_listener",
+        ":noop_trace_event_listener",
         ":sync_context",
         ":trace_source_location",
         ":tracing_base",
