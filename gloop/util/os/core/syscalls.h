@@ -79,14 +79,16 @@
 #endif
 
 // The accept4 syscall was added to the Android APIs in version 21.
-#if defined(_GNU_SOURCE) && (!defined(__ANDROID_API__) || __ANDROID_API__ >= 21)
+#if defined(_GNU_SOURCE) &&                                 \
+    (!defined(__ANDROID_API__) || __ANDROID_API__ >= 21) && \
+    !defined(__APPLE__)
 #define UTIL_OS_CORE_HAVE_ACCEPT4
 #else
 #undef UTIL_OS_CORE_HAVE_ACCEPT4
 #endif
 
 // The ppoll syscall does not exist in the Android APIs as of version 21.
-#if defined(_GNU_SOURCE) && !defined(__ANDROID_API__)
+#if defined(_GNU_SOURCE) && !defined(__ANDROID_API__) && !defined(__APPLE__)
 #define UTIL_OS_CORE_HAVE_PPOLL
 #else
 #undef UTIL_OS_CORE_HAVE_PPOLL
