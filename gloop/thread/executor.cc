@@ -355,6 +355,21 @@ struct Shard {
   absl::Mutex mu;
   Table table;
   uint64_t next_key = 1;
+
+  // TODO: Measure memory usage (see bugjuggler issue),
+  // and either remove this TODO or revert the `ReclaimMemoryIfEmpty()`
+  // optimization depending on whether it has helped in practice. Shrinks the
+  // table's capacity if it is now empty after having grown beyond a certain
+  // threshold in the past.
+  void ReclaimMemoryIfEmpty() {
+    // Reclaim memory only if the table had grown beyond an arbitrary small
+    // threshold. The threshold ensures we only pay the rehash() penalty for
+    // tables that grew significantly large before going empty, which preserves
+    // performance for typical workloads.
+    if (table.empty() && table.capacity() > 16) {
+      table.rehash(0);
+    }
+  }
 };
 
 // An object that wraps a callback can be cancelled using Cancel, that
@@ -465,6 +480,7 @@ CancelWrapper::~CancelWrapper() {
   std::swap(to_delete, callback_);
 
   shard_->table.erase(shard_key_);
+  shard_->ReclaimMemoryIfEmpty();
   shard_->mu.unlock();
 }
 
@@ -589,6 +605,7 @@ CancelImpl(ExecutorHandle handle, absl::Duration timeout) {
   if (absl::AnyInvocable<void() &&>& callback = *iter->second) {
     // The callback hasn't yet started running: cancel it.
     shard->table.erase(iter);
+    shard->ReclaimMemoryIfEmpty();
     return {
         CancelResult::kCancelled,
         std::move(callback),
