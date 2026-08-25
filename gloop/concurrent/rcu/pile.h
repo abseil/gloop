@@ -264,6 +264,7 @@ inline void Pile<T>::Add(T t) {
   // happens-before it; so we don't need to worry about any ordering
   // issues on t.
   p[j] = t;
+  std::atomic_thread_fence(std::memory_order_release);
 }
 
 template <typename T>
@@ -280,7 +281,7 @@ template <typename T>
 inline void Pile<T>::Iterate(void (*f)(T t)) {
   const size_t kItemsPerPage = items_per_page();
   for (int cpu : Range(tcmalloc::tcmalloc_internal::NumCPUs())) {
-    size_t n = GetPointerAtomic(n_, cpu)->load(std::memory_order_relaxed);
+    size_t n = GetPointerAtomic(n_, cpu)->load(std::memory_order_acquire);
     size_t page_end = n / kItemsPerPage + 1;
     size_t remaining = n;
     for (size_t page = 0; page < page_end; ++page) {
