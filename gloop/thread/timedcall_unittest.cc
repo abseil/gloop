@@ -20,8 +20,6 @@
 
 #include "gloop/thread/timedcall.h"
 
-#include <unistd.h>
-
 #include "absl/base/attributes.h"
 #include "absl/base/const_init.h"
 #include "absl/base/log_severity.h"
@@ -49,7 +47,7 @@ static void SetBool(bool* v) {
 
 static void Wait2Sec(void* v) {
   LOG(INFO) << "in Wait2Sec";
-  sleep(2);
+  absl::SleepFor(absl::Seconds(2));
   if (v != nullptr) {
     LOG(INFO) << "Wait2Sec attempting to cancel self";
     TimedCall* t = reinterpret_cast<TimedCall*>(v);
@@ -232,14 +230,14 @@ TEST(TimedCall, Test) {
   // Set up to crash in 3 seconds
   t.Set(base::ToWallTime(absl::Now() + absl::Seconds(3)),
         absl::bind_front(&SetBool, nullptr));
-  sleep(1);
+  absl::SleepFor(absl::Seconds(1));
   t.Set(TimedCall::Stop, nullptr);               // cancel
   ASSERT_TRUE(t.deadline() == TimedCall::Stop);  // should succeed
-  sleep(3);
+  absl::SleepFor(absl::Seconds(3));
 
   // set up to call something that blocks 2 seconds
   t.Set(base::ToWallTime(absl::Now()), absl::bind_front(&Wait2Sec, nullptr));
-  sleep(1);
+  absl::SleepFor(absl::Seconds(1));
   t.Set(TimedCall::Stop, nullptr);              // cancel
   ASSERT_EQ(t.deadline(), TimedCall::Expired);  // should fail to stop
                                                 // timer going off as call will
@@ -248,7 +246,7 @@ TEST(TimedCall, Test) {
 
   // set up to call something that blocks 2 seconds
   t.Set(base::ToWallTime(absl::Now()), absl::bind_front(&Wait2Sec, nullptr));
-  sleep(1);
+  absl::SleepFor(absl::Seconds(1));
   t.Set(TimedCall::Stop, nullptr, TimedCall::kNoWait);  // cancel
   ASSERT_TRUE(t.deadline() == TimedCall::Running);      // should fail to stop
                                                     // timer going off as call
@@ -260,7 +258,7 @@ TEST(TimedCall, Test) {
   // set up to call something that blocks 2 seconds but tries to
   // cancel itself while running
   t.Set(base::ToWallTime(absl::Now()), absl::bind_front(&Wait2Sec, &t));
-  sleep(1);
+  absl::SleepFor(absl::Seconds(1));
   t.Set(TimedCall::Stop, nullptr);                  // cancel
   ASSERT_TRUE(t.deadline() == TimedCall::Expired);  // should fail to stop
                                                     // timer going off as call
@@ -270,11 +268,11 @@ TEST(TimedCall, Test) {
   // set up TimedCalls which will delete themselves while running
   TimedCall* d = new TimedCall();
   t.Set(base::ToWallTime(absl::Now()), absl::bind_front(&DeleteTimedCall, d));
-  sleep(1);
+  absl::SleepFor(absl::Seconds(1));
   d = new TimedCall();
   t.Set(base::ToWallTime(absl::Now()),
         absl::bind_front(&ClearAndDeleteTimedCall, d));
-  sleep(1);
+  absl::SleepFor(absl::Seconds(1));
   // heap checker will report leak(s) if either of these fail
 
   while (!ReadBoolUnderMutex(&y)) {
@@ -288,7 +286,7 @@ TEST(TimedCall, Test) {
   y = false;
   TimedCall::RunAt(base::ToWallTime(absl::Now() + absl::Seconds(0.2)),
                    absl::bind_front(&SetBool, &y));
-  sleep(1);
+  absl::SleepFor(absl::Seconds(1));
   ASSERT_TRUE(ReadBoolUnderMutex(&y));
 
   TestMultipleExpirationIndependent();
