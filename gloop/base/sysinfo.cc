@@ -983,19 +983,25 @@ bool ProcessList(std::vector<pid_t>* list) {
   ABSL_INTERNAL_CHECK(dir, absl::StrCat("Could not open ", dirname));
 
   // read process ids from /proc/*
-  for (errno = 0; struct dirent* ent = readdir(dir); errno = 0) {
+  while (true) {
+    struct dirent tmp;
+    struct dirent* ent;
+    int err;
+    NO_INTR(err = readdir_r(dir, &tmp, &ent));
+    if (err != 0) {
+      BASE_SYSINFO_LOG_FIRST_N(
+          WARNING, 3,
+          absl::StrCat("ProcessList: readdir_r failed: ", DescribeErr(errno)));
+      break;
+    }
+    if (ent == nullptr) {
+      break;
+    }
     pid_t pid;
     if (absl::SimpleAtoi(ent->d_name, &pid)) {
       list->push_back(pid);
     }
   }
-
-  if (errno != 0) {
-    BASE_SYSINFO_LOG_FIRST_N(
-        WARNING, 3,
-        absl::StrCat("ProcessList: readdir failed: ", DescribeErr(errno)));
-  }
-
   closedir(dir);
   return true;  // success
 #else

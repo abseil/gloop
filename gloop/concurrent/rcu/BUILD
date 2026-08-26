@@ -98,7 +98,7 @@ cc_library(
     name = "policy",
     hdrs = ["policy.h"],
     visibility = [
-        "//gloop/concurrent:__subpackages__",
+        "//gloop/concurrent/rcu:__subpackages__",
     ],
     deps = ["//gloop:enforce_gloop_support"],
 )
