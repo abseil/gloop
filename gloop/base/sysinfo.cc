@@ -90,6 +90,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/match.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/resize_and_overwrite.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -982,25 +983,19 @@ bool ProcessList(std::vector<pid_t>* list) {
   ABSL_INTERNAL_CHECK(dir, absl::StrCat("Could not open ", dirname));
 
   // read process ids from /proc/*
-  while (true) {
-    struct dirent tmp;
-    struct dirent* ent;
-    int err;
-    NO_INTR(err = readdir_r(dir, &tmp, &ent));
-    if (err != 0) {
-      BASE_SYSINFO_LOG_FIRST_N(
-          WARNING, 3,
-          absl::StrCat("ProcessList: readdir_r failed: ", DescribeErr(errno)));
-      break;
-    }
-    if (ent == nullptr) {
-      break;
-    }
-    char* endptr;
-    pid_t pid = strtol(ent->d_name, &endptr, 10);
-    if (*endptr == '\0')  // valid process id
+  for (errno = 0; struct dirent* ent = readdir(dir); errno = 0) {
+    pid_t pid;
+    if (absl::SimpleAtoi(ent->d_name, &pid)) {
       list->push_back(pid);
+    }
   }
+
+  if (errno != 0) {
+    BASE_SYSINFO_LOG_FIRST_N(
+        WARNING, 3,
+        absl::StrCat("ProcessList: readdir failed: ", DescribeErr(errno)));
+  }
+
   closedir(dir);
   return true;  // success
 #else
