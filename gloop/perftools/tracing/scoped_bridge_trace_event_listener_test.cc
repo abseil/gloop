@@ -26,6 +26,7 @@
 #include "absl/log/scoped_mock_log.h"
 #include "absl/strings/string_view.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
+#include "gloop/perftools/tracing/noop_trace_event_listener.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
 #include "gloop/perftools/tracing/tracing_base.h"
 #include "gmock/gmock.h"
@@ -79,13 +80,14 @@ TEST_F(ScopedBridgeTraceEventListenerTest, CapturesCurrentSourceLocation) {
   ScopedBridgeTraceEventListener scoped;
 }
 
-TEST_F(ScopedBridgeTraceEventListenerTest, WithNonBridgingCurrentListener) {
+TEST_F(ScopedBridgeTraceEventListenerTest, ReturnsNoopWithNonBridgingListener) {
   StrictMock<MockTraceEventListener> mock;
   internal::set_active_event_listener(&mock);
   {
     EXPECT_CALL(mock, GetBridgingEventListener(_));
     ScopedBridgeTraceEventListener scoped;
-    EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+    EXPECT_THAT(internal::active_event_listener(),
+                Eq(NoopTraceEventListener()));
   }
   EXPECT_THAT(internal::active_event_listener(), Eq(&mock));
 }
@@ -122,9 +124,11 @@ TEST_F(ScopedBridgeTraceEventListenerTest, LogsErrorIfListenerChanged) {
   {
     EXPECT_CALL(mock1, GetBridgingEventListener(_));
     ScopedBridgeTraceEventListener scoped;
-    EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+    EXPECT_THAT(internal::active_event_listener(),
+                Eq(NoopTraceEventListener()));
     internal::set_active_event_listener(&mock2);
     EXPECT_CALL(log, Log(LogSeverity::kError, _, "Active listener changed"));
+    EXPECT_CALL(mock2, Extract(NoopTraceEventListener()));
   }
   // Restored listener should now multiplex mock1 and mock2
   ASSERT_THAT(internal::active_event_listener(), Ne(nullptr));

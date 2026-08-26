@@ -402,6 +402,7 @@ cc_library(
     ],
     deps = [
         ":multiplex_trace_event_listener",
+        ":noop_trace_event_listener",
         ":trace_event_listener",
         ":trace_source_location",
         ":tracing_base",
@@ -415,6 +416,7 @@ cc_test(
     srcs = ["scoped_bridge_trace_event_listener_test.cc"],
     deps = [
         ":mock_trace_event_listener",
+        ":noop_trace_event_listener",
         ":scoped_bridge_trace_event_listener",
         ":trace_event_listener",
         ":tracing_base",
