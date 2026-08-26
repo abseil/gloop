@@ -36,11 +36,14 @@ namespace perftools::tracing {
 namespace {
 
 using ::perftools::tracing::testing::TestOnlyAccess;
+using ::testing::_;
 using ::testing::ElementsAreArray;
 using ::testing::Eq;
 using ::testing::InSequence;
 using ::testing::Le;
+using ::testing::NiceMock;
 using ::testing::Return;
+using ::testing::Sequence;
 using ::testing::StrictMock;
 
 TraceSourceLocation SourceLocation(const char* file, int line) {
@@ -450,6 +453,27 @@ TEST(MultiplexTraceEventListener, DepthRemainsAtOrBelow25) {
   std::vector<TraceEventListener*> extracted;
   listener->ExtractAll(extracted);
   EXPECT_THAT(extracted, ElementsAreArray(expected));
+}
+
+TEST(MultiplexTraceEventListener, AddRemoveDuplicatesIsDoneInLifoOrder) {
+  Sequence sequence;
+  NiceMock<MockTraceEventListener> mock, other;
+
+  TraceEventListener* listener1 = MultiplexTraceEventListener(&mock, &other);
+  TraceEventListener* listener2 = MultiplexTraceEventListener(listener1, &mock);
+
+  EXPECT_CALL(mock, OnTraceMark(_, _)).InSequence(sequence);
+  EXPECT_CALL(other, OnTraceMark(_, _)).InSequence(sequence);
+  EXPECT_CALL(mock, OnTraceMark(_, _)).InSequence(sequence);
+  listener2->OnTraceMark("", {});
+
+  ASSERT_THAT(listener2->Extract(&mock), Eq(std::make_pair(listener1, true)));
+
+  EXPECT_CALL(mock, OnTraceMark(_, _)).InSequence(sequence);
+  EXPECT_CALL(other, OnTraceMark(_, _)).InSequence(sequence);
+  listener1->OnTraceMark("", {});
+
+  ASSERT_THAT(listener1->Extract(&mock), Eq(std::make_pair(&other, true)));
 }
 
 }  // namespace
