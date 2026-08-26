@@ -1681,6 +1681,11 @@ void SubProcess::ForkAndExec(bool* success) {
       __asm__ __volatile__("mr %0, 13" : "=r"(ptls) : :);
 #elif defined(__aarch64__)
       __asm__ __volatile__("mrs %0, tpidr_el0" : "=r"(ptls) : :);
+#elif defined(__riscv)
+      // As of 2026-08, this code path is actually never taken as the method is
+      // set to FORK for __riscv above regardless of flags. We still need to
+      // implement this branch for the latest clang to not error out.
+      __asm__ __volatile__("mv %0, tp" : "=r"(ptls) : :);
 #else
 #error Do not know how to pass TLS on this architecture
 #endif
