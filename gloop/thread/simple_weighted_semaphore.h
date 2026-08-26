@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // A SimpleWeightedSemaphore is a simple mechanism for keeping a bound on the
 // concurrent use of a resource, e.g. on the number of simultaneous calls to an
 // asynchronous operation. In the constructor, you set a maximum amount of cost

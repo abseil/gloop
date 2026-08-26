@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // A Context is a container for request-specific information like security
 // credentials, tracing identifiers, etc. Each thread has a currently active
 // Context corresponding to the received request on behalf of which this thread
