@@ -59,7 +59,7 @@
 ABSL_RETIRED_FLAG(bool, thread_pool_lazy_spawn_workers, true, "Retired.");
 
 ABSL_FLAG(
-    bool, thread_pool_gc_workers, true,
+    bool, thread_pool_gc_workers, false,
     "If false, ThreadPool will use the historical default behavior of "
     "never cleaning up threads. If true, ThreadPool will use the new behavior "
     "of cleaning up inactive workers.\n\n"
