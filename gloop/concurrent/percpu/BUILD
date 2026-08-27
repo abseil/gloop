@@ -36,7 +36,6 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:percpu",
         "//gloop/base:sysinfo",
     ],
@@ -49,7 +48,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         ":counter",
-        "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
         "//gloop/thread",
         "@abseil-cpp//absl/base",
@@ -65,21 +63,23 @@ cc_library(
     hdrs = ["counting_mutex.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//gloop:enforce_gloop_support",
-        "//gloop/base:futex",
-        "//gloop/base:percpu",
-        "//gloop/base/scheduling",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:dynamic_annotations",
-        "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/base:raw_logging_internal",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-    ],
+    ] + select({
+        "//conditions:default": [
+            "//gloop/base:futex",
+            "//gloop/base:percpu",
+            "//gloop/base/scheduling",
+            "@abseil-cpp//absl/base:dynamic_annotations",
+            "@abseil-cpp//absl/base:no_destructor",
+            "@abseil-cpp//absl/log:check",
+            "@abseil-cpp//absl/random",
+        ],
+    }),
 )
 
 cc_test(
@@ -140,7 +140,6 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:percpu",
         "//gloop/base:spinlock",
         "//gloop/base:sysinfo",
@@ -159,7 +158,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":object",
-        "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log",
@@ -178,7 +176,6 @@ cc_test(
     deps = [
         ":counting_mutex",
         ":rseq_clobber_test.lds",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

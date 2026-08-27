@@ -26,7 +26,6 @@ cc_library(
     srcs = ["testvalue.cc"],
     hdrs = ["testvalue.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/util/gtl:typeid",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:flat_hash_map",
@@ -45,7 +44,6 @@ cc_test(
     srcs = ["testvalue_test.cc"],
     deps = [
         ":testvalue",
-        "//gloop:gloop_test_main",
         "//gloop/thread",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/strings:string_view",

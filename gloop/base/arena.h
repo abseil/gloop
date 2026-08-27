@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Sometimes it is necessary to allocate a large number of small
 // objects.  Doing this the usual way (malloc, new) is slow,
 // especially for multithreaded programs.  A BaseArena provides a
