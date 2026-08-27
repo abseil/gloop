@@ -33,14 +33,6 @@ licenses(["notice"])
 
 exports_files(["LICENSE"])
 
-cc_library(
-    name = "enforce_gloop_support",
-    hdrs = ["enforce_gloop_support.h"],
-    visibility = [
-        "@gloop//gloop:__subpackages__",
-    ],
-)
-
 string_flag(
     name = "sanitizer",
     build_setting_default = "none",
@@ -88,21 +80,5 @@ cc_library(
         ":tsan_enabled": [],
         ":msan_enabled": [],
         "//conditions:default": ["@tcmalloc//tcmalloc"],
-    }) + [":enforce_gloop_support"],
-)
-
-cc_library(
-    name = "gloop_test_main",
-    testonly = True,
-    srcs = ["gloop_test_main.cc"],
-    visibility = [
-        "//gloop:__subpackages__",
-    ],
-    deps = [
-        ":enforce_gloop_support",
-        "//gloop/base:init_google",
-        "@fuzztest//fuzztest:init_fuzztest",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest_for_library",
-    ],
+    }),
 )

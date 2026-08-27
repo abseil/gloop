@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Select() provides a mechanism for a fiber to wait on a set of communication
 // events, such as a read from a Channel or a Fiber's cancellation.  For
 // example, a fiber that is mixing together values read from multiple channels

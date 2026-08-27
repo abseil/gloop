@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // AddAfterHelper is intended for use by Executor implementors and should be
 // ignored by Executor clients. In particular, Executors can use this class to
 // implement AddAfter() without crashing when the Executor is destroyed before
