@@ -95,6 +95,7 @@ namespace util {
   ABSL_ASSIGN_OR_RETURN(/* NOLINT(clang-diagnostic-shadow) */ \
                         lhs, rexpr,                           \
                         ::util::status_internal::AddFatalFailure(#rexpr, _))
+#define ASSERT_OK_AND_ASSIGN(lhs, rexpr) ABSL_ASSERT_OK_AND_ASSIGN(lhs, rexpr)
 
 // This gMock matcher matches a Status or StatusOr<T> or StatusProto value if
 // all of the following are true:
