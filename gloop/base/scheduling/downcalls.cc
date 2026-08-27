@@ -32,17 +32,15 @@
 #include "absl/synchronization/internal/create_thread_identity.h"
 #include "absl/synchronization/internal/kernel_timeout.h"
 #include "gloop/base/scheduling/domain.h"
+#include "gloop/base/scheduling/fiber_name.h"
 #include "gloop/base/scheduling/low-level-support.h"
 #include "gloop/base/scheduling/scheduler.h"
 #include "gloop/base/static_threadlocal.h"
 #include "gloop/base/thread-identity.h"
 
 namespace thread {
-extern void InternalSetCurrentFiberName(absl::string_view fiber_name);
-extern absl::string_view InternalGetCurrentFiberName();
-
 ABSL_ATTRIBUTE_WEAK
-void InternalSetCurrentFiberName(absl::string_view) {}
+void InternalSetCurrentFiberName(internal::EncodedFiberName) {}
 ABSL_ATTRIBUTE_WEAK absl::string_view InternalGetCurrentFiberName() {
   return "";
 }

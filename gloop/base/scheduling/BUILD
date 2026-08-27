@@ -48,6 +48,19 @@ cc_library(
 )
 
 cc_library(
+    name = "fiber_name",
+    hdrs = ["fiber_name.h"],
+    visibility = [
+        "//gloop:__subpackages__",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/strings:string_view",
+    ],
+)
+
+cc_library(
     name = "scheduling",
     # Work around circular references.
     srcs = [
@@ -64,6 +77,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":domain_thread_assignment_callback_accessor",
+        ":fiber_name",
         ":low-level-support",
         "//gloop:enforce_gloop_support",
         "//gloop/base:examine_stack",

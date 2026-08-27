@@ -55,6 +55,7 @@
 #include "gloop/base/context.h"
 #include "gloop/base/scheduling/domain.h"
 #include "gloop/base/scheduling/downcalls.h"
+#include "gloop/base/scheduling/fiber_name.h"
 #include "gloop/base/scheduling/scheduler.h"
 #include "gloop/base/thread-identity.h"
 #include "gloop/base/tracecontext.h"
@@ -1946,5 +1947,72 @@ void BM_FiberMutexJoin(benchmark::State& state) {
   }
 }
 BENCHMARK(BM_FiberMutexJoin)->Range(1024, 4096 * 4);
+
+TEST(FiberNameTest, InternalGetCurrentFiberName) {
+  EXPECT_EQ(InternalGetCurrentFiberName(), "");
+
+  // Named fiber
+  std::string observed_name;
+  Fiber(FiberOptions().SetInternedName("my_custom_fiber"), [&] {
+    observed_name = std::string(InternalGetCurrentFiberName());
+  }).Join();
+  EXPECT_EQ(observed_name, "my_custom_fiber");
+  EXPECT_EQ(InternalGetCurrentFiberName(), "");
+
+  // Default unnamed fiber
+  std::string default_fiber_name = "initial";
+  Fiber(FiberOptions(), [&] {
+    default_fiber_name = std::string(InternalGetCurrentFiberName());
+  }).Join();
+  EXPECT_EQ(default_fiber_name, "");
+  EXPECT_EQ(InternalGetCurrentFiberName(), "");
+
+  // Empty string fiber
+  std::string empty_fiber_name = "initial";
+  Fiber(FiberOptions().SetInternedName(""), [&] {
+    empty_fiber_name = std::string(InternalGetCurrentFiberName());
+  }).Join();
+  EXPECT_EQ(empty_fiber_name, "");
+  EXPECT_EQ(InternalGetCurrentFiberName(), "");
+
+  // Consecutive fibers on the same thread
+  std::string seq1_name;
+  std::string seq2_name;
+  Fiber(FiberOptions().SetInternedName("fiber_1"), [&] {
+    seq1_name = std::string(InternalGetCurrentFiberName());
+  }).Join();
+  Fiber(FiberOptions().SetInternedName("fiber_2"), [&] {
+    seq2_name = std::string(InternalGetCurrentFiberName());
+  }).Join();
+  EXPECT_EQ(seq1_name, "fiber_1");
+  EXPECT_EQ(seq2_name, "fiber_2");
+  EXPECT_EQ(InternalGetCurrentFiberName(), "");
+
+  // Long fiber name (>= 128 characters, exercising 4-byte ArenaString
+  // encoding).
+  std::string long_name(150, 'a');
+  std::string long_fiber_observed;
+  Fiber(FiberOptions().SetInternedName(long_name), [&] {
+    long_fiber_observed = std::string(InternalGetCurrentFiberName());
+  }).Join();
+  EXPECT_EQ(long_fiber_observed, long_name);
+  EXPECT_EQ(InternalGetCurrentFiberName(), "");
+
+  // Nested fibers on the same thread (fiber donation / inline execution)
+  std::string outer_before;
+  std::string inner;
+  std::string outer_after;
+  Fiber(FiberOptions().SetInternedName("outer_fiber"), [&] {
+    outer_before = std::string(InternalGetCurrentFiberName());
+    Fiber(FiberOptions().SetInternedName("inner_fiber"), [&] {
+      inner = std::string(InternalGetCurrentFiberName());
+    }).Join();
+    outer_after = std::string(InternalGetCurrentFiberName());
+  }).Join();
+  EXPECT_EQ(outer_before, "outer_fiber");
+  EXPECT_EQ(inner, "inner_fiber");
+  EXPECT_EQ(outer_after, "outer_fiber");
+  EXPECT_EQ(InternalGetCurrentFiberName(), "");
+}
 
 }  // namespace thread

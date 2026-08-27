@@ -46,6 +46,7 @@
 #include "gloop/base/googleinit.h"
 #include "gloop/base/scheduling/domain.h"
 #include "gloop/base/scheduling/downcalls.h"
+#include "gloop/base/scheduling/fiber_name.h"
 #include "gloop/base/scheduling/scheduler.h"
 #include "gloop/base/static_threadlocal.h"
 #include "gloop/thread/fiber/fiber-internal.h"
@@ -86,9 +87,6 @@ ABSL_FLAG(
 //
 // All fibers will undergo all of these transitions.
 namespace thread {
-
-extern void InternalSetCurrentFiberName(absl::string_view fiber_name);
-extern absl::string_view InternalGetCurrentFiberName();
 
 struct CurrentFiber {
   Fiber* f = nullptr;
@@ -383,7 +381,8 @@ void Fiber::Body() {
   Fiber* old = *ptr;  // TODO: Better checking for !(should donate)?
   *ptr = this;
 
-  thread::InternalSetCurrentFiberName(options_.name());
+  thread::InternalSetCurrentFiberName(
+      internal::EncodedFiberName::FromEncoded(options_.encoded_name()));
 
   PerDomainCounters().num_active_fibers.fetch_add(1, std::memory_order_relaxed);
 
@@ -412,10 +411,15 @@ void Fiber::Body() {
   // from its schedulable (attached in Fiber::Start()).
   base::scheduling::InternalDetachFiber(this);
 
-  // Reset current fiber name as this thread may be recycled, and we don't want
-  // misattribution until someone else sets an explicit name for this thread.
-  // This also alleviates lifetime concerns for the name itself.
-  thread::InternalSetCurrentFiberName("");
+  // Reset current fiber name as this thread may be recycled, and we don't
+  // want misattribution until someone else sets an explicit name for this
+  // thread. This also alleviates lifetime concerns for the name itself.
+  // If this thread was donated to run this fiber nestedly on top of an
+  // existing fiber (`old`), restore the outer fiber's name.
+  thread::InternalSetCurrentFiberName(
+      old != nullptr ? internal::EncodedFiberName::FromEncoded(
+                           old->options_.encoded_name())
+                     : internal::EncodedFiberName::None());
 
   if (auto [clean_up, joinable] = MarkFinished(); clean_up != nullptr) {
     // This is a self-joining fiber, but we may need to wait for children.

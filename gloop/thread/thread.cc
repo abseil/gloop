@@ -118,6 +118,7 @@
 #include "gloop/base/raw_logging.h"
 #include "gloop/base/raw_printer.h"
 #include "gloop/base/scheduling/domain.h"
+#include "gloop/base/scheduling/fiber_name.h"
 #include "gloop/base/scheduling/scheduling_mode.h"
 #include "gloop/base/signal-handler.h"
 #include "gloop/base/spinlock.h"
@@ -125,6 +126,7 @@
 #include "gloop/base/sysinfo.h"
 #include "gloop/base/thread-identity.h"
 #include "gloop/base/tracecontext.h"
+#include "gloop/strings/arena-string.h"
 #include "gloop/thread/config.h"
 #include "gloop/thread/cpu_subcontainer.h"
 #include "gloop/thread/exit_timeout_seconds.h"
@@ -391,8 +393,6 @@ std::string SanitizeThreadNamePrefix(std::string name_prefix) {
   DCHECK(IsValidThreadNamePrefix(name_prefix));
   return name_prefix;
 }
-
-absl::string_view InternalGetCurrentFiberName();
 
 // Fibers needs a way to get the default stack size in order to support a legacy
 // mode where one asks for "0" stack space via
@@ -733,9 +733,10 @@ const ucontext_t zero_uc = {0};
 
 constexpr size_t kMaxFiberNameLength = 64;
 
-// Clang on IOS does not support C++11 thread_local, so we have to use
-// STATIC_THREAD_LOCAL.
-STATIC_THREAD_LOCAL(absl::string_view, tls_fiber_name);
+// Use STATIC_THREAD_LOCAL_POD instead of bare thread_local for portability
+// (falls back to PerThread on iOS/macOS where native thread_local is
+// constrained).
+STATIC_THREAD_LOCAL_POD(std::atomic<const char*>, tls_fiber_name);
 }  // namespace
 
 // Structure into which stack trace is extracted
@@ -2393,15 +2394,31 @@ void Thread_RegisterExternalThread(absl::string_view name_prefix) {
 
 namespace thread {
 
-void InternalSetCurrentFiberName(absl::string_view fiber_name) {
-  absl::string_view* ptr = tls_fiber_name.pointer();
-  *ptr = fiber_name;
+void InternalSetCurrentFiberName(
+    internal::EncodedFiberName encoded_fiber_name) {
+  std::atomic<const char*>* ptr = tls_fiber_name.pointer();
+  // A signal handler (e.g. RunInThread::SignalHandler invoking
+  // FillStackTrace()) can interrupt this thread and sample
+  // tls_fiber_name. The release fence ensures prior initialization
+  // (e.g. interned string storage) is committed before the updated
+  // pointer becomes visible.
+  std::atomic_signal_fence(std::memory_order_release);
+  ptr->store(encoded_fiber_name.encoded_rep(), std::memory_order_relaxed);
 }
 
 absl::string_view InternalGetCurrentFiberName() {
-  absl::string_view* ptr = tls_fiber_name.safe_pointer();
-  if (ptr) {
-    return *ptr;
+  std::atomic<const char*>* ptr = tls_fiber_name.safe_pointer();
+  if (ptr != nullptr) {
+    const char* encoded = ptr->load(std::memory_order_relaxed);
+    // Pairs with the release fence in InternalSetCurrentFiberName.
+    // When invoked from a signal handler (e.g. FillStackTrace()),
+    // this ensures compiler ordering so that reading the interned
+    // string payload in Decode() cannot be reordered prior to loading
+    // the updated pointer.
+    std::atomic_signal_fence(std::memory_order_acquire);
+    if (encoded != nullptr) {
+      return strings::ArenaString::Decode(encoded);
+    }
   }
   return "";
 }

@@ -39,6 +39,8 @@ class Scheduler;
 
 namespace thread {
 
+class Fiber;
+
 // Options controlling the behavior of a newly created Fiber.
 class FiberOptions {
  public:
@@ -75,6 +77,9 @@ class FiberOptions {
   size_t GetStackSize() const;
 
  private:
+  friend class Fiber;
+  const char* encoded_name() const { return name_; }
+
   const char* name_ = nullptr;  // strings::ArenaString encoded.
   size_t stack_size_ = 0;
 };

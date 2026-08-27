@@ -77,10 +77,12 @@
 #include "gloop/base/init_google.h"
 #include "gloop/base/port.h"
 #include "gloop/base/raw_logging.h"
+#include "gloop/base/scheduling/fiber_name.h"
 #include "gloop/base/signal-handler.h"
 #include "gloop/base/sysinfo.h"
 #include "gloop/base/timer.h"
 #include "gloop/base/tracecontext.h"
+#include "gloop/strings/arena-string.h"
 #include "gloop/thread/fiber/fiber.h"
 #include "gloop/thread/thread-internal.h"
 #include "gloop/thread/thread_control.h"
@@ -1242,6 +1244,97 @@ TEST_F(ProcessStackTracesTest, NoFilterExecutesBoth) {
   EXPECT_THAT(
       process_thread_collector_.ThreadIds(),
       IsSupersetOf({self_, t1_.ThreadId(), t2_.ThreadId(), t3_.ThreadId()}));
+}
+
+constexpr absl::string_view kLongFiberName = "test-fiber-name";
+constexpr absl::string_view kShortFiberName = "short-fiber";
+
+// Flaps the current thread's fiber name between a non-empty name and
+// nullptr in a tight loop to maximize the likelihood of signal
+// interruption during fiber name updates.
+class FiberNameFlappingThread : public Thread {
+ public:
+  FiberNameFlappingThread()
+      : Thread(thread::Options().set_joinable(true), "flapping-fiber"),
+        encoded_long_name_(thread::internal::EncodedFiberName::FromEncoded(
+            strings::ArenaString::Encode(kLongFiberName, buf_long_))),
+        encoded_short_name_(thread::internal::EncodedFiberName::FromEncoded(
+            strings::ArenaString::Encode(kShortFiberName, buf_short_))) {}
+
+  void Run() override {
+    while (!stop_.load(std::memory_order_relaxed)) {
+      thread::InternalSetCurrentFiberName(encoded_long_name_);
+      thread::InternalSetCurrentFiberName(encoded_short_name_);
+      thread::InternalSetCurrentFiberName(
+          thread::internal::EncodedFiberName::None());
+    }
+    thread::InternalSetCurrentFiberName(
+        thread::internal::EncodedFiberName::None());
+  }
+
+  void Stop() { stop_.store(true, std::memory_order_relaxed); }
+
+ private:
+  char buf_long_[32];
+  char buf_short_[32];
+  thread::internal::EncodedFiberName encoded_long_name_;
+  thread::internal::EncodedFiberName encoded_short_name_;
+  std::atomic<bool> stop_{false};
+};
+
+template <typename Fn>
+void SetProcessThreadCallback(Thread_ProcessStackTracesArg& arg, Fn& fn) {
+  arg.process_thread_arg = &fn;
+  arg.process_thread = [](void* ctx, const LiveThreadState& state) {
+    (*static_cast<Fn*>(ctx))(state);
+  };
+}
+
+// Regression test for b/553104223.
+// When fiber names were stored as a 16-byte absl::string_view in
+// thread-local storage, updates were not atomic (requiring separate
+// pointer and size stores). An asynchronous signal handler invoking
+// FillStackTrace() could interrupt the thread mid-update and observe
+// a torn read (e.g. empty string pointer with the previous name's
+// non-zero length), leading to out-of-bounds reads and AddressSanitizer
+// global-buffer-overflow crashes. This test stresses concurrent stack
+// trace collection across multiple threads rapidly updating fiber names
+// to ensure fiber name reads remain atomic and async-signal-safe.
+TEST_F(ProcessStackTracesTest, FiberNameTornReadRepro) {
+  constexpr int kNumThreads = 16;
+  std::vector<std::unique_ptr<FiberNameFlappingThread>> threads;
+  threads.reserve(kNumThreads);
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads.push_back(std::make_unique<FiberNameFlappingThread>());
+    threads.back()->Start();
+  }
+
+  std::atomic<int> non_empty_fiber_name_samples{0};
+  auto on_thread = [&](const LiveThreadState& state) {
+    if (state.fiber_name != nullptr && *state.fiber_name != '\0') {
+      non_empty_fiber_name_samples.fetch_add(1, std::memory_order_relaxed);
+      const absl::string_view fiber_name = state.fiber_name;
+      EXPECT_TRUE(fiber_name == kLongFiberName || fiber_name == kShortFiberName)
+          << "Observed torn or invalid fiber name: " << fiber_name;
+    }
+  };
+
+  Thread_ProcessStackTracesArg arg;
+  SetProcessThreadCallback(arg, on_thread);
+  arg.per_thread_timeout_ms = kPerThreadTimeoutMs;
+
+  absl::Time deadline = absl::Now() + absl::Seconds(1);
+  while (absl::Now() < deadline) {
+    Thread_ProcessStackTraces(arg);
+  }
+
+  EXPECT_GT(non_empty_fiber_name_samples.load(std::memory_order_relaxed), 0)
+      << "Expected at least one non-empty fiber name sample during collection.";
+
+  for (auto& t : threads) {
+    t->Stop();
+    t->Join();
+  }
 }
 
 constexpr uint64_t kMaxFunctionSize = 0x80;
