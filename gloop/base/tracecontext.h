@@ -259,6 +259,8 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
   struct ThreadInitType {};
   inline static constexpr ThreadInitType kThread{};
 
+  using SyncContext = perftools::tracing::core::SyncContext;
+
   // Construct a TraceContext object in the default state.
   constexpr TraceContext() = default;
 
@@ -614,6 +616,16 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
     // added. This ensures the property that if CanRecordAnnotations() is true,
     // then CanRecordSkeletalAnnotations() is also true.
     return InternalHasTracer();
+  }
+
+  // Returns a reference to the embedded sync context instance.
+  const SyncContext& sync_context() const { return sync_context_; }
+
+  // Sets the sync_context for this reference, returning the old sync_context.
+  SyncContext SetSyncContext(SyncContext::Access, SyncContext context) {
+    using std::swap;
+    swap(context, sync_context_);
+    return context;
   }
 
   // Returns true if this context has causality aware trace event listeners.
