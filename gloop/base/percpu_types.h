@@ -88,6 +88,7 @@ class ABSL_LOCKABLE PerCpuSpinLock {
 
   // Releases lock[cpu], must be held by the calling thread.
   inline void Unlock(const int cpu) ABSL_UNLOCK_FUNCTION() {
+    AnnotateReleasedCpuForTsan(cpu);
     // Load the old value of the word, which we'll need below.
     std::atomic<int64_t>& word = *GetPointerAtomic(percpu_lock_, cpu);
 
@@ -149,7 +150,7 @@ class ABSL_LOCKABLE PerCpuSpinLock {
                   ->compare_exchange_strong(previous, lock_value,
                                             std::memory_order_acquire,
                                             std::memory_order_relaxed)) {
-            return cpu;
+            return AnnotateAcquiredCpuForTsan(cpu);
           }
           return -1;
         }
@@ -203,6 +204,14 @@ class ABSL_LOCKABLE PerCpuSpinLock {
       TSANAcquire(GetPointerAtomic(percpu_lock_, cpu));
     }
     return cpu;
+  }
+
+  // Iff running under tsan, this annotates that we released the lock for CPU
+  // `cpu`; otherwise, has no effect.
+  void AnnotateReleasedCpuForTsan(int cpu) {
+    if (cpu >= 0) {
+      TSANRelease(GetPointerAtomic(percpu_lock_, cpu));
+    }
   }
 
   // Write zero to *word, which is assumed to be the word for the given CPU

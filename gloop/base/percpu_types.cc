@@ -100,7 +100,7 @@ void PerCpuSpinLock::LockOn(int cpu) {
           // here without the need to fence.
           return atomic_danger::CompareAndSwap(word, 0, lock_value,
                                                std::memory_order_acquire) == 0
-                     ? cpu
+                     ? AnnotateAcquiredCpuForTsan(cpu)
                      : -1;
         },
         unique);
