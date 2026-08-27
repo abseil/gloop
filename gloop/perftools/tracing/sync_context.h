@@ -38,6 +38,13 @@ class TraceContext;
 namespace base {
 class Context;
 }  // namespace base
+namespace perftools::tracing {
+template <typename T>
+class TraceSpan;
+namespace testing {
+struct TestOnlyAccess;
+}  // namespace testing
+}  // namespace perftools::tracing
 
 namespace perftools::tracing::core {
 
@@ -310,7 +317,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   bool same_trace(const SyncContext& other) const;
 
   // swaps lhs and rhs. Does neither verify nor change the TLS active sync id.
-  void swap(SyncContext& lhs, SyncContext& rhs);
+  friend void swap(SyncContext& lhs, SyncContext& rhs) noexcept;
 
   // `BeforeSwapCurrent` and `BeforeRestoreCurrent` manage the 'per thread'
   // tracing state used by the tracing event listener framework, and must be
@@ -481,6 +488,10 @@ class SyncContext::Access {
   friend class SyncContextTestPeer;
   friend class ::TraceContext;
   friend class ::base::Context;
+
+  template <typename T>
+  friend class ::perftools::tracing::TraceSpan;
+  friend struct ::perftools::tracing::testing::TestOnlyAccess;
 };
 constexpr SyncContext::Access::Access() noexcept = default;
 
@@ -572,7 +583,7 @@ inline void SyncContext::AfterRestoreCurrent(Access, TraceSpanId,
   }
 }
 
-inline void SyncContext::swap(SyncContext& lhs, SyncContext& rhs) {
+inline void swap(SyncContext& lhs, SyncContext& rhs) noexcept {
   using std::swap;
   swap(lhs.impl_, rhs.impl_);
 }
