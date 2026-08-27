@@ -25,7 +25,6 @@ cc_library(
     srcs = ["bounded_bundle.cc"],
     hdrs = ["bounded_bundle.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/thread/fiber",
         "//gloop/thread/fiber:fiber-options",
         "//gloop/thread/fiber:select",
@@ -40,7 +39,6 @@ cc_test(
     srcs = ["bounded_bundle_test.cc"],
     deps = [
         ":bounded_bundle",
-        "//gloop:gloop_test_main",
         "//gloop/thread/fiber",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/synchronization",

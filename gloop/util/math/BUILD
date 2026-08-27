@@ -31,7 +31,6 @@ cc_library(
     srcs = ["constant_divisor.cc"],
     hdrs = ["constant_divisor.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/numeric:int128",
     ],
@@ -43,7 +42,6 @@ cc_test(
     srcs = ["constant_divisor_test.cc"],
     deps = [
         ":constant_divisor",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random:bit_gen_ref",
@@ -59,7 +57,6 @@ cc_library(
     srcs = ["fastmath.cc"],
     hdrs = ["fastmath.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base",
     ],
 )
@@ -70,7 +67,6 @@ cc_test(
     deps = [
         ":fastmath",
         ":mathutil",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings",
@@ -85,7 +81,6 @@ cc_library(
     srcs = ["kendalls-tau.cc"],
     hdrs = ["kendalls-tau.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/log:check",
@@ -100,7 +95,6 @@ cc_test(
     srcs = ["kendalls-tau_test.cc"],
     deps = [
         ":kendalls-tau",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
@@ -113,10 +107,7 @@ cc_test(
 cc_library(
     name = "mathlimits",
     hdrs = ["mathlimits.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:core_headers",
-    ],
+    deps = ["@abseil-cpp//absl/base:core_headers"],
 )
 
 cc_test(
@@ -124,7 +115,6 @@ cc_test(
     srcs = ["mathlimits_unittest.cc"],
     deps = [
         ":mathlimits",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -137,7 +127,6 @@ cc_library(
     hdrs = ["mathutil.h"],
     deps = [
         ":mathlimits",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
@@ -154,7 +143,6 @@ cc_test(
     deps = [
         ":mathlimits",
         ":mathutil",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/numeric:int128",
         "@fuzztest//fuzztest",
@@ -169,7 +157,6 @@ cc_library(
     hdrs = ["round.h"],
     deps = [
         ":mathutil",
-        "//gloop:enforce_gloop_support",
         "//gloop/util/bits",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
@@ -182,7 +169,6 @@ cc_test(
     srcs = ["round_test.cc"],
     deps = [
         ":round",
-        "//gloop:gloop_test_main",
         "//gloop/strings:numbers",
         "//gloop/util/bits",
         "@abseil-cpp//absl/log:check",

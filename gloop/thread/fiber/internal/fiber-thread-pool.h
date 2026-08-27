@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // This defines the threadpool backing Fibers. It is used in both the
 // cooperative and non-cooperative case. The thread pool maintains a list of
 // idle threads and a list of active threads. The idle list is used to recycle

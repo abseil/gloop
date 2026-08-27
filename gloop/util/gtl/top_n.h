@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // This simple class finds the top n elements of an incrementally provided set
 // of elements which you push one at a time.  If the number of elements exceeds
 // n, the lowest elements are incrementally dropped.  At the end you get

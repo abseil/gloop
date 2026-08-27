@@ -39,7 +39,6 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:port",
         "//gloop/util/floatops:castops",
         "//gloop/util/symbolize:demangle",
@@ -61,7 +60,6 @@ cc_test(
     srcs = ["lossless_convert_test.cc"],
     deps = [
         ":intops",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_matchers",
         "@google_benchmark//:benchmark",
@@ -74,7 +72,6 @@ cc_test(
     srcs = ["saturated_test.cc"],
     deps = [
         ":intops",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -86,7 +83,6 @@ cc_test(
     srcs = ["saturated_cast_test.cc"],
     deps = [
         ":intops",
-        "//gloop:gloop_test_main",
         "//gloop/util/symbolize:demangle",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/numeric:int128",
@@ -108,7 +104,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":intops",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/log:check",
     ],
@@ -124,7 +119,6 @@ cc_binary(
     deps = [
         ":intops",
         ":strong_containers",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -136,7 +130,6 @@ cc_test(
     deps = [
         ":intops",
         ":strong_containers",
-        "//gloop:gloop_test_main",
         "//gloop/base:uword",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/hash:hash_testing",
@@ -153,7 +146,6 @@ cc_test(
     shard_count = 15,
     deps = [
         ":intops",
-        "//gloop:gloop_test_main",
         "//gloop/base:uword",
         "@abseil-cpp//absl/container:node_hash_map",
         "@abseil-cpp//absl/flags:marshalling",
@@ -177,7 +169,6 @@ cc_test(
     shard_count = 16,
     deps = [
         ":intops",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -190,7 +181,6 @@ cc_test(
     shard_count = 20,
     deps = [
         ":intops",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:mt_random",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",

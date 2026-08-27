@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // A printf() wrapper that writes into a fixed length buffer.
 // Useful in low-level code that does not want to use allocating
 // routines like StringPrintf().
