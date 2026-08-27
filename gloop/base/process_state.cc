@@ -94,6 +94,8 @@
 #endif  // GOOGLE_ENABLE_SIGNAL_HANDLERS
 
 #if !PORTABLE_BASE
+#include <sys/ucontext.h>  // ucontext_t
+
 #endif  // PORTABLE_BASE
 
 ABSL_FLAG(bool, infinite_loop_on_signal, false,
