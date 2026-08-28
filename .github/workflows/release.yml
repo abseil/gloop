@@ -125,6 +125,9 @@ jobs:
           PATCH="${{ steps.params.outputs.patch }}"
           DRAFT="${{ inputs.draft }}"
 
+          echo "Building static release tarball gloop-${TAG}.tar.gz..."
+          git archive --format=tar.gz --prefix="gloop-${TAG}/" -o "gloop-${TAG}.tar.gz" "${TARGET_BRANCH}"
+
           FLAGS="--target ${TARGET_BRANCH} --title Release-${TAG} --generate-notes"
 
           if [ "$DRAFT" = "true" ]; then
@@ -136,7 +139,7 @@ jobs:
           fi
 
           echo "Creating release ${TAG} on branch ${TARGET_BRANCH} (draft=${DRAFT})..."
-          gh release create "${TAG}" ${FLAGS}
+          gh release create "${TAG}" "gloop-${TAG}.tar.gz" ${FLAGS}
 
   publish-bcr:
     name: Publish to Bazel Central Registry
