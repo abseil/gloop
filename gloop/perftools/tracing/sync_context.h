@@ -354,6 +354,10 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
 
   explicit constexpr SyncContext(Impl* context);
 
+  // Deletes impl_ if non null, setting `impl_` to zero before deletion to make
+  // sure the deletion is safe against any tracing side effects from listeners.
+  void DeleteImpl() noexcept;
+
   Impl* impl_ = nullptr;
 };
 
@@ -390,10 +394,14 @@ class SyncContext::Impl {
   void AddListener(TraceEventListener* listener);
 
   // Implementation of SyncContext::RemoveListener()
-  Impl* RemoveListener(TraceEventListener* listener);
+  // Returns true if the current instance remains active, false if the current
+  // became empty, in which case the caller must delete the current instance.
+  bool RemoveListener(TraceEventListener* listener);
 
   // Implementation of SyncContext::RemoveListenerFromCurrent()
-  Impl* RemoveListenerFromCurrent(TraceEventListener* listener);
+  // Returns true if the current instance remains active, false if the current
+  // became empty, in which case the caller must delete the current instance.
+  bool RemoveListenerFromCurrent(TraceEventListener* listener);
 
   // Implementation of SyncContext::ContainsListener()
   bool ContainsListener(TraceEventListener* listener) const;
@@ -497,11 +505,14 @@ class SyncContext::Access {
 };
 constexpr SyncContext::Access::Access() noexcept = default;
 
-inline SyncContext::~SyncContext() noexcept {
-  if (impl_ != nullptr) {
-    delete impl_;
+inline void SyncContext::DeleteImpl() noexcept {
+  if (Impl* impl = impl_; impl != nullptr) {
+    impl_ = nullptr;
+    delete impl;
   }
 }
+
+inline SyncContext::~SyncContext() noexcept { DeleteImpl(); }
 
 inline SyncContext::SyncContext(SyncContext&& rhs) noexcept : impl_(rhs.impl_) {
   rhs.impl_ = nullptr;
@@ -512,9 +523,7 @@ inline SyncContext::SyncContext(const SyncContext& rhs)
 
 inline SyncContext& SyncContext::operator=(SyncContext&& rhs) noexcept {
   if (this == &rhs) return *this;
-  if (impl_ != nullptr) {
-    delete impl_;
-  }
+  DeleteImpl();
   impl_ = rhs.impl_;
   rhs.impl_ = nullptr;
   return *this;
@@ -522,8 +531,10 @@ inline SyncContext& SyncContext::operator=(SyncContext&& rhs) noexcept {
 
 inline SyncContext& SyncContext::operator=(const SyncContext& rhs) {
   if (this == &rhs) return *this;
-  if (impl_) delete impl_;
-  impl_ = rhs.impl_ ? rhs.impl_->Copy() : nullptr;
+  DeleteImpl();
+  if (rhs.impl_ != nullptr) {
+    impl_ = rhs.impl_->Copy();
+  }
   return *this;
 }
 
@@ -561,10 +572,12 @@ inline void SyncContext::BeforeSwapCurrent(Access, const SyncContext& to) {
 
 inline void SyncContext::AfterSwapCurrent(Access, TraceSpanId,
                                           StringRef label) {
-  if (impl_ != nullptr) {
-    if (ABSL_PREDICT_FALSE(!impl_->AfterSwapCurrent(label))) {
-      delete impl_;
-      impl_ = nullptr;
+  if (Impl* impl = impl_; impl != nullptr) {
+    impl_ = nullptr;
+    if (impl->AfterSwapCurrent(label)) {
+      impl_ = impl;
+    } else {
+      delete impl;
     }
   }
 }
@@ -577,10 +590,12 @@ inline void SyncContext::BeforeRestoreCurrent(Access, const SyncContext& to) {
 
 inline void SyncContext::AfterRestoreCurrent(Access, TraceSpanId,
                                              StringRef label) {
-  if (impl_ != nullptr) {
-    if (ABSL_PREDICT_FALSE(!impl_->AfterRestoreCurrent(label))) {
-      delete impl_;
-      impl_ = nullptr;
+  if (Impl* impl = impl_; impl != nullptr) {
+    impl_ = nullptr;
+    if (impl->AfterRestoreCurrent(label)) {
+      impl_ = impl;
+    } else {
+      delete impl;
     }
   }
 }
