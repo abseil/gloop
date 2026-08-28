@@ -146,6 +146,7 @@ cc_test(
         ":elf_reader",
         "//gloop/base:init_google",
         "//gloop/testing/production_stub:testvalue",
+        "@abseil-cpp//absl/cleanup",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

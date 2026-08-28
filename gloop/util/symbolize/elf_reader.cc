@@ -58,6 +58,7 @@
 #include <unistd.h>
 
 #ifdef __linux__
+#include <sys/auxv.h>
 #include <sys/prctl.h>
 #endif  // __linux__
 
@@ -1706,6 +1707,19 @@ static bool IsElfFile(const int fd, size_t off) {
   return true;
 }
 
+// Helper function to open the main executable using AT_EXECFN from auxv.
+// Returns the file descriptor on success, or -1 on failure.
+static int OpenExeFromAuxv() {
+#if defined(__linux__)
+  const char* execfn = reinterpret_cast<const char*>(getauxval(AT_EXECFN));
+  testing::testvalue::Adjust("elf_reader_auxv_execfn", &execfn);
+  if (execfn != nullptr && *execfn != '\0') {
+    return TEMP_FAILURE_RETRY(open(execfn, O_RDONLY | O_CLOEXEC));
+  }
+#endif
+  return -1;
+}
+
 // Helper function to open the main executable from /proc/self/cmdline.
 // Returns the file descriptor on success, or -1 on failure.
 static int OpenExeFromCmdline() {
@@ -1747,13 +1761,21 @@ ElfReader::ElfReader(const absl::string_view path, size_t off,
   if (fd_ == -1 && path == proc_self_exe) {
     // /proc/self/exe may be inaccessible (due to setuid, broken symlinks in
     // bind-mounted /proc inside chroot/NSJail sandboxes, etc.), so try
-    // accessing the binary via argv0. First check base::GetArgv0(), and if
-    // unavailable (e.g., in Deploy JAR launchers that omit base::InitGoogle),
-    // fall back to reading argv[0] directly from /proc/self/cmdline.
-    const char* argv0 = base::GetArgv0();
-    if (argv0 != nullptr && *argv0 != '\0') {
-      fd_ = TEMP_FAILURE_RETRY(open(argv0, O_RDONLY | O_CLOEXEC));
+    // accessing the binary via alternative means.
+
+    // 1. Try AT_EXECFN from auxiliary vector (Linux only).
+    fd_ = OpenExeFromAuxv();
+
+    // 2. Try base::GetArgv0().
+    if (fd_ == -1) {
+      const char* argv0 = base::GetArgv0();
+      testing::testvalue::Adjust("elf_reader_argv0", &argv0);
+      if (argv0 != nullptr && *argv0 != '\0') {
+        fd_ = TEMP_FAILURE_RETRY(open(argv0, O_RDONLY | O_CLOEXEC));
+      }
     }
+
+    // 3. Fall back to reading argv[0] directly from /proc/self/cmdline.
     if (fd_ == -1) {
       fd_ = OpenExeFromCmdline();
     }
