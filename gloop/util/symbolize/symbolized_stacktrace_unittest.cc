@@ -158,7 +158,7 @@ TEST(util, SymbolizeStackTrace) {
 static std::string* g_stacktrace;
 static jmp_buf g_jmp_buf;
 
-static void NoReturnFunc() ABSL_ATTRIBUTE_NORETURN;
+[[noreturn]] static void NoReturnFunc();
 static void FuncToCallNoReturnFunc() ABSL_ATTRIBUTE_NOINLINE;
 
 static void NoReturnFunc() {
