@@ -52,23 +52,26 @@ jobs:
       draft: ${{ steps.params.outputs.draft }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
       - name: Compute release parameters
         id: params
+        env:
+          INPUT_PATCH: ${{ inputs.patch }}
+          INPUT_BRANCH: ${{ inputs.branch }}
+          REF_NAME: ${{ github.ref_name }}
+          DRAFT: ${{ inputs.draft }}
         run: |
           set -euo pipefail
 
-          PATCH="${{ inputs.patch || 'rc1' }}"
-          INPUT_BRANCH="${{ inputs.branch }}"
-          INPUT_BRANCH="${INPUT_BRANCH#refs/heads/}"
-          REF_NAME="${{ github.ref_name }}"
+          PATCH="${INPUT_PATCH:-rc1}"
+          BRANCH="${INPUT_BRANCH#refs/heads/}"
           TODAY="$(date -u +'%Y%m%d')"
 
-          if [ -n "$INPUT_BRANCH" ]; then
-            TARGET_BRANCH="$INPUT_BRANCH"
+          if [ -n "$BRANCH" ]; then
+            TARGET_BRANCH="$BRANCH"
           elif [[ "$REF_NAME" =~ ^[0-9]{8}\.x$ ]]; then
             TARGET_BRANCH="$REF_NAME"
           else
@@ -94,13 +97,14 @@ jobs:
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "target_branch=${TARGET_BRANCH}" >> "$GITHUB_OUTPUT"
           echo "create_branch=${CREATE_BRANCH}" >> "$GITHUB_OUTPUT"
-          echo "draft=${{ inputs.draft }}" >> "$GITHUB_OUTPUT"
+          echo "draft=${DRAFT}" >> "$GITHUB_OUTPUT"
 
       - name: Create or checkout release branch
+        env:
+          TARGET_BRANCH: ${{ steps.params.outputs.target_branch }}
+          CREATE_BRANCH: ${{ steps.params.outputs.create_branch }}
         run: |
           set -euo pipefail
-          TARGET_BRANCH="${{ steps.params.outputs.target_branch }}"
-          CREATE_BRANCH="${{ steps.params.outputs.create_branch }}"
 
           git config user.name "gloop-copybara-bot"
           git config user.email "gloop-copybara-bot@google.com"
@@ -118,12 +122,12 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.params.outputs.tag }}
+          TARGET_BRANCH: ${{ steps.params.outputs.target_branch }}
+          PATCH: ${{ steps.params.outputs.patch }}
+          DRAFT: ${{ inputs.draft }}
         run: |
           set -euo pipefail
-          TAG="${{ steps.params.outputs.tag }}"
-          TARGET_BRANCH="${{ steps.params.outputs.target_branch }}"
-          PATCH="${{ steps.params.outputs.patch }}"
-          DRAFT="${{ inputs.draft }}"
 
           echo "Building static release tarball gloop-${TAG}.tar.gz..."
           git archive --format=tar.gz --prefix="gloop-${TAG}/" -o "gloop-${TAG}.tar.gz" "${TARGET_BRANCH}"
