@@ -64,6 +64,14 @@ class ScopedBridgeTraceEventListener {
   // Installs a bridging TraceEventListener for the active trace event listener:
   // - captures the current active trace event listener.
   // - obtains and installs the (optional) bridging listener active listener.
+  //
+  // The 'nullness' of the actively installed trace event listener is preserved.
+  // I.e.: if the active trace event listener is null, then it will remain null.
+  // If the current active trace event listener is non-null, then the listener
+  // installed for this scope will be non-null as well to preserve tracing
+  // in-variants. Practically this means that if the bridge returned by the
+  // active listener is null, then `ScopedBridgeTraceEventListener` installs
+  // a `NoopTraceEventListener` for the lifetime of the scope.
   explicit ScopedBridgeTraceEventListener(
       StringRef label = TraceSourceLocation::current());
 
@@ -81,8 +89,12 @@ class ScopedBridgeTraceEventListener {
   ScopedBridgeTraceEventListener& operator=(
       const ScopedBridgeTraceEventListener&) = delete;
 
+  // Returns true if an active bridging trace event listener was installed.
+  bool active() const { return active_; }
+
  private:
   TraceEventListener* const previous_;
+  bool active_ = false;
   TraceEventListener* const bridged_;
 };
 

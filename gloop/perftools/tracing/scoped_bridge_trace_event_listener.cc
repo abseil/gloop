@@ -24,6 +24,7 @@
 
 #include "absl/log/log.h"
 #include "gloop/perftools/tracing/multiplex_trace_event_listener.h"
+#include "gloop/perftools/tracing/noop_trace_event_listener.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
 #include "gloop/perftools/tracing/tracing_base.h"
@@ -44,12 +45,24 @@ std::pair<TraceEventListener*, bool> Extract(TraceEventListener* active,
   return active->Extract(listener);
 }
 
+// Returns the bridging listener for `listener`. If `listener` is null, then
+// this functions returns null, else the function will return a non-null
+// listener which is either a bridging listener or a no-op listener.
+// `active' is set to true if a bridging listener is installed.
+TraceEventListener* Bridge(TraceEventListener* listener, StringRef label,
+                           bool& active) {
+  if (listener == nullptr) return nullptr;
+  listener = listener->GetBridgingEventListener(label);
+  if (listener == nullptr) return NoopTraceEventListener();
+  active = true;
+  return listener;
+}
+
 }  // namespace
 
 ScopedBridgeTraceEventListener::ScopedBridgeTraceEventListener(StringRef label)
     : previous_(internal::active_event_listener()),
-      bridged_(previous_ ? previous_->GetBridgingEventListener(label)
-                         : nullptr) {
+      bridged_(Bridge(previous_, label, active_)) {
   internal::set_active_event_listener(bridged_);
 }
 
