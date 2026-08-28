@@ -71,12 +71,14 @@ cc_library(
     name = "bytestream",
     srcs = ["bytestream.cc"],
     hdrs = ["bytestream.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:nullability",
+    implementation_deps = [
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/memory",
         "@abseil-cpp//absl/strings:internal",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/strings:string_view",
     ],
 )
@@ -99,10 +101,12 @@ cc_library(
     name = "case",
     srcs = ["case.cc"],
     hdrs = ["case.h"],
-    deps = [
+    implementation_deps = [
         ":memutil",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/hash",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
     ],
@@ -146,13 +150,15 @@ cc_library(
     name = "cord_bytestream",
     srcs = ["cord_bytestream.cc"],
     hdrs = ["cord_bytestream.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+    ],
     deps = [
         ":bytestream",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
-        "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/numeric:bits",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:string_view",
@@ -181,14 +187,16 @@ cc_library(
     name = "escaping",
     srcs = ["escaping.cc"],
     hdrs = ["escaping.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:resize_and_overwrite",
+    ],
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:nullability",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:charset",
-        "@abseil-cpp//absl/strings:resize_and_overwrite",
         "@abseil-cpp//absl/strings:string_view",
     ],
 )
@@ -230,11 +238,13 @@ cc_library(
     name = "hex_ascii_dump",
     srcs = ["hex_ascii_dump.cc"],
     hdrs = ["hex_ascii_dump.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:str_format",
+    ],
     deps = [
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/strings:str_format",
     ],
 )
 
@@ -256,11 +266,13 @@ cc_library(
     name = "host_port",
     srcs = ["host_port.cc"],
     hdrs = ["host_port.h"],
-    deps = [
+    implementation_deps = [
         ":numbers",
         ":util",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings:string_view",
     ],
 )
@@ -286,14 +298,16 @@ cc_library(
     name = "human_readable",
     srcs = ["human_readable.cc"],
     hdrs = ["human_readable.h"],
-    deps = [
+    implementation_deps = [
         ":si_prefix",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/time",
     ],
@@ -323,22 +337,22 @@ cc_library(
     testonly = 1,
     srcs = ["interntable_benchmark.cc"],
     hdrs = ["interntable_benchmark.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:core_headers",
-    ],
+    implementation_deps = ["@abseil-cpp//absl/base:core_headers"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_library(
     name = "join",
     srcs = ["join.cc"],
     hdrs = ["join.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:resize_and_overwrite",
+    ],
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/strings:resize_and_overwrite",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
     ],
@@ -398,21 +412,23 @@ cc_library(
     name = "memblock",
     srcs = ["memblock.cc"],
     hdrs = ["memblock.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/container:container_memory",
+        "@abseil-cpp//absl/container:layout",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+    ],
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base:config",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
-        "@abseil-cpp//absl/container:container_memory",
-        "@abseil-cpp//absl/container:layout",
         "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/memory",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
-        "@abseil-cpp//absl/synchronization",
     ],
 )
 
@@ -441,10 +457,8 @@ cc_library(
     name = "memutil",
     srcs = ["memutil.cc"],
     hdrs = ["memutil.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/strings",
-    ],
+    implementation_deps = ["@abseil-cpp//absl/strings"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -469,12 +483,14 @@ cc_library(
     name = "numberformat",
     srcs = ["numberformat.cc"],
     hdrs = ["numberformat.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
+    implementation_deps = [
         "//gloop/util/math:fastmath",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings:string_view",
     ],
 )
@@ -498,13 +514,15 @@ cc_library(
     name = "numbers",
     srcs = ["numbers.cc"],
     hdrs = ["numbers.h"],
-    deps = [
+    implementation_deps = [
         ":string_view_utils",
         ":util",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+    ],
+    deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base:fprint",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
@@ -580,12 +598,12 @@ cc_library(
     name = "serialize",
     srcs = ["serialize.cc"],
     hdrs = ["serialize.h"],
+    implementation_deps = ["@abseil-cpp//absl/base"],
     deps = [
         ":numbers",
         "//gloop:enforce_gloop_support",
         "//gloop/util/endian",
         "//gloop/util/gtl:stl_util",
-        "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:dynamic_annotations",
         "@abseil-cpp//absl/functional:function_ref",
@@ -642,13 +660,15 @@ cc_library(
     name = "si_prefix",
     srcs = ["si_prefix.cc"],
     hdrs = ["si_prefix.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
+    implementation_deps = [
         "//gloop/util/math:mathutil",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:optional",
     ],
@@ -673,14 +693,16 @@ cc_library(
     name = "split",
     srcs = ["split.cc"],
     hdrs = ["split.h"],
-    deps = [
+    implementation_deps = [
         ":util",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:strtoint",
-        "@abseil-cpp//absl/base:nullability",
-        "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:charset",
         "@abseil-cpp//absl/strings:string_view",
@@ -723,11 +745,11 @@ cc_library(
     name = "strip",
     srcs = ["strip.cc"],
     hdrs = ["strip.h"],
+    implementation_deps = ["@abseil-cpp//absl/strings:charset"],
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/strings:charset",
         "@abseil-cpp//absl/strings:string_view",
     ],
 )
@@ -784,13 +806,15 @@ cc_library(
     name = "util",
     srcs = ["util.cc"],
     hdrs = ["util.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/strings",
+    ],
     deps = [
         ":string_view_utils",
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:raw_logging_internal",
-        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
     ],
 )

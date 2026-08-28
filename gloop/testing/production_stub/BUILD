@@ -25,17 +25,19 @@ cc_library(
     name = "testvalue",
     srcs = ["testvalue.cc"],
     hdrs = ["testvalue.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "//gloop/util/gtl:typeid",
+    implementation_deps = [
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:flat_hash_map",
-        "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:vlog_is_on",
-        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/synchronization",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "//gloop/util/gtl:typeid",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/strings",
     ],
 )
 

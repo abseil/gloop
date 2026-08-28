@@ -95,13 +95,15 @@ cc_library(
     name = "gloop_test_main",
     testonly = True,
     srcs = ["gloop_test_main.cc"],
+    implementation_deps = [
+        "//gloop/base:init_google",
+        "@fuzztest//fuzztest:init_fuzztest",
+    ],
     visibility = [
         "//gloop:__subpackages__",
     ],
     deps = [
         ":enforce_gloop_support",
-        "//gloop/base:init_google",
-        "@fuzztest//fuzztest:init_fuzztest",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest_for_library",
     ],

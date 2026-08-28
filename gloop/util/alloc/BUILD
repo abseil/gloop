@@ -28,12 +28,14 @@ cc_library(
     name = "best-fit-allocator",
     srcs = ["best-fit-allocator.cc"],
     hdrs = ["best-fit-allocator.h"],
-    deps = [
+    implementation_deps = [
         ":block-allocator",
+        "@abseil-cpp//absl/log:check",
+    ],
+    deps = [
         ":size-based-allocator",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/log:check",
     ],
     alwayslink = 1,
 )
@@ -65,14 +67,16 @@ cc_library(
     name = "size-based-allocator",
     srcs = ["size-based-allocator.cc"],
     hdrs = ["size-based-allocator.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:str_format",
+    ],
     deps = [
         ":block-allocator",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:btree",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
     ],
 )

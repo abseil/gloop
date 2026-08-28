@@ -77,6 +77,7 @@ cc_library(
     name = "registration",
     srcs = ["registerer.cc"],
     hdrs = ["registerer.h"],
+    implementation_deps = ["@abseil-cpp//absl/log:check"],
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/util/gtl:lockfree_hashmap",
@@ -92,12 +93,14 @@ cc_library(
     name = "registerer_tracker",
     srcs = ["registerer_tracker.cc"],
     hdrs = ["registerer_tracker.h"],
-    deps = [
+    implementation_deps = [
         ":registration",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:googleinit",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
     ],
     alwayslink = 1,
 )

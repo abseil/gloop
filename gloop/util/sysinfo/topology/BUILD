@@ -26,11 +26,11 @@ cc_library(
     name = "affinity",
     srcs = ["affinity.cc"],
     hdrs = ["affinity.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
+    implementation_deps = [
         "//gloop/util/os/core:cpu_set",
         "@abseil-cpp//absl/log",
     ],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_library(
@@ -43,28 +43,30 @@ cc_library(
         "topology.h",
         "topology_converter.h",
     ],
+    implementation_deps = [
+        "//gloop/base:sysinfo",
+        "//gloop/strings:split",
+        "//gloop/testing/production_stub:testvalue",
+        "//gloop/util/gtl:container_logging",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:cpu_detect",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/types:span",
+        "@re2",
+    ],
     deps = [
         ":affinity",
         ":topology_cc_proto",
         "//gloop:enforce_gloop_support",
         "//gloop/base:commandlineflags",
-        "//gloop/base:sysinfo",
-        "//gloop/strings:split",
-        "//gloop/testing/production_stub:testvalue",
-        "//gloop/util/gtl:container_logging",
         "//gloop/util/os/core:cpu_set",
-        "@abseil-cpp//absl/algorithm:container",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:cpu_detect",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/types:span",
-        "@re2",
     ],
 )
 

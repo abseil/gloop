@@ -60,10 +60,8 @@ cc_library(
     hdrs = ["demangle.h"],
     copts = COPTS,
     features = ["-use_header_modules"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/debugging:demangle_rust",
-    ],
+    implementation_deps = ["@abseil-cpp//absl/debugging:demangle_rust"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -97,10 +95,7 @@ cc_library(
     srcs = ["elf_reader.cc"],
     hdrs = ["elf_reader.h"],
     copts = COPTS,
-    deps = [
-        ":symbol_map_sink",
-        "//gloop:enforce_gloop_support",
-        "//gloop/base:commandlineflags",
+    implementation_deps = [
         "//gloop/base:port",
         "//gloop/testing/production_stub:testvalue",
         "@abseil-cpp//absl/cleanup",
@@ -108,8 +103,13 @@ cc_library(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/numeric:bits",
-        "@abseil-cpp//absl/strings",
         "@zlib",
+    ],
+    deps = [
+        ":symbol_map_sink",
+        "//gloop:enforce_gloop_support",
+        "//gloop/base:commandlineflags",
+        "@abseil-cpp//absl/strings",
     ],
 )
 
@@ -264,12 +264,12 @@ cc_library(
     srcs = ["foobar.cc"],
     hdrs = ["foobar.h"],
     copts = ["-fbasic-block-sections=all"],
-    target_compatible_with = ["@platforms//cpu:x86_64"],
-    deps = [
+    implementation_deps = [
         ":symbolize",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
     ],
+    target_compatible_with = ["@platforms//cpu:x86_64"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_library(

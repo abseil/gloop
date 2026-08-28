@@ -114,18 +114,20 @@ cc_library(
     name = "dynamic_threadpool",
     srcs = ["dynamic_threadpool.cc"],
     hdrs = ["dynamic_threadpool.h"],
-    deps = [
-        ":thread",
+    implementation_deps = [
         ":wait_state",
-        "//gloop:enforce_gloop_support",
-        "//gloop/base:callback",
         "//gloop/base:sysinfo",
         "//gloop/util/functional:to_callback",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
+    ],
+    deps = [
+        ":thread",
+        "//gloop:enforce_gloop_support",
+        "//gloop/base:callback",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
@@ -405,18 +407,20 @@ cc_library(
     name = "periodicclosure",
     srcs = ["periodicclosure.cc"],
     hdrs = ["periodicclosure.h"],
-    deps = [
+    implementation_deps = [
         ":thread",
         ":wait_state",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:nullability",
-        "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/synchronization",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/functional:any_invocable",
+        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/time:clock_interface",
         "@abseil-cpp//absl/types:source_location",
@@ -461,21 +465,27 @@ cc_library(
     name = "python_stack_size",
     srcs = ["python_stack_size.cc"],
     hdrs = ["python_stack_size.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log",
+    ],
     visibility = [
         "//gloop/thread:__subpackages__",
         "//thread:__subpackages__",
     ],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/log",
-    ],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_library(
     name = "run_in_thread",
     srcs = ["run_in_thread.cc"],
     hdrs = ["run_in_thread.h"],
+    implementation_deps = [
+        "//gloop/base:signal-handler",
+        "//gloop/base/scheduling:scheduling_mode",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/time",
+    ],
     visibility = [
     ],
     deps = [
@@ -483,12 +493,8 @@ cc_library(
         ":thread-internal",
         "//gloop:enforce_gloop_support",
         "//gloop/base:port",
-        "//gloop/base:signal-handler",
         "//gloop/base:spinlock",
-        "//gloop/base/scheduling:scheduling_mode",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
-        "@abseil-cpp//absl/time",
     ],
 )
 
@@ -667,6 +673,10 @@ cc_library(
     name = "thread_control",
     srcs = ["thread_control.cc"],
     hdrs = ["thread_control.h"],
+    implementation_deps = [
+        ":config",
+        "@abseil-cpp//absl/log",
+    ],
     # Visibility is intentionally restricted and new uses of the single
     # threaded controller will not be accepted.
     visibility = [
@@ -674,10 +684,8 @@ cc_library(
         "//gloop/thread:__subpackages__",
     ],
     deps = [
-        ":config",
         "//gloop:enforce_gloop_support",
         "//gloop/base:commandlineflags",
-        "@abseil-cpp//absl/log",
     ],
 )
 
@@ -950,12 +958,14 @@ cc_library(
     name = "simple_weighted_semaphore",
     srcs = ["simple_weighted_semaphore.cc"],
     hdrs = ["simple_weighted_semaphore.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
+    implementation_deps = [
         "//gloop/base:timer",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:die_if_null",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/synchronization",
     ],
 )
@@ -994,34 +1004,13 @@ cc_library(
         "thread_manager_policy.h",
     ],
     deps = [
-        ":python_stack_size",
         ":thread",
-        ":wait_state",
         "//gloop:enforce_gloop_support",
-        "//gloop/base:callback",
-        "//gloop/base:context",
         "//gloop/base:per-thread-sem",
-        "//gloop/base:sysinfo",
-        "//gloop/util/functional:from_callback",
-        "//gloop/util/functional:to_callback",
-        "//gloop/util/functional:with_context",
-        "//gloop/util/refcount:blocking_refcount",
-        "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:no_destructor",
-        "@abseil-cpp//absl/base:nullability",
-        "@abseil-cpp//absl/container:chunked_queue",
-        "@abseil-cpp//absl/container:flat_hash_set",
-        "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/functional:any_invocable",
-        "@abseil-cpp//absl/functional:bind_front",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/strings:str_format",
-        "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-        "@abseil-cpp//absl/types:span",
         "@googletest//:gtest_prod",
     ],
 )

@@ -54,10 +54,12 @@ cc_library(
         "memory_mapped_io.h",
         "scoped_mmap.h",
     ],
-    deps = [
-        "//gloop:enforce_gloop_support",
+    implementation_deps = [
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings",
     ],
 )
@@ -66,15 +68,15 @@ cc_library(
     name = "memory_mapped_io_test_data",
     srcs = ["memory_mapped_io_test_data.cc"],
     hdrs = ["memory_mapped_io_test_data.h"],
-    visibility = [
-        "//gloop/util/memory:__subpackages__",
-    ],
-    deps = [
-        "//gloop:enforce_gloop_support",
+    implementation_deps = [
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
     ],
+    visibility = [
+        "//gloop/util/memory:__subpackages__",
+    ],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(

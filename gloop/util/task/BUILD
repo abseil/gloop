@@ -35,19 +35,21 @@ cc_library(
     name = "child_task_barrier",
     srcs = ["child_task_barrier.cc"],
     hdrs = ["child_task_barrier.h"],
+    implementation_deps = [
+        "//gloop/base:callback",
+        "//gloop/util/functional:to_callback",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/synchronization",
+    ],
     deps = [
         ":task",
         "//gloop:enforce_gloop_support",
-        "//gloop/base:callback",
         "//gloop/concurrent/barrier:incremental_barrier",
         "//gloop/thread",
-        "//gloop/util/functional:to_callback",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/functional:any_invocable",
-        "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/synchronization",
     ],
 )
 
@@ -77,14 +79,16 @@ cc_library(
     copts = select({
         "//conditions:default": [],
     }),
-    deps = [
+    implementation_deps = [
         ":task",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:walltime",
         "//gloop/thread",
         "//gloop/thread:thread_manager",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/status",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/time",
     ],
 )
@@ -114,13 +118,15 @@ cc_library(
     copts = select({
         "//conditions:default": [],
     }),
+    implementation_deps = [
+        "//gloop/base:context",
+        "//gloop/thread/fiber",
+    ],
     deps = [
         ":task",
         "//gloop:enforce_gloop_support",
-        "//gloop/base:context",
         "//gloop/thread",
         "//gloop/thread:config",
-        "//gloop/thread/fiber",
         "//gloop/thread/fiber:select",
         "//gloop/thread/fiber:selectables",
         "@abseil-cpp//absl/base:nullability",
@@ -163,27 +169,29 @@ cc_library(
     copts = select({
         "//conditions:default": [],
     }),
+    implementation_deps = [
+        "//gloop/thread",
+        "//gloop/util/functional:with_context",
+        "//gloop/util/random:shared_bit_gen",
+        "//gloop/util/refcount:reference_counted",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/strings:str_format",
+    ],
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base:context",
         "//gloop/base:spinlock",
         "//gloop/perftools/tracing:trace_source_location",
         "//gloop/perftools/tracing:tracing_base",
-        "//gloop/thread",
         "//gloop/util/functional:from_callback",
         "//gloop/util/functional:transitional",
-        "//gloop/util/functional:with_context",
-        "//gloop/util/random:shared_bit_gen",
-        "//gloop/util/refcount:reference_counted",
-        "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:inlined_vector",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/functional:any_invocable",
-        "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/strings:str_format",
         "@protobuf//:protobuf_lite",
     ],
 )
