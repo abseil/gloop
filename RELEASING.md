@@ -108,7 +108,9 @@ The **Release** workflow supports the following inputs:
 
 When the **Release** workflow runs:
 
-1.  It cuts the branch/tag and creates the GitHub Release.
+1.  It cuts the branch/tag, creates a static release archive
+    (`gloop-<tag>.tar.gz`), and creates the GitHub Release with the attached
+    tarball.
 2.  It automatically invokes `bazel-contrib/publish-to-bcr` to publish the
     release to the Bazel Central Registry (BCR).
 3.  `bazel-contrib/publish-to-bcr` fetches the release archive, computes hashes,
@@ -138,7 +140,8 @@ If a BCR publication needs to be retried manually:
 2.  **Registry Fork**: A fork of `bazelbuild/bazel-central-registry` under the
     repository org (e.g., `abseil/bazel-central-registry`).
 3.  **`.bcr/` Configuration**:
-    *   `.bcr/config.yml`: Releaser contact info.
-    *   `.bcr/metadata.template.json`: Module metadata and homepage.
-    *   `.bcr/source.template.json`: Source archive URL format and strip prefix.
+    *   `.bcr/metadata.template.json`: Module metadata, maintainers, and
+        homepage.
+    *   `.bcr/source.template.json`: Source archive URL format (pointing to the
+        stable release asset) and strip prefix.
     *   `.bcr/presubmit.yml`: BCR CI test configuration.

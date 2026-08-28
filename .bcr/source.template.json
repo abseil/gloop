@@ -1,5 +1,5 @@
 {
-  "url": "https://github.com/{OWNER}/{REPO}/archive/refs/tags/{TAG}.tar.gz",
-  "strip_prefix": "{REPO}-{TAG}",
+  "url": "https://github.com/{OWNER}/{REPO}/releases/download/{TAG}/gloop-{TAG}.tar.gz",
+  "strip_prefix": "gloop-{TAG}",
   "patch_strip": 0
 }
