@@ -41,6 +41,7 @@ class Context;
 namespace perftools::tracing {
 template <typename T>
 class TraceSpan;
+class LinkedTraceSpan;
 namespace testing {
 struct TestOnlyAccess;
 }  // namespace testing
@@ -491,6 +492,7 @@ class SyncContext::Access {
 
   template <typename T>
   friend class ::perftools::tracing::TraceSpan;
+  friend class ::perftools::tracing::LinkedTraceSpan;
   friend struct ::perftools::tracing::testing::TestOnlyAccess;
 };
 constexpr SyncContext::Access::Access() noexcept = default;
