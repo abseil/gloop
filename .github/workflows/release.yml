@@ -1,0 +1,148 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      patch:
+        description: 'Patch / candidate identifier (e.g. "rc1", "rc2", "0", "1")'
+        required: false
+        default: 'rc1'
+        type: string
+      branch:
+        description: 'Target release branch (e.g. "20260826.x"; leave blank to auto-create from today or use current branch)'
+        required: false
+        default: ''
+        type: string
+      run_tests:
+        description: 'Run test suite before releasing'
+        required: false
+        default: true
+        type: boolean
+      publish_bcr:
+        description: 'Publish release to Bazel Central Registry (BCR)'
+        required: false
+        default: true
+        type: boolean
+      draft:
+        description: 'Create draft release (set to false to publish immediately and trigger BCR publication)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: read
+  id-token: write
+  attestations: write
+
+jobs:
+  test:
+    name: Run Tests
+    if: ${{ inputs.run_tests != false }}
+    uses: ./.github/workflows/tests.yml
+    secrets: inherit
+
+  release:
+    name: Cut and Publish Release
+    needs: [test]
+    if: always() && (needs.test.result == 'success' || needs.test.result == 'skipped')
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.params.outputs.tag }}
+      draft: ${{ steps.params.outputs.draft }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Compute release parameters
+        id: params
+        run: |
+          set -euo pipefail
+
+          PATCH="${{ inputs.patch || 'rc1' }}"
+          INPUT_BRANCH="${{ inputs.branch }}"
+          INPUT_BRANCH="${INPUT_BRANCH#refs/heads/}"
+          REF_NAME="${{ github.ref_name }}"
+          TODAY="$(date -u +'%Y%m%d')"
+
+          if [ -n "$INPUT_BRANCH" ]; then
+            TARGET_BRANCH="$INPUT_BRANCH"
+          elif [[ "$REF_NAME" =~ ^[0-9]{8}\.x$ ]]; then
+            TARGET_BRANCH="$REF_NAME"
+          else
+            TARGET_BRANCH="${TODAY}.x"
+          fi
+
+          if [[ "$TARGET_BRANCH" =~ ^([0-9]{8})\.x$ ]]; then
+            DATE="${BASH_REMATCH[1]}"
+          else
+            DATE="$TODAY"
+          fi
+
+          TAG="${DATE}.${PATCH}"
+
+          if git ls-remote --exit-code --heads origin "$TARGET_BRANCH" > /dev/null 2>&1; then
+            CREATE_BRANCH="false"
+          else
+            CREATE_BRANCH="true"
+          fi
+
+          echo "date=${DATE}" >> "$GITHUB_OUTPUT"
+          echo "patch=${PATCH}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "target_branch=${TARGET_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "create_branch=${CREATE_BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "draft=${{ inputs.draft }}" >> "$GITHUB_OUTPUT"
+
+      - name: Create or checkout release branch
+        run: |
+          set -euo pipefail
+          TARGET_BRANCH="${{ steps.params.outputs.target_branch }}"
+          CREATE_BRANCH="${{ steps.params.outputs.create_branch }}"
+
+          git config user.name "gloop-copybara-bot"
+          git config user.email "gloop-copybara-bot@google.com"
+
+          if [ "$CREATE_BRANCH" = "true" ]; then
+            echo "Creating new release branch ${TARGET_BRANCH} off origin/main..."
+            git checkout -B "${TARGET_BRANCH}" origin/main
+            git push origin "${TARGET_BRANCH}"
+          else
+            echo "Using existing release branch ${TARGET_BRANCH}..."
+            git checkout "${TARGET_BRANCH}"
+            git pull origin "${TARGET_BRANCH}"
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.params.outputs.tag }}"
+          TARGET_BRANCH="${{ steps.params.outputs.target_branch }}"
+          PATCH="${{ steps.params.outputs.patch }}"
+          DRAFT="${{ inputs.draft }}"
+
+          FLAGS="--target ${TARGET_BRANCH} --title Release-${TAG} --generate-notes"
+
+          if [ "$DRAFT" = "true" ]; then
+            FLAGS="${FLAGS} --draft"
+          fi
+
+          if [[ "$PATCH" =~ rc ]]; then
+            FLAGS="${FLAGS} --prerelease"
+          fi
+
+          echo "Creating release ${TAG} on branch ${TARGET_BRANCH} (draft=${DRAFT})..."
+          gh release create "${TAG}" ${FLAGS}
+
+  publish-bcr:
+    name: Publish to Bazel Central Registry
+    needs: [release]
+    if: always() && needs.release.result == 'success' && needs.release.outputs.draft != 'true' && (inputs.publish_bcr != false)
+    uses: ./.github/workflows/publish-bcr.yml
+    with:
+      tag_name: ${{ needs.release.outputs.tag }}
+    secrets: inherit
