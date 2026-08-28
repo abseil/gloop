@@ -42,5 +42,6 @@ jobs:
       tag_name: ${{ inputs.tag_name || github.event.release.tag_name }}
       registry_fork: ${{ inputs.registry_fork || 'abseil/bazel-central-registry' }}
       attest: false
+      draft: false
     secrets:
       publish_token: ${{ secrets.publish_token || secrets.BCR_PUBLISH_TOKEN }}
