@@ -959,5 +959,34 @@ TEST_F(SyncContextTest, SwapNestedContextIntoDifferentSyncOfSameTrace) {
   thread.Join();
 }
 
+TEST_F(SyncContextTest, IsolateFromSideEffectsInReleaseOnAddRemoveCurrent) {
+  auto* mock = new StrictMock<MockTraceEventListener>;
+  EXPECT_CALL(*mock, OnTraceBeginSync(_, _));
+  EXPECT_CALL(*mock, Extract(_));
+  EXPECT_CALL(*mock, OnTraceEndSync(_));
+  EXPECT_CALL(*mock, ReleaseEventListener()).WillOnce([&]() {
+    WithContext with_blank(Context{});
+    delete mock;
+  });
+
+  WithContext with(Context{});
+  Context::AddListenerToCurrent(mock);
+  Context::RemoveListenerFromCurrent(mock);
+}
+
+TEST_F(SyncContextTest, IsolateFromSideEffectsInReleaseFromWithContext) {
+  auto* mock = new StrictMock<MockTraceEventListener>;
+  EXPECT_CALL(*mock, OnTraceBeginSync(_, _));
+  EXPECT_CALL(*mock, OnTraceEndSync(_));
+  EXPECT_CALL(*mock, ReleaseEventListener()).WillOnce([&]() {
+    WithContext with_blank(Context{});
+    delete mock;
+  });
+
+  Context context;
+  context.AddListener(mock);
+  WithContext with(std::move(context));
+}
+
 }  // namespace
 }  // namespace perftools::tracing::core

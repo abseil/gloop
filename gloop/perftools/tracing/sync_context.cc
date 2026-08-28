@@ -166,14 +166,14 @@ void SyncContext::Impl::AddListener(TraceEventListener* listener) {
   listener_ = MultiplexTraceEventListener(listener_, listener);
 }
 
-SyncContext::Impl* SyncContext::Impl::RemoveListenerFromCurrent(
+bool SyncContext::Impl::RemoveListenerFromCurrent(
     TraceEventListener* listener) {
   DCHECK_NE(listener, nullptr);
   TraceEventListener* active_listener = ActiveListener();
-  if (active_listener == nullptr) return this;
+  if (active_listener == nullptr) return true;
 
   auto [new_listener, success] = active_listener->Extract(listener);
-  if (!PERFTOOLS_VERIFY(success)) return this;
+  if (!PERFTOOLS_VERIFY(success)) return true;
 
   // Signal end of sync session. This is the last event delivered
   // where the listener is reachable through the active listener.
@@ -185,36 +185,36 @@ SyncContext::Impl* SyncContext::Impl::RemoveListenerFromCurrent(
   internal::set_active_event_listener(new_listener);
   listener->ReleaseEventListener();
 
-  // Check if we have remaining listeners. If so, we are still "alive".
-  if (new_listener != nullptr) return this;
+  // Check if we have remaining listeners. If so, then this instance
+  // is still live and should not be deleted by the caller.
+  if (new_listener != nullptr) return true;
 
-  // All listeners are removed, delete ourselves.
+  // All listeners are removed, return `false` to the caller to indicate
+  // that this instance is no longer live and must be deleted.
   internal::set_active_sync_id(kNoSyncId);
-  delete this;
-  return nullptr;
+  return false;
 }
 
-SyncContext::Impl* SyncContext::Impl::RemoveListener(
-    TraceEventListener* listener) {
+bool SyncContext::Impl::RemoveListener(TraceEventListener* listener) {
   DCHECK_NE(listener, nullptr);
   if (listener_ == nullptr || state_ != State::kDefault) {
     DLOG(DFATAL) << "Invalid state " << state_ << " in RemoveListener";
-    return this;
+    return true;
   }
 
   auto [new_listener, success] = listener_->CascadingRelease(listener);
   if (!success) {
     DLOG(DFATAL) << "Failed to remove listener";
-    return this;
+    return true;
   }
 
   // Set the new listener and check if we have remaining listeners.
   listener_ = new_listener;
-  if (new_listener != nullptr) return this;
+  if (new_listener != nullptr) return true;
 
-  // All listeners are removed, delete ourselves.
-  delete this;
-  return nullptr;
+  // All listeners are removed, return `false` to the caller to indicate
+  // that this instance is empty and must be deleted.
+  return false;
 }
 
 bool SyncContext::Impl::ContainsListener(TraceEventListener* listener) const {
@@ -355,7 +355,9 @@ void SyncContext::AddListenerToCurrent(Access, TraceSpanId,
 void SyncContext::RemoveListener(TraceEventListener* listener) {
   if (listener == nullptr) return;
   if (impl_ != nullptr) {
-    impl_ = impl_->RemoveListener(listener);
+    if (!impl_->RemoveListener(listener)) {
+      DeleteImpl();
+    }
   } else {
     DLOG(DFATAL) << "RemoveListener() on an empty instance";
   }
@@ -364,8 +366,14 @@ void SyncContext::RemoveListener(TraceEventListener* listener) {
 void SyncContext::RemoveListenerFromCurrent(Access,
                                             TraceEventListener* listener) {
   if (listener == nullptr) return;
-  if (impl_ != nullptr) {
-    impl_ = impl_->RemoveListenerFromCurrent(listener);
+  if (Impl* impl = impl_; impl != nullptr) {
+    // Avoid side effects.
+    impl_ = nullptr;
+    if (impl->RemoveListenerFromCurrent(listener)) {
+      impl_ = impl;
+    } else {
+      delete impl;
+    }
   } else {
     DLOG(DFATAL) << "RemoveListener() on an empty instance";
   }
