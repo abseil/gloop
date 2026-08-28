@@ -21,7 +21,13 @@ tasks:
       - "--copt=-funsigned-char"
       - "--host_copt=-funsigned-char"
     build_targets:
-      - "@gloop//..."
+      - "@gloop//gloop/concurrent/rcu:view"
+      - "@gloop//gloop/thread"
+      - "@gloop//gloop/thread/fiber"
+      - "@gloop//gloop/util/status"
+      - "@gloop//gloop/util/task"
+      - "@gloop//gloop/util/hash"
+      - "@gloop//gloop/util/symbolize"
 
 bcr_test_module:
   module_path: "gloop/examples"
