@@ -100,11 +100,11 @@ TEST(CensusHandleTest, Move) {
   auto e = new TestEntry();
   CensusHandle h1 = TestEntry::Wrap(e);
   CensusHandle h2 = std::move(h1);
-  EXPECT_EQ(TestEntry::Get(h1), nullptr);  // NOLINT: use-after-move ok
+  EXPECT_EQ(TestEntry::Get(h1), nullptr);  // NOLINT(bugprone-use-after-move)
   EXPECT_EQ(TestEntry::Get(h2), e);
   h1 = std::move(h2);
-  EXPECT_EQ(TestEntry::Get(h1), e);        // NOLINT: use-after-move ok
-  EXPECT_EQ(TestEntry::Get(h2), nullptr);  // NOLINT: use-after-move ok
+  EXPECT_EQ(TestEntry::Get(h1), e);        // NOLINT(bugprone-use-after-move)
+  EXPECT_EQ(TestEntry::Get(h2), nullptr);  // NOLINT(bugprone-use-after-move)
 }
 
 void BM_CensusHandleConstructDestruct(benchmark::State& state) {
