@@ -57,9 +57,8 @@ gh workflow run release.yml -f patch=0
 To cut a subsequent candidate (`rc2`) or a patch release (`1`, `2`, ...) on an
 existing release branch:
 
-1.  Navigate to **Actions** > **Release** > **Run workflow**.
-2.  Select the release branch (e.g. `20260826.x`) from the **Use workflow from**
-    dropdown, or provide it in the `branch` input.
+1.  Navigate to **Actions** > **Release** > **Run workflow** (from `main`).
+2.  Set `branch` to the existing release branch (e.g. `20260826.x`).
 3.  Set `patch` to the desired version (e.g. `rc2`, `1`, `2`).
 4.  Click **Run workflow**.
 
@@ -67,10 +66,10 @@ Alternatively, using the `gh` CLI:
 
 ```bash
 # Cutting rc2 on an existing release branch:
-gh workflow run release.yml --ref 20260826.x -f patch=rc2
+gh workflow run release.yml -f branch=20260826.x -f patch=rc2
 
 # Cutting patch 1 on an existing release branch:
-gh workflow run release.yml --ref 20260826.x -f patch=1
+gh workflow run release.yml -f branch=20260826.x -f patch=1
 ```
 
 --------------------------------------------------------------------------------
