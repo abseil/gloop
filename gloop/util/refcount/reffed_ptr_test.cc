@@ -103,7 +103,7 @@ TEST(ReffedPtrTest, ConstexprConstructor) {
 static void TakesPtrRef(const reffed_ptr<RCTester>& p = {}) {}
 TEST(ReffedPtrTest, ImplicitDefaultConstructor) {
   // check implicit default ctor.
-  const reffed_ptr<RCTester>& p ABSL_ATTRIBUTE_UNUSED = {};
+  const reffed_ptr<RCTester>& p [[maybe_unused]] = {};
   TakesPtrRef({});
   TakesPtrRef();
 }
