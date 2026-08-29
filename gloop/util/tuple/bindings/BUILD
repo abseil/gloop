@@ -32,7 +32,6 @@ cc_library(
     hdrs = ["bindings.h"],
     visibility = [":util-tuple"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/meta:type_traits",
         "@abseil-cpp//absl/utility",
     ],
@@ -43,7 +42,6 @@ cc_test(
     srcs = ["bindings_test.cc"],
     deps = [
         ":bindings",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -57,7 +55,6 @@ cc_library(
     ],
     deps = [
         ":bindings",
-        "//gloop:enforce_gloop_support",
         "//gloop/util/tuple:intrinsics",
     ],
 )
@@ -67,7 +64,6 @@ cc_test(
     srcs = ["tuplify_test.cc"],
     deps = [
         ":tuplify",
-        "//gloop:gloop_test_main",
         "//gloop/util/tuple:intrinsics",
         "//gloop/util/tuple:streamable",
         "//gloop/util/tuple:struct",

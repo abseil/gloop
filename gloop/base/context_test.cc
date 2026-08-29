@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Context Core API implementation (see <link>)
 
 #include "gloop/base/context.h"
@@ -298,7 +292,8 @@ TEST_F(ContextTest, MoveConstructor) {
   Context moved(std::move(copied));
   EXPECT_THAT(ctx, EqualsContext(moved));
 #if BASE_CONTEXT_HAVE_SECURITYCONTEXT
-  // NOLINTNEXTLINE - we want to test that security was modified.
+  // NOLINTNEXTLINE(bugprone-use-after-move) - we want to test that security was
+  // modified.
   EXPECT_NE(copied.security(), moved.security()) << "Security was moved.";
 #endif  // BASE_CONTEXT_HAVE_SECURITYCONTEXT
 }
@@ -310,7 +305,8 @@ TEST_F(ContextTest, MoveAssignment) {
   moved = std::move(copied);
   EXPECT_THAT(ctx, EqualsContext(moved));
 #if BASE_CONTEXT_HAVE_SECURITYCONTEXT
-  // NOLINTNEXTLINE - we want to test that security was modified.
+  // NOLINTNEXTLINE(bugprone-use-after-move) - we want to test that security was
+  // modified.
   EXPECT_EQ(nullptr, copied.security()) << "Security was moved.";
 #endif  // BASE_CONTEXT_HAVE_SECURITYCONTEXT
 
@@ -323,7 +319,8 @@ TEST_F(ContextTest, MoveAssignment) {
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #endif
-  // NOLINTNEXTLINE - ClangTidy complains that the object was moved.
+  // NOLINTNEXTLINE(bugprone-use-after-move) - ClangTidy complains that the
+  // object was moved.
   EXPECT_THAT(ctx, EqualsContext(moved));
 }
 
