@@ -332,8 +332,10 @@ std::string RunOnPeriodicClosure(absl::AnyInvocable<void() &&> f) {
 std::string RunOnTimedCall(absl::AnyInvocable<void() &&> f) {
   // Create a new TimedCall that will delete itself when done.
   auto tc = std::make_unique<TimedCall>();
-  tc->Set(base::ToWallTime(absl::Now()),
-          [f = std::move(f), tc = std::move(tc)]() mutable { std::move(f)(); });
+  auto* raw_tc = tc.get();
+  raw_tc->Set(
+      base::ToWallTime(absl::Now()),
+      [f = std::move(f), tc = std::move(tc)]() mutable { std::move(f)(); });
   // This is the name of the one thread that runs all TimedCalls.
   return "timedcall";
 }

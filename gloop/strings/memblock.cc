@@ -500,7 +500,8 @@ AlignedMemBlock::~AlignedMemBlock() {
 absl::Cord CordFromMemBlock(
     absl_nonnull std::unique_ptr<const MemBlock> block) {
   absl::string_view block_view = block->ToStringPiece();
-  return absl::MakeCordFromExternal(block_view, [b = std::move(block)] {});
+  auto releaser = [b = std::move(block)] {};
+  return absl::MakeCordFromExternal(block_view, std::move(releaser));
 }
 
 void NoopReleaser(void* absl_nullable) {}
