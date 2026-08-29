@@ -199,11 +199,11 @@ def _make_protoc_rule(output_to_genfiles):
     return rule(
         output_to_genfiles = output_to_genfiles,
         attrs = {
-            "src": attr.label(allow_single_file = True, mandatory = True),
-            "outs": attr.output_list(mandatory = True),
             "deps": attr.label_list(allow_files = True, default = []),
             "descriptor_set": attr.label(allow_single_file = True),
+            "outs": attr.output_list(mandatory = True),
             "proto_name": attr.string(mandatory = True),
+            "src": attr.label(allow_single_file = True, mandatory = True),
             "_tool": attr.label(
                 default = "@protobuf//:protoc",
                 executable = True,
