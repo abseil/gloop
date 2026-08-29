@@ -166,7 +166,7 @@ TEST(CallbackToFunctor, DoesNotTakeOwnership) {
 
   {
     auto f1 = FromCallback(a);
-    auto f2 ABSL_ATTRIBUTE_UNUSED = FromCallback(b);
+    auto f2 [[maybe_unused]] = FromCallback(b);
     EXPECT_FALSE(a_destroyed);
     EXPECT_FALSE(b_destroyed);
     f1();
@@ -274,9 +274,9 @@ TEST(CallbackToFunctor, WithOwnership) {
   auto a = Nop;
   Closure* b = util::functional::ToPermanentCallback(Nop);
 
-  ABSL_ATTRIBUTE_UNUSED auto f1 = FromCallbackWithOwnership(
+  [[maybe_unused]] auto f1 = FromCallbackWithOwnership(
       std::move(::util::functional::ToCallback<Closure>(a)));
-  ABSL_ATTRIBUTE_UNUSED auto f2 = FromCallbackWithOwnership(std::move(b));
+  [[maybe_unused]] auto f2 = FromCallbackWithOwnership(std::move(b));
   // "a" / "b" should now be owned & deleted by their respective functors.
 }
 
