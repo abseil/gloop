@@ -203,7 +203,7 @@ class ThreadLogWrapper : public base_logging::Logger {
 class LoggingThread : public Thread {
  public:
   LoggingThread() : Thread(thread::Options(), "Logger") {}
-  virtual void Run();
+  void Run() override;
 };
 
 base_logging::Logger* NewThreadedLogWrapper(base_logging::Logger* logger) {

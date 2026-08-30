@@ -346,7 +346,7 @@ class PeriodicThread : public Thread {
             [object](PeriodicThread* thr) { object->RunInThread(thr); },
             options, name_prefix) {}
 
-  ~PeriodicThread() {}  // We could call Exit(), but we don't
+  ~PeriodicThread() override {}  // We could call Exit(), but we don't
 
   /** Wake up the thread and have it run RunInThread again.
       Return true if the thread was idle, false if it was already working.
@@ -464,7 +464,7 @@ class MemberThread : public Thread {
   // public to protected because it is an implementation detail.  If this change
   // breaks your code, you can work around it temporarily by defining a local
   // class which derives from MemberThread and has a public Run() function.
-  virtual void Run() { (this_pointer_->*member_)(); }
+  void Run() override { (this_pointer_->*member_)(); }
 
  private:
   CL* this_pointer_;
@@ -791,13 +791,13 @@ class ThreadStackWriter {
 // A subclass that writes to stderr
 class StderrThreadStackWriter : public ThreadStackWriter {
  public:
-  virtual void Write(const char* data, int data_length);
+  void Write(const char* data, int data_length) override;
 };
 
 // A subclass that writes to LOG(ERROR)
 class LogErrorThreadStackWriter : public ThreadStackWriter {
  public:
-  virtual void Write(const char* data, int data_length);
+  void Write(const char* data, int data_length) override;
 };
 
 // ---------------------------------------------------------------------

@@ -62,7 +62,7 @@ class DynamicThreadPoolWorker : public Thread {
     threads_pos_ = parent_->threads_->insert(parent_->threads_->end(), this);
   }
 
-  virtual ~DynamicThreadPoolWorker() {
+  ~DynamicThreadPoolWorker() override {
     if (idle_pos_ != parent_->idle_threads_->end()) {
       parent_->idle_threads_->erase(idle_pos_);
     }
@@ -71,7 +71,7 @@ class DynamicThreadPoolWorker : public Thread {
     }
   }
 
-  virtual void Run() {
+  void Run() override {
     Closure* callback;
     *thread::Executor::CurrentExecutorPointerInternal() = parent_;
     while ((callback = parent_->Dequeue(this)) != nullptr) {
