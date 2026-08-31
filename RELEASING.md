@@ -139,8 +139,14 @@ If a BCR publication needs to be retried manually:
 2.  **Registry Fork**: A fork of `bazelbuild/bazel-central-registry` under the
     repository org (e.g., `abseil/bazel-central-registry`).
 3.  **`.bcr/` Configuration**:
+
     *   `.bcr/metadata.template.json`: Module metadata, maintainers, and
         homepage.
     *   `.bcr/source.template.json`: Source archive URL format (pointing to the
         stable release asset) and strip prefix.
     *   `.bcr/presubmit.yml`: BCR CI test configuration.
+
+    > **Note**: BCR templates are read directly from the release tag's commit on
+    > the release branch. If BCR configuration or presubmit rules are updated on
+    > `main`, ensure those commits are back-ported to the target release branch
+    > prior to cutting a new patch release on that branch.
