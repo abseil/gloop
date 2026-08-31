@@ -21,7 +21,6 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_GTL_UNIQUE_ARRAY_H_
 #define THIRD_PARTY_GLOOP_UTIL_GTL_UNIQUE_ARRAY_H_
 
-#include <concepts>
 #include <cstddef>
 #include <initializer_list>
 #include <iterator>
@@ -133,11 +132,12 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI
   // - `ptr` must point to an array of `size` or more elements. The requirement
   // is enforced, and the constructor fails,  when an array cookie is available
   // according to the C++ Itanium ABI, and Abseil hardening is enabled.
+  template <typename D = deleter_type,
+            std::enable_if_t<std::is_default_constructible_v<D>, int> = 0>
 #if ABSL_HAVE_CPP_ATTRIBUTE(clang::unsafe_buffer_usage)
   [[clang::unsafe_buffer_usage]]
 #endif
   UniqueArray(T* ptr, size_t size)
-    requires std::is_default_constructible_v<deleter_type>
       : data_(std::unique_ptr<T[], deleter_type>(ptr)), size_(size) {
     if (ptr == nullptr) {
       if (size != 0) internal::CrashOnNullUniqueArrayWithNonzeroSize(size);
@@ -179,11 +179,14 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI
   // Constructs a `UniqueArray` with the contents of the range [first, last).
   // Requires a forward iterator because we need to know the distance before
   // iterating for the copy.
-  template <typename Iterator>
+  template <
+      typename Iterator,
+      std::enable_if_t<std::is_base_of_v<std::forward_iterator_tag,
+                                         typename std::iterator_traits<
+                                             Iterator>::iterator_category>,
+                       int> = 0>
   UniqueArray(Iterator first ABSL_ATTRIBUTE_LIFETIME_BOUND,
-              Iterator last ABSL_ATTRIBUTE_LIFETIME_BOUND)
-    requires(std::forward_iterator<Iterator>)
-  {
+              Iterator last ABSL_ATTRIBUTE_LIFETIME_BOUND) {
     size_ = std::distance(first, last);
     data_ = std::unique_ptr<T[], deleter_type>(new T[size_]);
     std::copy(first, last, data());
@@ -438,7 +441,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI
 // `std::make_unique`).
 template <typename T>
 UniqueArray<T> MakeUniqueArray(size_t size) {
-  static_assert(std::constructible_from<T>);
+  static_assert(std::is_default_constructible_v<T>);
   return UniqueArray<T>(std::unique_ptr<T[]>(new T[size]()), size,
                         std::true_type{});
 }
@@ -448,7 +451,7 @@ UniqueArray<T> MakeUniqueArray(size_t size) {
 // `std::make_unique_for_overwrite`).
 template <typename T>
 UniqueArray<T> MakeUniqueArrayForOverwrite(size_t size) {
-  static_assert(std::constructible_from<T>);
+  static_assert(std::is_default_constructible_v<T>);
   return UniqueArray<T>(std::unique_ptr<T[]>(new T[size]), size,
                         std::true_type{});
 }
