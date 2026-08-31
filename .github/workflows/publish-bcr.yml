@@ -45,3 +45,44 @@ jobs:
       draft: false
     secrets:
       publish_token: ${{ secrets.publish_token || secrets.BCR_PUBLISH_TOKEN }}
+
+  summary:
+    name: Surface BCR PR Summary
+    needs: [bcr]
+    if: always() && needs.bcr.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Surface BCR PR Summary
+        env:
+          GH_TOKEN: ${{ secrets.publish_token || secrets.BCR_PUBLISH_TOKEN || github.token }}
+          TAG_NAME: ${{ inputs.tag_name || github.event.release.tag_name }}
+          REGISTRY_FORK: ${{ inputs.registry_fork || 'abseil/bazel-central-registry' }}
+        run: |
+          set -euo pipefail
+
+          FORK_OWNER="${REGISTRY_FORK%%/*}"
+          HEAD="${FORK_OWNER}:gloop-${TAG_NAME}"
+          QUERY="q=is%3Apr+gloop+${TAG_NAME}"
+          FALLBACK_URL="https://github.com/bazelbuild/bazel-central-registry/pulls?${QUERY}"
+
+          # Query GitHub API for the newly created BCR PR from our fork
+          PR_URL=$(gh pr list --repo bazelbuild/bazel-central-registry --head "${HEAD}" --state all --limit 1 --json url --jq '.[0].url // empty' 2>/dev/null || true)
+          URL="${PR_URL:-$FALLBACK_URL}"
+
+          echo "::notice title=BCR Pull Request::${URL}"
+
+          cat <<EOF >> "$GITHUB_STEP_SUMMARY"
+          ## 🚀 Bazel Central Registry (BCR) Publication
+
+          | Property | Value |
+          | :--- | :--- |
+          | **Release Tag** | \`${TAG_NAME}\` |
+          | **Registry Fork** | [\`${REGISTRY_FORK}\`](https://github.com/${REGISTRY_FORK}) |
+          | **BCR Pull Request** | [${URL}](${URL}) |
+
+          ✨ Publication completed:
+          👉 **[View BCR Pull Request](${URL})**
+          EOF
+
