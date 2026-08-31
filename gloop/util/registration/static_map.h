@@ -280,15 +280,15 @@ using StaticFlatHashSet =
 // Sets value for a given key in map map_name (happens at the time of
 // static initialization in the constructor of InsertValue used in
 // the implementation).
-#define SET_STATIC_MAP_VALUE(map_name, key, value)                      \
-  ABSL_ATTRIBUTE_UNUSED static const auto STATIC_MAP_TEMP_OBJECT_NAME = \
+#define SET_STATIC_MAP_VALUE(map_name, key, value)                 \
+  [[maybe_unused]] static const auto STATIC_MAP_TEMP_OBJECT_NAME = \
       map_name::InsertValue(key, value);
 
 // Sets default value for an undefined key in map map_name (happens at
 // the time of static initialization in the constructor of
 // DefaultInsertValue used in the implementation).
-#define SET_STATIC_MAP_DEFAULT_VALUE(map_name, value)                   \
-  ABSL_ATTRIBUTE_UNUSED static const auto STATIC_MAP_TEMP_OBJECT_NAME = \
+#define SET_STATIC_MAP_DEFAULT_VALUE(map_name, value)              \
+  [[maybe_unused]] static const auto STATIC_MAP_TEMP_OBJECT_NAME = \
       map_name::SetDefaultValue(value);
 
 // Helper macros used to concatenate three strings.  STATIC_MAP_PASTE
@@ -329,8 +329,8 @@ using StaticFlatHashSet =
 
 // Adds a key to a specific static set set_name. This is done at the
 // time of static initialization in the constructor of KeyInserted.
-#define SET_STATIC_SET_KEY(set_name, key)                               \
-  ABSL_ATTRIBUTE_UNUSED static const auto STATIC_SET_TEMP_OBJECT_NAME = \
+#define SET_STATIC_SET_KEY(set_name, key)                          \
+  [[maybe_unused]] static const auto STATIC_SET_TEMP_OBJECT_NAME = \
       set_name::InsertKey(key);
 
 // Unique object name used for temp instances of

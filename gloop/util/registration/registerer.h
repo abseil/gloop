@@ -749,7 +749,7 @@ class AliasRegistererWrapper {
 
 #define REGISTER_FACTORY_ENTITY(name, ClassName, Factory)       \
   static ::util_registration::internal::StaticRegistrationToken \
-      name##_registration_token_ ABSL_ATTRIBUTE_UNUSED =        \
+      name##_registration_token_ [[maybe_unused]] =             \
           ::util_registration::internal::RegisterStatically<    \
               ClassName##Registerer>(#name, __FILE__, Factory);
 
@@ -771,7 +771,7 @@ class AliasRegistererWrapper {
 #define REGISTER_ALIAS(name, alias, ClassName)                    \
   static ::util_registration::internal::StaticRegistrationToken   \
       INTERNAL_REGISTER_CAT(name##_alias_registerer_,             \
-                            __LINE__) ABSL_ATTRIBUTE_UNUSED =     \
+                            __LINE__) [[maybe_unused]] =          \
           ::util_registration::internal::RegisterAliasStatically< \
               ClassName##AliasRegisterer::ObjectType>(#name, __FILE__, alias);
 
