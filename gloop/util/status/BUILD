@@ -76,10 +76,8 @@ cc_library(
         ":status_builder",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:status_builder",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop/util/status:codes_cc_proto",
         "@protobuf//src/google/protobuf/bridge:message_set_cc_proto",
     ],
 )
@@ -145,7 +143,6 @@ cc_library(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:die_if_null",
         "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:status_builder",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:has_ostream_operator",

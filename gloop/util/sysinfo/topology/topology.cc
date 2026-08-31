@@ -51,6 +51,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/base/internal/cpu_detect.h"
+#include "absl/base/macros.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
