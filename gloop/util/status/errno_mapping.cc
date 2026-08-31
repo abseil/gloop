@@ -21,9 +21,10 @@
 #include "gloop/util/status/errno_mapping.h"
 
 #include "absl/status/status.h"
+#include "absl/status/status_builder.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
-#include "gloop/util/status/status_builder.h"
+#include "gloop/util/status/codes.pb.h"
 
 namespace util {
 

@@ -33,6 +33,7 @@
 #include "absl/log/check.h"
 #include "absl/log/die_if_null.h"
 #include "absl/status/status.h"
+#include "absl/status/status_builder.h"
 #include "absl/types/source_location.h"
 #include "gloop/util/status/status.h"
 #include "gloop/util/status/status_builder.h"
