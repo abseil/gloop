@@ -392,6 +392,17 @@ class TraceEventListener {
   //  };
   //
   // See also `ReleaseEventListener()`
+  //
+  // The `sync_id` passed identifies the synchronous execution context for which
+  // the framework is requesting a new listener. It is provisional only in the
+  // sense that the `OnTraceBeginSync` method may be called with a different
+  // value later. That different value is the *final* one, so the same value
+  // will be passed to the (guaranteed to be called) `OnTraceEndSync`
+  // method. Caching this value in the returned listener has no practical value.
+  // The main intent for this value is to allow implementations to track the
+  // hierarchy of listeners, regardless of how listeners are either never used
+  // and discarded, scoped inside an existing synchrouns execution, or scoped
+  // as a top-most instance scoping a longest synchronous execution context.
   virtual TraceEventListener* GetEventListener(SyncId sync_id) = 0;
 
   // `ReleaseEventListener` is invoked on an instance after the synchronous
