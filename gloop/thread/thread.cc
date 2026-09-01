@@ -733,9 +733,52 @@ const ucontext_t zero_uc = {0};
 
 constexpr size_t kMaxFiberNameLength = 64;
 
+// This is an atomic so that writes to it cannot tear when being read from a
+// signal handler.
+//
+// absl::string_view is 16-bytes, which means the prod toolchain should make
+// storing an atomic operation, which ensures that a signal handler cannot see a
+// partial store.
+//
+// In theory, this should be accounted for in the standard library of
+// implementations that don't support 16 byte atomics. In practice, this support
+// seems to be patchy for toolchains in google3, so we only use the atomic where
+// it is lock free. We assume that binaries built with those toolchains aren't
+// using signal handlers that read this field anyway.
+//
+// https://godbolt.org/z/M1oK61T7G
+template <bool IsAtomicLockFree>
+class MaybeAtomicStringViewImpl;
+
+template <>
+class MaybeAtomicStringViewImpl<true> {
+ public:
+  void Store(absl::string_view sv) { sv_.store(sv, std::memory_order_relaxed); }
+
+  absl::string_view Load() const { return sv_.load(std::memory_order_relaxed); }
+
+ private:
+  std::atomic<absl::string_view> sv_;
+};
+
+template <>
+class MaybeAtomicStringViewImpl<false> {
+ public:
+  void Store(absl::string_view sv) { sv_ = sv; }
+
+  absl::string_view Load() const { return sv_; }
+
+ private:
+  absl::string_view sv_;
+};
+
+using MaybeAtomicStringView = MaybeAtomicStringViewImpl<
+    std::atomic<absl::string_view>::is_always_lock_free>;
+
 // Clang on IOS does not support C++11 thread_local, so we have to use
 // STATIC_THREAD_LOCAL.
-STATIC_THREAD_LOCAL(absl::string_view, tls_fiber_name);
+STATIC_THREAD_LOCAL(MaybeAtomicStringView, tls_fiber_name);
+
 }  // namespace
 
 // Structure into which stack trace is extracted
@@ -2394,14 +2437,13 @@ void Thread_RegisterExternalThread(absl::string_view name_prefix) {
 namespace thread {
 
 void InternalSetCurrentFiberName(absl::string_view fiber_name) {
-  absl::string_view* ptr = tls_fiber_name.pointer();
-  *ptr = fiber_name;
+  tls_fiber_name.pointer()->Store(fiber_name);
 }
 
 absl::string_view InternalGetCurrentFiberName() {
-  absl::string_view* ptr = tls_fiber_name.safe_pointer();
+  MaybeAtomicStringView* ptr = tls_fiber_name.safe_pointer();
   if (ptr) {
-    return *ptr;
+    return ptr->Load();
   }
   return "";
 }
