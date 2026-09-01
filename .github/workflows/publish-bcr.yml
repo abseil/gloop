@@ -67,10 +67,8 @@ jobs:
           QUERY="q=is%3Apr+gloop+${TAG_NAME}"
           FALLBACK_URL="https://github.com/bazelbuild/bazel-central-registry/pulls?${QUERY}"
 
-          # Query GitHub API for the newly created BCR PR from our fork
-          PR_URL=$(gh pr list --repo bazelbuild/bazel-central-registry --head "${HEAD}" --state all --limit 1 --json url --jq '.[0].url // empty' 2>/dev/null || true)
+          PR_URL=$(gh api "repos/bazelbuild/bazel-central-registry/pulls?head=${HEAD}&state=all" --jq '.[0].html_url // empty' 2>/dev/null || true)
           URL="${PR_URL:-$FALLBACK_URL}"
-
           echo "::notice title=BCR Pull Request::${URL}"
 
           cat <<EOF >> "$GITHUB_STEP_SUMMARY"
