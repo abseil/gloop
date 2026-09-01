@@ -1595,7 +1595,7 @@ void WriteToStderr(const char* message) {
   (void)write(STDERR_FILENO, message, strlen(message));
 }
 
-ABSL_ATTRIBUTE_NORETURN void ShutdownTimedOutExit() { _exit(2); }
+[[noreturn]] void ShutdownTimedOutExit() { _exit(2); }
 
 // Body of thread that guarantees death after timeout_seconds.
 //
