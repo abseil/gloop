@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // ToCallback/ToPermanentCallback() allow a std::function<> object to
 // be converted to Closure/Callback types accepted by older google3
 // APIs (like Executor).  In fact any functor, i.e., a pure function

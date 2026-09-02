@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Provides wrapper functions for POSIX syscalls, which will automatically retry
 // the actual syscalls in cases of EINTR (interrupts), when appropriate.
 //

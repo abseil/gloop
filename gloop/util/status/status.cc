@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 #include "gloop/util/status/status.h"
 
 #include <stdint.h>
@@ -221,15 +215,16 @@ std::string StatusToString(const absl::Status& status) {
     }
   }
 
-  status.ForEachPayload([&](absl::string_view type_url, absl::Cord payload) {
-    if (type_url == util::status_internal::kErrorSpaceUrl ||
-        type_url == util::status_internal::kMessageSetUrl) {
-      return;
-    } else {
-      absl::StrAppend(&result, " [", type_url, "='",
-                      absl::CHexEscape(std::string(payload)), "']");
-    }
-  });
+  status.ForEachPayload(
+      [&](absl::string_view type_url, const absl::Cord& payload) {
+        if (type_url == util::status_internal::kErrorSpaceUrl ||
+            type_url == util::status_internal::kMessageSetUrl) {
+          return;
+        } else {
+          absl::StrAppend(&result, " [", type_url, "='",
+                          absl::CHexEscape(std::string(payload)), "']");
+        }
+      });
   return result;
 }
 

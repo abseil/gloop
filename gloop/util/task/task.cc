@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 #include "gloop/util/task/task.h"
 
 #include <string>
@@ -208,14 +202,14 @@ void Task::set_inline_done_callback(bool inline_done_callback) {
 
 bool Task::Return() { return Return(absl::OkStatus()); }
 
-bool Task::Return(absl::Status status) {
+bool Task::Return(const absl::Status& status) {
   lock_.lock();
   if (state_ >= PREPARED) {
     // No effect on multiple calls
     lock_.unlock();
     return false;
   }
-  return ReturnActive(std::move(status));
+  return ReturnActive(status);
 }
 
 // Prepare the Status object and returns true.
@@ -225,8 +219,8 @@ bool Task::Return(absl::Status status) {
 //
 // The task must be in active state and lock_ must be acquired before calling
 // this function. The lock will be released before the function returns.
-bool Task::ReturnActive(absl::Status status) {
-  status_ = std::move(status);
+bool Task::ReturnActive(const absl::Status& status) {
+  status_ = status;
   state_ = PREPARED;
   if (!cancel_callbacks_.IsRunning()) {
     // There is no need to fire cancel callbacks since we have reached

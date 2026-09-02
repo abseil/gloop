@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // A Task object is used to coordinate an asynchronous activity.
 // It allows the creator of the task to supply a callback that will
 // execute when the task completes.  It also provides support for
@@ -375,7 +369,7 @@ class Task {
   //   }
   //
   bool Return();
-  bool Return(absl::Status status);
+  bool Return(const absl::Status& status);
 
   // A hold can be placed on a task, preventing it from entering the done state
   // until the hold is removed. Multiple holds can be placed on a task and each
@@ -621,7 +615,7 @@ class Task {
     absl::InlinedVector<absl::AnyInvocable<void() &&>, 2> callbacks_;
   };
 
-  bool ReturnActive(absl::Status status) ABSL_UNLOCK_FUNCTION(lock_);
+  bool ReturnActive(const absl::Status& status) ABSL_UNLOCK_FUNCTION(lock_);
 #endif  // SWIG
 
   base::Context context_;

@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // A Context is a container for request-specific information like security
 // credentials, tracing identifiers, etc. Each thread has a currently active
 // Context corresponding to the received request on behalf of which this thread
@@ -120,7 +114,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
   const TraceContext& trace_context() const { return tc_; }
 
   // Set the trace information returned by the `trace_context` accessor.
-  void set_trace_context(TraceContext tc) { tc_ = std::move(tc); }
+  void set_trace_context(const TraceContext& tc) { tc_ = tc; }
 
   // Returns the CensusHandle for this context.
   //
@@ -272,7 +266,7 @@ class ContextBuilder {
   ~ContextBuilder() = default;
 
   // Uses the supplied TraceContext, overriding that of the base context.
-  ContextBuilder& set_trace_context(TraceContext tc);
+  ContextBuilder& set_trace_context(const TraceContext& tc);
 
   // Uses the supplied deadline, overriding that of the base context.
   ContextBuilder& set_deadline(absl::Time deadline);

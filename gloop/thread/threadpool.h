@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // A thread pool consists of a set of threads that sit around waiting
 // for closures to appear on a queue.  When that happens, one of them
 // pulls the closure off the queue and runs it.
@@ -153,11 +147,10 @@ class ThreadPool : public AbstractThreadPool {
                    Options{.name_prefix = std::string(name_prefix)}) {}
 
   ABSL_DEPRECATE_AND_INLINE()
-  ThreadPool(thread::Options thread_options, absl::string_view name_prefix,
-             int num_threads)
-      : ThreadPool(num_threads,
-                   Options{.name_prefix = std::string(name_prefix),
-                           .thread_options = std::move(thread_options)}) {}
+  ThreadPool(const thread::Options& thread_options,
+             absl::string_view name_prefix, int num_threads)
+      : ThreadPool(num_threads, Options{.name_prefix = std::string(name_prefix),
+                                        .thread_options = thread_options}) {}
 
 #if defined(__ANDROID__) || defined(__APPLE__)
   // Historically, in spite of the 64k constant, threads in the portable thread

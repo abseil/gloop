@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Contains functions commonly used to measure and manipulate the state
 // and characteristics of the process and the machine the process is running
 // on. This includes some typical Unix characteristics (like hostname), and
