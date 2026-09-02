@@ -62,10 +62,8 @@
 #include "gtest/gtest.h"
 
 using testing::AllOf;
-using testing::ElementsAre;
 using testing::Eq;
 using testing::Field;
-using testing::IsEmpty;
 
 ABSL_DECLARE_FLAG(bool, threadmanager_use_executor_impl);
 
