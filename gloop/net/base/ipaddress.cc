@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Definition of classes IPAddress, SocketAddress, and IPRange.
 
 #include "gloop/net/base/ipaddress.h"
@@ -2258,7 +2252,7 @@ bool AbslParseFlag(absl::string_view text, IPAddress* dst,
   return StringToIPAddress(text, dst);
 }
 
-std::string AbslUnparseFlag(IPAddress ip) {
+std::string AbslUnparseFlag(const IPAddress& ip) {
   if (!IsInitializedAddress(ip)) {
     return "";
   }
@@ -2274,7 +2268,7 @@ bool AbslParseFlag(absl::string_view text, IPRange* dst,
   return StringToIPRange(text, dst);
 }
 
-std::string AbslUnparseFlag(IPRange range) {
+std::string AbslUnparseFlag(const IPRange& range) {
   if (!IsInitializedRange(range)) {
     return "";
   }
@@ -2293,7 +2287,7 @@ bool AbslParseFlag(absl::string_view text, SocketAddress* dst,
   return status_or_sa.ok();
 }
 
-std::string AbslUnparseFlag(SocketAddress sa) {
+std::string AbslUnparseFlag(const SocketAddress& sa) {
   if (!IsInitializedSocketAddress(sa)) {
     return "";
   }
@@ -2319,7 +2313,7 @@ bool AbslParseFlag(absl::string_view text, IPAddressList* dst,
   return true;
 }
 
-std::string AbslUnparseFlag(IPAddressList ips) {
+std::string AbslUnparseFlag(const IPAddressList& ips) {
   std::vector<std::string> ip_address_strings;
   for (const IPAddress& ip : ips) {
     ip_address_strings.push_back(AbslUnparseFlag(ip));

@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 #include "gloop/strings/memblock.h"
 
 #include <assert.h>
@@ -500,7 +494,8 @@ AlignedMemBlock::~AlignedMemBlock() {
 absl::Cord CordFromMemBlock(
     absl_nonnull std::unique_ptr<const MemBlock> block) {
   absl::string_view block_view = block->ToStringPiece();
-  return absl::MakeCordFromExternal(block_view, [b = std::move(block)] {});
+  auto releaser = [b = std::move(block)] {};
+  return absl::MakeCordFromExternal(block_view, std::move(releaser));
 }
 
 void NoopReleaser(void* absl_nullable) {}

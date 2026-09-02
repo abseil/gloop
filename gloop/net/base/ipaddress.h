@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Various classes for storing Internet addresses:
 //
 //  * IPAddress:      An IPv4 or IPv6 address. Fundamentally represents a host
@@ -1696,12 +1690,12 @@ std::string AddressFamilyToString(int family);
 // (FLAGS_my_range == IPRange()).
 
 bool AbslParseFlag(absl::string_view text, IPAddress* dst, std::string* err);
-std::string AbslUnparseFlag(IPAddress ip);
+std::string AbslUnparseFlag(const IPAddress& ip);
 bool AbslParseFlag(absl::string_view text, IPRange* dst, std::string* err);
-std::string AbslUnparseFlag(IPRange range);
+std::string AbslUnparseFlag(const IPRange& range);
 bool AbslParseFlag(absl::string_view text, SocketAddress* dst,
                    std::string* err);
-std::string AbslUnparseFlag(SocketAddress sa);
+std::string AbslUnparseFlag(const SocketAddress& sa);
 
 class IPAddressList : public std::vector<IPAddress> {
  public:
@@ -1710,7 +1704,7 @@ class IPAddressList : public std::vector<IPAddress> {
 
 bool AbslParseFlag(absl::string_view text, IPAddressList* dst,
                    std::string* err);
-std::string AbslUnparseFlag(IPAddressList ips);
+std::string AbslUnparseFlag(const IPAddressList& ips);
 
 // sockaddr_cast() converts a variety of sockaddr_foo pointers to sockaddr*,
 // which the socket API uses as a generic base type.  We only define overloads
