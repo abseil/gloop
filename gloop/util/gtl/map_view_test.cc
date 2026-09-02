@@ -261,7 +261,7 @@ TEST(MapViewDeathTest, AtThrows) {
 void Overloaded(const MapView<int, int>) {}
 void Overloaded(const MapView<int, std::string>) {}
 void Overloaded(const MapView<std::string, int>) {}
-ABSL_ATTRIBUTE_UNUSED void Overloaded(const SetView<int>) {}
+[[maybe_unused]] void Overloaded(const SetView<int>) {}
 
 TYPED_TEST_SUITE(MapViewTest, MapTypes);
 

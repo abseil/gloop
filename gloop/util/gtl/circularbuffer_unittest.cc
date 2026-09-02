@@ -417,14 +417,13 @@ TEST(CircularBufferIteratorTest, ConstIterator) {
   CircularBuffer<int>::iterator it = cb.begin();
 
   // Test cast from const_iterator from iterator.
-  CircularBuffer<int>::const_iterator ABSL_ATTRIBUTE_UNUSED test_cast = it;
+  CircularBuffer<int>::const_iterator test_cast [[maybe_unused]] = it;
 
   // Test copy constructor of iterator.
-  CircularBuffer<int>::iterator ABSL_ATTRIBUTE_UNUSED test_copy = it;
+  CircularBuffer<int>::iterator test_copy [[maybe_unused]] = it;
 
   // Test copy constructor of const_iterator.
-  CircularBuffer<int>::const_iterator ABSL_ATTRIBUTE_UNUSED test_copy_const =
-      cit;
+  CircularBuffer<int>::const_iterator test_copy_const [[maybe_unused]] = cit;
 
   // Test Comparisons between iterator and const_iterator.
   EXPECT_TRUE(it == cit);
