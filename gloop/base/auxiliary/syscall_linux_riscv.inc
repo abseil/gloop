@@ -60,6 +60,9 @@
 #define __NR_close 57
 #define __NR_pipe2 59
 #define __NR_getdents64 61
+#ifndef __NR_getdents
+#define __NR_getdents __NR_getdents64
+#endif
 #ifndef __NR_lseek
 #define __NR_lseek 62
 #endif
