@@ -41,7 +41,6 @@
 #include "absl/time/time.h"
 #include "gloop/base/thread-identity.h"
 #include "gloop/base/walltime.h"
-#include "gloop/thread/dynamic_threadpool.h"
 #include "gloop/thread/fiber/channel.h"
 #include "gloop/thread/fiber/fiber-options.h"
 #include "gloop/thread/fiber/fiber.h"
@@ -278,18 +277,6 @@ std::string RunOnThreadPool(absl::AnyInvocable<void() &&> f) {
   return kName;
 }
 
-std::string RunOnDynamicThreadPool(absl::AnyInvocable<void() &&> f) {
-  const std::string kName = "active-worker-test-dynamic-threadpool";
-  static absl::NoDestructor<std::unique_ptr<DynamicThreadPool>> pool([&]() {
-    auto pool = std::make_unique<DynamicThreadPool>(
-        kName, DynamicThreadPool::Options());
-
-    return pool;
-  }());
-  (*pool)->Schedule(std::move(f));
-  return kName;
-}
-
 std::string RunOnPeriodicClosure(absl::AnyInvocable<void() &&> f) {
   static constexpr absl::string_view kName =
       "active-worker-test-periodic-closure";
@@ -348,8 +335,7 @@ std::string RunOnFiber(absl::AnyInvocable<void() &&> f) {
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(ExecutorImpls, ActiveWorkerTest,
-                         ::testing::Values(RunOnDynamicThreadPool,
-                                           RunOnPeriodicClosure, RunOnFiber,
+                         ::testing::Values(RunOnPeriodicClosure, RunOnFiber,
                                            RunOnThreadPool, RunOnTimedCall));
 
 }  // namespace thread

@@ -110,48 +110,6 @@ cc_library(
     deps = ["//gloop:enforce_gloop_support"],
 )
 
-cc_library(
-    name = "dynamic_threadpool",
-    srcs = ["dynamic_threadpool.cc"],
-    hdrs = ["dynamic_threadpool.h"],
-    deps = [
-        ":thread",
-        ":wait_state",
-        "//gloop:enforce_gloop_support",
-        "//gloop/base:callback",
-        "//gloop/base:sysinfo",
-        "//gloop/util/functional:to_callback",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/functional:any_invocable",
-        "@abseil-cpp//absl/functional:bind_front",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/synchronization",
-        "@abseil-cpp//absl/time",
-    ],
-)
-
-cc_test(
-    name = "dynamic_threadpool_unittest",
-    size = "medium",
-    srcs = ["dynamic_threadpool_unittest.cc"],
-    deps = [
-        ":dynamic_threadpool",
-        ":thread",
-        "//gloop:gloop_test_main",
-        "//gloop/base:atomic_stats_counter",
-        "@abseil-cpp//absl/base:log_severity",
-        "@abseil-cpp//absl/functional:bind_front",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:globals",
-        "@abseil-cpp//absl/synchronization",
-        "@abseil-cpp//absl/time",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
-    ],
-)
-
 cc_test(
     name = "executor_test",
     size = "medium",
@@ -917,7 +875,6 @@ cc_test(
     srcs = ["wait_state_test.cc"],
     tags = ["notsan"],
     deps = [
-        ":dynamic_threadpool",
         ":periodicclosure",
         ":thread",
         ":thread-internal",
