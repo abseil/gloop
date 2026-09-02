@@ -45,18 +45,18 @@ class TestedAllocator : public BlockAllocator {
   TestedAllocator(const TestedAllocator&) = delete;
   TestedAllocator& operator=(const TestedAllocator&) = delete;
 
-  virtual void Allocate(uint32_t requested_size, Block* start,
-                        uint32_t* actual_size);
-  virtual void AllocateAt(uint32_t requested_size, Block start,
-                          uint32_t* actual_size);
-  virtual void Release(Block begin, uint32_t size);
-  virtual void Clear();
-  virtual uint32_t BlocksFree() const { return allocator_->BlocksFree(); }
-  virtual size_t MemoryUsage() const { return allocator_->MemoryUsage(); }
-  virtual void GetFreeBlocks(std::vector<BlockRange>* ranges) const {
+  void Allocate(uint32_t requested_size, Block* start,
+                uint32_t* actual_size) override;
+  void AllocateAt(uint32_t requested_size, Block start,
+                  uint32_t* actual_size) override;
+  void Release(Block begin, uint32_t size) override;
+  void Clear() override;
+  uint32_t BlocksFree() const override { return allocator_->BlocksFree(); }
+  size_t MemoryUsage() const override { return allocator_->MemoryUsage(); }
+  void GetFreeBlocks(std::vector<BlockRange>* ranges) const override {
     return allocator_->GetFreeBlocks(ranges);
   }
-  virtual std::string DebugString() const;
+  std::string DebugString() const override;
 
  private:
   void ValidateAllocation(absl::string_view method_name,
