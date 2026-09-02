@@ -185,7 +185,7 @@ static void BM_PerThreadData(benchmark::State& state) {
   void* last = nullptr;
   for (auto _ : state) {
     last = PerThread::Data(benchmark_key);
-    int x ABSL_ATTRIBUTE_UNUSED = *reinterpret_cast<int*>(last);
+    int x [[maybe_unused]] = *reinterpret_cast<int*>(last);
   }
   CHECK(state.iterations() <= 0 || last != nullptr);
 }

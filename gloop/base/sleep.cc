@@ -39,8 +39,8 @@
 extern "C" {
 
 // This version is scheduling-aware, and cooperates with fibers.
-// TODO ABSL_ATTRIBUTE_UNUSED is to suppress scythe.
-ABSL_ATTRIBUTE_UNUSED void ABSL_INTERNAL_C_SYMBOL(AbslInternalSleepFor)(
+// TODO [[maybe_unused]] is to suppress scythe.
+[[maybe_unused]] void ABSL_INTERNAL_C_SYMBOL(AbslInternalSleepFor)(
     absl::Duration duration) {
   std::atomic<int>* blocked_count_ptr =
       absl::synchronization_internal::PerThreadSem::GetThreadBlockedCounter();

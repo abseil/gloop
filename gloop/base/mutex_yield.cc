@@ -33,9 +33,8 @@ extern "C" {
 // goes to the cooperative scheduler.  Otherwise the hint goes to the kernel
 // thread scheduler.
 //
-// TODO ABSL_ATTRIBUTE_UNUSED is to suppress dead code deletion.
-ABSL_ATTRIBUTE_UNUSED
-void ABSL_INTERNAL_C_SYMBOL(AbslInternalMutexYield)() {
+// TODO [[maybe_unused]] is to suppress dead code deletion.
+[[maybe_unused]] void ABSL_INTERNAL_C_SYMBOL(AbslInternalMutexYield)() {
   if (base::scheduling::Downcalls::CurrentThreadIsCooperative()) {
     base::scheduling::Downcalls::Reschedule();
   } else {

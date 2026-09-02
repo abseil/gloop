@@ -69,23 +69,20 @@ void Poke(absl::base_internal::ThreadIdentity* identity) {
 
 extern "C" {
 
-// TODO ABSL_ATTRIBUTE_UNUSED is to suppress scythe.
-ABSL_ATTRIBUTE_UNUSED
-void ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemInit)(
+// TODO [[maybe_unused]] is to suppress scythe.
+[[maybe_unused]] void ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemInit)(
     absl::base_internal::ThreadIdentity* identity) {
   base::scheduling_internal::Init(identity);
 }
 
-// TODO ABSL_ATTRIBUTE_UNUSED is to suppress scythe.
-ABSL_ATTRIBUTE_UNUSED
-void ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemPoke)(
+// TODO [[maybe_unused]] is to suppress scythe.
+[[maybe_unused]] void ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemPoke)(
     absl::base_internal::ThreadIdentity* identity) {
   base::scheduling_internal::Poke(identity);
 }
 
-// TODO ABSL_ATTRIBUTE_UNUSED is to suppress scythe.
-ABSL_ATTRIBUTE_UNUSED
-void ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemPost)(
+// TODO [[maybe_unused]] is to suppress scythe.
+[[maybe_unused]] void ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemPost)(
     absl::base_internal::ThreadIdentity* identity) {
   // We use careful double-checked locking to avoid requiring the association
   // lock for non-cooperative threads.
@@ -105,8 +102,8 @@ void ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemPost)(
   base::scheduling_internal::Post(identity);
 }
 
-// TODO ABSL_ATTRIBUTE_UNUSED is to suppress scythe.
-ABSL_ATTRIBUTE_UNUSED bool ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemWait)(
+// TODO [[maybe_unused]] is to suppress scythe.
+[[maybe_unused]] bool ABSL_INTERNAL_C_SYMBOL(AbslInternalPerThreadSemWait)(
     absl::synchronization_internal::KernelTimeout t) {
   bool timeout = false;
   absl::base_internal::ThreadIdentity* identity =

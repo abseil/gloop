@@ -92,12 +92,11 @@
 
 // Don't warn about unused local variables.
 //
-// Google3 code uses ABSL_ATTRIBUTE_UNUSED, which is a macro for a gcc and clang
-// extension to silence particular instances of this warning.  There's no way
-// to define ABSL_ATTRIBUTE_UNUSED to quiet particular instances of this warning
-// in VC++, so we disable it globally.  Currently, there aren't many false
-// positives, so perhaps we can address those in the future and re-enable these
-// warnings, which sometimes catch real bugs.
+// Google3 code uses [[maybe_unused]], which silences particular instances of
+// this warning.  As such a mechanism was historically unavailable in MSVC
+// before C++17, the warning is disabled globally.  Currently, there aren't many
+// false positives, so perhaps we can address those in the future and re-enable
+// these warnings, which sometimes catch real bugs.
 #pragma warning(disable : 4101)  // level 3
 
 // Allow initialization and assignment to a smaller type without warnings about
