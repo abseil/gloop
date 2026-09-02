@@ -430,7 +430,12 @@ void WatchDog::SetCrashReasonFromStuckThread() {
     reason.filename = __FILE__;
     reason.line_number = __LINE__;
     reason.depth =
-        absl::GetStackTrace(reason.stack, std::size(reason.stack), 0);
+        (uc != nullptr)
+            ? absl::GetStackTraceWithContext(reason.stack,
+                                             std::size(reason.stack),
+                                             /*skip_count=*/0, uc, nullptr)
+            : absl::GetStackTrace(reason.stack, std::size(reason.stack),
+                                  /*skip_count=*/0);
     reason.tc = tc;
     base::SetCrashReason(&reason);
   };
