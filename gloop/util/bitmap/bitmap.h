@@ -39,6 +39,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/macros.h"
 #include "absl/base/prefetch.h"
 #include "absl/hash/hash.h"
 #include "absl/log/check.h"
@@ -226,12 +227,12 @@ class BasicBitmap {
 
   // Prefetches the bit at index.
   void Prefetch(size_type index) const {
-    DCHECK_LT(index, size_);
+    ABSL_HARDENING_ASSERT(index < size_);
     PrefetchBit(map_, index);
   }
 
   bool Get(size_type index) const {
-    DCHECK_LT(index, size_);
+    ABSL_HARDENING_ASSERT(index < size_);
     return GetBit(map_, index);
   }
 
@@ -418,12 +419,12 @@ class BasicBitmap {
   // Sets the bit at index to the given value.
   // Returns the previously set value.
   bool Set(size_type index, bool value) {
-    DCHECK_LT(index, size_);
+    ABSL_HARDENING_ASSERT(index < size_);
     return SetBit(map_, index, value);
   }
 
   void Toggle(size_type index) {
-    DCHECK_LT(index, size_);
+    ABSL_HARDENING_ASSERT(index < size_);
     if constexpr (is_atomic<W>::value) {
       map_[index / kIntBits].fetch_xor(W{1} << (index & (kIntBits - 1)));
     } else {
