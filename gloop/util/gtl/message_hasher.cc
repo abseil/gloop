@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include <utility>
 
 #include "absl/base/attributes.h"
 #include "absl/container/fixed_array.h"
