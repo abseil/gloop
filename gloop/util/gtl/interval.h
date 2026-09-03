@@ -120,6 +120,16 @@ struct AllowHeterogeneousLookup<absl::Cord> {
   using is_transparent = void;
 };
 
+// Helper to check if T matches any of the provided types
+template <typename T, typename... Us>
+inline constexpr bool is_any_of_v = (std::is_same_v<T, Us> || ...);
+template <typename T>
+inline constexpr bool is_char_type_v =
+    is_any_of_v<std::remove_cv_t<T>, char, signed char, unsigned char, wchar_t,
+#if defined(__cpp_char8_t)
+                char8_t,
+#endif
+                char16_t, char32_t>;
 }  // namespace internal_interval
 
 template <typename T>
@@ -363,9 +373,15 @@ auto operator<<(std::ostream& out, const Interval<T>& i)
 }
 
 template <typename Sink, typename T>
-  requires(absl::HasAbslStringify<T>::value)
+  requires(absl::HasAbslStringify<T>::value || std::is_integral_v<T> ||
+           std::is_floating_point_v<T>)
 void AbslStringify(Sink& sink, const Interval<T>& i) {
-  absl::Format(&sink, "[%v, %v)", i.start(), i.limit());
+  if constexpr (internal_interval::is_char_type_v<T>) {
+    // %lc is needed for 16/32 bit chars and also works with 8 bit chars.
+    absl::Format(&sink, "['%lc', '%lc')", i.start(), i.limit());
+  } else {
+    absl::Format(&sink, "[%v, %v)", i.start(), i.limit());
+  }
 }
 
 //==============================================================================

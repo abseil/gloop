@@ -495,6 +495,43 @@ TEST(Interval, AbslStringify) {
   EXPECT_EQ(absl::StrCat(v), "[1, 2)");
 }
 
+TEST(Interval, AbslStringifyIntegral) {
+  const Interval<int> v(23, 42);
+  EXPECT_EQ(absl::StrCat(v), "[23, 42)");
+}
+
+TEST(Interval, AbslStringifyChar) {
+  const Interval<char> v('a', 'g');
+  EXPECT_EQ(absl::StrCat(v), "['a', 'g')");
+}
+
+TEST(Interval, AbslStringifyChar16) {
+  const Interval<char16_t> v(u'α', u'ω');
+  EXPECT_EQ(absl::StrCat(v), "['α', 'ω')");
+}
+
+TEST(Interval, AbslStringifyChar32) {
+#if defined(_WIN32)
+  GTEST_SKIP()
+      << "char32_t stringification via %lc is not supported on Windows";
+#else
+  const Interval<char32_t> v(U'😀', U'😆');
+  EXPECT_EQ(absl::StrCat(v), "['😀', '😆')");
+#endif
+}
+
+TEST(Interval, AbslStringifyBool) {
+  const Interval<bool> v(false, true);
+  // bool intervals aren't useful but since we aren't excluding them from
+  // AbslStringify, include a test.
+  EXPECT_EQ(absl::StrCat(v), "[false, true)");
+}
+
+TEST(Interval, AbslStringifyFloatingPoint) {
+  const Interval<double> v(1.25, 2.5);
+  EXPECT_EQ(absl::StrCat(v), "[1.25, 2.5)");
+}
+
 TEST(Interval, StructuredBindings) {
   Interval<int> x(1, 2);
   auto [a, b] = x;
