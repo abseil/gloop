@@ -40,7 +40,9 @@
 #include "gloop/thread/thread_options.h"
 #include "gloop/thread/wait_state.h"
 
-static constexpr int32_t kDefaultMinIdleThreads = 5;
+inline constexpr int32_t kDefaultMinIdleThreads = 5;
+inline constexpr float kReclaimRatio = 0.001f;
+inline constexpr size_t kReaperThreadStackSize = 128 * 1024;
 
 ABSL_RETIRED_FLAG(bool, switchto_domain_ignore_min_idle_threads, true,
                   "Retired.");
@@ -155,7 +157,8 @@ bool CommonFiberThreadPool::TryAddIdleThread(CommonFiberThread* thr) {
     periodic_release_thread_running_ = true;
   }
   // Spawn the reaper thread while not holding the lock.
-  StartDetachedThread(absl::StrCat(name_, "-fiber_thread_reaper"),
+  StartDetachedThread(thread::Options().set_stack_size(kReaperThreadStackSize),
+                      absl::StrCat(name_, "-fiber_thread_reaper"),
                       [this] { PeriodicReleaseThreadBody(); });
   return true;
 }
@@ -214,7 +217,6 @@ absl::Duration CommonFiberThreadPool::PeriodicReleaseIdleThreads() {
     // threads are enabled. We pull this into a closure so that we don't
     // repeat the code for both stack lists.
     auto& thread_list_ = threads_[stack_size_class];
-    static const float kReclaimRatio = 0.001;
     int num_threads_target =
         std::max(static_cast<int>(thread_list_.num_idle * (1 - kReclaimRatio)),
                  kDefaultMinIdleThreads);
@@ -222,27 +224,9 @@ absl::Duration CommonFiberThreadPool::PeriodicReleaseIdleThreads() {
       // The reaper will quit once it has observed that there are fewer
       // idle threads than `kDefaultMinIdleThreads`, twice in a
       // row.
-      //
-      // num_threads_target >= kDefaultMinIdleThreads, which
-      // implies that if the conditional in the above while loop is true,
-      // that we are seeing more idle threads than the minimum. Since this
-      // is the case, we set reclaim_happened to true so that we will run
-      // the reaper again & not enter cooldown mode. If the condition is
-      // not true, reclaim_happened will be false, and the reaper will
-      // enter cooldown mode, where if it once again sees
-      // !reclaim_happened it will despawn and we will enter the steady
-      // state.
-      //
-      // This means that the steady state will be num(idle_threads) <=
-      // kDefaultMinIdleThreads and the reaper not running.
-      reclaim_happened = true;
-      // Technically, we don't sort the freelist by age.  But we
-      // serialize additions to it and compute expiries underneath the
-      // lock.  So the back thread should always be oldest up to clock
-      // skew between processors-- small enough that I don't worry
-      // about missing a too-old thread.
       auto* candidate = &thread_list_.idle_threads.back();
       if (absl::Now() >= candidate->expiry()) {
+        reclaim_happened = true;
         MarkActive(thread_list_, *candidate);
         candidate->Exit();
 
@@ -252,6 +236,10 @@ absl::Duration CommonFiberThreadPool::PeriodicReleaseIdleThreads() {
         delay_next = absl::Milliseconds(
             absl::GetFlag(FLAGS_switchto_domain_idle_thread_death_interval_ms));
       } else {
+        absl::Duration time_until_expiry = candidate->expiry() - absl::Now();
+        if (time_until_expiry > absl::ZeroDuration()) {
+          delay_next = std::min(delay_next, time_until_expiry);
+        }
         break;
       }
     }

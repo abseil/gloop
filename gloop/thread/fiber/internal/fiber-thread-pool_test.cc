@@ -545,4 +545,40 @@ TEST(FiberThreadPool, IterableStats) {
   }
 }
 
+TEST(FiberThreadPool, RapidIdleChurnStressTest) {
+  const std::string test_domain_name = "churn_domain";
+  base::scheduling::Domain* test_domain =
+      thread::NewFutexDomain(test_domain_name, 10);
+  if (!test_domain) {
+    test_domain = thread::NewPthreadDomain(test_domain_name, 10);
+  }
+  base::scheduling::Scheduler* test_scheduler =
+      thread::NewRootFIFOScheduler(test_domain);
+
+  constexpr int kChurnIterations = 50;
+  for (int iter = 0; iter < kChurnIterations; ++iter) {
+    std::vector<std::unique_ptr<thread::Fiber>> fibers;
+    fibers.reserve(10);
+    for (int i = 0; i < 10; ++i) {
+      fibers.push_back(thread::NewTree(
+          thread::TreeOptions().set_scheduler(test_domain->root_scheduler()),
+          [] {}));
+    }
+    for (std::unique_ptr<thread::Fiber>& f : fibers) {
+      f->Join();
+    }
+  }
+
+  std::vector<struct thread::CommonFiberThreadPool::Stats> stats =
+      thread::CommonFiberThreadPool::GetStats();
+  for (const auto& s : stats) {
+    if (ThreadPoolNameMatches(s.name, test_domain_name)) {
+      EXPECT_GE(s.reaper_run_count, 0);
+    }
+  }
+
+  test_scheduler->Orphan();
+  delete test_domain;
+}
+
 }  // namespace
