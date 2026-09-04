@@ -259,10 +259,14 @@ class DisjointSetForest {
   int num_disjoint_sets_;
   const T notfound_value_;
 
-  // A friend declaration, provided solely for the purpose of benchmarking
-  // UnionManyOld().
-  friend void InvokeUnionManyOld(const std::vector<int>& data,
-                                 DisjointSetForest<int>& forest);
+  // A friend declaration, provided solely for the purpose of calling
+  // UnionManyOld() from test code.
+  template <typename OtherT, typename OtherHashFcn, typename OtherEqualKey,
+            typename OtherAlloc>
+  friend void InvokeUnionManyOld(
+      const std::vector<OtherT>& data,
+      DisjointSetForest<OtherT, OtherHashFcn, OtherEqualKey, OtherAlloc>&
+          forest);
 };
 
 template <typename T, typename HashFcn, typename EqualKey, typename Alloc>
@@ -362,7 +366,7 @@ void DisjointSetForest<T, HashFcn, EqualKey, Alloc>::UnionManyIterator(
     } else {
       // *next is in the forest already. If the parent pointers already match,
       // then there is no need to perform the Union operation.
-      if (begin_data_ptr->parent != ip->second.parent) {
+      if (!EqualKey()(begin_data_ptr->parent, ip->second.parent)) {
         UnionHelper(*begin, begin_data_ptr, *next);
       }
     }
@@ -398,7 +402,7 @@ void DisjointSetForest<T, HashFcn, EqualKey, Alloc>::UnionManyOld(
   // vertex. Only Union if the parent pointers of the vertices do
   // not match.
   for (size_t i = 1; i < object_cache.size(); ++i) {
-    if ((*(object_cache[i])).parent != (*(object_cache[0])).parent) {
+    if (!EqualKey()(object_cache[i]->parent, object_cache[0]->parent)) {
       Union(elements[i], elements[0]);
     }
   }

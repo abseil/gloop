@@ -21,13 +21,24 @@
 #include "gloop/util/set/disjoint_set_forest.h"
 
 #include <cstddef>
+#include <limits>
 #include <string>
 #include <vector>
 
 #include "absl/base/nullability.h"
+#include "absl/hash/hash.h"
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
 #include "gtest/gtest.h"
+
+// Define this at global scope so that it can be named by DisjointSetForest's
+// friend declaration.
+template <typename T, typename HashFcn, typename EqualKey, typename Alloc>
+void InvokeUnionManyOld(
+    const std::vector<T>& data,
+    DisjointSetForest<T, HashFcn, EqualKey, Alloc>& forest) {
+  forest.UnionManyOld(data);
+}
 
 namespace {
 
@@ -158,6 +169,71 @@ TEST(DisjointSetForestTest, BasicTest) {
   for (int i = 50; i < 100; i++) EXPECT_TRUE(forest.IsSingleton(i));
 }
 
+struct NoComparisonOperators {
+  int value = (std::numeric_limits<int>::min)();
+
+  // Delete comparison operators to verify the use of the custom EqualKey.
+  bool operator==(const NoComparisonOperators&) const = delete;
+  bool operator!=(const NoComparisonOperators&) const = delete;
+
+  struct Hash {
+    size_t operator()(const NoComparisonOperators& key) const {
+      return absl::Hash<int>()(key.value);
+    }
+  };
+  struct Equal {
+    bool operator()(const NoComparisonOperators& a,
+                    const NoComparisonOperators& b) const {
+      return a.value == b.value;
+    }
+  };
+};
+
+TEST(UnionManyIterator, UsesEqualKey) {
+  DisjointSetForest<NoComparisonOperators, NoComparisonOperators::Hash,
+                    NoComparisonOperators::Equal>
+      forest({-1});
+
+  NoComparisonOperators a = {1};
+  NoComparisonOperators b = {2};
+  NoComparisonOperators c = {3};
+  NoComparisonOperators d = {4};
+
+  // Set 1: {a, b}
+  EXPECT_TRUE(forest.Union(a, b));
+  // Set 2: {c, d}
+  EXPECT_TRUE(forest.Union(c, d));
+  EXPECT_EQ(forest.num_disjoint_sets(), 2);
+
+  // Passing {a, b, c} exercises both:
+  // - b already has the same parent as a (EqualKey returns true -> no union)
+  // - c has a different parent from a (EqualKey returns false -> union occurs)
+  std::vector<NoComparisonOperators> elements = {a, b, c};
+  forest.UnionManyIterator(elements.begin(), elements.end());
+  EXPECT_EQ(forest.num_disjoint_sets(), 1);
+}
+
+TEST(UnionManyOld, UsesEqualKey) {
+  DisjointSetForest<NoComparisonOperators, NoComparisonOperators::Hash,
+                    NoComparisonOperators::Equal>
+      forest({-1});
+
+  NoComparisonOperators a = {1};
+  NoComparisonOperators b = {2};
+  NoComparisonOperators c = {3};
+  NoComparisonOperators d = {4};
+
+  // Set 1: {a, b}
+  EXPECT_TRUE(forest.Union(a, b));
+  // Set 2: {c, d}
+  EXPECT_TRUE(forest.Union(c, d));
+  EXPECT_EQ(forest.num_disjoint_sets(), 2);
+
+  // UnionManyOldInvoker::Invoke({a, b, c}, forest);
+  InvokeUnionManyOld({a, b, c}, forest);
+  EXPECT_EQ(forest.num_disjoint_sets(), 1);
+}
+
 // An 'overlap_factor' of N means that there are approximately N repetitions
 // of a given integer in the set.
 void BenchmarkHelper(benchmark::State& state, int size, int overlap_factor,
@@ -182,17 +258,6 @@ void DoItYourself(const std::vector<int>& data, TestForest& forest) {
     forest.Union(data[0], data[i]);
   }
 }
-
-}  // namespace
-
-// Define this method at global scope so that it can be named by
-// DisjointSetForest's friend declaration.
-void InvokeUnionManyOld(const std::vector<int>& data,
-                        DisjointSetForest<int>& forest) {
-  forest.UnionManyOld(data);
-}
-
-namespace {
 
 void InvokeUnionManyNew(const std::vector<int>& data, TestForest& forest) {
   forest.UnionMany(data);

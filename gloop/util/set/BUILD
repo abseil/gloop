@@ -41,6 +41,7 @@ cc_test(
         ":disjoint_set_forest",
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/hash",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
