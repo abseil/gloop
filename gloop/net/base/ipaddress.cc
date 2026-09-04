@@ -1008,36 +1008,6 @@ bool PTRStringToIPAddress(absl::string_view ptr_address, IPAddress* out) {
   return false;
 }
 
-// Return a random IP from the choices in hp. Assumes that hp->h_addrtype is
-// AF_INET or AF_INET6. (Adapted from net/base/dnscache.cc.)
-IPAddress ChooseRandomAddress(const struct hostent* hp) {
-  int num;
-  for (num = 0; hp->h_addr_list[num] != nullptr; num++) {
-  }
-  if (num <= 0) {
-    LOG(DFATAL) << "Cannot choose from an empty list";
-    return IPAddress();
-  }
-
-  int index = 0;
-  if (num > 1) {
-    absl::InsecureBitGen bitgen;
-    index = absl::Uniform(bitgen, 0, num);
-    DCHECK_GE(index, 0);
-    DCHECK_LT(index, num);
-  }
-
-  switch (hp->h_addrtype) {
-    case AF_INET:
-      return IPAddress(*(reinterpret_cast<in_addr*>(hp->h_addr_list[index])));
-    case AF_INET6:
-      return IPAddress(*(reinterpret_cast<in6_addr*>(hp->h_addr_list[index])));
-    default:
-      LOG(DFATAL) << "Unknown address family " << hp->h_addrtype;
-      return IPAddress();
-  }
-}
-
 // Return a random IPAddress from a span of same.
 IPAddress ChooseRandomIPAddress(absl::Span<const IPAddress> ips) {
   if (ips.empty()) {

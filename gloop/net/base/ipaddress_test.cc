@@ -855,72 +855,6 @@ TEST(IPAddressTest, Joining) {
 
 class ChooseRandomAddressParamTest : public testing::TestWithParam<int> {};
 
-TEST_P(ChooseRandomAddressParamTest, IPv4) {
-  const int N = GetParam();
-
-  // Make a fake host entry with N IP addresses.
-  absl::FixedArray<in_addr> ips(N + 1);
-  absl::FixedArray<char*> ptrs(N + 1);
-  absl::FixedArray<int> count(N);
-  for (int i = 0; i < N; i++) {
-    ptrs[i] = reinterpret_cast<char*>(&ips[i]);
-    ips[i].s_addr = i;
-    count[i] = 0;
-  }
-  struct hostent host;
-  ptrs[N] = nullptr;
-  host.h_addrtype = AF_INET;
-  host.h_addr_list = ptrs.data();
-
-  // Ensure that if we do 100*N, we get at least each address once.
-  for (int i = 0; i < N * 100; i++) {
-    in_addr ip = ChooseRandomAddress(&host).ipv4_address();
-    const int id = ip.s_addr;
-    ASSERT_GE(id, 0);
-    ASSERT_LT(id, N);
-    EXPECT_EQ(memcmp(&ips[id], &ip, sizeof(ip)), 0);
-    count[id]++;
-  }
-
-  for (int i = 0; i < N; i++) {
-    EXPECT_GT(count[i], 0);
-  }
-}
-
-TEST_P(ChooseRandomAddressParamTest, IPv6) {
-  const int N = GetParam();
-
-  // Make a fake host entry with N IP addresses.
-  absl::FixedArray<in6_addr> ips(N + 1);
-  absl::FixedArray<char*> ptrs(N + 1);
-  absl::FixedArray<int> count(N);
-  for (int i = 0; i < N; i++) {
-    ptrs[i] = reinterpret_cast<char*>(&ips[i]);
-    for (int j = 0; j < 8; ++j) {
-      ips[i].s6_addr16[j] = i * (j + 1);
-    }
-    count[i] = 0;
-  }
-  struct hostent host;
-  ptrs[N] = nullptr;
-  host.h_addrtype = AF_INET6;
-  host.h_addr_list = ptrs.data();
-
-  // Ensure that if we do 100*N, we get at least each address once.
-  for (int i = 0; i < N * 100; i++) {
-    in6_addr ip = ChooseRandomAddress(&host).ipv6_address();
-    const int id = ip.s6_addr16[0];
-    ASSERT_GE(id, 0);
-    ASSERT_LT(id, N);
-    EXPECT_EQ(memcmp(&ips[id], &ip, sizeof(ip)), 0);
-    count[id]++;
-  }
-
-  for (int i = 0; i < N; i++) {
-    EXPECT_GT(count[i], 0);
-  }
-}
-
 TEST_P(ChooseRandomAddressParamTest, Vector) {
   const int N = GetParam();
 
@@ -960,24 +894,6 @@ TEST(IPAddressTest, ChooseRandomAddressInvalid) {
   EXPECT_DEBUG_DEATH(ChooseRandomIPAddress(vec), "empty list");
   if (!DEBUG_MODE) {
     EXPECT_EQ(IPAddress(), ChooseRandomIPAddress(vec));
-  }
-
-  absl::FixedArray<char*> ptrs(2);
-  struct hostent host;
-  ptrs[0] = nullptr;
-  host.h_addrtype = AF_UNSPEC;
-  host.h_addr_list = ptrs.data();
-  EXPECT_DEBUG_DEATH(ChooseRandomAddress(&host), "empty list");
-  if (!DEBUG_MODE) {
-    EXPECT_EQ(IPAddress(), ChooseRandomAddress(&host));
-  }
-
-  char dummy_ptr = '?';
-  ptrs[0] = &dummy_ptr;
-  ptrs[1] = nullptr;
-  EXPECT_DEBUG_DEATH(ChooseRandomAddress(&host), "Unknown address family 0");
-  if (!DEBUG_MODE) {
-    EXPECT_EQ(IPAddress(), ChooseRandomAddress(&host));
   }
 
   IPRange uninitialized_range;

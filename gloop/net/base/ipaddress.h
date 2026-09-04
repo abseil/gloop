@@ -109,8 +109,6 @@
 #define s6_addr16 u.Word
 #endif
 
-struct hostent;
-
 namespace net_base {
 
 class IPAddress;
@@ -1169,9 +1167,6 @@ bool IsCanonicalLoopbackIPAddress(const IPAddress& ip);
 // Returns false if `ip` is any other IPv4 or IPv6 address. Otherwise the
 // behavior is undefined.
 bool IsLoopbackIPAddress(const IPAddress& ip);
-
-// Choose a random (IPv4 or IPv6) address from a host name lookup.
-IPAddress ChooseRandomAddress(const hostent* hp);
 
 // NOTE: Before adding more overloads to ChooseRandomIPAddress(), consider
 // gtl::AnySpan.
