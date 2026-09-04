@@ -36,10 +36,6 @@ using testing::Eq;
 using testing::Ne;
 using testing::StrEq;
 
-// We don't publicly expose this flag, declare it for testing
-// TODO: b/414786755 - remove
-ABSL_DECLARE_FLAG(bool, dapper_pe_use_regions);
-
 namespace perftools::tracing {
 namespace {
 
@@ -145,17 +141,6 @@ TEST(TracingBase, StreamMsgFlags) {
   EXPECT_THAT(Stream(MsgFlags::kControl), StrEq("Control"));
   EXPECT_THAT(Stream(MsgFlags::kHalfClose | MsgFlags::kControl),
               StrEq("HalfClose|Control"));
-}
-
-TEST(TracingBase, UseRegionsReflectsFlag) {
-  // Default
-  EXPECT_FALSE(internal::UseRegions());
-
-  absl::SetFlag(&FLAGS_dapper_pe_use_regions, true);
-  EXPECT_TRUE(internal::UseRegions());
-
-  absl::SetFlag(&FLAGS_dapper_pe_use_regions, false);
-  EXPECT_FALSE(internal::UseRegions());
 }
 
 }  // namespace

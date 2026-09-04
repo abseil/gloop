@@ -201,7 +201,6 @@ struct TracePerThreadData {
   TraceSpanId active_span_id;
 };
 
-ABSL_CONST_INIT extern std::atomic<bool> use_regions;
 ABSL_CONST_INIT extern thread_local TracePerThreadData per_thread;
 
 // Random salt for 'barrier id from pointer' evaluations.
@@ -227,12 +226,6 @@ inline void set_active_trace_span_id(TraceSpanId span_id) {
 inline void set_active_event_listener(TraceEventListener* listener) {
   per_thread.active_event_listener = listener;
 }
-
-// Returns true if BEGIN_REGION / END_REGION  should be used for (nested)
-// region annotations. This is temporary setting allowing users to opt out
-// when we flip the default to true using `--nouse_dapper_pe_regions
-// TODO: b/414786755 - remove
-inline bool UseRegions() { return use_regions.load(std::memory_order_relaxed); }
 
 }  // namespace internal
 
