@@ -156,4 +156,24 @@ TEST(CMemsetNDeathTest, CrashesOnOutOfBoundsWrite) {
 #endif
 }
 
+TEST(CMemsetTest, WorksForStaticallySizedArrays) {
+  int a[4] = {1, 2, 3, 4};
+  gtl::c_memset(a, 0);
+  EXPECT_THAT(a, ElementsAre(0, 0, 0, 0));
+
+  char b[4] = {1, 2, 3, 4};
+  gtl::c_memset(b, '9');
+  EXPECT_THAT(b, ElementsAre('9', '9', '9', '9'));
+}
+
+TEST(CMemsetNTest, WorksForStaticallySizedArrays) {
+  int a[4] = {0x11111111, 0x22222222, 0x33333333, 0x44444444};
+  gtl::c_memset_n(a, 0, 4);
+  EXPECT_THAT(a, ElementsAre(0, 0x22222222, 0x33333333, 0x44444444));
+
+  char b[4] = {'1', '2', '3', '4'};
+  gtl::c_memset_n(b, '9', 2);
+  EXPECT_THAT(b, ElementsAre('9', '9', '3', '4'));
+}
+
 }  // namespace
