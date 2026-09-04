@@ -915,8 +915,13 @@ std::string IPAddressToStringWithInterfaceName(const IPAddress& ip) {
 
 std::string IPAddressToURIString(const IPAddress& ip) {
   switch (ip.address_family()) {
-    case AF_INET6:
-      return absl::StrCat("[", ip.ToString(), "]");
+    case AF_INET6: {
+      char buf[INET6_ADDRSTRLEN + 3];
+      buf[0] = '[';
+      char* s = ip.ToCharBuf(buf + 1);
+      *s++ = ']';
+      return std::string(buf, s - buf);
+    }
     default:
       return ip.ToString();
   }
@@ -1587,9 +1592,21 @@ std::string SocketAddress::ToStringWithScopeId() const {
 
 std::string SocketAddress::ToPackedString() const {
   const uint16_t port = htons(port_);
-  return absl::StrCat(
-      host_.ToPackedString(),
-      absl::string_view(reinterpret_cast<const char*>(&port), sizeof(port)));
+  if (host_.is_ipv4()) {
+    char buf[sizeof(in_addr) + sizeof(port)];
+    const in_addr a4 = host_.ipv4_address();
+    std::memcpy(buf, &a4, sizeof(a4));
+    std::memcpy(buf + sizeof(a4), &port, sizeof(port));
+    return std::string(buf, sizeof(buf));
+  }
+  if (host_.is_ipv6()) {
+    char buf[sizeof(in6_addr) + sizeof(port)];
+    const in6_addr a6 = host_.ipv6_address();
+    std::memcpy(buf, &a6, sizeof(a6));
+    std::memcpy(buf + sizeof(a6), &port, sizeof(port));
+    return std::string(buf, sizeof(buf));
+  }
+  return "";
 }
 
 IPAddress IPRange::network_address() const {

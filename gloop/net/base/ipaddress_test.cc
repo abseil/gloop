@@ -5072,6 +5072,36 @@ static void BM_IPAddressToStringHostPortString(benchmark::State& state) {
 }
 BENCHMARK(BM_IPAddressToStringHostPortString);
 
+static void BM_IPRangeToString(benchmark::State& state) {
+  const IPRange r4 = StringToIPRangeOrDie("192.168.1.0/24");
+  const IPRange r6 = StringToIPRangeOrDie("2001:db8:abcd::/48");
+  for (auto s : state) {
+    benchmark::DoNotOptimize(r4.ToString());
+    benchmark::DoNotOptimize(r6.ToString());
+  }
+}
+BENCHMARK(BM_IPRangeToString);
+
+static void BM_SocketAddressToPackedString(benchmark::State& state) {
+  const SocketAddress sa4(StringToIPAddressOrDie("192.168.1.1"), 8080);
+  const SocketAddress sa6(StringToIPAddressOrDie("2001:db8:abcd::1"), 8080);
+  for (auto s : state) {
+    benchmark::DoNotOptimize(sa4.ToPackedString());
+    benchmark::DoNotOptimize(sa6.ToPackedString());
+  }
+}
+BENCHMARK(BM_SocketAddressToPackedString);
+
+static void BM_IPAddressToURIString(benchmark::State& state) {
+  const IPAddress addr4 = StringToIPAddressOrDie("192.168.1.1");
+  const IPAddress addr6 = StringToIPAddressOrDie("2001:db8:abcd::1");
+  for (auto s : state) {
+    benchmark::DoNotOptimize(IPAddressToURIString(addr4));
+    benchmark::DoNotOptimize(IPAddressToURIString(addr6));
+  }
+}
+BENCHMARK(BM_IPAddressToURIString);
+
 static void BM_IsLoopbackIPAddress(benchmark::State& state) {
   const std::vector<IPAddress> addrs = GetIPsForBenchmark();
   const size_t batch_size = addrs.size();
