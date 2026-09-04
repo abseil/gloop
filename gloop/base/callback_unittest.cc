@@ -27,6 +27,7 @@
 #include "absl/log/log.h"
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
+#include "gloop/util/functional/with_context.h"
 #include "gtest/gtest.h"
 
 namespace {
