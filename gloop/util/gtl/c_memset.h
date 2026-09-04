@@ -28,6 +28,7 @@
 #include <cstring>
 #include <iterator>
 #include <type_traits>
+#include <utility>
 
 #include "absl/algorithm/container.h"
 #include "absl/base/internal/hardening.h"
@@ -35,19 +36,24 @@
 
 namespace gtl {
 
+namespace internal {
+template <typename C>
+using element_type_t =
+    std::remove_reference_t<decltype(*std::data(std::declval<C&>()))>;
+}  // namespace internal
+
 // A container-based memset().
 //
 // Wrapper around std::memset. It sets all the bytes owned by the container to
 // the given value. The container must have a contiguous underlying buffer.
 template <typename C>
-  requires(sizeof(typename std::remove_reference_t<C>::value_type) != 1 &&
-           std::is_trivial_v<typename std::remove_reference_t<C>::value_type> &&
+  requires(sizeof(internal::element_type_t<C>) != 1 &&
+           std::is_trivial_v<internal::element_type_t<C>> &&
            absl::container_algorithm_internal::IsPermissibleDestinationRange<
                C>::value)
 void c_memset(C&& c, int ch) {
-  std::memset(
-      std::data(c), ch,
-      std::size(c) * sizeof(typename std::remove_reference_t<C>::value_type));
+  std::memset(std::data(c), ch,
+              std::size(c) * sizeof(internal::element_type_t<C>));
 }
 
 // A container-based memset().
@@ -62,12 +68,12 @@ void c_memset(C&& c, int ch) {
 // container if there were any, which requires the element type to have implicit
 // lifetimes.
 template <typename C>
-  requires(sizeof(typename std::remove_reference_t<C>::value_type) == 1 &&
-           std::is_trivial_v<typename std::remove_reference_t<C>::value_type> &&
+  requires(sizeof(internal::element_type_t<C>) == 1 &&
+           std::is_trivial_v<internal::element_type_t<C>> &&
            absl::container_algorithm_internal::IsPermissibleDestinationRange<
                C>::value)
 ABSL_DEPRECATE_AND_INLINE()
-void c_memset(C&& c, typename std::remove_reference_t<C>::value_type ch) {
+void c_memset(C&& c, internal::element_type_t<C> ch) {
   absl::c_fill(std::forward<C>(c), ch);
 }
 
@@ -77,13 +83,12 @@ void c_memset(C&& c, typename std::remove_reference_t<C>::value_type ch) {
 // before writing. It sets the first num_bytes bytes inside the container to the
 // given value. The container must have a contiguous underlying buffer.
 template <typename C>
-  requires(std::is_trivial_v<typename std::remove_reference_t<C>::value_type> &&
+  requires(std::is_trivial_v<internal::element_type_t<C>> &&
            absl::container_algorithm_internal::IsPermissibleDestinationRange<
                C>::value)
 void c_memset_n(C&& c, int ch, size_t num_bytes) {
   absl::base_internal::HardeningAssertLE(
-      num_bytes,
-      std::size(c) * sizeof(typename std::remove_reference_t<C>::value_type));
+      num_bytes, std::size(c) * sizeof(internal::element_type_t<C>));
   std::memset(std::data(c), ch, num_bytes);
 }
 
