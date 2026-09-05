@@ -1,1 +1,3 @@
+"""Repository configuration for gloop."""
+
 ignore_directories(["gloop/examples"])

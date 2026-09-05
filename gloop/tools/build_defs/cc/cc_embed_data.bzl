@@ -271,6 +271,7 @@ def _cc_skylark_embed_data_impl(ctx):
 
 cc_embed_data = rule(
     implementation = _cc_skylark_embed_data_impl,
+    # buildifier: disable=output-to-genfiles
     output_to_genfiles = True,
     attrs = {
         # SKIP_CONSTRAINTS_OVERRIDE will prevent errors due to dependency compatibility checks, see:

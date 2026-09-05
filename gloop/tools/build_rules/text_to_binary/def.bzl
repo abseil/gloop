@@ -93,6 +93,7 @@ def proto_data(
 
 # BUILD rule for anticodex command line tool.
 # <link>
+# buildifier: disable=function-docstring-args
 def anticodex_tool(
         name,
         src,
