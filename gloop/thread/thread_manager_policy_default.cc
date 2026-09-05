@@ -45,9 +45,9 @@ class ThreadManagerPolicyDefault : public ThreadManagerPolicy {
   ThreadManagerPolicyDefault& operator=(const ThreadManagerPolicyDefault&) =
       delete;
 
-  virtual ~ThreadManagerPolicyDefault();
-  virtual void Eval(const ThreadManagerState& state,
-                    ThreadManagerAction* action);
+  ~ThreadManagerPolicyDefault() override;
+  void Eval(const ThreadManagerState& state,
+            ThreadManagerAction* action) override;
 
  private:
   int (*num_cpus_)();           // returns number of number of CPUs to assume.
@@ -225,8 +225,8 @@ class EagerThreadManagerPolicyClass : public thread::ThreadManagerPolicy {
   EagerThreadManagerPolicyClass(const EagerThreadManagerPolicyClass&) = delete;
   EagerThreadManagerPolicyClass& operator=(
       const EagerThreadManagerPolicyClass&) = delete;
-  virtual void Eval(const thread::ThreadManagerState& state,
-                    thread::ThreadManagerAction* result) {
+  void Eval(const thread::ThreadManagerState& state,
+            thread::ThreadManagerAction* result) override {
     int max_threads_per_pool;
     if (this->max_threads_ >= INT_MAX - state.pool_count + 1) {
       max_threads_per_pool = this->max_threads_ / state.pool_count;
