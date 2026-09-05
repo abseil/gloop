@@ -272,6 +272,7 @@ cc_library(
     ],
 )
 
+# buildifier: disable=no-hdrs-no-alwayslink
 cc_library(
     name = "symbolize_dlopen_with_offset_test_helper",
     testonly = True,

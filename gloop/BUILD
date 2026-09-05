@@ -91,6 +91,7 @@ cc_library(
     }) + [":enforce_gloop_support"],
 )
 
+# buildifier: disable=no-hdrs-no-alwayslink
 cc_library(
     name = "gloop_test_main",
     testonly = True,
