@@ -45,11 +45,13 @@
 #include <atomic>
 #include <cstdint>
 #include <iterator>
-#include <map>
 #include <set>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "absl/container/flat_hash_map.h"
+#include "absl/strings/string_view.h"
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>  // for TARGET_OS_* defines
@@ -128,18 +130,18 @@ const int kTicksPerSecond = 100;  // 100 is standard on Unix.
 // -- these functions might be called a lot, and would give the same
 // error each time!
 ABSL_CONST_INIT static absl::Mutex error_map_lock(absl::kConstInit);
-// TODO: Determine whether std::unordered_map would outperform
-// std::map.
-static std::map<std::string, int>* error_map = nullptr;
+static absl::flat_hash_map<std::string, int>* error_map = nullptr;
 
 // Increment the count for the error class associated with "name", and
 // return the old value of the count.  We use this to avoid logging a
 // particular message too often.
-static int NumTimesLogged(const char* name) {
+static int NumTimesLogged(absl::string_view name) {
   absl::MutexLock l(error_map_lock);
-  if (error_map == nullptr) error_map = new std::map<std::string, int>;
-  int num_times_logged = (*error_map)[std::string(name)]++;
-  return num_times_logged;
+  if (error_map == nullptr) {
+    error_map = new absl::flat_hash_map<std::string, int>;
+  }
+  auto [it, inserted] = error_map->try_emplace(name, 0);
+  return it->second++;
 }
 
 static std::string DescribeErr(int err) {
