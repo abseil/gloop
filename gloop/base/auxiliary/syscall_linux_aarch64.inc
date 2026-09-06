@@ -16,30 +16,30 @@
 // IWYU pragma: private, include "base/linux_syscall_support.h"
 
 #if !defined(__GLIBC__)
-  #define loff_t off_t
+#define loff_t off_t
 #endif
 
 struct kernel_stat {
-  unsigned long      st_dev;
-  unsigned long      st_ino;
-  unsigned int       st_mode;
-  unsigned int       st_nlink;
-  unsigned int       st_uid;
-  unsigned int       st_gid;
-  unsigned long      st_rdev;
-  unsigned long      __pad1;
-  long               st_size;
-  int                st_blksize;
-  int                __pad2;
-  long               st_blocks;
-  long               st_atime_;
-  unsigned long      st_atime_nsec_;
-  long               st_mtime_;
-  unsigned long      st_mtime_nsec_;
-  long               st_ctime_;
-  unsigned long      st_ctime_nsec_;
-  unsigned int       __unused4;
-  unsigned int       __unused5;
+  unsigned long st_dev;
+  unsigned long st_ino;
+  unsigned int st_mode;
+  unsigned int st_nlink;
+  unsigned int st_uid;
+  unsigned int st_gid;
+  unsigned long st_rdev;
+  unsigned long __pad1;
+  long st_size;
+  int st_blksize;
+  int __pad2;
+  long st_blocks;
+  long st_atime_;
+  unsigned long st_atime_nsec_;
+  long st_mtime_;
+  unsigned long st_mtime_nsec_;
+  long st_ctime_;
+  unsigned long st_ctime_nsec_;
+  unsigned int __unused4;
+  unsigned int __unused5;
 };
 
 /* Failing system calls return a negative result in the range of
@@ -54,7 +54,7 @@ struct kernel_stat {
 
 #ifndef __syscall
 #define __SYS_REG(name) register long __sysreg __asm__("x8") = __NR_##name;
-#define __SYS_REG_LIST(regs...) [sysreg] "r" (__sysreg) , ##regs
+#define __SYS_REG_LIST(regs...) [sysreg] "r"(__sysreg), ##regs
 #define __syscall(name) "svc\t0\n"
 #endif
 
@@ -63,10 +63,10 @@ struct kernel_stat {
  * at optimizing across __asm__ calls.
  * So, we just have to redefine all of the _syscallX() macros.
  */
-#define LSS_REG(r,a) register long __x##r __asm__("x"#r) = (long)a
+#define LSS_REG(r, a) register long __x##r __asm__("x" #r) = (long)a
 
-#define LSS_SAVE_ARG(r,a) long __tmp##r = (long)a
-#define LSS_LOAD_ARG(r) register long __x##r __asm__("x"#r) = __tmp##r
+#define LSS_SAVE_ARG(r, a) long __tmp##r = (long)a
+#define LSS_LOAD_ARG(r) register long __x##r __asm__("x" #r) = __tmp##r
 
 #define LSS_BODY(type, name, args...)         \
   register long __res_r0 __asm__("x0");       \
@@ -78,14 +78,14 @@ struct kernel_stat {
                        : "memory");           \
   __res = __res_r0;
 #define LSS_syscall0(type, name)                      \
-  static inline type lss_##name(int *out_errno) {     \
+  static inline type lss_##name(int* out_errno) {     \
     LSS_PRE(name);                                    \
     LSS_BODY(type, name);                             \
     LSS_POST(name, __res);                            \
     LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno); \
   }
 #define LSS_syscall1(type, name, type1, arg1)                 \
-  static inline type lss_##name(type1 arg1, int *out_errno) { \
+  static inline type lss_##name(type1 arg1, int* out_errno) { \
     LSS_PRE(name, arg1);                                      \
     /* There is no need for using a volatile temp.  */        \
     LSS_REG(0, arg1);                                         \
@@ -94,7 +94,7 @@ struct kernel_stat {
     LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);         \
   }
 #define LSS_syscall2(type, name, type1, arg1, type2, arg2)                \
-  static inline type lss_##name(type1 arg1, type2 arg2, int *out_errno) { \
+  static inline type lss_##name(type1 arg1, type2 arg2, int* out_errno) { \
     LSS_PRE(name, arg1, arg2);                                            \
     LSS_SAVE_ARG(0, arg1);                                                \
     LSS_SAVE_ARG(1, arg2);                                                \
@@ -106,7 +106,7 @@ struct kernel_stat {
   }
 #define LSS_syscall3(type, name, type1, arg1, type2, arg2, type3, arg3) \
   static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,     \
-                                int *out_errno) {                       \
+                                int* out_errno) {                       \
     LSS_PRE(name, arg1, arg2, arg3);                                    \
     LSS_SAVE_ARG(0, arg1);                                              \
     LSS_SAVE_ARG(1, arg2);                                              \
@@ -121,7 +121,7 @@ struct kernel_stat {
 #define LSS_syscall4(type, name, type1, arg1, type2, arg2, type3, arg3, type4, \
                      arg4)                                                     \
   static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,            \
-                                type4 arg4, int *out_errno) {                  \
+                                type4 arg4, int* out_errno) {                  \
     LSS_PRE(name, arg1, arg2, arg3, arg4);                                     \
     LSS_SAVE_ARG(0, arg1);                                                     \
     LSS_SAVE_ARG(1, arg2);                                                     \
@@ -138,7 +138,7 @@ struct kernel_stat {
 #define LSS_syscall5(type, name, type1, arg1, type2, arg2, type3, arg3, type4, \
                      arg4, type5, arg5)                                        \
   static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,            \
-                                type4 arg4, type5 arg5, int *out_errno) {      \
+                                type4 arg4, type5 arg5, int* out_errno) {      \
     LSS_PRE(name, arg1, arg2, arg3, arg4, arg5);                               \
     LSS_SAVE_ARG(0, arg1);                                                     \
     LSS_SAVE_ARG(1, arg2);                                                     \
@@ -159,7 +159,7 @@ struct kernel_stat {
                      arg4, type5, arg5, type6, arg6)                           \
   static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,            \
                                 type4 arg4, type5 arg5, type6 arg6,            \
-                                int *out_errno) {                              \
+                                int* out_errno) {                              \
     LSS_PRE(name, arg1, arg2, arg3, arg4, arg5, arg6);                         \
     LSS_SAVE_ARG(0, arg1);                                                     \
     LSS_SAVE_ARG(1, arg2);                                                     \
@@ -179,9 +179,9 @@ struct kernel_stat {
     LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                          \
   }
 
-static inline int lss_clone(int (*fn)(void *), void *child_stack, int flags,
-                            void *arg, int *parent_tidptr, void *newtls,
-                            int *child_tidptr, int *out_errno) {
+static inline int lss_clone(int (*fn)(void*), void* child_stack, int flags,
+                            void* arg, int* parent_tidptr, void* newtls,
+                            int* child_tidptr, int* out_errno) {
   long __res;
   {
     if (fn == NULL || child_stack == NULL) {
@@ -190,30 +190,30 @@ static inline int lss_clone(int (*fn)(void *), void *child_stack, int flags,
     }
 
     /* set up alignment of child stack (16-byte aligned) */
-    const intptr_t mask = ~((intptr_t) 15);
-    child_stack = (void *)(((intptr_t) child_stack) & mask);
+    const intptr_t mask = ~((intptr_t)15);
+    child_stack = (void*)(((intptr_t)child_stack) & mask);
 
     /* stash first 4 arguments on stack first because we can only load
      * them after all function calls.
      */
-    long   tmp_flags = flags;
-    long * tmp_stack = (long*) child_stack;
-    void * tmp_ptid  = parent_tidptr;
-    void * tmp_tls   = newtls;
+    long tmp_flags = flags;
+    long* tmp_stack = (long*)child_stack;
+    void* tmp_ptid = parent_tidptr;
+    void* tmp_tls = newtls;
 
-    register int  *__ctid  __asm__("x4") = child_tidptr;
+    register int* __ctid __asm__("x4") = child_tidptr;
 
     /* Push "arg" and "fn" onto the stack that will be
      * used by the child.
      */
-    *(--tmp_stack) = (long) arg;
-    *(--tmp_stack) = (long) fn;
+    *(--tmp_stack) = (long)arg;
+    *(--tmp_stack) = (long)fn;
 
     /* We must load r0..r3 last after all possible function calls.  */
-    register long  __flags __asm__("x0") = tmp_flags;
-    register void *__stack __asm__("x1") = tmp_stack;
-    register void *__ptid  __asm__("x2") = tmp_ptid;
-    register void *__tls   __asm__("x3") = tmp_tls;
+    register long __flags __asm__("x0") = tmp_flags;
+    register void* __stack __asm__("x1") = tmp_stack;
+    register void* __ptid __asm__("x2") = tmp_ptid;
+    register void* __tls __asm__("x3") = tmp_tls;
 
     /* %r0 = syscall(%x0 = flags,
      *               %x1 = child_stack,
@@ -260,7 +260,7 @@ static inline int lss_clone(int (*fn)(void *), void *child_stack, int flags,
  * it.  Unfortunately, this is very platform specific and cannot be
  * done in a generic compatibility wrapper.
  */
-static inline int lss_fork(int *out_errno) {
+static inline int lss_fork(int* out_errno) {
   LSS_PRE(fork);
   LSS_REG(0, SIGCHLD); /* clone_flags   */
   LSS_REG(1, 0);       /* newsp         */
