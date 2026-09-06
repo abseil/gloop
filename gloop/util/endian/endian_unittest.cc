@@ -598,15 +598,15 @@ static void GenericLoadStoreHelper(const std::vector<T>& host_values_to_test,
 void Swap8(char* bytes) { /* do nothing */ }
 
 void Swap16(char* bytes) {
-  UNALIGNED_STORE16(bytes, gbswap_16(UNALIGNED_LOAD16(bytes)));
+  UNALIGNED_STORE16(bytes, absl::byteswap(UNALIGNED_LOAD16(bytes)));
 }
 
 void Swap32(char* bytes) {
-  UNALIGNED_STORE32(bytes, gbswap_32(UNALIGNED_LOAD32(bytes)));
+  UNALIGNED_STORE32(bytes, absl::byteswap(UNALIGNED_LOAD32(bytes)));
 }
 
 void Swap64(char* bytes) {
-  UNALIGNED_STORE64(bytes, gbswap_64(UNALIGNED_LOAD64(bytes)));
+  UNALIGNED_STORE64(bytes, absl::byteswap(UNALIGNED_LOAD64(bytes)));
 }
 
 void Swap128(char* bytes) {
@@ -622,9 +622,10 @@ void Swap128(char* bytes) {
 static constexpr int kNumValuesToTest = 1000000;
 
 TEST(SwapTest, ChangeOfWidth) {
-  EXPECT_EQ(gbswap_64(uint32_t{0xDEADBEEF}), uint64_t{0xEFBEADDE00000000});
-  EXPECT_EQ(gbswap_32(uint16_t{0xDEAD}), uint32_t{0xADDE0000});
-  EXPECT_EQ(gbswap_16(uint32_t{0xDEADBEEF}), uint16_t{0xEFBE});
+  EXPECT_EQ(absl::byteswap<uint64_t>(uint32_t{0xDEADBEEF}),
+            uint64_t{0xEFBEADDE00000000});
+  EXPECT_EQ(absl::byteswap<uint32_t>(uint16_t{0xDEAD}), uint32_t{0xADDE0000});
+  EXPECT_EQ(absl::byteswap<uint16_t>(uint32_t{0xDEADBEEF}), uint16_t{0xEFBE});
 }
 
 TEST(GenericLoadStore, TestBool) {
