@@ -46,15 +46,15 @@ class SizeBasedAllocator : public BlockAllocator {
   SizeBasedAllocator(const SizeBasedAllocator&) = delete;
   SizeBasedAllocator& operator=(const SizeBasedAllocator&) = delete;
 
-  virtual ~SizeBasedAllocator();
+  ~SizeBasedAllocator() override;
 
   // Allocates a contiguous region of blocks. Fill in start with the
   // first block of the allocation, and actual_size with the number of blocks
   // allocated.
   // The region of blocks that is allocated is based on PickAllocationRange()
   // implemented by the sub-classes.
-  virtual void Allocate(uint32_t requested_size, Block* start,
-                        uint32_t* actual_size);
+  void Allocate(uint32_t requested_size, Block* start,
+                uint32_t* actual_size) override;
 
   // Allocate up to requested_size blocks starting at 'start'. Fill in
   // actual_size with the number of blocks which could actually be allocated at
@@ -62,28 +62,28 @@ class SizeBasedAllocator : public BlockAllocator {
   // This method is fully implemented in SizeBasedAllocator compared to
   // Allocate(), as the notion of continuing an allocation should be same
   // across all size-based allocators.
-  virtual void AllocateAt(uint32_t requested_size, Block start,
-                          uint32_t* actual_size);
+  void AllocateAt(uint32_t requested_size, Block start,
+                  uint32_t* actual_size) override;
 
   // Release all of the blocks in this range. This function assumes that the
   // region it gets passed is a contiguous region of stuff which has already
   // been allocated using some other function.
-  virtual void Release(Block begin, uint32_t size);
+  void Release(Block begin, uint32_t size) override;
 
   // Release *all* of the blocks.
-  virtual void Clear();
+  void Clear() override;
 
   // Return the number of free blocks
-  virtual uint32_t BlocksFree() const;
+  uint32_t BlocksFree() const override;
 
   // Populates 'ranges' with free block ranges.
   // 'ranges' is cleared before being populated.
-  virtual void GetFreeBlocks(std::vector<BlockRange>* ranges) const;
+  void GetFreeBlocks(std::vector<BlockRange>* ranges) const override;
 
   // Returns approximate memory usage.
-  virtual size_t MemoryUsage() const;
+  size_t MemoryUsage() const override;
 
-  virtual std::string DebugString() const;
+  std::string DebugString() const override;
 
   // Returns size (in blocks) of the largest range of contiguous free blocks.
   uint32_t LargestFreeBlockRange() const;
