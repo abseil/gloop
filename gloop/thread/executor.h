@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // An abstract object that can execute closures.
 // Some concrete implementations are ThreadPools and SelectServers.
 // Implementations of Executor must be thread-safe.
