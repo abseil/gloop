@@ -44,7 +44,7 @@ HuffmanCode* HuffmanCode::Create(const int* count, int N, int max_length) {
   DCHECK(N > 1);
   CHECK(N >= 0);
   CHECK((unsigned int)N <= (1u << max_length));
-  CHECK(max_length <= 27);  // Encoder table can only support upto 27
+  CHECK_LE(max_length, 27);  // Encoder table can only support upto 27
 
   absl::FixedArray<Symbol, 0> sym(N);
 

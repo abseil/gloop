@@ -406,13 +406,15 @@ FARMHASH_HOST_DEVICE inline uint64_t BasicRotate64(uint64_t val, int shift) {
 #if defined(_MSC_VER) && defined(FARMHASH_ROTR)
 
 inline uint32_t Rotate32(uint32_t val, int shift) {
-  return sizeof(unsigned long) == sizeof(val) ? _lrotr(val, shift)
-                                              : BasicRotate32(val, shift);
+  return sizeof(unsigned long) == sizeof(val)
+             ? _lrotr(val, shift)  // NOLINT(runtime/int)
+             : BasicRotate32(val, shift);
 }
 
 inline uint64_t Rotate64(uint64_t val, int shift) {
-  return sizeof(unsigned long) == sizeof(val) ? _lrotr(val, shift)
-                                              : BasicRotate64(val, shift);
+  return sizeof(unsigned long) == sizeof(val)
+             ? _lrotr(val, shift)  // NOLINT(runtime/int)
+             : BasicRotate64(val, shift);
 }
 
 #else
