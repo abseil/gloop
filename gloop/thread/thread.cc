@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 //
 
 // We want access to pread().
@@ -507,9 +501,9 @@ size_t MinValidStackSizeWithTlsAndSanitizers(size_t request_size,
 
   if (*guard_size == 0) {  // use default guard size
     if (sizeof(void*) > 4) {
-      *guard_size = 1 << 20;  // 64-bit addresses => default 1MB guard region
+      *guard_size = 1u << 20;  // 64-bit addresses => default 1MB guard region
     } else {
-      *guard_size = 1 << 14;  // 32-bit addresses => default 16kB guard region
+      *guard_size = 1u << 14;  // 32-bit addresses => default 16kB guard region
     }
   }
   // Make sure that guard_size is page-aligned. http://b/14272770.
@@ -637,7 +631,8 @@ void Thread::Start(absl::SourceLocation loc) {
         static_cast<long>(guard_size), static_cast<long>(GetTLSSize()));
   }
   int ret;
-  if ((ret = pthread_attr_setstacksize(&attr, stack_size)) != 0) {
+  ret = pthread_attr_setstacksize(&attr, stack_size);
+  if (ret != 0) {
     ABSL_RAW_LOG(FATAL,
                  "pthread_attr_setstacksize: (%s) required_stack = %" PRIuS
                  ", PTHREAD_STACK_MIN= %" PRIuS "",
@@ -645,7 +640,8 @@ void Thread::Start(absl::SourceLocation loc) {
                  static_cast<size_t>(PTHREAD_STACK_MIN));
   }
 
-  if ((ret = pthread_attr_setguardsize(&attr, guard_size)) != 0) {
+  ret = pthread_attr_setguardsize(&attr, guard_size);
+  if (ret != 0) {
     ABSL_RAW_LOG(FATAL, "pthread_attr_setguardsize: (%s)", strerror(ret));
   }
   switch (options_.scheduling_policy()) {

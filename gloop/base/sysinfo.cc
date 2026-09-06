@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 //
 // Typically, these routines will all be os, and possibly processor,
 // specific.  Every routine should thus be protected by ifdefs so
@@ -422,8 +416,8 @@ int ReadProcFileToBuffer(const char* filename, pid_t pid, size_t max_size,
 // boundary, and use the left and right sides as key and value to
 // insert into the passed ProcMap.
 
-bool ReadProcMap(const std::string& path, ProcMap* res) {
-  FILE* f = OpenProcFile(path.c_str(), -1);
+bool ReadProcMap(absl::string_view path, ProcMap* res) {
+  FILE* f = OpenProcFile(std::string(path).c_str(), -1);
   if (!f) return false;
 
   // Scan through to find all keywords

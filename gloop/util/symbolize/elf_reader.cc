@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Code for reading in ELF files.
 //
 // For information on the ELF format, see
@@ -2155,9 +2149,9 @@ static bool IsNonStrippedELFBinaryImpl(const absl::string_view path,
 }
 
 // Helper for the IsNon[Debug]StrippedELFBinary functions.
-static bool IsNonStrippedELFBinaryHelper(const std::string& path,
+static bool IsNonStrippedELFBinaryHelper(absl::string_view path,
                                          bool debug_only) {
-  const int fd = TEMP_FAILURE_RETRY(open(path.c_str(), O_RDONLY));
+  const int fd = TEMP_FAILURE_RETRY(open(std::string(path).c_str(), O_RDONLY));
   if (fd == -1) {
     return false;
   }
@@ -2171,11 +2165,11 @@ static bool IsNonStrippedELFBinaryHelper(const std::string& path,
   return false;
 }
 
-bool ElfReader::IsNonStrippedELFBinary(const std::string& path) {
+bool ElfReader::IsNonStrippedELFBinary(absl::string_view path) {
   return IsNonStrippedELFBinaryHelper(path, false);
 }
 
-bool ElfReader::IsNonDebugStrippedELFBinary(const std::string& path) {
+bool ElfReader::IsNonDebugStrippedELFBinary(absl::string_view path) {
   return IsNonStrippedELFBinaryHelper(path, true);
 }
 

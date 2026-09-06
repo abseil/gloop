@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // `LockFreeHashMap<Key, Value>` is a thread-safe hash map that executes
 // `find()` without requiring a lock, though mutating operations such as
 // `insert()`[*] and `erase()` are serialized using a mutex, just like a normal

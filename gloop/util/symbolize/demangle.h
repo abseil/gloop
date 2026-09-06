@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 //
 // Functions for demangling symbol names.  This works by calling a
 // demangler API defined by C++ ABI if available.
@@ -31,6 +25,8 @@
 #define THIRD_PARTY_GLOOP_UTIL_SYMBOLIZE_DEMANGLE_H__
 
 #include <string>
+
+#include "absl/strings/string_view.h"
 
 namespace util {
 
@@ -62,8 +58,8 @@ namespace util {
 std::string Demangle(const char* mangled);
 
 // CLIF-friendly version
-inline std::string Demangle(const std::string& s) {
-  return Demangle(s.c_str());
+inline std::string Demangle(absl::string_view s) {
+  return Demangle(std::string(s).c_str());
 }
 
 // Same function as above but appends result to 'out'.

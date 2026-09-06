@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // RefTracker keeps track of the set of owners who hold references on
 // some reference-counted object.  It is typically used by
 // implementers of reference-counting (like util::ReferenceCounted),

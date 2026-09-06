@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 #include "gloop/strings/strip.h"
 
 #include <algorithm>
@@ -72,7 +66,7 @@ void StripMarkupTags(std::string* s) {
   s->resize(output - s->begin());
 }
 
-std::string OutputWithMarkupTagsStripped(const std::string& s) {
+std::string OutputWithMarkupTagsStripped(absl::string_view s) {
   std::string result(s);
   StripMarkupTags(&result);
   return result;
@@ -159,9 +153,9 @@ ptrdiff_t strrmm(char* str, const char* chars) {
   return dest - str;
 }
 
-ptrdiff_t strrmm(std::string* str, const std::string& chars) {
+ptrdiff_t strrmm(std::string* str, absl::string_view chars) {
   size_t str_len = str->length();
-  size_t in_index = str->find_first_of(chars);
+  size_t in_index = str->find_first_of(chars.data(), 0, chars.size());
   if (in_index == std::string::npos) return str_len;
 
   size_t out_index = in_index++;

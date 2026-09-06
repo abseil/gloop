@@ -29,7 +29,6 @@ cc_library(
     hdrs = ["equality.h"],
     deps = [
         ":extend",
-        "//gloop:enforce_gloop_support",
         "//gloop/util/gtl/extend/internal:is_tuple_hashable",
     ],
 )
@@ -40,7 +39,6 @@ cc_test(
     deps = [
         ":equality",
         ":extend",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/hash",
         "@abseil-cpp//absl/hash:hash_testing",
         "@abseil-cpp//absl/meta:constexpr_testing",
@@ -57,7 +55,6 @@ cc_library(
         ":extension",
         "//gloop/util/gtl/extend/internal:extend",
         "//gloop/util/gtl/internal:dependencies",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -66,7 +63,6 @@ cc_test(
     srcs = ["extend_test.cc"],
     deps = [
         ":extend",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl:requires",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/meta:constexpr_testing",
@@ -78,7 +74,7 @@ cc_test(
 cc_library(
     name = "extension",
     hdrs = ["extension.h"],
-    deps = ["//gloop:enforce_gloop_support"],
+    deps = [],
 )
 
 cc_library(
@@ -87,7 +83,6 @@ cc_library(
     deps = [
         ":equality",
         ":extend",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -97,7 +92,6 @@ cc_test(
     deps = [
         ":extend",
         ":ordering",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/meta:constexpr_testing",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -109,7 +103,6 @@ cc_library(
     hdrs = ["tuple.h"],
     deps = [
         ":extend",
-        "//gloop:enforce_gloop_support",
         "//gloop/util/gtl/internal:aggregate",
         "@abseil-cpp//absl/base:core_headers",
     ],
@@ -121,7 +114,6 @@ cc_test(
     deps = [
         ":extend",
         ":tuple",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/meta:constexpr_testing",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -135,7 +127,6 @@ cc_library(
         ":extension",
         ":stream_printing",
         ":stringify",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -145,7 +136,6 @@ cc_library(
     deps = [
         ":extension",
         ":reflection_extension",
-        "//gloop:enforce_gloop_support",
         "//gloop/util/gtl:generic_printer",
         "//gloop/util/gtl/extend/internal:debug_print_value",
     ],
@@ -157,7 +147,6 @@ cc_library(
     deps = [
         ":extension",
         ":reflection_extension",
-        "//gloop:enforce_gloop_support",
         "//gloop/util/gtl:generic_printer",
         "//gloop/util/gtl/extend/internal:debug_print_value",
     ],
@@ -170,7 +159,6 @@ cc_test(
         ":debug_printing",
         ":extend",
         ":stringification_tests",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl:generic_printer",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
@@ -186,7 +174,6 @@ cc_library(
     ],
     deps = [
         ":extend",
-        "//gloop:enforce_gloop_support",
         "//gloop/util/gtl/extend/internal:reflection",
         "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/strings:string_view",
@@ -201,7 +188,6 @@ cc_test(
         ":extend",
         ":stream_printing",
         ":stringification_tests",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl:generic_printer",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
@@ -216,7 +202,6 @@ cc_test(
         ":extend",
         ":stringification_tests",
         ":stringify",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl:generic_printer",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
@@ -232,7 +217,6 @@ cc_library(
     deps = [
         ":equality",
         ":extend",
-        "//gloop:enforce_gloop_support",
         "//gloop/util/gtl/extend/internal:reflection",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
@@ -250,7 +234,6 @@ cc_test(
         ":equality",
         ":extend",
         ":reflection_extension",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl/extend/internal:reflection",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
