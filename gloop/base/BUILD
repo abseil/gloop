@@ -652,6 +652,7 @@ cc_library(
         "@abseil-cpp//absl/time",
         "@tcmalloc//tcmalloc/internal:linux_syscall_support",
     ] + select({
+        # This isn't included in linux_platforms for historical compatibility reasons.
         "@platforms//os:linux": PERCPU_LINUX_DEPS,
         "//conditions:default": [],
     }),
