@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Implementation of CRCs (aka Rabin Fingerprints).
 // Treats the input as a polynomial with coefficients in Z(2),
 // and finds the remainder when divided by an irreducible polynomial

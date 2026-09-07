@@ -25,7 +25,6 @@ cc_library(
     srcs = ["status_bundle.cc"],
     hdrs = ["status_bundle.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/thread/fiber",
         "//gloop/thread/fiber:fiber-options",
         "//gloop/thread/fiber:select",
@@ -46,7 +45,6 @@ cc_test(
     srcs = ["status_bundle_test.cc"],
     deps = [
         ":status_bundle",
-        "//gloop:gloop_test_main",
         "//gloop/base:context",
         "//gloop/base:tracecontext",
         "//gloop/base:tracer",

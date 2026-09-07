@@ -34,10 +34,7 @@ cc_library(
     ],
     hdrs_check = "strict",
     visibility = ["//visibility:public"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/log:check",
-    ],
+    deps = ["@abseil-cpp//absl/log:check"],
 )
 
 # --------------------------------------------------------------------
@@ -50,7 +47,6 @@ cc_test(
     srcs = ["barrier_test.cc"],
     deps = [
         ":barrier",
-        "//gloop:gloop_test_main",
         "//gloop/thread/fiber",
         "@abseil-cpp//absl/synchronization",
         "@google_benchmark//:benchmark",
@@ -64,7 +60,6 @@ cc_library(
     hdrs = ["incremental_barrier.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/perftools/tracing",
         "//gloop/perftools/tracing:trace_source_location",
         "//gloop/perftools/tracing:tracing_base",
@@ -79,7 +74,6 @@ cc_test(
     srcs = ["incremental_barrier_unittest.cc"],
     deps = [
         ":incremental_barrier",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/functional:any_invocable",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

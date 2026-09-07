@@ -33,7 +33,6 @@ cc_library(
     deps = [
         ":fiber_thread_options",
         ":fiber_thread_pool",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:static_threadlocal",
         "//gloop/base/scheduling",
         "//gloop/base/scheduling:domain_thread_assignment_callback_accessor",
@@ -58,7 +57,6 @@ cc_library(
     visibility = [
         "//gloop/thread/fiber:__subpackages__",
     ],
-    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_library(
@@ -73,7 +71,6 @@ cc_library(
     ],
     deps = [
         ":fiber_thread_options",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:spinlock",
         "//gloop/base/scheduling",
         "//gloop/base/scheduling:scheduling_mode",
@@ -104,7 +101,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":fiber_thread_pool",
-        "//gloop:gloop_test_main",
         "//gloop/base/scheduling",
         "//gloop/thread/fiber",
         "//gloop/thread/fiber:fiber-options",

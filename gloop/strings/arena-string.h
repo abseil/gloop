@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // A simple class that efficiently allocates strings on an arena, storing size
 // as either a single byte or 4 bytes. Useful for storing large numbers of small
 // strings with a very small memory overhead: 0 bytes for len == 0, 1 byte for

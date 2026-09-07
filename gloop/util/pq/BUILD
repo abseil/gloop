@@ -23,7 +23,7 @@ package(
 cc_library(
     name = "adjustable-heap",
     hdrs = ["adjustable-heap.h"],
-    deps = ["//gloop:enforce_gloop_support"],
+    deps = [],
 )
 
 cc_library(
@@ -34,7 +34,6 @@ cc_library(
     ],
     deps = [
         ":adjustable-heap",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/log:check",
     ],
 )
@@ -59,7 +58,6 @@ cc_test(
     srcs = ["adjustable-heap_test.cc"],
     deps = [
         ":adjustable-heap",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/random",

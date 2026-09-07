@@ -34,7 +34,6 @@ cc_binary(
         "//gloop/tools:__subpackages__",
     ],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@boringssl//:crypto",
         "@rules_cc//cc/runfiles",
     ],
@@ -44,7 +43,6 @@ cc_binary(
     name = "filewrapper_testdata_generator_bin",
     testonly = 1,
     srcs = ["filewrapper_testdata_generator.cc"],
-    deps = ["//gloop:enforce_gloop_support"],
 )
 
 genrule(
@@ -76,7 +74,6 @@ cc_test(
     linkstatic = True,
     deps = [
         ":filewrapper_testdata",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",

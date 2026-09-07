@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // This is an internal header file used by profiler.cc.  It defines
 // the single (inline) function GetPC.  GetPC is used in a signal
 // handler to figure out the instruction that was being executed when

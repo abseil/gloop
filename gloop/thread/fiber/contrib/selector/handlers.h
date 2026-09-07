@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Handlers below implement SelectorHandler and are meant to be used
 // as a parameter to Selector::Selector() as in selector_test.cc usage example.
 //

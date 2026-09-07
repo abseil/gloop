@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // This file exists in an attempt to be behind lazy_static_ptr_test2.cc in link
 // order, to test that order-of-initialization of global variables doesn't
 // affect whether LazyStaticPtr variables work.
