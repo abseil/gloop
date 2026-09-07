@@ -242,4 +242,11 @@ CommonFiberDomainThread::~CommonFiberDomainThread() {
   domain_->TmpInternalUnref();
 }
 
+bool CommonFiberDomainThread::CanHostSchedulable(
+    Schedulable* schedulable) const {
+  return internal::StackSizeClassToStackSize(::StackSizeClass(
+             schedulable, domain_->default_fiber_stack_size_)) ==
+         options().stack_size();
+}
+
 }  // namespace thread
