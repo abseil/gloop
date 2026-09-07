@@ -272,13 +272,6 @@ cc_library(
     ],
 )
 
-cc_library(
-    name = "symbolize_dlopen_with_offset_test_helper",
-    testonly = True,
-    srcs = ["symbolize_dlopen_with_offset_test_helper.cc"],
-    deps = ["//gloop:enforce_gloop_support"],
-)
-
 cc_test(
     name = "symbolized_stacktrace_bb_sections_unittest",
     srcs = ["symbolized_stacktrace_bb_sections_unittest.cc"],
