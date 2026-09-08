@@ -47,6 +47,8 @@
 ABSL_FLAG(int32_t, test_size, 100, "Number of strings to test");
 ABSL_FLAG(int32_t, log_max_length, 16, "N, where maximum string length is 2^N");
 
+// touch
+
 namespace strings {
 
 TEST(ArenaStringTest, Simple) {
