@@ -94,7 +94,7 @@ struct KernelVersionInfo {
 
 // Parses `raw_string` into `parsed_version`.
 // Returns true on success.
-bool ParseKernelVersionString(const std::string& raw_string,
+bool ParseKernelVersionString(absl::string_view raw_string,
                               KernelVersion* parsed_version);
 
 // If `filename` is empty, returns a pointer to a default-constructed

@@ -143,7 +143,7 @@ bool HexStringToCpuSet(absl::string_view in_str, cpu_set_t* cpu_set) {
   return true;
 }
 
-cpu_set_t HexStringToCpuSet(const std::string& in_str) {
+cpu_set_t HexStringToCpuSet(absl::string_view in_str) {
   cpu_set_t cpu_set;
   if (!HexStringToCpuSet(in_str, &cpu_set)) {
     LOG(FATAL) << "Cannot parse hex string: " << in_str;

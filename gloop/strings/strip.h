@@ -66,7 +66,7 @@ void StripBrackets(char left, char right, std::string* s);
 //
 // For a more full-featured HTML parser, see //webutil/pageutil/pageutil.h.
 void StripMarkupTags(std::string* s);
-std::string OutputWithMarkupTagsStripped(const std::string& s);
+std::string OutputWithMarkupTagsStripped(absl::string_view s);
 
 // Removes any occurrences of the *bytes* in 'remove' from the:
 //
@@ -119,7 +119,7 @@ ptrdiff_t memrm(char* str, ptrdiff_t strlen, char c);
 // then some strings will turn into garbage which will break downstream code.
 // Use icu::UnicodeSet and its spanUTF8()/spanBackUTF8().
 ptrdiff_t strrmm(char* str, const char* chars);
-ptrdiff_t strrmm(std::string* str, const std::string& chars);
+ptrdiff_t strrmm(std::string* str, absl::string_view chars);
 
 // Returns a copy of the input string 'str' with the given 'prefix' removed. If
 // the prefix doesn't match, returns a copy of the original string.
