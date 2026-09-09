@@ -362,23 +362,27 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
   // information received on the wire.
   // 2. By services, from their background threads, when they need to set
   // the tracecontext in response to a background operation.
-  ABSL_DEPRECATED(
+  [[deprecated(
       "Use base::Context::set_census_handle() instead; "
-      "CensusHandle is moving to base::Context.")
-  void set_census_handle(const CensusHandle& h) { this->census_handle_ = h; }
+      "CensusHandle is moving to base::Context.")]]
+  void set_census_handle(const CensusHandle& h) {
+    this->census_handle_ = h;
+  }
 
-  ABSL_DEPRECATED(
+  [[deprecated(
       "Use base::Context::set_census_handle() instead; "
-      "CensusHandle is moving to base::Context.")
+      "CensusHandle is moving to base::Context.")]]
   void set_census_handle(CensusHandle&& h) {
     this->census_handle_ = std::move(h);
   }
 
   // Get a copy of the handle contained inside tracecontext.
-  ABSL_DEPRECATED(
+  [[deprecated(
       "Use base::Context::census_handle() instead; "
-      "CensusHandle is moving to base::Context.")
-  const CensusHandle& census_handle() const { return this->census_handle_; }
+      "CensusHandle is moving to base::Context.")]]
+  const CensusHandle& census_handle() const {
+    return this->census_handle_;
+  }
 
 #ifdef ENABLE_CONTEXT_ORIGIN
   // The origin of the TraceContext. Only available when compiled with
@@ -773,9 +777,9 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
   // string...").
   int SignalSafeDebugString(char* out, size_t n) const;
 
-  struct ABSL_DEPRECATED("Use the default constructor.") DefaultInitType {};
+  struct [[deprecated("Use the default constructor.")]] DefaultInitType {};
 
-  ABSL_DEPRECATED("Use the default constructor.")
+  [[deprecated("Use the default constructor.")]]
   inline static constexpr DefaultInitType kDefault{};
 
   // An old name for the default constructor. Do not use in new code.
@@ -1159,22 +1163,24 @@ inline bool TraceContext::ContainsTraceEventListener(
 // NOTE: It is essential that this class only manipulate tracing-related
 //       state, and not any other generic Context state such as security
 //       information.
-class CurrentTraceContext {
+class [[deprecated(
+    "CurrentTraceContext will be removed. Use the base::Context interfaces "
+    "instead.")]] CurrentTraceContext {
  public:
   CurrentTraceContext()
       : current_(base::internal::MutableCurrentContext::MutableCurrentTrace()) {
   }
 
-  ABSL_DEPRECATED(
-      "This will be removed. Use base::CurrentContext().trace() instead.")
+  [[deprecated(
+      "This will be removed. Use base::CurrentContext().trace() instead.")]]
   const TraceContext* Current() const {
     CheckCallingThread();
     return current_;
   }
 
-  ABSL_DEPRECATED(
+  [[deprecated(
       "This mutator will be removed. Use stats_census::Tagger or "
-      "base::WithCensusHandle instead.")
+      "base::WithCensusHandle instead.")]]
   void set_census_handle(const CensusHandle& h) {
     CheckCallingThread();
     current_->set_census_handle(h);
@@ -1183,10 +1189,10 @@ class CurrentTraceContext {
   // Warning: This is a low-level mutator for optimized code.  The use of
   // base::WithTraceContext is *strongly* preferred.  Using this incorrectly
   // can break Dapper and cause memory leaks in your process.
-  ABSL_DEPRECATED(
+  [[deprecated(
       "Swap will be removed. Replace its use with "
       "base::WithTraceContext. If not "
-      "possible, use base::SwapCurrentTraceContext.")
+      "possible, use base::SwapCurrentTraceContext.")]]
   void Swap(TraceContext* context) {
     using std::swap;
     CheckCallingThread();
@@ -1227,9 +1233,7 @@ class CurrentTraceContext {
   CurrentTraceContext(const CurrentTraceContext&);
   CurrentTraceContext& operator=(const CurrentTraceContext&);
 #endif
-} ABSL_DEPRECATED(
-    "CurrentTraceContext will be removed. Use the base::Context interfaces "
-    "instead.");
+};
 
 #endif  // BASE_HAVE_TRACECONTEXT
 
