@@ -20,15 +20,14 @@
 
 #include "gloop/util/gtl/value_or_die.h"
 
-#include "absl/base/attributes.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/types/source_location.h"
 
 namespace gtl::internal_value_or_die {
 
-ABSL_ATTRIBUTE_NORETURN void DieBecauseEmptyValue(absl::SourceLocation loc,
-                                                  const absl::Status* status) {
+[[noreturn]] void DieBecauseEmptyValue(absl::SourceLocation loc,
+                                       const absl::Status* status) {
   if (status == nullptr) {
     LOG(FATAL).AtLocation(loc) << "ValueOrDie on empty value.";
   } else {

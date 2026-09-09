@@ -44,8 +44,8 @@ namespace gtl {
 namespace internal_value_or_die {
 
 // LOG(FATAL), with a source location and an optional 'status' for details.
-ABSL_ATTRIBUTE_NORETURN void DieBecauseEmptyValue(
-    absl::SourceLocation loc, const absl::Status* status = nullptr);
+[[noreturn]] void DieBecauseEmptyValue(absl::SourceLocation loc,
+                                       const absl::Status* status = nullptr);
 
 // SFINAE helper that checks whether StatusOr<T>'s T satisfies the given Trait.
 template <template <class> class Trait, class T>
