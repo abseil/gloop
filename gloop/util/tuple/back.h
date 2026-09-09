@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 //
 // Function template back() returns the last element of the tuple.
 // back(t) is equivalent to get<size<T>::value - 1>(t); consequently, it can't

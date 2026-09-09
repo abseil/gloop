@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // PeriodicClosure will periodically call the given closure with a specified
 // period in a background thread.  After Start() returns, the thread is
 // guaranteed to have started and after Stop() returns, the thread is

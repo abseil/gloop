@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 //
 // rotate<M>(make_tuple(a1, a2, ..., aM, ..., aN)) evaluates to
 // make_tuple(aM, ..., aN, a1, ..., aM-1). M must be in [0, N]. It's similar to

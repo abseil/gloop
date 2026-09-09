@@ -27,7 +27,6 @@ cc_library(
     srcs = ["affinity.cc"],
     hdrs = ["affinity.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/util/os/core:cpu_set",
         "@abseil-cpp//absl/log",
     ],
@@ -46,7 +45,6 @@ cc_library(
     deps = [
         ":affinity",
         ":topology_cc_proto",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:commandlineflags",
         "//gloop/base:sysinfo",
         "//gloop/strings:split",
@@ -110,7 +108,6 @@ cc_library(
     copts = ["-Wthread-safety"],
     deps = [
         ":topology",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:sysinfo",
         "@abseil-cpp//absl/base:cpu_detect",
         "@google_benchmark//:benchmark",

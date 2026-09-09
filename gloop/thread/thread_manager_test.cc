@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // A test for thread_manager.cc
 
 #include "gloop/thread/thread_manager.h"
@@ -734,8 +728,9 @@ TEST(ThreadManagerWatchdogTest, UsesCustomWatchDogCallback) {
   thread::ManagedQueueOptions queue_options;
   queue_options.time_limit_s = 1;
 
-  std::optional<thread::ThreadManager> tm(
-      std::in_place, "custom_watchdog_callback_test", manager_options);
+  std::optional<thread::ThreadManager> tm(std::in_place,
+                                          "custom_watchdog_callback_test",
+                                          std::move(manager_options));
   std::unique_ptr<thread::ManagedQueue> q(
       tm->NewQueue("custom_watchdog_callback_test_queue", queue_options));
 
@@ -897,7 +892,8 @@ BENCHMARK(BM_ThreadManagerSchedule)->Arg(1)->Arg(INT_MAX);
 static void BM_ThreadManagerDefaultPolicyRun(benchmark::State& state) {
   // Make a thread manager with the default policy
   thread::ManagerOptions options;
-  thread::ThreadManager manager("benchmark_manager_with_defaults", options);
+  thread::ThreadManager manager("benchmark_manager_with_defaults",
+                                std::move(options));
 
   // Make a queue with the specified thread limit
   thread::ManagedQueueOptions qoptions;

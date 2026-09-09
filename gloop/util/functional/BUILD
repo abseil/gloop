@@ -27,7 +27,6 @@ cc_library(
     hdrs = ["auto_function_runner.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/functional:any_invocable",
     ],
@@ -39,7 +38,6 @@ cc_test(
     deps = [
         ":auto_function_runner",
         ":to_callback",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "@abseil-cpp//absl/functional:any_invocable",
         "@google_benchmark//:benchmark",
@@ -59,7 +57,6 @@ cc_library(
         ":callable_once",
         ":to_callback_internal",
         ":to_shared_function",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:callback-types",
         "//gloop/util/refcount:compact_reference_counted",
         "//gloop/util/refcount:reffed_ptr",
@@ -75,7 +72,6 @@ cc_test(
     deps = [
         ":from_callback",
         ":to_callback",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
@@ -90,7 +86,6 @@ cc_library(
     name = "to_callback_internal",
     hdrs = ["to_callback_internal.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:callback-types",
         "//gloop/base:context",
         "//gloop/base:tracecontext",
@@ -109,7 +104,6 @@ cc_library(
         ":from_callback",
         ":to_callback_internal",
         ":with_context",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:callback-types",
         "//gloop/perftools/tracing:trace_source_location",
         "//gloop/perftools/tracing:tracing_base",
@@ -122,7 +116,6 @@ cc_test(
     srcs = ["to_callback_benchmark.cc"],
     deps = [
         ":to_callback",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/base:context",
         "@google_benchmark//:benchmark",
@@ -136,7 +129,6 @@ cc_test(
     deps = [
         ":from_callback",
         ":to_callback",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/base:context",
         "//gloop/base:tracecontext",
@@ -152,7 +144,6 @@ cc_library(
     hdrs = ["to_shared_function.h"],
     visibility = ["//gloop:__subpackages__"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/memory",
     ],
@@ -164,7 +155,6 @@ cc_test(
     srcs = ["to_shared_function_test.cc"],
     deps = [
         ":to_shared_function",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -177,7 +167,6 @@ cc_library(
     hdrs = ["with_context.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:context",
         "//gloop/perftools/tracing:trace_source_location",
         "//gloop/perftools/tracing:tracing_base",
@@ -190,7 +179,6 @@ cc_library(
     hdrs = ["callable_once.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log:check",
@@ -202,7 +190,6 @@ cc_test(
     srcs = ["with_context_test.cc"],
     deps = [
         ":with_context",
-        "//gloop:gloop_test_main",
         "//gloop/base:context",
         "//gloop/base:tracecontext",
         "//gloop/perftools/tracing:mock_trace_event_listener",
@@ -219,7 +206,6 @@ cc_test(
     srcs = ["with_context_benchmark.cc"],
     deps = [
         ":with_context",
-        "//gloop:gloop_test_main",
         "//gloop/base:context",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -232,7 +218,6 @@ cc_test(
     deps = [
         ":callable_once",
         ":to_callback",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log:check",
@@ -245,10 +230,7 @@ cc_library(
     name = "transitional",
     hdrs = ["transitional.h"],
     visibility = ["//visibility:public"],
-    deps = [
-        ":with_context",
-        "//gloop:enforce_gloop_support",
-    ],
+    deps = [":with_context"],
 )
 
 cc_test(
@@ -256,7 +238,6 @@ cc_test(
     srcs = ["transitional_test.cc"],
     deps = [
         ":transitional",
-        "//gloop:gloop_test_main",
         "//gloop/base:context",
         "//gloop/base:tracecontext",
         "@abseil-cpp//absl/functional:any_invocable",

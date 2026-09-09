@@ -28,7 +28,6 @@ cc_library(
     srcs = ["syscalls.cc"],
     hdrs = ["syscalls.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base/scheduling",
         "@abseil-cpp//absl/strings",
     ],
@@ -39,7 +38,6 @@ cc_test(
     srcs = ["syscalls_test.cc"],
     deps = [
         ":syscalls",
-        "//gloop:gloop_test_main",
         "//gloop/util/status:errno_mapping",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
@@ -56,7 +54,6 @@ cc_library(
     hdrs = ["cpu_set_test_util.h"],
     deps = [
         ":cpu_set",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -65,7 +62,6 @@ cc_library(
     srcs = ["cpu_set.cc"],
     hdrs = ["cpu_set.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
@@ -80,7 +76,6 @@ cc_test(
         ":cpu_set",
         ":cpu_set_test_util",
         ":test_cc_proto",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

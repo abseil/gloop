@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // This file defines a free function ValueOrDie that can be used to safely
 // dereference absl::StatusOr, std::optional and pointer values (or in fact any
 // value that provides a compatible 'operator*' and is contextually convertible

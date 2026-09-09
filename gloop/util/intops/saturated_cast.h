@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Provides a saturated_cast function template to facilitate conversion between
 // numeric types, with clipping at range boundaries in case the conversion would
 // otherwise result in overflow or underflow.

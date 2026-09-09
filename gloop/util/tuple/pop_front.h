@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Function template pop_front() returns a copy of the tuple without the
 // first element. The type type of the Nth element in the resulting tuple is the
 // same as the (N+1)th element in the original tuple.

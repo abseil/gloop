@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // The Writer class writes CSV data in a format based on RFC 4180:
 //   http://tools.ietf.org/html/rfc4180
 // Writer output will be compliant with RFC 4180 except that by default,

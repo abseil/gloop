@@ -25,7 +25,6 @@ cc_library(
     srcs = ["cancellable_condvar.cc"],
     hdrs = ["cancellable_condvar.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:spinlock",
         "//gloop/thread/fiber",
         "//gloop/thread/fiber:select",
@@ -43,7 +42,6 @@ cc_test(
     shard_count = 5,
     deps = [
         ":cancellable_condvar",
-        "//gloop:gloop_test_main",
         "//gloop/thread/fiber",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/functional:bind_front",

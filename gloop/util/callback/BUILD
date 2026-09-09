@@ -32,7 +32,6 @@ cc_library(
     srcs = ["blocking_callback.cc"],
     hdrs = ["blocking_callback.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:callback",
         "//gloop/util/functional:from_callback",
         "@abseil-cpp//absl/base",
@@ -50,7 +49,6 @@ cc_test(
     srcs = ["blocking_callback_unittest.cc"],
     deps = [
         ":blocking_callback",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/thread",
         "//gloop/util/functional:from_callback",
@@ -68,7 +66,6 @@ cc_library(
     srcs = ["cancellable_closure.cc"],
     hdrs = ["cancellable_closure.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:callback",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
@@ -83,7 +80,6 @@ cc_test(
     srcs = ["cancellable_closure_test.cc"],
     deps = [
         ":cancellable_closure",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/thread",
         "//gloop/util/functional:from_callback",

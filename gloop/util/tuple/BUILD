@@ -34,8 +34,6 @@ cc_library(
     hdrs = ["test_util.h"],
     visibility = [":util-tuple"],
     deps = [
-        "//gloop:enforce_gloop_support",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -45,56 +43,38 @@ cc_library(
     name = "ignore_index",
     hdrs = ["ignore_index.h"],
     visibility = [":util-tuple"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "//gloop/util/tuple/components:ignore_index",
-    ],
+    deps = ["//gloop/util/tuple/components:ignore_index"],
 )
 
 cc_library(
     name = "intrinsics",
     hdrs = ["intrinsics.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "//gloop/util/tuple/components:intrinsics",
-    ],
+    deps = ["//gloop/util/tuple/components:intrinsics"],
 )
 
 cc_library(
     name = "std_tuple",
     hdrs = ["std_tuple.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "//gloop/util/tuple/components:std_tuple",
-    ],
+    deps = ["//gloop/util/tuple/components:std_tuple"],
 )
 
 cc_library(
     name = "pair",
     hdrs = ["pair.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "//gloop/util/tuple/components:pair",
-    ],
+    deps = ["//gloop/util/tuple/components:pair"],
 )
 
 cc_library(
     name = "array",
     hdrs = ["array.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "//gloop/util/tuple/components:array",
-    ],
+    deps = ["//gloop/util/tuple/components:array"],
 )
 
 cc_library(
     name = "internal_accumulate",
     textual_hdrs = ["internal_accumulate.h"],
     visibility = ["//visibility:private"],
-    deps = [
-        ":intrinsics",
-        "//gloop:enforce_gloop_support",
-    ],
+    deps = [":intrinsics"],
 )
 
 cc_library(
@@ -106,7 +86,6 @@ cc_library(
         ":intrinsics",
         ":pair",
         ":std_tuple",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -119,7 +98,6 @@ cc_test(
         ":int_pack",
         ":push_front",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -129,16 +107,12 @@ cc_test(
 cc_library(
     name = "for_each",
     hdrs = ["for_each.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "//gloop/util/tuple/components:for_each",
-    ],
+    deps = ["//gloop/util/tuple/components:for_each"],
 )
 
 cc_library(
     name = "int_pack",
     hdrs = ["int_pack.h"],
-    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -147,7 +121,6 @@ cc_test(
     srcs = ["int_pack_test.cc"],
     deps = [
         ":int_pack",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -166,7 +139,6 @@ cc_library(
         ":pop_back",
         ":ref",
         ":std_tuple",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -176,7 +148,6 @@ cc_test(
     srcs = ["apply_test.cc"],
     deps = [
         ":apply",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -189,7 +160,6 @@ cc_library(
         ":ignore_index",
         ":int_pack",
         ":intrinsics",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -201,7 +171,6 @@ cc_test(
         ":array",
         ":generate",
         ":pair",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -213,7 +182,6 @@ cc_library(
     deps = [
         ":intrinsics",
         ":std_tuple",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -224,7 +192,6 @@ cc_test(
     deps = [
         ":back",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -241,7 +208,6 @@ cc_library(
         ":intrinsics",
         ":pair",
         ":std_tuple",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -252,7 +218,6 @@ cc_test(
     deps = [
         ":slice",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -269,7 +234,6 @@ cc_library(
         ":pair",
         ":slice",
         ":std_tuple",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -280,7 +244,6 @@ cc_test(
     deps = [
         ":filter",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -295,7 +258,6 @@ cc_library(
         ":int_pack",
         ":intrinsics",
         ":slice",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -306,7 +268,6 @@ cc_test(
     deps = [
         ":erase",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -318,7 +279,6 @@ cc_library(
     deps = [
         ":erase",
         ":intrinsics",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -329,7 +289,6 @@ cc_test(
     deps = [
         ":pop_back",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -345,7 +304,6 @@ cc_library(
         ":intrinsics",
         ":pair",
         ":std_tuple",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -357,7 +315,6 @@ cc_test(
         ":cat",
         ":std_tuple",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -373,7 +330,6 @@ cc_library(
         ":pair",
         ":slice",
         ":std_tuple",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -384,7 +340,6 @@ cc_test(
     deps = [
         ":insert",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -393,19 +348,13 @@ cc_test(
 cc_library(
     name = "streamable",
     hdrs = ["streamable.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "//gloop/util/tuple/components:streamable",
-    ],
+    deps = ["//gloop/util/tuple/components:streamable"],
 )
 
 cc_library(
     name = "push_front",
     hdrs = ["push_front.h"],
-    deps = [
-        ":insert",
-        "//gloop:enforce_gloop_support",
-    ],
+    deps = [":insert"],
 )
 
 cc_test(
@@ -415,7 +364,6 @@ cc_test(
     deps = [
         ":push_front",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -430,7 +378,6 @@ cc_library(
         ":intrinsics",
         ":pair",
         ":std_tuple",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -442,7 +389,6 @@ cc_test(
         ":ref",
         ":std_tuple",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -457,7 +403,6 @@ cc_library(
         ":intrinsics",
         ":ref",
         ":std_tuple",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -471,7 +416,6 @@ cc_test(
         ":struct",
         ":test_util",
         ":zip",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -480,10 +424,7 @@ cc_test(
 cc_library(
     name = "compile_string",
     hdrs = ["compile_string.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/utility",
-    ],
+    deps = ["@abseil-cpp//absl/utility"],
 )
 
 cc_library(
@@ -496,7 +437,6 @@ cc_library(
         ":relational",
         ":streamable",
         ":swap",
-        "//gloop:enforce_gloop_support",
         "//gloop/util/tuple/bindings",
         "//gloop/util/tuple/components:internal_preprocessor",
         "@abseil-cpp//absl/base:core_headers",
@@ -514,7 +454,6 @@ cc_test(
         ":matchers",
         ":struct",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/container:node_hash_set",
         "@abseil-cpp//absl/strings:str_format",
@@ -533,7 +472,6 @@ cc_library(
         ":ref",
         ":std_tuple",
         ":zip",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -543,7 +481,6 @@ cc_test(
     srcs = ["relational_test.cc"],
     deps = [
         ":relational",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -558,7 +495,6 @@ cc_library(
         ":ref",
         ":std_tuple",
         ":zip",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -568,7 +504,6 @@ cc_test(
     srcs = ["swap_test.cc"],
     deps = [
         ":swap",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -582,7 +517,6 @@ cc_library(
         ":for_each",
         ":intrinsics",
         ":is_tuple",
-        "//gloop:enforce_gloop_support",
         "//gloop/util/tuple/bindings",
         "@abseil-cpp//absl/strings",
     ],
@@ -596,7 +530,6 @@ cc_test(
         ":intrinsics",
         ":matchers",
         ":struct",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -611,7 +544,6 @@ cc_library(
         ":intrinsics",
         ":pair",
         ":std_tuple",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -621,7 +553,6 @@ cc_test(
     srcs = ["is_tuple_test.cc"],
     deps = [
         ":is_tuple",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -630,19 +561,13 @@ cc_test(
 cc_library(
     name = "dump_vars",
     hdrs = ["dump_vars.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "//gloop/util/tuple/components:dump_vars",
-    ],
+    deps = ["//gloop/util/tuple/components:dump_vars"],
 )
 
 cc_library(
     name = "all_of",
     hdrs = ["all_of.h"],
-    deps = [
-        ":accumulate",
-        "//gloop:enforce_gloop_support",
-    ],
+    deps = [":accumulate"],
 )
 
 cc_test(
@@ -651,7 +576,6 @@ cc_test(
     srcs = ["all_of_test.cc"],
     deps = [
         ":all_of",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -660,10 +584,7 @@ cc_test(
 cc_library(
     name = "any_of",
     hdrs = ["any_of.h"],
-    deps = [
-        ":accumulate",
-        "//gloop:enforce_gloop_support",
-    ],
+    deps = [":accumulate"],
 )
 
 cc_test(
@@ -672,7 +593,6 @@ cc_test(
     srcs = ["any_of_test.cc"],
     deps = [
         ":any_of",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -681,19 +601,13 @@ cc_test(
 cc_library(
     name = "compressed_tuple",
     hdrs = ["compressed_tuple.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "//gloop/util/tuple/components:compressed_tuple",
-    ],
+    deps = ["//gloop/util/tuple/components:compressed_tuple"],
 )
 
 cc_library(
     name = "construct",
     hdrs = ["construct.h"],
-    deps = [
-        ":apply",
-        "//gloop:enforce_gloop_support",
-    ],
+    deps = [":apply"],
 )
 
 cc_test(
@@ -703,7 +617,6 @@ cc_test(
     deps = [
         ":construct",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -712,10 +625,7 @@ cc_test(
 cc_library(
     name = "find",
     hdrs = ["find.h"],
-    deps = [
-        ":find_if",
-        "//gloop:enforce_gloop_support",
-    ],
+    deps = [":find_if"],
 )
 
 cc_library(
@@ -726,7 +636,6 @@ cc_library(
         ":intrinsics",
         ":pair",
         ":std_tuple",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -737,7 +646,6 @@ cc_test(
     deps = [
         ":find",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -750,7 +658,6 @@ cc_test(
     deps = [
         ":find_if",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -764,7 +671,6 @@ cc_library(
         ":intrinsics",
         ":pair",
         ":std_tuple",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -775,7 +681,6 @@ cc_test(
     deps = [
         ":front",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -784,10 +689,7 @@ cc_test(
 cc_library(
     name = "fuse",
     hdrs = ["fuse.h"],
-    deps = [
-        ":apply",
-        "//gloop:enforce_gloop_support",
-    ],
+    deps = [":apply"],
 )
 
 cc_test(
@@ -796,7 +698,6 @@ cc_test(
     srcs = ["fuse_test.cc"],
     deps = [
         ":fuse",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -812,7 +713,6 @@ cc_library(
         ":intrinsics",
         ":pair",
         ":std_tuple",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -824,7 +724,6 @@ cc_test(
         ":join",
         ":pair",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -833,10 +732,7 @@ cc_test(
 cc_library(
     name = "none_of",
     hdrs = ["none_of.h"],
-    deps = [
-        ":accumulate",
-        "//gloop:enforce_gloop_support",
-    ],
+    deps = [":accumulate"],
 )
 
 cc_test(
@@ -845,7 +741,6 @@ cc_test(
     srcs = ["none_of_test.cc"],
     deps = [
         ":none_of",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -854,10 +749,7 @@ cc_test(
 cc_library(
     name = "pop_front",
     hdrs = ["pop_front.h"],
-    deps = [
-        ":erase",
-        "//gloop:enforce_gloop_support",
-    ],
+    deps = [":erase"],
 )
 
 cc_test(
@@ -867,7 +759,6 @@ cc_test(
     deps = [
         ":pop_front",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -879,7 +770,6 @@ cc_library(
     deps = [
         ":insert",
         ":intrinsics",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -890,7 +780,6 @@ cc_test(
     deps = [
         ":push_back",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -905,7 +794,6 @@ cc_library(
         ":intrinsics",
         ":pair",
         ":std_tuple",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -916,7 +804,6 @@ cc_test(
     deps = [
         ":reverse",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -929,7 +816,6 @@ cc_library(
         ":cat",
         ":intrinsics",
         ":slice",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -942,7 +828,6 @@ cc_test(
         ":pair",
         ":rotate",
         ":test_util",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -953,7 +838,6 @@ cc_library(
     hdrs = ["string_hash_map.h"],
     deps = [
         ":intrinsics",
-        "//gloop:enforce_gloop_support",
         "//gloop/util/gtl:string_hash_map",
         "@abseil-cpp//absl/strings:string_view",
     ],
@@ -966,7 +850,6 @@ cc_test(
     deps = [
         ":intrinsics",
         ":string_hash_map",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl:string_hash_map",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
@@ -984,7 +867,6 @@ cc_library(
         ":intrinsics",
         ":pair",
         ":std_tuple",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -996,7 +878,6 @@ cc_test(
         ":std_tuple",
         ":test_util",
         ":transform",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -1005,7 +886,6 @@ cc_test(
 cc_library(
     name = "unfuse",
     hdrs = ["unfuse.h"],
-    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -1014,7 +894,6 @@ cc_test(
     srcs = ["unfuse_test.cc"],
     deps = [
         ":unfuse",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -1029,7 +908,6 @@ cc_library(
         ":intrinsics",
         ":pair",
         ":std_tuple",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -1040,7 +918,6 @@ cc_test(
     deps = [
         ":test_util",
         ":unref",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

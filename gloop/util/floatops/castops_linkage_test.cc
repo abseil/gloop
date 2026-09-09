@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // This file just imports the castops header to verify that none of the
 // functions defined in it violate the one definition rule (it is linked into
 // the castops_test target along with another cc file that imports the same

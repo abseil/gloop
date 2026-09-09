@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // HeapQueue is a wrapper template around the STL's heap_*() functions
 // - Internally, it use a vector<T> to store elements in a heap order
 // - Unlike STL priority_queue, it provides an iterator mechanism to more
