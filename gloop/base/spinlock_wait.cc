@@ -31,18 +31,14 @@
 #include <linux/futex.h>
 #include <stdint.h>
 #include <syscall.h>
-#include <time.h>
 #include <unistd.h>
 
 #include <atomic>
 
-#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/flags/flag.h"
-#include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "gloop/base/scheduling/domain.h"
-#include "gloop/base/scheduling/scheduling_mode.h"
 
 // The SpinLock lockword is `std::atomic<uint32_t>`. Here we assert that
 // `std::atomic<uint32_t>` is bitwise equivalent of the `int` expected
