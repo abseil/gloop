@@ -298,7 +298,8 @@ TEST_F(ContextTest, MoveConstructor) {
   Context moved(std::move(copied));
   EXPECT_THAT(ctx, EqualsContext(moved));
 #if BASE_CONTEXT_HAVE_SECURITYCONTEXT
-  // NOLINTNEXTLINE - we want to test that security was modified.
+  // NOLINTNEXTLINE(bugprone-use-after-move) - we want to test that security was
+  // modified.
   EXPECT_NE(copied.security(), moved.security()) << "Security was moved.";
 #endif  // BASE_CONTEXT_HAVE_SECURITYCONTEXT
 }
@@ -310,7 +311,8 @@ TEST_F(ContextTest, MoveAssignment) {
   moved = std::move(copied);
   EXPECT_THAT(ctx, EqualsContext(moved));
 #if BASE_CONTEXT_HAVE_SECURITYCONTEXT
-  // NOLINTNEXTLINE - we want to test that security was modified.
+  // NOLINTNEXTLINE(bugprone-use-after-move) - we want to test that security was
+  // modified.
   EXPECT_EQ(nullptr, copied.security()) << "Security was moved.";
 #endif  // BASE_CONTEXT_HAVE_SECURITYCONTEXT
 
@@ -323,7 +325,8 @@ TEST_F(ContextTest, MoveAssignment) {
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #endif
-  // NOLINTNEXTLINE - ClangTidy complains that the object was moved.
+  // NOLINTNEXTLINE(bugprone-use-after-move) - ClangTidy complains that the
+  // object was moved.
   EXPECT_THAT(ctx, EqualsContext(moved));
 }
 
