@@ -31,6 +31,7 @@
 #include <compare>
 #include <functional>
 #include <limits>
+#include <optional>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -93,6 +94,70 @@ int Compare3Way(const Cmp& c, const T1& x, const T2& y) {
   return Compare3WayImpl(c, x, y, Has3wayCompare<Cmp, T1, T2>());
 }
 
+template <typename T>
+struct is_optional : std::false_type {};
+
+template <typename T>
+struct is_optional<std::optional<T>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_optional_v =
+    is_optional<std::remove_cvref_t<T>>::value;
+
+template <typename T>
+inline constexpr bool is_nullopt_v =
+    std::is_same_v<std::remove_cvref_t<T>, std::nullopt_t>;
+
+// Determines whether Arg is a std::optional that should be unwrapped before
+// invoking Extractor. For member pointers, unwraps only if invocable on the
+// contained value. For other callables, unwraps only if the callable cannot
+// accept the std::optional directly.
+template <typename Extractor, typename Arg>
+constexpr bool ShouldUnwrapOptional() {
+  using Clean = std::remove_cvref_t<Arg>;
+  if constexpr (!is_optional_v<Clean>) {
+    return false;
+  } else if constexpr (std::is_invocable_v<
+                           const Extractor&,
+                           decltype(*std::declval<const Arg&>())>) {
+    if constexpr (std::is_member_pointer_v<Extractor>) {
+      return true;
+    } else {
+      return !std::is_invocable_v<const Extractor&, const Arg&>;
+    }
+  } else {
+    return false;
+  }
+}
+
+// Compile-time check for whether Arg requires optional/nullopt handling.
+template <typename Extractor, typename Arg>
+inline constexpr bool NeedsOptionalHandling_v =
+    is_nullopt_v<Arg> || ShouldUnwrapOptional<Extractor, Arg>();
+
+// Returns whether arg has an engaged value (false for nullopt or disengaged
+// optional; true for non-optional values).
+template <typename Extractor, typename Arg>
+constexpr bool HasValue(const Arg& arg) {
+  if constexpr (is_nullopt_v<Arg>) {
+    return false;
+  } else if constexpr (ShouldUnwrapOptional<Extractor, Arg>()) {
+    return arg.has_value();
+  } else {
+    return true;
+  }
+}
+
+// Dereferences arg if it is an optional to be unwrapped; otherwise returns arg.
+template <typename Extractor, typename Arg>
+constexpr decltype(auto) Unwrap(const Arg& arg) {
+  if constexpr (ShouldUnwrapOptional<Extractor, Arg>()) {
+    return *arg;
+  } else {
+    return arg;
+  }
+}
+
 }  // namespace internal
 
 struct Less;
@@ -115,13 +180,48 @@ class OrderBy : private gtl::CompressedTuple<Extractor, Comparator> {
 
   template <typename T1, typename T2>
   bool operator()(const T1& x, const T2& y) const {
-    return AsC()(std::invoke(AsE(), x), std::invoke(AsE(), y));
+    if constexpr (!internal::NeedsOptionalHandling_v<Extractor, T1> &&
+                  !internal::NeedsOptionalHandling_v<Extractor, T2>) {
+      return AsC()(std::invoke(AsE(), x), std::invoke(AsE(), y));
+    } else if constexpr (internal::is_nullopt_v<T1> ||
+                         internal::is_nullopt_v<T2>) {
+      bool has_x = internal::HasValue<Extractor>(x);
+      bool has_y = internal::HasValue<Extractor>(y);
+      if (!has_y) return false;
+      return !has_x;
+    } else {
+      bool has_x = internal::HasValue<Extractor>(x);
+      bool has_y = internal::HasValue<Extractor>(y);
+      if (!has_y) return false;
+      if (!has_x) return true;
+      return AsC()(std::invoke(AsE(), internal::Unwrap<Extractor>(x)),
+                   std::invoke(AsE(), internal::Unwrap<Extractor>(y)));
+    }
   }
 
   template <typename T1, typename T2>
   int Compare(const T1& x, const T2& y) const {
-    return internal::Compare3Way(AsC(), std::invoke(AsE(), x),
-                                 std::invoke(AsE(), y));
+    if constexpr (!internal::NeedsOptionalHandling_v<Extractor, T1> &&
+                  !internal::NeedsOptionalHandling_v<Extractor, T2>) {
+      return internal::Compare3Way(AsC(), std::invoke(AsE(), x),
+                                   std::invoke(AsE(), y));
+    } else if constexpr (internal::is_nullopt_v<T1> ||
+                         internal::is_nullopt_v<T2>) {
+      bool has_x = internal::HasValue<Extractor>(x);
+      bool has_y = internal::HasValue<Extractor>(y);
+      if (!has_x && !has_y) return 0;
+      if (!has_x) return internal::kLessCompareResult;
+      return internal::kGreaterCompareResult;
+    } else {
+      bool has_x = internal::HasValue<Extractor>(x);
+      bool has_y = internal::HasValue<Extractor>(y);
+      if (!has_x && !has_y) return 0;
+      if (!has_x) return internal::kLessCompareResult;
+      if (!has_y) return internal::kGreaterCompareResult;
+      return internal::Compare3Way(
+          AsC(), std::invoke(AsE(), internal::Unwrap<Extractor>(x)),
+          std::invoke(AsE(), internal::Unwrap<Extractor>(y)));
+    }
   }
 
  private:
