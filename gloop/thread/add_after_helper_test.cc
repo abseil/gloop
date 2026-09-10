@@ -202,7 +202,7 @@ TEST_F(AddAfterHelperTest, ShutdownExecutesUnrunClosures) {
                             ::util::functional::ToCallback(&ExpectNotCalled));
   ::util::functional::CallbackFunctor<> permanent_cb(
       ::util::functional::ToPermanentCallback(&ExpectNotCalled));
-  helper_->ScheduleAddAfter(absl::ZeroDuration(), permanent_cb.get());
+  helper_->ScheduleAddAfter(absl::ZeroDuration(), permanent_cb);
   // This should run complete_add_after_ on the two non-permanent Closure*s.
   helper_.reset();
   EXPECT_TRUE(n1.HasBeenNotified());
