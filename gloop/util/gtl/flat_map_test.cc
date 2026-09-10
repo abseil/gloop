@@ -936,31 +936,34 @@ void TestHeterogeneousLookup() {
     auto hint = m.find(three);
 
     m[three] += 1;
-    m[std::move(three)] += 1;
+    m[std::move(three)] += 1;  // NOLINT(bugprone-use-after-move)
     EXPECT_EQ(m.at(3), 5);
 
     three = 3;
     auto [it6, inserted6] = m.try_emplace(three, 6);
     EXPECT_FALSE(inserted6);
-    auto [it7, inserted7] = m.try_emplace(std::move(three), 7);
+    auto [it7, inserted7] =
+        m.try_emplace(std::move(three), 7);  // NOLINT(bugprone-use-after-move)
     EXPECT_FALSE(inserted7);
 
     three = 3;
     m.insert_or_assign(three, 8);
     EXPECT_EQ(m.at(three), 8);
     m.insert_or_assign(three, 9);
-    EXPECT_EQ(m.at(std::move(three)), 9);
+    EXPECT_EQ(m.at(std::move(three)), 9);  // NOLINT(bugprone-use-after-move)
 
     three = 3;
     auto it10 = m.try_emplace(hint, three, 10);
     EXPECT_EQ(it10->second, 9);
-    auto it11 = m.try_emplace(hint, std::move(three), 11);
+    auto it11 = m.try_emplace(hint, std::move(three),
+                              11);  // NOLINT(bugprone-use-after-move)
     EXPECT_EQ(it11->second, 9);
 
     three = 3;
     m.insert_or_assign(hint, three, 12);
     EXPECT_EQ(m.at(3), 12);
-    m.insert_or_assign(hint, std::move(three), 13);
+    m.insert_or_assign(hint, std::move(three),
+                       13);  // NOLINT(bugprone-use-after-move)
     EXPECT_EQ(m.at(3), 13);
   }
 }

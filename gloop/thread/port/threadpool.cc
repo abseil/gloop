@@ -211,7 +211,7 @@ void ThreadPool::WorkerFunction() {
       // Note that it is good practice to surround this with a try/catch so
       // the thread pool doesn't go to hell if the job throws an exception.
       // This is omitted here because Google3 doesn't like exceptions.
-      std::move(job)();
+      job();
       job = nullptr;
 
       // Signal execution completed.
