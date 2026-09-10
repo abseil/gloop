@@ -757,7 +757,8 @@ class Base32 : public testing::Test {
   const char* Unescape(const char* in) { return Unescape(in, strlen(in), 100); }
 
   bool UnescapeToString(const char* in) {
-    return strings::Base32Unescape(in, strlen(in), &unescaped_string_);
+    return Base32Unescape(absl::string_view(in, strlen(in)),
+                          &unescaped_string_);
   }
 
   int length_;
