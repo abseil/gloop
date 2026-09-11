@@ -66,20 +66,24 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//gloop:enforce_gloop_support",
-        "//gloop/base:futex",
-        "//gloop/base:percpu",
-        "//gloop/base/scheduling",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:dynamic_annotations",
-        "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/base:raw_logging_internal",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
-    ],
+    ] + select({
+        "//tools/cc_target_os:apple": [],
+        "//conditions:default": [
+            "//gloop/base:futex",
+            "//gloop/base:percpu",
+            "//gloop/base/scheduling",
+            "@abseil-cpp//absl/base:dynamic_annotations",
+            "@abseil-cpp//absl/base:no_destructor",
+            "@abseil-cpp//absl/log:check",
+            "@abseil-cpp//absl/random",
+        ],
+    }),
 )
 
 cc_test(
