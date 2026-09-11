@@ -305,10 +305,9 @@ class StrongInt {
             StrongIntConvert(arg, static_cast<StrongInt*>(nullptr)).value()) {}
 
   // Explicit initialization from a numeric primitive.
-  template <
-      class T,
-      class = std::enable_if_t<std::is_same_v<
-          decltype(static_cast<ValueType>(std::declval<T>())), ValueType>>>
+  template <class T>
+    requires(std::is_same_v<decltype(static_cast<ValueType>(std::declval<T>())),
+                            ValueType>)
   explicit constexpr StrongInt(T init_value)
       : value_((STRONG_INT_CALL_VALIDATOR(ValidateInit<ValueType>(init_value)),
                 static_cast<ValueType>(init_value))) {}
@@ -327,10 +326,9 @@ class StrongInt {
 
   // Explicitly cast the raw value only if the underlying value is convertible
   // to T.
-  template <typename T,
-            typename = std::enable_if_t<std::conjunction<
-                std::bool_constant<std::numeric_limits<T>::is_integer>,
-                std::is_convertible<ValueType, T>>::value>>
+  template <typename T>
+    requires(std::numeric_limits<T>::is_integer &&
+             std::is_convertible_v<ValueType, T>)
   constexpr explicit operator T() const {
     return value_;
   }
@@ -392,23 +390,23 @@ class StrongInt {
     value_ -= arg.value();
     return *this;
   }
-  template <typename ArgType,
-            std::enable_if_t<!IsStrongIntV<ArgType>>* = nullptr>
+  template <typename ArgType>
+    requires(!IsStrongIntV<ArgType>)
   StrongInt& operator*=(ArgType arg) {
     STRONG_INT_CALL_VALIDATOR(
         ValidateMultiply<ValueType, ArgType>(value_, arg));
     value_ *= arg;
     return *this;
   }
-  template <typename ArgType,
-            std::enable_if_t<!IsStrongIntV<ArgType>>* = nullptr>
+  template <typename ArgType>
+    requires(!IsStrongIntV<ArgType>)
   StrongInt& operator/=(ArgType arg) {
     STRONG_INT_CALL_VALIDATOR(ValidateDivide<ValueType, ArgType>(value_, arg));
     value_ /= arg;
     return *this;
   }
-  template <typename ArgType,
-            std::enable_if_t<!IsStrongIntV<ArgType>>* = nullptr>
+  template <typename ArgType>
+    requires(!IsStrongIntV<ArgType>)
   StrongInt& operator%=(ArgType arg) {
     STRONG_INT_CALL_VALIDATOR(ValidateModulo<ValueType, ArgType>(value_, arg));
     value_ %= arg;
@@ -567,8 +565,8 @@ STRONG_INT_VS_STRONG_INT_BINARY_OP(^, ValidateBitXor);
 // Define operators that take one StrongInt and one native arithmetic argument.
 #define STRONG_INT_VS_NUMERIC_BINARY_OP(op, validator)                         \
   template <typename TagType, typename ValueType, typename ValidatorType,      \
-            typename NumType,                                                  \
-            std::enable_if_t<!IsStrongIntV<NumType>>* = nullptr>               \
+            typename NumType>                                                  \
+    requires(!IsStrongIntV<NumType>)                                           \
   constexpr StrongInt<TagType, ValueType, ValidatorType> operator op(          \
       StrongInt<TagType, ValueType, ValidatorType> lhs, NumType rhs) {         \
     return (STRONG_INT_CALL_VALIDATOR(validator<ValueType>(lhs.value(), rhs)), \
@@ -579,8 +577,8 @@ STRONG_INT_VS_STRONG_INT_BINARY_OP(^, ValidateBitXor);
 // integer argument. That is a long way of saying "multiplication".
 #define NUMERIC_VS_STRONG_INT_BINARY_OP(op, validator)                         \
   template <typename TagType, typename ValueType, typename ValidatorType,      \
-            typename NumType,                                                  \
-            std::enable_if_t<!IsStrongIntV<NumType>>* = nullptr>               \
+            typename NumType>                                                  \
+    requires(!IsStrongIntV<NumType>)                                           \
   constexpr StrongInt<TagType, ValueType, ValidatorType> operator op(          \
       NumType lhs, StrongInt<TagType, ValueType, ValidatorType> rhs) {         \
     return (STRONG_INT_CALL_VALIDATOR(validator<ValueType>(rhs.value(), lhs)), \
