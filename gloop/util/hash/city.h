@@ -73,6 +73,11 @@ inline uint64_t CityHash64(const char* s, size_t len) {
 //
 uint64_t CityHash64WithSeed(absl::string_view s, uint64_t seed);
 
+ABSL_DEPRECATE_AND_INLINE()
+inline uint64_t CityHash64WithSeed(const char* s, size_t len, uint64_t seed) {
+  return CityHash64WithSeed(absl::string_view(s, len), seed);
+}
+
 // Hash function for a byte array.  For convenience, two seeds are also
 // hashed into the result.  The mapping will never change.
 //

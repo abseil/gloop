@@ -152,3 +152,12 @@ TEST(CityHash128Test, Unchanging1) {
   }
   E(0x5c1052b9185fdcb3ull, 0x3fcafa3d5e22a540ull, h);
 }
+
+TEST(CityHashTest, CityHash64WithSeedOverload) {
+  static constexpr char kBuf[] = "The quick brown fox jumps over the lazy dog";
+  constexpr size_t kLen = sizeof(kBuf) - 1;
+  constexpr uint64_t kSeed = 0x123456789abcdef0ull;
+  EXPECT_EQ(
+      util_hash::CityHash64WithSeed(kBuf, kLen, kSeed),
+      util_hash::CityHash64WithSeed(absl::string_view(kBuf, kLen), kSeed));
+}
