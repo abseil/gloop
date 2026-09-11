@@ -22,6 +22,7 @@
 
 #include <stddef.h>
 
+#include <cstdint>
 #include <map>
 #include <utility>
 #include <vector>
