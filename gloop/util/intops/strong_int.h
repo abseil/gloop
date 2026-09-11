@@ -133,6 +133,7 @@
 #pragma clang diagnostic pop
 
 #include <algorithm>
+#include <compare>
 #include <cstddef>
 #include <cstdint>
 #include <iosfwd>
@@ -440,6 +441,8 @@ class StrongInt {
     return *this;
   }
 
+  constexpr auto operator<=>(const StrongInt&) const = default;
+
   template <typename H>
   friend H AbslHashValue(H h, const StrongInt& i) {
     return H::combine(std::move(h), i.value_);
@@ -596,22 +599,6 @@ STRONG_INT_VS_NUMERIC_BINARY_OP(>>, ValidateRightShift);
 #undef STRONG_INT_VS_NUMERIC_BINARY_OP
 #undef NUMERIC_VS_STRONG_INT_BINARY_OP
 #undef STRONG_INT_CALL_VALIDATOR
-
-// Define comparison operators.  We allow all comparison operators.
-#define STRONG_INT_COMPARISON_OP(op)                                      \
-  template <typename TagType, typename ValueType, typename ValidatorType> \
-  constexpr bool operator op(                                             \
-      StrongInt<TagType, ValueType, ValidatorType> lhs,                   \
-      StrongInt<TagType, ValueType, ValidatorType> rhs) {                 \
-    return lhs.value() op rhs.value();                                    \
-  }
-STRONG_INT_COMPARISON_OP(==);  // NOLINT(whitespace/operators)
-STRONG_INT_COMPARISON_OP(!=);  // NOLINT(whitespace/operators)
-STRONG_INT_COMPARISON_OP(<);   // NOLINT(whitespace/operators)
-STRONG_INT_COMPARISON_OP(<=);  // NOLINT(whitespace/operators)
-STRONG_INT_COMPARISON_OP(>);   // NOLINT(whitespace/operators)
-STRONG_INT_COMPARISON_OP(>=);  // NOLINT(whitespace/operators)
-#undef STRONG_INT_COMPARISON_OP
 
 // Support for-range loops. Enables easier looping over ranges of StrongInts,
 // especially looping over sub-ranges of StrongVectors.

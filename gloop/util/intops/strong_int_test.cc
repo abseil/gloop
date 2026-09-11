@@ -23,6 +23,7 @@
 
 #include "gloop/util/intops/strong_int.h"
 
+#include <compare>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -94,6 +95,7 @@ TYPED_TEST(StrongIntTest, TestTraits) {
   EXPECT_TRUE(std::is_trivially_copy_constructible<T>::value);
   EXPECT_TRUE(std::is_trivially_copy_assignable<T>::value);
   EXPECT_TRUE(std::is_trivially_destructible<T>::value);
+  EXPECT_TRUE(std::three_way_comparable<T>);
 }
 
 TYPED_TEST(StrongIntTest, TestCtors) {
