@@ -500,6 +500,19 @@ TEST(Hash, HasherXXvsHashXXStringWithSeed) {
             << "Hash{32,64}StringWithSeed(s,len,MIX{32,64})\n";
 }
 
+TEST(Hash, Hash64StringWithSeedOverloadsMatch) {
+  const char s[] = "http://testurl.com/to/parse.html";
+  for (uint64_t seed :
+       {uint64_t{0}, MIX64, uint64_t{19}, uint64_t{0x123456789abcdef0}}) {
+    for (size_t len = 0; len <= sizeof(s); ++len) {
+      EXPECT_EQ(Hash64StringWithSeed(absl::string_view(s, len), seed),
+                Hash64StringWithSeed(s, len, seed));
+    }
+  }
+  EXPECT_EQ(Hash64StringWithSeed(absl::string_view(), MIX64),
+            Hash64StringWithSeed(nullptr, 0, MIX64));
+}
+
 // Confirm that Fingerprinting integer types is unchanging forever.
 TEST(Hash, FingerprintIntegerIsUnchanging) {
   const int kIters = 100;                         // Must be repeatable.
