@@ -41,6 +41,7 @@
 #include "gloop/util/sysinfo/topology/affinity.h"
 
 ABSL_DECLARE_FLAG(std::string, sysinfo_topology_path);
+ABSL_DECLARE_FLAG(bool, enable_arm_snc);
 
 class SysTopology {
  public:
