@@ -31,7 +31,6 @@
 #include <cstdint>
 
 #include "absl/base/casts.h"
-#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/optimization.h"
 #include "absl/strings/string_view.h"
@@ -207,11 +206,17 @@ class CommonFiberDomainThread : public CommonFiberThread {
     // several of these calls, which saves 4% on stubby4 rpc benchmarks.
 
     SubclassDomain* domain = absl::down_cast<SubclassDomain*>(domain_);
-    // We scheduled an unbound entity, always resume it directly.
     if (next != nullptr && !domain->IsBoundToThread(next)) {
-      DeleteSchedulable(prev);
-      SetNextSchedulable(next);
-      return true;
+      // We scheduled an unbound entity, always resume it directly if this
+      // thread satisfies the entity's constraints.
+      if (CanHostSchedulable(next)) {
+        DeleteSchedulable(prev);
+        SetNextSchedulable(next);
+        return true;
+      }
+      // dispatch `next` to a different thread.
+      domain->ResumeAdditionalSchedulable(next);
+      next = nullptr;
     }
 
     // DomainObservedBlocking did not return a candidate we could host.  It's
@@ -311,6 +316,9 @@ class CommonFiberDomainThread : public CommonFiberThread {
     // SetNextSchedulable is always followed by resuming this thread's
     // execution. This forms an explicit Release/Acquire edge.
   }
+
+  // Returns true if "thread" can host "schedulable" (i.e. stack classes match).
+  bool CanHostSchedulable(base::scheduling::Schedulable* schedulable) const;
 
   base::scheduling::Schedulable* next_schedulable_;
 
