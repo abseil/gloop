@@ -409,7 +409,7 @@ void WatchDog::SetCrashReasonFromStuckThread() {
 #if BASE_HAVE_CRASHREASON
   auto match_pthread = [](void* arg, const LiveThread* thread) {
     pthread_t target_thread = *static_cast<pthread_t*>(arg);
-    return LiveThread_Pthread_TID(thread) == target_thread;
+    return pthread_equal(LiveThread_Pthread_TID(thread), target_thread) != 0;
   };
   auto run_in_stuck_thread = [](void* arg, ucontext_t* uc,
                                 const LiveThread* thread) {
