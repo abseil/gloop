@@ -91,6 +91,7 @@ cc_test(
         "@abseil-cpp//absl/log:flags",
         "@abseil-cpp//absl/log:scoped_mock_log",
         "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@re2",
