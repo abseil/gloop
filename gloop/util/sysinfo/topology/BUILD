@@ -77,6 +77,7 @@ cc_test(
     linkstatic = 1,
     deps = [
         ":topology",
+        ":topology_cc_proto",
         "//gloop/base:init_google",
         "//gloop/base:log_file_flags",
         "//gloop/base:sysinfo",

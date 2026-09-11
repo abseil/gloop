@@ -51,6 +51,7 @@
 #include "gloop/testing/production_stub/testvalue.h"
 #include "gloop/util/os/core/cpu_set.h"
 #include "gloop/util/os/core/cpu_set_test_util.h"  // IWYU pragma: keep
+#include "gloop/util/sysinfo/topology/topology.pb.h"
 #include "gloop/util/sysinfo/topology/topology_converter.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
