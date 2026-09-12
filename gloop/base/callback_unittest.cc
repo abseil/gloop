@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-#include "gloop/base/callback.h"
-
 #include <string>
 
 #include "absl/functional/bind_front.h"
@@ -27,6 +25,7 @@
 #include "absl/log/log.h"
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
+#include "gloop/util/functional/with_context.h"
 #include "gtest/gtest.h"
 
 namespace {
