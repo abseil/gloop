@@ -32,6 +32,7 @@
 
 #include "absl/log/check.h"
 #include "absl/status/status.h"
+#include "absl/status/status_builder.h"
 #include "absl/status/status_matchers.h"
 #include "absl/strings/string_view.h"
 #include "gloop/util/status/codes.pb.h"
