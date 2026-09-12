@@ -61,7 +61,7 @@ sh_test(
     name = "x86_64_architecture_test",
     srcs = ["verify_binary.sh"],
     args = [
-        "$(location :toolchain_test)",
+        "$(rootpath :toolchain_test)",
         "arch",
         "X86-64",
     ],
@@ -73,7 +73,7 @@ sh_test(
     name = "aarch64_architecture_test",
     srcs = ["verify_binary.sh"],
     args = [
-        "$(location :toolchain_test)",
+        "$(rootpath :toolchain_test)",
         "arch",
         "AArch64",
     ],
@@ -86,7 +86,7 @@ sh_test(
     name = "libstdcxx_verification_test",
     srcs = ["verify_binary.sh"],
     args = [
-        "$(location :toolchain_test)",
+        "$(rootpath :toolchain_test)",
         "needed",
         "libstdc++.so",
     ],
@@ -101,7 +101,7 @@ sh_test(
     name = "libcxx_verification_test",
     srcs = ["verify_binary.sh"],
     args = [
-        "$(location :toolchain_test)",
+        "$(rootpath :toolchain_test)",
         "needed",
         "libc++.so",
     ],
@@ -121,7 +121,7 @@ sh_test(
     name = "asan_verification_test",
     srcs = ["verify_binary.sh"],
     args = [
-        "$(location :toolchain_test)",
+        "$(rootpath :toolchain_test)",
         "symbol",
         "__asan",
     ],
@@ -136,7 +136,7 @@ sh_test(
     name = "ubsan_verification_test",
     srcs = ["verify_binary.sh"],
     args = [
-        "$(location :toolchain_test)",
+        "$(rootpath :toolchain_test)",
         "symbol",
         "__ubsan",
     ],
@@ -151,7 +151,7 @@ sh_test(
     name = "msan_verification_test",
     srcs = ["verify_binary.sh"],
     args = [
-        "$(location :toolchain_test)",
+        "$(rootpath :toolchain_test)",
         "symbol",
         "__msan",
     ],
@@ -166,7 +166,7 @@ sh_test(
     name = "tsan_verification_test",
     srcs = ["verify_binary.sh"],
     args = [
-        "$(location :toolchain_test)",
+        "$(rootpath :toolchain_test)",
         "symbol",
         "__tsan",
     ],
