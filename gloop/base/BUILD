@@ -886,6 +886,25 @@ cc_test(
     ],
 )
 
+cc_library(
+    name = "pthread_util",
+    hdrs = ["pthread_util.h"],
+    visibility = ["//visibility:public"],
+    deps = ["//gloop:enforce_gloop_support"],
+)
+
+cc_test(
+    name = "pthread_util_test",
+    size = "small",
+    srcs = ["pthread_util_test.cc"],
+    deps = [
+        ":pthread_util",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 # As with heap-checker, this is always optimized.
 cc_library(
     name = "raw_printer",

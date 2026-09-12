@@ -51,7 +51,7 @@
 #include "gloop/base/context.h"
 #include "gloop/base/crash.h"
 #include "gloop/base/examine_stack.h"
-#include "gloop/base/port.h"
+#include "gloop/base/pthread_util.h"
 #include "gloop/base/raw_logging.h"
 #include "gloop/base/sysinfo.h"
 #include "gloop/base/tracecontext.h"
@@ -397,9 +397,9 @@ void WatchDog::PrintExpirationMessage(char* buf, int buf_size,
                                       const WatchDogState& state,
                                       absl::Time now_for_check) const {
   int len;
-  len = absl::SNPrintF(buf, buf_size,
-                       "Watchdog: %s (pthread id: %x, tid: %u) expired; ",
-                       name().c_str(), PRINTABLE_PTHREAD(pthread_id()), tid());
+  len = absl::SNPrintF(
+      buf, buf_size, "Watchdog: %s (pthread id: %x, tid: %u) expired; ",
+      name().c_str(), base::GetPrintablePthreadId(pthread_id()), tid());
   if (len >= 0 && len < buf_size) {
     PrintStatusInternal(buf + len, buf_size - len, state, now_for_check);
   }

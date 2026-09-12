@@ -36,6 +36,7 @@ POSIX_PORT_DEPS = [
     "//gloop/base:crash",
     "//gloop/base:per-thread-sem",
     "//gloop/base:process_state",
+    "//gloop/base:pthread_util",
     "//gloop/base:signal-handler",
     "//gloop/util/callback:cancellable_closure",
     "//gloop/util/gtl:intrusive_list",
