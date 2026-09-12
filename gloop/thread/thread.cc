@@ -115,6 +115,7 @@
 #include "gloop/base/per-thread-sem.h"
 #include "gloop/base/port.h"
 #include "gloop/base/process_state.h"
+#include "gloop/base/pthread_util.h"
 #include "gloop/base/raw_logging.h"
 #include "gloop/base/raw_printer.h"
 #include "gloop/base/scheduling/domain.h"
@@ -2015,7 +2016,8 @@ void PrintStackTrace(void* print_arg, const LiveThread* thread,
 
   base::RawPrinter printer(buf->data, std::size(buf->data));
   printer.Printf("--- Thread %" GPRIxPTHREAD " (name: %s) stack: ---\n",
-                 PRINTABLE_PTHREAD(thread->tid_), LiveThread_Name(thread));
+                 base::GetPrintablePthreadId(thread->tid_),
+                 LiveThread_Name(thread));
   if (stack_size_kb != 0) {
     if (stack_used_kb != 0) {
       printer.Printf("stack used: %d KiB of %d KiB\n", stack_used_kb,
