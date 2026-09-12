@@ -24,7 +24,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include <cstddef>
 #include <cstdint>
 #include <string>
 
