@@ -65,6 +65,10 @@ inline uint32_t Hash32StringWithSeed(const char* s, size_t len, uint32_t c) {
   return Hash32StringWithSeed(absl::string_view(s, len), c);
 }
 
-uint64_t Hash64StringWithSeed(const char* s, size_t len, uint64_t c);
+uint64_t Hash64StringWithSeed(absl::string_view sv, uint64_t seed);
+ABSL_DEPRECATE_AND_INLINE()
+inline uint64_t Hash64StringWithSeed(const char* s, size_t len, uint64_t c) {
+  return Hash64StringWithSeed(absl::string_view(s, len), c);
+}
 
 #endif  // THIRD_PARTY_GLOOP_UTIL_HASH_JENKINS_H_

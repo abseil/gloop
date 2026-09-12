@@ -102,7 +102,9 @@ uint64_t Hash64StringWithSeedReferenceImplementation(const char* s, size_t len,
   return n;
 }
 
-uint64_t Hash64StringWithSeed(const char* s, size_t len, uint64_t seed) {
+uint64_t Hash64StringWithSeed(absl::string_view sv, uint64_t seed) {
+  const char* s = sv.data();
+  size_t len = sv.size();
   uint64_t a, b;
   b = 0x2c2ca38cd0cc731bULL;
   uint64_t c = seed;
