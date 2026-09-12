@@ -93,6 +93,7 @@ cc_test(
         "//gloop/base:mock_tracer",
         "//gloop/base:tracecontext",
         "//gloop/base:walltime",
+        "//gloop/util/functional:from_callback",
         "//gloop/util/functional:to_callback",
         "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/synchronization",

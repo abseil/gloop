@@ -43,6 +43,7 @@
 #include "gloop/thread/mock_executor.h"
 #include "gloop/thread/threadpool.h"
 #include "gloop/thread/timedcall.h"
+#include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
