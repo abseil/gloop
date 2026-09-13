@@ -109,7 +109,6 @@ cc_library(
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/base:nullability",
-        "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/hash",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:string_view",

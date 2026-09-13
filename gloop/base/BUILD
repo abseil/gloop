@@ -532,7 +532,6 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "//gloop/base/scheduling",
         "@abseil-cpp//absl/base:config",
-        "@abseil-cpp//absl/base:core_headers",
     ],
     alwayslink = 1,
 )
@@ -989,7 +988,6 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "//gloop/base/scheduling",
         "@abseil-cpp//absl/base:config",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/time",
     ],
     alwayslink = 1,
