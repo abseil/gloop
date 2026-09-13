@@ -32,7 +32,6 @@ cc_library(
         "endian-fp.h",
     ],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:port",
         "//gloop/base:uword",
         "//gloop/util/gtl:unaligned",
@@ -49,7 +48,6 @@ cc_test(
     srcs = ["endian_unittest.cc"],
     deps = [
         ":endian",
-        "//gloop:gloop_test_main",
         "//gloop/base:port",
         "//gloop/base:uword",
         "@abseil-cpp//absl/base",
@@ -68,7 +66,6 @@ cc_test(
     srcs = ["endian-fp_unittest.cc"],
     deps = [
         ":endian",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log:check",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -83,7 +80,6 @@ cc_test(
     shard_count = 25,
     deps = [
         ":endian",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/numeric:int128",
         "@fuzztest//fuzztest",

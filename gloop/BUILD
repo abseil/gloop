@@ -88,7 +88,7 @@ cc_library(
         ":tsan_enabled": [],
         ":msan_enabled": [],
         "//conditions:default": ["@tcmalloc//tcmalloc"],
-    }) + [":enforce_gloop_support"],
+    }),
 )
 
 cc_library(
@@ -99,7 +99,6 @@ cc_library(
         "//gloop:__subpackages__",
     ],
     deps = [
-        ":enforce_gloop_support",
         "//gloop/base:init_google",
         "@fuzztest//fuzztest:init_fuzztest",
         "@google_benchmark//:benchmark",

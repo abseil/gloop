@@ -26,7 +26,6 @@ cc_library(
     hdrs = ["array2d.h"],
     deps = [
         ":array_common",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
     ],
@@ -39,7 +38,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":array2d",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl:unique_array",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -51,7 +49,6 @@ cc_library(
     hdrs = ["array3d.h"],
     deps = [
         ":array_common",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
     ],
@@ -64,7 +61,6 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":array3d",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl:unique_array",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -74,5 +70,4 @@ cc_test(
 cc_library(
     name = "array_common",
     hdrs = ["array_common.h"],
-    deps = ["//gloop:enforce_gloop_support"],
 )

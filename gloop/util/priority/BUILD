@@ -32,7 +32,6 @@ cc_library(
         "@platforms//os:linux": [":io-priority_real"],
         "//conditions:default": [":io-priority_stub"],
     }) + [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:port",
         "@abseil-cpp//absl/flags:flag",
     ],
@@ -43,7 +42,6 @@ cc_library(
     srcs = ["io-priority_stub.cc"],
     hdrs = ["io-priority.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:port",
         "@abseil-cpp//absl/flags:flag",
     ],
@@ -54,7 +52,6 @@ cc_library(
     srcs = ["io-priority.cc"],
     hdrs = ["io-priority.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:linux_syscall_support",
         "//gloop/base:port",
         "//gloop/base:sysinfo",
@@ -72,7 +69,6 @@ cc_test(
     srcs = ["io-priority_test.cc"],
     deps = [
         ":io-priority",
-        "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
         "//gloop/thread",
         "@abseil-cpp//absl/log:check",

@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Test including base/port.h after <byteswap.h> has been included.
 // The bswap_16, bswap_32, and bswap_64 macros should work.
 

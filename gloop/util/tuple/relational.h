@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 //
 // Free functions for comparing tuples (less(), equal()) and polymorphic
 // functors that can be conveniently used with STL containers (less_t, equal_t,

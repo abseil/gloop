@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Channels provide unidirectional typed streams combining communication and
 // synchronization. A Channel<T> is similar to a "pair<Reader<T>,Writer<T>>"
 // where the reader and writer ends are hooked up to each other. Values written

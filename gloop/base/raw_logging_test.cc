@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // This test serves primarily as a compilation test for base/raw_logging.h.
 // Raw logging testing is covered by logging_unittest.cc, which is not as
 // portable as this test.

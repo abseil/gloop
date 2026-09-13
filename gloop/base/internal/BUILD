@@ -30,10 +30,7 @@ cc_library(
     visibility = [
         "//gloop/base:__pkg__",
     ],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/strings",
-    ],
+    deps = ["@abseil-cpp//absl/strings"],
 )
 
 cc_test(
@@ -43,7 +40,6 @@ cc_test(
     visibility = ["//gloop/base:__pkg__"],
     deps = [
         ":effective_user_id",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -58,7 +54,6 @@ cc_library(
         "//gloop/base:__pkg__",
     ],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:port",
         "@abseil-cpp//absl/log:check",
     ],
@@ -70,10 +65,7 @@ cc_library(
     visibility = [
         "//gloop/base:__pkg__",
     ],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/strings",
-    ],
+    deps = ["@abseil-cpp//absl/strings"],
 )
 
 cc_library(
@@ -82,10 +74,7 @@ cc_library(
     visibility = [
         "//gloop/base:__pkg__",
     ],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:nullability",
-    ],
+    deps = ["@abseil-cpp//absl/base:nullability"],
 )
 
 cc_library(
@@ -98,7 +87,6 @@ cc_library(
     ],
     deps = [
         ":temp_directories",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:config",
         "//gloop/base:log_file_flags",
         "@abseil-cpp//absl/base:core_headers",
@@ -116,10 +104,7 @@ cc_library(
     visibility = [
         "//gloop/base:__pkg__",
     ],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:core_headers",
-    ],
+    deps = ["@abseil-cpp//absl/base:core_headers"],
 )
 
 cc_library(
@@ -132,7 +117,6 @@ cc_library(
         "//gloop/base/internal:__pkg__",
     ],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/util/status:errno_mapping",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
@@ -145,7 +129,6 @@ cc_test(
     srcs = ["munge_output_test.cc"],
     deps = [
         ":munge_output",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -158,10 +141,7 @@ cc_library(
         "//gloop/base:__pkg__",
         "//gloop/concurrent/percpu:__pkg__",
     ],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:config",
-    ],
+    deps = ["@abseil-cpp//absl/base:config"],
 )
 
 cc_library(
@@ -171,8 +151,5 @@ cc_library(
     visibility = [
         "//gloop/base:__pkg__",
     ],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/algorithm:container",
-    ],
+    deps = ["@abseil-cpp//absl/algorithm:container"],
 )

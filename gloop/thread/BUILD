@@ -86,7 +86,6 @@ cc_test(
     deps = [
         ":mock_executor",
         ":thread",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/base:config",
         "//gloop/base:context",
@@ -108,7 +107,6 @@ cc_test(
 cc_library(
     name = "config",
     hdrs = ["config.h"],
-    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -118,7 +116,6 @@ cc_test(
     deps = [
         ":sync_queue",
         ":thread",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/base:context",
         "//gloop/base:mock_tracer",
@@ -146,7 +143,6 @@ cc_library(
     srcs = ["exit_timeout_seconds.cc"],
     hdrs = ["exit_timeout_seconds.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:commandlineflags",
         "@abseil-cpp//absl/flags:flag",
     ],
@@ -159,7 +155,6 @@ cc_library(
         "//gloop/thread:__subpackages__",
     ],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:spinlock",
         "//gloop/base/scheduling:scheduling_mode",
         "//gloop/util/gtl:intrusive_list",
@@ -181,7 +176,6 @@ cc_library(
     ],
     deps = [
         ":config",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:signal-handler",
         "//gloop/base:static_threadlocal",
         "//gloop/util/functional:from_callback",
@@ -198,10 +192,7 @@ cc_library(
     name = "thread_options",
     srcs = ["thread_options.cc"],
     hdrs = ["thread_options.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/flags:flag",
-    ],
+    deps = ["@abseil-cpp//absl/flags:flag"],
 )
 
 cc_library(
@@ -209,16 +200,14 @@ cc_library(
     srcs = ["cpu_subcontainer_stub.cc"],
     hdrs = ["cpu_subcontainer.h"],
     visibility = ["//visibility:private"],
-    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_library(
     name = "cpu_subcontainer",
     hdrs = ["cpu_subcontainer.h"],
-    deps = [
-        ":cpu_subcontainer_stub",
-        "//gloop:enforce_gloop_support",
-    ],
+    deps = select({
+        "//conditions:default": [":cpu_subcontainer_stub"],
+    }),
 )
 
 cc_library(
@@ -263,7 +252,6 @@ cc_library(
         ":threadlocal",
         ":wait_queue",
         ":wait_state",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:atomic_sequence_num",
         "//gloop/base:callback",
         "//gloop/base:commandlineflags",
@@ -340,10 +328,7 @@ cc_library(
         "//thread:__subpackages__",
         "//thread/fiber:__pkg__",
     ],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/time",
-    ],
+    deps = ["@abseil-cpp//absl/time"],
 )
 
 cc_test(
@@ -352,7 +337,6 @@ cc_test(
     srcs = ["os_semaphore_test.cc"],
     deps = [
         ":os_semaphore",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
@@ -367,7 +351,6 @@ cc_library(
     deps = [
         ":thread",
         ":wait_state",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/functional:any_invocable",
@@ -389,7 +372,6 @@ cc_test(
     deps = [
         ":periodicclosure",
         ":thread",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/util/callback:blocking_callback",
         "//gloop/util/functional:from_callback",
@@ -407,7 +389,6 @@ cc_library(
     name = "prioritized_wait_queue",
     hdrs = ["prioritized_wait_queue.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
@@ -425,7 +406,6 @@ cc_library(
         "//thread:__subpackages__",
     ],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log",
     ],
@@ -440,7 +420,6 @@ cc_library(
     deps = [
         ":os_semaphore",
         ":thread-internal",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:port",
         "//gloop/base:signal-handler",
         "//gloop/base:spinlock",
@@ -460,7 +439,6 @@ cc_library(
     ],
     deps = [
         ":thread",
-        "//gloop:enforce_gloop_support",
     ],
 )
 
@@ -468,7 +446,6 @@ cc_library(
     name = "sync_queue",
     hdrs = ["sync_queue.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
@@ -479,7 +456,6 @@ cc_library(
     name = "wait_queue",
     hdrs = ["wait_queue.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
@@ -491,10 +467,7 @@ cc_library(
     name = "wait_state",
     srcs = ["wait_state.cc"],
     hdrs = ["wait_state.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "//gloop/base:thread_identity",
-    ],
+    deps = ["//gloop/base:thread_identity"],
 )
 
 cc_test(
@@ -502,7 +475,6 @@ cc_test(
     srcs = ["thread_benchmark.cc"],
     deps = [
         ":thread",
-        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -513,7 +485,6 @@ cc_test(
     srcs = ["synchronization_benchmark.cc"],
     deps = [
         ":thread",
-        "//gloop:gloop_test_main",
         "//gloop/base:thread_identity",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:no_destructor",
@@ -531,7 +502,6 @@ cc_test(
     srcs = ["cpuusage_test.cc"],
     deps = [
         ":thread",
-        "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log:check",
@@ -548,7 +518,6 @@ cc_library(
     hdrs = ["mock_executor.h"],
     deps = [
         ":thread",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/time:clock_interface",
@@ -562,7 +531,6 @@ cc_test(
     srcs = ["pcqueue_unittest.cc"],
     deps = [
         ":thread",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -579,7 +547,6 @@ cc_test(
         ":thread",
         ":thread-internal",
         ":thread_control",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/base:config",
         "//gloop/base:context",
@@ -634,7 +601,6 @@ cc_library(
     ],
     deps = [
         ":config",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:commandlineflags",
         "@abseil-cpp//absl/log",
     ],
@@ -645,7 +611,6 @@ cc_test(
     srcs = ["threadpool_unittest.cc"],
     deps = [
         ":thread",
-        "//gloop:gloop_test_main",
         "//gloop/base:atomic_stats_counter",
         "//gloop/concurrent/barrier",
         "//gloop/util/refcount:blocking_refcount",
@@ -696,7 +661,6 @@ cc_test(
     srcs = ["guard_unittest.cc"],
     deps = [
         ":thread",
-        "//gloop:gloop_test_main",
         "//gloop/base:address_is_readable",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings",
@@ -711,7 +675,6 @@ cc_test(
     srcs = ["threadlocal_unittest.cc"],
     deps = [
         ":thread",
-        "//gloop:gloop_test_main",
         "//gloop/concurrent/barrier",
         "//gloop/util/functional:to_callback",
         "@abseil-cpp//absl/container:fixed_array",
@@ -728,7 +691,6 @@ cc_test(
     srcs = ["inline_executor_test.cc"],
     deps = [
         ":thread",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/functional:bind_front",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -740,7 +702,6 @@ cc_test(
     srcs = ["timedcall_unittest.cc"],
     deps = [
         ":thread",
-        "//gloop:gloop_test_main",
         "//gloop/base:walltime",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
@@ -809,7 +770,6 @@ cc_test(
     linkstatic = 1,
     deps = [
         ":thread",
-        "//gloop:gloop_test_main",
         "//gloop/base:proc_maps",
         "//gloop/base:sysinfo",
         "@abseil-cpp//absl/strings",
@@ -824,7 +784,6 @@ cc_test(
     deps = [
         ":prioritized_wait_queue",
         ":thread",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:shared_bit_gen",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log",
@@ -842,7 +801,6 @@ cc_test(
     deps = [
         ":sync_queue",
         ":thread",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:shared_bit_gen",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
@@ -858,7 +816,6 @@ cc_test(
     deps = [
         ":thread",
         ":wait_queue",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:shared_bit_gen",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log",
@@ -881,7 +838,6 @@ cc_test(
         ":thread-internal",
         ":thread_manager",
         ":wait_state",
-        "//gloop:gloop_test_main",
         "//gloop/base:thread_identity",
         "//gloop/base:walltime",
         "//gloop/thread/fiber",
@@ -909,7 +865,6 @@ cc_library(
     srcs = ["simple_weighted_semaphore.cc"],
     hdrs = ["simple_weighted_semaphore.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/base:timer",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
@@ -924,7 +879,6 @@ cc_test(
     deps = [
         ":simple_weighted_semaphore",
         ":thread",
-        "//gloop:gloop_test_main",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/functional:bind_front",
@@ -955,7 +909,6 @@ cc_library(
         ":python_stack_size",
         ":thread",
         ":wait_state",
-        "//gloop:enforce_gloop_support",
         "//gloop/base:callback",
         "//gloop/base:context",
         "//gloop/base:per-thread-sem",
@@ -988,42 +941,10 @@ cc_test(
     name = "thread_manager_test",
     size = "medium",
     srcs = ["thread_manager_test.cc"],
-    args = [
-        "--threadmanager_use_executor_impl=false",
-    ],
     shard_count = 11,
     deps = [
         ":thread",
         ":thread_manager",
-        "//gloop:gloop_test_main",
-        "//gloop/base:callback",
-        "//gloop/base:per_thread",
-        "//gloop/util/functional:from_callback",
-        "//gloop/util/functional:to_callback",
-        "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/functional:bind_front",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/strings:str_format",
-        "@abseil-cpp//absl/synchronization",
-        "@abseil-cpp//absl/time",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
-    ],
-)
-
-cc_test(
-    name = "thread_manager_executor_test",
-    size = "medium",
-    srcs = ["thread_manager_test.cc"],
-    args = [
-        "--threadmanager_use_executor_impl=true",
-    ],
-    shard_count = 11,
-    deps = [
-        ":thread",
-        ":thread_manager",
-        "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/base:per_thread",
         "//gloop/util/functional:from_callback",
@@ -1046,7 +967,6 @@ cc_test(
     srcs = ["thread_manager_policy_default_test.cc"],
     deps = [
         ":thread_manager",
-        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/log",
@@ -1074,5 +994,4 @@ cc_test(
 cc_library(
     name = "yield",
     hdrs = ["yield.h"],
-    deps = ["//gloop:enforce_gloop_support"],
 )

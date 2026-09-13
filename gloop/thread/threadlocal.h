@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // A ThreadLocal<Type> object provides a per-thread instance of Type.
 // The Type instance is created for a thread on first access in that thread,
 // like, when get() or pointer() is called.

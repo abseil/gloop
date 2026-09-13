@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // A class for allowing clients to iterate over all the symbols in
 // SymbolMap from lower to higher addresses.  An intended use is to
 // generate a nm-like symbols list.

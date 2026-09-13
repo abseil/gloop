@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Bits and pieces to support View/Snapshot based interfaces.  Mostly
 // uninteresting unless you're writing such a data structure in this
 // directory.

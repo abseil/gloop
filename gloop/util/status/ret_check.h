@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Macros for non-fatal assertions.  The `RET_CHECK` family of macros mirrors
 // the `CHECK` family from "absl/log/check.h", but instead of
 // aborting the process on failure, these return a absl::Status with code

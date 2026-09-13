@@ -32,7 +32,6 @@ cc_library(
         "writer.h",
     ],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/strings:bytestream",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:die_if_null",
@@ -49,7 +48,6 @@ cc_test(
     data = glob(["testdata/*.csv"]),
     deps = [
         ":csv",
-        "//gloop:gloop_test_main",
         "//gloop/strings:bytestream",
         "//gloop/strings:numbers",
         "//gloop/strings:split",
@@ -71,7 +69,6 @@ cc_test(
     srcs = ["writer_test.cc"],
     deps = [
         ":csv",
-        "//gloop:gloop_test_main",
         "//gloop/strings:bytestream",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/container:flat_hash_map",

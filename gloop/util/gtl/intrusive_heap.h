@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // A heap that supports removing and adjusting the weights of arbitrary
 // elements.  To do so, it records the heap location of each element in
 // a field within that element.

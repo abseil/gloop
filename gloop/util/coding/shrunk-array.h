@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // A "shrunk array" is simply a read-only array of uint64 that
 // represents a larger array of uint64, or several of them.  It's
 // Plain Old Data, not a class, so it can be copied freely.  (Note on

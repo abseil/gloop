@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Tests fast math functions for exp2, log2 to verify they do not
 // introduce too large an error.  Also tests that they run faster
 // than the standard <cmath> versions.

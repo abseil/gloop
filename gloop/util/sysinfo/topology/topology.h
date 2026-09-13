@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Interface to the CPU and memory bank topology of a system.
 
 #ifndef THIRD_PARTY_GLOOP_UTIL_SYSINFO_TOPOLOGY_TOPOLOGY_H_

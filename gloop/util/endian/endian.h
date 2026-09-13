@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Utility functions that depend on bytesex. We define htonll and ntohll,
 // as well as "Google" versions of all the standards: ghtonl, ghtons, and
 // so on. These functions do exactly the same as their standard variants,
@@ -58,13 +52,13 @@ inline uint64_t gbswap_64(uint64_t host_int) {
 }
 
 template <typename T>
-ABSL_DEPRECATE_AND_INLINE()
+ABSL_DEPRECATE_AND_INLINE()  // NOLINT(google-readability-swap)
 inline uint32_t gbswap_32(T host_int) {
   return absl::byteswap<uint32_t>(host_int);
 }
 
 template <>
-ABSL_DEPRECATE_AND_INLINE()
+ABSL_DEPRECATE_AND_INLINE()  // NOLINT(google-readability-swap)
 inline uint32_t gbswap_32(uint32_t host_int) {
   return absl::byteswap(host_int);
 }

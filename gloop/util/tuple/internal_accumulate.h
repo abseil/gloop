@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // NOLINT(build/header_guard)
 #ifndef IN_UTIL_TUPLE_ACCUMULATE_H
 // This is an auxilary header for util/tuple/accumulate.h. It must not be

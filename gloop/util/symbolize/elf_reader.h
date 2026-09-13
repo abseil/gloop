@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // ElfReader handles reading in ELF. It can extract symbols from the
 // current process, which may be used to symbolize stack traces
 // without having to make a potentially dangerous call to fork().

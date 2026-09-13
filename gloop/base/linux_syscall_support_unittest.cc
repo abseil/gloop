@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Include linux_syscall_support.h as the first file, so we will compilation
 // errors if it has unexpected dependencies on other header files.
 #include "gloop/base/linux_syscall_support.h"

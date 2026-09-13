@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 #include "gloop/thread/wait_state.h"
 
 #include <atomic>
@@ -27,17 +21,14 @@
 namespace thread {
 
 WaitStateScope::WaitStateScope(WaitState state)
-    : WaitStateScope(absl::base_internal::CurrentThreadIdentityIfPresent(),
-                     state) {}
+    : WaitStateScope(base::GetCurrentThreadIdentityIfPresent(), state) {}
 
 WaitStateScope::WaitStateScope(WaitState state, bool enabled)
-    : WaitStateScope(enabled
-                         ? absl::base_internal::CurrentThreadIdentityIfPresent()
-                         : nullptr,
-                     state) {}
+    : WaitStateScope(
+          enabled ? base::GetCurrentThreadIdentityIfPresent() : nullptr,
+          state) {}
 
-WaitStateScope::WaitStateScope(absl::base_internal::ThreadIdentity* ti,
-                               WaitState state)
+WaitStateScope::WaitStateScope(base::ThreadIdentity* ti, WaitState state)
     : ti_(ti) {
   if (ti_ == nullptr) {
     return;

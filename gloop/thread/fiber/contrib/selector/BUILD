@@ -30,7 +30,6 @@ cc_library(
         "selector.h",
     ],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/thread/fiber",
         "//gloop/thread/fiber:channel",
         "//gloop/thread/fiber:select",
@@ -49,7 +48,6 @@ cc_test(
     srcs = ["selector_test.cc"],
     deps = [
         ":selector",
-        "//gloop:gloop_test_main",
         "//gloop/thread/fiber",
         "//gloop/thread/fiber:channel",
         "//gloop/thread/fiber:select",

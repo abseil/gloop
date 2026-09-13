@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // These routines provide mem versions of standard C string routines,
 // such as strpbrk.  They function exactly the same as the str versions,
 // so if you wonder what they are, replace the word "mem" by

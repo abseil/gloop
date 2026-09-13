@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // This provides a very simple, boring adaptor for a begin and end iterator
 // into a range type. This should be used to build range views that work well
 // with range based for loops and range based constructors.

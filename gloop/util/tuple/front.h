@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Function template front() returns the first element of the tuple.
 // front(t) is equivalent to get<0>(t); consequently, it can't be applied to
 // an empty tuple.

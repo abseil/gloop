@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Helper macros and methods to return and propagate errors with `absl::Status`.
 //
 // See https://abseil.io/tips/121 for guidance on the use of these macros.

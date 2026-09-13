@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // A Fiber is a light-weight thread.  It supports cancellations, deadlines,
 // priorities, etc.  A typical use is that a Fiber is created when an RPC
 // arrives at a server, and the RPC is considered finished when the fiber stops

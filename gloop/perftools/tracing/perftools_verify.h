@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // The `PERFTOOLS_VERIFY(cond)` and `PERFTOOLS_VERIFY_<op>(lhs, rhs)` macros
 // defined in this header are similar to Abseil's CHECK macros. They verify that
 // the required condition holds, and if not, print the failed condition, values

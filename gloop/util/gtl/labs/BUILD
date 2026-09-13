@@ -30,7 +30,6 @@ cc_library(
     srcs = ["sorted_range_internal.h"],
     hdrs = ["sorted_range.h"],
     deps = [
-        "//gloop:enforce_gloop_support",
         "//gloop/util/gtl:comparator",
         "//gloop/util/gtl:iterator_adaptors",
         "@abseil-cpp//absl/container:fixed_array",
@@ -42,7 +41,6 @@ cc_test(
     srcs = ["sorted_range_test.cc"],
     deps = [
         ":sorted_range",
-        "//gloop:gloop_test_main",
         "//gloop/util/gtl:comparator",
         "//gloop/util/gtl:iterator_adaptors",
         "@abseil-cpp//absl/container:flat_hash_map",

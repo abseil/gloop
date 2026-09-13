@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // This package contains abstract interfaces for the consumption and production
 // of bytes, as well as a few basic implementations. Because C++ has no native
 // 'byte' type, strings often serve to store binary data (through arbitrary

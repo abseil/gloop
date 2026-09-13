@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // What follows is the concatenation of farmhash.h and farmhash.cc from
 // FarmHash 1.1; all modifications are listed:
 //  .  Add FARMHASH_ prefix to x86, x86_64, is_64bit macros.

@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Provides faster division in situations where the same divisor is used
 // repeatedly but is not known at compile time. For example, a hash table might
 // not be sized until the model is loaded, but once loaded it is not resized for

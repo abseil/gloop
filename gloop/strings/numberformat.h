@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Convert strings to/from integral values in human or engineering format
 // If you need SI or IEC prefixes, consider strings/si_prefix.h instead.
 //

@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Metafunction find_index<> returns the index of the first element in the
 // tuple with the matching type. If the tuple doesn't contain elements of
 // the specified type, the result is static_cast<size_t>(-1).

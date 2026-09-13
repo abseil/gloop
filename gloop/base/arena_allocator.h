@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // In this file we define the arena template code.  This includes the
 // ArenaAllocator, which is meant only to be used with STL, and also
 // the Gladiator (which needs to know how to new and delete various

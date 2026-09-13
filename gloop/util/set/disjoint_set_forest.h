@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // A disjoint set forest (often called Union/Find) is a data structure for
 // keeping track of a set of elements partitioned into a collection of disjoint
 // subsets. It provides the ability to efficiently perform operations such as:

@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // Fake as though the code is being compiled with a sanitizer.
 #define LINUX_SYSCALL_ENABLE_HOOKS 1
 #define SYS_CPLUSPLUS 1
