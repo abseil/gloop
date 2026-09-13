@@ -80,6 +80,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI ContextOrigin final {
   }
 
   ContextOrigin& operator=(ContextOrigin&& other) noexcept {
+    if (this == &other) return *this;
     if (stack_trace_ref_ != nullptr) stack_trace_ref_->Unref();
     stack_trace_ref_ = other.stack_trace_ref_;
     other.stack_trace_ref_ = nullptr;
