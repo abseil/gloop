@@ -1182,7 +1182,7 @@ static bool TMQueueAdd(ThreadManagerRep* rep, absl::AnyInvocable<void() &&> cb,
   DVLOG(3) << "TMQueueAdd entry.";
   CHECK(cb != nullptr);
   // Store the current context, per the Schedule contract.
-  cb = util::functional::WithCurrentContext(std::move(cb));
+  auto wrapped_cb = util::functional::WithCurrentContext(std::move(cb));
   bool added = false;
   bool wake_overseer = false;
   TMPool* pool = nullptr;
@@ -1197,7 +1197,7 @@ static bool TMQueueAdd(ThreadManagerRep* rep, absl::AnyInvocable<void() &&> cb,
       // q_rep if the queue has been deleted by the client.
       pool = TMRandomPool(rep);
       pool->pool_mu.lock();
-      wake_overseer = TMAddToPool(std::move(cb), q_rep, pool, 0) &&
+      wake_overseer = TMAddToPool(std::move(wrapped_cb), q_rep, pool, 0) &&
                       TMNeedWakeOverseer(pool);
       pool->pool_mu.unlock();
       // The pool can be deleted right after pool->pool_mu.Unlock() above.
@@ -1215,15 +1215,17 @@ static bool TMQueueAdd(ThreadManagerRep* rep, absl::AnyInvocable<void() &&> cb,
         q_rep->queue_mu.unlock();
         pool = TMRandomPool(rep);
         pool->pool_mu.lock();
-        wake_overseer = TMAddToPool(std::move(cb), q_rep, pool, kCountWork) &&
-                        TMNeedWakeOverseer(pool);
+        wake_overseer =
+            TMAddToPool(std::move(wrapped_cb), q_rep, pool, kCountWork) &&
+            TMNeedWakeOverseer(pool);
         pool->pool_mu.unlock();
         // The pool can be deleted right after pool->pool_mu.Unlock() above.
         pool = nullptr;
         added = true;
       } else if (static_cast<int64_t>(q_rep->queue_work.size()) <
-                 queue_limit) {                      // room in queue
-        q_rep->queue_work.push_back(std::move(cb));  // append work to queue
+                 queue_limit) {  // room in queue
+        q_rep->queue_work.push_back(
+            std::move(wrapped_cb));  // append work to queue
         q_rep->queue_mu.unlock();
         added = true;
       } else {

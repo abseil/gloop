@@ -377,15 +377,17 @@ bool ReleaseMemoryInChunks(char* absl_nonnull start, size_t size) {
       // Right page size found. Release the first page.
       // It's possible for a user to mlock arbitrary subregion, so don't
       // CHECK-fail on error.
+      char* next_start = start + page_size * 2;
       if (madvise(start, page_size, MADV_DONTNEED) < 0) {
         PLOG(ERROR) << "madvise(MADV_DONT_NEED)";
         all_chunks_succeeded = false;
       }
-      start += page_size * 2;
+      start = next_start;
       size -= page_size * 2;
       const size_t chunk_size = page_size * pages_per_chunk;
       // Release the remaining chunks.
       while (size >= chunk_size) {
+        next_start = start + chunk_size;
         // It's possible for a user to mlock arbitrary subregion, so don't
         // CHECK-fail on error.
         if (madvise(start, chunk_size, MADV_DONTNEED) < 0) {
@@ -395,7 +397,7 @@ bool ReleaseMemoryInChunks(char* absl_nonnull start, size_t size) {
         if (sched_yield() < 0) {
           PLOG(ERROR) << "sched_yield()";
         }
-        start += chunk_size;
+        start = next_start;
         size -= chunk_size;
       }
       break;
@@ -439,16 +441,18 @@ MMappedMemBlock::~MMappedMemBlock() {
         //
         // There's a similar code in ReleaseMemoryInChunks, but we can't rely on
         // it here because we only run this code if ReleaseMemoryInChunks failed
+        char* next_start = start + page_size * 2;
         if (munmap(start + page_size, page_size) == 0) {
           // Right page size found. Unmap the first page.
           PCHECK(munmap(start, page_size) == 0);
-          start += page_size * 2;
+          start = next_start;
           size -= page_size * 2;
           const size_t chunk_size = page_size * pages_per_chunk;
           // Unmap the remaining chunks
           while (size >= chunk_size) {
+            next_start = start + chunk_size;
             PCHECK(munmap(start, chunk_size) == 0);
-            start += chunk_size;
+            start = next_start;
             size -= chunk_size;
           }
           break;
