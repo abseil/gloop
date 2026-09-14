@@ -582,42 +582,42 @@ struct intrinsics<internal_struct::struct_tag<permissive, S, Fields...>> {
   TUPLE_INTERNAL_CAT(TUPLE_STRUCT_INTERNAL_DEFINE_OP_, OP) T
 
 #define TUPLE_STRUCT_INTERNAL_DEFINE_OP_lt(M, S, FIELDS)        \
-  M inline constexpr bool operator<(                            \
+  M inline constexpr bool operator<[[maybe_unused]] (           \
       const TUPLE_INTERNAL_REMOVE_PARENS(S) & _tuple_op_lhs_,   \
       const TUPLE_INTERNAL_REMOVE_PARENS(S) & _tuple_op_rhs_) { \
     return ::util::tuple::less(_tuple_op_lhs_, _tuple_op_rhs_); \
   }
 
 #define TUPLE_STRUCT_INTERNAL_DEFINE_OP_gt(M, S, FIELDS)           \
-  M inline constexpr bool operator>(                               \
+  M inline constexpr bool operator> [[maybe_unused]] (             \
       const TUPLE_INTERNAL_REMOVE_PARENS(S) & _tuple_op_lhs_,      \
       const TUPLE_INTERNAL_REMOVE_PARENS(S) & _tuple_op_rhs_) {    \
     return ::util::tuple::greater(_tuple_op_lhs_, _tuple_op_rhs_); \
   }
 
 #define TUPLE_STRUCT_INTERNAL_DEFINE_OP_le(M, S, FIELDS)              \
-  M inline constexpr bool operator<=(                                 \
+  M inline constexpr bool operator<= [[maybe_unused]] (               \
       const TUPLE_INTERNAL_REMOVE_PARENS(S) & _tuple_op_lhs_,         \
       const TUPLE_INTERNAL_REMOVE_PARENS(S) & _tuple_op_rhs_) {       \
     return ::util::tuple::less_equal(_tuple_op_lhs_, _tuple_op_rhs_); \
   }
 
 #define TUPLE_STRUCT_INTERNAL_DEFINE_OP_ge(M, S, FIELDS)                 \
-  M inline constexpr bool operator>=(                                    \
+  M inline constexpr bool operator>= [[maybe_unused]] (                  \
       const TUPLE_INTERNAL_REMOVE_PARENS(S) & _tuple_op_lhs_,            \
       const TUPLE_INTERNAL_REMOVE_PARENS(S) & _tuple_op_rhs_) {          \
     return ::util::tuple::greater_equal(_tuple_op_lhs_, _tuple_op_rhs_); \
   }
 
 #define TUPLE_STRUCT_INTERNAL_DEFINE_OP_eq(M, S, FIELDS)         \
-  M inline constexpr bool operator==(                            \
+  M inline constexpr bool operator== [[maybe_unused]] (          \
       const TUPLE_INTERNAL_REMOVE_PARENS(S) & _tuple_op_lhs_,    \
       const TUPLE_INTERNAL_REMOVE_PARENS(S) & _tuple_op_rhs_) {  \
     return ::util::tuple::equal(_tuple_op_lhs_, _tuple_op_rhs_); \
   }
 
 #define TUPLE_STRUCT_INTERNAL_DEFINE_OP_ne(M, S, FIELDS)             \
-  M inline constexpr bool operator!=(                                \
+  M inline constexpr bool operator!= [[maybe_unused]] (              \
       const TUPLE_INTERNAL_REMOVE_PARENS(S) & _tuple_op_lhs_,        \
       const TUPLE_INTERNAL_REMOVE_PARENS(S) & _tuple_op_rhs_) {      \
     return ::util::tuple::not_equal(_tuple_op_lhs_, _tuple_op_rhs_); \
@@ -664,12 +664,12 @@ struct intrinsics<internal_struct::struct_tag<permissive, S, Fields...>> {
 // why we pass 'friend' to all ops except the first one.
 // clang-format off
 #define TUPLE_STRUCT_INTERNAL_DEFINE_OP_rel(M, S, FIELDS)                      \
-  ABSL_ATTRIBUTE_UNUSED TUPLE_STRUCT_INTERNAL_DEFINE_OP_lt(M, S, FIELDS)       \
-  ABSL_ATTRIBUTE_UNUSED TUPLE_STRUCT_INTERNAL_DEFINE_OP_gt(friend, S, FIELDS)  \
-  ABSL_ATTRIBUTE_UNUSED TUPLE_STRUCT_INTERNAL_DEFINE_OP_le(friend, S, FIELDS)  \
-  ABSL_ATTRIBUTE_UNUSED TUPLE_STRUCT_INTERNAL_DEFINE_OP_ge(friend, S, FIELDS)  \
-  ABSL_ATTRIBUTE_UNUSED TUPLE_STRUCT_INTERNAL_DEFINE_OP_eq(friend, S, FIELDS)  \
-  ABSL_ATTRIBUTE_UNUSED TUPLE_STRUCT_INTERNAL_DEFINE_OP_ne(friend, S, FIELDS)
+  TUPLE_STRUCT_INTERNAL_DEFINE_OP_lt(M, S, FIELDS)       \
+  TUPLE_STRUCT_INTERNAL_DEFINE_OP_gt(friend, S, FIELDS)  \
+  TUPLE_STRUCT_INTERNAL_DEFINE_OP_le(friend, S, FIELDS)  \
+  TUPLE_STRUCT_INTERNAL_DEFINE_OP_ge(friend, S, FIELDS)  \
+  TUPLE_STRUCT_INTERNAL_DEFINE_OP_eq(friend, S, FIELDS)  \
+  TUPLE_STRUCT_INTERNAL_DEFINE_OP_ne(friend, S, FIELDS)
 // clang-format on
 
 #define TUPLE_STRUCT_INTERNAL_DEFINE_OP_ctor(M, S, FIELDS)         \
