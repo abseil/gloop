@@ -119,14 +119,6 @@ inline uint32_t HashTo32(const char* s, size_t slen) {
   return HashTo32(absl::string_view(s, slen));
 }
 
-inline uint64_t Hash64StringWithSeed(absl::string_view s, uint64_t seed) {
-  return Hash64StringWithSeed(s.data(), s.size(), seed);
-}
-
-inline uint64_t Hash64StringWithSeed(const char* s, uint64_t seed) {
-  return Hash64StringWithSeed(absl::string_view(s), seed);
-}
-
 namespace util_hash {
 // A few hash specializations just perform static_cast<size_t>.
 template <typename T>

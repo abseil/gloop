@@ -24,7 +24,6 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
