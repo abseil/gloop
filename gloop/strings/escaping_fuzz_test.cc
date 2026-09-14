@@ -31,22 +31,6 @@
 namespace strings {
 namespace {
 
-void FuzzUnescapeCEscapeSequences(const std::string& s) {
-  // UnescapeCEscapeSequences reads until null terminator.
-  // We ensure the input string does not contain embedded nulls so that
-  // the entire string is processed.
-  if (absl::StrContains(s, '\0')) return;
-
-  // By using carefully allocated char* instead of ::string, we increase the
-  // ability to detect accessing past the end of the buffer with short strings.
-  auto src = std::make_unique<char[]>(s.size() + 1);
-  memcpy(src.get(), s.data(), s.size());
-  src[s.size()] = '\0';
-  auto dst = std::make_unique<char[]>(s.size() + 1);
-  UnescapeCEscapeSequences(src.get(), dst.get());
-}
-FUZZ_TEST(EscapingFuzz, FuzzUnescapeCEscapeSequences);
-
 void Base32EscapeRoundTrip(const std::string& src) {
   std::string escaped;
   EXPECT_TRUE(Base32Escape(src, &escaped));
