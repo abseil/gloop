@@ -318,6 +318,13 @@ cc_library(
     deps = ["//gloop:enforce_gloop_support"],
 )
 
+cc_library(
+    name = "symbolize_dlopen_with_offset_test_helper",
+    testonly = True,
+    srcs = ["symbolize_dlopen_with_offset_test_helper.cc"],
+    deps = ["//gloop:enforce_gloop_support"],
+)
+
 cc_test(
     name = "elf_reader_fuzzer",
     srcs = ["elf_reader_fuzzer.cc"],

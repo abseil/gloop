@@ -27,6 +27,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#include <cmath>
 #include <cstdint>
 #include <iterator>
 #include <string>

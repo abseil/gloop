@@ -33,6 +33,7 @@
 #include "absl/log/check.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
+#include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
 
 namespace perftools::tracing::core {

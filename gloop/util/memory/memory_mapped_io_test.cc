@@ -32,6 +32,7 @@
 #include <cstdlib>
 #include <string>
 
+#include "absl/base/config.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
 #include "gloop/base/init_google.h"

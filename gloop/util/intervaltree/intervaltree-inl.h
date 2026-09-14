@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <iosfwd>
 #include <iterator>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <type_traits>

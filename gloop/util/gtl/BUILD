@@ -1208,6 +1208,7 @@ cc_test(
     deps = [
         ":c_memset",
         "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",

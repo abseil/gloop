@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "absl/base/macros.h"
 #include "absl/types/span.h"
 #include "gmock/gmock.h"

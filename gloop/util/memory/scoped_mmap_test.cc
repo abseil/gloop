@@ -27,6 +27,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <utility>
 
 #include "gloop/base/proc_maps.h"
 #include "gmock/gmock.h"
