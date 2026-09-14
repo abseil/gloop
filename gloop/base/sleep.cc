@@ -30,7 +30,6 @@
 #include <atomic>
 #include <limits>
 
-#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/time/time.h"
 #include "gloop/base/per-thread-sem.h"

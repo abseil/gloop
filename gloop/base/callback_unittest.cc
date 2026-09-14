@@ -23,7 +23,6 @@
 #include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
-#include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
 #include "gloop/util/functional/with_context.h"
 #include "gtest/gtest.h"

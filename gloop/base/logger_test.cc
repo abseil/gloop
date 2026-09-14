@@ -42,7 +42,6 @@
 #include "gloop/base/config.h"
 #include "gloop/base/log_file.h"
 #include "gloop/base/log_file_flags.h"
-#include "gloop/base/logging_extensions.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 

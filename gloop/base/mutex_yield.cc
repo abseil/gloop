@@ -20,7 +20,6 @@
 
 #include <thread>  // NOLINT(build/c++11)
 
-#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "gloop/base/scheduling/downcalls.h"
 
