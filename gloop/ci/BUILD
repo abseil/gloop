@@ -27,10 +27,10 @@ platform(
         "@platforms//cpu:x86_64",
     ],
     exec_properties = {
-        "container-image": "docker://gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:e199623ad0b61b30d240e8bbddf473f65cb1a11da09462001d83b5066dbd9e98",
         "OSArch": "amd64",
-        "dockerRunAsRoot": "true",
         "cache-silo-key": "n2-highmem-8-2026-05-02",
+        "container-image": "docker://gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:e199623ad0b61b30d240e8bbddf473f65cb1a11da09462001d83b5066dbd9e98",
+        "dockerRunAsRoot": "true",
     },
 )
 
@@ -41,10 +41,10 @@ platform(
         "@platforms//cpu:aarch64",
     ],
     exec_properties = {
-        "container-image": "docker://gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:e199623ad0b61b30d240e8bbddf473f65cb1a11da09462001d83b5066dbd9e98",
         "OSArch": "arm64",
-        "dockerRunAsRoot": "true",
         "cache-silo-key": "t2a-standard-8-2026-05-02",
+        "container-image": "docker://gcr.io/google.com/absl-177019/gloop-linux-latest@sha256:e199623ad0b61b30d240e8bbddf473f65cb1a11da09462001d83b5066dbd9e98",
+        "dockerRunAsRoot": "true",
     },
 )
 
@@ -108,9 +108,9 @@ sh_test(
     data = [":toolchain_test"],
     target_compatible_with = select({
         "//gloop:libstdcxx_enabled": ["@platforms//:incompatible"],
+        "//gloop:msan_enabled": ["@platforms//:incompatible"],
         # These sanitizers link libc++ statically.
         "//gloop:tsan_enabled": ["@platforms//:incompatible"],
-        "//gloop:msan_enabled": ["@platforms//:incompatible"],
         "//conditions:default": [
         ],
     }),
