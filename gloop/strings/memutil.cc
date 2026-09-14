@@ -22,15 +22,12 @@
 
 #include <stdlib.h>  // for malloc
 
-#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <cstring>
 #include <limits>
 
 #include "absl/strings/ascii.h"
-#include "absl/strings/match.h"
-#include "absl/strings/string_view.h"
 
 namespace strings {
 
@@ -85,40 +82,53 @@ int memcasecmp(const char* s1, const char* s2, size_t len) {
   return 0;
 }
 
-char* memdup(absl::string_view s) {
+char* memdup(const char* s, size_t slen) {
   void* copy;
-  if ((copy = malloc(s.size())) == nullptr) return nullptr;
-  if (!s.empty()) memcpy(copy, s.data(), s.size());
+  if ((copy = malloc(slen)) == nullptr) return nullptr;
+  memcpy(copy, s, slen);
   return reinterpret_cast<char*>(copy);
 }
 
-const char* memrchr(absl::string_view s, int c) {
-  for (size_t i = s.size(); i > 0; --i) {
-    if (s[i - 1] == static_cast<char>(c)) return &s[i - 1];
+char* memrchr(const char* s, int c, size_t slen) {
+  for (const char* e = s + slen - 1; e >= s; e--) {
+    if (*e == c) return const_cast<char*>(e);
   }
   return nullptr;
 }
 
-size_t memspn(absl::string_view s, absl::string_view accept) {
-  if (accept.empty()) return 0;
-  for (size_t i = 0; i < s.size(); ++i) {
-    if (!absl::StrContains(accept, s[i])) return i;
-  }
-  return s.size();
+size_t memspn(const char* s, size_t slen, const char* accept) {
+  const char* p = s;
+  const char* spanp;
+  char c, sc;
+
+cont:
+  if (slen-- == 0) return p - s;
+  c = *p++;
+  for (spanp = accept; (sc = *spanp++) != '\0';)
+    if (sc == c) goto cont;
+  return p - 1 - s;
 }
 
-size_t memcspn(absl::string_view s, absl::string_view reject) {
-  if (reject.empty()) return s.size();
-  for (size_t i = 0; i < s.size(); ++i) {
-    if (absl::StrContains(reject, s[i])) return i;
+size_t memcspn(const char* s, size_t slen, const char* reject) {
+  const char* p = s;
+  const char* spanp;
+  char c, sc;
+
+  while (slen-- != 0) {
+    c = *p++;
+    for (spanp = reject; (sc = *spanp++) != '\0';)
+      if (sc == c) return p - 1 - s;
   }
-  return s.size();
+  return p - s;
 }
 
-const char* mempbrk(absl::string_view s, absl::string_view accept) {
-  if (accept.empty()) return nullptr;
-  for (size_t i = 0; i < s.size(); ++i) {
-    if (absl::StrContains(accept, s[i])) return &s[i];
+char* mempbrk(const char* s, size_t slen, const char* accept) {
+  const char* scanp;
+  int sc;
+
+  for (; slen; ++s, --slen) {
+    for (scanp = accept; (sc = *scanp++) != '\0';)
+      if (sc == *s) return const_cast<char*>(s);
   }
   return nullptr;
 }
@@ -165,18 +175,20 @@ template const char* int_memmatch<false>(const char* phaystack, size_t haylen,
 
 // This is significantly faster for case-sensitive matches with very
 // few possible matches.  See unit test for benchmarks.
-const char* memmatch(absl::string_view haystack, absl::string_view needle) {
-  if (needle.empty()) {
-    return haystack.data();
+const char* memmatch(const char* phaystack, size_t haylen, const char* pneedle,
+                     size_t neelen) {
+  if (0 == neelen) {
+    return phaystack;  // even if haylen is 0
   }
-  if (haystack.size() < needle.size()) return nullptr;
+  if (haylen < neelen) return nullptr;
 
   const char* match;
-  const char* hayend = haystack.data() + haystack.size() - needle.size() + 1;
-  const char* phaystack = haystack.data();
-  while ((match = (const char*)(memchr(phaystack, needle[0],
+  const char* hayend = phaystack + haylen - neelen + 1;
+  // A C-style cast is used here to work around the fact that memchr returns a
+  // void* on Posix-compliant systems and const void* on Windows.
+  while ((match = (const char*)(memchr(phaystack, pneedle[0],
                                        hayend - phaystack)))) {
-    if (memcmp(match, needle.data(), needle.size()) == 0)
+    if (memcmp(match, pneedle, neelen) == 0)
       return match;
     else
       phaystack = match + 1;
