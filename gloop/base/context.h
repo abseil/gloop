@@ -202,7 +202,6 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
   TraceContext tc_{};
 
   absl::Time deadline_ = absl::InfiniteFuture();
-  const char* thread_status_ = nullptr;
 
   friend class ContextBuilder;
   friend class internal::MutableCurrentContext;

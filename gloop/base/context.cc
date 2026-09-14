@@ -120,7 +120,7 @@ Context::Context(ThreadInitType, perftools::tracing::StringRef thread_name)
     : Context(*InlineCurrent(), thread_name) {}
 
 Context::Context(const Context& c, perftools::tracing::StringRef thread_name)
-    : tc_(c.tc_), deadline_(c.deadline_), thread_status_(c.thread_status_) {}
+    : tc_(c.tc_), deadline_(c.deadline_) {}
 
 Context::Context(const Context& c) = default;
 Context::Context(Context&& c) noexcept = default;
@@ -133,7 +133,6 @@ void swap(Context& lhs, Context& rhs) noexcept {
 
   swap(lhs.tc_, rhs.tc_);
   swap(lhs.deadline_, rhs.deadline_);
-  swap(lhs.thread_status_, rhs.thread_status_);
 }
 
 void Context::SwapDeadline(absl::Time* deadline) {
@@ -206,7 +205,7 @@ ContextBuilder& ContextBuilder::set_census_handle(CensusHandle handle) {
 
 ContextBuilder& ContextBuilder::set_thread_status(
     const char* absl_nullable const thread_status) {
-  context_.thread_status_ = thread_status;
+  context_.set_thread_status(thread_status);
   return *this;
 }
 
@@ -214,10 +213,16 @@ Context ContextBuilder::BuildValue() { return std::move(context_); }
 
 absl::Time Context::deadline() const { return deadline_; }
 
-const char* Context::thread_status() const { return thread_status_; }
+const char* Context::thread_status() const {
+  if (!shared_context_) return nullptr;
+  return shared_context_->thread_status();
+}
 
 void Context::set_thread_status(const char* thread_status) {
-  thread_status_ = thread_status;
+  if (this->thread_status() == thread_status) return;
+  shared_context_ =
+      internal::SharedContext::Mutable(std::move(shared_context_));
+  shared_context_->SetThreadStatus(thread_status);
 }
 
 WithContext::WithContext(const Context& switch_to,
