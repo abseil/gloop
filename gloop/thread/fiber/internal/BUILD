@@ -42,6 +42,7 @@ cc_library(
         "//gloop/thread:wait_state",
         "//gloop/thread/fiber:fiber-internal",
         "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/flags:flag",
