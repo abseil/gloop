@@ -21,7 +21,7 @@
 #define LSS_SET_ERRNO_AND_RETURN(type, res, out_errno)  \
   if ((unsigned long)(res) >= (unsigned long)(-4095)) { \
     *out_errno = -((int)res);                           \
-    res = (type)-1;                                     \
+    res = (type) - 1;                                   \
   }                                                     \
   return res;
 
@@ -187,11 +187,11 @@
 #if (defined(__thumb__) || defined(__thumb2__)) && !defined(NO_FRAME_POINTER)
 /* Thumb with frame pointer variant. Save restore frame pointer, so it may hold
  * the syscall number. */
-#define LSS_syscall0(type, name)                      \
-  static inline type lss_##name(int *out_errno) {     \
-    LSS_PRE(name);                                    \
-    LSS_LOADARGS_0(name);                             \
-    register type __res __asm__("r0");                \
+#define LSS_syscall0(type, name)                        \
+  static inline type lss_##name(int* out_errno) {       \
+    LSS_PRE(name);                                      \
+    LSS_LOADARGS_0(name);                               \
+    register type __res __asm__("r0");                  \
     __asm__ __volatile__(                             \
         "mov ip, r7\n"                                \
         CFI_REGISTER(r7, ip)                          \
@@ -201,30 +201,27 @@
         CFI_RESTORE(r7)                               \
         : "=r"(__res)                                 \
         :                                             \
-        : "ip", "memory");                            \
-    LSS_POST(name, __res);                            \
-    LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno); \
+        : "ip", "memory"); \
+    LSS_POST(name, __res);                              \
+    LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);   \
   }
 #else
-#define LSS_syscall0(type, name)                            \
-  static inline type lss_##name(int *out_errno) {           \
-    LSS_PRE(name);                                          \
-    LSS_LOADARGS_0(name);                                   \
-    register type __res __asm__("r0");                      \
-    __asm__ __volatile__("swi\t#0\n"                        \
-                         : "=r"(__res)                      \
-                         : "r"(__sc_7)                      \
-                         : "memory");                       \
-    LSS_POST(name, __res);                                  \
-    LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);       \
+#define LSS_syscall0(type, name)                                              \
+  static inline type lss_##name(int* out_errno) {                             \
+    LSS_PRE(name);                                                            \
+    LSS_LOADARGS_0(name);                                                     \
+    register type __res __asm__("r0");                                        \
+    __asm__ __volatile__("swi\t#0\n" : "=r"(__res) : "r"(__sc_7) : "memory"); \
+    LSS_POST(name, __res);                                                    \
+    LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                         \
   }
 #endif
 
 #if (defined(__thumb__) || defined(__thumb2__)) && !defined(NO_FRAME_POINTER)
 /* Thumb with frame pointer variant. Save restore frame pointer, so it may hold
  * the syscall number. */
-#define LSS_BODY(type, name, args...)        \
-  register type __res __asm__("r0");         \
+#define LSS_BODY(type, name, args...) \
+  register type __res __asm__("r0");  \
   __asm__ __volatile__(                      \
       "mov ip, r7\n"                         \
       CFI_REGISTER(r7, ip)                   \
@@ -236,15 +233,17 @@
       : args                                 \
       : "ip", "memory")
 #else
-#define LSS_BODY(type, name, args...)           \
-  register type __res __asm__("r0");            \
-  __asm__ __volatile__("swi #0\n" : "=r"(__res) \
-                       : "r"(__sc_7), args      \
-                       : "memory")
+#define LSS_BODY(type, name, args...)      \
+  register type __res __asm__("r0");       \
+  __asm__ __volatile__("swi #0\n"          \
+                       : "=r"(__res)       \
+                       : "r"(__sc_7), args \
+                       : "memor"           \
+                         "y")
 #endif
 
 #define LSS_syscall1(type, name, type1, arg1)                 \
-  static inline type lss_##name(type1 arg1, int *out_errno) { \
+  static inline type lss_##name(type1 arg1, int* out_errno) { \
     LSS_PRE(name, arg1);                                      \
     LSS_LOADARGS_1(name, arg1);                               \
     LSS_BODY(type, name, "r"(__sc_0));                        \
@@ -253,7 +252,7 @@
   }
 
 #define LSS_syscall2(type, name, type1, arg1, type2, arg2)                \
-  static inline type lss_##name(type1 arg1, type2 arg2, int *out_errno) { \
+  static inline type lss_##name(type1 arg1, type2 arg2, int* out_errno) { \
     LSS_PRE(name, arg1, arg2);                                            \
     LSS_LOADARGS_2(name, arg1, arg2);                                     \
     LSS_BODY(type, name, "r"(__sc_0), "r"(__sc_1));                       \
@@ -263,7 +262,7 @@
 
 #define LSS_syscall3(type, name, type1, arg1, type2, arg2, type3, arg3) \
   static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,     \
-                                int *out_errno) {                       \
+                                int* out_errno) {                       \
     LSS_PRE(name, arg1, arg2, arg3);                                    \
     LSS_LOADARGS_3(name, arg1, arg2, arg3);                             \
     LSS_BODY(type, name, "r"(__sc_0), "r"(__sc_1), "r"(__sc_2));        \
@@ -274,7 +273,7 @@
 #define LSS_syscall4(type, name, type1, arg1, type2, arg2, type3, arg3, type4, \
                      arg4)                                                     \
   static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,            \
-                                type4 arg4, int *out_errno) {                  \
+                                type4 arg4, int* out_errno) {                  \
     LSS_PRE(name, arg1, arg2, arg3, arg4);                                     \
     LSS_LOADARGS_4(name, arg1, arg2, arg3, arg4);                              \
     LSS_BODY(type, name, "r"(__sc_0), "r"(__sc_1), "r"(__sc_2), "r"(__sc_3));  \
@@ -285,7 +284,7 @@
 #define LSS_syscall5(type, name, type1, arg1, type2, arg2, type3, arg3, type4, \
                      arg4, type5, arg5)                                        \
   static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,            \
-                                type4 arg4, type5 arg5, int *out_errno) {      \
+                                type4 arg4, type5 arg5, int* out_errno) {      \
     LSS_PRE(name, arg1, arg2, arg3, arg4, arg5);                               \
     LSS_LOADARGS_5(name, arg1, arg2, arg3, arg4, arg5);                        \
     LSS_BODY(type, name, "r"(__sc_0), "r"(__sc_1), "r"(__sc_2), "r"(__sc_3),   \
@@ -298,7 +297,7 @@
                      arg4, type5, arg5, type6, arg6)                           \
   static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,            \
                                 type4 arg4, type5 arg5, type6 arg6,            \
-                                int *out_errno) {                              \
+                                int* out_errno) {                              \
     LSS_PRE(name, arg1, arg2, arg3, arg4, arg5, arg6);                         \
     LSS_LOADARGS_6(name, arg1, arg2, arg3, arg4, arg5, arg6);                  \
     LSS_BODY(type, name, "r"(__sc_0), "r"(__sc_1), "r"(__sc_2), "r"(__sc_3),   \
@@ -307,9 +306,9 @@
     LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                          \
   }
 
-static inline int lss_clone(int (*fn)(void *), void *child_stack, int flags,
-                            void *arg, int *parent_tidptr, void *newtls,
-                            int *child_tidptr, int *out_errno) {
+static inline int lss_clone(int (*fn)(void*), void* child_stack, int flags,
+                            void* arg, int* parent_tidptr, void* newtls,
+                            int* child_tidptr, int* out_errno) {
   if (fn == NULL || child_stack == NULL) {
     *out_errno = -EINVAL;
     return -1;
@@ -318,7 +317,7 @@ static inline int lss_clone(int (*fn)(void *), void *child_stack, int flags,
   /* Push "arg" and "fn" onto the stack that will be
    * used by the child.
    */
-  long *tmp_stack = (long *)child_stack;
+  long* tmp_stack = (long*)child_stack;
   *(--tmp_stack) = (long)arg;
   *(--tmp_stack) = (long)fn;
 
@@ -327,10 +326,10 @@ static inline int lss_clone(int (*fn)(void *), void *child_stack, int flags,
   register long __sc_7 __asm__("r7") = __NR_clone;
 #endif
   register int __flags __asm__("r0") = flags;
-  register void *__stack __asm__("r1") = tmp_stack;
-  register void *__ptid __asm__("r2") = parent_tidptr;
-  register void *__tls __asm__("r3") = newtls;
-  register int *__ctid __asm__("r4") = child_tidptr;
+  register void* __stack __asm__("r1") = tmp_stack;
+  register void* __ptid __asm__("r2") = parent_tidptr;
+  register void* __tls __asm__("r3") = newtls;
+  register int* __ctid __asm__("r4") = child_tidptr;
   __asm__ __volatile__(
 #if !(defined(__thumb__) || defined(__thumb2__)) || defined(NO_FRAME_POINTER)
       "swi #0\n"
