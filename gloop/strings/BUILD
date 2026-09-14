@@ -443,6 +443,7 @@ cc_library(
     hdrs = ["memutil.h"],
     deps = [
         "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/strings",
     ],
 )
