@@ -44,6 +44,7 @@
 #ifndef THIRD_PARTY_GLOOP_THREAD_ADD_AFTER_HELPER_H_
 #define THIRD_PARTY_GLOOP_THREAD_ADD_AFTER_HELPER_H_
 
+#include <cstddef>
 #include <cstdint>
 
 #include "absl/base/thread_annotations.h"
