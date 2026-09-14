@@ -572,7 +572,7 @@ extern int Thread_ForEach(bool (*for_each)(void* arg, const LiveThread* thread),
 // Get the current thread's LiveThread pointer.  If the thread is not
 // known to the thread system (e.g., is an external thread which
 // hasn't been registered using Thread_RegisterExternalThread), then
-// this function will return NULL.
+// this function will return nullptr.
 //
 // This function is async-signal-safe.
 extern const LiveThread* Thread_GetMyLiveThread();
@@ -651,7 +651,7 @@ class ThreadStackWriter;
 
 // Version of Thread_DumpStacks() that is safe for use from signal
 // handlers but may not print much information in certain situations.
-// All data is written to the writer provided which must be non-NULL.
+// All data is written to the writer provided which must be non-nullptr.
 // The writer must be async signal safe.
 extern void Thread_SignalSafe_DumpStacksTo(ThreadStackWriter* writer);
 
@@ -669,16 +669,16 @@ extern void Thread_ExtractStacks(ThreadStackWriter* writer);
 // Gather and process thread stack traces.
 //
 // For each thread 't' known to the thread system, if filter is
-// non-NULL, call
+// non-nullptr, call
 //
 //   (*filter)(filter_arg, t)
 //
-// If process_trace is non-NULL and filter is NULL or returns true,
+// If process_trace is non-nullptr and filter is nullptr or returns true,
 // gather a stack trace 's' from thread 't' and call
 //
 //   (*process_trace)(process_trace_arg, t, s)
 //
-// If process_thread is non-NULL and filter is NULL or returns true,
+// If process_thread is non-nullptr and filter is nullptr or returns true,
 // gather information about the thread in a LiveThreadState s and call
 //
 //   (*process_thread)(process_thread_arg, s)
@@ -691,9 +691,9 @@ extern void Thread_ExtractStacks(ThreadStackWriter* writer);
 // (e.g., if --install_signal_handlers is set to false, most threads
 // will not have a stack trace captured), and cannot gather traces on
 // certain architectures.  When stack trace gathering fails,
-// process_trace and process_thread will be invoked with a NULL StackTrace
+// process_trace and process_thread will be invoked with a nullptr StackTrace
 // pointer so that it can note the missed trace. For process_thread
-// creator stacks will be filled in if available or a NULL StackTrace
+// creator stacks will be filled in if available or a nullptr StackTrace
 // pointer passed otherwise.
 //
 // The return value of this function is the number of missed traces,

@@ -58,13 +58,13 @@ inline uint64_t gbswap_64(uint64_t host_int) {
 }
 
 template <typename T>
-ABSL_DEPRECATE_AND_INLINE()
+ABSL_DEPRECATE_AND_INLINE()  // NOLINT(google-readability-swap)
 inline uint32_t gbswap_32(T host_int) {
   return absl::byteswap<uint32_t>(host_int);
 }
 
 template <>
-ABSL_DEPRECATE_AND_INLINE()
+ABSL_DEPRECATE_AND_INLINE()  // NOLINT(google-readability-swap)
 inline uint32_t gbswap_32(uint32_t host_int) {
   return absl::byteswap(host_int);
 }

@@ -70,7 +70,7 @@ bool HexStringToCpuSet(absl::string_view in_str, cpu_set_t* cpu_set);
 // Converts a hex string (with or without prefix) to a cpu_set_t and returns the
 // result. The LSB is assumed to be CPU 0. Generates a fatal log error if the
 // string does not parse.
-cpu_set_t HexStringToCpuSet(const std::string& in_str);
+cpu_set_t HexStringToCpuSet(absl::string_view in_str);
 
 // Clear all the bits in a cpu_set_t. This is a type-safe wrapper around
 // CPU_ZERO.

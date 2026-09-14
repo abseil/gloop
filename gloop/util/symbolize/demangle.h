@@ -32,6 +32,8 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
+
 namespace util {
 
 // Demangle a mangled symbol name and return the demangled name.
@@ -62,8 +64,8 @@ namespace util {
 std::string Demangle(const char* mangled);
 
 // CLIF-friendly version
-inline std::string Demangle(const std::string& s) {
-  return Demangle(s.c_str());
+inline std::string Demangle(absl::string_view s) {
+  return Demangle(std::string(s).c_str());
 }
 
 // Same function as above but appends result to 'out'.

@@ -63,6 +63,7 @@ cc_library(
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/debugging:demangle_rust",
+        "@abseil-cpp//absl/strings:string_view",
     ],
 )
 

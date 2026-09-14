@@ -164,19 +164,26 @@ class ABSL_ATTRIBUTE_VIEW ExtractingIteratorBase {
     return sub();
   }
 
-  // TODO: These relational operators should be nonmembers
-  // like the others, but some callers have become dependent on the left
-  // side not being implicitly converted. Fix those callers and make these
-  // relationals nonmember functions.
-  constexpr bool operator==(const Sub& b) const { return base() == b.base(); }
-  constexpr bool operator!=(const Sub& b) const { return base() != b.base(); }
+  friend constexpr bool operator==(const Sub& a, const Sub& b) {
+    return a.base() == b.base();
+  }
+  friend constexpr bool operator!=(const Sub& a, const Sub& b) {
+    return !(a == b);
+  }
+
   // These shouldn't be necessary, as implicit conversion from 'Iterator'
   // should be enough to make such comparisons work.
-  constexpr bool operator==(Iterator b) const {
-    return *this == ExtractingIteratorBase(std::move(b), extractor()).sub();
+  friend constexpr bool operator==(const Sub& a, const Iterator& b) {
+    return a.base() == b;
   }
-  constexpr bool operator!=(Iterator b) const {
-    return !(*this == std::move(b));
+  friend constexpr bool operator==(const Iterator& a, const Sub& b) {
+    return a == b.base();
+  }
+  friend constexpr bool operator!=(const Sub& a, const Iterator& b) {
+    return !(a == b);
+  }
+  friend constexpr bool operator!=(const Iterator& a, const Sub& b) {
+    return !(a == b);
   }
 
   friend constexpr Sub operator+(const Sub& it, difference_type d) {
