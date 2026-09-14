@@ -21,7 +21,7 @@
 #define LSS_SET_ERRNO_AND_RETURN(type, res, out_errno)  \
   if ((unsigned long)(res) >= (unsigned long)(-4095)) { \
     *out_errno = -((int)res);                           \
-    res = (type)-1;                                     \
+    res = (type) - 1;                                   \
   }                                                     \
   return res;
 
@@ -184,7 +184,7 @@
   __asm__ __volatile__("int $0x80\n" args : "memory");
 
 #define LSS_syscall0(type, name)                      \
-  static inline type lss_##name(int *out_errno) {     \
+  static inline type lss_##name(int* out_errno) {     \
     LSS_PRE(name);                                    \
     LSS_BODY(type, : "=a"(__res) : "0"(__NR_##name)); \
     LSS_POST(name, __res);                            \
@@ -192,7 +192,7 @@
   }
 
 #define LSS_syscall1(type, name, type1, arg1)                    \
-  static inline type lss_##name(type1 arg1, int *out_errno) {    \
+  static inline type lss_##name(type1 arg1, int* out_errno) {    \
     LSS_PRE(name, arg1);                                         \
     LSS_BODY(type, : "=a"(__res) : "0"(__NR_##name), "b"(arg1)); \
     LSS_POST(name, __res, arg1);                                 \
@@ -200,32 +200,30 @@
   }
 
 #define LSS_syscall2(type, name, type1, arg1, type2, arg2)                  \
-  static inline type lss_##name(type1 arg1, type2 arg2, int *out_errno) {   \
+  static inline type lss_##name(type1 arg1, type2 arg2, int* out_errno) {   \
     LSS_PRE(name, arg1, arg2);                                              \
     LSS_BODY(type, : "=a"(__res) : "0"(__NR_##name), "b"(arg1), "c"(arg2)); \
     LSS_POST(name, __res, arg1, arg2);                                      \
     LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                       \
   }
 
-#define LSS_syscall3(type, name, type1, arg1, type2, arg2, type3, arg3) \
-  static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,     \
-                                int *out_errno) {                       \
-    LSS_PRE(name, arg1, arg2, arg3);                                    \
-    LSS_BODY(type,                                                      \
-             : "=a"(__res)                                              \
-             : "0"(__NR_##name), "b"(arg1), "c"(arg2), "d"(arg3));      \
-    LSS_POST(name, __res, arg1, arg2, arg3);                            \
-    LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                   \
+#define LSS_syscall3(type, name, type1, arg1, type2, arg2, type3, arg3)    \
+  static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,        \
+                                int* out_errno) {                          \
+    LSS_PRE(name, arg1, arg2, arg3);                                       \
+    LSS_BODY(type, : "=a"(__res) : "0"(__NR_##name), "b"(arg1), "c"(arg2), \
+             "d"(arg3));                                                   \
+    LSS_POST(name, __res, arg1, arg2, arg3);                               \
+    LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                      \
   }
 
 #define LSS_syscall4(type, name, type1, arg1, type2, arg2, type3, arg3, type4, \
                      arg4)                                                     \
   static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,            \
-                                type4 arg4, int *out_errno) {                  \
+                                type4 arg4, int* out_errno) {                  \
     LSS_PRE(name, arg1, arg2, arg3, arg4);                                     \
-    LSS_BODY(type,                                                             \
-             : "=a"(__res)                                                     \
-             : "0"(__NR_##name), "b"(arg1), "c"(arg2), "d"(arg3), "S"(arg4));  \
+    LSS_BODY(type, : "=a"(__res) : "0"(__NR_##name), "b"(arg1), "c"(arg2),     \
+             "d"(arg3), "S"(arg4));                                            \
     LSS_POST(name, __res, arg1, arg2, arg3, arg4);                             \
     LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                          \
   }
@@ -233,13 +231,11 @@
 #define LSS_syscall5(type, name, type1, arg1, type2, arg2, type3, arg3, type4, \
                      arg4, type5, arg5)                                        \
   static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,            \
-                                type4 arg4, type5 arg5, int *out_errno) {      \
+                                type4 arg4, type5 arg5, int* out_errno) {      \
     LSS_PRE(name, arg1, arg2, arg3, arg4, arg5);                               \
     /* For PIC we rely on the compiler to save/restore ebx */                  \
-    LSS_BODY(type,                                                             \
-             : "=a"(__res)                                                     \
-             : "0"(__NR_##name), "b"(arg1), "c"(arg2), "d"(arg3), "S"(arg4),   \
-               "D"(arg5));                                                     \
+    LSS_BODY(type, : "=a"(__res) : "0"(__NR_##name), "b"(arg1), "c"(arg2),     \
+             "d"(arg3), "S"(arg4), "D"(arg5));                                 \
     LSS_POST(name, __res, arg1, arg2, arg3, arg4, arg5);                       \
     LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                          \
   }
@@ -248,7 +244,7 @@
                      arg4, type5, arg5, type6, arg6)                           \
   static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,            \
                                 type4 arg4, type5 arg5, type6 arg6,            \
-                                int *out_errno) {                              \
+                                int* out_errno) {                              \
     LSS_PRE(name, arg1, arg2, arg3, arg4, arg5, arg6);                         \
     type __res;                                                                \
     /* Perform a register shuffle as using ebp as a constraint breaks LLVM. */ \
@@ -267,9 +263,9 @@
     LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                          \
   }
 
-static inline int lss_clone(int (*fn)(void *), void *child_stack, int flags,
-                            void *arg, int *parent_tidptr, void *newtls,
-                            int *child_tidptr, int *out_errno) {
+static inline int lss_clone(int (*fn)(void*), void* child_stack, int flags,
+                            void* arg, int* parent_tidptr, void* newtls,
+                            int* child_tidptr, int* out_errno) {
   long __res;
   if (fn == NULL || child_stack == NULL) {
     *out_errno = -EINVAL;
@@ -277,12 +273,12 @@ static inline int lss_clone(int (*fn)(void *), void *child_stack, int flags,
   }
   /* set up alignment of child stack (16-byte aligned) */
   const intptr_t mask = ~((intptr_t)15);
-  child_stack = (void *)(((intptr_t)child_stack) & mask);
+  child_stack = (void*)(((intptr_t)child_stack) & mask);
 
   /* Push "arg" and "fn" onto the stack that will be
    * used by the child.
    */
-  long *tmp_stack = (long *)child_stack;
+  long* tmp_stack = (long*)child_stack;
   --tmp_stack;  // Pad.
   --tmp_stack;  // Pad.
   --tmp_stack;  // Pad.
