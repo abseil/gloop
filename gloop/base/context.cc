@@ -91,6 +91,14 @@ namespace {
 // now points to the trace state within the current generic context.
 STATIC_THREAD_LOCAL_WITH_CONSTRUCTOR_ARGS(Context, per_thread_context, ());
 
+// per_thread_context_is_lifetime_bound tracks locally scoped context such
+// as used by classes like `WithLifetimeBoundContext` which locally scope
+// a context with external lifetime. The `per_thread_context` is normally
+// heap allocated, which allows for fast direct `Swaps` and ownership transfer
+// inside c9. We do need to make sure we are robust against abuse or invalid
+// scoped objects and take a safe slow swap path if this is violated.
+thread_local bool per_thread_context_is_lifetime_bound = false;
+
 Context* InlineCurrent() { return per_thread_context.pointer(); }
 
 }  // namespace
@@ -99,19 +107,21 @@ namespace internal {
 
 absl::NoDestructor<Context> background_context{Context::kDefault};
 
-Context* absl_nonnull SwapContext(ContextAccess access,
-                                  Context* absl_nonnull context,
-                                  perftools::tracing::StringRef label) {
+TaggedContextPtr SwapContext(ContextAccess access, TaggedContextPtr ptr,
+                             perftools::tracing::StringRef label) {
   Context* current = per_thread_context.pointer();
-  per_thread_context.set_pointer(context);
-  return current;
+  TaggedContextPtr previous{current, per_thread_context_is_lifetime_bound};
+  per_thread_context.set_pointer(ptr.context());
+  per_thread_context_is_lifetime_bound = ptr.is_lifetime_bound();
+  return previous;
 }
 
-Context* absl_nonnull RestoreContext(ContextAccess access,
-                                     Context* absl_nonnull context) {
+TaggedContextPtr RestoreContext(ContextAccess access, TaggedContextPtr ptr) {
   Context* current = per_thread_context.pointer();
-  per_thread_context.set_pointer(context);
-  return current;
+  TaggedContextPtr previous{current, per_thread_context_is_lifetime_bound};
+  per_thread_context.set_pointer(ptr.context());
+  per_thread_context_is_lifetime_bound = ptr.is_lifetime_bound();
+  return previous;
 }
 
 }  // namespace internal
@@ -223,17 +233,22 @@ void Context::set_thread_status(const char* thread_status) {
 WithContext::WithContext(const Context& switch_to,
                          perftools::tracing::StringRef label)
     : current_(new Context(switch_to)),
-      previous_(internal::SwapContext(ContextAccess(), current_, label)) {}
+      previous_(internal::SwapContext(
+          ContextAccess(), internal::TaggedContextPtr(current_, false),
+          label)) {}
 
 WithContext::WithContext(Context&& switch_to,
                          perftools::tracing::StringRef label)
 
     : current_(new Context(std::move(switch_to))),
-      previous_(internal::SwapContext(ContextAccess(), current_, label)) {}
+      previous_(internal::SwapContext(
+          ContextAccess(), internal::TaggedContextPtr(current_, false),
+          label)) {}
 
 WithContext::~WithContext() {
-  Context* current = internal::RestoreContext(ContextAccess(), previous_);
-  if (current != current_) {
+  internal::TaggedContextPtr current =
+      internal::RestoreContext(ContextAccess(), previous_);
+  if (current.context() != current_) {
     if (absl::GetFlag(FLAGS_harden_with_context)) {
       LOG(FATAL) << "Illegally scoped `base::WithContext`. "
                     "Use --noharden_with_context to disable this hardening";
@@ -241,7 +256,7 @@ WithContext::~WithContext() {
       LOG_EVERY_N_SEC(ERROR, 60) << "Illegally scoped `base::WithContext`.";
     }
   }
-  delete current;
+  delete current.context();
 }
 
 WithTraceContext::WithTraceContext(const TraceContext& switch_to,
