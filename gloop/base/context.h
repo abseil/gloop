@@ -345,6 +345,42 @@ void SetCurrentThreadStatus(const char* thread_status);
 // found. This function is safe to call inside signal handlers.
 const TraceContext* CurrentTraceContextNoAlloc();
 
+namespace internal {
+
+// Holds a Context* together with a tag bit indicating whether the pointer
+// is lifetime-bound (stack allocated / scoped) or heap allocated.
+class TaggedContextPtr {
+ public:
+  constexpr TaggedContextPtr() = delete;
+  constexpr TaggedContextPtr(const TaggedContextPtr&) = default;
+  constexpr TaggedContextPtr& operator=(const TaggedContextPtr&) = default;
+
+  TaggedContextPtr(Context* absl_nonnull context, bool is_lifetime_bound)
+      : ptr_(reinterpret_cast<uintptr_t>(context) + is_lifetime_bound) {}
+
+  Context* absl_nonnull context() const {
+    return reinterpret_cast<Context*>(ptr_ & ~kLifetimeBoundMask);
+  }
+
+  bool is_lifetime_bound() const { return (ptr_ & kLifetimeBoundMask) != 0; }
+
+  Context* absl_nonnull operator->() const { return context(); }
+  Context& operator*() const { return *context(); }
+
+  friend bool operator==(TaggedContextPtr lhs, TaggedContextPtr rhs) {
+    return lhs.ptr_ == rhs.ptr_;
+  }
+  friend bool operator!=(TaggedContextPtr lhs, TaggedContextPtr rhs) {
+    return lhs.ptr_ != rhs.ptr_;
+  }
+
+ private:
+  static constexpr uintptr_t kLifetimeBoundMask = 1;
+  uintptr_t ptr_;
+};
+
+}  // namespace internal
+
 // Scoped object that sets the current thread's context to switch_to until
 // the object is destroyed.
 //
@@ -393,11 +429,11 @@ class WithContext {
   // on the same thread it was created on, and properly scoped / nested.
   Context* const current_ = nullptr;
 
-  // `previous_` will hold the previous heap allocated thread local `Context`
-  // pointer as it was before we performed the internal swap, making this
-  // instance 'own' that instance until the destructor swaps it back into
+  // `previous_` will hold the previous thread local `Context`
+  // pointer and tag as it was before we performed the internal swap, making
+  // this instance 'own' that instance until the destructor swaps it back into
   // TLS, deleting the `Context` instance created and scoped at construction.
-  Context* const previous_ = nullptr;
+  internal::TaggedContextPtr const previous_;
 
   WithContext(const WithContext&) = delete;
   WithContext& operator=(const WithContext&) = delete;
@@ -556,10 +592,10 @@ namespace internal {
 // swapped or restored to the previous pointer by a subsequent call to either
 // `SwapContext()` or `RestoreContext()`. `label` is an identifying label that
 // is captured at the public API, i.e.: `WithContext` for tracing purposes.
-// Returns the previous context.
-Context* absl_nonnull SwapContext(
-    ContextAccess, Context* absl_nonnull context ABSL_ATTRIBUTE_LIFETIME_BOUND,
-    perftools::tracing::StringRef label);
+// Returns the previous context and its lifetime-bound tag.
+TaggedContextPtr SwapContext(ContextAccess,
+                             TaggedContextPtr ptr ABSL_ATTRIBUTE_LIFETIME_BOUND,
+                             perftools::tracing::StringRef label);
 
 // Directly restores the 'per thread' pointer to reference the provided context.
 // This call is similar to `SwapContext` except that the explicit intent is that
@@ -569,8 +605,8 @@ Context* absl_nonnull SwapContext(
 // context has 'ended' where a 'SwapContext` implies execution of code with
 // the current context is suspended, and the returned tracecontext can be
 // re-used to scope (resume) other code executions.
-Context* absl_nonnull RestoreContext(
-    ContextAccess, Context* absl_nonnull context ABSL_ATTRIBUTE_LIFETIME_BOUND);
+TaggedContextPtr RestoreContext(
+    ContextAccess, TaggedContextPtr ptr ABSL_ATTRIBUTE_LIFETIME_BOUND);
 
 extern absl::NoDestructor<Context> background_context;
 
