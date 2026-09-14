@@ -42,6 +42,17 @@ bool StripTrailingNewline(std::string* s) {
   return false;
 }
 
+bool StripTrailingNewline(absl::string_view* s) {
+  if (!s->empty() && s->back() == '\n') {
+    if (s->size() > 1 && (*s)[s->size() - 2] == '\r')
+      s->remove_suffix(2);
+    else
+      s->remove_suffix(1);
+    return true;
+  }
+  return false;
+}
+
 // ----------------------------------------------------------------------
 // Misc. stripping routines
 // ----------------------------------------------------------------------
@@ -72,7 +83,7 @@ void StripMarkupTags(std::string* s) {
   s->resize(output - s->begin());
 }
 
-std::string OutputWithMarkupTagsStripped(const std::string& s) {
+std::string OutputWithMarkupTagsStripped(absl::string_view s) {
   std::string result(s);
   StripMarkupTags(&result);
   return result;
@@ -143,32 +154,40 @@ ptrdiff_t memrm(char* str, ptrdiff_t strlen, char c) {
 }
 
 ptrdiff_t strrmm(char* str, const char* chars) {
-  char* src;
-  char* dest;
-  for (src = dest = str; *src != '\0'; ++src) {
-    bool skip = false;
-    for (const char* c = chars; *c != '\0'; c++) {
-      if (*src == *c) {
-        skip = true;
-        break;
-      }
+  return strrmm(str, absl::NullSafeStringView(chars));
+}
+
+ptrdiff_t strrmm(char* str, absl::string_view chars) {
+  if (chars.empty()) return strlen(str);
+  const absl::CharSet remove_set(chars);
+  char* src = str;
+  while (*src != '\0' && !remove_set.contains(*src)) {
+    ++src;
+  }
+  if (*src == '\0') return src - str;
+
+  char* dest = src++;
+  while (*src != '\0') {
+    if (!remove_set.contains(*src)) {
+      *(dest++) = *src;
     }
-    if (!skip) *(dest++) = *src;
+    ++src;
   }
   *dest = '\0';
   return dest - str;
 }
 
-ptrdiff_t strrmm(std::string* str, const std::string& chars) {
+ptrdiff_t strrmm(std::string* str, absl::string_view chars) {
   size_t str_len = str->length();
-  size_t in_index = str->find_first_of(chars);
+  size_t in_index = str->find_first_of(chars.data(), 0, chars.size());
   if (in_index == std::string::npos) return str_len;
 
   size_t out_index = in_index++;
 
+  const absl::CharSet remove_set(chars);
   while (in_index < str_len) {
     char c = (*str)[in_index++];
-    if (!absl::StrContains(chars, c)) (*str)[out_index++] = c;
+    if (!remove_set.contains(c)) (*str)[out_index++] = c;
   }
 
   str->resize(out_index);

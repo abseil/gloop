@@ -92,6 +92,42 @@ TEST(StripTrailingNewline, Strip) {
   EXPECT_EQ(strip_me, copy);
 }
 
+TEST(StripTrailingNewline, StringView) {
+  absl::string_view sv = "useless\tstring\r\n ";
+  absl::string_view copy = sv;
+
+  EXPECT_FALSE(StripTrailingNewline(&sv));
+  EXPECT_EQ(sv, copy);
+
+  sv = "hello\n";
+  EXPECT_TRUE(StripTrailingNewline(&sv));
+  EXPECT_EQ(sv, "hello");
+
+  sv = "hello\r\n";
+  EXPECT_TRUE(StripTrailingNewline(&sv));
+  EXPECT_EQ(sv, "hello");
+
+  sv = "hello\n\r";
+  EXPECT_FALSE(StripTrailingNewline(&sv));
+  EXPECT_EQ(sv, "hello\n\r");
+
+  sv = "hello\r";
+  EXPECT_FALSE(StripTrailingNewline(&sv));
+  EXPECT_EQ(sv, "hello\r");
+
+  sv = "\n";
+  EXPECT_TRUE(StripTrailingNewline(&sv));
+  EXPECT_EQ(sv, "");
+
+  sv = "\r\n";
+  EXPECT_TRUE(StripTrailingNewline(&sv));
+  EXPECT_EQ(sv, "");
+
+  sv = "";
+  EXPECT_FALSE(StripTrailingNewline(&sv));
+  EXPECT_EQ(sv, "");
+}
+
 TEST(Strip, StripCurlyBraces) {
   std::string test1 = "{}foo{dgfkk:',)}";
   StripCurlyBraces(&test1);
@@ -131,6 +167,12 @@ TEST(Strip, StripMarkupTags) {
   std::string huge = "<>";
   for (int i = 0; i < 15; i++) huge = huge + huge;
   EXPECT_EQ(OutputWithMarkupTagsStripped(huge), "");
+
+  EXPECT_EQ(OutputWithMarkupTagsStripped(absl::string_view("<b>hello</b>")),
+            "hello");
+  EXPECT_EQ(OutputWithMarkupTagsStripped(absl::string_view("foo<bar>baz")),
+            "foobaz");
+  EXPECT_EQ(OutputWithMarkupTagsStripped(absl::string_view("")), "");
 }
 
 TEST(Strip, TrimString) {
@@ -404,6 +446,27 @@ TEST(stringtest, strrmm) {
   str.assign("abc\0def", 7);
   strrmm(&str, std::string("bc\0de", 5));
   EXPECT_EQ(str, "af");
+
+  // Test strrmm with absl::string_view
+  char buf1[] = "hello world";
+  EXPECT_EQ(strrmm(buf1, absl::string_view("lo")), 6);
+  EXPECT_STREQ(buf1, "he wrd");
+
+  char buf2[] = "abcdef";
+  EXPECT_EQ(strrmm(buf2, absl::string_view("")), 6);
+  EXPECT_STREQ(buf2, "abcdef");
+
+  std::string s_sv = "hello world";
+  EXPECT_EQ(strrmm(&s_sv, absl::string_view("lo")), 6);
+  EXPECT_EQ(s_sv, "he wrd");
+
+  s_sv = "abcdef";
+  EXPECT_EQ(strrmm(&s_sv, absl::string_view("")), 6);
+  EXPECT_EQ(s_sv, "abcdef");
+
+  s_sv.assign("abc\0def", 7);
+  EXPECT_EQ(strrmm(&s_sv, absl::string_view("bc\0de", 5)), 2);
+  EXPECT_EQ(s_sv, "af");
 }
 
 TEST(Strip, StripPrefixString) {
@@ -629,6 +692,18 @@ TEST(Strip, SkipLeadingWhitespace) {
   EXPECT_EQ(strings::SkipLeadingWhitespace(id + 2), id + 2);
   id = "\240xyz";
   EXPECT_EQ(strings::SkipLeadingWhitespace(id), id);
+}
+
+TEST(Strip, SkipLeadingWhitespaceStringView) {
+  EXPECT_EQ(strings::SkipLeadingWhitespace(absl::string_view("")), "");
+  EXPECT_EQ(strings::SkipLeadingWhitespace(absl::string_view("   ")), "");
+  EXPECT_EQ(strings::SkipLeadingWhitespace(absl::string_view("  hello  ")),
+            "hello  ");
+  EXPECT_EQ(strings::SkipLeadingWhitespace(absl::string_view("hello")),
+            "hello");
+  EXPECT_EQ(
+      strings::SkipLeadingWhitespace(absl::string_view("\t\n\r\v  world")),
+      "world");
 }
 
 }  // namespace

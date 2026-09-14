@@ -43,6 +43,7 @@ ptrdiff_t StripDupCharacters(std::string* s, char dup_char,
 // Removes the trailing '\n' or '\r\n' from 's', if one exists. Returns true if
 // a newline was found and removed.
 bool StripTrailingNewline(std::string* s);
+bool StripTrailingNewline(absl::string_view* s);
 
 // Strips everything enclosed in pairs of curly braces ('{' and '}') and the
 // curly braces themselves. Doesn't touch open braces without a closing brace.
@@ -67,7 +68,7 @@ void StripBrackets(char left, char right, std::string* s);
 //
 // For a more full-featured HTML parser, see //webutil/pageutil/pageutil.h.
 void StripMarkupTags(std::string* s);
-std::string OutputWithMarkupTagsStripped(const std::string& s);
+std::string OutputWithMarkupTagsStripped(absl::string_view s);
 
 // Removes any occurrences of the *bytes* in 'remove' from the:
 //
@@ -120,7 +121,8 @@ ptrdiff_t memrm(char* str, ptrdiff_t strlen, char c);
 // then some strings will turn into garbage which will break downstream code.
 // Use icu::UnicodeSet and its spanUTF8()/spanBackUTF8().
 ptrdiff_t strrmm(char* str, const char* chars);
-ptrdiff_t strrmm(std::string* str, const std::string& chars);
+ptrdiff_t strrmm(char* str, absl::string_view chars);
+ptrdiff_t strrmm(std::string* str, absl::string_view chars);
 
 // Returns a copy of the input string 'str' with the given 'prefix' removed. If
 // the prefix doesn't match, returns a copy of the original string.
@@ -196,6 +198,11 @@ inline const char* SkipLeadingWhitespace(const char* str) {
 inline char* SkipLeadingWhitespace(char* str) {
   while (absl::ascii_isspace(*str)) ++str;
   return str;
+}
+
+[[deprecated("Use absl::StripLeadingAsciiWhitespace()")]]
+inline absl::string_view SkipLeadingWhitespace(absl::string_view str) {
+  return absl::StripLeadingAsciiWhitespace(str);
 }
 
 }  // namespace strings
