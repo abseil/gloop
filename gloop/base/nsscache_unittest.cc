@@ -52,7 +52,11 @@ TEST(SimpleUser, Root) {
 }
 
 TEST(SimpleUser, Nobody) {
-  const uid_t kNobodyID = getpwnam("nobody")->pw_uid;
+  passwd pwd;
+  passwd* pwd_result = nullptr;
+  char pwd_buf[1024];
+  getpwnam_r("nobody", &pwd, pwd_buf, sizeof(pwd_buf), &pwd_result);
+  const uid_t kNobodyID = pwd_result != nullptr ? pwd_result->pw_uid : 0;
   std::shared_ptr<passwd> u = LookupUserByName("nobody");
   ASSERT_TRUE(u != nullptr);
   EXPECT_STREQ("nobody", u->pw_name);
