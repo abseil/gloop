@@ -30,9 +30,9 @@ cc_library(
     name = "constant_divisor",
     srcs = ["constant_divisor.cc"],
     hdrs = ["constant_divisor.h"],
+    implementation_deps = ["@abseil-cpp//absl/log:check"],
     deps = [
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/numeric:int128",
     ],
 )
@@ -84,11 +84,13 @@ cc_library(
     name = "kendalls-tau",
     srcs = ["kendalls-tau.cc"],
     hdrs = ["kendalls-tau.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
+    implementation_deps = [
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/log:check",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/types:span",
     ],
@@ -167,13 +169,15 @@ cc_library(
     name = "round",
     srcs = ["round.cc"],
     hdrs = ["round.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+    ],
     deps = [
         ":mathutil",
         "//gloop:enforce_gloop_support",
         "//gloop/util/bits",
-        "@abseil-cpp//absl/base",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/log:check",
     ],
 )
 
