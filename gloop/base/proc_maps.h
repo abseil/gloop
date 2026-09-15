@@ -26,7 +26,6 @@
 #include <sys/types.h>
 
 #include <cstdint>
-#include <iterator>
 #include <string>
 
 #ifdef _WIN32

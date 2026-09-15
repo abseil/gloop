@@ -339,7 +339,6 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/container:btree",
-        "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/types:span",
     ],
@@ -403,7 +402,6 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:throw_delegate",
-        "@abseil-cpp//absl/meta:type_traits",
     ],
 )
 
@@ -417,7 +415,6 @@ cc_test(
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/container:node_hash_map",

@@ -90,9 +90,7 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
-#include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
-#include "absl/time/time.h"
 #include "gloop/thread/executor.h"
 #include "gloop/thread/thread_options.h"
 #include "gloop/thread/watchdog.h"

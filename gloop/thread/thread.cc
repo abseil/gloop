@@ -85,7 +85,6 @@
 #include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/direct_mmap.h"  // For direct mmap
 #include "absl/base/log_severity.h"
-#include "absl/base/macros.h"
 #include "absl/base/no_destructor.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"

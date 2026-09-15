@@ -28,10 +28,6 @@
 #define _GNU_SOURCE 1  // Required as per the man page for CPU_SET.
 #include <sched.h>
 
-#include <string>
-
-#include "gloop/util/os/core/cpu_set.h"
-
 // Equality operator. This is the minimum set of interfaces to support:
 //   EXPECT_EQ(expected_set, set);
 //   EXPECT_EQ(expected_int, set);

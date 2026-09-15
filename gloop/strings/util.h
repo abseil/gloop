@@ -53,7 +53,6 @@
 #include "absl/base/attributes.h"
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
-#include "gloop/strings/string_view_utils.h"
 
 // Newer functions.
 

@@ -34,7 +34,6 @@
 #include "absl/base/const_init.h"
 #include "absl/base/thread_annotations.h"
 #include "gloop/base/percpu.h"
-#include "gloop/base/scheduling/scheduling_mode.h"
 #include "gloop/base/spinlock.h"
 #include "gloop/concurrent/rcu/llist.h"
 #include "gloop/concurrent/rcu/pile.h"

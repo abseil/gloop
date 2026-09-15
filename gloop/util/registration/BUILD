@@ -58,7 +58,6 @@ cc_library(
     hdrs = ["static_map.h"],
     deps = [
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/log:absl_check",

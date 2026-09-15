@@ -28,6 +28,7 @@
 #ifndef THIRD_PARTY_GLOOP_BASE_EXAMINE_STACK_H_
 #define THIRD_PARTY_GLOOP_BASE_EXAMINE_STACK_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 
@@ -36,7 +37,6 @@
 #include "absl/debugging/internal/examine_stack.h"
 #include "absl/flags/declare.h"
 #include "absl/functional/function_ref.h"
-#include "absl/log/log_streamer.h"
 #include "absl/strings/string_view.h"
 
 // Include all mappings from /proc/self/maps in a failure dump

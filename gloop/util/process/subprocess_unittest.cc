@@ -46,7 +46,6 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/const_init.h"
-#include "absl/base/macros.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/flags/flag.h"
 #include "absl/functional/bind_front.h"
@@ -76,7 +75,6 @@
 #include "gloop/thread/thread.h"
 #include "gloop/thread/thread_options.h"
 #include "gloop/util/functional/from_callback.h"
-#include "gloop/util/functional/to_callback.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 

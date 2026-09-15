@@ -30,7 +30,6 @@
 #include "absl/base/config.h"
 #include "absl/base/internal/scheduling_mode.h"
 #include "absl/base/log_severity.h"
-#include "absl/base/macros.h"
 #include "absl/base/no_destructor.h"
 #include "absl/base/nullability.h"
 #include "absl/flags/internal/program_name.h"

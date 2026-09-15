@@ -27,7 +27,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/functional/bind_front.h"
 #include "absl/log/log.h"
 #include "gloop/base/callback.h"
 #include "gloop/base/context.h"

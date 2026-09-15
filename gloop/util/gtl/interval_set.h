@@ -84,7 +84,6 @@
 #include "absl/algorithm/container.h"
 #include "absl/container/btree_set.h"
 #include "absl/log/check.h"
-#include "absl/log/log.h"
 #include "absl/types/span.h"
 #include "gloop/util/gtl/container_logging.h"
 #include "gloop/util/gtl/heterogeneous_lookup.h"

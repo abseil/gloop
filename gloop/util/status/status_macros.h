@@ -25,19 +25,9 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_STATUS_STATUS_MACROS_H_
 #define THIRD_PARTY_GLOOP_UTIL_STATUS_STATUS_MACROS_H_
 
-#include <cstddef>
-#include <type_traits>
-#include <utility>
-
-#include "absl/base/attributes.h"
 #include "absl/base/macros.h"
-#include "absl/base/optimization.h"
-#include "absl/status/status.h"
-#include "absl/status/status_builder.h"  // IWYU pragma: export
-#include "absl/status/status_macros.h"   // IWYU pragma: export
-#include "absl/status/statusor.h"
-#include "absl/types/source_location.h"
-#include "gloop/util/status/status.h"
+#include "absl/status/status_builder.h"        // IWYU pragma: export
+#include "absl/status/status_macros.h"         // IWYU pragma: export
 #include "gloop/util/status/status_builder.h"  // IWYU pragma: export
 
 namespace util::status_macro_internal {

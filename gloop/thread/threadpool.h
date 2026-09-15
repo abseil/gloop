@@ -35,7 +35,7 @@
 #ifndef THIRD_PARTY_GLOOP_THREAD_THREADPOOL_H_
 #define THIRD_PARTY_GLOOP_THREAD_THREADPOOL_H_
 
-#include "absl/base/attributes.h"
+#include "gloop/base/context.h"
 #include "gloop/thread/config.h"  // IWYU pragma: keep
 #include "gtest/gtest_prod.h"
 
@@ -55,7 +55,6 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
@@ -64,7 +63,6 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
-#include "absl/synchronization/notification.h"
 #include "absl/time/time.h"
 #include "gloop/thread/add_after_helper.h"
 #include "gloop/thread/executor.h"

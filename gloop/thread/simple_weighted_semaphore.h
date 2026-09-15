@@ -66,7 +66,6 @@
 
 #include <cstdint>
 
-#include "absl/base/attributes.h"
 #include "absl/synchronization/mutex.h"
 
 class WeightedSemaphore;  // Forward-declared for friending.
