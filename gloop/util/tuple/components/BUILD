@@ -221,6 +221,7 @@ cc_library(
             "UTIL_TUPLE_COMPONENTS_HAVE_UTIL_SYMBOLIZE",
         ],
     }) + ["UTIL_TUPLE_COMPONENTS_HAVE_NET_PROTO2"],
+    implementation_deps = ["@abseil-cpp//absl/log:check"],
     visibility = ["//visibility:public"],
     deps = [
         ":for_each",
@@ -234,7 +235,6 @@ cc_library(
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
