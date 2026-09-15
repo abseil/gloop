@@ -1141,20 +1141,14 @@ class SubProcess {
   //    Return a fatal error to the parent process. Includes the current
   //    value of errno in the message.
   // Called in child process.
-#ifndef SWIG
-  [[noreturn]]
-#endif
-  void SendFatalError(absl::string_view msg) {
+  [[noreturn]] void SendFatalError(absl::string_view msg) {
     SendFatalError(msg, child_errno_);
   }
 
   // SendFatalError()
   //    Return a fatal error to the parent process with the given errno.
   // Called in child process.
-#ifndef SWIG
-  [[noreturn]]
-#endif
-  void SendFatalError(absl::string_view msg, int arg_errno);
+  [[noreturn]] void SendFatalError(absl::string_view msg, int arg_errno);
 
   // Empty virtual methods overridden by unit tests to inject faults.
   virtual void TEST_AfterForkBeforeExecEarly(int child_to_parent_fd) {}
