@@ -39,7 +39,6 @@
 #include <string>
 
 #include "absl/flags/declare.h"
-#include "absl/strings/string_view.h"
 #include "gloop/base/config.h"  // For BASE_USE_SIGNAL_H
 
 // Go into an infinite loop on SEGV and some other signals

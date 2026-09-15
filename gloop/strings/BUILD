@@ -167,6 +167,8 @@ cc_test(
         ":bytestream",
         ":cord_bytestream",
         "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
@@ -185,6 +187,7 @@ cc_library(
     hdrs = ["escaping.h"],
     deps = [
         "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
@@ -275,6 +278,7 @@ cc_test(
     deps = [
         ":host_port",
         "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
@@ -581,10 +585,7 @@ cc_library(
     srcs = ["serialize.cc"],
     hdrs = ["serialize.h"],
     deps = [
-        ":numbers",
         "//gloop:enforce_gloop_support",
-        "//gloop/util/endian",
-        "//gloop/util/gtl:stl_util",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:dynamic_annotations",
@@ -645,12 +646,10 @@ cc_library(
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/util/math:mathutil",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/strings:string_view",
-        "@abseil-cpp//absl/types:optional",
     ],
 )
 
@@ -752,7 +751,6 @@ cc_library(
     hdrs = ["string_view_utils.h"],
     deps = [
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
@@ -782,7 +780,6 @@ cc_library(
     srcs = ["util.cc"],
     hdrs = ["util.h"],
     deps = [
-        ":string_view_utils",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base:core_headers",

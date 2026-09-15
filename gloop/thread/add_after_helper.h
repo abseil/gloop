@@ -52,7 +52,6 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
-#include "gloop/base/callback.h"
 #include "gloop/util/functional/from_callback.h"
 
 namespace util {

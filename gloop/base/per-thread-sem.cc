@@ -27,7 +27,6 @@
 
 #include <atomic>
 
-#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"  // NOLINT(build/include)
 #include "absl/base/internal/thread_identity.h"
