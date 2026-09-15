@@ -26,13 +26,13 @@ cc_library(
     name = "acmrandom",
     srcs = ["acmrandom.cc"],
     hdrs = ["acmrandom.h"],
+    implementation_deps = ["@abseil-cpp//absl/log:check"],
     # This library is highly deprecated and should not be marked public for wider use.
     visibility = ["//gloop:__subpackages__"],
     deps = [
         ":random_base",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/log:check",
     ],
 )
 
@@ -92,8 +92,7 @@ cc_library(
     name = "global_id",
     srcs = ["global_id.cc"],
     hdrs = ["global_id.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
+    implementation_deps = [
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/log",
@@ -101,6 +100,7 @@ cc_library(
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
     ],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -141,14 +141,16 @@ cc_library(
     name = "mt_random",
     srcs = ["mt_random.cc"],
     hdrs = ["mt_random.h"],
+    implementation_deps = [
+        "//gloop/util/endian",
+        "@abseil-cpp//absl/log:check",
+    ],
     # This library is highly deprecated and should not be marked public for wider use.
     visibility = ["//gloop:__subpackages__"],
     deps = [
         ":random_base",
         "//gloop:enforce_gloop_support",
-        "//gloop/util/endian",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:string_view",
     ],
 )
@@ -173,16 +175,18 @@ cc_library(
     name = "random_base",
     srcs = ["random_base.cc"],
     hdrs = ["random_base.h"],
+    implementation_deps = [
+        "//gloop/base:atomic_sequence_num",
+        "//gloop/base:port",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/time",
+    ],
     # This library is highly deprecated and should not be marked public for wider use.
     visibility = ["//gloop:__subpackages__"],
     deps = [
         "//gloop:enforce_gloop_support",
-        "//gloop/base:atomic_sequence_num",
-        "//gloop/base:port",
-        "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/time",
     ],
 )
 
@@ -207,15 +211,17 @@ cc_library(
     testonly = 1,
     srcs = ["random_base_testutils.cc"],
     hdrs = ["random_base_testutils.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:str_format",
+    ],
     deps = [
         ":random_base",
         "//gloop:enforce_gloop_support",
         "//gloop/util/functional:from_callback",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/strings:str_format",
     ],
 )
 
