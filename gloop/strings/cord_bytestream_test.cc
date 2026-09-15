@@ -28,11 +28,14 @@
 #include <random>
 #include <string>
 
+#include "absl/base/config.h"
+#include "absl/container/fixed_array.h"
 #include "absl/flags/declare.h"
+#include "absl/flags/flag.h"
 #include "absl/log/log.h"
 #include "absl/random/random.h"
 #include "absl/strings/cord.h"
-#include "absl/strings/cord_test_helpers.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "gloop/strings/bytestream.h"
 #include "gmock/gmock.h"

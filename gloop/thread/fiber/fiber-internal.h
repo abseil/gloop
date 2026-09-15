@@ -35,7 +35,6 @@
 #include "absl/time/time.h"
 #include "gloop/base/scheduling/low-level-support.h"
 #include "gloop/base/scheduling/scheduler.h"
-#include "gloop/base/thread-identity.h"
 #include "gloop/thread/fiber/fiber-options.h"
 #include "gloop/thread/fiber/fiber.pb.h"
 #include "gloop/thread/timedcall.h"

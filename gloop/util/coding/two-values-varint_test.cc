@@ -27,10 +27,10 @@
 #include <vector>
 
 #include "absl/random/distributions.h"
+#include "absl/random/random.h"
 #include "absl/strings/str_cat.h"
 #include "benchmark/benchmark.h"
 #include "fuzztest/fuzztest.h"
-#include "gloop/util/random/distributions.h"
 #include "gtest/gtest.h"
 
 namespace util {

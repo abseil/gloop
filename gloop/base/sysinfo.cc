@@ -41,10 +41,8 @@
 #include <unistd.h>
 #endif
 
-#include <algorithm>
 #include <atomic>
 #include <cstdint>
-#include <iterator>
 #include <set>
 #include <string>
 #include <utility>

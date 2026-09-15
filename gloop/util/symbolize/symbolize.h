@@ -34,12 +34,10 @@
 #include "absl/base/call_once.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/flags/declare.h"
-#include "absl/hash/hash.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "gloop/base/arena.h"
 #include "gloop/base/proc_maps.h"
-#include "gloop/strings/util.h"
 #include "gloop/util/coding/shrunk-array.h"
 #include "gloop/util/symbolize/symbol_map_sink.h"
 

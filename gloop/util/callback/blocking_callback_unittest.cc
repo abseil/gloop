@@ -25,7 +25,6 @@
 
 #include "absl/functional/bind_front.h"
 #include "absl/time/time.h"
-#include "gloop/base/callback.h"
 #include "gloop/thread/thread.h"
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"

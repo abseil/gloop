@@ -26,7 +26,8 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_RANDOM_RANDOM_BASE_TESTUTILS_H_
 #define THIRD_PARTY_GLOOP_UTIL_RANDOM_RANDOM_BASE_TESTUTILS_H_
 
-#include "absl/base/attributes.h"
+#include <cstdint>
+
 #include "absl/flags/declare.h"
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/random/random_base.h"
