@@ -105,4 +105,5 @@ cc_library(
         "@google_benchmark//:benchmark",
         "@googletest//:gtest_for_library",
     ],
+    alwayslink = 1,
 )
