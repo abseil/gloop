@@ -30,6 +30,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <set>
 #include <string>
@@ -241,6 +242,208 @@ TEST(OrderByTest, CTAD) {
   // This is a regression test to support the old OrderByGette signature.
   std::sort(std::begin(s), std::end(s), OrderBy(&S::overloaded));
   EXPECT_THAT(s, ElementsAre(-1, 0, 1, 3));
+}
+
+struct OptionalItem {
+  int i;
+  int neg() const { return -i; }
+
+  bool operator==(const OptionalItem& other) const { return i == other.i; }
+};
+
+struct RowWithOptional {
+  std::string id;
+  std::optional<OptionalItem> stats;
+};
+
+struct MoveOnlyItem {
+  int val;
+  std::unique_ptr<int> ptr;
+  explicit MoveOnlyItem(int v) : val(v), ptr(std::make_unique<int>(v)) {}
+  MoveOnlyItem(MoveOnlyItem&&) = default;
+  MoveOnlyItem& operator=(MoveOnlyItem&&) = default;
+  MoveOnlyItem(const MoveOnlyItem&) = delete;
+  MoveOnlyItem& operator=(const MoveOnlyItem&) = delete;
+};
+
+TEST(OrderByTest, WorksWithOptionalMemberField) {
+  std::vector<std::optional<OptionalItem>> v = {OptionalItem{1}, std::nullopt,
+                                                OptionalItem{-1}, std::nullopt,
+                                                OptionalItem{3}};
+  std::sort(v.begin(), v.end(), OrderBy(&OptionalItem::i));
+  EXPECT_THAT(v, ElementsAre(std::nullopt, std::nullopt, OptionalItem{-1},
+                             OptionalItem{1}, OptionalItem{3}));
+}
+
+TEST(OrderByTest, WorksWithOptionalMemberFunction) {
+  std::vector<std::optional<OptionalItem>> v = {OptionalItem{1}, std::nullopt,
+                                                OptionalItem{-1}, std::nullopt,
+                                                OptionalItem{3}};
+  std::sort(v.begin(), v.end(), OrderBy(&OptionalItem::neg));
+  EXPECT_THAT(v, ElementsAre(std::nullopt, std::nullopt, OptionalItem{3},
+                             OptionalItem{1}, OptionalItem{-1}));
+}
+
+TEST(OrderByTest, WorksWithOptionalReverse) {
+  std::vector<std::optional<OptionalItem>> v = {OptionalItem{1}, std::nullopt,
+                                                OptionalItem{-1}, std::nullopt,
+                                                OptionalItem{3}};
+  std::sort(v.begin(), v.end(), Reverse(OrderBy(&OptionalItem::i)));
+  EXPECT_THAT(v, ElementsAre(OptionalItem{3}, OptionalItem{1}, OptionalItem{-1},
+                             std::nullopt, std::nullopt));
+}
+
+TEST(OrderByTest, WorksWithNestedOptional) {
+  std::vector<RowWithOptional> rows = {{"row1", OptionalItem{10}},
+                                       {"row2", std::nullopt},
+                                       {"row3", OptionalItem{5}},
+                                       {"row4", std::nullopt},
+                                       {"row5", OptionalItem{20}}};
+
+  std::stable_sort(rows.begin(), rows.end(),
+                   OrderBy(&RowWithOptional::stats, OrderBy(&OptionalItem::i)));
+  EXPECT_THAT(rows,
+              ElementsAre(::testing::Field(&RowWithOptional::id, "row2"),
+                          ::testing::Field(&RowWithOptional::id, "row4"),
+                          ::testing::Field(&RowWithOptional::id, "row3"),
+                          ::testing::Field(&RowWithOptional::id, "row1"),
+                          ::testing::Field(&RowWithOptional::id, "row5")));
+}
+
+TEST(OrderByTest, WorksWithNestedOptionalReverse) {
+  std::vector<RowWithOptional> rows = {{"row1", OptionalItem{10}},
+                                       {"row2", std::nullopt},
+                                       {"row3", OptionalItem{5}},
+                                       {"row4", std::nullopt},
+                                       {"row5", OptionalItem{20}}};
+
+  std::stable_sort(
+      rows.begin(), rows.end(),
+      Reverse(OrderBy(&RowWithOptional::stats, OrderBy(&OptionalItem::i))));
+  EXPECT_THAT(rows,
+              ElementsAre(::testing::Field(&RowWithOptional::id, "row5"),
+                          ::testing::Field(&RowWithOptional::id, "row1"),
+                          ::testing::Field(&RowWithOptional::id, "row3"),
+                          ::testing::Field(&RowWithOptional::id, "row2"),
+                          ::testing::Field(&RowWithOptional::id, "row4")));
+}
+
+TEST(OrderByTest, WorksWithOptionalHeterogeneousNullopt) {
+  auto comp = OrderBy(&OptionalItem::i);
+  EXPECT_FALSE(comp(std::nullopt, std::nullopt));
+  EXPECT_TRUE(comp(std::nullopt, std::optional<OptionalItem>(OptionalItem{1})));
+  EXPECT_FALSE(
+      comp(std::optional<OptionalItem>(OptionalItem{1}), std::nullopt));
+  EXPECT_FALSE(comp(std::optional<OptionalItem>(std::nullopt), std::nullopt));
+}
+
+TEST(OrderByTest, WorksWithOptionalHeterogeneousUnwrapped) {
+  auto comp = OrderBy(&OptionalItem::i);
+  EXPECT_TRUE(comp(std::nullopt, OptionalItem{1}));
+  EXPECT_FALSE(comp(OptionalItem{1}, std::nullopt));
+  EXPECT_TRUE(
+      comp(std::optional<OptionalItem>(OptionalItem{1}), OptionalItem{2}));
+  EXPECT_FALSE(
+      comp(std::optional<OptionalItem>(OptionalItem{2}), OptionalItem{1}));
+  EXPECT_TRUE(
+      comp(OptionalItem{1}, std::optional<OptionalItem>(OptionalItem{2})));
+  EXPECT_FALSE(
+      comp(OptionalItem{2}, std::optional<OptionalItem>(OptionalItem{1})));
+}
+
+TEST(OrderByTest, WorksWithOptionalThreeWayCompare) {
+  auto comp = OrderBy(&OptionalItem::i);
+  EXPECT_EQ(comp.Compare(std::nullopt, std::nullopt), 0);
+  EXPECT_LT(
+      comp.Compare(std::nullopt, std::optional<OptionalItem>(OptionalItem{1})),
+      0);
+  EXPECT_GT(
+      comp.Compare(std::optional<OptionalItem>(OptionalItem{1}), std::nullopt),
+      0);
+  EXPECT_LT(comp.Compare(std::optional<OptionalItem>(OptionalItem{1}),
+                         std::optional<OptionalItem>(OptionalItem{2})),
+            0);
+  EXPECT_EQ(comp.Compare(std::optional<OptionalItem>(OptionalItem{1}),
+                         std::optional<OptionalItem>(OptionalItem{1})),
+            0);
+  EXPECT_GT(comp.Compare(std::optional<OptionalItem>(OptionalItem{2}),
+                         std::optional<OptionalItem>(OptionalItem{1})),
+            0);
+}
+
+TEST(OrderByTest, WorksWithOptionalUnwrappedLambda) {
+  std::vector<std::optional<OptionalItem>> v = {OptionalItem{1}, std::nullopt,
+                                                OptionalItem{-1}, std::nullopt,
+                                                OptionalItem{3}};
+  auto by_lambda_unwrapped = OrderBy([](const OptionalItem& s) { return s.i; });
+  std::sort(v.begin(), v.end(), by_lambda_unwrapped);
+  EXPECT_THAT(v, ElementsAre(std::nullopt, std::nullopt, OptionalItem{-1},
+                             OptionalItem{1}, OptionalItem{3}));
+}
+
+TEST(OrderByTest, WorksWithOptionalExplicitOptionalLambda) {
+  std::vector<std::optional<OptionalItem>> v = {OptionalItem{1}, std::nullopt,
+                                                OptionalItem{-1}, std::nullopt,
+                                                OptionalItem{3}};
+  auto by_lambda_explicit_optional =
+      OrderBy([](const std::optional<OptionalItem>& opt) {
+        return opt ? opt->i : 999;
+      });
+  std::sort(v.begin(), v.end(), by_lambda_explicit_optional);
+  EXPECT_THAT(v, ElementsAre(OptionalItem{-1}, OptionalItem{1}, OptionalItem{3},
+                             std::nullopt, std::nullopt));
+}
+
+TEST(OrderByTest, WorksWithMoveOnlyOptionalLambda) {
+  std::vector<std::optional<MoveOnlyItem>> v;
+  v.push_back(std::nullopt);
+  v.push_back(MoveOnlyItem(42));
+  v.push_back(std::nullopt);
+  v.push_back(MoveOnlyItem(10));
+
+  auto by_val = OrderBy([](const MoveOnlyItem& m) { return m.val; });
+  std::sort(v.begin(), v.end(), by_val);
+
+  EXPECT_FALSE(v[0].has_value());
+  EXPECT_FALSE(v[1].has_value());
+  ASSERT_TRUE(v[2].has_value());
+  EXPECT_EQ(v[2]->val, 10);
+  ASSERT_TRUE(v[3].has_value());
+  EXPECT_EQ(v[3]->val, 42);
+}
+
+TEST(OrderByTest, WorksWithMoveOnlyOptionalMemberField) {
+  std::vector<std::optional<MoveOnlyItem>> v;
+  v.push_back(std::nullopt);
+  v.push_back(MoveOnlyItem(42));
+  v.push_back(std::nullopt);
+  v.push_back(MoveOnlyItem(10));
+
+  std::sort(v.begin(), v.end(), OrderBy(&MoveOnlyItem::val));
+
+  EXPECT_FALSE(v[0].has_value());
+  EXPECT_FALSE(v[1].has_value());
+  ASSERT_TRUE(v[2].has_value());
+  EXPECT_EQ(v[2]->val, 10);
+  ASSERT_TRUE(v[3].has_value());
+  EXPECT_EQ(v[3]->val, 42);
+}
+
+TEST(OrderByTest, WorksWithMoveOnlyOptionalReverse) {
+  std::vector<std::optional<MoveOnlyItem>> v;
+  v.push_back(std::nullopt);
+  v.push_back(MoveOnlyItem(42));
+  v.push_back(std::nullopt);
+  v.push_back(MoveOnlyItem(10));
+
+  std::sort(v.begin(), v.end(), Reverse(OrderBy(&MoveOnlyItem::val)));
+
+  ASSERT_TRUE(v[0].has_value());
+  EXPECT_EQ(v[0]->val, 42);
+  ASSERT_TRUE(v[1].has_value());
+  EXPECT_EQ(v[1]->val, 10);
+  EXPECT_FALSE(v[2].has_value());
+  EXPECT_FALSE(v[3].has_value());
 }
 
 // Tests the short-hands for common OrderBy<> combinations.
