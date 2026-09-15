@@ -35,6 +35,7 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/base/macros.h"
 #include "absl/strings/str_cat.h"
 #include "benchmark/benchmark.h"
 #include "gmock/gmock.h"
@@ -45,6 +46,15 @@ namespace {
 
 using testing::ElementsAre;
 using testing::Pointee;
+
+bool IsHardened() {
+  bool hardened = false;
+  ABSL_HARDENING_ASSERT([&hardened]() {
+    hardened = true;
+    return true;
+  }());
+  return hardened;
+}
 
 struct NonCopyablePair {
   explicit NonCopyablePair(int first, int second)
@@ -159,6 +169,22 @@ TEST_F(CircularBufferTest, At) {
   EXPECT_EQ(4, cb.at(-2));
   EXPECT_EQ(3, cb.at(-3));
 }
+
+#if GTEST_HAS_DEATH_TEST
+TEST(CircularBufferDeathTest, AtWithOutOfBoundsIndexCrashes) {
+  if (!IsHardened()) {
+    GTEST_SKIP() << "This test requires that ABSL_HARDENING_ASSERT is enabled";
+  }
+  CircularBuffer<int> cb(3);
+  PushBackSequence(&cb, 0, 2);
+  ASSERT_EQ(cb.size(), 2);
+  EXPECT_DEATH(cb.at(3), "");
+  EXPECT_DEATH(cb.at(-3), "");
+  const CircularBuffer<int>& const_cb = cb;
+  EXPECT_DEATH(const_cb.at(3), "");
+  EXPECT_DEATH(const_cb.at(-3), "");
+}
+#endif
 
 TEST_F(CircularBufferTest, PopFront) {
   CircularBuffer<int> cb(3);
