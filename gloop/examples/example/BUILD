@@ -13,18 +13,20 @@ cc_library(
     name = "example_lib",
     srcs = ["example.cc"],
     hdrs = ["example.h"],
+    implementation_deps = [
+        "@gloop//gloop/net/base:ipaddress",
+        "@gloop//gloop/util/math:mathutil",
+        "@gloop//gloop/util/status",
+        "@gloop//gloop/util/status:ret_check",
+        "@gloop//gloop/util/status:status_builder",
+        "@gloop//gloop/util/status:status_macros",
+    ],
     deps = [
         ":example_cc_proto",
         "@abseil-cpp//absl/status",
         "@gloop//gloop/base:strtoint",
-        "@gloop//gloop/net/base:ipaddress",
-        "@gloop//gloop/util/math:mathutil",
-        "@gloop//gloop/util/status",
         "@gloop//gloop/util/status:codes_cc_proto",
-        "@gloop//gloop/util/status:ret_check",
-        "@gloop//gloop/util/status:status_builder",
         "@gloop//gloop/util/status:status_cc_proto",
-        "@gloop//gloop/util/status:status_macros",
     ],
 )
 
