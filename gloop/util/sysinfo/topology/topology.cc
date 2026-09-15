@@ -96,6 +96,9 @@ ABSL_FLAG(std::string, sysinfo_topology_path, "",
           "Path to a file containing a binary TopologyInfo proto. If set, this "
           "overrides the detected system topology.");
 
+ABSL_FLAG(bool, enable_arm_snc, false,
+          "Enable L3 cache remapping to sub-NUMA clusters on Arm platforms.");
+
 namespace {
 using Id = SysTopology::Id;
 using ChildMap = SysTopology::ChildMap;
@@ -210,6 +213,9 @@ void SysTopologyGenerator::UpdateCacheInfoForSnc(
     SysTopology::TopologyInfo* ti) const {
   CpuType cpu_type = GetCpuType();
   testing::testvalue::Adjust("SysTopologyGenerator::cpu_type", &cpu_type);
+  const bool is_arm_snc = absl::GetFlag(FLAGS_enable_arm_snc) &&
+                          (cpu_type == CpuType::kArmNeoverseN3 ||
+                           cpu_type == CpuType::kArmNeoverseN4);
   // Check if numa cpu map has been read
   auto node_level = absl::c_find_if(
       ti->levels,
@@ -225,7 +231,7 @@ void SysTopologyGenerator::UpdateCacheInfoForSnc(
   // TODO: Note that this applies to SNC2/3 only. It is not a
   // compatible approach for other types of sub-numa configuration such as SNC4,
   // and not for sub-subsequent platforms with sub-numa support.
-  if (num_nodes_with_cpu != 4 && num_nodes_with_cpu != 6) {
+  if (!is_arm_snc && num_nodes_with_cpu != 4 && num_nodes_with_cpu != 6) {
     return;
   }
   // For each cpu, find its corresponding numa node
