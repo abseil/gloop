@@ -2,7 +2,7 @@ edition = "2024";
 
 package thread.fiber;
 
-import option "google/protobuf/cpp_features.proto";
+import "google/protobuf/cpp_features.proto";
 
 enum FiberType {
   option features.(pb.cpp).enum_name_uses_string_view = false;

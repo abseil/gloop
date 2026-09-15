@@ -416,8 +416,8 @@ cc_test(
 proto_library(
     name = "fiber_proto",
     srcs = ["fiber.proto"],
-    option_deps = ["@protobuf//:cpp_features_proto"],
     visibility = ["//thread/fiber:__subpackages__"],
+    deps = ["@protobuf//:cpp_features_proto"],
 )
 
 cc_proto_library(
