@@ -232,6 +232,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":censushandle",
+        ":config",
         ":context_access",
         ":static_threadlocal",
         ":tracecontext",

@@ -167,6 +167,8 @@ cc_test(
         ":bytestream",
         ":cord_bytestream",
         "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
@@ -185,6 +187,7 @@ cc_library(
     hdrs = ["escaping.h"],
     deps = [
         "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
@@ -275,6 +278,7 @@ cc_test(
     deps = [
         ":host_port",
         "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",

@@ -36,6 +36,7 @@
 #define THIRD_PARTY_GLOOP_THREAD_THREADPOOL_H_
 
 #include "absl/base/attributes.h"
+#include "gloop/base/context.h"
 #include "gloop/thread/config.h"  // IWYU pragma: keep
 #include "gtest/gtest_prod.h"
 

@@ -25,6 +25,7 @@
 
 #include <string>
 
+#include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/strings/charset.h"
 #include "absl/strings/escaping.h"  // IWYU pragma: keep

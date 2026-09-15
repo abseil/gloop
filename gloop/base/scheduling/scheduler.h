@@ -32,6 +32,7 @@
 #include <cstdint>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/low_level_scheduling.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/thread_identity.h"
