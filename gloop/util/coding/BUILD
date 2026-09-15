@@ -60,23 +60,25 @@ cc_library(
         "two-values-varint.h",
         "varint.h",
     ],
+    implementation_deps = [
+        "//gloop/util/gtl:stl_util",
+        "//gloop/util/hash",
+        "@abseil-cpp//absl/container:fixed_array",
+        "@abseil-cpp//absl/strings:resize_and_overwrite",
+        "@tcmalloc//tcmalloc:malloc_extension",
+    ],
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base:uword",
         "//gloop/util/bits",
         "//gloop/util/endian",
-        "//gloop/util/gtl:stl_util",
-        "//gloop/util/hash",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/meta:type_traits",
         "@abseil-cpp//absl/numeric:bits",
         "@abseil-cpp//absl/numeric:int128",
-        "@abseil-cpp//absl/strings:resize_and_overwrite",
         "@abseil-cpp//absl/strings:string_view",
-        "@tcmalloc//tcmalloc:malloc_extension",
     ],
 )
 
@@ -195,8 +197,7 @@ cc_library(
     # Note: if you need to debug this file and would like to disable
     # optimization, use --per_file_copt=util/coding@-O0.
     copts = ["-O3"],
-    deps = [
-        "//gloop:enforce_gloop_support",
+    implementation_deps = [
         "//gloop/base:port",
         "//gloop/util/bits",
         "//gloop/util/endian",
@@ -205,6 +206,9 @@ cc_library(
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/numeric:bits",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/types:span",
     ],
 )
