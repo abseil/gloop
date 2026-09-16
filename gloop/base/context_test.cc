@@ -837,5 +837,25 @@ TEST_F(ContextTest, WithContextHardeningDisableThroughFlag) {
 // Benchmarks
 ////////////////////////////////////////////////////////////////////////
 
+TEST_F(ContextTest, TaggedContextPtr) {
+  Context context;
+  internal::TaggedContextPtr ptr(&context, /*is_lifetime_bound=*/false);
+  EXPECT_EQ(ptr.context(), &context);
+  EXPECT_FALSE(ptr.is_lifetime_bound());
+  EXPECT_EQ(ptr.operator->(), &context);
+  EXPECT_EQ(&*ptr, &context);
+
+  internal::TaggedContextPtr lb_ptr(&context, /*is_lifetime_bound=*/true);
+  EXPECT_EQ(lb_ptr.context(), &context);
+  EXPECT_TRUE(lb_ptr.is_lifetime_bound());
+  EXPECT_EQ(lb_ptr.operator->(), &context);
+  EXPECT_EQ(&*lb_ptr, &context);
+
+  internal::TaggedContextPtr copy_ptr = lb_ptr;
+  EXPECT_EQ(copy_ptr, lb_ptr);
+  copy_ptr = ptr;
+  EXPECT_EQ(copy_ptr, ptr);
+}
+
 }  // anonymous namespace
 }  // namespace base
