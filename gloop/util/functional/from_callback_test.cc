@@ -25,7 +25,6 @@
 #include <string>
 #include <utility>
 
-#include "absl/base/attributes.h"
 #include "absl/base/nullability.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/functional/bind_front.h"

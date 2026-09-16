@@ -27,12 +27,10 @@
 #include <utility>
 #include <vector>
 
-#include "absl/functional/bind_front.h"
 #include "absl/log/log.h"
 #include "gloop/base/callback.h"
 #include "gloop/base/context.h"
 #include "gloop/base/tracecontext.h"
-#include "gloop/util/functional/from_callback.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 

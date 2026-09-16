@@ -20,8 +20,6 @@
 
 #include "gloop/util/callback/blocking_callback.h"
 
-#include <limits.h>
-
 #include <memory>
 #include <utility>
 #include <vector>

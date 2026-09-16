@@ -38,7 +38,6 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/base/casts.h"
-#include "absl/base/macros.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/container/node_hash_map.h"

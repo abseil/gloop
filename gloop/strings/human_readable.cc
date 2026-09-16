@@ -31,7 +31,6 @@
 #include <string>
 #include <system_error>  // NOLINT(build/c++11)
 
-#include "absl/base/attributes.h"
 #include "absl/log/check.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/ascii.h"
