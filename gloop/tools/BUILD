@@ -51,7 +51,7 @@ genrule(
     name = "filewrapper_testdata_generator",
     testonly = 1,
     outs = ["filewrapper_testdata.txt"],
-    cmd = "$(location :filewrapper_testdata_generator_bin) > $@",
+    cmd = "$(execpath :filewrapper_testdata_generator_bin) > $@",
     tools = [":filewrapper_testdata_generator_bin"],
 )
 

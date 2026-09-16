@@ -172,7 +172,7 @@ cc_test(
 cc_test(
     name = "rseq_clobber_test",
     srcs = ["rseq_clobber_test.cc"],
-    linkopts = ["-Wl,--script=$(location rseq_clobber_test.lds)"],
+    linkopts = ["-Wl,--script=$(execpath rseq_clobber_test.lds)"],
     linkstatic = True,
     visibility = ["//visibility:private"],
     deps = [
