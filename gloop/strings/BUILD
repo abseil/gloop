@@ -73,6 +73,7 @@ cc_library(
     hdrs = ["bytestream.h"],
     deps = [
         "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/memory",
