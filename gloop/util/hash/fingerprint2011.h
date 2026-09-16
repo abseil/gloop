@@ -29,6 +29,7 @@
 
 #include <cstdint>
 
+#include "absl/base/attributes.h"
 #include "absl/base/macros.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"

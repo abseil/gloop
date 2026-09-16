@@ -154,6 +154,7 @@ cc_test(
     deps = [
         ":mock_trace_event_listener",
         ":trace_event_listener",
+        ":trace_source_location",
         ":tracing_base",
         "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
@@ -253,6 +254,7 @@ cc_library(
     ],
     deps = [
         ":trace_event_listener",
+        ":trace_source_location",
         ":tracing_base",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:config",
