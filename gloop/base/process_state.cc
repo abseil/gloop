@@ -232,6 +232,7 @@ namespace internal {
 // times.
 // If safe_mode is kSafe, execute the safe callbacks.  Otherwise execute
 // the unsafe callbacks.
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
 void ExecuteFailureCallbacks(int signo, siginfo_t* info, void* uc,
                              IsSafeType safe_mode) {
   // Call failure callbacks: we could try to grab the failure_mutex
@@ -265,6 +266,7 @@ void ExecuteFailureCallbacks(int signo, siginfo_t* info, void* uc,
 #if defined(BASE_USE_SIGNAL_H)
 // Execute crash data callback (if registered). This function is called
 // from inside a signal handler.
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
 void ExecuteCrashDataCallback(int signo, siginfo_t* si, void* uc, int cpu) {
   base::CrashData cd(signo, si, uc, cpu);
   void (*cb)(const base::CrashData*) =
@@ -454,7 +456,7 @@ void InvokeDebuggerWithCommand(const char* invoker_name,
 // Default stack dumping routine from signal handler.
 // uc is a ucontext_t *.  We use void* to avoid the use
 // of ucontext_t on non-POSIX systems.
-static void DefaultStackDumper(void* uc) {
+static void DefaultStackDumper(void* /*uc*/) {
   // FailureSignalHandler has already dumped the relevant stack to
   // both stderr and the logs, so there's not much to do here.
 
@@ -528,6 +530,7 @@ static uintptr_t StackPointerFromUcontext(const void* uc) {
 }
 #endif  // PORTABLE_BASE
 
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
 static void FormatSignalMessage(char* buf, int bufsize, int signo,
                                 const void* uc, siginfo_t* si, bool dump_trace,
                                 int cpu) {
@@ -629,6 +632,7 @@ static void FormatSignalMessage(char* buf, int bufsize, int signo,
 namespace base {
 namespace internal {
 
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
 void EmitSymbolizerURL(void* uc) {
   auto debug_stack_trace_hook =
       absl::debugging_internal::GetDebugStackTraceHook();
@@ -704,6 +708,7 @@ bool ReportChange(const NotificationMessage* const notification_message,
 }  // namespace base
 
 #if GOOGLE_ENABLE_SIGNAL_HANDLERS
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
 static void RaiseSignalToDefaultHandler(int signo) {
   // Block the current signal until the handler returns.  This makes the stack
   // nice in the core dump by taking the signal handlers off the call stack.
@@ -742,6 +747,7 @@ static void RaiseSignalToDefaultHandler(int signo) {
 // For example, the deadlock appears to be possible if the user sends SIGTERM to
 // the process while RunInThread::SignalHandler happens to be in libunwind on
 // the receiving thread.
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
 static void BlockGoogleObscureSignal(sigset_t* prev) {
   sigset_t obscure;
   sigemptyset(&obscure);
@@ -754,6 +760,7 @@ static void BlockGoogleObscureSignal(sigset_t* prev) {
 // in it.
 
 // The actual signal handler function
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
 static void LoopingSignalHandler(int signo, siginfo_t* si, void* uc) {
   // *** WARNING ***
   //
@@ -803,7 +810,8 @@ static void LoopingSignalHandler(int signo, siginfo_t* si, void* uc) {
 // It is called if the regular failure signal handler
 // is hung or blocked.
 
-static void ImmediateAbortSignalHandler(int signo) {
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
+static void ImmediateAbortSignalHandler(int /*signo*/) {
   struct sigaction sa;
 
   // polled by the manager watcher in thread/thread.cc
@@ -825,6 +833,7 @@ static void ImmediateAbortSignalHandler(int signo) {
 }
 
 // Used only for testing.
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
 void ImmediateAbortSignalHandlerForTesting(int signo) {
   ImmediateAbortSignalHandler(signo);
 }
@@ -983,6 +992,7 @@ static void DumpStackContents(StackDumpMode mode, void* uc, int signo,
 // cleanup so that our failure will not have been in vain.
 // This is essentially flushing all our global resources.
 
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
 static void FailureSignalHandler(int signo, siginfo_t* si, void* uc) {
   // *** WARNING ***
   //
@@ -1300,6 +1310,7 @@ static void FailureSignalHandler(int signo, siginfo_t* si, void* uc) {
 
 namespace base {
 
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
 void HandleOrRaiseFailureSignal(int signo, siginfo_t* info, void* context) {
   // Use memory_order_acquire here to ensure that the subsequent read to
   // FLAGS_infinite_loop_on_signal will not race on flag parsing.
