@@ -313,6 +313,10 @@ class SetUpHook;
 
 using crash_analysis::reporting::remote_coredumper::SetUpHook;
 
+#if ABSL_HAVE_ADDRESS_SANITIZER
+extern "C" int __asan_address_is_poisoned(void const volatile* addr);
+#endif
+
 class FailureSignalHandlers : public testing::Test {
  public:
   void Callback() { callback_called_ = true; }
@@ -333,6 +337,7 @@ class FailureSignalHandlers : public testing::Test {
     si_ = nullptr;
     uctx_ = nullptr;
     crash_data_callback_called_ = false;
+    asan_stack_poisoned_ = false;
   }
 
   friend class SetUpHook;
@@ -341,6 +346,7 @@ class FailureSignalHandlers : public testing::Test {
   siginfo_t* si_;
   void* uctx_;
   bool crash_data_callback_called_;
+  bool asan_stack_poisoned_;
   FailureSignalHandlers(const FailureSignalHandlers&) = delete;
   FailureSignalHandlers& operator=(const FailureSignalHandlers&) = delete;
 };
@@ -360,6 +366,12 @@ class crash_analysis::reporting::remote_coredumper::SetUpHook {
     f->si_ = cd->si_;
     f->uctx_ = cd->context_;
     f->crash_data_callback_called_ = true;
+#if ABSL_HAVE_ADDRESS_SANITIZER
+    f->asan_stack_poisoned_ =
+        __asan_address_is_poisoned(reinterpret_cast<const char*>(cd) +
+                                   sizeof(*cd)) != 0 ||
+        __asan_address_is_poisoned(reinterpret_cast<const char*>(cd) - 1) != 0;
+#endif
   }
 };
 
@@ -450,6 +462,20 @@ TEST_F(FailureSignalHandlers, CrashDataCallbackNoAction) {
   EXPECT_EQ(nullptr, si_);
   EXPECT_EQ(nullptr, uctx_);
   EXPECT_FALSE(crash_data_callback_called_);
+}
+
+TEST_F(FailureSignalHandlers, ExecuteCrashDataCallbackAddressSanitizerSafe) {
+  SetUpHook::RegisterCallback();
+  siginfo_t si = {};
+  base::internal::ExecuteCrashDataCallback(SIGSEGV, &si, this, 0);
+  EXPECT_TRUE(callback_called_);
+  EXPECT_EQ(SIGSEGV, signo_);
+  EXPECT_EQ(&si, si_);
+  EXPECT_EQ(this, uctx_);
+  EXPECT_TRUE(crash_data_callback_called_);
+#if ABSL_HAVE_ADDRESS_SANITIZER
+  EXPECT_FALSE(asan_stack_poisoned_);
+#endif
 }
 
 TEST_F(FailureSignalHandlers, CancelRunOnFailure) {

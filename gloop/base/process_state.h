@@ -38,6 +38,7 @@
 #include <cstdint>
 #include <string>
 
+#include "absl/base/attributes.h"
 #include "absl/flags/declare.h"
 #include "absl/strings/string_view.h"
 #include "gloop/base/config.h"  // For BASE_USE_SIGNAL_H
@@ -262,6 +263,7 @@ namespace base {
 // intended use is to allow programs to safely install handlers before
 // InitGoogle (for example, to avoid conflicts with language runtimes that may
 // convert an otherwise-fatal signal into an exception or panic).
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
 void HandleOrRaiseFailureSignal(int signo, siginfo_t* info, void* context);
 
 class CrashData {
