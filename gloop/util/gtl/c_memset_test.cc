@@ -22,6 +22,8 @@
 
 #include <array>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "absl/base/macros.h"
@@ -154,6 +156,58 @@ TEST(CMemsetNDeathTest, CrashesOnOutOfBoundsWrite) {
     EXPECT_DEATH(gtl::c_memset_n(vec_char, 'x', 4), "");
   }
 #endif
+}
+
+TEST(CMemsetTest, WorksForStaticallySizedArrays) {
+  int a[4] = {1, 2, 3, 4};
+  gtl::c_memset(a, 0);
+  EXPECT_THAT(a, ElementsAre(0, 0, 0, 0));
+
+  char b[4] = {1, 2, 3, 4};
+  gtl::c_memset(b, '9');
+  EXPECT_THAT(b, ElementsAre('9', '9', '9', '9'));
+}
+
+TEST(CMemsetNTest, WorksForStaticallySizedArrays) {
+  int a[4] = {0x11111111, 0x22222222, 0x33333333, 0x44444444};
+  gtl::c_memset_n(a, 0, 4);
+  EXPECT_THAT(a, ElementsAre(0, 0x22222222, 0x33333333, 0x44444444));
+
+  char b[4] = {'1', '2', '3', '4'};
+  gtl::c_memset_n(b, '9', 2);
+  EXPECT_THAT(b, ElementsAre('9', '9', '3', '4'));
+}
+
+template <typename C, typename Value, typename = void>
+struct CanCMemset : std::false_type {};
+
+template <typename C, typename Value>
+struct CanCMemset<C, Value,
+                  std::void_t<decltype(gtl::c_memset(std::declval<C>(),
+                                                     std::declval<Value>()))>>
+    : std::true_type {};
+
+template <typename C, typename = void>
+struct CanCMemsetN : std::false_type {};
+
+template <typename C>
+struct CanCMemsetN<
+    C, std::void_t<decltype(gtl::c_memset_n(
+           std::declval<C>(), std::declval<int>(), std::declval<size_t>()))>>
+    : std::true_type {};
+
+TEST(CMemsetTest, RejectsMultidimensionalArrays) {
+  static_assert(CanCMemset<int (&)[10], int>::value);
+  static_assert(CanCMemset<char (&)[10], char>::value);
+  static_assert(!CanCMemset<int (&)[2][2], int>::value);
+  static_assert(!CanCMemset<char (&)[2][2], char>::value);
+  static_assert(!CanCMemset<int (&)[2][2][2], int>::value);
+
+  static_assert(CanCMemsetN<int (&)[10]>::value);
+  static_assert(CanCMemsetN<char (&)[10]>::value);
+  static_assert(!CanCMemsetN<int (&)[2][2]>::value);
+  static_assert(!CanCMemsetN<char (&)[2][2]>::value);
+  static_assert(!CanCMemsetN<int (&)[2][2][2]>::value);
 }
 
 }  // namespace
