@@ -43,7 +43,6 @@
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "gloop/base/strtoint.h"
-#include "gloop/strings/util.h"
 
 namespace strings {
 
