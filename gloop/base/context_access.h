@@ -57,6 +57,7 @@ namespace base {
 class Context;
 class WithContext;
 class WithTraceContext;
+class SwapableContext;
 
 namespace subtle {
 class WithLifetimeBoundContext;
@@ -160,6 +161,7 @@ class ContextAccess {
   friend class WithContext;
   friend class WithTraceContext;
   friend class subtle::WithLifetimeBoundContext;
+  friend class SwapableContext;
   friend class ContextTest;
   friend class ::TraceContext;
   friend class ::CurrentTraceContext;
