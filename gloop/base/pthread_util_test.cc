@@ -22,14 +22,29 @@
 
 #include <pthread.h>
 
+#include <cstdint>
+#include <string>
+
+#include "absl/strings/str_format.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace base {
 namespace {
 
+using ::testing::MatchesRegex;
+
 TEST(PthreadUtilTest, GetPthreadNumericId) {
   EXPECT_GT(GetPthreadNumericId(pthread_self()), 0);
   EXPECT_EQ(GetPthreadNumericId(pthread_t{}), 0);
+}
+
+TEST(PthreadUtilTest, TestPthreadFormat) {
+  uintptr_t tid = GetPthreadNumericId(pthread_self());
+  std::string hex_str = absl::StrFormat("Thread %" GPRIxPTHREAD "\n", tid);
+  std::string dec_str = absl::StrFormat("Thread %" GPRIuPTHREAD "\n", tid);
+  EXPECT_THAT(hex_str, MatchesRegex("Thread [0-9a-f]+\n"));
+  EXPECT_THAT(dec_str, MatchesRegex("Thread [0-9]+\n"));
 }
 
 }  // namespace
