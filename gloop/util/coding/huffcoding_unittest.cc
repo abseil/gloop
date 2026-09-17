@@ -30,6 +30,7 @@
 #include "absl/log/check.h"
 #include "absl/memory/memory.h"
 #include "absl/random/random.h"
+#include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
 #include "gloop/util/coding/bitcoding.h"
 #include "gloop/util/coding/tablecoding.h"

@@ -52,6 +52,7 @@
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
 #include "gloop/base/callback.h"
+#include "gloop/util/callback/cancellable_closure.h"
 
 namespace util {
 namespace callback {

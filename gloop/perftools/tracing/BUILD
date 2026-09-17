@@ -253,6 +253,7 @@ cc_library(
     ],
     deps = [
         ":trace_event_listener",
+        ":trace_source_location",
         ":tracing_base",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:config",
