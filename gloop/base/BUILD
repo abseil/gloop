@@ -899,6 +899,7 @@ cc_test(
     deps = [
         ":pthread_util",
         "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/strings:str_format",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

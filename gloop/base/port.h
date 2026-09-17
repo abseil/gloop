@@ -400,8 +400,6 @@ typedef void (*sig_t)(int);
 #define PRIXS "zX"
 #define PRIoS "zo"
 
-#define GPRIuPTHREAD "lu"
-#define GPRIxPTHREAD "lx"
 #if defined(__APPLE__)
 #define PRINTABLE_PTHREAD(pthreadt) reinterpret_cast<uintptr_t>(pthreadt)
 #else

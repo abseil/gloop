@@ -51,4 +51,12 @@ inline uintptr_t GetPthreadNumericId(pthread_t thread) {
 
 }  // namespace base
 
+// Use these macros after a % in a printf format string (or absl::StrFormat)
+// to format the numeric thread identifier returned by
+// base::GetPthreadNumericId(), like this:
+//   pthread_t tid = pthread_self();
+//   printf("Thread %" GPRIxPTHREAD "\n", base::GetPthreadNumericId(tid));
+#define GPRIuPTHREAD "lu"
+#define GPRIxPTHREAD "lx"
+
 #endif  // THIRD_PARTY_GLOOP_BASE_PTHREAD_UTIL_H_
