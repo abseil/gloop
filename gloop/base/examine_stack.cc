@@ -715,14 +715,21 @@ void DumpPCAndStackTrace(void* const pc, void* const stack[], int depth,
   }
 }
 
-std::string CurrentStackTrace() {
+// As of LLVM commit <link>,
+// CFI functions are inlinable in the ThinLTO backend. As a result, these
+// wrappers were inlined into their callers, causing stack unwinding to skip an
+// extra caller frame. Prevent inlining to ensure their stack frames are
+// preserved when calculating `skip_count`.
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL std::string
+CurrentStackTrace() {
   std::string result = "Stack trace:\n";
   DumpStackTrace(1, DebugWriteToString, &result);
   ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
   return result;
 }
 
-void SavedStackTrace::CreateCurrent(int skip_count) {
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL void
+SavedStackTrace::CreateCurrent(int skip_count) {
   depth_ = absl::GetStackTrace(stack_, std::size(stack_), 1 + skip_count);
 }
 
