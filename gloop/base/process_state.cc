@@ -265,6 +265,7 @@ void ExecuteFailureCallbacks(int signo, siginfo_t* info, void* uc,
 #if defined(BASE_USE_SIGNAL_H)
 // Execute crash data callback (if registered). This function is called
 // from inside a signal handler.
+ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS
 void ExecuteCrashDataCallback(int signo, siginfo_t* si, void* uc, int cpu) {
   base::CrashData cd(signo, si, uc, cpu);
   void (*cb)(const base::CrashData*) =
@@ -454,7 +455,7 @@ void InvokeDebuggerWithCommand(const char* invoker_name,
 // Default stack dumping routine from signal handler.
 // uc is a ucontext_t *.  We use void* to avoid the use
 // of ucontext_t on non-POSIX systems.
-static void DefaultStackDumper(void* uc) {
+static void DefaultStackDumper(void* /*uc*/) {
   // FailureSignalHandler has already dumped the relevant stack to
   // both stderr and the logs, so there's not much to do here.
 
@@ -803,7 +804,7 @@ static void LoopingSignalHandler(int signo, siginfo_t* si, void* uc) {
 // It is called if the regular failure signal handler
 // is hung or blocked.
 
-static void ImmediateAbortSignalHandler(int signo) {
+static void ImmediateAbortSignalHandler(int /*signo*/) {
   struct sigaction sa;
 
   // polled by the manager watcher in thread/thread.cc
