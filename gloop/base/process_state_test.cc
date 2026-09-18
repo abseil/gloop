@@ -333,6 +333,7 @@ class FailureSignalHandlers : public testing::Test {
     si_ = nullptr;
     uctx_ = nullptr;
     crash_data_callback_called_ = false;
+    cd_addr_ = nullptr;
   }
 
   friend class SetUpHook;
@@ -341,6 +342,7 @@ class FailureSignalHandlers : public testing::Test {
   siginfo_t* si_;
   void* uctx_;
   bool crash_data_callback_called_;
+  const void* cd_addr_;
   FailureSignalHandlers(const FailureSignalHandlers&) = delete;
   FailureSignalHandlers& operator=(const FailureSignalHandlers&) = delete;
 };
@@ -360,6 +362,7 @@ class crash_analysis::reporting::remote_coredumper::SetUpHook {
     f->si_ = cd->si_;
     f->uctx_ = cd->context_;
     f->crash_data_callback_called_ = true;
+    f->cd_addr_ = cd;
   }
 };
 
@@ -451,6 +454,51 @@ TEST_F(FailureSignalHandlers, CrashDataCallbackNoAction) {
   EXPECT_EQ(nullptr, uctx_);
   EXPECT_FALSE(crash_data_callback_called_);
 }
+
+#if defined(__linux__)
+static FailureSignalHandlers* g_failure_signal_handlers_fixture = nullptr;
+
+static void SigUsr1CrashDataHandler(int signo, siginfo_t* si, void* /*uc*/) {
+  base::internal::ExecuteCrashDataCallback(
+      signo, si, g_failure_signal_handlers_fixture, -1);
+}
+
+TEST_F(FailureSignalHandlers, RunCrashDataCallbackOnAlternateSignalStack) {
+  g_failure_signal_handlers_fixture = this;
+  SetUpHook::RegisterCallback();
+  constexpr size_t kAltstackSize = 1 << 15;
+  char space[kAltstackSize];
+  stack_t altstack;
+  stack_t old_stack;
+  altstack.ss_sp = space;
+  altstack.ss_size = kAltstackSize;
+  altstack.ss_flags = 0;
+  ASSERT_EQ(sigaltstack(&altstack, &old_stack), 0);
+
+  struct sigaction act = {};
+  struct sigaction old_act = {};
+  act.sa_sigaction = SigUsr1CrashDataHandler;
+  act.sa_flags = SA_SIGINFO | SA_ONSTACK;
+  sigemptyset(&act.sa_mask);
+  ASSERT_EQ(sigaction(SIGUSR1, &act, &old_act), 0);
+
+  raise(SIGUSR1);
+
+  EXPECT_TRUE(callback_called_);
+  EXPECT_EQ(SIGUSR1, signo_);
+  EXPECT_EQ(this, uctx_);
+  EXPECT_TRUE(crash_data_callback_called_);
+  ASSERT_NE(cd_addr_, nullptr);
+  EXPECT_GE(reinterpret_cast<uintptr_t>(cd_addr_),
+            reinterpret_cast<uintptr_t>(space));
+  EXPECT_LT(reinterpret_cast<uintptr_t>(cd_addr_),
+            reinterpret_cast<uintptr_t>(space + sizeof(space)));
+
+  ASSERT_EQ(sigaltstack(&old_stack, nullptr), 0);
+  ASSERT_EQ(sigaction(SIGUSR1, &old_act, nullptr), 0);
+  g_failure_signal_handlers_fixture = nullptr;
+}
+#endif
 
 TEST_F(FailureSignalHandlers, CancelRunOnFailure) {
   int ticket = RunOnFailure(*CallbackWrapper, this);
