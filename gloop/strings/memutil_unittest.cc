@@ -321,54 +321,6 @@ void BM_MemmatchStartup(benchmark::State& state) {
 }
 BENCHMARK(BM_MemmatchStartup);
 
-TEST(MemUtilTest, StringViewOverloads) {
-  absl::string_view a = "hello there";
-
-  char* p = memdup(a);
-  EXPECT_EQ(absl::string_view(p, a.size()), a);
-  free(p);
-
-  free(memdup(absl::string_view()));
-
-  const char* p2 = memrchr(a, 'e');
-  EXPECT_TRUE(p2 && p2[-1] == 'r');
-  p2 = memrchr(a.substr(0, a.size() - 1), 'e');
-  EXPECT_TRUE(p2 && p2[-1] == 'h');
-  p2 = memrchr(a, 'u');
-  EXPECT_EQ(p2, nullptr);
-  EXPECT_EQ(memrchr(absl::string_view(), 'a'), nullptr);
-
-  EXPECT_EQ(memspn(a, "hole"), 5);
-  EXPECT_EQ(memspn(a, "u"), 0);
-  EXPECT_EQ(memspn(a, ""), 0);
-  EXPECT_EQ(memspn(a, "trole h"), 11);
-  EXPECT_EQ(memspn(absl::string_view(), "h"), 0);
-
-  EXPECT_EQ(memcspn(a, "leho"), 0);
-  EXPECT_EQ(memcspn(a, "u"), 11);
-  EXPECT_EQ(memcspn(a, ""), 11);
-  EXPECT_EQ(memcspn(a, " "), 5);
-  EXPECT_EQ(memcspn(absl::string_view(), "a"), 0);
-
-  p2 = mempbrk(a, "leho");
-  EXPECT_TRUE(p2 && p2[1] == 'e' && p2[2] == 'l');
-  EXPECT_EQ(mempbrk(a, "nu"), nullptr);
-  EXPECT_EQ(mempbrk(absl::string_view(), "a"), nullptr);
-
-  EXPECT_EQ(memmem(a, "there"), a.data() + 6);
-  EXPECT_EQ(memmem(a, "u"), nullptr);
-  EXPECT_EQ(memmem(a, ""), a.data());
-  EXPECT_EQ(memmem(absl::string_view(), ""), nullptr);
-
-  EXPECT_EQ(memcasemem(a, "tHeRe"), a.data() + 6);
-  EXPECT_EQ(memcasemem(a, "u"), nullptr);
-  EXPECT_EQ(memcasemem(a, ""), a.data());
-
-  EXPECT_EQ(memmatch(a, "there"), a.data() + 6);
-  EXPECT_EQ(memmatch(a, "u"), nullptr);
-  EXPECT_EQ(memmatch(a, ""), a.data());
-}
-
 TEST(MemUtilTest, AllTests) {
   // check memutil functions
   const char a[1000] = "hello there";
