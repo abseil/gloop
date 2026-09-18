@@ -41,7 +41,7 @@ namespace thread {
 namespace internal {
 
 Schedulable* absl_nonnull LinkedSchedulableList::Pop() {
-  ABSL_RAW_DCHECK(!empty(), "pop empty list");
+  ABSL_RAW_CHECK(head_ != nullptr, "pop empty list");
   Schedulable* result = head_;
   head_ = static_cast<Schedulable*>(head_->manager_ptr1);
   if (head_ == nullptr) tail_ = nullptr;
@@ -63,6 +63,7 @@ void LinkedSchedulableList::PushTail(Schedulable* absl_nonnull schedulable) {
     schedulable->manager_ptr1 = nullptr;
     head_ = tail_ = schedulable;
   } else {
+    ABSL_RAW_CHECK(tail_ != nullptr, "tail is null");
     schedulable->manager_ptr1 = nullptr;
     tail_->manager_ptr1 = schedulable;
     tail_ = schedulable;
