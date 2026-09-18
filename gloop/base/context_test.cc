@@ -22,6 +22,7 @@
 
 #include "gloop/base/context.h"
 
+#include <atomic>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -67,6 +68,13 @@ using ::testing::Return;
 ABSL_DECLARE_FLAG(bool, harden_with_context);
 
 namespace base {
+
+#if defined(__LP64__) || defined(_WIN64)
+static_assert(sizeof(Context) == 80,
+              "base::Context must be 80 bytes on 64-bit");
+#else
+static_assert(sizeof(Context) <= 80, "base::Context must not exceed 80 bytes");
+#endif
 
 namespace {
 #if BASE_CONTEXT_HAVE_SECURITYCONTEXT
