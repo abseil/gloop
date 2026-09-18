@@ -244,11 +244,4 @@ TEST(PortTest, TestSizedDelete) {
   }
 }
 
-#ifndef _WIN32
-TEST(PortTest, TestPthreadFormat) {
-  printf("Thread %" GPRIxPTHREAD "\n", PRINTABLE_PTHREAD(pthread_self()));
-  printf("Thread %" GPRIuPTHREAD "\n", PRINTABLE_PTHREAD(pthread_self()));
-}
-#endif
-
 }  // namespace port_test
