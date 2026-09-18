@@ -1192,6 +1192,30 @@ cc_proto_library(
 )
 
 cc_library(
+    name = "c_memmove",
+    hdrs = ["c_memmove.h"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/base:hardening",
+    ],
+)
+
+cc_test(
+    name = "c_memmove_test",
+    size = "small",
+    srcs = ["c_memmove_test.cc"],
+    deps = [
+        ":c_memmove",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "c_memset",
     hdrs = ["c_memset.h"],
     deps = [
