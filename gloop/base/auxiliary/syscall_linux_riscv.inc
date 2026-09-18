@@ -16,17 +16,17 @@
 // IWYU pragma: private, include "base/linux_syscall_support.h"
 
 #if !defined(__GLIBC__)
-  #define loff_t off_t
+#define loff_t off_t
 #endif
 
 /* Failing system calls return a negative result in the range of
  * -1..-4095. These are "errno" values with the sign inverted.
  */
-#define LSS_SET_ERRNO_AND_RETURN(type, res, out_errno)  \
-  if ((uint64_t)(res) >= (uint64_t)(-4095)) {           \
-    *out_errno = (int)-res;                             \
-    res = -1;                                           \
-  }                                                     \
+#define LSS_SET_ERRNO_AND_RETURN(type, res, out_errno) \
+  if ((uint64_t)(res) >= (uint64_t)(-4095)) {          \
+    *out_errno = (int)-res;                            \
+    res = -1;                                          \
+  }                                                    \
   return (type)res;
 
 #define __NR_setxattr 5
@@ -148,29 +148,29 @@
 #define __syscall(name) "scall\n"
 #endif
 
-#define LSS_REG(r,a) register int64_t __r##r __asm__("a"#r) = (int64_t)a
+#define LSS_REG(r, a) register int64_t __r##r __asm__("a" #r) = (int64_t)a
 
-#define LSS_SAVE_ARG(r,a) int64_t __tmp##r = (int64_t)a
-#define LSS_LOAD_ARG(r) register int64_t __r##r __asm__("a"#r) = __tmp##r
+#define LSS_SAVE_ARG(r, a) int64_t __tmp##r = (int64_t)a
+#define LSS_LOAD_ARG(r) register int64_t __r##r __asm__("a" #r) = __tmp##r
 
-#define LSS_BODY(type, name, args...)          \
-  register int64_t __res_a0 __asm__("a0");     \
-  int64_t __res;                               \
-  __SYS_REG(name)                              \
-  __asm__ __volatile__(__syscall(name)         \
-                       : "=r"(__res_a0)        \
-                       : __SYS_REG_LIST(args)  \
-                       : "memory");            \
+#define LSS_BODY(type, name, args...)         \
+  register int64_t __res_a0 __asm__("a0");    \
+  int64_t __res;                              \
+  __SYS_REG(name)                             \
+  __asm__ __volatile__(__syscall(name)        \
+                       : "=r"(__res_a0)       \
+                       : __SYS_REG_LIST(args) \
+                       : "memory");           \
   __res = __res_a0;
 #define LSS_syscall0(type, name)                      \
-  static inline type lss_##name(int *out_errno) {     \
+  static inline type lss_##name(int* out_errno) {     \
     LSS_PRE(name);                                    \
     LSS_BODY(type, name);                             \
     LSS_POST(name, __res);                            \
     LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno); \
   }
 #define LSS_syscall1(type, name, type1, arg1)                 \
-  static inline type lss_##name(type1 arg1, int *out_errno) { \
+  static inline type lss_##name(type1 arg1, int* out_errno) { \
     LSS_PRE(name, arg1);                                      \
     /* There is no need for using a volatile temp.  */        \
     LSS_REG(0, arg1);                                         \
@@ -179,7 +179,7 @@
     LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);         \
   }
 #define LSS_syscall2(type, name, type1, arg1, type2, arg2)                \
-  static inline type lss_##name(type1 arg1, type2 arg2, int *out_errno) { \
+  static inline type lss_##name(type1 arg1, type2 arg2, int* out_errno) { \
     LSS_PRE(name, arg1, arg2);                                            \
     LSS_SAVE_ARG(0, arg1);                                                \
     LSS_SAVE_ARG(1, arg2);                                                \
@@ -189,84 +189,84 @@
     LSS_POST(name, __res, arg1, arg2);                                    \
     LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                     \
   }
-#define LSS_syscall3(type, name, type1, arg1, type2, arg2, type3, arg3)   \
-  static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,       \
-                                int *out_errno) {                         \
-    LSS_PRE(name, arg1, arg2, arg3);                                      \
-    LSS_SAVE_ARG(0, arg1);                                                \
-    LSS_SAVE_ARG(1, arg2);                                                \
-    LSS_SAVE_ARG(2, arg3);                                                \
-    LSS_LOAD_ARG(0);                                                      \
-    LSS_LOAD_ARG(1);                                                      \
-    LSS_LOAD_ARG(2);                                                      \
-    LSS_BODY(type, name, "r"(__r0), "r"(__r1), "r"(__r2));                \
-    LSS_POST(name, __res, arg1, arg2, arg3);                              \
-    LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                     \
+#define LSS_syscall3(type, name, type1, arg1, type2, arg2, type3, arg3) \
+  static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,     \
+                                int* out_errno) {                       \
+    LSS_PRE(name, arg1, arg2, arg3);                                    \
+    LSS_SAVE_ARG(0, arg1);                                              \
+    LSS_SAVE_ARG(1, arg2);                                              \
+    LSS_SAVE_ARG(2, arg3);                                              \
+    LSS_LOAD_ARG(0);                                                    \
+    LSS_LOAD_ARG(1);                                                    \
+    LSS_LOAD_ARG(2);                                                    \
+    LSS_BODY(type, name, "r"(__r0), "r"(__r1), "r"(__r2));              \
+    LSS_POST(name, __res, arg1, arg2, arg3);                            \
+    LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                   \
   }
-#define LSS_syscall4(type, name, type1, arg1, type2, arg2, type3, arg3,   \
-                     type4, arg4)                                         \
-  static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,       \
-                                type4 arg4, int *out_errno) {             \
-    LSS_PRE(name, arg1, arg2, arg3, arg4);                                \
-    LSS_SAVE_ARG(0, arg1);                                                \
-    LSS_SAVE_ARG(1, arg2);                                                \
-    LSS_SAVE_ARG(2, arg3);                                                \
-    LSS_SAVE_ARG(3, arg4);                                                \
-    LSS_LOAD_ARG(0);                                                      \
-    LSS_LOAD_ARG(1);                                                      \
-    LSS_LOAD_ARG(2);                                                      \
-    LSS_LOAD_ARG(3);                                                      \
-    LSS_BODY(type, name, "r"(__r0), "r"(__r1), "r"(__r2), "r"(__r3));     \
-    LSS_POST(name, __res, arg1, arg2, arg3, arg4);                        \
-    LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                     \
+#define LSS_syscall4(type, name, type1, arg1, type2, arg2, type3, arg3, type4, \
+                     arg4)                                                     \
+  static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,            \
+                                type4 arg4, int* out_errno) {                  \
+    LSS_PRE(name, arg1, arg2, arg3, arg4);                                     \
+    LSS_SAVE_ARG(0, arg1);                                                     \
+    LSS_SAVE_ARG(1, arg2);                                                     \
+    LSS_SAVE_ARG(2, arg3);                                                     \
+    LSS_SAVE_ARG(3, arg4);                                                     \
+    LSS_LOAD_ARG(0);                                                           \
+    LSS_LOAD_ARG(1);                                                           \
+    LSS_LOAD_ARG(2);                                                           \
+    LSS_LOAD_ARG(3);                                                           \
+    LSS_BODY(type, name, "r"(__r0), "r"(__r1), "r"(__r2), "r"(__r3));          \
+    LSS_POST(name, __res, arg1, arg2, arg3, arg4);                             \
+    LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                          \
   }
-#define LSS_syscall5(type, name, type1, arg1, type2, arg2, type3, arg3,   \
-                     type4, arg4, type5, arg5)                            \
-  static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,       \
-                                type4 arg4, type5 arg5, int *out_errno) { \
-    LSS_PRE(name, arg1, arg2, arg3, arg4, arg5);                          \
-    LSS_SAVE_ARG(0, arg1);                                                \
-    LSS_SAVE_ARG(1, arg2);                                                \
-    LSS_SAVE_ARG(2, arg3);                                                \
-    LSS_SAVE_ARG(3, arg4);                                                \
-    LSS_SAVE_ARG(4, arg5);                                                \
-    LSS_LOAD_ARG(0);                                                      \
-    LSS_LOAD_ARG(1);                                                      \
-    LSS_LOAD_ARG(2);                                                      \
-    LSS_LOAD_ARG(3);                                                      \
-    LSS_LOAD_ARG(4);                                                      \
-    LSS_BODY(type, name, "r"(__r0), "r"(__r1), "r"(__r2), "r"(__r3),      \
-             "r"(__r4));                                                  \
-    LSS_POST(name, __res, arg1, arg2, arg3, arg4, arg5);                  \
-    LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                     \
+#define LSS_syscall5(type, name, type1, arg1, type2, arg2, type3, arg3, type4, \
+                     arg4, type5, arg5)                                        \
+  static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,            \
+                                type4 arg4, type5 arg5, int* out_errno) {      \
+    LSS_PRE(name, arg1, arg2, arg3, arg4, arg5);                               \
+    LSS_SAVE_ARG(0, arg1);                                                     \
+    LSS_SAVE_ARG(1, arg2);                                                     \
+    LSS_SAVE_ARG(2, arg3);                                                     \
+    LSS_SAVE_ARG(3, arg4);                                                     \
+    LSS_SAVE_ARG(4, arg5);                                                     \
+    LSS_LOAD_ARG(0);                                                           \
+    LSS_LOAD_ARG(1);                                                           \
+    LSS_LOAD_ARG(2);                                                           \
+    LSS_LOAD_ARG(3);                                                           \
+    LSS_LOAD_ARG(4);                                                           \
+    LSS_BODY(type, name, "r"(__r0), "r"(__r1), "r"(__r2), "r"(__r3),           \
+             "r"(__r4));                                                       \
+    LSS_POST(name, __res, arg1, arg2, arg3, arg4, arg5);                       \
+    LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                          \
   }
-#define LSS_syscall6(type, name, type1, arg1, type2, arg2, type3, arg3,   \
-                     type4, arg4, type5, arg5, type6, arg6)               \
-  static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,       \
-                                type4 arg4, type5 arg5, type6 arg6,       \
-                                int *out_errno) {                         \
-    LSS_PRE(name, arg1, arg2, arg3, arg4, arg5);                          \
-    LSS_SAVE_ARG(0, arg1);                                                \
-    LSS_SAVE_ARG(1, arg2);                                                \
-    LSS_SAVE_ARG(2, arg3);                                                \
-    LSS_SAVE_ARG(3, arg4);                                                \
-    LSS_SAVE_ARG(4, arg5);                                                \
-    LSS_SAVE_ARG(5, arg6);                                                \
-    LSS_LOAD_ARG(0);                                                      \
-    LSS_LOAD_ARG(1);                                                      \
-    LSS_LOAD_ARG(2);                                                      \
-    LSS_LOAD_ARG(3);                                                      \
-    LSS_LOAD_ARG(4);                                                      \
-    LSS_LOAD_ARG(5);                                                      \
-    LSS_BODY(type, name, "r"(__r0), "r"(__r1), "r"(__r2), "r"(__r3),      \
-             "r"(__r4), "r"(__r5));                                       \
-    LSS_POST(name, __res, arg1, arg2, arg3, arg4, arg5, arg6);            \
-    LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                     \
+#define LSS_syscall6(type, name, type1, arg1, type2, arg2, type3, arg3, type4, \
+                     arg4, type5, arg5, type6, arg6)                           \
+  static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,            \
+                                type4 arg4, type5 arg5, type6 arg6,            \
+                                int* out_errno) {                              \
+    LSS_PRE(name, arg1, arg2, arg3, arg4, arg5);                               \
+    LSS_SAVE_ARG(0, arg1);                                                     \
+    LSS_SAVE_ARG(1, arg2);                                                     \
+    LSS_SAVE_ARG(2, arg3);                                                     \
+    LSS_SAVE_ARG(3, arg4);                                                     \
+    LSS_SAVE_ARG(4, arg5);                                                     \
+    LSS_SAVE_ARG(5, arg6);                                                     \
+    LSS_LOAD_ARG(0);                                                           \
+    LSS_LOAD_ARG(1);                                                           \
+    LSS_LOAD_ARG(2);                                                           \
+    LSS_LOAD_ARG(3);                                                           \
+    LSS_LOAD_ARG(4);                                                           \
+    LSS_LOAD_ARG(5);                                                           \
+    LSS_BODY(type, name, "r"(__r0), "r"(__r1), "r"(__r2), "r"(__r3),           \
+             "r"(__r4), "r"(__r5));                                            \
+    LSS_POST(name, __res, arg1, arg2, arg3, arg4, arg5, arg6);                 \
+    LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                          \
   }
 
-static inline int lss_clone(int (*fn)(void *), void *child_stack, int flags,
-                            void *arg, int *parent_tidptr, void *newtls,
-                            int *child_tidptr, int *out_errno) {
+static inline int lss_clone(int (*fn)(void*), void* child_stack, int flags,
+                            void* arg, int* parent_tidptr, void* newtls,
+                            int* child_tidptr, int* out_errno) {
   int64_t __res;
   {
     if (fn == NULL || child_stack == NULL) {
@@ -277,10 +277,10 @@ static inline int lss_clone(int (*fn)(void *), void *child_stack, int flags,
     register int64_t __res_a0 __asm__("a0");
 
     register uint64_t __flags __asm__("a0") = flags;
-    register void *__stack __asm__("a1") = child_stack;
-    register void *__ptid __asm__("a2") = parent_tidptr;
-    register void *__tls __asm__("a3") = newtls;
-    register void *__ctid __asm__("a4") = child_tidptr;
+    register void* __stack __asm__("a1") = child_stack;
+    register void* __ptid __asm__("a2") = parent_tidptr;
+    register void* __tls __asm__("a3") = newtls;
+    register void* __ctid __asm__("a4") = child_tidptr;
 
     __asm__ __volatile__(/* Set up alignment of the child stack:
                           * child_stack = (child_stack & 0~0xf) - 15
@@ -318,8 +318,8 @@ static inline int lss_clone(int (*fn)(void *), void *child_stack, int flags,
                          "scall\n"
 
                          /* Return to the parent.  */
-                      "1:\n"
-                         : "=r" (__res_a0)
+                         "1:\n"
+                         : "=r"(__res_a0)
                          : "r"(fn), "r"(__stack), "r"(__flags), "r"(arg),
                            "r"(__ptid), "r"(__tls), "r"(__ctid),
                            "i"(__NR_clone), "i"(__NR_exit)
@@ -334,13 +334,13 @@ static inline int lss_clone(int (*fn)(void *), void *child_stack, int flags,
  * this is very platform specific and cannot be done in a generic compatibility
  * wrapper.
  */
-static inline int lss_fork(int *out_errno) {
+static inline int lss_fork(int* out_errno) {
   LSS_PRE(fork);
-  LSS_REG(0, SIGCHLD);  /* clone flags */
-  LSS_REG(1, 0);        /* newsp */
-  LSS_REG(2, NULL);     /* parent_tidptr */
-  LSS_REG(3, 0);        /* tls_val */
-  LSS_REG(4, NULL);     /* child_tidptr */
+  LSS_REG(0, SIGCHLD); /* clone flags */
+  LSS_REG(1, 0);       /* newsp */
+  LSS_REG(2, NULL);    /* parent_tidptr */
+  LSS_REG(3, 0);       /* tls_val */
+  LSS_REG(4, NULL);    /* child_tidptr */
   LSS_BODY(int, clone, "r"(__r0), "r"(__r1), "r"(__r2), "r"(__r3), "r"(__r4));
   LSS_POST(fork, __res);
   LSS_SET_ERRNO_AND_RETURN(int, __res, out_errno);

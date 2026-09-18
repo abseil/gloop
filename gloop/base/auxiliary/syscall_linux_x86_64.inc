@@ -16,139 +16,139 @@
 // IWYU pragma: private, include "base/linux_syscall_support.h"
 
 struct kernel_stat {
-  unsigned long      st_dev;
-  unsigned long      st_ino;
-  unsigned long      st_nlink;
-  unsigned           st_mode;
-  unsigned           st_uid;
-  unsigned           st_gid;
-  unsigned           __pad0;
-  unsigned long      st_rdev;
-  long               st_size;
-  long               st_blksize;
-  long               st_blocks;
-  unsigned long      st_atime_;
-  unsigned long      st_atime_nsec_;
-  unsigned long      st_mtime_;
-  unsigned long      st_mtime_nsec_;
-  unsigned long      st_ctime_;
-  unsigned long      st_ctime_nsec_;
+  unsigned long st_dev;
+  unsigned long st_ino;
+  unsigned long st_nlink;
+  unsigned st_mode;
+  unsigned st_uid;
+  unsigned st_gid;
+  unsigned __pad0;
+  unsigned long st_rdev;
+  long st_size;
+  long st_blksize;
+  long st_blocks;
+  unsigned long st_atime_;
+  unsigned long st_atime_nsec_;
+  unsigned long st_mtime_;
+  unsigned long st_mtime_nsec_;
+  unsigned long st_ctime_;
+  unsigned long st_ctime_nsec_;
   long ___unused[3];
 };
 
 #ifndef ARCH_SET_GS
-#define ARCH_SET_GS             0x1001
+#define ARCH_SET_GS 0x1001
 #endif
 #ifndef ARCH_GET_GS
-#define ARCH_GET_GS             0x1004
+#define ARCH_GET_GS 0x1004
 #endif
 
 #ifndef __NR_pread64
-#define __NR_pread64             17
+#define __NR_pread64 17
 #endif
 #ifndef __NR_pwrite64
-#define __NR_pwrite64            18
+#define __NR_pwrite64 18
 #endif
 #ifndef __NR_setresuid
-#define __NR_setresuid          117
-#define __NR_getresuid          118
-#define __NR_setresgid          119
-#define __NR_getresgid          120
+#define __NR_setresuid 117
+#define __NR_getresuid 118
+#define __NR_setresgid 119
+#define __NR_getresgid 120
 #endif
 #ifndef __NR_mount
-#define __NR_mount              165
+#define __NR_mount 165
 #endif
 #ifndef __NR_quotactl
-#define __NR_quotactl           179
+#define __NR_quotactl 179
 #endif
 #ifndef __NR_gettid
-#define __NR_gettid             186
+#define __NR_gettid 186
 #endif
 #ifndef __NR_readahead
-#define __NR_readahead          187
+#define __NR_readahead 187
 #endif
 #ifndef __NR_setxattr
-#define __NR_setxattr           188
+#define __NR_setxattr 188
 #endif
 #ifndef __NR_lsetxattr
-#define __NR_lsetxattr          189
+#define __NR_lsetxattr 189
 #endif
 #ifndef __NR_getxattr
-#define __NR_getxattr           191
+#define __NR_getxattr 191
 #endif
 #ifndef __NR_lgetxattr
-#define __NR_lgetxattr          192
+#define __NR_lgetxattr 192
 #endif
 #ifndef __NR_listxattr
-#define __NR_listxattr          194
+#define __NR_listxattr 194
 #endif
 #ifndef __NR_llistxattr
-#define __NR_llistxattr         195
+#define __NR_llistxattr 195
 #endif
 #ifndef __NR_tkill
-#define __NR_tkill              200
+#define __NR_tkill 200
 #endif
 #ifndef __NR_futex
-#define __NR_futex              202
+#define __NR_futex 202
 #endif
 #ifndef __NR_sched_setaffinity
-#define __NR_sched_setaffinity  203
-#define __NR_sched_getaffinity  204
+#define __NR_sched_setaffinity 203
+#define __NR_sched_getaffinity 204
 #endif
 #ifndef __NR_io_setup
-#define __NR_io_setup           206
-#define __NR_io_destroy         207
-#define __NR_io_getevents       208
-#define __NR_io_submit          209
-#define __NR_io_cancel          210
+#define __NR_io_setup 206
+#define __NR_io_destroy 207
+#define __NR_io_getevents 208
+#define __NR_io_submit 209
+#define __NR_io_cancel 210
 #endif
 #ifndef __NR_getdents64
-#define __NR_getdents64         217
+#define __NR_getdents64 217
 #endif
 #ifndef __NR_set_tid_address
-#define __NR_set_tid_address    218
+#define __NR_set_tid_address 218
 #endif
 #ifndef __NR_fadvise64
-#define __NR_fadvise64          221
+#define __NR_fadvise64 221
 #endif
 #ifndef __NR_clock_gettime
-#define __NR_clock_gettime      228
+#define __NR_clock_gettime 228
 #endif
 #ifndef __NR_clock_getres
-#define __NR_clock_getres       229
+#define __NR_clock_getres 229
 #endif
 #ifndef __NR_ioprio_set
-#define __NR_ioprio_set         251
+#define __NR_ioprio_set 251
 #endif
 #ifndef __NR_ioprio_get
-#define __NR_ioprio_get         252
+#define __NR_ioprio_get 252
 #endif
 #ifndef __NR_openat
-#define __NR_openat             257
+#define __NR_openat 257
 #endif
 #ifndef __NR_newfstatat
-#define __NR_newfstatat         262
+#define __NR_newfstatat 262
 #endif
 #ifndef __NR_unlinkat
-#define __NR_unlinkat           263
+#define __NR_unlinkat 263
 #endif
 #ifndef __NR_unshare
-#define __NR_unshare            272
+#define __NR_unshare 272
 #endif
 #ifndef __NR_move_pages
-#define __NR_move_pages         279
+#define __NR_move_pages 279
 #endif
 #ifndef __NR_fallocate
-#define __NR_fallocate          285
+#define __NR_fallocate 285
 #endif
 #ifndef __NR_preadv
-#define __NR_preadv             295
+#define __NR_preadv 295
 #endif
 #ifndef __NR_pwritev
-#define __NR_pwritev            296
+#define __NR_pwritev 296
 #endif
 #ifndef __NR_setns
-#define __NR_setns              308
+#define __NR_setns 308
 #endif
 
 /* Failing system calls return a negative result in the range of
@@ -167,13 +167,13 @@ struct kernel_stat {
  * location (e.g. when using the clone() system call with the CLONE_VM
  * option).
  */
-#define LSS_BODY(res, name, ...)                                           \
-  __asm__ __volatile__("syscall"                                           \
-                       : "=a"(res)                                         \
-                       : "0"(__NR_##name), ##__VA_ARGS__                   \
+#define LSS_BODY(res, name, ...)                         \
+  __asm__ __volatile__("syscall"                         \
+                       : "=a"(res)                       \
+                       : "0"(__NR_##name), ##__VA_ARGS__ \
                        : "r11", "rcx", "memory");
 #define LSS_syscall0(type, name)                      \
-  static inline type lss_##name(int *out_errno) {     \
+  static inline type lss_##name(int* out_errno) {     \
     long __res;                                       \
     LSS_PRE(name);                                    \
     LSS_BODY(__res, name);                            \
@@ -181,7 +181,7 @@ struct kernel_stat {
     LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno); \
   }
 #define LSS_syscall1(type, name, type1, arg1)                 \
-  static inline type lss_##name(type1 arg1, int *out_errno) { \
+  static inline type lss_##name(type1 arg1, int* out_errno) { \
     long __res;                                               \
     LSS_PRE(name, arg1);                                      \
     LSS_BODY(__res, name, "D"((long)(arg1)));                 \
@@ -189,7 +189,7 @@ struct kernel_stat {
     LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);         \
   }
 #define LSS_syscall2(type, name, type1, arg1, type2, arg2)                \
-  static inline type lss_##name(type1 arg1, type2 arg2, int *out_errno) { \
+  static inline type lss_##name(type1 arg1, type2 arg2, int* out_errno) { \
     long __res;                                                           \
     LSS_PRE(name, arg1, arg2);                                            \
     LSS_BODY(__res, name, "D"((long)(arg1)), "S"((long)(arg2)));          \
@@ -198,7 +198,7 @@ struct kernel_stat {
   }
 #define LSS_syscall3(type, name, type1, arg1, type2, arg2, type3, arg3) \
   static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,     \
-                                int *out_errno) {                       \
+                                int* out_errno) {                       \
     long __res;                                                         \
     LSS_PRE(name, arg1, arg2, arg3);                                    \
     LSS_BODY(__res, name, "D"((long)(arg1)), "S"((long)(arg2)),         \
@@ -209,7 +209,7 @@ struct kernel_stat {
 #define LSS_syscall4(type, name, type1, arg1, type2, arg2, type3, arg3, type4, \
                      arg4)                                                     \
   static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,            \
-                                type4 arg4, int *out_errno) {                  \
+                                type4 arg4, int* out_errno) {                  \
     long __res;                                                                \
     LSS_PRE(name, arg1, arg2, arg3, arg4);                                     \
     __asm__ __volatile__("movq %5,%%r10; syscall"                              \
@@ -224,7 +224,7 @@ struct kernel_stat {
 #define LSS_syscall5(type, name, type1, arg1, type2, arg2, type3, arg3, type4, \
                      arg4, type5, arg5)                                        \
   static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,            \
-                                type4 arg4, type5 arg5, int *out_errno) {      \
+                                type4 arg4, type5 arg5, int* out_errno) {      \
     long __res;                                                                \
     LSS_PRE(name, arg1, arg2, arg3, arg4, arg5);                               \
     __asm__ __volatile__("movq %5,%%r10; movq %6,%%r8; syscall"                \
@@ -240,7 +240,7 @@ struct kernel_stat {
                      arg4, type5, arg5, type6, arg6)                           \
   static inline type lss_##name(type1 arg1, type2 arg2, type3 arg3,            \
                                 type4 arg4, type5 arg5, type6 arg6,            \
-                                int *out_errno) {                              \
+                                int* out_errno) {                              \
     long __res;                                                                \
     LSS_PRE(name, arg1, arg2, arg3, arg4, arg5, arg6);                         \
     __asm__ __volatile__(                                                      \
@@ -255,9 +255,9 @@ struct kernel_stat {
     LSS_SET_ERRNO_AND_RETURN(type, __res, out_errno);                          \
   }
 
-static inline int lss_clone(int (*fn)(void *), void *child_stack, int flags,
-                            void *arg, int *parent_tidptr, void *newtls,
-                            int *child_tidptr, int *out_errno) {
+static inline int lss_clone(int (*fn)(void*), void* child_stack, int flags,
+                            void* arg, int* parent_tidptr, void* newtls,
+                            int* child_tidptr, int* out_errno) {
   long __res;
   {
     if (fn == NULL || child_stack == NULL) {
@@ -298,9 +298,9 @@ static inline int lss_clone(int (*fn)(void *), void *child_stack, int flags,
                           */
                          "xorq   %%rbp,%%rbp\n"
 
-                         /* Clearing frame pointer is not sufficient to stop
-                          * unwinding. http://b/18777254
-                          */
+    /* Clearing frame pointer is not sufficient to stop
+     * unwinding. http://b/18777254
+     */
 #ifdef __GCC_HAVE_DWARF2_CFI_ASM
                          ".cfi_undefined %%rip\n"
 #endif
