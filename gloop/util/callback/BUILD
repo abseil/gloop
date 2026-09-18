@@ -31,6 +31,7 @@ cc_library(
     name = "blocking_callback",
     srcs = ["blocking_callback.cc"],
     hdrs = ["blocking_callback.h"],
+    implementation_deps = ["@abseil-cpp//absl/log:check"],
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base:callback",
@@ -38,7 +39,6 @@ cc_library(
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
     ],
@@ -67,13 +67,15 @@ cc_library(
     name = "cancellable_closure",
     srcs = ["cancellable_closure.cc"],
     hdrs = ["cancellable_closure.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/time",
+    ],
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base:callback",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
-        "@abseil-cpp//absl/time",
     ],
 )
 
