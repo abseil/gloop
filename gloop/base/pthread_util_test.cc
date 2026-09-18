@@ -22,6 +22,7 @@
 
 #include <pthread.h>
 
+#include "absl/container/flat_hash_set.h"
 #include "gtest/gtest.h"
 
 namespace base {
@@ -30,6 +31,20 @@ namespace {
 TEST(PthreadUtilTest, GetPthreadNumericId) {
   EXPECT_GT(GetPthreadNumericId(pthread_self()), 0);
   EXPECT_EQ(GetPthreadNumericId(pthread_t{}), 0);
+}
+
+TEST(PthreadUtilTest, PthreadHashAndEqual) {
+  const pthread_t self = pthread_self();
+  const pthread_t zero{};
+  EXPECT_TRUE(PthreadEqual{}(self, self));
+  EXPECT_FALSE(PthreadEqual{}(self, zero));
+  EXPECT_EQ(PthreadHash{}(self), PthreadHash{}(self));
+
+  absl::flat_hash_set<pthread_t, PthreadHash, PthreadEqual> set;
+  EXPECT_TRUE(set.insert(self).second);
+  EXPECT_FALSE(set.insert(self).second);
+  EXPECT_TRUE(set.contains(self));
+  EXPECT_FALSE(set.contains(zero));
 }
 
 }  // namespace
