@@ -48,6 +48,7 @@ cc_test(
         "//gloop/util/gtl:stl_util",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/random",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

@@ -23,6 +23,7 @@
 
 #include <stddef.h>
 
+#include <cstddef>
 #include <string>
 
 #include "absl/base/macros.h"
