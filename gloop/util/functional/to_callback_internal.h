@@ -74,25 +74,31 @@ class FunctorClosure final : public Closure {
   explicit FunctorClosure(
       Functor functor, perftools::tracing::StringLabel label =
                            perftools::tracing::TraceSourceLocation::current())
-      : Closure(std::conditional_t<Permanent, ::base::Context::DefaultInitType,
-                                   ::base::Context::ThreadInitType>(),
-                label),
+      : Closure(nullptr),
+        real_context_(
+            std::conditional_t<Permanent, ::base::Context::DefaultInitType,
+                               ::base::Context::ThreadInitType>()),
         functor_(std::move(functor)),
-        label_(std::move(label)) {}
+        label_(std::move(label)) {
+    // Ensure the context is non-null. We reset this pointer before ~Closure can
+    // double free it.
+    context_.reset(&real_context_);
+  }
+
+  ~FunctorClosure() override {
+    // Ensure the context is not freed when the base class destructor is called.
+    context_.release();
+  }
 
   // This type is neither copyable nor movable.
   FunctorClosure(const FunctorClosure&) = delete;
   FunctorClosure& operator=(const FunctorClosure&) = delete;
 
   void Run() override {
-    // Some notes on the invocation below:
-    // - For non-void types, the conversion above has already been validated by
-    //   IsCallable.
-    // - std::forward allows the use of move-only arguments.
     if constexpr (Permanent) {
       functor()();
     } else {
-      base::WithContext with(std::move(this->context_), label_);
+      base::WithContext with(std::move(this->real_context_), label_);
       auto delete_self = absl::Cleanup([this] { delete this; });
       functor()();
     }
@@ -106,6 +112,9 @@ class FunctorClosure final : public Closure {
     return static_cast<FunctorRef<Permanent, Functor>>(functor_);
   }
 
+  // This is stored inline to avoid an extra heap allocation and pointer
+  // dereference in the most common user of Closure.
+  base::Context real_context_;
   Functor functor_;
   const perftools::tracing::StringLabel label_;
 };
