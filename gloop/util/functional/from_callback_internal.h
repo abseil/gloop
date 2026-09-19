@@ -270,6 +270,14 @@ class ABSL_NULLABILITY_COMPATIBLE ResultCallbackFunctorImpl
   ResultCallbackFunctorImpl(C* c)  // NOLINT(google-explicit-constructor)
       : Base(c ? Impl(FromCallbackWithOwnership(c)) : Impl()) {}
 
+  // Converting constructor from a callback unique_ptr (likely a derived
+  // callback implementation)
+  template <typename C>
+    requires(kIsClosure && std::is_base_of_v<Closure, C>)
+  ResultCallbackFunctorImpl(  // NOLINT(google-explicit-constructor)
+      std::unique_ptr<C> c)
+      : ResultCallbackFunctorImpl(c.release()) {}
+
   // Converting constructor to change MockCallback usage to not rely on callback
   // inheritance.
   template <typename F>
