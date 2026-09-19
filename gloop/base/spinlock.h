@@ -31,6 +31,7 @@
 using absl::base_internal::SpinLock;        // NOLINT(readability/namespace)
 using absl::base_internal::SpinLockHolder;  // NOLINT(readability/namespace)
 namespace base {
+using absl::base_internal::RegisterSpinLockLockProfiler;
 using absl::base_internal::RegisterSpinLockProfiler;
 }  // namespace base
 
