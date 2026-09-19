@@ -125,15 +125,6 @@ template <typename CallbackType>
 using OwningCallbackFunctor = OwningCallbackFunctorImpl<
     CallbackType, typename internal::CallbackToSig<CallbackType>::type>;
 
-template <class R, class... Args>
-class Callback : public ::base::internal::CallbackBase {
- public:
-  virtual R Run(Args...) = 0;
-
- protected:
-  using ::base::internal::CallbackBase::CallbackBase;
-};
-
 }  // namespace internal
 
 // Forward declaration for inlining below.
