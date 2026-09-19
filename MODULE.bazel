@@ -48,7 +48,7 @@ local_path_override(
 # (or its dependencies like riegeli/protobuf) that must be declared here
 # to ensure compatibility with Bazel 9.
 
-bazel_dep(name = "fuzztest", version = "20260219.0", dev_dependency = True)
+bazel_dep(name = "fuzztest", version = "20260629.0", dev_dependency = True)
 
 # TODO Fuzztest patch is required for Abseil compatibility in OSS.
 git_override(
