@@ -462,20 +462,20 @@ void DumpRegisterContext(void* const vuc, DebugWriter* writer,
       // Wrap at 80 characters.
       const size_t buf_len = strlen(buf);
       if (line_len + 1 + buf_len >= 80) {
-        strcpy(line + line_len, "\n");
+        absl::SNPrintF(line + line_len, sizeof(line) - line_len, "\n");
         writer(line, writer_arg);
 
-        strcpy(line, " ");
+        absl::SNPrintF(line, sizeof(line), " ");
         line_len = 1;
       }
 
-      strcpy(line + line_len, " ");
+      absl::SNPrintF(line + line_len, sizeof(line) - line_len, " ");
       line_len += 1;
       memcpy(line + line_len, buf, buf_len + 1);
       line_len += buf_len;
     }
 
-    strcpy(line + line_len, "\n");
+    absl::SNPrintF(line + line_len, sizeof(line) - line_len, "\n");
     writer(line, writer_arg);
   }
 #else
