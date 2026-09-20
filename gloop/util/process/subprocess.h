@@ -1025,8 +1025,14 @@ class SubProcess {
   //
   //   If filename is non-NULL, it will be filled with an exec-able path to
   //   the file, of the form "/proc/*/fd/*"
-  static int StringToExecutableFile(const char* data, size_t len,
+  static int StringToExecutableFile(absl::string_view data,
                                     std::string* filename);
+
+  ABSL_DEPRECATE_AND_INLINE()
+  static int StringToExecutableFile(const char* data, size_t len,
+                                    std::string* filename) {
+    return StringToExecutableFile(absl::string_view(data, len), filename);
+  }
 
   // CachedResourceToExecutableFile
   //   Convert an embedded file from a cc_embed_data rule into an

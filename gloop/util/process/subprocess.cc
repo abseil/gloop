@@ -2508,7 +2508,7 @@ static absl::flat_hash_map<FILE*, SubProcess*>* subproc_popen_table;
 //   Convert a raw string into an executable temporary file.
 // L=*
 /* static */
-int SubProcess::StringToExecutableFile(const char* data, size_t len,
+int SubProcess::StringToExecutableFile(absl::string_view data,
                                        std::string* filename) {
   // Choose the highest-priority temp directory.
   std::vector<std::string> temp_dirs;
@@ -2536,8 +2536,9 @@ int SubProcess::StringToExecutableFile(const char* data, size_t len,
 
   // Dump all string data into the file.  This is based on
   // LinuxFileOps::WriteToFD, but we don't want to depend on the file library.
-  while (len > 0) {
-    ssize_t result = TEMP_FAILURE_RETRY(write(write_fd, data, len));
+  while (!data.empty()) {
+    ssize_t result =
+        TEMP_FAILURE_RETRY(write(write_fd, data.data(), data.size()));
     if (result <= 0) {
       int saved_errno = errno;
       close(write_fd);
@@ -2545,8 +2546,7 @@ int SubProcess::StringToExecutableFile(const char* data, size_t len,
       PLOG(ERROR) << "write";
       return -1;
     }
-    len -= result;
-    data += result;
+    data.remove_prefix(result);
   }
 
   // Re-open the file with no permissions, and close the original.
@@ -2586,7 +2586,8 @@ absl::StatusOr<std::string> SubProcess::CachedResourceToExecutableFile(
   if (!resource_to_file_map) resource_to_file_map = new ResourceToFileMap();
   std::string& filename = (*resource_to_file_map)[toc];
   if (filename.empty() &&
-      StringToExecutableFile(toc->data, toc->size, &filename) < 0) {
+      StringToExecutableFile(absl::string_view(toc->data, toc->size),
+                             &filename) < 0) {
     return util::InternalErrorBuilder()
            << "Failed to convert file " << toc->name << ": "
            << base::StrError(errno);
