@@ -26,6 +26,7 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <new>
 
 #include "absl/base/attributes.h"
 
@@ -157,6 +158,13 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI CensusHandle {
    public:
     EntryBase() : rc_(1) {}
     virtual ~EntryBase() {}
+
+    // Suppress sized deallocation to avoid sized delete mismatches for
+    // overallocated EntryBase subclasses.
+    void operator delete(void* ptr) noexcept { ::operator delete(ptr); }
+    void operator delete(void* ptr, std::align_val_t al) noexcept {
+      ::operator delete(ptr, al);
+    }
 
    protected:
     // Increments the reference count.
