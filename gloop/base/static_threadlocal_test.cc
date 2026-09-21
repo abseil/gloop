@@ -93,7 +93,7 @@ static void RunThreads(int num_threads, void (*callback)(int i)) {
 
 // Access a static threadlocal in the destructor of another threadlocal.
 
-static void NestedAccessThreadBody(int i) {
+static void NestedAccessThreadBody(int /*i*/) {
   EXPECT_EQ(foo1.get().value(), 1);
   EXPECT_EQ(foo2.get().value(), 2);
 }
