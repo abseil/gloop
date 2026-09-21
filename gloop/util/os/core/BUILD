@@ -64,9 +64,9 @@ cc_library(
     name = "cpu_set",
     srcs = ["cpu_set.cc"],
     hdrs = ["cpu_set.h"],
+    implementation_deps = ["@abseil-cpp//absl/log"],
     deps = [
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@protobuf//:protobuf_lite",

@@ -99,21 +99,23 @@ cc_library(
         "string_registry.h",
         "tracing_base.h",
     ],
+    implementation_deps = [
+        "//gloop/util/gtl:lockfree_hashmap",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/synchronization",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         ":trace_source_location",
         "//gloop:enforce_gloop_support",
-        "//gloop/util/gtl:lockfree_hashmap",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/base:nullability",
-        "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/hash",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:string_view",
-        "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/types:source_location",
     ],
 )
@@ -166,6 +168,10 @@ cc_library(
     name = "noop_trace_event_listener",
     srcs = ["noop_trace_event_listener.cc"],
     hdrs = ["noop_trace_event_listener.h"],
+    implementation_deps = [
+        ":tracing_base",
+        "@abseil-cpp//absl/base:no_destructor",
+    ],
     visibility = [
         ":base_visibility",
         ":internal_visibility",
@@ -173,9 +179,7 @@ cc_library(
     ],
     deps = [
         ":trace_event_listener",
-        ":tracing_base",
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:no_destructor",
     ],
 )
 
@@ -196,6 +200,12 @@ cc_library(
     name = "multiplex_trace_event_listener",
     srcs = ["multiplex_trace_event_listener.cc"],
     hdrs = ["multiplex_trace_event_listener.h"],
+    implementation_deps = [
+        ":trace_source_location",
+        "//gloop/base:examine_stack",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+    ],
     visibility = [
         ":base_visibility",
         ":internal_visibility",
@@ -203,12 +213,8 @@ cc_library(
     ],
     deps = [
         ":trace_event_listener",
-        ":trace_source_location",
         ":tracing_base",
         "//gloop:enforce_gloop_support",
-        "//gloop/base:examine_stack",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
     ],
 )
 
@@ -248,6 +254,11 @@ cc_library(
     name = "tracing_core",
     srcs = ["tracing_core.cc"],
     hdrs = ["tracing_core.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:tracing_internal",
+    ],
     visibility = [
         ":core_visibility",
         ":internal_visibility",
@@ -257,9 +268,6 @@ cc_library(
         ":trace_source_location",
         ":tracing_base",
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:config",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:tracing_internal",
         "@abseil-cpp//absl/log:check",
     ],
 )
@@ -314,21 +322,23 @@ cc_library(
     name = "sync_context",
     srcs = ["sync_context.cc"],
     hdrs = ["sync_context.h"],
+    implementation_deps = [
+        ":multiplex_trace_event_listener",
+        ":noop_trace_event_listener",
+        ":perftools_verify",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+    ],
     visibility = [
         ":base_visibility",
         ":internal_visibility",
     ],
     deps = [
-        ":multiplex_trace_event_listener",
-        ":noop_trace_event_listener",
-        ":perftools_verify",
         ":trace_event_listener",
         ":trace_source_location",
         ":tracing_base",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
     ],
 )
 
@@ -399,17 +409,19 @@ cc_library(
     name = "scoped_bridge_trace_event_listener",
     srcs = ["scoped_bridge_trace_event_listener.cc"],
     hdrs = ["scoped_bridge_trace_event_listener.h"],
+    implementation_deps = [
+        ":multiplex_trace_event_listener",
+        ":noop_trace_event_listener",
+        "@abseil-cpp//absl/log",
+    ],
     visibility = [
         ":internal_visibility",
     ],
     deps = [
-        ":multiplex_trace_event_listener",
-        ":noop_trace_event_listener",
         ":trace_event_listener",
         ":trace_source_location",
         ":tracing_base",
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/log",
     ],
 )
 
@@ -435,14 +447,16 @@ cc_library(
     name = "tracing",
     srcs = ["tracing.cc"],
     hdrs = ["tracing.h"],
+    implementation_deps = [
+        ":trace_event_listener",
+        "@abseil-cpp//absl/base:no_destructor",
+    ],
     visibility = ["//visibility:public"],
     deps = [
-        ":trace_event_listener",
         ":trace_source_location",
         ":tracing_base",
         ":tracing_core",
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/log:check",
     ],
 )
