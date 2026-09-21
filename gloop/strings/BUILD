@@ -274,8 +274,6 @@ cc_test(
     deps = [
         ":host_port",
         "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
@@ -290,7 +288,6 @@ cc_library(
     deps = [
         ":si_prefix",
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings",

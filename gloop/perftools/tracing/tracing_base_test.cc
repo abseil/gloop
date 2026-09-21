@@ -26,8 +26,6 @@
 #include <thread>  // NOLINT
 
 #include "absl/base/casts.h"
-#include "absl/flags/declare.h"
-#include "absl/flags/flag.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
