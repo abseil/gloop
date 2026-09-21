@@ -25,6 +25,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
@@ -62,11 +63,14 @@ class MockTraceEventListener : public TraceEventListener {
   MOCK_METHOD(void, OnTraceObserved, (BarrierId, StringRef));
   MOCK_METHOD(void, OnTraceSignal, (BarrierId, StringRef));
 
-  MOCK_METHOD(void, OnTraceSend, (StringRef, MsgOrigin, MsgId));
-  MOCK_METHOD(void, OnTraceReceive, (StringRef, MsgOrigin, MsgId));
+  MOCK_METHOD(void, OnTraceSend,
+              (StringRef, MsgOrigin, MsgId, absl::StatusCode));
+  MOCK_METHOD(void, OnTraceReceive,
+              (StringRef, MsgOrigin, MsgId, absl::StatusCode));
 
   MOCK_METHOD(void, OnTraceSessionStart, (StringRef, MsgId, EndPoint));
-  MOCK_METHOD(void, OnTraceSessionEnd, (StringRef, MsgId, EndPoint));
+  MOCK_METHOD(void, OnTraceSessionEnd,
+              (StringRef, MsgId, EndPoint, absl::StatusCode));
 
   MOCK_METHOD(void, OnTraceStreamingSend,
               (MsgOrigin, MsgId, MsgSequence, MsgFlags));

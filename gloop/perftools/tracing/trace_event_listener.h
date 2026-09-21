@@ -26,6 +26,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
@@ -266,15 +267,18 @@ class TraceEventListener {
   // Messages do not necessarily have to be actual messages sent over the wire:
   // some applications may emit send and receive events to force causality in
   // complex processes where automatically recording causality is infeasible.
-  virtual void OnTraceSend(StringRef label, MsgOrigin origin, MsgId id);
-  virtual void OnTraceReceive(StringRef label, MsgOrigin origin, MsgId id);
+  virtual void OnTraceSend(StringRef label, MsgOrigin origin, MsgId id,
+                           absl::StatusCode status);
+  virtual void OnTraceReceive(StringRef label, MsgOrigin origin, MsgId id,
+                              absl::StatusCode status);
 
   // `SessionStart()` and `SessionFinish()` events are emitted when client and
   // server sessions start and finish for some given client/server session.
   // `EndPoint` identifies the end point and type of session.
   virtual void OnTraceSessionStart(StringRef label, MsgId id,
                                    EndPoint end_point);
-  virtual void OnTraceSessionEnd(StringRef label, MsgId id, EndPoint end_point);
+  virtual void OnTraceSessionEnd(StringRef label, MsgId id, EndPoint end_point,
+                                 absl::StatusCode status);
 
   // `StreamingSend()` and `StreamingReceive()` events are emitted when
   // streaming request / response messages are sent or received. `id` uniquely

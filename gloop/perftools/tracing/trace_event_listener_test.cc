@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
@@ -105,8 +106,10 @@ TEST(TraceEventListener, InvokeAllEvents) {
   listener.OnTraceObserved(BarrierId{3412442}, "Peekaboo");
   listener.OnTraceSignal(BarrierId{7648223}, "Ping");
 
-  listener.OnTraceSend("Send it!", MsgOrigin::kClient, MsgId{3332});
-  listener.OnTraceReceive("Send it!", MsgOrigin::kServer, MsgId{3332});
+  listener.OnTraceSend("Send it!", MsgOrigin::kClient, MsgId{3332},
+                       absl::StatusCode::kOk);
+  listener.OnTraceReceive("Send it!", MsgOrigin::kServer, MsgId{3332},
+                          absl::StatusCode::kOk);
 
   listener.OnTraceSessionStart("Start Client", MsgId{842},
                                EndPoint::kStreamingClient);
@@ -115,7 +118,7 @@ TEST(TraceEventListener, InvokeAllEvents) {
   listener.OnTraceStreamingReceive(MsgOrigin::kServer, MsgId{842},
                                    MsgSequence{0}, MsgFlags::kDefault);
   listener.OnTraceSessionEnd("Finish Client", MsgId{842},
-                             EndPoint::kStreamingClient);
+                             EndPoint::kStreamingClient, absl::StatusCode::kOk);
 
   listener.OnTraceMark("Not Marc", TraceSourceLocation());
   listener.OnTraceBeginRegion("Here, not there", TraceSourceLocation());

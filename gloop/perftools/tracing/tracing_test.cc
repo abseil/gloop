@@ -20,6 +20,7 @@
 
 #include "gloop/perftools/tracing/tracing.h"
 
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/string_label.h"
@@ -272,13 +273,27 @@ TEST(TracingApiTest, TraceScopedSuspend) {
   tracing::TraceMark("Mark2");
 }
 
-TEST(TracingApiTest, TraceSendReceiveDefaultSequence) {
+TEST(TracingApiTest, TraceSendReceiveDefaultStatus) {
   StrictMock<MockTraceEventListener> mock;
   WithListener with(&mock);
-  EXPECT_CALL(mock, OnTraceSend(Eq("Send it"), MsgOrigin::kClient, 12345));
+  EXPECT_CALL(mock, OnTraceSend(Eq("Send it"), MsgOrigin::kClient, 12345,
+                                absl::StatusCode::kOk));
   TraceSend("Send it", MsgOrigin::kClient, 12345);
-  EXPECT_CALL(mock, OnTraceReceive(Eq("Got it"), MsgOrigin::kClient, 12345));
+  EXPECT_CALL(mock, OnTraceReceive(Eq("Got it"), MsgOrigin::kClient, 12345,
+                                   absl::StatusCode::kOk));
   TraceReceive("Got it", MsgOrigin::kClient, 12345);
+}
+
+TEST(TracingApiTest, TraceSendReceiveWithStatus) {
+  StrictMock<MockTraceEventListener> mock;
+  WithListener with(&mock);
+  EXPECT_CALL(mock, OnTraceSend(Eq("Send it"), MsgOrigin::kServer, 12345,
+                                absl::StatusCode::kInternal));
+  TraceSend("Send it", MsgOrigin::kServer, 12345, absl::StatusCode::kInternal);
+  EXPECT_CALL(mock, OnTraceReceive(Eq("Got it"), MsgOrigin::kServer, 12345,
+                                   absl::StatusCode::kUnavailable));
+  TraceReceive("Got it", MsgOrigin::kServer, 12345,
+               absl::StatusCode::kUnavailable);
 }
 
 TEST(TracingApiTest, TraceStartEndSession) {
@@ -288,8 +303,17 @@ TEST(TracingApiTest, TraceStartEndSession) {
                                         EndPoint::kStreamingClient));
   EXPECT_CALL(mock, OnTraceSessionStart(Eq("Server"), 54321,
                                         EndPoint::kStreamingServer));
+  EXPECT_CALL(mock,
+              OnTraceSessionEnd(Eq("Client"), 12345, EndPoint::kStreamingClient,
+                                absl::StatusCode::kOk));
+  EXPECT_CALL(mock,
+              OnTraceSessionEnd(Eq("Server"), 54321, EndPoint::kStreamingServer,
+                                absl::StatusCode::kCancelled));
   TraceSessionStart("Client", 12345, EndPoint::kStreamingClient);
   TraceSessionStart("Server", 54321, EndPoint::kStreamingServer);
+  TraceSessionEnd("Client", 12345, EndPoint::kStreamingClient);
+  TraceSessionEnd("Server", 54321, EndPoint::kStreamingServer,
+                  absl::StatusCode::kCancelled);
 }
 
 TEST(TracingApiTest, TraceStreamingSendReceive) {
