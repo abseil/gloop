@@ -159,6 +159,8 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI CensusHandle {
     virtual ~EntryBase() {}
 
    protected:
+    virtual void DeleteSelf() { delete this; }
+
     // Increments the reference count.
     void Ref() const { rc_.fetch_add(1, std::memory_order_relaxed); }
 
@@ -180,7 +182,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI CensusHandle {
     // Decrements the reference count and deletes `this` if it is the last
     // reference.
     void Unref() const {
-      if (UnrefNoDelete()) delete this;
+      if (UnrefNoDelete()) const_cast<EntryBase*>(this)->DeleteSelf();
     }
 
    private:
