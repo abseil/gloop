@@ -533,7 +533,8 @@ Struct Build(Struct s, Ts&&... ts) {
 
 }  // namespace internal_struct_adl_barrier
 
-using namespace internal_struct_adl_barrier;
+using internal_struct_adl_barrier::Build;
+using internal_struct_adl_barrier::get_field;
 
 template <bool permissive, class S, class... Fields>
 struct intrinsics<internal_struct::struct_tag<permissive, S, Fields...>> {

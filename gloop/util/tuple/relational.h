@@ -167,7 +167,15 @@ constexpr bool not_equal(const T& lhs, const U& rhs) {
 // namespace that isn't used in any other file. This using directive can't be
 // replace with a bunch of using declarations because using declarations
 // enable ADL.
-using namespace adl_barrier_relational;
+using adl_barrier_relational::compare;
+using adl_barrier_relational::equal;
+using adl_barrier_relational::equivalent;
+using adl_barrier_relational::greater;
+using adl_barrier_relational::greater_equal;
+using adl_barrier_relational::less;
+using adl_barrier_relational::less_equal;
+using adl_barrier_relational::not_equal;
+using adl_barrier_relational::not_equivalent;
 
 // Polymorphic binary functor returning less(lhs, rhs).
 struct less_t {
