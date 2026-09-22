@@ -73,6 +73,8 @@ void SwapCurrentContext(Context* c) {}
 
 void RestoreCurrentContext(Context* c) {}
 
+WithContext::WithContext(perftools::tracing::StringRef) {}
+
 WithContext::WithContext(const Context&, perftools::tracing::StringRef) {}
 
 WithContext::~WithContext() {}
@@ -219,6 +221,10 @@ const char* Context::thread_status() const { return thread_status_; }
 void Context::set_thread_status(const char* thread_status) {
   thread_status_ = thread_status;
 }
+
+WithContext::WithContext(perftools::tracing::StringRef label)
+    : current_(new Context(CurrentContext())),
+      previous_(internal::SwapContext(ContextAccess(), current_, label)) {}
 
 WithContext::WithContext(const Context& switch_to,
                          perftools::tracing::StringRef label)

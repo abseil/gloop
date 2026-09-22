@@ -532,6 +532,20 @@ TEST_F(ContextTest, CopiesAndWithContextDontLeak) {
   delete c;
 }
 
+TEST_F(ContextTest, WithWithoutArgsPreservesContext) {
+  static const char* thread_status1 = "Hello world";
+  static const char* thread_status2 = "Clobbered";
+
+  SetCurrentThreadStatus(thread_status1);
+  EXPECT_EQ(CurrentThreadStatus(), thread_status1);
+  {
+    WithContext preserve_context;
+    SetCurrentThreadStatus(thread_status2);
+    ASSERT_EQ(CurrentThreadStatus(), thread_status2);
+  }
+  EXPECT_EQ(CurrentThreadStatus(), thread_status1);
+}
+
 #if BASE_CONTEXT_HAVE_SECURITYCONTEXT
 TEST_F(ContextTest, TestCreateAndSetSecurityContext) {
   {
