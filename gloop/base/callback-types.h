@@ -24,6 +24,9 @@
 #ifndef THIRD_PARTY_GLOOP_BASE_CALLBACK_TYPES_H_
 #define THIRD_PARTY_GLOOP_BASE_CALLBACK_TYPES_H_
 
+#include <cstddef>
+#include <memory>
+
 #include "absl/base/attributes.h"
 #include "gloop/base/context.h"
 #include "gloop/base/tracecontext.h"
@@ -49,21 +52,32 @@ class
 #ifndef SWIG
   ABSL_DEPRECATED("Access to legacy callback captured context is deprecated.")
 #endif
-  ::base::Context* context_ptr() { return &context_; }
+  ::base::Context* context_ptr() { return context_.get(); }
 
  protected:
-  CallbackBase() : context_() {}
+  CallbackBase() : CallbackBase(::base::Context::DefaultInitType()) {}
   // The `DefaultInitType` and `ThreadInitType` constructors must have the same
   // signature as they are called from a template `ToCallback()` implementation.
   // The label is only used in the (possibly traced) thread context constructor.
   explicit CallbackBase(::base::Context::DefaultInitType /*initializer*/,
                         perftools::tracing::StringRef = /*unused*/ {})
-      : context_() {}
+      : context_(std::make_unique<base::Context>()) {}
   explicit CallbackBase(::base::Context::ThreadInitType initializer,
                         perftools::tracing::StringRef label =
                             perftools::tracing::TraceSourceLocation::current())
-      : context_(initializer, label) {}
-  ::base::Context context_;
+      : context_(std::make_unique<base::Context>(initializer, label)) {}
+
+#ifndef SWIG
+  ABSL_DEPRECATED(
+      "This is a pre-deprecated API that should only be used if the caller is "
+      "100% sure that their callee will not dereference context_ptr(). It "
+      "skips context_ptr allocation entirely, and makes it return nullptr. "
+      "Those APIs should be converted long term to deal in functor objects "
+      "instead.")
+#endif
+  explicit CallbackBase(std::nullptr_t) {}
+
+  std::unique_ptr<::base::Context> context_;
 
  private:
   virtual void UnusedKeyMethod();  // <link>
