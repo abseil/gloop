@@ -88,15 +88,9 @@ void TraceObserved(const void* object,
                    StringRef label = TraceSourceLocation::current());
 
 // Emits the `OnTraceSend()` event if the current thread is traced.
-// `sequence` contains the sequence number for the message if it is part of
-// a streaming request or response, or `kNoMsgSequence` if this message is
-// a unary RPC request or response for which we record no sequence number.
 void TraceSend(StringRef label, MsgOrigin origin, MsgId id);
 
 // Emits the `OnTraceReceive()` event if the current thread is traced.
-// `sequence` contains the sequence number for the message if it is part of
-// a streaming request or response, or `kNoMsgSequence` if this message is
-// a unary RPC request or response for which we record no sequence number.
 void TraceReceive(StringRef label, MsgOrigin origin, MsgId id);
 
 // Emits the `OnTraceSessionStart()` event if the current thread is traced.
