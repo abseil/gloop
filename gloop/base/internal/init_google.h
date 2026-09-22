@@ -22,9 +22,12 @@
 #define BASE_INTERNAL_INIT_GOOGLE_H_
 
 // Internal details of init_google.cc.
-// To be included only by init_google.cc.
+// To be included only by init_google.cc and internal streamz metrics.
+
+#include <string>
 
 #include "absl/strings/string_view.h"
+#include "gloop/base/config.h"
 
 namespace base {
 namespace internal {

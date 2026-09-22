@@ -1932,10 +1932,13 @@ cc_test(
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ] + select({
         "//conditions:default": [":process_state"],
+    }) + select({
+        "//conditions:default": [],
     }),
 )
 
