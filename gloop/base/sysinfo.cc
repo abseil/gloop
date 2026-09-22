@@ -158,19 +158,26 @@ static std::string DescribeErr(int err) {
 // spec is also provided in "spec", to use as an identifier when
 // printing error messages.  The specified filename is opened and
 // returned. returns nullptr on error.
-static FILE* OpenProcFileInternal(const char* spec, const char* filename,
+static FILE* OpenProcFileInternal(absl::string_view spec, const char* filename,
                                   bool log_on_error) {
   FILE* f = fopen(filename, "r");
   if (log_on_error && !f && VLOG_IS_ON(2)) {
-    ABSL_RAW_LOG(INFO, "%s: Error opening file %s for reading: %s", spec,
-                 filename, DescribeErr(errno).c_str());
+    ABSL_RAW_LOG(INFO, "%.*s: Error opening file %s for reading: %s",
+                 static_cast<int>(spec.size()), spec.data(), filename,
+                 DescribeErr(errno).c_str());
   }
   return f;
 }
 
-FILE* OpenProcFile(const char* filespec, pid_t pid) {
+FILE* OpenProcFile(absl::string_view filespec, pid_t pid) {
+  char null_terminated_filespec[PATH_MAX];
+  ABSL_RAW_CHECK(filespec.size() < sizeof(null_terminated_filespec),
+                 "filespec too long");
+  memcpy(null_terminated_filespec, filespec.data(), filespec.size());
+  null_terminated_filespec[filespec.size()] = '\0';
+
   char filename[PATH_MAX];
-  proc_maps_internal::ConstructFilename(filespec, pid, filename,
+  proc_maps_internal::ConstructFilename(null_terminated_filespec, pid, filename,
                                         sizeof(filename));
   return OpenProcFileInternal(filespec, filename, true);
 }
@@ -422,8 +429,8 @@ int ReadProcFileToBuffer(const char* filename, pid_t pid, size_t max_size,
 // boundary, and use the left and right sides as key and value to
 // insert into the passed ProcMap.
 
-bool ReadProcMap(const std::string& path, ProcMap* res) {
-  FILE* f = OpenProcFile(path.c_str(), -1);
+bool ReadProcMap(absl::string_view path, ProcMap* res) {
+  FILE* f = OpenProcFile(path, -1);
   if (!f) return false;
 
   // Scan through to find all keywords
