@@ -32,7 +32,6 @@
 #include <iterator>
 #include <string>
 
-#include "absl/base/macros.h"
 #include "absl/container/fixed_array.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"

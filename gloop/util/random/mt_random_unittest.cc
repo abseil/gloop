@@ -24,7 +24,6 @@
 #include <iterator>
 #include <string>
 
-#include "absl/base/macros.h"
 #include "absl/container/btree_set.h"
 #include "fuzztest/fuzztest.h"
 #include "gloop/util/random/random_base_testutils.h"

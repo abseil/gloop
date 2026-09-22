@@ -36,7 +36,6 @@
 
 #include <atomic>
 
-#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/flags/flag.h"
 #include "absl/strings/string_view.h"

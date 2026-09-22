@@ -52,10 +52,8 @@
 #include <cstdint>
 #include <iterator>
 
-#include "absl/base/attributes.h"
 #include "absl/base/const_init.h"
 #include "absl/base/internal/raw_logging.h"
-#include "absl/base/macros.h"
 #include "absl/base/prefetch.h"
 #include "absl/container/fixed_array.h"
 #include "absl/log/check.h"

@@ -25,7 +25,6 @@
 #include <cstring>
 #include <string>
 
-#include "absl/base/attributes.h"
 #include "absl/container/fixed_array.h"
 #include "absl/hash/hash.h"
 #include "absl/strings/cord.h"
