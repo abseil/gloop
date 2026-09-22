@@ -1244,7 +1244,10 @@ void SubProcess::ForkedChild(struct ChildArgs* args) {
   for (int fd = CHAN_STDERR + 1; fd < num_chan(); fd++) {
     if (action_[fd] != ACTION_PIPE && action_[fd] != ACTION_DUPPARENT &&
         set_fd_[fd] < 0) {
-      if (lss_close(fd, &child_errno_) != 0 && child_errno_ != EINTR) {
+      // EBADF means the descriptor is already closed, which is the state this
+      // loop exists to reach, so treat it as success.
+      if (lss_close(fd, &child_errno_) != 0 && child_errno_ != EINTR &&
+          child_errno_ != EBADF) {
         SendFatalError("close() failed.");
       }
 
