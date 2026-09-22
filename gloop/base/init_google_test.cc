@@ -31,6 +31,7 @@
 #include "absl/base/attributes.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
+#include "absl/time/time.h"
 #include "gloop/base/config.h"
 #include "gloop/base/internal/init_google.h"
 #include "gtest/gtest.h"
@@ -78,6 +79,8 @@ TEST(InitGoogleMlockTests, MlockStyles) {
   EXPECT_TRUE(IsValidMlockStyle(""));
   EXPECT_TRUE(IsValidMlockStyle("all"));
   EXPECT_TRUE(IsValidMlockStyle("executable"));
+  EXPECT_TRUE(IsValidMlockStyle("executable-hot"));
+  EXPECT_TRUE(IsValidMlockStyle("executable-all"));
   EXPECT_TRUE(IsValidMlockStyle("none"));
   EXPECT_TRUE(IsValidMlockStyle("startup"));
 
@@ -86,6 +89,7 @@ TEST(InitGoogleMlockTests, MlockStyles) {
   EXPECT_FALSE(IsValidMlockStyle("future"));
   EXPECT_FALSE(IsValidMlockStyle("nothing"));
 }
+
 #endif
 
 #if GTEST_HAS_DEATH_TEST
