@@ -43,14 +43,14 @@ class BestFitAllocator : public SizeBasedAllocator {
   BestFitAllocator(const BestFitAllocator&) = delete;
   BestFitAllocator& operator=(const BestFitAllocator&) = delete;
 
-  virtual ~BestFitAllocator();
+  ~BestFitAllocator() override;
 
  private:
   // Picks the smallest range whose size >= requested_size. If no such
   // range can be found, returns the largest range with size < requested_size.
-  virtual void PickAllocationRange(uint32_t requested_size, Block* start,
-                                   uint32_t* actual_size,
-                                   Range** chosen_range) const
+  void PickAllocationRange(uint32_t requested_size, Block* start,
+                           uint32_t* actual_size,
+                           Range** chosen_range) const override
       ABSL_EXCLUSIVE_LOCKS_REQUIRED(lock_);
 };
 
