@@ -42,6 +42,7 @@ cc_test(
     deps = [
         ":associative_view_internal",
         ":set_view",
+        ":small_map",
         "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -74,6 +75,15 @@ cc_test(
         "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "compare",
+    hdrs = ["compare.h"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/types:compare",
     ],
 )
 
@@ -417,6 +427,27 @@ cc_test(
 )
 
 cc_library(
+    name = "manual_constructor",
+    hdrs = ["manual_constructor.h"],
+    deps = ["//gloop:enforce_gloop_support"],
+)
+
+cc_test(
+    name = "manual_constructor_test",
+    size = "small",
+    srcs = ["manual_constructor_test.cc"],
+    deps = [
+        ":manual_constructor",
+        # TODO: Drop no_google3 when heapcheck failure is fixed.
+        "@googletest//:gtest_main",
+        "@google_benchmark//:benchmark",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+    ],
+)
+
+cc_library(
     name = "map_view",
     hdrs = ["map_view.h"],
     deps = [
@@ -514,6 +545,51 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "small_map",
+    hdrs = ["small_map.h"],
+    deps = [
+        ":compare",
+        ":heterogeneous_lookup",
+        ":manual_constructor",
+        ":stl_util",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+    ],
+)
+
+cc_test(
+    name = "small_map_benchmark",
+    srcs = ["small_map_benchmark.cc"],
+    deps = [
+        ":small_map",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "small_map_unittest",
+    srcs = ["small_map_unittest.cc"],
+    deps = [
+        ":manual_constructor",
+        ":map_view",
+        ":small_map",
+        "//gloop:gloop_test_main",
+        "//gloop/util/math:round",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/container:test_instance_tracker",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

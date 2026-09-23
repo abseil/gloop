@@ -25,6 +25,7 @@
 #include <string>
 
 #include "gloop/util/gtl/set_view.h"
+#include "gloop/util/gtl/small_map.h"
 #include "gtest/gtest.h"
 
 namespace gtl {
@@ -33,6 +34,9 @@ namespace {
 
 TEST(AssociateViewTest, MapTypeHasUniqueKeys) {
   EXPECT_TRUE((MapTypeHasUniqueKeys<std::map<std::string, int>>()));
+  // small_map has operator[], but does not have `at`.
+  EXPECT_TRUE(
+      (MapTypeHasUniqueKeys<gtl::small_map<std::map<std::string, int>>>()));
   EXPECT_FALSE((MapTypeHasUniqueKeys<std::multimap<std::string, int>>()));
   EXPECT_FALSE((MapTypeHasUniqueKeys<std::set<std::string>>()));
 }
