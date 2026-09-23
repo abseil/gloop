@@ -21,7 +21,6 @@
 #include "gloop/util/memory/memory_mapped_io.h"
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/resource.h>

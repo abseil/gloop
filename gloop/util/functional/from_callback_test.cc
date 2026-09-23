@@ -27,7 +27,6 @@
 
 #include "absl/functional/any_invocable.h"
 #include "absl/functional/bind_front.h"
-#include "gloop/base/callback.h"
 #include "gloop/util/functional/to_callback.h"
 #include "gtest/gtest.h"
 

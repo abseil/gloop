@@ -29,10 +29,8 @@
 #include "absl/hash/hash.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/resize_and_overwrite.h"
-#include "absl/strings/string_view.h"
 #include "google/protobuf/io/coded_stream.h"
 #include "google/protobuf/io/zero_copy_stream_impl_lite.h"
-#include "google/protobuf/message_lite.h"
 
 namespace gtl {
 
