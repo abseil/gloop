@@ -42,6 +42,7 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "gloop/base/config.h"
 
 #if ABSL_HAVE_MMAP
@@ -68,11 +69,25 @@ class MemBlock {
   void* absl_nullable data() { return data_; }
   const void* absl_nullable data() const { return data_; }
   size_t length() const { return length_; }
+  absl::Span<unsigned char> span() {
+    return absl::MakeSpan(static_cast<unsigned char*>(data_), length_);
+  }
+  absl::Span<const unsigned char> span() const {
+    return absl::MakeSpan(static_cast<const unsigned char*>(data_), length_);
+  }
 
   // Original pointer/size passed to constructor (before adjusts)
   void* absl_nullable orig_data() { return orig_data_; }
   const void* absl_nullable orig_data() const { return orig_data_; }
   size_t orig_length() const { return orig_length_; }
+  absl::Span<unsigned char> orig_span() {
+    return absl::MakeSpan(static_cast<unsigned char*>(orig_data_),
+                          orig_length_);
+  }
+  absl::Span<const unsigned char> orig_span() const {
+    return absl::MakeSpan(static_cast<const unsigned char*>(orig_data_),
+                          orig_length_);
+  }
 
   // Helper routines to reduce the extent of the visible block.  These
   // do not affect orig_data/orig_length, so those values can be used
