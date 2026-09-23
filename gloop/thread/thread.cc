@@ -2015,7 +2015,7 @@ void PrintStackTrace(void* print_arg, const LiveThread* thread,
   }
 
   base::RawPrinter printer(buf->data, std::size(buf->data));
-  printer.Printf("--- Thread %" GPRIxPTHREAD " (name: %s) stack: ---\n",
+  printer.Printf("--- Thread %x (name: %s) stack: ---\n",
                  base::GetPthreadNumericId(thread->tid_),
                  LiveThread_Name(thread));
   if (stack_size_kb != 0) {
