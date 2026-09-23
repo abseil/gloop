@@ -41,6 +41,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/container/node_hash_map.h"
+#include "absl/strings/string_view.h"
 #include "gloop/util/gtl/flat_map.h"
 #include "gloop/util/gtl/flat_set.h"
 #include "gmock/gmock.h"

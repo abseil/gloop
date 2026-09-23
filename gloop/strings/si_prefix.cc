@@ -20,6 +20,7 @@
 
 #include "gloop/strings/si_prefix.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 #include <cmath>

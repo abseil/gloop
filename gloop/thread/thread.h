@@ -628,7 +628,6 @@ size_t StackTrace_GetStackUsage(const StackTrace* trace);
 // Returns whether the thread is holding the Python GIL. Always returns
 // false if the process does not link a Python runtime.
 bool StackTrace_IsHoldingPythonGil(const StackTrace* trace);
-unsigned int StackTrace_GetPythonGilWaiters(const StackTrace* trace);
 
 // Extract all thread stacks, convert them to printable form, and write
 // the printable form to STDERR.

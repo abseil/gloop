@@ -45,8 +45,8 @@
 //   sync.Cancel();
 //   return sync.Wait(); // wait for the task to be in done state.
 //
-#ifndef THIRD_PARTY_GLOOP_UTIL_TASK_SYNC_TASK_H_
-#define THIRD_PARTY_GLOOP_UTIL_TASK_SYNC_TASK_H_
+#ifndef UTIL_TASK_SYNC_TASK_H__
+#define UTIL_TASK_SYNC_TASK_H__
 
 #include <optional>
 
@@ -218,4 +218,4 @@ class SyncTask {
 
 }  // namespace util
 
-#endif  // THIRD_PARTY_GLOOP_UTIL_TASK_SYNC_TASK_H_
+#endif  // UTIL_TASK_SYNC_TASK_H__

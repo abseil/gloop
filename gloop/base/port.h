@@ -400,6 +400,23 @@ typedef void (*sig_t)(int);
 #define PRIXS "zX"
 #define PRIoS "zo"
 
+#define GPRIuPTHREAD "lu"
+#define GPRIxPTHREAD "lx"
+#if defined(__APPLE__)
+#define PRINTABLE_PTHREAD(pthreadt) reinterpret_cast<uintptr_t>(pthreadt)
+#else
+#define PRINTABLE_PTHREAD(pthreadt) pthreadt
+#endif
+
+#ifdef PTHREADS_REDHAT_WIN32
+#include <pthread.h>  // NOLINT(build/include)
+
+#include <iosfwd>  // NOLINT(build/include)
+
+// pthread_t is not a simple integer or pointer on Win32
+std::ostream& operator<<(std::ostream& out, const pthread_t& thread_id);
+#endif
+
 // -----------------------------------------------------------------------------
 // Predefined System/Language Macros
 // -----------------------------------------------------------------------------
