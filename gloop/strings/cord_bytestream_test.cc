@@ -38,9 +38,10 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-ABSL_DECLARE_FLAG(int, copy_sharing_threshold);
-
 namespace {
+
+// A copy of the value used in CordReader::CopyTo()
+constexpr size_t kCopySharingThreshold = 512;
 
 using RandomEngine = std::mt19937_64;
 
@@ -397,7 +398,7 @@ class MockByteSink : public strings::ByteSink {
 TEST(CordByteStream, CopyToFlatWithSharing) {
   using ::testing::_;
   using ::testing::SaveArg;
-  std::string data(absl::GetFlag(FLAGS_copy_sharing_threshold), 'a');
+  std::string data(kCopySharingThreshold, 'a');
   absl::Cord cord(data);
   MockByteSink sink;
   strings::CordReader reader(cord);
@@ -409,8 +410,7 @@ TEST(CordByteStream, CopyToFlatWithSharing) {
 
   EXPECT_CALL(sink, Append(_, _)).Times(0);
   EXPECT_CALL(sink, MinAppendExternalMemoryLength())
-      .WillRepeatedly(
-          testing::Return(absl::GetFlag(FLAGS_copy_sharing_threshold)));
+      .WillRepeatedly(testing::Return(kCopySharingThreshold));
   EXPECT_CALL(sink, AppendExternalMemory(_, _, testing::NotNull()))
       .WillOnce(testing::DoAll(SaveArg<0>(&external_memory),
                                SaveArg<1>(&external_memory_arg),
@@ -473,8 +473,8 @@ TEST(CordByteStream, ByteSinkSourceExternal) {
 TEST(CordByteStream, CopyToLargeFlatSubstringWithSharing) {
   using ::testing::_;
   using ::testing::SaveArg;
-  std::string data(1 + absl::GetFlag(FLAGS_copy_sharing_threshold) + 1, 'a');
-  data[1 + absl::GetFlag(FLAGS_copy_sharing_threshold) / 2] = 'b';
+  std::string data(1 + kCopySharingThreshold + 1, 'a');
+  data[1 + kCopySharingThreshold / 2] = 'b';
   absl::Cord cord(data);
   MockByteSink sink;
   strings::CordReader reader(cord);
@@ -487,8 +487,7 @@ TEST(CordByteStream, CopyToLargeFlatSubstringWithSharing) {
 
   EXPECT_CALL(sink, Append(_, _)).Times(0);
   EXPECT_CALL(sink, MinAppendExternalMemoryLength())
-      .WillRepeatedly(
-          testing::Return(absl::GetFlag(FLAGS_copy_sharing_threshold)));
+      .WillRepeatedly(testing::Return(kCopySharingThreshold));
   EXPECT_CALL(sink, AppendExternalMemory(_, _, testing::NotNull()))
       .WillOnce(testing::DoAll(SaveArg<0>(&external_memory),
                                SaveArg<1>(&external_memory_arg),
@@ -562,12 +561,6 @@ TEST(CordByteStream, CopyCordToCordEmpty) {
 }
 
 TEST(CordByteStream, CopyCordToCordSmall) {
-  absl::SetFlag(&FLAGS_copy_sharing_threshold, 0);
-  EXPECT_EQ(absl::Cord("hello"), CopyViaReader("hello", 0, 5));
-  EXPECT_EQ(absl::Cord("ello"), CopyViaReader("hello", 1, 4));
-  EXPECT_EQ(absl::Cord("ell"), CopyViaReader("hello", 1, 3));
-
-  absl::SetFlag(&FLAGS_copy_sharing_threshold, 1000);
   EXPECT_EQ(absl::Cord("hello"), CopyViaReader("hello", 0, 5));
   EXPECT_EQ(absl::Cord("ello"), CopyViaReader("hello", 1, 4));
   EXPECT_EQ(absl::Cord("ell"), CopyViaReader("hello", 1, 3));

@@ -35,12 +35,13 @@
 #include "absl/strings/string_view.h"
 #include "gloop/strings/bytestream.h"
 
-ABSL_FLAG(int, copy_sharing_threshold, 512,
-          "DEPRECATED flag for diagnosing memory problems. "
-          "When copying from a databuffer/cord to another databuffer/cord "
-          "blindly copy if the size is less than this flag. "
-          "Otherwise, try to share blocks between the source and "
-          "destination.");
+ABSL_RETIRED_FLAG(
+    int, copy_sharing_threshold, 512,
+    "DEPRECATED flag for diagnosing memory problems. "
+    "When copying from a databuffer/cord to another databuffer/cord "
+    "blindly copy if the size is less than this flag. "
+    "Otherwise, try to share blocks between the source and "
+    "destination.");
 
 namespace strings {
 
@@ -231,7 +232,8 @@ void CordReader::CopyToWithSharing(strings::ByteSink* absl_nonnull sink,
 
 void CordReader::CopyTo(strings::ByteSink* absl_nonnull sink, size_t n) {
   assert(n <= Available());
-  if (static_cast<int64_t>(n) >= absl::GetFlag(FLAGS_copy_sharing_threshold)) {
+  constexpr size_t kCopySharingThreshold = 512;
+  if (n >= kCopySharingThreshold) {
     if (sink->GetTypeId() == strings::TypeId::For<CordByteSink>()) {
       CopyToCord(static_cast<CordByteSink*>(sink), n);
     } else {
