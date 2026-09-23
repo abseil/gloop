@@ -23,8 +23,11 @@
 
 #include <pthread.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <type_traits>
+
+#include "absl/hash/hash.h"
 
 namespace base {
 
@@ -48,6 +51,22 @@ inline uintptr_t GetPthreadNumericId(pthread_t thread) {
   }(thread);
 #endif
 }
+
+// Hash functor for `pthread_t` suitable for use with hash containers such as
+// `absl::flat_hash_map` or `std::unordered_map`.
+struct PthreadHash {
+  size_t operator()(pthread_t thread) const {
+    return absl::HashOf(GetPthreadNumericId(thread));
+  }
+};
+
+// Equality functor for `pthread_t` suitable for use with hash containers such
+// as `absl::flat_hash_map` or `std::unordered_map`.
+struct PthreadEqual {
+  bool operator()(pthread_t lhs, pthread_t rhs) const {
+    return pthread_equal(lhs, rhs) != 0;
+  }
+};
 
 }  // namespace base
 
