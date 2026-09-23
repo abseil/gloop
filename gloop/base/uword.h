@@ -21,6 +21,8 @@
 #ifndef THIRD_PARTY_GLOOP_BASE_UWORD_H_
 #define THIRD_PARTY_GLOOP_BASE_UWORD_H_
 
+#include <cstdint>
+
 // A type to represent a natural machine word (for e.g. efficiently
 // scanning through memory for checksums or index searching). Don't use
 // this for storing normal integers. Ideally this would be just
@@ -28,6 +30,6 @@
 // (https://en.wikipedia.org/wiki/64-bit_computing#64-bit_data_models), hence
 // their ints are only 32 bits. We want to use the same fundamental
 // type on all archs if possible to preserve *printf() compatibility.
-typedef unsigned long uword_t;
+typedef uintptr_t uword_t;
 
 #endif  // THIRD_PARTY_GLOOP_BASE_UWORD_H_
