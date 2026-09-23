@@ -28,6 +28,7 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <ostream>
 #include <type_traits>
 #include <utility>
 
@@ -330,6 +331,14 @@ class ABSL_NULLABILITY_COMPATIBLE ResultCallbackFunctorImpl
     return f != nullptr;
   }
   explicit operator bool() const { return *this != nullptr; }
+
+  // Pointers have implicit by-address logging but std::function does not.
+  // Logging of this object should be removed.
+  ABSL_DEPRECATE_AND_INLINE()
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const ResultCallbackFunctorImpl&) {
+    return os;
+  }
 };
 
 template <typename F>
