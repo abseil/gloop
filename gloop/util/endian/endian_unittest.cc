@@ -23,20 +23,27 @@
 #include <stdio.h>
 
 #include <algorithm>
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <ios>
 #include <limits>
 #include <random>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "absl/base/casts.h"
+#include "absl/base/macros.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/numeric/int128.h"
 #include "absl/random/distributions.h"
 #include "absl/random/random.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/port.h"
 #include "gloop/base/uword.h"
@@ -1090,3 +1097,247 @@ TEST(BigEndianTest, GhtonlGntohlRoundtrip) {
   uint32_t test = 0x01234567;
   EXPECT_EQ(gntohl(ghtonl(test)), test);
 }
+
+namespace {
+
+bool IsHardened() {
+  bool hardened = false;
+  ABSL_HARDENING_ASSERT([&hardened]() {
+    hardened = true;
+    return true;
+  }());
+  return hardened;
+}
+
+template <typename Endian, typename C, typename = void>
+struct CanLoad32 : std::false_type {};
+
+template <typename Endian, typename C>
+struct CanLoad32<Endian, C,
+                 std::void_t<decltype(Endian::Load32(std::declval<C>()))>>
+    : std::true_type {};
+
+template <typename Endian, typename C, typename = void>
+struct CanStore32 : std::false_type {};
+
+template <typename Endian, typename C>
+struct CanStore32<
+    Endian, C,
+    std::void_t<decltype(Endian::Store32(std::declval<C>(), uint32_t{0}))>>
+    : std::true_type {};
+
+template <typename Endian, typename T, typename C, typename = void>
+struct CanGenericLoad : std::false_type {};
+
+template <typename Endian, typename T, typename C>
+struct CanGenericLoad<
+    Endian, T, C,
+    std::void_t<decltype(Endian::template Load<T>(std::declval<C>()))>>
+    : std::true_type {};
+
+template <typename Endian, typename T, typename C, typename = void>
+struct CanGenericStore : std::false_type {};
+
+template <typename Endian, typename T, typename C>
+struct CanGenericStore<Endian, T, C,
+                       std::void_t<decltype(Endian::template Store<T>(
+                           std::declval<T>(), std::declval<C>()))>>
+    : std::true_type {};
+
+template <typename Endian>
+void VerifySpanAndStringViewOverloads() {
+  std::vector<uint8_t> buf(32, 0);
+
+  // Store16 / Load16 via rvalue mutable Span, const Span, and string_view.
+  Endian::Store16(absl::MakeSpan(buf).subspan(2, 2), k16Value);
+  EXPECT_EQ(Endian::Load16(absl::MakeConstSpan(buf).subspan(2, 2)), k16Value);
+  EXPECT_EQ(
+      Endian::Load16(absl::string_view(
+                         reinterpret_cast<const char*>(buf.data()), buf.size())
+                         .substr(2, 2)),
+      k16Value);
+
+  // Store24 / Load24.
+  Endian::Store24(absl::MakeSpan(buf).subspan(5, 3), 0x123456);
+  EXPECT_EQ(Endian::Load24(absl::MakeConstSpan(buf).subspan(5, 3)), 0x123456u);
+  EXPECT_EQ(
+      Endian::Load24(absl::string_view(
+                         reinterpret_cast<const char*>(buf.data()), buf.size())
+                         .substr(5, 3)),
+      0x123456u);
+
+  // Store32 / Load32.
+  Endian::Store32(absl::MakeSpan(buf).subspan(9, 4), k32Value);
+  EXPECT_EQ(Endian::Load32(absl::MakeConstSpan(buf).subspan(9, 4)), k32Value);
+  EXPECT_EQ(
+      Endian::Load32(absl::string_view(
+                         reinterpret_cast<const char*>(buf.data()), buf.size())
+                         .substr(9, 4)),
+      k32Value);
+
+  // Store64 / Load64.
+  Endian::Store64(absl::MakeSpan(buf).subspan(14, 8), k64Value);
+  EXPECT_EQ(Endian::Load64(absl::MakeConstSpan(buf).subspan(14, 8)), k64Value);
+  EXPECT_EQ(
+      Endian::Load64(absl::string_view(
+                         reinterpret_cast<const char*>(buf.data()), buf.size())
+                         .substr(14, 8)),
+      k64Value);
+
+  // Store128 / Load128.
+  Endian::Store128(absl::MakeSpan(buf).subspan(3, 16), k128Value);
+  EXPECT_EQ(Endian::Load128(absl::MakeConstSpan(buf).subspan(3, 16)),
+            k128Value);
+  EXPECT_EQ(
+      Endian::Load128(absl::string_view(
+                          reinterpret_cast<const char*>(buf.data()), buf.size())
+                          .substr(3, 16)),
+      k128Value);
+
+  // StoreUnsignedWord / LoadUnsignedWord (both Span and C array).
+  const uword_t word_val = static_cast<uword_t>(k64Value);
+  Endian::StoreUnsignedWord(absl::MakeSpan(buf).subspan(1, sizeof(uword_t)),
+                            word_val);
+  EXPECT_EQ(Endian::LoadUnsignedWord(
+                absl::MakeConstSpan(buf).subspan(1, sizeof(uword_t))),
+            word_val);
+  uint8_t c_arr_word[sizeof(uword_t) * 2] = {};
+  Endian::StoreUnsignedWord(c_arr_word, word_val);
+  EXPECT_EQ(Endian::LoadUnsignedWord(c_arr_word), word_val);
+
+  // Fixed C-array Load128 / Store128.
+  uint8_t c_arr_128[16] = {};
+  Endian::Store128(c_arr_128, k128Value);
+  EXPECT_EQ(Endian::Load128(c_arr_128), k128Value);
+
+  // Unified Load<T> / Store<T> on std::string, absl::string_view, and Span.
+  std::string str_buf(16, '\0');
+  Endian::Store(k32Value, str_buf);
+  EXPECT_EQ(Endian::template Load<uint32_t>(str_buf), k32Value);
+  EXPECT_EQ(Endian::template Load<uint32_t>(absl::string_view(str_buf)),
+            k32Value);
+
+  Endian::Store(kDoubleValue, absl::MakeSpan(str_buf).subspan(4, 8));
+  EXPECT_EQ(
+      Endian::template Load<double>(absl::string_view(str_buf).substr(4, 8)),
+      kDoubleValue);
+
+  Endian::Store(kFloatValue, absl::MakeSpan(buf).subspan(4, 4));
+  EXPECT_EQ(
+      Endian::template Load<float>(absl::MakeConstSpan(buf).subspan(4, 4)),
+      kFloatValue);
+
+  Endian::Store(true, absl::MakeSpan(buf).subspan(0, 1));
+  EXPECT_TRUE(
+      Endian::template Load<bool>(absl::MakeConstSpan(buf).subspan(0, 1)));
+  Endian::Store(false, absl::MakeSpan(buf).subspan(0, 1));
+  EXPECT_FALSE(
+      Endian::template Load<bool>(absl::MakeConstSpan(buf).subspan(0, 1)));
+
+  Endian::Store(k128Value, absl::MakeSpan(buf).subspan(0, 16));
+  EXPECT_EQ(Endian::template Load<absl::uint128>(
+                absl::MakeConstSpan(buf).subspan(0, 16)),
+            k128Value);
+
+  // Test Load/Store for absl::int128.
+  absl::int128 i128 = absl::MakeInt128(0x8123456789abcdef, 0x0123456789abcdef);
+  Endian::Store(i128, reinterpret_cast<char*>(buf.data()));
+  EXPECT_EQ(Endian::template Load<absl::int128>(
+                reinterpret_cast<const char*>(buf.data())),
+            i128);
+  EXPECT_EQ(Endian::template Load<absl::int128>(
+                absl::MakeConstSpan(buf).subspan(0, 16)),
+            i128);
+
+  // Multi-byte element container (e.g. std::array<uint32_t, 2> = 8 bytes).
+  std::array<uint32_t, 2> u32_arr = {0, 0};
+  Endian::Store64(u32_arr, k64Value);
+  EXPECT_EQ(Endian::Load64(u32_arr), k64Value);
+}
+
+TEST(EndianSpanOverloadsTest, LittleAndBigEndianRoundTrip) {
+  VerifySpanAndStringViewOverloads<LittleEndian>();
+  VerifySpanAndStringViewOverloads<BigEndian>();
+}
+
+TEST(EndianSpanOverloadsTest, SFINAEConstraints) {
+  // Readable ranges.
+  static_assert(CanLoad32<LittleEndian, absl::string_view>::value);
+  static_assert(CanLoad32<LittleEndian, absl::Span<const uint8_t>>::value);
+  static_assert(CanLoad32<LittleEndian, absl::Span<uint8_t>>::value);
+  static_assert(CanLoad32<LittleEndian, const std::vector<uint8_t>&>::value);
+  static_assert(CanLoad32<LittleEndian, std::vector<uint8_t>>::value);
+  static_assert(CanLoad32<LittleEndian, const void*>::value);
+  static_assert(CanLoad32<LittleEndian, uint8_t (&)[4]>::value);
+  static_assert(!CanLoad32<LittleEndian, std::vector<int*>>::value);
+
+  // Writable ranges: lvalue mutable containers and lvalue/rvalue mutable Spans
+  // are allowed; const views, const containers, and rvalue owning containers
+  // are rejected.
+  static_assert(CanStore32<LittleEndian, absl::Span<uint8_t>>::value);
+  static_assert(CanStore32<LittleEndian, absl::Span<uint8_t>&>::value);
+  static_assert(CanStore32<LittleEndian, std::vector<uint8_t>&>::value);
+  static_assert(CanStore32<LittleEndian, std::string&>::value);
+  static_assert(CanStore32<LittleEndian, std::array<uint8_t, 4>&>::value);
+  static_assert(CanStore32<LittleEndian, void*>::value);
+  static_assert(CanStore32<LittleEndian, uint8_t (&)[4]>::value);
+
+  static_assert(!CanStore32<LittleEndian, absl::string_view>::value);
+  static_assert(!CanStore32<LittleEndian, absl::Span<const uint8_t>>::value);
+  static_assert(!CanStore32<LittleEndian, const std::vector<uint8_t>&>::value);
+  static_assert(!CanStore32<LittleEndian, const std::string&>::value);
+  static_assert(!CanStore32<LittleEndian, std::vector<uint8_t>>::value);
+  static_assert(!CanStore32<LittleEndian, std::string>::value);
+
+  static_assert(CanGenericLoad<BigEndian, uint32_t, absl::string_view>::value);
+  static_assert(
+      CanGenericStore<BigEndian, uint32_t, absl::Span<uint8_t>>::value);
+  static_assert(
+      !CanGenericStore<BigEndian, uint32_t, absl::string_view>::value);
+  static_assert(
+      !CanGenericStore<BigEndian, uint32_t, std::vector<uint8_t>>::value);
+}
+
+#if GTEST_HAS_DEATH_TEST
+template <typename Endian>
+void VerifyHardeningDeaths() {
+  std::vector<uint8_t> buf(32, 0);
+  const auto sub = [&](size_t n) {
+    return absl::MakeConstSpan(buf).subspan(0, n);
+  };
+  const auto msub = [&](size_t n) { return absl::MakeSpan(buf).subspan(0, n); };
+
+  EXPECT_DEATH(Endian::Load16(sub(1)), "");
+  EXPECT_DEATH(Endian::Store16(msub(1), 0), "");
+
+  EXPECT_DEATH(Endian::Load24(sub(2)), "");
+  EXPECT_DEATH(Endian::Store24(msub(2), 0), "");
+
+  EXPECT_DEATH(Endian::Load32(sub(3)), "");
+  EXPECT_DEATH(Endian::Store32(msub(3), 0), "");
+
+  EXPECT_DEATH(Endian::Load64(sub(7)), "");
+  EXPECT_DEATH(Endian::Store64(msub(7), 0), "");
+
+  EXPECT_DEATH(Endian::Load128(sub(15)), "");
+  EXPECT_DEATH(Endian::Store128(msub(15), 0), "");
+
+  EXPECT_DEATH(Endian::LoadUnsignedWord(sub(sizeof(uword_t) - 1)), "");
+  EXPECT_DEATH(Endian::StoreUnsignedWord(msub(sizeof(uword_t) - 1), 0), "");
+
+  EXPECT_DEATH(Endian::template Load<uint32_t>(sub(3)), "");
+  EXPECT_DEATH(Endian::template Store<uint32_t>(0, msub(3)), "");
+  EXPECT_DEATH(Endian::template Load<bool>(sub(0)), "");
+  EXPECT_DEATH(Endian::template Store<bool>(true, msub(0)), "");
+}
+
+TEST(EndianDeathTest, OutOfBoundsAbortsWhenHardened) {
+  if (!IsHardened()) {
+    GTEST_SKIP() << "This test requires ABSL_HARDENING_ASSERT is enabled";
+  }
+  VerifyHardeningDeaths<LittleEndian>();
+  VerifyHardeningDeaths<BigEndian>();
+}
+#endif  // GTEST_HAS_DEATH_TEST
+
+}  // namespace
