@@ -219,7 +219,7 @@ class Writer {
   // NOTE: "item" is not mutated (moved from) unless the returned Case is
   // selected. E.g.:
   //   // This is safe, ownership is only moved from if the case is selected.
-  //   auto unique_ptr = absl::make_unique<T>();
+  //   auto unique_ptr = std::make_unique<T>();
   //   int index = thread::Select({ c_0, c_1,
   //                                writer->OnWrite(std::move(unique_ptr)) });
   //   if (index != 2) {
