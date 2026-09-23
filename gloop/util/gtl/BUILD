@@ -68,6 +68,7 @@ cc_test(
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/strings",

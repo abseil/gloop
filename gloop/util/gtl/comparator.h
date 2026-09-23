@@ -102,6 +102,15 @@ struct Less;
 // of interest from the input values and then uses a Comparator to
 // compare the properties.  The Comparator type argument defaults to
 // Less (the < operator), which is the most common case.
+//
+// PERFORMANCE NOTE: When ordering by a compile-time constant pointer-to-member
+// (`&Class::field` or `&Class::getter`) or function pointer (`&Fn`), prefer
+// `gtl::OrderByMember<&Class::member>()` (or a captureless lambda) over
+// `gtl::OrderBy(&Class::member)`. `OrderBy(&Class::member)` stores the member
+// pointer at runtime (8–16 bytes) and shares a single C++ type across all
+// members of the same signature, which prevents the compiler from constant-
+// propagating field offsets or inlining member functions inside `std::sort` and
+// `std::stable_sort`.
 template <typename Extractor, typename Comparator = Less>
 class OrderBy : private gtl::CompressedTuple<Extractor, Comparator> {
   using Base = gtl::CompressedTuple<Extractor, Comparator>;
@@ -256,6 +265,35 @@ struct Size {
   template <class T>
   size_t operator()(const T& x) const {
     return x.size();
+  }
+};
+
+// A stateless functor that invokes a compile-time constant invocable
+// `Extractor` (such as a pointer-to-member `&Class::member` or function pointer
+// `&Fn`).
+//
+// Why an NTTP (`template <auto Extractor>`) instead of a runtime member pointer
+// (`OrderBy(&Class::member)`)?
+// In libc++, sort algorithms (`std::__introsort`, `std::__stable_sort`) are too
+// large and recursive to be inlined into the caller of `std::sort`, so they are
+// emitted as out-of-line template instantiations (`linkonce_odr`; see
+// https://llvm.org/docs/LangRef.html#linkage-types) that the linker
+// deduplicates across the binary. With `OrderBy(&Class::member)`, the
+// comparator type only encodes the member's *signature* (e.g. `int (Class::*)()
+// const`), not which member is called. Because all callers sorting `Class` by
+// any `int` getter share that single out-of-line sort function at link time,
+// the compiler cannot hardcode `&Class::member` into the shared sort body and
+// must execute an indirect member-pointer call on every comparison.
+//
+// Encoding `Extractor` as a non-type template parameter gives each member its
+// own empty (`sizeof == 1`) comparator type and its own sort instantiation, so
+// the member offset or getter call is statically known inside the sort body and
+// inlined directly into the comparison loop.
+template <auto Extractor>
+struct MemberExtractor {
+  template <class T>
+  constexpr decltype(auto) operator()(const T& x) const {
+    return std::invoke(Extractor, x);
   }
 };
 
@@ -482,6 +520,18 @@ using OrderByTupleElementGreater = OrderBy<TupleElement<N>, Greater>;
 // That is, 'OrderByPointee(c)(a, b)' is like 'c(*a, *b)'.
 template <typename C = Less>
 constexpr OrderBy<ExtractPointee, C> OrderByPointee(C c = C()) {
+  return {{}, std::move(c)};
+}
+
+// OrderByMember<&Class::member>(c), where c defaults to Less().
+// Returns a comparator that orders elements by invoking a compile-time constant
+// pointer-to-member (or function pointer) `Extractor`. Unlike
+// `OrderBy(&Class::member)`, `OrderByMember<&Class::member>()` is stateless
+// (`sizeof == 1` when `C` is empty) and produces a distinct C++ type for each
+// member, allowing the compiler to constant-propagate member offsets and inline
+// member function calls inside `std::sort` and `std::stable_sort`.
+template <auto Extractor, typename C = Less>
+constexpr OrderBy<MemberExtractor<Extractor>, C> OrderByMember(C c = C()) {
   return {{}, std::move(c)};
 }
 
