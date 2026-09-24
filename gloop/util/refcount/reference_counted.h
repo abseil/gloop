@@ -67,6 +67,7 @@
 #include <string>
 
 #include "absl/base/dynamic_annotations.h"
+#include "absl/base/nullability.h"
 #include "gloop/util/refcount/reftracker.h"
 
 namespace util {
@@ -182,7 +183,7 @@ class ReferenceCounted {
     RefTracker owners;
   };
 
-  TrackedState* const tracked_;  // NULL implies untracked
+  TrackedState* absl_nullable const tracked_;  // NULL implies untracked
   mutable std::atomic<int32_t> ref_;
 
   ReferenceCountedType type() const {

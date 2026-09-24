@@ -33,7 +33,7 @@ ReferenceCounted::ReferenceCounted() : tracked_(nullptr), ref_(1) {}
 ReferenceCounted::ReferenceCounted(ReferenceCountedType type, const void* owner)
     : tracked_((type != UNTRACKED) ? new TrackedState(type) : nullptr),
       ref_(1) {
-  if (type != UNTRACKED) {
+  if (tracked_ != nullptr) {
     tracked_->owners.Add(owner);
   }
 }
@@ -68,14 +68,14 @@ bool ReferenceCounted::Unref() const {
 void ReferenceCounted::RefFor(const void* owner) const {
   DCHECK_GE(ref_.load(std::memory_order_relaxed), 1);
   ref_.fetch_add(1, std::memory_order_relaxed);
-  if (type() != UNTRACKED) {
+  if (tracked_ != nullptr) {
     tracked_->owners.Add(owner);
   }
 }
 
 bool ReferenceCounted::UnrefFor(const void* owner) const {
   DCHECK_GT(ref_.load(std::memory_order_relaxed), 0);
-  if (type() != UNTRACKED) {
+  if (tracked_ != nullptr) {
     tracked_->owners.Remove(owner);
   }
   // If ref_==1, this object is owned only by the caller. Bypass a locked op
@@ -95,7 +95,7 @@ std::string ReferenceCounted::ListOwners() const {
   std::string result;
   int reported = 0;
   int total = ref_.load(std::memory_order_relaxed);
-  if (type() != UNTRACKED) {
+  if (tracked_ != nullptr) {
     result = tracked_->owners.ListOwners(&reported);
   }
   if (total != reported) {
