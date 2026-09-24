@@ -321,8 +321,9 @@ const Context& BackgroundContext();
 // self document that the context holds a `Context::kDefault` initialized value.
 const Context& DefaultContext();
 
-// Return a handle to the current thread's context. The reference may be
-// invalidated by actions that change the current context.
+// Return a handle to the current thread's context. The returned reference is
+// only valid inside the current thread, and may be invalidated by actions that
+// change the current thread's context.
 const Context& CurrentContext();
 
 // Returns a pointer to the "status string" associated with the current thread,
