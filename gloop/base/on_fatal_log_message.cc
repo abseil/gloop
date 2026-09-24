@@ -65,8 +65,8 @@ size_t AppendTruncated(absl::string_view src, absl::Span<char>* dst) {
   dst->remove_prefix(src.size());
   return src.size();
 }
-
 }  // namespace
+
 }  // namespace logging_internal
 }  // namespace base_logging
 
