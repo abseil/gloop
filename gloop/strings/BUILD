@@ -677,7 +677,6 @@ cc_library(
     srcs = ["split.cc"],
     hdrs = ["split.h"],
     deps = [
-        ":util",
         "//gloop:enforce_gloop_support",
         "//gloop/base:strtoint",
         "@abseil-cpp//absl/base:nullability",

@@ -34,6 +34,7 @@
 #include <vector>
 
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/nullability.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/strings/ascii.h"
@@ -42,7 +43,6 @@
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "gloop/base/strtoint.h"
-#include "gloop/strings/util.h"
 
 namespace strings {
 
