@@ -31,6 +31,7 @@
 #include <map>
 #include <memory>
 #include <ostream>
+#include <random>
 #include <set>
 #include <string>
 #include <tuple>
@@ -39,6 +40,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/base/attributes.h"
 #include "absl/base/casts.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/random/random.h"
@@ -65,6 +67,7 @@ using ::testing::Pointwise;
 using ::gtl::ExtractIdentity;
 using ::gtl::ExtractPointee;
 using ::gtl::First;
+using ::gtl::MemberExtractor;
 using ::gtl::Second;
 using ::gtl::Size;
 using ::gtl::TupleElement;
@@ -81,6 +84,7 @@ using ::gtl::LexicographicalComparator;
 using ::gtl::OrderBy;
 using ::gtl::OrderByFirst;
 using ::gtl::OrderByFirstGreater;
+using ::gtl::OrderByMember;
 using ::gtl::OrderByPointee;
 using ::gtl::OrderBySecond;
 using ::gtl::OrderBySecondGreater;
@@ -542,6 +546,31 @@ TEST(OrderByGetterTest, WorksWithNonPointers) {
   // Sort by the .y() getter, ascending.
   std::sort(v.begin(), v.end(), OrderBy(&MyClass::y));
   EXPECT_THAT(v, ElementsAre(MyClass(1, 1), MyClass(3, 2), MyClass(2, 3)));
+}
+
+TEST(OrderByMemberTest, WorksWithFieldsAndGettersAndIsEmpty) {
+  static_assert(std::is_same_v<decltype(OrderByMember<&MyStruct::x>()),
+                               OrderBy<MemberExtractor<&MyStruct::x>, Less>>);
+  static_assert(std::is_empty_v<decltype(OrderByMember<&MyStruct::x>())>);
+  static_assert(std::is_empty_v<decltype(OrderByMember<&MyClass::x>())>);
+  // Each OrderByMember<..., Less> contains a Less base subobject; under EBO,
+  // two subobjects of the same empty type Less must occupy distinct offsets
+  // (2 bytes instead of 16 bytes for two data-member pointers or 32 bytes for
+  // two member-function pointers).
+  static_assert(sizeof(ChainComparators(OrderByMember<&MyStruct::x>(),
+                                        OrderByMember<&MyStruct::y>())) == 2);
+
+  std::vector<MyStruct> vs = {MyStruct(1, 1), MyStruct(3, 2), MyStruct(2, 3)};
+  std::sort(vs.begin(), vs.end(), OrderByMember<&MyStruct::x>(Greater()));
+  EXPECT_THAT(vs, ElementsAre(MyStruct(3, 2), MyStruct(2, 3), MyStruct(1, 1)));
+  std::sort(vs.begin(), vs.end(), OrderByMember<&MyStruct::y>());
+  EXPECT_THAT(vs, ElementsAre(MyStruct(1, 1), MyStruct(3, 2), MyStruct(2, 3)));
+
+  std::vector<MyClass> vc = {MyClass(1, 1), MyClass(3, 2), MyClass(2, 3)};
+  std::sort(vc.begin(), vc.end(), OrderByMember<&MyClass::x>(Greater()));
+  EXPECT_THAT(vc, ElementsAre(MyClass(3, 2), MyClass(2, 3), MyClass(1, 1)));
+  std::sort(vc.begin(), vc.end(), OrderByMember<&MyClass::y>());
+  EXPECT_THAT(vc, ElementsAre(MyClass(1, 1), MyClass(3, 2), MyClass(2, 3)));
 }
 
 class Base {
@@ -1367,21 +1396,41 @@ void BM_ChainComparatorsSort(benchmark::State& state,
   BM_Sort<S>(state, gen, cmp);
 }
 
+template <typename ElementType, typename ElementGenerator>
+void BM_ChainComparatorsMemberSort(benchmark::State& state,
+                                   ElementGenerator generator) {
+  struct S {
+    ElementType a, b, c;
+  };
+  auto gen = [&] { return S{generator(), generator(), generator()}; };
+  auto cmp = ChainComparators(OrderByMember<&S::a>(), OrderByMember<&S::b>(),
+                              OrderByMember<&S::c>());
+  BM_Sort<S>(state, gen, cmp);
+}
+
 void BM_ChainComparatorsIntSort(benchmark::State& state) {
   constexpr int kNumberRange = 10;
-  absl::BitGen rng;
-  absl::uniform_int_distribution<int> r(1, kNumberRange);
-  BM_ChainComparatorsSort<int>(state, [&] { return r(rng); });
+  std::mt19937_64 rng;
+  BM_ChainComparatorsSort<int>(
+      state, [&] { return absl::Uniform(rng, 0, kNumberRange); });
+}
+
+void BM_ChainComparatorsMemberIntSort(benchmark::State& state) {
+  constexpr int kNumberRange = 10;
+  std::mt19937_64 rng;
+  BM_ChainComparatorsMemberSort<int>(
+      state, [&] { return absl::Uniform(rng, 0, kNumberRange); });
 }
 
 void BM_ChainComparatorsStringSort(benchmark::State& state) {
   constexpr int kStringLength = 3;
   constexpr int kCharRange = 2;
-  absl::BitGen rng;
-  absl::uniform_int_distribution<int> r('a', 'a' + kCharRange - 1);
+  std::mt19937_64 rng;
   BM_ChainComparatorsSort<std::string>(state, [&] {
     std::string s(kStringLength, char{});
-    std::generate(s.begin(), s.end(), [&] { return r(rng); });
+    std::generate(s.begin(), s.end(), [&] {
+      return absl::Uniform<char>(rng, 'a', 'a' + kCharRange);
+    });
     return s;
   });
 }
@@ -1404,26 +1453,149 @@ void BM_LexicographicalComparatorSort(benchmark::State& state,
 
 void BM_LexicographicalComparatorIntSort(benchmark::State& state) {
   constexpr int kNumberRange = 10;
-  absl::BitGen rng;
-  absl::uniform_int_distribution<int> r(1, kNumberRange);
-  BM_LexicographicalComparatorSort<int>(state, [&] { return r(rng); });
+  std::mt19937_64 rng;
+  BM_LexicographicalComparatorSort<int>(
+      state, [&] { return absl::Uniform(rng, 0, kNumberRange); });
 }
 
 void BM_LexicographicalComparatorStringSort(benchmark::State& state) {
   constexpr int kStringLength = 3;
   constexpr int kCharRange = 2;
-  absl::BitGen rng;
-  absl::uniform_int_distribution<int> r('a', 'a' + kCharRange - 1);
+  std::mt19937_64 rng;
   BM_LexicographicalComparatorSort<std::string>(state, [&] {
     std::string s(kStringLength, char{});
-    std::generate(s.begin(), s.end(), [&] { return r(rng); });
+    std::generate(s.begin(), s.end(), [&] {
+      return absl::Uniform<char>(rng, 'a', 'a' + kCharRange);
+    });
     return s;
   });
 }
 
 BENCHMARK(BM_ChainComparatorsIntSort);
+BENCHMARK(BM_ChainComparatorsMemberIntSort);
 BENCHMARK(BM_ChainComparatorsStringSort);
 BENCHMARK(BM_LexicographicalComparatorIntSort);
 BENCHMARK(BM_LexicographicalComparatorStringSort);
+
+struct BenchmarkItem {
+  int a;
+  int b;
+  int64_t payload;
+
+  ABSL_ATTRIBUTE_NOINLINE int get_a() const { return a; }
+  ABSL_ATTRIBUTE_NOINLINE int get_b() const { return b; }
+};
+
+std::vector<BenchmarkItem> MakeBenchmarkItems(int n) {
+  std::mt19937_64 rng;
+  std::vector<BenchmarkItem> items(n);
+  for (int i = 0; i < n; ++i) {
+    items[i] = BenchmarkItem{absl::Uniform(rng, 0, 1000),
+                             absl::Uniform(rng, 0, 1000), i};
+  }
+  return items;
+}
+
+void BM_OrderByMemberField(benchmark::State& state) {
+  const auto init = MakeBenchmarkItems(10000);
+  auto v = init;
+  auto cmp = OrderBy(&BenchmarkItem::a);
+  for (auto _ : state) {
+    v = init;
+    std::sort(v.begin(), v.end(), cmp);
+    benchmark::DoNotOptimize(v.data());
+  }
+}
+BENCHMARK(BM_OrderByMemberField);
+
+void BM_OrderByMemberFieldNTTP(benchmark::State& state) {
+  const auto init = MakeBenchmarkItems(10000);
+  auto v = init;
+  auto cmp = OrderByMember<&BenchmarkItem::a>();
+  for (auto _ : state) {
+    v = init;
+    std::sort(v.begin(), v.end(), cmp);
+    benchmark::DoNotOptimize(v.data());
+  }
+}
+BENCHMARK(BM_OrderByMemberFieldNTTP);
+
+void BM_OrderByMemberFunction(benchmark::State& state) {
+  const auto init = MakeBenchmarkItems(10000);
+  auto v = init;
+  auto cmp = OrderBy(&BenchmarkItem::get_a);
+  for (auto _ : state) {
+    v = init;
+    std::sort(v.begin(), v.end(), cmp);
+    benchmark::DoNotOptimize(v.data());
+  }
+}
+BENCHMARK(BM_OrderByMemberFunction);
+
+void BM_OrderByMemberFunctionNTTP(benchmark::State& state) {
+  const auto init = MakeBenchmarkItems(10000);
+  auto v = init;
+  auto cmp = OrderByMember<&BenchmarkItem::get_a>();
+  for (auto _ : state) {
+    v = init;
+    std::sort(v.begin(), v.end(), cmp);
+    benchmark::DoNotOptimize(v.data());
+  }
+}
+BENCHMARK(BM_OrderByMemberFunctionNTTP);
+
+void BM_StableSortOrderByMemberFunction(benchmark::State& state) {
+  const auto init = MakeBenchmarkItems(10000);
+  auto v = init;
+  auto cmp = OrderBy(&BenchmarkItem::get_a);
+  for (auto _ : state) {
+    v = init;
+    std::stable_sort(v.begin(), v.end(), cmp);
+    benchmark::DoNotOptimize(v.data());
+  }
+}
+BENCHMARK(BM_StableSortOrderByMemberFunction);
+
+void BM_StableSortOrderByMemberFunctionNTTP(benchmark::State& state) {
+  const auto init = MakeBenchmarkItems(10000);
+  auto v = init;
+  auto cmp = OrderByMember<&BenchmarkItem::get_a>();
+  for (auto _ : state) {
+    v = init;
+    std::stable_sort(v.begin(), v.end(), cmp);
+    benchmark::DoNotOptimize(v.data());
+  }
+}
+BENCHMARK(BM_StableSortOrderByMemberFunctionNTTP);
+
+void BM_ChainComparatorsMemberFunctionSort(benchmark::State& state) {
+  constexpr int kNumberRange = 10;
+  std::mt19937_64 rng;
+  auto gen = [&] {
+    return BenchmarkItem{absl::Uniform(rng, 0, kNumberRange),
+                         absl::Uniform(rng, 0, kNumberRange),
+                         absl::Uniform(rng, 0, kNumberRange)};
+  };
+  auto cmp = ChainComparators(OrderBy(&BenchmarkItem::get_a),
+                              OrderBy(&BenchmarkItem::get_b),
+                              OrderBy(&BenchmarkItem::payload));
+  BM_Sort<BenchmarkItem>(state, gen, cmp);
+}
+BENCHMARK(BM_ChainComparatorsMemberFunctionSort);
+
+void BM_ChainComparatorsMemberFunctionNTTPSort(benchmark::State& state) {
+  constexpr int kNumberRange = 10;
+  std::mt19937_64 rng;
+  auto gen = [&] {
+    return BenchmarkItem{absl::Uniform(rng, 0, kNumberRange),
+                         absl::Uniform(rng, 0, kNumberRange),
+                         absl::Uniform(rng, 0, kNumberRange)};
+  };
+  auto cmp = ChainComparators(OrderByMember<&BenchmarkItem::get_a>(),
+                              OrderByMember<&BenchmarkItem::get_b>(),
+                              OrderByMember<&BenchmarkItem::payload>());
+  BM_Sort<BenchmarkItem>(state, gen, cmp);
+}
+BENCHMARK(BM_ChainComparatorsMemberFunctionNTTPSort);
 
 }  // namespace
