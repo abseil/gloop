@@ -159,6 +159,16 @@ TEST(CMemsetNDeathTest, CrashesOnOutOfBoundsWrite) {
 #endif
 }
 
+TEST(CMemsetNDeathTest, RejectsPartialElementsInDebugBuilds) {
+  // Permitted, as with memset(), but DCHECK-ed as a likely unit mix-up.
+  std::vector<int> v = {0x11111111, 0x22222222};
+  (void)v;
+
+#if GTEST_HAS_DEATH_TEST
+  EXPECT_DEBUG_DEATH(gtl::c_memset_n(v, 0, 2), "not a multiple");
+#endif
+}
+
 TEST(CMemsetTest, WorksForStaticallySizedArrays) {
   int a[4] = {1, 2, 3, 4};
   gtl::c_memset(a, 0);
