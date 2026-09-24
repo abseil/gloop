@@ -1,0 +1,11 @@
+diff --git absl/base/BUILD.bazel absl/base/BUILD.bazel
+--- absl/base/BUILD.bazel
++++ absl/base/BUILD.bazel
+@@ -70,6 +70,7 @@
+     linkopts = ABSL_DEFAULT_LINKOPTS,
+     visibility = [
+         "//absl:__subpackages__",
++        "@do_not_use_for_gloop_visibility_only//gloop/util/coding/elias_fano:__subpackages__",
+         "@do_not_use_for_gloop_visibility_only//gloop/util/sysinfo/topology:__subpackages__",
+     ],
+     deps = [
