@@ -26,38 +26,15 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_GTL_C_MEMMOVE_H_
 #define THIRD_PARTY_GLOOP_UTIL_GTL_C_MEMMOVE_H_
 
+#include <cstddef>
 #include <cstring>
 #include <iterator>
 #include <type_traits>
 
 #include "absl/algorithm/container.h"
-#include "absl/base/internal/hardening.h"
+#include "gloop/util/gtl/c_mem_internal.h"
 
 namespace gtl {
-
-namespace memmove_internal {
-
-// Don't use definitions in this namespace directly. They are subject to change
-// without notice.
-
-template <typename C>
-using element_type_t =
-    std::remove_reference_t<decltype(*std::data(std::declval<C&>()))>;
-
-// Helper function for c_memmove. It enforces the contracts for input types.
-template <typename D, typename S>
-void do_c_memmove(D&& dest, const S& src, size_t num_bytes) {
-  static_assert(std::is_trivial_v<element_type_t<std::remove_reference_t<D>>>,
-                "Destination container must have a trivial value type.");
-  static_assert(std::is_trivially_copyable_v<element_type_t<S>>,
-                "Source container must have a trivially copyable value type.");
-
-  absl::base_internal::HardeningAssertLE(
-      num_bytes, std::size(dest) * sizeof(*std::data(dest)));
-  memmove(std::data(dest), std::data(src), num_bytes);
-}
-
-}  // namespace memmove_internal
 
 // A container-based memmove() with explicit byte count and bounds checking.
 //
@@ -74,9 +51,8 @@ template <
     typename = std::enable_if_t<absl::container_algorithm_internal::
                                     IsPermissibleDestinationRange<D>::value>>
 void c_memmove(D&& dest, const S& src, size_t num_bytes) {
-  absl::base_internal::HardeningAssertLE(
-      num_bytes, std::size(src) * sizeof(*std::data(src)));
-  memmove_internal::do_c_memmove(std::forward<D>(dest), src, num_bytes);
+  c_mem_internal::CheckCopyPreconditions(dest, src, num_bytes);
+  memmove(std::data(dest), std::data(src), num_bytes);
 }
 
 // A container-based memmove() with bounds checking.
@@ -93,8 +69,9 @@ template <
     typename = std::enable_if_t<absl::container_algorithm_internal::
                                     IsPermissibleDestinationRange<D>::value>>
 void c_memmove(D&& dest, const S& src) {
-  size_t num_bytes = std::size(src) * sizeof(*std::data(src));
-  memmove_internal::do_c_memmove(std::forward<D>(dest), src, num_bytes);
+  size_t num_bytes = c_mem_internal::byte_size(src);
+  c_mem_internal::CheckCopyPreconditions(dest, src, num_bytes);
+  memmove(std::data(dest), std::data(src), num_bytes);
 }
 
 }  // namespace gtl
