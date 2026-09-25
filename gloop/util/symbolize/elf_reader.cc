@@ -492,6 +492,8 @@ class SymbolIterator {
       : symbol_section_(
             reader->GetSectionByType(section_type, /*read_contents=*/true)),
         string_section_(nullptr),
+        sym_base_(nullptr),
+        str_section_sz_(0),
         num_symbols_in_section_(0),
         symbol_within_section_(0) {
     CHECK(section_type == SHT_SYMTAB || section_type == SHT_DYNSYM);
@@ -537,9 +539,17 @@ class SymbolIterator {
       LOG(ERROR) << "Unable to get string section " << sh_header.sh_link;
       return;
     }
+    if (symbol_section_->contents() == nullptr) {
+      return;
+    }
 
     // Section header looks sane.
-    num_symbols_in_section_ = sh_header.sh_size / sh_header.sh_entsize;
+    sym_base_ = reinterpret_cast<const typename ElfArch::Sym*>(
+        symbol_section_->contents());
+    str_section_sz_ = string_section_->contents() != nullptr
+                          ? string_section_->section_size()
+                          : 0;
+    num_symbols_in_section_ = sh_header.sh_size / expected_sh_entsize;
   }
 
   // This type is neither copyable nor movable.
@@ -551,6 +561,8 @@ class SymbolIterator {
     return symbol_within_section_ >= num_symbols_in_section_;
   }
 
+  int num_symbols() const { return num_symbols_in_section_; }
+
   // Advance to the next symbol in this section.
   // REQUIRES: !done()
   void Next() { ++symbol_within_section_; }
@@ -558,10 +570,8 @@ class SymbolIterator {
   // Return a pointer to the current symbol.
   // REQUIRES: !done()
   const typename ElfArch::Sym* GetSymbol() const {
-    CHECK(!done());
-    return reinterpret_cast<const typename ElfArch::Sym*>(
-        symbol_section_->GetOffset(symbol_within_section_ *
-                                   symbol_section_->header().sh_entsize));
+    DCHECK(!done());
+    return sym_base_ + symbol_within_section_;
   }
 
   // Return the name of the current symbol, nullptr if it has none.
@@ -573,7 +583,9 @@ class SymbolIterator {
   // Perform almost all symbol name validity checks, but don't touch .strtab
   // REQUIRES: !done()
   bool SymbolNameValid() const {
-    return GetSymbolNameInternal(/*verify_nul_termination=*/false) != nullptr;
+    const auto* const sym = GetSymbol();
+    const typename ElfArch::Word name_offset = sym->st_name;
+    return name_offset != 0 && name_offset < str_section_sz_;
   }
 
   int GetCurrentSymbolIndex() const { return symbol_within_section_; }
@@ -582,16 +594,14 @@ class SymbolIterator {
   const char* GetSymbolNameInternal(bool verify_nul_termination) const {
     const auto* const sym = GetSymbol();
     if (sym == nullptr) return nullptr;
-    const int name_offset = sym->st_name;
-    const size_t str_section_sz = string_section_->section_size();
-    if (name_offset == 0 || str_section_sz == 0 ||
-        name_offset > str_section_sz - 1) {
+    const typename ElfArch::Word name_offset = sym->st_name;
+    if (name_offset == 0 || name_offset >= str_section_sz_) {
       return nullptr;
     }
     const char* name = string_section_->GetOffset(name_offset);
     if (name != nullptr && verify_nul_termination) {
       // Make sure it's properly NUL-terminated within the section bounds.
-      if (memchr(name, '\0', str_section_sz - name_offset) == nullptr) {
+      if (memchr(name, '\0', str_section_sz_ - name_offset) == nullptr) {
         return nullptr;
       }
     }
@@ -600,6 +610,8 @@ class SymbolIterator {
 
   const ElfSectionReader<ElfArch>* const symbol_section_;
   const ElfSectionReader<ElfArch>* string_section_;
+  const typename ElfArch::Sym* sym_base_;
+  size_t str_section_sz_;
   int num_symbols_in_section_;
   int symbol_within_section_;
 };
@@ -817,56 +829,55 @@ class ElfReaderImpl {
                           uint64_t mem_offset, uint64_t file_offset) {
     // This map is used to filter out "nested" functions.
     // See comment below.
+    SymbolIterator<ElfArch> it(this, section_type);
+    if (it.done()) return false;
     AddrToSymMap addr_to_sym_map;
+    addr_to_sym_map.reserve(it.num_symbols() / 2);
     const int num_sections = GetNumSections();
-    for (SymbolIterator<ElfArch> it(this, section_type); !it.done();
-         it.Next()) {
+    const uint64_t real_base = mem_offset - (file_offset - off_);
+    for (; !it.done(); it.Next()) {
+      const typename ElfArch::Sym* sym = it.GetSymbol();
+      const int sec = sym->st_shndx;
+
+      // We don't support special section indices. The most common
+      // is SHN_ABS, for absolute symbols used deep in the bowels of
+      // glibc. Also ignore any undefined symbols.
+      if (sec == SHN_UNDEF || (sec >= SHN_LORESERVE && sec <= SHN_HIRESERVE)) {
+        continue;
+      }
+      if (!CanUseSymbol(sym)) continue;
       // Verify the symbol is good without touching .strtab/.dynstr, as doing so
       // would significantly increase RSS.
       if (!it.SymbolNameValid()) continue;
-
-      const typename ElfArch::Sym* sym = it.GetSymbol();
-      if (CanUseSymbol(sym)) {
-        const int sec = sym->st_shndx;
-
-        // We don't support special section indices. The most common
-        // is SHN_ABS, for absolute symbols used deep in the bowels of
-        // glibc. Also ignore any undefined symbols.
-        if (sec == SHN_UNDEF ||
-            (sec >= SHN_LORESERVE && sec <= SHN_HIRESERVE)) {
-          continue;
-        }
-        if (sec >= num_sections) {
-          LOG(ERROR) << "Ignoring symbol @"
-                     << reinterpret_cast<void*>(sym->st_value)
-                     << " due to bogus section index " << sec;
-          continue;
-        }
-
-        const typename ElfArch::Shdr& hdr = section_headers_[sec];
-
-        // Adjust for difference between where we expected to mmap
-        // this section, and where it was actually mmapped.
-        const uint64_t expected_base = hdr.sh_addr - hdr.sh_offset;
-        const uint64_t real_base = mem_offset - (file_offset - off_);
-        const uint64_t adjust = real_base - expected_base;
-
-        uint64_t start = sym->st_value + adjust;
-
-        // Adjust function symbols for PowerPC64 by dereferencing and adjusting
-        // the function descriptor to get the function address.
-        if (header_.e_machine == EM_PPC64 && ElfArch::Type(sym) == STT_FUNC) {
-          const uint64_t opd_addr =
-              AdjustPPC64FunctionDescriptorSymbolValue(sym->st_value);
-          // Only adjust the returned value if the function address was found.
-          if (opd_addr != sym->st_value) {
-            const int64_t adjust_function_symbols = real_base - base_for_text_;
-            start = opd_addr + adjust_function_symbols;
-          }
-        }
-
-        addr_to_sym_map.push_back(std::make_pair(start, sym));
+      if (sec >= num_sections) {
+        LOG(ERROR) << "Ignoring symbol @"
+                   << reinterpret_cast<void*>(sym->st_value)
+                   << " due to bogus section index " << sec;
+        continue;
       }
+
+      const typename ElfArch::Shdr& hdr = section_headers_[sec];
+
+      // Adjust for difference between where we expected to mmap
+      // this section, and where it was actually mmapped.
+      const uint64_t expected_base = hdr.sh_addr - hdr.sh_offset;
+      const uint64_t adjust = real_base - expected_base;
+
+      uint64_t start = sym->st_value + adjust;
+
+      // Adjust function symbols for PowerPC64 by dereferencing and adjusting
+      // the function descriptor to get the function address.
+      if (header_.e_machine == EM_PPC64 && ElfArch::Type(sym) == STT_FUNC) {
+        const uint64_t opd_addr =
+            AdjustPPC64FunctionDescriptorSymbolValue(sym->st_value);
+        // Only adjust the returned value if the function address was found.
+        if (opd_addr != sym->st_value) {
+          const int64_t adjust_function_symbols = real_base - base_for_text_;
+          start = opd_addr + adjust_function_symbols;
+        }
+      }
+
+      addr_to_sym_map.push_back(std::make_pair(start, sym));
     }
     std::sort(addr_to_sym_map.begin(), addr_to_sym_map.end(), &AddrToSymSorter);
     addr_to_sym_map.erase(std::unique(addr_to_sym_map.begin(),
