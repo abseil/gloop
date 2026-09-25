@@ -91,18 +91,21 @@ SyncContext::Impl::Impl(SharedPtr shared, TraceEventListener* listener,
 
 TraceEventListener* SyncContext::Impl::ActiveListener() const {
   TraceEventListener* listener = internal::active_event_listener();
-  DLOG_IF(DFATAL, listener == nullptr) << "Active listener is null";
-  DLOG_IF(DFATAL, state_ != State::kActive) << "State != Active";
+  // TODO: b/559675297 - change back to DFATAL
+  DLOG_IF(ERROR, listener == nullptr) << "Active listener is null";
+  DLOG_IF(ERROR, state_ != State::kActive) << "State != Active";
   return (state_ == State::kActive) ? listener : nullptr;
 }
 
 TraceEventListener* SyncContext::Impl::ThisListener() const {
   if (state_ == State::kActive) {
     TraceEventListener* listener = internal::active_event_listener();
-    DLOG_IF(DFATAL, listener == nullptr) << "Active listener is null";
+    // TODO: b/559675297 - change back to DFATAL
+    DLOG_IF(ERROR, listener == nullptr) << "Active listener is null";
     return listener;
   } else {
-    DLOG_IF(DFATAL, listener_ == nullptr) << "Listener_ is null";
+    // TODO: b/559675297 - change back to DFATAL
+    DLOG_IF(ERROR, listener_ == nullptr) << "Listener_ is null";
     return listener_;
   }
 }
@@ -291,9 +294,12 @@ bool SyncContext::Impl::AfterSwap(StringRef label) {
 
   // This should be rare, but can happen if people play fast and loose with
   // contexts. For example, nest two contexts for the same trace but restore
-  // them in reversed (invalid) order.
+  // them in reversed (invalid) order, or in C9 coroutines when an inner
+  // coroutine / task finishes and ends its active trace while running within
+  // an outer SchedulingContext / WithContext scope.
   if (listener_ == nullptr || state_ == State::kNested) {
-    LOG_EVERY_N_SEC(DFATAL, 60) << "Attempt to Swap an abandoned tracer";
+    // TODO: b/559675297 - change back to DFATAL
+    LOG_EVERY_N_SEC(ERROR, 60) << "Attempt to Swap an abandoned tracer";
     return false;
   }
 
@@ -359,7 +365,8 @@ void SyncContext::RemoveListener(TraceEventListener* listener) {
       DeleteImpl();
     }
   } else {
-    DLOG(DFATAL) << "RemoveListener() on an empty instance";
+    // TODO: b/559675297 - change back to DFATAL
+    LOG_EVERY_N_SEC(ERROR, 60) << "RemoveListener() on an empty instance";
   }
 }
 
@@ -375,7 +382,9 @@ void SyncContext::RemoveListenerFromCurrent(Access,
       delete impl;
     }
   } else {
-    DLOG(DFATAL) << "RemoveListener() on an empty instance";
+    // TODO: b/559675297 - change back to DFATAL
+    LOG_EVERY_N_SEC(ERROR, 60)
+        << "RemoveListenerFromCurrent() on an empty instance";
   }
 }
 

@@ -787,8 +787,9 @@ TEST_F(SyncContextTest, BeforeSwapRestoreDeathTest) {
   StrictMock<MockTraceEventListener> mock;
   SyncContext root;
   root.AddListener(&mock);
-  EXPECT_DEBUG_DEATH(root.BeforeSwapCurrent(access(), {}), ".*");
-  EXPECT_DEBUG_DEATH(root.BeforeRestoreCurrent(access(), {}), ".*");
+  // TODO: b/559675297 - change back to EXPECT_DEBUG_DEATH
+  root.BeforeSwapCurrent(access(), {});
+  root.BeforeRestoreCurrent(access(), {});
 }
 
 TEST_F(SyncContextTest, SwapSuspendedContextWithDifferentSyncId) {
@@ -896,7 +897,9 @@ TEST_F(SyncContextTest, CornerCaseSwapRestoreAbandonNestedContext) {
   }
 
   // Swap back tc1 --> was nested, now abandoned
-  EXPECT_DEBUG_DEATH(Context::Swap(tc2), "");
+  // TODO: b/559675297 - change back to EXPECT_DEBUG_DEATH
+  Context::Swap(tc2);
+  EXPECT_FALSE(tc2.has_listeners());
 
   // Restore
   Context::Restore(tc1);
@@ -924,7 +927,9 @@ TEST_F(SyncContextTest, SwapAbandonNestedTraceContext) {
 
   // Restore from tc2 (swapped out tc1) now discovers we abandoned
   // tc1 for synchronous tracing:
-  EXPECT_DEBUG_DEATH(Context::Restore(tc2), ".*");
+  // TODO: b/559675297 - change back to EXPECT_DEBUG_DEATH
+  Context::Restore(tc2);
+  EXPECT_FALSE(tc2.has_listeners());
 }
 
 TEST_F(SyncContextTest, SwapNestedContextIntoDifferentSyncOfSameTrace) {
