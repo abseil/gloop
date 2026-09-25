@@ -32,31 +32,10 @@
 #include <utility>
 
 #include "absl/algorithm/container.h"
-#include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
+#include "gloop/util/gtl/c_mem_internal.h"
 
 namespace gtl {
-
-namespace internal {
-template <typename C>
-using element_type_t =
-    std::remove_reference_t<decltype(*std::data(std::declval<C&>()))>;
-
-// A writable, single-dimensional range of trivial elements.
-template <typename C>
-inline constexpr bool kIsTrivialDestRange =
-    !std::is_const_v<element_type_t<C>> &&
-    std::is_trivial_v<element_type_t<C>> &&
-    absl::container_algorithm_internal::IsPermissibleDestinationRange<
-        C>::value &&
-    !absl::container_algorithm_internal::IsMultidimensionalArray<
-        std::remove_reference_t<C>>::value;
-
-template <typename C>
-inline constexpr bool kCanUseCFill =
-    kIsTrivialDestRange<C> && sizeof(element_type_t<C>) == 1 &&
-    std::is_trivially_copy_assignable_v<element_type_t<C>>;
-}  // namespace internal
 
 // A container-based memset().
 //
@@ -64,11 +43,11 @@ inline constexpr bool kCanUseCFill =
 // the given value. The container must have a contiguous underlying buffer.
 // Multidimensional arrays are not supported.
 template <typename C>
-std::enable_if_t<internal::kIsTrivialDestRange<C> && !internal::kCanUseCFill<C>,
+std::enable_if_t<c_mem_internal::kIsTrivialDestRange<C> &&
+                     !c_mem_internal::kCanUseCFill<C>,
                  void>
 c_memset(C&& c, int ch) {
-  std::memset(std::data(c), ch,
-              std::size(c) * sizeof(internal::element_type_t<C>));
+  std::memset(std::data(c), ch, c_mem_internal::byte_size(c));
 }
 
 // A container-based memset().
@@ -85,8 +64,8 @@ c_memset(C&& c, int ch) {
 // Multidimensional arrays are not supported.
 template <typename C>
 ABSL_DEPRECATE_AND_INLINE()
-std::enable_if_t<internal::kCanUseCFill<C>, void> c_memset(
-    C&& c, internal::element_type_t<C> ch) {
+std::enable_if_t<c_mem_internal::kCanUseCFill<C>, void> c_memset(
+    C&& c, c_mem_internal::element_type_t<C> ch) {
   absl::c_fill(std::forward<C>(c), ch);
 }
 
@@ -97,10 +76,9 @@ std::enable_if_t<internal::kCanUseCFill<C>, void> c_memset(
 // given value. The container must have a contiguous underlying buffer.
 // Multidimensional arrays are not supported.
 template <typename C>
-std::enable_if_t<internal::kIsTrivialDestRange<C>, void> c_memset_n(
+std::enable_if_t<c_mem_internal::kIsTrivialDestRange<C>, void> c_memset_n(
     C&& c, int ch, size_t num_bytes) {
-  absl::base_internal::HardeningAssertLE(
-      num_bytes, std::size(c) * sizeof(internal::element_type_t<C>));
+  c_mem_internal::CheckDestPreconditions(c, num_bytes);
   std::memset(std::data(c), ch, num_bytes);
 }
 
