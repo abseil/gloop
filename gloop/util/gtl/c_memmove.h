@@ -26,6 +26,7 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_GTL_C_MEMMOVE_H_
 #define THIRD_PARTY_GLOOP_UTIL_GTL_C_MEMMOVE_H_
 
+#include <cstddef>
 #include <cstring>
 #include <iterator>
 #include <type_traits>
@@ -46,15 +47,17 @@ using element_type_t =
 
 // Helper function for c_memmove. It enforces the contracts for input types.
 template <typename D, typename S>
-void do_c_memmove(D&& dest, const S& src, size_t num_bytes) {
-  static_assert(std::is_trivial_v<element_type_t<std::remove_reference_t<D>>>,
+void do_c_memmove(D& dest, const S& src, size_t num_bytes) {
+  static_assert(!std::is_const_v<element_type_t<D>>,
+                "Destination container must not have a const value type.");
+  static_assert(std::is_trivial_v<element_type_t<D>>,
                 "Destination container must have a trivial value type.");
   static_assert(std::is_trivially_copyable_v<element_type_t<S>>,
                 "Source container must have a trivially copyable value type.");
 
   absl::base_internal::HardeningAssertLE(
       num_bytes, std::size(dest) * sizeof(*std::data(dest)));
-  memmove(std::data(dest), std::data(src), num_bytes);
+  std::memmove(std::data(dest), std::data(src), num_bytes);
 }
 
 }  // namespace memmove_internal
@@ -76,7 +79,7 @@ template <
 void c_memmove(D&& dest, const S& src, size_t num_bytes) {
   absl::base_internal::HardeningAssertLE(
       num_bytes, std::size(src) * sizeof(*std::data(src)));
-  memmove_internal::do_c_memmove(std::forward<D>(dest), src, num_bytes);
+  memmove_internal::do_c_memmove(dest, src, num_bytes);
 }
 
 // A container-based memmove() with bounds checking.
@@ -93,8 +96,8 @@ template <
     typename = std::enable_if_t<absl::container_algorithm_internal::
                                     IsPermissibleDestinationRange<D>::value>>
 void c_memmove(D&& dest, const S& src) {
-  size_t num_bytes = std::size(src) * sizeof(*std::data(src));
-  memmove_internal::do_c_memmove(std::forward<D>(dest), src, num_bytes);
+  const size_t num_bytes = std::size(src) * sizeof(*std::data(src));
+  memmove_internal::do_c_memmove(dest, src, num_bytes);
 }
 
 }  // namespace gtl

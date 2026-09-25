@@ -197,6 +197,20 @@ struct CanCMemsetN<
            std::declval<C>(), std::declval<int>(), std::declval<size_t>()))>>
     : std::true_type {};
 
+struct TrivialConstByte {
+  const char value;
+};
+
+TEST(CMemsetTest, WorksForNonCopyAssignableTrivialByteType) {
+  static_assert(std::is_trivial_v<TrivialConstByte>);
+  static_assert(!std::is_trivially_copy_assignable_v<TrivialConstByte>);
+  std::array<TrivialConstByte, 3> a = {{{'a'}, {'b'}, {'c'}}};
+  gtl::c_memset(a, 'z');
+  EXPECT_EQ(a[0].value, 'z');
+  EXPECT_EQ(a[1].value, 'z');
+  EXPECT_EQ(a[2].value, 'z');
+}
+
 TEST(CMemsetTest, RejectsMultidimensionalArrays) {
   static_assert(CanCMemset<int (&)[10], int>::value);
   static_assert(CanCMemset<char (&)[10], char>::value);
@@ -209,6 +223,24 @@ TEST(CMemsetTest, RejectsMultidimensionalArrays) {
   static_assert(!CanCMemsetN<int (&)[2][2]>::value);
   static_assert(!CanCMemsetN<char (&)[2][2]>::value);
   static_assert(!CanCMemsetN<int (&)[2][2][2]>::value);
+}
+
+TEST(CMemsetTest, RejectsConstAndNonTrivialAndRvalueDestinations) {
+  static_assert(!CanCMemset<absl::Span<const int>, int>::value);
+  static_assert(!CanCMemset<absl::Span<const char>, char>::value);
+  static_assert(!CanCMemset<const int (&)[4], int>::value);
+  static_assert(!CanCMemset<const char (&)[4], char>::value);
+  static_assert(!CanCMemset<std::vector<std::string>&, int>::value);
+  static_assert(!CanCMemset<std::vector<int>, int>::value);
+  static_assert(!CanCMemset<std::string, char>::value);
+
+  static_assert(!CanCMemsetN<absl::Span<const int>>::value);
+  static_assert(!CanCMemsetN<absl::Span<const char>>::value);
+  static_assert(!CanCMemsetN<const int (&)[4]>::value);
+  static_assert(!CanCMemsetN<const char (&)[4]>::value);
+  static_assert(!CanCMemsetN<std::vector<std::string>&>::value);
+  static_assert(!CanCMemsetN<std::vector<int>>::value);
+  static_assert(!CanCMemsetN<std::string>::value);
 }
 
 }  // namespace
