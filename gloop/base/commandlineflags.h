@@ -92,6 +92,25 @@
 //
 // (g) Any value of type T must be convertible to a string by AbslUnparseFlag,
 //     and the resulting string must be parsable by AbslParseFlag.
+// Direct-Access flags
+// -------------------
+// WARNING: Please use ABSL_FLAG above instead for new code.
+//
+// Macros of the form DEFINE_<type> (where <type> is any of int32_t,
+// int64_t, uint64_t, bool. double, string) can also be used to define
+// flags.  Such flags turn into plain global variables of type <type>
+// that can be read and written directly.  Note: such flags are not
+// thread-safe and therefore we recommend that new code use
+// ABSL_FLAG instead.
+//
+// Example (alternative to the ABSL_FLAG example above):
+//
+//    DEFINE_int64(buffer_size, 4096, "Buffer size to use for IO");
+//
+// The flag can be read and written as follows:
+//    int64_t bufsize = FLAGS_buffer_size;
+//    ..
+//    FLAGS_buffer_size =  65536;
 //
 // --- A note about thread-safety:
 //
@@ -148,6 +167,132 @@
 #endif  // !defined(GOOGLE_COMMANDLINEFLAGS_FULL_API)
 
 #ifndef SWIG
+
+//
+// NOTE: all functions below MUST have an explicit 'extern' before
+// them.  Our automated opensourcing tools use this as a signal to do
+// appropriate munging for windows, which needs to add GFLAGS_DLL_DECL.
+//
+#define GFLAGS_DLL_DECL        /* rewritten to be non-empty in windows dir */
+#define GFLAGS_DLL_DEFINE_FLAG /* rewritten to be non-empty in windows dir */
+
+// --------------------------------------------------------------------
+// Defining flags:
+
+// WARNING: Please use ABSL_FLAG (<link>) instead for new code.
+//
+// Defining direct access flags:
+//
+// #define DEFINE_bool(name, default_value, help) ...
+// #define DEFINE_int32(name, default_value, help) ...
+// #define DEFINE_int64(name, default_value, help) ...
+// #define DEFINE_uint64(name, default_value, help) ...
+// #define DEFINE_double(name, default_value, help) ...
+// #define DEFINE_string(name, default_value, help) ...
+//
+// The preceding macros expand to the definition of a direct-access flag
+// of the specified type.
+
+// --------------------------------------------------------------------
+// Validation
+
+// Register a validator function for the specified direct access flag.
+// Returns true if successfully registered, false if not (because the
+// first argument doesn't point to a command-line flag, or because a
+// validator is already registered for this flag).
+//
+// The validator function is called when the flag is parsed from the
+// command line, or modified via SetCommandLineOption.  The validator
+// function is _not_ called when the flag is directly modified
+// using the = operator.
+//
+// The validator function should return true if a candidate flag value
+// is valid, and false otherwise. If the function returns false for
+// the new setting of the flag, the flag will retain its current value.
+// If it returns false for the default value, InitGoogle() will die.
+//
+// RegisterFlagValidator is safe to call at global construct time (as
+// in the example below).
+//
+// Example:
+//    static bool ValidatePort(const char* flagname, int32_t value) {
+//      if (value > 0 && value < 65536)   // value is ok
+//        return true;
+//      fprintf(stderr, "Invalid value for --%s: %d\n",
+//              flagname, static_cast<int>(value));
+//      return false;
+//    }
+//    DEFINE_int32(port, 0, "What port to listen on");
+//    static bool dummy = RegisterFlagValidator(&FLAGS_port, &ValidatePort);
+//
+// Validation functions must not call back into the flag library
+// except to read other flags via GetFlag or direct variable access.
+//
+// REQUIRES: Must be called from the .cc file that DEFINE_...()s
+// the flag that is being validated.
+extern bool RegisterFlagValidator(
+    const bool* flag, bool (*validate_fn)(const char*, bool),
+    absl::SourceLocation loc = absl::SourceLocation::current());
+extern bool RegisterFlagValidator(
+    const int32_t* flag, bool (*validate_fn)(const char*, int32_t),
+    absl::SourceLocation loc = absl::SourceLocation::current());
+extern bool RegisterFlagValidator(
+    const int64_t* flag, bool (*validate_fn)(const char*, int64_t),
+    absl::SourceLocation loc = absl::SourceLocation::current());
+extern bool RegisterFlagValidator(
+    const uint64_t* flag, bool (*validate_fn)(const char*, uint64_t),
+    absl::SourceLocation loc = absl::SourceLocation::current());
+extern bool RegisterFlagValidator(
+    const double* flag, bool (*validate_fn)(const char*, double),
+    absl::SourceLocation loc = absl::SourceLocation::current());
+extern bool RegisterFlagValidator(
+    const std::string* flag,
+    bool (*validate_fn)(const char*, const std::string&),
+    absl::SourceLocation loc = absl::SourceLocation::current());
+
+namespace base {
+
+// This helper models legacy v1 flags validators semantics. It is still possible
+// to set a flag's value via absl::SetFlag to a value which fails validation.
+// Migrating to this type in place of validators will not affect absl::SetFlag
+// restrictions, thus it will not break any existing violations of the
+// validators.
+// To use this helper define a validation routine like this (int flag example):
+//  namespace n {
+//  bool ValidateMyFlag(const int& value, std::string* err) {...}
+//  }  // namespace n
+// This routine should return `true` if `value` is valid. Otherwise it should
+// return `false` and set `err` to contain the reason for the failure.
+// Define a flag like this:
+// ABSL_FLAG(base::LegacyValidatedFlag<n::ValidateMyFlag>, name, 123, "help");
+
+template <auto Validator>
+struct LegacyValidatedFlag;
+
+template <typename T, bool (*Validator)(const T&, std::string*)>
+struct LegacyValidatedFlag<Validator> {
+  LegacyValidatedFlag() = default;
+  LegacyValidatedFlag(T init_value) : value(init_value) {}  // NOLINT
+  // This is only going to be used for string flags
+  LegacyValidatedFlag(const char* init_value) : value(init_value) {}  // NOLINT
+
+  const T& Get() const { return value; }
+
+  friend bool AbslParseFlag(absl::string_view text, LegacyValidatedFlag* f,
+                            std::string* error) {
+    return absl::ParseFlag(text, &f->value, error) &&
+           Validator(f->value, error);
+  }
+
+  friend std::string AbslUnparseFlag(const LegacyValidatedFlag& f) {
+    return absl::UnparseFlag(f.value);
+  }
+
+ private:
+  T value;
+};
+
+}  // namespace base
 
 // --------------------------------------------------------------------
 // Parsing command lines
@@ -380,12 +525,78 @@ inline void ShutDownCommandLineFlags() {}
 // --------------------------------------------------------------------
 // Deprecated functions
 
+// This is often used for logging.  TODO: figure out a better way
+extern std::string CommandlineFlagsIntoString();
+
 // Usually where this is used, a FlagSaver should be used instead.
 extern bool ReadFlagsFromString(const std::string& flagfilecontents,
                                 const char* prog_name,
                                 bool errors_are_fatal);  // uses SET_FLAGS_VALUE
 
+// --------------------------------------------------------------------
+// Implementation details:
+//
+// The following is not part of the commandlineflags API and clients
+// must not rely on details of the code below.
+
+// Now come the command line flag declaration/definition macros that
+// will actually be used.  They're kind of hairy.  A major reason
+// for this is initialization: we want people to be able to access
+// variables in global constructors and have that not crash, even if
+// their global constructor runs before the global constructor here.
+// (Obviously, we can't guarantee the flags will have the correct
+// default value in that case, but at least accessing them is safe.)
+// The only way to do that is have flags point to a static buffer.
+// So we make one, using a union to ensure proper alignment, and
+// then use placement-new to actually set up the flag with the
+// correct default value.  In the same vein, we have to worry about
+// flag access in global destructors, so FlagRegisterer has to be
+// careful never to destroy the flag-values it constructs.
+//
+// Note that when we define a flag variable FLAGS_<name>, we also
+// preemptively define a junk variable, FLAGS_no<name>.  This is to
+// cause a link-time error if someone tries to define 2 flags with
+// names like "logging" and "nologging".  We do this because a bool
+// flag FLAG can be set from the command line to true with a "-FLAG"
+// argument, and to false with a "-noFLAG" argument, and so this can
+// potentially avert confusion.
+//
+// We also put flags into their own namespace.  It is purposefully
+// named in an opaque way that people should have trouble typing
+// directly.  The idea is that DEFINE puts the flag in the weird
+// namespace, and DECLARE imports the flag from there into the current
+// namespace.  The net result is to force people to use DECLARE to get
+// access to a flag, rather than saying "extern bool FLAGS_whatever;"
+// or some such instead.  We want this so we can put extra
+// functionality (like sanity-checking) in DECLARE if we want, and
+// make sure it is picked up everywhere.
+//
+// We also put the type of the variable in the namespace, so that
+// people can't DECLARE_int32 something that they DEFINE_bool'd
+// elsewhere.
+
+class GFLAGS_DLL_DECL FlagRegisterer {
+ public:
+  FlagRegisterer(const char* name, const char* type, const char* help,
+                 const char* filename, void* current_storage,
+                 void* defvalue_storage);
+};
+
 namespace base {
+
+namespace internal {
+
+// This type declares the type of the mutation callback used by watched Flags
+// The callback is noexcept.
+// TODO: add noexcept after C++17 support is added.
+typedef void (*FlagCallback)();
+
+using absl::flags_internal::Retire;
+
+}  // namespace internal
+
+bool FlagHasValidatorFn(const absl::CommandLineFlag& f);
+bool IsAbseilFlag(const absl::CommandLineFlag& f);
 
 // If a flag with specified "name" exists and has type T, store
 // its current value in *dst and return true.  Else return false
@@ -406,6 +617,216 @@ inline bool GetByName(absl::string_view name, T* dst) {
 
 }  // namespace base
 
+// If your application #defines STRIP_FLAG_HELP to a non-zero value
+// before #including this file, the help string will not appear in the
+// binary, and instead the pointer to the help string will resolve to
+// a special string (interpreted specially by the usage printer).
+// This can reduce the size of the resulting binary somewhat, and may
+// also be useful for security reasons.
+// TODO: Rename this macro.
+
+#if !GOOGLE_COMMANDLINEFLAGS_FULL_API
+#if !defined(STRIP_FLAG_HELP)
+#define STRIP_FLAG_HELP 1
+#endif
+#endif
+
+#if defined(STRIP_FLAG_HELP) && STRIP_FLAG_HELP > 0
+// Need this construct to avoid the 'defined but not used' warning.
+#define COMMANDLINEFLAGS_IMPL_MAYBE_STRIPPED_HELP(txt) \
+  (false ? (txt) : absl::flags_internal::kStrippedFlagHelp)
+#else
+#define COMMANDLINEFLAGS_IMPL_MAYBE_STRIPPED_HELP(txt) txt
+#endif
+
+#define COMMANDLINEFLAGS_IMPL_DECLARE_HELP_WRAPPER(name, txt) \
+  static const char* AbslFlagsWrapHelp##name() {              \
+    return COMMANDLINEFLAGS_IMPL_MAYBE_STRIPPED_HELP(txt);    \
+  }
+
+// When GOOGLE_COMMANDLINEFLAGS_FULL_API is defined, we use FlagRegisterer to
+// register the name, address and (optionally) the help string for each
+// flag. When it is not defined, we still declare the flag variable and
+// initialize it with the default value, but don't make it settable via the
+// command line, and omit its associated strings from the binary.
+#if GOOGLE_COMMANDLINEFLAGS_FULL_API
+#define COMMANDLINEFLAGS_IMPL_REGISTER_LEGACY_FLAG(name, type_name, shorttype, \
+                                                   help)                       \
+  namespace fL##shorttype {                                                    \
+    COMMANDLINEFLAGS_IMPL_DECLARE_HELP_WRAPPER(name, (help))                   \
+    static FlagRegisterer o_##name(#name, #type_name,                          \
+                                   AbslFlagsWrapHelp##name(), __FILE__,        \
+                                   &FLAGS_##name, &FLAGS_no##name);            \
+  }
+#define COMMANDLINEFLAGS_IMPL_REGISTER_STRING_FLAG(name, help)               \
+  namespace fLS {                                                            \
+  COMMANDLINEFLAGS_IMPL_DECLARE_HELP_WRAPPER(name, (help))                   \
+  static FlagRegisterer o_##name(#name, "string", AbslFlagsWrapHelp##name(), \
+                                 __FILE__, s_##name[0].s,                    \
+                                 new (s_##name[1].s)                         \
+                                     std::string(*FLAGS_no##name));          \
+  }
+#else  // !PORTABLE_USE_FULLCOMMANDLINEFLAGS
+#define COMMANDLINEFLAGS_IMPL_REGISTER_LEGACY_FLAG(name, type, shorttype, help)
+#define COMMANDLINEFLAGS_IMPL_REGISTER_STRING_FLAG(name, help)
+#endif  // !GOOGLE_COMMANDLINEFLAGS_FULL_API
+
+// Each command-line flag has two variables associated with it: one
+// with the current value, and one with the default value.  However,
+// we have a third variable, which is where value is assigned; it's a
+// constant.  This guarantees that FLAG_##value is initialized at
+// static initialization time (e.g. before program-start) rather than
+// at global construction time (which is after program-start but
+// before main), at least when 'value' is a compile-time constant.  We
+// use a small trick for the "default value" variable, and call it
+// FLAGS_no<name>.  This serves the second purpose of assuring a
+// compile error if someone tries to define a flag named no<name>
+// which is illegal (--foo and --nofoo both affect the "foo" flag).
+#define COMMANDLINEFLAGS_IMPL_DEFINE_VARIABLE(type, type_name, shorttype,      \
+                                              name, value, help)               \
+  namespace fL##shorttype {                                                    \
+    extern GFLAGS_DLL_DECLARE_FLAG type FLAGS_##name;                          \
+    extern type FLAGS_no##name;                                                \
+    static const type FLAGS_nono##name = value;                                \
+    /* We always want to export defined variables, dll or no */                \
+    GFLAGS_DLL_DEFINE_FLAG type FLAGS_##name = FLAGS_nono##name;               \
+    [[maybe_unused]] type FLAGS_no##name = FLAGS_nono##name;                   \
+  }                                                                            \
+  COMMANDLINEFLAGS_IMPL_REGISTER_LEGACY_FLAG(name, type_name, shorttype, help) \
+  using fL##shorttype::FLAGS_##name
+
+// For DEFINE_bool, we want to do the extra check that the passed-in
+// value is actually a bool, and not a string or something that can be
+// coerced to a bool.  These declarations (no definition needed!) will
+// help us do that, and never evaluate From, which is important.
+// We'll use 'sizeof(IsBool(val))' to distinguish. This code requires
+// that the compiler have different sizes for bool & double. Since
+// this is not guaranteed by the standard, we check it with a
+// static_assert.
+namespace fLB {
+static_assert(sizeof(double) != sizeof(bool),
+              "expected_sizeof_double_neq_sizeof_bool");
+template <typename From>
+double GFLAGS_DLL_DECL IsBoolFlag(const From& from);
+GFLAGS_DLL_DECL bool IsBoolFlag(bool from);
+}  // namespace fLB
+
+// Here are the actual DEFINE_*-macros. The respective DECLARE_*-macros
+// are in a separate include, commandlineflags_declare.h, for reducing
+// the physical transitive size for DECLARE use.
+#define DEFINE_bool(name, val, txt)                               \
+  namespace fLB {                                                 \
+  static_assert(sizeof(::fLB::IsBoolFlag(val)) != sizeof(double), \
+                "FLAG_##name##_value_is_not_a_bool");             \
+  }                                                               \
+  COMMANDLINEFLAGS_IMPL_DEFINE_VARIABLE(bool, bool, B, name, val, txt)
+
+#define DEFINE_int32(name, val, txt) \
+  COMMANDLINEFLAGS_IMPL_DEFINE_VARIABLE(int32_t, int32, I, name, val, txt)
+
+#define DEFINE_int64(name, val, txt) \
+  COMMANDLINEFLAGS_IMPL_DEFINE_VARIABLE(int64_t, int64, I64, name, val, txt)
+
+#define DEFINE_uint64(name, val, txt) \
+  COMMANDLINEFLAGS_IMPL_DEFINE_VARIABLE(uint64_t, uint64, U64, name, val, txt)
+
+#define DEFINE_double(name, val, txt) \
+  COMMANDLINEFLAGS_IMPL_DEFINE_VARIABLE(double, double, D, name, val, txt)
+
+// Strings are trickier, because they're not a POD, so we can't
+// construct them at static-initialization time (instead they get
+// constructed at global-constructor time, which is much later).  To
+// try to avoid crashes in that case, we use a char buffer to store
+// the string, which we can static-initialize, and then placement-new
+// into it later.  It's not perfect, but the best we can do.
+
+namespace fLS {
+
+inline std::string* dont_pass0toDEFINE_string(char* absl_nonnull stringspot,
+                                              const char* absl_nonnull value) {
+  return new (stringspot) std::string(value);
+}
+inline std::string* dont_pass0toDEFINE_string(char* absl_nonnull stringspot,
+                                              absl::string_view value) {
+  return new (stringspot) std::string(value);
+}
+inline std::string* dont_pass0toDEFINE_string(char* stringspot,
+                                              int value) = delete;
+}  // namespace fLS
+
+// We need to define a var named FLAGS_no##name so people don't define
+// --string and --nostring.  And we need a temporary place to put val
+// so we don't have to evaluate it twice.  Two great needs that go
+// great together!
+// The weird 'using' + 'extern' inside the fLS namespace is to work around
+// an unknown compiler bug/issue with the gcc 4.2.1 on SUSE 10.  See
+//    https://github.com/gflags/gflags/issues/31
+#define DEFINE_string(name, val, txt)                       \
+  namespace fLS {                                           \
+  static union {                                            \
+    void* align;                                            \
+    char s[sizeof(std::string)];                            \
+  } s_##name[2];                                            \
+  std::string* const FLAGS_no##name =                       \
+      ::fLS::dont_pass0toDEFINE_string(s_##name[0].s, val); \
+  extern GFLAGS_DLL_DEFINE_FLAG std::string& FLAGS_##name;  \
+  using fLS::FLAGS_##name;                                  \
+  std::string& FLAGS_##name = *FLAGS_no##name;              \
+  } /* namespace fLS */                                     \
+  COMMANDLINEFLAGS_IMPL_REGISTER_STRING_FLAG(name, txt)     \
+  using fLS::FLAGS_##name
+
 #endif  // SWIG
+
+// --------------------------------------------------------------------
+// Old style type erased flag information storage and interfaces to access it.
+
+// struct CommandLineFlagInfo holds all information for a flag.
+struct CommandLineFlagInfo {
+  std::string name;           // the name of the flag
+  std::string type;           // DO NOT use. Use flag->IsOfType<T>() instead.
+  std::string description;    // the "help text" associated with the flag
+  std::string current_value;  // the current value, as a string
+  std::string default_value;  // the default value, as a string
+  std::string filename;       // 'cleaned' version of filename holding the flag
+  bool has_validator_fn;  // true if RegisterFlagValidator called on this flag
+
+  ABSL_DEPRECATED(
+      "This field has a misleading name and behavior. E.g., setting"
+      " the flag to its default value directly (assigning to FLAGS_##name) will"
+      " cause is_default to remain true, but setting the flag via "
+      "SetCommandLineOption() will cause is_default to become false. Prefer "
+      "calling WasPresentOnCommandLine to determine if the value has been "
+      "provided via the command line (directly or indirectly), or comparing "
+      "current_value and default_value to determine if the flag has the default"
+      " value.")
+  bool is_default;  // true if the flag has the default value and
+                    // has not been set explicitly from the cmdline
+                    // or via SetCommandLineOption.
+
+  // nullptr for ABSL_FLAG.  A pointer to the flag's current value
+  // otherwise.  E.g., for DEFINE_int32(foo, ...), flag_ptr will be
+  // &FLAGS_foo.
+  const void* flag_ptr;
+};
+
+//-----------------------------------------------------------------------------
+
+// If a flag named "name" exists, store its information in *output_info
+// and return true. Else return false without changing *output_info.
+// Thread-safe.
+bool GetCommandLineFlagInfo(absl::string_view name,
+                            CommandLineFlagInfo* output_info);
+
+// Returns the CommandLineFlagInfo of the flagname.  exit() with an
+// error code if name not found. This function should not be called on platforms
+// where GOOGLE_COMMANDLINEFLAGS_FULL_API=0.
+// Thread-safe.
+CommandLineFlagInfo GetCommandLineFlagInfoOrDie(absl::string_view name);
+
+// Store the list of all flags in *output_vector, sorted by file.
+void GetAllFlags(std::vector<CommandLineFlagInfo>* output_vector);
+
+//-----------------------------------------------------------------------------
 
 #endif  // THIRD_PARTY_GLOOP_BASE_COMMANDLINEFLAGS_H_
