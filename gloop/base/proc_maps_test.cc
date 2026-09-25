@@ -44,4 +44,35 @@ TEST(ProcMapsIteratorTest, FormatLineWithSharedMapping) {
             "00001000-00002000 rw-s 00000000 00:00 0           \n");
 }
 
+TEST(ProcMapsIteratorTest, NextExtReadsCurrentProcessMaps) {
+  ProcMapsIterator::Buffer buffer;
+  ProcMapsIterator it(0, &buffer);
+  ASSERT_TRUE(it.Valid());
+  uint64_t start, end, offset;
+  int64_t inode;
+  char* flags;
+  char* filename;
+  dev_t dev;
+  int count = 0;
+  bool found_code = false;
+  const uintptr_t self_addr = reinterpret_cast<uintptr_t>(&buffer);
+  bool found_stack = false;
+  while (it.NextExt(&start, &end, &flags, &offset, &inode, &filename, &dev)) {
+    EXPECT_LT(start, end);
+    ASSERT_NE(flags, nullptr);
+    EXPECT_EQ(strlen(flags), 4u);
+    ASSERT_NE(filename, nullptr);
+    if (absl::string_view(flags).find('x') != absl::string_view::npos) {
+      found_code = true;
+    }
+    if (self_addr >= start && self_addr < end) {
+      found_stack = true;
+    }
+    ++count;
+  }
+  EXPECT_GT(count, 0);
+  EXPECT_TRUE(found_code);
+  EXPECT_TRUE(found_stack);
+}
+
 }  // namespace
