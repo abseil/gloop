@@ -108,9 +108,9 @@ class CustomChildTaskBarrier : public AbstractChildTaskBarrier {
   // to 'policy_function'. 'parent' is returned with 'accumulated_status' when
   // 'policy_function' returns true or all children have returned.
   // NB: 'policy_function' will be called while holding a Mutex.
-  explicit CustomChildTaskBarrier(util::Task* parent,
+  explicit CustomChildTaskBarrier(util::Task* parent_task,
                                   absl::Status initial_status,
-                                  PolicyFunction policy_function);
+                                  PolicyFunction policy_fn);
 
   ~CustomChildTaskBarrier() override;
 
