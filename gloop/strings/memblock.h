@@ -29,10 +29,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <new>
 #include <string>
+#include <type_traits>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
@@ -61,6 +63,20 @@ enum { MLOCK_ALL = -1, MLOCK_NONE = 0 };
 #endif  // GOOGLE_HAVE_MLOCK
 
 class MemBlock {
+ private:
+  // The only types allowed to alias arbitrary memory: char, unsigned char, and
+  // std::byte.
+  template <typename T>
+  static constexpr bool kIsByteType =
+      std::is_same_v<std::remove_cv_t<T>, char> ||
+      std::is_same_v<std::remove_cv_t<T>, unsigned char> ||
+      std::is_same_v<std::remove_cv_t<T>, std::byte>;
+  template <typename T>
+  static constexpr bool kIsNonConstByteType =
+      kIsByteType<T> && !std::is_const_v<T>;
+  template <typename T>
+  static constexpr bool kIsConstByteType = kIsByteType<T> && std::is_const_v<T>;
+
  public:
   MemBlock(const MemBlock&) = delete;
   MemBlock& operator=(const MemBlock&) = delete;
@@ -69,24 +85,31 @@ class MemBlock {
   void* absl_nullable data() { return data_; }
   const void* absl_nullable data() const { return data_; }
   size_t length() const { return length_; }
-  absl::Span<unsigned char> span() {
-    return absl::MakeSpan(static_cast<unsigned char*>(data_), length_);
+
+  template <typename T = unsigned char,
+            typename = std::enable_if_t<kIsNonConstByteType<T>>>
+  absl::Span<T> span() {
+    return absl::MakeSpan(static_cast<T*>(data_), length_);
   }
-  absl::Span<const unsigned char> span() const {
-    return absl::MakeSpan(static_cast<const unsigned char*>(data_), length_);
+  template <typename T = const unsigned char,
+            typename = std::enable_if_t<kIsConstByteType<T>>>
+  absl::Span<T> span() const {
+    return absl::MakeSpan(static_cast<T*>(data_), length_);
   }
 
   // Original pointer/size passed to constructor (before adjusts)
   void* absl_nullable orig_data() { return orig_data_; }
   const void* absl_nullable orig_data() const { return orig_data_; }
   size_t orig_length() const { return orig_length_; }
-  absl::Span<unsigned char> orig_span() {
-    return absl::MakeSpan(static_cast<unsigned char*>(orig_data_),
-                          orig_length_);
+  template <typename T = unsigned char,
+            typename = std::enable_if_t<kIsNonConstByteType<T>>>
+  absl::Span<T> orig_span() {
+    return absl::MakeSpan(static_cast<T*>(orig_data_), orig_length_);
   }
-  absl::Span<const unsigned char> orig_span() const {
-    return absl::MakeSpan(static_cast<const unsigned char*>(orig_data_),
-                          orig_length_);
+  template <typename T = const unsigned char,
+            typename = std::enable_if_t<kIsConstByteType<T>>>
+  absl::Span<T> orig_span() const {
+    return absl::MakeSpan(static_cast<T*>(orig_data_), orig_length_);
   }
 
   // Helper routines to reduce the extent of the visible block.  These
