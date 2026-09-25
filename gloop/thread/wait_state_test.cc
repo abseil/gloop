@@ -48,8 +48,6 @@
 #include "gloop/thread/periodicclosure.h"
 #include "gloop/thread/thread-internal.h"
 #include "gloop/thread/thread.h"
-#include "gloop/thread/thread_manager.h"
-#include "gloop/thread/thread_options.h"
 #include "gloop/thread/threadpool.h"
 #include "gloop/thread/timedcall.h"
 #include "gmock/gmock.h"

@@ -1203,7 +1203,6 @@ cc_test(
     deps = [
         ":circularbuffer",
         "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

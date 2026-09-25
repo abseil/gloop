@@ -22,7 +22,6 @@
 
 #include <stdlib.h>  // for malloc
 
-#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <cstring>

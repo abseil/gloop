@@ -31,7 +31,6 @@
 
 #include "absl/log/check.h"
 #include "absl/numeric/int128.h"
-#include "absl/strings/ascii.h"
 #include "absl/strings/charconv.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
@@ -76,7 +75,7 @@ bool HumanReadableNumBytes::ToInt64(absl::string_view str, int64_t* num_bytes) {
 
   int64_t scale = 1;
   switch (str.back()) {
-    // NB: an int64 can only go up to <8 EB.
+    // NB: an int64 max value is ~8 exabytes.
     case 'E':
       scale <<= 10;
       [[fallthrough]];
