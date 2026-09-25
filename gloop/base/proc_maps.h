@@ -38,6 +38,7 @@
 
 #include "absl/base/macros.h"  // IWYU pragma: keep
 #include "absl/flags/declare.h"
+#include "absl/strings/string_view.h"
 #include "gloop/base/port.h"  // IWYU pragma: keep
 
 // String to prepend to /proc filenames opened via OpenProcFile
@@ -49,6 +50,19 @@ namespace proc_maps_internal {
 void ConstructFilename(const char* spec, pid_t pid, char* buf, int buf_size);
 
 bool HasProcfsPrefix();
+
+struct ParsedLine {
+  uint64_t start;
+  uint64_t end;
+  char flags[10];
+  uint64_t offset;
+  uint32_t major;
+  uint32_t minor;
+  int64_t inode;
+  absl::string_view filename;
+};
+
+bool ParseProcMapsLine(absl::string_view line, ParsedLine* output);
 
 }  // namespace proc_maps_internal
 #endif

@@ -53,7 +53,9 @@
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/flags/flag.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "gloop/base/scheduling/scheduling_mode.h"
@@ -252,6 +254,71 @@ bool ProcMapsIterator::Next(uint64_t* start, uint64_t* end, char** flags,
   return NextExt(start, end, flags, offset, inode, filename, nullptr);
 }
 
+#if defined __linux__
+namespace proc_maps_internal {
+namespace {
+
+// Skips leading spaces in `line` and extracts the token up to `delim`.
+// Advances `line` past the delimiter (or to the end of `line` when `delim` is
+// `' '` and no trailing space is present). Returns an empty string_view if no
+// token or required delimiter is found, or if the token contains whitespace.
+absl::string_view ConsumeToken(absl::string_view& line, char delim) {
+  const size_t start = line.find_first_not_of(' ');
+  if (start == absl::string_view::npos) return {};
+  line.remove_prefix(start);
+  const size_t end = line.find(delim);
+  absl::string_view token;
+  if (end == absl::string_view::npos) {
+    if (delim != ' ') return {};
+    token = line;
+    line.remove_prefix(line.size());
+  } else {
+    token = line.substr(0, end);
+    line.remove_prefix(end + 1);
+  }
+  for (char c : token) {
+    if (absl::ascii_isspace(static_cast<unsigned char>(c))) return {};
+  }
+  return token;
+}
+
+}  // namespace
+
+bool ParseProcMapsLine(absl::string_view line, ParsedLine* output) {
+  line = line.substr(0, line.find('\0'));
+  if (!absl::SimpleHexAtoi(ConsumeToken(line, '-'), &output->start)) {
+    return false;
+  }
+  if (!absl::SimpleHexAtoi(ConsumeToken(line, ' '), &output->end)) {
+    return false;
+  }
+  absl::string_view flags_tok = ConsumeToken(line, ' ');
+  if (flags_tok.empty() || flags_tok.size() > 4) return false;
+  memcpy(output->flags, flags_tok.data(), flags_tok.size());
+  output->flags[flags_tok.size()] = '\0';
+  if (!absl::SimpleHexAtoi(ConsumeToken(line, ' '), &output->offset)) {
+    return false;
+  }
+  if (!absl::SimpleHexAtoi(ConsumeToken(line, ':'), &output->major)) {
+    return false;
+  }
+  if (!absl::SimpleHexAtoi(ConsumeToken(line, ' '), &output->minor)) {
+    return false;
+  }
+  if (!absl::SimpleAtoi(ConsumeToken(line, ' '), &output->inode)) {
+    return false;
+  }
+  while (!line.empty() &&
+         absl::ascii_isspace(static_cast<unsigned char>(line.front()))) {
+    line.remove_prefix(1);
+  }
+  output->filename = line;
+  return true;
+}
+
+}  // namespace proc_maps_internal
+#endif
+
 // based on code in google.cc originally written by Mike Burrows
 // This has too many arguments.  It should really be building
 // a map object and returning it.  The problem is that this is called
@@ -292,40 +359,24 @@ bool ProcMapsIterator::NextExt(uint64_t* start, uint64_t* end, char** flags,
       *etext_ = '\n';  // sentinel; safe because ibuf extends 1 char beyond ebuf
       nextline_ = static_cast<char*>(memchr(stext_, '\n', etext_ + 1 - stext_));
     }
+    absl::string_view line(stext_, nextline_ - stext_);
     *nextline_ = 0;                               // turn newline into nul
     nextline_ += ((nextline_ < etext_) ? 1 : 0);  // skip nul if not end of text
     // stext_ now points at a nul-terminated line
-    unsigned long long tmpstart, tmpend, tmpoffset;           // NOLINT
-    long long tmpinode, local_inode;                          // NOLINT
-    unsigned long long local_start, local_end, local_offset;  // NOLINT
-    int major, minor;
-    unsigned filename_offset = 0;
-    // for now, assume all linuxes have the same format
-    int para_num =
-        sscanf(stext_, "%llx-%llx %4s %llx %x:%x %lld %n",
-               start ? &local_start : &tmpstart, end ? &local_end : &tmpend,
-               flags_, offset ? &local_offset : &tmpoffset, &major, &minor,
-               inode ? &local_inode : &tmpinode, &filename_offset);
+    proc_maps_internal::ParsedLine parsed;
+    if (!proc_maps_internal::ParseProcMapsLine(line, &parsed)) continue;
+    memcpy(flags_, parsed.flags, sizeof(flags_));
 
-    if (para_num != 7) continue;
-
-    if (start) *start = local_start;
-    if (end) *end = local_end;
-    if (offset) *offset = local_offset;
-    if (inode) *inode = local_inode;
-    // Depending on the Linux kernel being used, there may or may not be a space
-    // after the inode if there is no filename.  sscanf will in such situations
-    // nondeterministically either fill in filename_offset or not (the results
-    // differ on multiple calls in the same run even with identical arguments).
-    // We don't want to wander off somewhere beyond the end of the string.
-    size_t stext_length = strlen(stext_);
-    if (filename_offset == 0 || filename_offset > stext_length)
-      filename_offset = stext_length;
-
-    // We found an entry
+    if (start) *start = parsed.start;
+    if (end) *end = parsed.end;
+    if (offset) *offset = parsed.offset;
+    if (inode) *inode = parsed.inode;
     if (flags) *flags = flags_;
-    if (filename) *filename = stext_ + filename_offset;
-    if (dev) *dev = makedev(major, minor);
+    if (filename) *filename = const_cast<char*>(parsed.filename.data());
+    if (dev) {
+      *dev = makedev(static_cast<int>(parsed.major),
+                     static_cast<int>(parsed.minor));
+    }
 
     return true;
   } while (etext_ > ibuf_);
