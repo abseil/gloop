@@ -42,6 +42,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/base/attributes.h"
@@ -1521,6 +1522,54 @@ TEST_F(SubProcessTest, FdRace) {
   for (size_t i = 0; i < std::size(fds); ++i) {
     close(fds[i]);
   }
+}
+
+// Closes the given descriptors in the child right after fork(). This leaves
+// the child with the same descriptor table it inherits when another parent
+// thread closes those descriptors after Start() has allocated its fds but
+// before fork().
+class HolePunchingSubProcess : public SubProcess {
+ public:
+  HolePunchingSubProcess(int nfds, std::vector<int> holes)
+      : SubProcess(nfds), holes_(std::move(holes)) {}
+
+ protected:
+  void TEST_AfterForkBeforeExecEarly(int child_to_parent_fd) override {
+    for (int fd : holes_) {
+      lss_close(fd, &child_errno_);
+    }
+  }
+
+ private:
+  std::vector<int> holes_;
+};
+
+TEST_F(SubProcessTest, UnusedChannelFdClosedBeforeFork) {
+  const int kNumFds = 8;
+  // Occupy every descriptor below kNumFds, so that none of the fds Start()
+  // opens lands below kNumFds and the child finds no hole to fill.
+  std::vector<int> fillers;
+  for (;;) {
+    int fd = open("/dev/null", O_RDONLY);
+    ASSERT_GE(fd, 0);
+    if (fd >= kNumFds) {
+      close(fd);
+      break;
+    }
+    fillers.push_back(fd);
+  }
+  absl::Cleanup close_fillers = [&fillers] {
+    for (int fd : fillers) close(fd);
+  };
+
+  // Two holes: the child's open("/dev/null") takes the lowest one, and the
+  // close loop over unused channels finds the other one already closed.
+  HolePunchingSubProcess proc(kNumFds, {4, 6});
+  proc.SetProgram("/bin/true", {"true"});
+  proc.EnableChildSetupLogs(true);
+  ASSERT_TRUE(proc.Start()) << proc.error_text();
+  ASSERT_TRUE(proc.Wait());
+  EXPECT_EQ(0, proc.exit_status());
 }
 
 enum class FailWhen { NEVER, EARLY, LATE };
