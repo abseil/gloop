@@ -372,8 +372,25 @@ void SymbolMap::Finalize() {
   // names_ are not needed anymore.
   NameHashSet().swap(names_);  // Also free storage
 
-  std::sort(symbols_.begin(), symbols_.end(),
-            [](Symbol const& a, Symbol const& b) { return a.addr < b.addr; });
+  // PopulateSymbols() adds ELF images in ascending mem_offset order, and
+  // ElfReader::GetSymbols() sorts symbols within each image by address, so
+  // symbols_ is already sorted except for the small tail of vDSO symbols
+  // (~10 entries) appended at the end of PopulateSymbols(). Sorting that
+  // tail and merging in O(N) avoids an O(N log N) full sort over all
+  // symbols.
+  auto sym_lt = [](Symbol const& a, Symbol const& b) {
+    return a.addr < b.addr;
+  };
+  auto unsorted =
+      std::is_sorted_until(symbols_.begin(), symbols_.end(), sym_lt);
+  if (unsorted != symbols_.end()) {
+    if (symbols_.end() - unsorted <= 256) {
+      std::sort(unsorted, symbols_.end(), sym_lt);
+      std::inplace_merge(symbols_.begin(), unsorted, symbols_.end(), sym_lt);
+    } else {
+      std::sort(symbols_.begin(), symbols_.end(), sym_lt);
+    }
+  }
 
   if (symbol_map_compression_level_ == 0) {
     // Free any excess storage used by exponential resizing as the symbols_
@@ -477,8 +494,8 @@ void SymbolMap::PopulateSymbols(SymbolMap& symbols) {
     uint64_t length;
   };
   auto info_lt = [](const Info& a, const Info& b) {
-    return std::tie(a.file_name, a.file_offset, a.mem_offset, a.length) <
-           std::tie(b.file_name, b.file_offset, b.mem_offset, b.length);
+    return std::tie(a.mem_offset, a.file_offset, a.length, a.file_name) <
+           std::tie(b.mem_offset, b.file_offset, b.length, b.file_name);
   };
 
   ProcMapsIterator it(0);  // 0 -> current process.
