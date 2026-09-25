@@ -56,6 +56,7 @@
 #include "gloop/util/gtl/switch.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "tcmalloc/malloc_extension.h"
 
 ABSL_FLAG(uint64_t, benchmark_random_seed, absl::ToUnixMillis(absl::Now()),
           "Random seed.");
@@ -565,9 +566,12 @@ TEST(FlatSetTest, VectorExtensions) {
   // shrink_to_fit is non-binding, but - given that one motivation for flat_set
   // is memory optimization - we would really like it to work. If we have a
   // standard library which does not honour shrink_to_fit, we should reimplement
-  // it ourselves in flat_set.
+  // it ourselves in flat_set. Below, we expect that capacity will be within the
+  // same allocator size class as a tightly sized vector allocation would be.
   s.shrink_to_fit();
-  EXPECT_EQ(s.capacity(), 5);
+  EXPECT_LE(s.capacity(), tcmalloc::MallocExtension::GetEstimatedAllocatedSize(
+                              s.size() * sizeof(OnlyLT)) /
+                              sizeof(OnlyLT));
 #endif  // GLOOP_UNSUPPORTED_LIBSTDCXX
 }
 

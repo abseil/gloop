@@ -218,6 +218,7 @@ cc_test(
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@tcmalloc//tcmalloc:malloc_extension",
     ],
 )
 
@@ -255,6 +256,7 @@ cc_test(
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@tcmalloc//tcmalloc:malloc_extension",
     ],
 )
 

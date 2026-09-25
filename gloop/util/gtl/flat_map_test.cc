@@ -47,6 +47,7 @@
 #include "gloop/util/gtl/stl_util.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "tcmalloc/malloc_extension.h"
 
 namespace gtl {
 namespace {
@@ -901,9 +902,13 @@ TEST(FlatMapTest, VectorExtensions) {
   // shrink_to_fit is non-binding, but - given that one motivation for flat_map
   // is memory optimization - we would really like it to work. If we have a
   // standard library which does not honour shrink_to_fit, we should reimplement
-  // it ourselves in flat_map.
+  // it ourselves in flat_map. Below, we expect that capacity will be within the
+  // same allocator size class as a tightly sized vector allocation would be.
   m.shrink_to_fit();
-  EXPECT_EQ(m.capacity(), 5);
+  const size_t value_size = sizeof(std::pair<const OnlyLT, int>);
+  EXPECT_LE(m.capacity(), tcmalloc::MallocExtension::GetEstimatedAllocatedSize(
+                              m.size() * value_size) /
+                              value_size);
 #endif  // GLOOP_UNSUPPORTED_LIBSTDCXX
 }
 
