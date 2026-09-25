@@ -290,7 +290,6 @@ cc_library(
     deps = [
         ":si_prefix",
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings",
@@ -677,7 +676,6 @@ cc_library(
     srcs = ["split.cc"],
     hdrs = ["split.h"],
     deps = [
-        ":util",
         "//gloop:enforce_gloop_support",
         "//gloop/base:strtoint",
         "@abseil-cpp//absl/base:nullability",
