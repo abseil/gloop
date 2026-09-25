@@ -31,6 +31,7 @@
 #include <map>
 #include <memory>
 #include <ostream>
+#include <random>
 #include <set>
 #include <string>
 #include <tuple>
@@ -1369,19 +1370,20 @@ void BM_ChainComparatorsSort(benchmark::State& state,
 
 void BM_ChainComparatorsIntSort(benchmark::State& state) {
   constexpr int kNumberRange = 10;
-  absl::BitGen rng;
-  absl::uniform_int_distribution<int> r(1, kNumberRange);
-  BM_ChainComparatorsSort<int>(state, [&] { return r(rng); });
+  std::mt19937_64 rng;
+  BM_ChainComparatorsSort<int>(
+      state, [&] { return absl::Uniform(rng, 0, kNumberRange); });
 }
 
 void BM_ChainComparatorsStringSort(benchmark::State& state) {
   constexpr int kStringLength = 3;
   constexpr int kCharRange = 2;
-  absl::BitGen rng;
-  absl::uniform_int_distribution<int> r('a', 'a' + kCharRange - 1);
+  std::mt19937_64 rng;
   BM_ChainComparatorsSort<std::string>(state, [&] {
     std::string s(kStringLength, char{});
-    std::generate(s.begin(), s.end(), [&] { return r(rng); });
+    std::generate(s.begin(), s.end(), [&] {
+      return absl::Uniform<char>(rng, 'a', 'a' + kCharRange);
+    });
     return s;
   });
 }
@@ -1404,19 +1406,20 @@ void BM_LexicographicalComparatorSort(benchmark::State& state,
 
 void BM_LexicographicalComparatorIntSort(benchmark::State& state) {
   constexpr int kNumberRange = 10;
-  absl::BitGen rng;
-  absl::uniform_int_distribution<int> r(1, kNumberRange);
-  BM_LexicographicalComparatorSort<int>(state, [&] { return r(rng); });
+  std::mt19937_64 rng;
+  BM_LexicographicalComparatorSort<int>(
+      state, [&] { return absl::Uniform(rng, 0, kNumberRange); });
 }
 
 void BM_LexicographicalComparatorStringSort(benchmark::State& state) {
   constexpr int kStringLength = 3;
   constexpr int kCharRange = 2;
-  absl::BitGen rng;
-  absl::uniform_int_distribution<int> r('a', 'a' + kCharRange - 1);
+  std::mt19937_64 rng;
   BM_LexicographicalComparatorSort<std::string>(state, [&] {
     std::string s(kStringLength, char{});
-    std::generate(s.begin(), s.end(), [&] { return r(rng); });
+    std::generate(s.begin(), s.end(), [&] {
+      return absl::Uniform<char>(rng, 'a', 'a' + kCharRange);
+    });
     return s;
   });
 }
