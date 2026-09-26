@@ -152,8 +152,8 @@ ABSL_CONST_INIT ABSL_ATTRIBUTE_WEAK thread_local volatile kernel_rseq
         0, {{kCpuIdUninitialized, kCpuIdUninitialized}},
     };
 
-ABSL_CONST_INIT __attribute__((used)) std::atomic<size_t>
-    __rseq_virtual_flat_cpu_id_offset = offsetof(kernel_rseq, cpu_id);
+ABSL_CONST_INIT __attribute__((used)) size_t __rseq_virtual_flat_cpu_id_offset =
+    offsetof(kernel_rseq, cpu_id);
 
 }  // extern "C"
 
@@ -259,12 +259,10 @@ static void InitRseqForProcess() {
       switch (vcpu_mode) {
         case RseqVcpuMode::kFlat:
         case RseqVcpuMode::kFlatPerL3:
-          __rseq_virtual_flat_cpu_id_offset.store(
-              offsetof(kernel_rseq, vcpu_id), std::memory_order_relaxed);
+          __rseq_virtual_flat_cpu_id_offset = offsetof(kernel_rseq, vcpu_id);
           break;
         case RseqVcpuMode::kMM:
-          __rseq_virtual_flat_cpu_id_offset.store(offsetof(kernel_rseq, mm_cid),
-                                                  std::memory_order_relaxed);
+          __rseq_virtual_flat_cpu_id_offset = offsetof(kernel_rseq, mm_cid);
           break;
         case RseqVcpuMode::kNone:
           break;
