@@ -371,6 +371,13 @@ const TraceContext* CurrentTraceContextNoAlloc();
 //    WithContext with(my_context, "MergeAllFrobbers");
 //    ...
 //
+// Additionally, you can scope a `WithContext` without any arguments to make
+// sure the current context is preserved and restored 'as needed' when the
+// scope ends. This is equivalent to `WithContext c(CurrentContext());` but
+// possibly more efficient in its implementation. This usage is specifically
+// intended for libraries such as C9 where clobbering `base::Context` is a
+// possible side effect of the coroutine implementations.
+//
 // See also WithSecurityContext, LocalTraceSpan and other specializations that
 // may be easier to use and better-performing if they fit your needs:
 //   http://<path>
@@ -378,6 +385,8 @@ const TraceContext* CurrentTraceContextNoAlloc();
 //
 class WithContext {
  public:
+  explicit WithContext(perftools::tracing::StringRef label =
+                           perftools::tracing::TraceSourceLocation::current());
   explicit WithContext(const Context& switch_to,
                        perftools::tracing::StringRef label =
                            perftools::tracing::TraceSourceLocation::current());
