@@ -773,6 +773,20 @@ cc_test(
 )
 
 cc_test(
+    name = "percpu_compat_mm_test",
+    srcs = ["percpu_compat_test.cc"],
+    env = {"PERCPU_VCPU_MODE": "mm"},
+    deps = [
+        ":percpu",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/log",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
     name = "percpu_dynamic_init_test_none",
     srcs = ["percpu_dynamic_init_test.cc"],
     args = ["--expected_vcpu_mode=0"],

@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+#include <thread>  // NOLINT
+
 #include "absl/base/config.h"
 #include "absl/log/log.h"
 #include "gloop/base/percpu.h"
@@ -49,6 +51,23 @@ TEST(PercpuCompatTest, GetCurrentVirtualFlatCpu) {
       EXPECT_THAT(GetCurrentVirtualFlatCpu(), Ge(0));
     } else {
       EXPECT_THAT(GetCurrentVirtualFlatCpu(), Eq(GetCurrentCpu()));
+    }
+    // On an unregistered thread, only `cpu_id` is guaranteed to indicate that
+    // the thread is unregistered: the kernel resets `mm_cid` to 0 when a thread
+    // unregisters. Simulate stale virtual CPU fields and check that
+    // GetCurrentVirtualFlatCpu() still registers the thread rather than
+    // returning a bogus vCPU ID.
+    const auto expect_registers_despite_stale_vcpu = [] {
+      ASSERT_FALSE(IsFastNoInit());
+      RseqAbi()->mm_cid = 0;
+      RseqAbi()->vcpu_id = 0;
+      EXPECT_THAT(GetCurrentVirtualFlatCpu(), Ge(0));
+      EXPECT_TRUE(IsFastNoInit());
+    };
+    std::thread(expect_registers_despite_stale_vcpu).join();
+    {
+      ScopedUnregisterRseq unregister;
+      expect_registers_despite_stale_vcpu();
     }
   } else {
 #ifdef ABSL_HAVE_SCHED_GETCPU

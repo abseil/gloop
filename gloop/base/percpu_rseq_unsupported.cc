@@ -143,7 +143,7 @@ void FenceCpuFallback(int cpu) {
 extern "C" {
 
 // Avoid link errors: assembly code may reference this symbol
-ABSL_CONST_INIT size_t __rseq_virtual_flat_cpu_id_offset = 0;
+ABSL_CONST_INIT std::atomic<size_t> __rseq_virtual_flat_cpu_id_offset = 0;
 
 }  // extern "C"
 

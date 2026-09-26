@@ -264,7 +264,8 @@ inline constexpr int kCpuIdInitialized = 0;
 // `__rseq_virtual_flat_cpu_id_offset` contains the offset into `kernel_rseq` of
 // the `vcpu_id` field if flat virtual cpu mode is available and active, and
 // the offset of the 16 bit portion of the `cpu_id` field if not.
-extern "C" ABSL_CONST_INIT size_t __rseq_virtual_flat_cpu_id_offset;
+extern "C" ABSL_CONST_INIT std::atomic<size_t>
+    __rseq_virtual_flat_cpu_id_offset;
 
 #if PERCPU_USE_RSEQ
 extern "C" ABSL_CONST_INIT thread_local volatile kernel_rseq __rseq_abi;
@@ -277,7 +278,7 @@ inline int RseqVcpuFlat() { return __rseq_abi.vcpu_flat; }
 inline int16_t RseqVirtualFlatCpuId() {
   return *reinterpret_cast<volatile int16_t*>(
       reinterpret_cast<volatile char*>(&__rseq_abi) +
-      __rseq_virtual_flat_cpu_id_offset);
+      __rseq_virtual_flat_cpu_id_offset.load(std::memory_order_relaxed));
 }
 inline volatile kernel_rseq* RseqAbi() { return &__rseq_abi; }
 #else  // !PERCPU_USE_RSEQ
@@ -513,9 +514,14 @@ inline int GetCurrentCpu() {
 }
 
 inline int GetCurrentVirtualFlatCpu() {
-  int cpu = RseqVirtualFlatCpuId();
+  // Check registration via `cpu_id` rather than the virtual CPU field: the
+  // kernel only guarantees `cpu_id == kCpuIdUninitialized` for an unregistered
+  // thread (it resets `mm_cid` to 0 on unregistration, for example). This also
+  // ensures `__rseq_virtual_flat_cpu_id_offset` is only read by threads that
+  // have completed initialization.
+  int cpu = RseqCpuId();
   if (ABSL_PREDICT_TRUE(cpu >= kCpuIdInitialized)) {
-    return cpu;
+    return RseqVirtualFlatCpuId();
   }
 
 #if PERCPU_USE_RSEQ
