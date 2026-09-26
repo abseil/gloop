@@ -527,6 +527,33 @@ TEST_P(PerCpuTest, SpinlockWorks) {
   EXPECT_EQ(NumThreads() * kNumIncrements, sum);
 }
 
+TEST_P(PerCpuTest, SpinLockCrossThreadSynchronization) {
+  PerCpuSpinLock locks;
+  std::vector<int> counters(NumCPUs(), 0);
+  constexpr int kIterations = 1000;
+  RunInThreads(::util::functional::ToPermanentCallback([&]() {
+    for (int i = 0; i < kIterations; ++i) {
+      int cpu = -1;
+      if (i % 3 == 0) {
+        cpu = i % NumCPUs();
+        locks.LockOn(cpu);
+      } else if (i % 3 == 1) {
+        while (!locks.TryLock(&cpu)) {
+        }
+      } else {
+        cpu = locks.Lock();
+      }
+      counters[cpu]++;
+      locks.Unlock(cpu);
+    }
+  }));
+  int sum = 0;
+  for (int c : counters) {
+    sum += c;
+  }
+  EXPECT_EQ(NumThreads() * kIterations, sum);
+}
+
 TEST_P(PerCpuTest, SpinLockDeletionIsSafe) {
   // Verify that it is safe to delete PerCpuSpinLock immediately after
   // the last Unlock() on it has completed.
