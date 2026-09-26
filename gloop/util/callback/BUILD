@@ -35,7 +35,6 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "//gloop/base:callback",
         "//gloop/util/functional:from_callback",
-        "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/log:check",
@@ -51,7 +50,6 @@ cc_test(
     deps = [
         ":blocking_callback",
         "//gloop:gloop_test_main",
-        "//gloop/base:callback",
         "//gloop/thread",
         "//gloop/util/functional:from_callback",
         "//gloop/util/functional:to_callback",

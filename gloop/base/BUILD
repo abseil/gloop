@@ -232,6 +232,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":censushandle",
+        ":config",
         ":context_access",
         ":static_threadlocal",
         ":tracecontext",
@@ -1233,7 +1234,6 @@ cc_test(
         "//gloop/thread",
         "//gloop/util/process",
         "@abseil-cpp//absl/base",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:reflection",
@@ -1767,7 +1767,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":arena",
-        ":port",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
     ],
@@ -2337,7 +2336,6 @@ cc_test(
         ":config",
         ":init_google",
         ":log_file_flags",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/flags:config",

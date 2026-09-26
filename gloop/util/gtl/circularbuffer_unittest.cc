@@ -33,6 +33,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/macros.h"
 #include "absl/strings/str_cat.h"
 #include "benchmark/benchmark.h"
 #include "gmock/gmock.h"

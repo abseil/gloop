@@ -26,7 +26,6 @@
 #ifndef THIRD_PARTY_GLOOP_STRINGS_SERIALIZE_H_
 #define THIRD_PARTY_GLOOP_STRINGS_SERIALIZE_H_
 
-#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -46,9 +45,6 @@
 #include "absl/strings/resize_and_overwrite.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
-#include "gloop/strings/numbers.h"
-#include "gloop/util/endian/endian.h"
-#include "gloop/util/gtl/stl_util.h"
 
 namespace strings {
 

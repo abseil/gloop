@@ -34,6 +34,7 @@
 #include <ios>
 #include <iterator>
 #include <limits>
+#include <numeric>
 #include <ostream>
 #include <sstream>
 #include <string>

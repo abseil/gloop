@@ -26,7 +26,7 @@
 #include <string>
 
 #include "absl/flags/declare.h"
-#include "gloop/base/port.h"
+#include "gloop/base/port.h"  // IWYU pragma: keep
 
 using IOPriorityClass = int;
 

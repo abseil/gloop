@@ -25,8 +25,6 @@
 
 #include <ostream>
 
-#include "absl/base/attributes.h"
-
 namespace base::internal {
 
 // This library contains APIs for annotating a thread's active "cancellation

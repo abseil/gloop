@@ -577,6 +577,7 @@ cc_test(
         "thread_unittest.cc",
     ],
     deps = [
+        ":config",
         ":thread",
         ":thread-internal",
         ":thread_control",
@@ -880,7 +881,6 @@ cc_test(
         ":periodicclosure",
         ":thread",
         ":thread-internal",
-        ":thread_manager",
         ":wait_state",
         "//gloop:gloop_test_main",
         "//gloop/base:thread_identity",
@@ -895,7 +895,6 @@ cc_test(
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/memory",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/synchronization",
@@ -912,7 +911,6 @@ cc_library(
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base:timer",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:die_if_null",
         "@abseil-cpp//absl/synchronization",

@@ -24,17 +24,13 @@
 #ifndef THIRD_PARTY_GLOOP_STRINGS_STRING_VIEW_UTILS_H_
 #define THIRD_PARTY_GLOOP_STRINGS_STRING_VIEW_UTILS_H_
 
-#include <cctype>
 #include <cstddef>
+#include <cstdint>
 #include <string>
-#include <vector>
 
-#include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/strings/match.h"
-#include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
-#include "absl/strings/strip.h"
 
 namespace strings {
 

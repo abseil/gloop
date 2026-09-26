@@ -28,6 +28,10 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include <tuple>
+
+#include "gloop/thread/config.h"
+
 #ifndef __Fuchsia__
 #include <sys/resource.h>
 #endif

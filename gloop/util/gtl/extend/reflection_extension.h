@@ -24,7 +24,6 @@
 #define THIRD_PARTY_GLOOP_UTIL_GTL_EXTEND_REFLECTION_EXTENSION_H_
 
 #include <array>
-#include <cstddef>
 #include <utility>
 
 #include "absl/base/no_destructor.h"
