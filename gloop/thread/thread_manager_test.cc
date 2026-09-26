@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <atomic>
 #include <climits>
 #include <cstdint>
 #include <cstdlib>
@@ -717,6 +718,25 @@ TEST(ThreadManagerTest, ToleratesSlowThreadExit) {
   tm.reset();
 }
 
+class WatchDogTest {
+ public:
+  static WatchDog* FindWatchDogByName(absl::string_view name) {
+    absl::MutexLock l(WatchDog::dogs_lock_);
+    if (WatchDog::dogs_ == nullptr) return nullptr;
+    for (WatchDog* dog : *WatchDog::dogs_) {
+      if (dog->name() == name) {
+        return dog;
+      }
+    }
+    return nullptr;
+  }
+
+  static void BackdateLastAlive(WatchDog* dog, absl::Duration age) {
+    dog->last_called_alive_unix_nanos_.store(
+        absl::ToUnixNanos(absl::Now() - age), std::memory_order_relaxed);
+  }
+};
+
 namespace thread {
 TEST(ThreadManagerWatchdogTest, UsesCustomWatchDogCallback) {
   if (absl::GetFlag(FLAGS_threadmanager_use_executor_impl)) {
@@ -728,8 +748,9 @@ TEST(ThreadManagerWatchdogTest, UsesCustomWatchDogCallback) {
   absl::Notification watchdog_fired;
 
   thread::ManagerOptions manager_options;
-  manager_options.watchdog_callback = util::functional::ToPermanentCallback(
-      [&](WatchDog* watchdog) { watchdog_fired.Notify(); });
+  manager_options.watchdog_callback = [&](WatchDog* watchdog) {
+    watchdog_fired.Notify();
+  };
 
   thread::ManagedQueueOptions queue_options;
   queue_options.time_limit_s = 1;
@@ -754,6 +775,70 @@ TEST(ThreadManagerWatchdogTest, UsesCustomWatchDogCallback) {
   });
 
   q->WaitUntilComplete();
+}
+
+TEST(ThreadManagerWatchdogTest, OverseerWatchDogDisabledWhileWaitingForWork) {
+  if (absl::GetFlag(FLAGS_threadmanager_use_executor_impl)) {
+    GTEST_SKIP() << "Executor implementation does not use TMOverseer or "
+                    "watchdog timeouts.";
+  }
+  // Ensure ThreadManager and overseer thread are started.
+  thread::ThreadManager tm("watchdog_test_tm", thread::ManagerOptions());
+  std::unique_ptr<thread::ManagedQueue> q(
+      tm.NewQueue("watchdog_test_q", thread::ManagedQueueOptions()));
+
+  // Wait for the overseer thread to start and initialize its watchdog.
+  const absl::Time start = absl::Now();
+  WatchDog* overseer_dog = nullptr;
+  while ((overseer_dog = ::WatchDogTest::FindWatchDogByName(
+              "ThreadManager overseer")) == nullptr) {
+    ASSERT_LT(absl::Now() - start, absl::Seconds(10))
+        << "Timed out waiting for TMOverseer watchdog to initialize";
+    absl::SleepFor(absl::Milliseconds(10));
+  }
+  ASSERT_NE(overseer_dog, nullptr);
+  EXPECT_EQ(overseer_dog->name(), "ThreadManager overseer");
+
+  // When TMOverseer is idle waiting for work, the watchdog MUST be disabled.
+  // Poll briefly to ensure the overseer has reached its wait state.
+  const absl::Time wait_start = absl::Now();
+  while (!overseer_dog->IsDisabled()) {
+    ASSERT_LT(absl::Now() - wait_start, absl::Seconds(3))
+        << "Expected overseer watchdog to be disabled while idle waiting for "
+           "work";
+    absl::SleepFor(absl::Milliseconds(10));
+  }
+  EXPECT_TRUE(overseer_dog->IsDisabled());
+
+  // Verify that calling WatchDog::CheckAlive() does NOT trigger any timeout
+  // abort while the overseer is idle, even with a tiny watchdog timeout.
+  absl::Notification timeout_fired;
+  overseer_dog->SetCallback([&](WatchDog*) { timeout_fired.Notify(); });
+  overseer_dog->SetTimeoutDuration(absl::Milliseconds(10));
+
+  absl::SleepFor(absl::Milliseconds(100));
+  WatchDog::CheckAlive();
+  EXPECT_FALSE(timeout_fired.HasBeenNotified());
+
+  // Waking the overseer via public API (creating a new queue) wakes it before
+  // it enters the wait state again.
+  std::unique_ptr<thread::ManagedQueue> q2(
+      tm.NewQueue("watchdog_test_q2", thread::ManagedQueueOptions()));
+  absl::SleepFor(absl::Milliseconds(50));
+  EXPECT_TRUE(overseer_dog->IsDisabled());
+
+  // Verify that if the watchdog were not disabled, backdating its alive
+  // timestamp past the timeout duration would trigger the timeout callback.
+  overseer_dog->Alive();
+  EXPECT_FALSE(overseer_dog->IsDisabled());
+  ::WatchDogTest::BackdateLastAlive(
+      overseer_dog, overseer_dog->timeout_duration() + absl::Minutes(10));
+  WatchDog::CheckAlive();
+  EXPECT_TRUE(timeout_fired.HasBeenNotified());
+
+  // Clean up: reset callback and restore disabled state.
+  overseer_dog->SetCallback(nullptr);
+  overseer_dog->Disable();
 }
 }  // namespace thread
 
