@@ -76,7 +76,7 @@ void swap(T& lhs, T& rhs) noexcept {
 // namespace that isn't used in any other file. This using directive can't be
 // replaced with a bunch of using declarations because using declarations
 // enable ADL.
-using namespace adl_barrier_swap;
+using adl_barrier_swap::swap;
 
 }  // namespace tuple
 }  // namespace util
