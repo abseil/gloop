@@ -138,6 +138,7 @@ cc_library(
         ":reftracker",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:dynamic_annotations",
+        "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
     ],
