@@ -69,7 +69,7 @@ cc_test(
     deps = [
         ":endian",
         "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
