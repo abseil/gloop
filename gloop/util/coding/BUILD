@@ -157,7 +157,6 @@ cc_test(
         "//gloop/util/random:distributions",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/random",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
