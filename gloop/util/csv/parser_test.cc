@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
@@ -33,37 +34,27 @@
 #include "absl/status/status.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
 #include "fuzztest/fuzztest.h"
 #include "gloop/strings/bytestream.h"
-#include "gloop/strings/numbers.h"
 #include "gloop/strings/split.h"
-#include "gloop/util/functional/to_callback.h"
 #include "gloop/util/gtl/unique_array.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-using ::absl_testing::IsOk;
-using strings::ArrayByteSource;
-using testing::ElementsAre;
-using util::csv::ParseLine;
-using util::csv::Parser;
-using util::csv::Record;
-
-// See <link> for more info on this macro,
-// for which there is not yet a common implementation.
-#define TRACED_CALL(stmt)             \
-  do {                                \
-    SCOPED_TRACE("Called from here"); \
-    {                                 \
-      stmt;                           \
-    }                                 \
-  } while (0)
-
+namespace util::csv {
 namespace {
+
+using ::absl_testing::IsOk;
+using ::absl_testing::StatusIs;
+using ::strings::ArrayByteSource;
+using ::testing::ElementsAre;
+using ::testing::ElementsAreArray;
+using ::testing::SizeIs;
 
 constexpr absl::string_view kMultTable =
     "0,0,0,0,0,0,0,0,0,0,0\n"
@@ -147,7 +138,7 @@ constexpr absl::string_view kMisc =
 // in one fragment.
 class MockChunkedByteSource : public strings::ByteSource {
  public:
-  MockChunkedByteSource(const absl::string_view data, size_t block_size)
+  MockChunkedByteSource(absl::string_view data, size_t block_size)
       : data_(data), block_size_(block_size) {}
 
   size_t Available() const override { return data_.size(); }
@@ -161,76 +152,91 @@ class MockChunkedByteSource : public strings::ByteSource {
   size_t block_size_;
 };
 
-static void CheckMultiplicationTable(const Parser& parser) {
-  // We can programmatically check the validity of a multiplication table.
-  int i = 0;
+struct MultTableTestCase {
+  std::string name;
+  std::function<Parser()> make_parser;
+};
+
+class MultTableTest : public ::testing::TestWithParam<MultTableTestCase> {};
+
+TEST_P(MultTableTest, ParsesMultiplicationTable) {
+  Parser parser = GetParam().make_parser();
+
+  int row = 0;
   for (const Record& record : parser) {
     ASSERT_THAT(record.status(), IsOk());
+    ASSERT_EQ(record.fields().size(), 11);
+    EXPECT_EQ(record.number(), row);
 
-    const std::vector<std::string>& fields = record.fields();
-    EXPECT_EQ(11, fields.size());
-
-    int64_t num = record.number();
-    EXPECT_EQ(i, num);
-
-    int j = 0;
-    for (const std::string& field : fields) {
-      int32_t val;
-
-      strings::safe_strto32(field, &val);
-      EXPECT_EQ(num * j, val);
-      ++j;
+    int col = 0;
+    for (const std::string& field : record.fields()) {
+      int32_t val = 0;
+      ASSERT_TRUE(absl::SimpleAtoi(field, &val));
+      EXPECT_EQ(val, row * col);
+      ++col;
     }
-    ++i;
+    ++row;
   }
+  EXPECT_EQ(row, 11);
 }
 
-TEST(Parser, SimpleVecRangeBasedLoopFromRawPointer) {
-  Parser parser(new ArrayByteSource(kMultTable));
-  TRACED_CALL(CheckMultiplicationTable(parser));
-}
+INSTANTIATE_TEST_SUITE_P(
+    , MultTableTest,
+    ::testing::Values(
+        MultTableTestCase{
+            .name = "SimpleVecRangeBasedLoopFromRawPointer",
+            .make_parser =
+                []() { return Parser(new ArrayByteSource(kMultTable)); },
+        },
+        MultTableTestCase{
+            .name = "SimpleVecRangeBasedLoop",
+            .make_parser =
+                []() {
+                  return Parser(std::make_unique<ArrayByteSource>(kMultTable));
+                },
+        },
+        MultTableTestCase{
+            .name = "ChunkedByteSource",
+            .make_parser =
+                []() {
+                  return Parser(
+                      std::make_unique<MockChunkedByteSource>(kMultTable, 5));
+                },
+        },
+        MultTableTestCase{
+            .name = "TabDelimiter",
+            .make_parser =
+                []() {
+                  return Parser(
+                      std::make_unique<ArrayByteSource>(kMultTableTabs), '\t');
+                },
+        }),
+    [](const ::testing::TestParamInfo<MultTableTestCase>& info) {
+      return info.param.name;
+    });
 
-TEST(Parser, SimpleVecRangeBasedLoop) {
-  Parser parser(std::make_unique<ArrayByteSource>(kMultTable));
-  TRACED_CALL(CheckMultiplicationTable(parser));
-}
-
-TEST(Parser, ChunkedByteSource) {
-  Parser parser(std::make_unique<MockChunkedByteSource>(kMultTable, 5));
-  TRACED_CALL(CheckMultiplicationTable(parser));
-}
-
-TEST(Parser, TabDelimiter) {
-  // The same multiplication table, but with tabs separating it
-  Parser parser(std::make_unique<ArrayByteSource>(kMultTableTabs), '\t');
-  TRACED_CALL(CheckMultiplicationTable(parser));
-}
-
-TEST(Parser, BreakFromLoop) {
+TEST(ParserTest, BreakFromLoop) {
   // Breaking out of the range-based for loop, we shouldn't leak any memory
   Parser parser(std::make_unique<ArrayByteSource>(kMultTable));
 
   for (const Record& record : parser) {
     ASSERT_THAT(record.status(), IsOk());
+    EXPECT_THAT(record.fields(), SizeIs(11));
 
-    const std::vector<std::string>& fields = record.fields();
-    EXPECT_EQ(11, fields.size());
-
-    int64_t num = record.number();
-
-    if (num == 4)  // Early termination
+    if (record.number() == 4) {  // Early termination
       break;
+    }
   }
 }
 
-TEST(Parser, VectorIterator) {
+TEST(ParserTest, VectorIterator) {
   Parser parser(std::make_unique<ArrayByteSource>(kMultTable));
 
   Parser::Iterator it = parser.begin();
 
   // This should advance *all* begin iterators, so the loop will start at
   // row 1 of the actual content.
-  EXPECT_EQ(11, it->fields().size());
+  EXPECT_THAT(it->fields(), SizeIs(11));
   ++it;
 
   int i = 1;
@@ -238,34 +244,30 @@ TEST(Parser, VectorIterator) {
     const Record& record = *it;
     ASSERT_THAT(record.status(), IsOk());
 
-    const std::vector<std::string>& fields = record.fields();
-    EXPECT_EQ(11, fields.size());
-
-    int64_t num = record.number();
-    EXPECT_EQ(i, num);
+    EXPECT_THAT(record.fields(), SizeIs(11));
+    EXPECT_EQ(record.number(), i);
 
     int j = 0;
-    for (const std::string& field : fields) {
-      int32_t val;
-
-      strings::safe_strto32(field, &val);
-      EXPECT_EQ(num * j, val);
+    for (const std::string& field : record.fields()) {
+      int32_t val = 0;
+      ASSERT_TRUE(absl::SimpleAtoi(field, &val));
+      EXPECT_EQ(val, record.number() * j);
       ++j;
     }
     ++i;
   }
 
-  EXPECT_EQ(parser.end(), it);
+  EXPECT_EQ(it, parser.end());
 }
 
-TEST(Parser, IteratorEquality) {
+TEST(ParserTest, IteratorEquality) {
   Parser parser(std::make_unique<ArrayByteSource>(kMultTable));
 
   Parser::Iterator it1 = parser.begin();
   Parser::Iterator it2 = parser.begin();
   Parser::Iterator it_end = parser.end();
 
-  EXPECT_EQ(11, it1->fields().size());
+  EXPECT_THAT(it1->fields(), SizeIs(11));
   EXPECT_EQ(it1->fields()[1], "0");
   EXPECT_EQ(it1, it2);
   EXPECT_NE(it1, it_end);
@@ -297,7 +299,7 @@ TEST(Parser, IteratorEquality) {
   EXPECT_EQ(it2, it_end);
 }
 
-TEST(Parser, DifferentRecordLengths) {
+TEST(ParserTest, DifferentRecordLengths) {
   // Test input which has a couple of empty lines
   Parser parser(std::make_unique<ArrayByteSource>(kCsvEmptyLeadingLines));
 
@@ -306,31 +308,27 @@ TEST(Parser, DifferentRecordLengths) {
   // A record with just a newline is technically a record with one field
   // which has length 0.
   EXPECT_THAT(it->status(), IsOk());
-  EXPECT_EQ(1, it->fields().size());
   EXPECT_THAT(it->fields(), ElementsAre(""));
 
   ++it;
   EXPECT_THAT(it->status(), IsOk());
-  EXPECT_EQ(1, it->fields().size());
   EXPECT_THAT(it->fields(), ElementsAre(""));
 
   ++it;
   EXPECT_THAT(it->status(), IsOk());
-  EXPECT_EQ(3, it->fields().size());
   EXPECT_THAT(it->fields(),
               ElementsAre("George W. Bush", "January 20, 2001", "Republican"));
 
   ++it;
   EXPECT_THAT(it->status(), IsOk());
-  EXPECT_EQ(3, it->fields().size());
   EXPECT_THAT(it->fields(),
               ElementsAre("Barack Obama", "January 20, 2009", "Democratic"));
 
   ++it;
-  EXPECT_EQ(parser.end(), it);
+  EXPECT_EQ(it, parser.end());
 }
 
-TEST(Parser, QuoteInNonQuotedField) {
+TEST(ParserTest, QuoteInNonQuotedField) {
   // Test parsing input which has an illegal quote in a field
   Parser parser(std::make_unique<ArrayByteSource>(kQuoteInField));
 
@@ -357,13 +355,14 @@ TEST(Parser, QuoteInNonQuotedField) {
   EXPECT_THAT(it->fields(), ElementsAre("Big Bird", "Yellow", "Large"));
 
   ++it;
+  EXPECT_THAT(it->status(), IsOk());
   EXPECT_THAT(it->fields(), ElementsAre("Snuffy", "Br\"own", "Melancholy"));
 
   ++it;
-  EXPECT_EQ(parser.end(), it);
+  EXPECT_EQ(it, parser.end());
 }
 
-TEST(Parser, LiteralQuotes) {
+TEST(ParserTest, LiteralQuotes) {
   Parser parser(std::make_unique<ArrayByteSource>(kQuoteInField), ',',
                 Parser::Mode::LITERAL_QUOTES);
 
@@ -390,77 +389,69 @@ TEST(Parser, LiteralQuotes) {
   EXPECT_THAT(it->fields(), ElementsAre("Big Bird", R"("Yel"low)", "Large"));
 
   ++it;
+  EXPECT_THAT(it->status(), IsOk());
   EXPECT_THAT(it->fields(),
               ElementsAre("Snuffy", R"("Br""own")", "Melancholy"));
 
   ++it;
-  EXPECT_EQ(parser.end(), it);
+  EXPECT_EQ(it, parser.end());
 }
 
-TEST(Parser, CompleteParsing) {
+TEST(ParserTest, CompleteParsing) {
   // Test to see if our iterator implementation will allow us to parse
   // the entire file directly to a vector.
   Parser parser(std::make_unique<ArrayByteSource>(kMultTable));
   std::vector<Record> results(parser.begin(), parser.end());
 
-  int i = 0;
+  int row = 0;
   for (const Record& record : results) {
-    ASSERT_TRUE(record.status().ok());
+    ASSERT_THAT(record.status(), IsOk());
+    ASSERT_EQ(record.fields().size(), 11);
+    EXPECT_EQ(record.number(), row);
 
-    const std::vector<std::string>& fields = record.fields();
-    EXPECT_EQ(11, fields.size());
-
-    int64_t num = record.number();
-    EXPECT_EQ(i, num);
-
-    int j = 0;
-    for (const std::string& field : fields) {
-      int32_t val;
-
-      strings::safe_strto32(field, &val);
-      EXPECT_EQ(num * j, val);
-      ++j;
+    int col = 0;
+    for (const std::string& field : record.fields()) {
+      int32_t val = 0;
+      ASSERT_TRUE(absl::SimpleAtoi(field, &val));
+      EXPECT_EQ(val, row * col);
+      ++col;
     }
-    ++i;
+    ++row;
   }
+  EXPECT_EQ(row, 11);
 }
 
-TEST(Parser, AssortedNewlines) {
+class AssortedNewlinesTest
+    : public ::testing::TestWithParam<absl::string_view> {};
+
+TEST_P(AssortedNewlinesTest, ParsesAllRecords) {
   // Test a few newline and EOF scenarios
-  std::vector<absl::string_view> cases;
-  cases.push_back(kNewlineFileContent);
-  cases.push_back(kNewlineFileContent1);
-  cases.push_back(kNewlineFileContent2);
+  Parser parser(std::make_unique<ArrayByteSource>(GetParam()));
 
-  for (absl::string_view c : cases) {
-    Parser parser(std::make_unique<ArrayByteSource>(c));
-
-    for (const Record& record : parser) {
-      EXPECT_TRUE(record.status().ok());
-      const std::vector<std::string>& fields = record.fields();
-
-      EXPECT_EQ(2, fields.size());
-      EXPECT_THAT(fields, ElementsAre("Google", "Rocks"));
-    }
+  for (const Record& record : parser) {
+    EXPECT_THAT(record.status(), IsOk());
+    EXPECT_THAT(record.fields(), ElementsAre("Google", "Rocks"));
   }
 }
 
-TEST(Parser, NoTrailingNewline) {
+INSTANTIATE_TEST_SUITE_P(, AssortedNewlinesTest,
+                         ::testing::Values(kNewlineFileContent,
+                                           kNewlineFileContent1,
+                                           kNewlineFileContent2));
+
+TEST(ParserTest, NoTrailingNewline) {
   Parser parser(std::make_unique<ArrayByteSource>(kMissingNewlineContent));
   std::vector<Record> results(parser.begin(), parser.end());
 
-  ASSERT_EQ(4, results.size());
+  ASSERT_THAT(results, SizeIs(4));
 
   for (const Record& record : results) {
-    EXPECT_TRUE(record.status().ok());
-    const std::vector<std::string>& fields = record.fields();
-
-    EXPECT_EQ(2, fields.size());
-    EXPECT_THAT(fields, ElementsAre("Google", "Rocks"));
+    EXPECT_THAT(record.status(), IsOk());
+    EXPECT_THAT(record.fields(), ElementsAre("Google", "Rocks"));
   }
 }
 
-TEST(Parser, QuotedNewlines) {
+TEST(ParserTest, QuotedNewlines) {
   Parser parser(std::make_unique<ArrayByteSource>(kQuotedNewlineContent));
 
   Parser::Iterator it = parser.begin();
@@ -481,10 +472,10 @@ TEST(Parser, QuotedNewlines) {
   EXPECT_THAT(it->fields(), ElementsAre("There,is\na", "newline", "here"));
 
   ++it;
-  EXPECT_EQ(parser.end(), it);
+  EXPECT_EQ(it, parser.end());
 }
 
-TEST(Parser, VariableFieldWidth) {
+TEST(ParserTest, VariableFieldWidth) {
   Parser parser(std::make_unique<ArrayByteSource>(kVariableFields));
 
   Parser::Iterator it = parser.begin();
@@ -498,10 +489,10 @@ TEST(Parser, VariableFieldWidth) {
   EXPECT_THAT(it->fields(), ElementsAre("Larry", "Curly", "Moe"));
 
   ++it;
-  EXPECT_EQ(parser.end(), it);
+  EXPECT_EQ(it, parser.end());
 }
 
-TEST(Parser, QuotedQuotes) {
+TEST(ParserTest, QuotedQuotes) {
   Parser parser(std::make_unique<ArrayByteSource>(kQuotedQuotes));
 
   Parser::Iterator it = parser.begin();
@@ -518,11 +509,11 @@ TEST(Parser, QuotedQuotes) {
   EXPECT_THAT(it->fields(), ElementsAre("Seven", "Eight", "Nine"));
 
   ++it;
-  EXPECT_EQ(parser.end(), it);
+  EXPECT_EQ(it, parser.end());
 }
 
-TEST(Parser, SlashEscaped) {
-  const char kSlashEscaped[] = R"(One,Two,Three
+TEST(ParserTest, SlashEscaped) {
+  constexpr absl::string_view kSlashEscaped = R"(One,Two,Three
 "Four","Fi\ve","Si\
 x"
 "Sev\"en","Ei\"\"ght","Nine")";
@@ -544,11 +535,11 @@ x"
   EXPECT_THAT(it->fields(), ElementsAre("Sev\"en", "Ei\"\"ght", "Nine"));
 
   ++it;
-  EXPECT_EQ(parser.end(), it);
+  EXPECT_EQ(it, parser.end());
 }
 
-TEST(Parser, SlashEscapedDoubleQuotes) {
-  const char kSlashEscaped[] = R"("One","Tw""o","Three")";
+TEST(ParserTest, SlashEscapedDoubleQuotes) {
+  constexpr absl::string_view kSlashEscaped = R"("One","Tw""o","Three")";
 
   Parser parser(std::make_unique<ArrayByteSource>(kSlashEscaped), ',',
                 Parser::Mode::MYSQL_ESCAPING);
@@ -559,10 +550,10 @@ TEST(Parser, SlashEscapedDoubleQuotes) {
   EXPECT_THAT(it->fields(), ElementsAre("One", "Tw\"o,Three"));
 
   ++it;
-  EXPECT_EQ(parser.end(), it);
+  EXPECT_EQ(it, parser.end());
 }
 
-TEST(Parser, Misc) {
+TEST(ParserTest, Misc) {
   // Test a couple of scenarios which don't really apply elsewhere
   Parser parser(std::make_unique<ArrayByteSource>(kMisc));
 
@@ -584,76 +575,75 @@ TEST(Parser, Misc) {
   EXPECT_THAT(it->fields(), ElementsAre("asdfsdasdfasdf"));
 
   ++it;
-  EXPECT_EQ(parser.end(), it);
+  EXPECT_EQ(it, parser.end());
 }
 
-TEST(Parser, EmptyFile) {
+TEST(ParserTest, EmptyFile) {
   Parser parser(std::make_unique<ArrayByteSource>(""));
   Parser::Iterator it = parser.begin();
 
   // If the file is empty, the begin iterator should equal the end iterator
-  EXPECT_EQ(parser.end(), it);
+  EXPECT_EQ(it, parser.end());
 }
 
-TEST(Parser, SingleLine) {
+TEST(ParserTest, SingleLine) {
   Record rec = ParseLine("a,b,c,d,e");
-  EXPECT_TRUE(rec.status().ok());
+  EXPECT_THAT(rec.status(), IsOk());
   EXPECT_THAT(rec.fields(), ElementsAre("a", "b", "c", "d", "e"));
 
   rec = ParseLine("a\tb\tc\td\te\n", '\t');
-  EXPECT_TRUE(rec.status().ok());
+  EXPECT_THAT(rec.status(), IsOk());
   EXPECT_THAT(rec.fields(), ElementsAre("a", "b", "c", "d", "e"));
 
   rec = ParseLine(",");
-  EXPECT_TRUE(rec.status().ok());
+  EXPECT_THAT(rec.status(), IsOk());
   EXPECT_THAT(rec.fields(), ElementsAre("", ""));
 
   // A string with a single space
   rec = ParseLine(" ");
-  EXPECT_TRUE(rec.status().ok());
+  EXPECT_THAT(rec.status(), IsOk());
   EXPECT_THAT(rec.fields(), ElementsAre(" "));
 
   // The empty string
   rec = ParseLine("");
-  EXPECT_TRUE(rec.status().ok());
+  EXPECT_THAT(rec.status(), IsOk());
   EXPECT_THAT(rec.fields(), ElementsAre(""));
 
   // A string with a single newline; same behavior as the empty string
   rec = ParseLine("\n");
-  EXPECT_TRUE(rec.status().ok());
+  EXPECT_THAT(rec.status(), IsOk());
   EXPECT_THAT(rec.fields(), ElementsAre(""));
 }
 
-TEST(Parser, SingleLineDifferentModes) {
+TEST(ParserTest, SingleLineDifferentModes) {
   Record rec = ParseLine("a,b,\"c,d,e\"", ',');
-  EXPECT_TRUE(rec.status().ok());
+  EXPECT_THAT(rec.status(), IsOk());
   EXPECT_THAT(rec.fields(), ElementsAre("a", "b", "c,d,e"));
 
   rec = ParseLine("a,b,\"c,d,e\"", ',', Parser::Mode::LITERAL_QUOTES);
-  EXPECT_TRUE(rec.status().ok());
+  EXPECT_THAT(rec.status(), IsOk());
   EXPECT_THAT(rec.fields(), ElementsAre("a", "b", "\"c", "d", "e\""));
 
   rec =
       ParseLine(R"("One","Tw""o","Three")", ',', Parser::Mode::MYSQL_ESCAPING);
-  EXPECT_TRUE(rec.status().ok());
+  EXPECT_THAT(rec.status(), IsOk());
   EXPECT_THAT(rec.fields(), ElementsAre("One", "Tw\"o,Three"));
 }
 
-TEST(Parser, Extract) {
+TEST(ParserTest, Extract) {
   Record rec = ParseLine("a,b,c");
-  ASSERT_TRUE(rec.status().ok());
+  ASSERT_THAT(rec.status(), IsOk());
   EXPECT_THAT(std::move(rec).fields(), ElementsAre("a", "b", "c"));
 }
 
-TEST(Parser, TrailingEmptyFieldNoNewline) {
+TEST(ParserTest, TrailingEmptyFieldNoNewline) {
   Record rec = ParseLine(
       "owner,job_x,0,100.0000,0.0000,0.0000,1000,"
       "10,100,\"PENDING,RUN\",");
-  EXPECT_TRUE(rec.status().ok());
-  std::vector<std::string> fields = rec.fields();
-  ASSERT_EQ(11, fields.size());
-  EXPECT_EQ(fields[9], "PENDING,RUN");
-  EXPECT_EQ(fields[10], "");
+  EXPECT_THAT(rec.status(), IsOk());
+  EXPECT_THAT(rec.fields(),
+              ElementsAre("owner", "job_x", "0", "100.0000", "0.0000", "0.0000",
+                          "1000", "10", "100", "PENDING,RUN", ""));
 }
 
 static std::string CreateBMInput(int len) {
@@ -736,7 +726,7 @@ void FuzzParser(absl::string_view csv_input, char delim, Parser::Mode mode) {
     EXPECT_EQ(rec.number(), record_order);
     ++record_order;
     if (!rec.status().ok()) {
-      EXPECT_EQ(rec.status().code(), absl::StatusCode::kInternal);
+      EXPECT_THAT(rec.status(), StatusIs(absl::StatusCode::kInternal));
       last_was_error = true;
       continue;
     }
@@ -767,3 +757,4 @@ FUZZ_TEST(ParserFuzzer, FuzzParser)
                  Parser::Mode::LITERAL_QUOTES}});
 
 }  // namespace
+}  // namespace util::csv
