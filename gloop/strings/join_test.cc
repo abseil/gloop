@@ -22,19 +22,21 @@
 
 #include "gloop/strings/join.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <memory>
 #include <random>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
-#include "absl/log/check.h"
+#include "absl/base/attributes.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
-#include "gloop/strings/util.h"
 #include "gtest/gtest.h"
 
 namespace strings {
@@ -43,61 +45,48 @@ namespace {
 using RandomEngine = std::minstd_rand0;
 
 struct JoinStringsTestCase {
-  // dummy to keep std::vector<> happy
-  // JoinStringsTestCase() : delim(nullptr), expected_result("") {}
-
-  JoinStringsTestCase(const char* d, absl::string_view expected)
+  JoinStringsTestCase(absl::string_view d ABSL_ATTRIBUTE_LIFETIME_BOUND,
+                      absl::string_view expected ABSL_ATTRIBUTE_LIFETIME_BOUND)
       : delim(d), expected_result(expected) {}
-  ~JoinStringsTestCase() {
-    for (int i = 0; i < sub_c_strings.size(); ++i) {
-      delete[] const_cast<char*>(sub_c_strings[i]);
-      delete string_ptr_array[i];
-    }
-  }
-  void AddSubstring(const std::string& s) {
-    string_ptr_array[substrings.size()] = new std::string(s);
-    substringpieces.push_back(*string_ptr_array[substrings.size()]);
-    substrings.push_back(s);
-    sub_c_strings.push_back(strdup_with_new(s.c_str()));
-    // If we hit this CHECK, just increase size of string_ptr_array.
-    CHECK_LT(substrings.size(), 100)
-        << "If you hit this CHECK, just increase the size of string_ptr_array";
+
+  void AddSubstring(absl::string_view s) {
+    string_ptr_array.push_back(std::make_unique<std::string>(s));
+    substringpieces.push_back(*string_ptr_array.back());
+    substrings.emplace_back(s);
   }
 
-  const char* delim;
+  absl::string_view delim;
   std::string expected_result;
   std::vector<std::string> substrings;
   std::vector<absl::string_view> substringpieces;
-  std::vector<const char*> sub_c_strings;
-  std::string* string_ptr_array[100];
+  std::vector<std::unique_ptr<std::string>> string_ptr_array;
 };
 
 // Tests JoinStrings/JoinStringsIterator
 // Note: this test case would probably be better if written using a gUnit test
 // fixture class.
 TEST(JoinStrings, UsingRandom) {
-  const char* sample_strings[] = {"one", "two",   "three", "four", "five",
-                                  "six", "seven", "eight", "nine", "ten"};
-  const int num_sample_strings = std::size(sample_strings);
+  constexpr std::array<absl::string_view, 10> sample_strings = {
+      "one", "two",   "three", "four", "five",
+      "six", "seven", "eight", "nine", "ten"};
 
-  std::vector<JoinStringsTestCase*> testcases;
+  std::vector<JoinStringsTestCase> testcases;
   // test empty
-  testcases.push_back(new JoinStringsTestCase(" DELIM ", ""));
+  testcases.emplace_back(" DELIM ", "");
 
   {  // test one entry
-    JoinStringsTestCase* t =
-        new JoinStringsTestCase(" DELIM ", sample_strings[0]);
-    t->AddSubstring(sample_strings[0]);
-    testcases.push_back(t);
+    JoinStringsTestCase t(" DELIM ", sample_strings[0]);
+    t.AddSubstring(sample_strings[0]);
+    testcases.push_back(std::move(t));
   }
 
   {  // add some random tuples
-    const char* delim = " DELIM ";
+    constexpr absl::string_view delim = " DELIM ";
 
     RandomEngine rng(testing::UnitTest::GetInstance()->random_seed());
     std::uniform_int_distribution<int> random_2_to_10(2, 9);
     std::uniform_int_distribution<int> random_to_num_sample_strings(
-        0, num_sample_strings - 1);
+        0, sample_strings.size() - 1);
     for (int i = 0; i < 20; ++i) {
       const int num_substrings = random_2_to_10(rng);
       std::vector<std::string> substrings;
@@ -110,9 +99,9 @@ TEST(JoinStrings, UsingRandom) {
         else
           absl::StrAppend(&result, delim, ss);
       }
-      JoinStringsTestCase* t = new JoinStringsTestCase(delim, result);
-      for (int j = 0; j < num_substrings; ++j) t->AddSubstring(substrings[j]);
-      testcases.push_back(t);
+      JoinStringsTestCase t(delim, result);
+      for (int j = 0; j < num_substrings; ++j) t.AddSubstring(substrings[j]);
+      testcases.push_back(std::move(t));
     }
   }
 
@@ -120,42 +109,28 @@ TEST(JoinStrings, UsingRandom) {
   //   JoinStrings(substrings) == expected_result
   //
   // Testing JoinStrings
-  for (const JoinStringsTestCase* testcase : testcases) {
-    std::string test_result;
-    test_result = absl::StrJoin(testcase->substrings, testcase->delim);
-    EXPECT_EQ(testcase->expected_result, test_result);
-    test_result = absl::StrJoin(testcase->substringpieces, testcase->delim);
-    EXPECT_EQ(testcase->expected_result, test_result);
+  for (const JoinStringsTestCase& testcase : testcases) {
+    EXPECT_EQ(absl::StrJoin(testcase.substrings, testcase.delim),
+              testcase.expected_result);
+    EXPECT_EQ(absl::StrJoin(testcase.substringpieces, testcase.delim),
+              testcase.expected_result);
   }
 
   // Testing JoinStringsIterator
-  for (const JoinStringsTestCase* testcase : testcases) {
-    std::string actual_result =
-        absl::StrJoin(testcase->substrings.begin(), testcase->substrings.end(),
-                      testcase->delim);
-    EXPECT_EQ(testcase->expected_result, actual_result);
-    actual_result =
-        absl::StrJoin(testcase->substringpieces.begin(),
-                      testcase->substringpieces.end(), testcase->delim);
-    EXPECT_EQ(testcase->expected_result, actual_result);
+  for (const JoinStringsTestCase& testcase : testcases) {
+    EXPECT_EQ(absl::StrJoin(testcase.substrings.begin(),
+                            testcase.substrings.end(), testcase.delim),
+              testcase.expected_result);
+    EXPECT_EQ(absl::StrJoin(testcase.substringpieces.begin(),
+                            testcase.substringpieces.end(), testcase.delim),
+              testcase.expected_result);
   }
-
-  // cleanup
-  for (JoinStringsTestCase* testcase : testcases) {
-    delete testcase;
-  }
-  testcases.clear();
 }
 
 TEST(JoinCSVLine, Basics) {
-  std::vector<std::string> test_vector;
+  std::vector<std::string> test_vector = {
+      "Google", "x", "Buchheit, Paul", "string with \" quote in it", " space "};
   std::string answer_string;
-
-  test_vector.push_back("Google");
-  test_vector.push_back("x");
-  test_vector.push_back("Buchheit, Paul");
-  test_vector.push_back("string with \" quote in it");
-  test_vector.push_back(" space ");
 
   JoinCSVLine(test_vector, &answer_string);
   EXPECT_EQ(answer_string,
@@ -167,28 +142,15 @@ TEST(JoinCSVLine, Basics) {
             "\" space \"")
       << "\n";
 
-  test_vector.clear();
+  test_vector = {"Google", "I have a space", ""};
   answer_string.clear();
-
-  test_vector.push_back("Google");
-  test_vector.push_back("I have a space");
-  test_vector.push_back("");
 
   JoinCSVLine(test_vector, &answer_string);
   EXPECT_EQ(answer_string, "Google,I have a space,");
   EXPECT_EQ(JoinCSVLine(test_vector), "Google,I have a space,");
 
-  test_vector.clear();
+  test_vector = {",", " beginning", "end ", " ", "\t", "\v", "\n", "\r"};
   answer_string.clear();
-
-  test_vector.push_back(",");
-  test_vector.push_back(" beginning");
-  test_vector.push_back("end ");
-  test_vector.push_back(" ");
-  test_vector.push_back("\t");
-  test_vector.push_back("\v");
-  test_vector.push_back("\n");
-  test_vector.push_back("\r");
 
   JoinCSVLine(test_vector, &answer_string);
   EXPECT_EQ(answer_string,
@@ -198,73 +160,48 @@ TEST(JoinCSVLine, Basics) {
 }
 
 TEST(JoinCSVLineWithDelimiter, Basics) {
-  std::vector<std::string> test_vector;
   std::string answer_string;
 
-  test_vector.push_back("a\rb");
-  JoinCSVLineWithDelimiter(test_vector, '.', &answer_string);
+  JoinCSVLineWithDelimiter({"a\rb"}, '.', &answer_string);
   EXPECT_EQ(answer_string, "\"a\rb\"");
-  test_vector.clear();
   answer_string.clear();
 
-  test_vector.push_back("a\nb");
-  JoinCSVLineWithDelimiter(test_vector, '.', &answer_string);
+  JoinCSVLineWithDelimiter({"a\nb"}, '.', &answer_string);
   EXPECT_EQ(answer_string, "\"a\nb\"");
-  test_vector.clear();
   answer_string.clear();
 
-  test_vector.push_back("gooGle");
-  JoinCSVLineWithDelimiter(test_vector, 'G', &answer_string);
+  JoinCSVLineWithDelimiter({"gooGle"}, 'G', &answer_string);
   EXPECT_EQ(answer_string, "\"gooGle\"");
-  test_vector.clear();
   answer_string.clear();
 
-  test_vector.push_back("the");
-  test_vector.push_back("google");
-  JoinCSVLineWithDelimiter(test_vector, 'G', &answer_string);
+  JoinCSVLineWithDelimiter({"the", "google"}, 'G', &answer_string);
   EXPECT_EQ(answer_string, "theGgoogle");
-  test_vector.clear();
   answer_string.clear();
 
-  test_vector.push_back("a");
-  test_vector.push_back("b");
-  JoinCSVLineWithDelimiter(test_vector, '\0', &answer_string);
+  JoinCSVLineWithDelimiter({"a", "b"}, '\0', &answer_string);
   EXPECT_EQ(answer_string, std::string("a\0b", 3));
-  test_vector.clear();
   answer_string.clear();
 
-  test_vector.push_back("a");
-  test_vector.push_back("b\"");
-  JoinCSVLineWithDelimiter(test_vector, '\0', &answer_string);
+  JoinCSVLineWithDelimiter({"a", "b\""}, '\0', &answer_string);
   EXPECT_EQ(answer_string, std::string("a\0\"b\"\"\"", 7));
-  test_vector.clear();
   answer_string.clear();
 
-  test_vector.push_back("Going");
-  test_vector.push_back("to");
-  test_vector.push_back("gooGle");
-  JoinCSVLineWithDelimiter(test_vector, 'G', &answer_string);
+  JoinCSVLineWithDelimiter({"Going", "to", "gooGle"}, 'G', &answer_string);
   EXPECT_EQ(answer_string, "\"Going\"GtoG\"gooGle\"");
-  test_vector.clear();
   answer_string.clear();
 
-  test_vector.push_back("this example");
-  test_vector.push_back("  uses ");
-  test_vector.push_back("spaces");
-  JoinCSVLineWithDelimiter(test_vector, ' ', &answer_string);
+  JoinCSVLineWithDelimiter({"this example", "  uses ", "spaces"}, ' ',
+                           &answer_string);
   EXPECT_EQ(answer_string, "\"this example\" \"  uses \" spaces");
-  test_vector.clear();
   answer_string.clear();
 
-  test_vector.push_back(absl::StrCat("a\"", std::string(1, '\0'), "bcd"));
-  test_vector.push_back(
-      absl::StrCat("hello ", std::string(2, '\0'), "\" world\""));
-  JoinCSVLineWithDelimiter(test_vector, ' ', &answer_string);
+  JoinCSVLineWithDelimiter(
+      {absl::StrCat("a\"", std::string(1, '\0'), "bcd"),
+       absl::StrCat("hello ", std::string(2, '\0'), "\" world\"")},
+      ' ', &answer_string);
   EXPECT_EQ(answer_string,
             absl::StrCat("\"a\"\"", std::string(1, '\0'), "bcd\" \"hello ",
                          std::string(2, '\0'), "\"\" world\"\"\""));
-  test_vector.clear();
-  answer_string.clear();
 }
 
 TEST(LegacyFormatter, FormatterAPI) {
@@ -278,7 +215,7 @@ TEST(LegacyFormatter, FormatterAPI) {
   s += absl::StrJoin(std::set<size_t>{16}, "", LegacyFormatter());
   s +=
       absl::StrJoin(std::set<absl::string_view>{" OK "}, "", LegacyFormatter());
-  EXPECT_EQ("Testing: 1234.123456789.10111213141516 OK ", s);
+  EXPECT_EQ(s, "Testing: 1234.123456789.10111213141516 OK ");
 }
 
 }  // namespace

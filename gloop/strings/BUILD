@@ -352,10 +352,10 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":join",
-        ":util",
         "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
