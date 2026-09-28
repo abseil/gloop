@@ -31,8 +31,12 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/container/fixed_array.h"
+#include "absl/flags/flag.h"
 #include "absl/log/check.h"
 #include "absl/types/span.h"
+
+ABSL_FLAG(bool, optimize_kendalls_tau_merge, false,
+          "Optimize MergeCountingDiscordantPairs");
 
 KendallsTau::KendallsTau(const uint64_t num_concordant_pairs,
                          const uint64_t num_discordant_pairs,
@@ -216,15 +220,25 @@ uint64_t MergeRangeCountingDiscordantPairs(const double* left,
     }
     ++out;
   }
-  while (left < mid) {
-    *out = *left;
-    ++left;
-    ++out;
-  }
-  while (right < end) {
-    *out = *right;
-    ++right;
-    ++out;
+  if (absl::GetFlag(FLAGS_optimize_kendalls_tau_merge)) {
+    if (left < mid) {
+      memcpy(out, left, (mid - left) * sizeof(double));
+      out += mid - left;
+    }
+    if (right < end) {
+      memcpy(out, right, (end - right) * sizeof(double));
+    }
+  } else {
+    while (left < mid) {
+      *out = *left;
+      ++left;
+      ++out;
+    }
+    while (right < end) {
+      *out = *right;
+      ++right;
+      ++out;
+    }
   }
   return num_discordant_pairs;
 }
