@@ -44,6 +44,7 @@
 #include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "absl/strings/str_cat.h"
 #include "absl/synchronization/blocking_counter.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/synchronization/notification.h"
@@ -75,6 +76,7 @@
 #include "gloop/util/functional/callable_once.h"
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 ABSL_FLAG(absl::Duration, wait_timeout_stress_test_duration, absl::Seconds(3),
@@ -96,6 +98,22 @@ ABSL_FLAG(bool, fiber_test_wait_for_input, false,
           "useful for debugging");
 
 namespace thread {
+
+namespace {
+using ::testing::Ne;
+using ::testing::NotNull;
+
+MATCHER_P(ContextEq, expected, "") {
+  // Do not compare `thread_status` because `AdjustDefaultTreeContext` (defined
+  // below) mutates `thread_status` to "Adjusted" to verify context propagation
+  // hooks.
+  return arg.security() == expected.security() &&
+         arg.trace_context().rpc_id() == expected.trace_context().rpc_id() &&
+         arg.trace_context().global_id() ==
+             expected.trace_context().global_id() &&
+         arg.deadline() == expected.deadline();
+}
+}  // namespace
 
 // Strong implementation for testing leaving a breadcrumb in thread_status.
 void AdjustDefaultTreeContext(base::Context& context, const void*) {
@@ -138,28 +156,28 @@ TEST_F(FiberTest, Run) {
   int e;
   Fiber fiber(std::bind(Error, 100, &e));
   fiber.Join();
-  EXPECT_EQ(100, e);
+  EXPECT_EQ(e, 100);
 }
 
 TEST_F(FiberTest, RunWithOptions) {
   int e;
   Fiber fiber(FiberOptions(), std::bind(Error, 100, &e));
   fiber.Join();
-  EXPECT_EQ(100, e);
+  EXPECT_EQ(e, 100);
 }
 
 TEST_F(FiberTest, RunLegacy) {
   int e;
   Fiber fiber([&e] { Error(100, &e); });
   fiber.Join();
-  EXPECT_EQ(100, e);
+  EXPECT_EQ(e, 100);
 }
 
 TEST_F(FiberTest, RepeatedJoin) {
   int e;
   Fiber fiber(std::bind(Error, 100, &e));
   fiber.Join();
-  EXPECT_EQ(100, e);
+  EXPECT_EQ(e, 100);
   fiber.Join();
 }
 
@@ -168,9 +186,9 @@ TEST_F(FiberTest, RunMulti) {
   Fiber fiber1(std::bind(Error, 101, &a));
   Fiber fiber2(std::bind(Error, 102, &b));
   fiber2.Join();
-  EXPECT_EQ(102, b);
+  EXPECT_EQ(b, 102);
   fiber1.Join();
-  EXPECT_EQ(101, a);
+  EXPECT_EQ(a, 101);
 }
 
 TEST_F(FiberTest, BasicStorage) {
@@ -179,9 +197,9 @@ TEST_F(FiberTest, BasicStorage) {
   std::pair<Fiber, Fiber> store{std::bind(Error, 101, &a),
                                 std::bind(Error, 102, &b)};
   store.second.Join();
-  EXPECT_EQ(102, b);
+  EXPECT_EQ(b, 102);
   store.first.Join();
-  EXPECT_EQ(101, a);
+  EXPECT_EQ(a, 101);
 }
 
 TEST_F(FiberTest, BindFront) {
@@ -201,7 +219,7 @@ TEST_F(FiberTest, BindFront_RvalueReferenceArgs) {
       },
       std::move(xs)));
   fiber.Join();
-  EXPECT_EQ(sum, 1 + 2 + 3);
+  EXPECT_EQ(sum, 6);
 }
 
 TEST_F(FiberTest, CallAtMostOnce) {
@@ -211,7 +229,7 @@ TEST_F(FiberTest, CallAtMostOnce) {
   Fiber fiber(::util::functional::CallAtMostOnce(
       absl::bind_front(VectorSum, std::move(move_only), &sum)));
   fiber.Join();
-  EXPECT_EQ(sum, 1 + 2 + 3);
+  EXPECT_EQ(sum, 6);
 }
 
 TEST_F(FiberTest, MoveOnlyInvocable) {
@@ -222,7 +240,7 @@ TEST_F(FiberTest, MoveOnlyInvocable) {
     VectorSum(std::move(m), &sum);
   });
   fiber.Join();
-  EXPECT_EQ(sum, 1 + 2 + 3);
+  EXPECT_EQ(sum, 6);
 }
 
 TEST_F(FiberTest, Nested) {
@@ -235,7 +253,7 @@ TEST_F(FiberTest, Nested) {
   int e;
   Fiber fiber(std::bind(&State::Doit, &e));
   fiber.Join();
-  EXPECT_EQ(200, e);
+  EXPECT_EQ(e, 200);
 }
 
 TEST_F(FiberTest, NestedMultiple) {
@@ -249,8 +267,9 @@ TEST_F(FiberTest, NestedMultiple) {
             std::bind(Sleep, absl::Seconds(0.1), 300 + i, &result[i]));
       }
       for (int i = 0; i < N; i++) {
+        SCOPED_TRACE(absl::StrCat("i=", i));
         children[i]->Join();
-        EXPECT_EQ(300 + i, result[i]);
+        EXPECT_EQ(result[i], 300 + i);
       }
     }
   };
@@ -482,7 +501,7 @@ TEST_F(FiberTest, ConcurrentCancelWithOverlappingSubtreesSimple) {
   });
 
   Select({nested_fiber_created.OnEvent()});
-  CHECK(nested != nullptr);
+  ASSERT_THAT(nested, NotNull());
 
   Bundle bundle;
   bundle.Add([&root]() { root.Cancel(); });
@@ -611,8 +630,8 @@ TEST_F(FiberTest, ConcurrentCancelWithOverlappingSubtrees) {
     Select({e.OnEvent()});
   }
 
-  CHECK(root_f1 != nullptr);
-  CHECK(root_f1_f2 != nullptr);
+  ASSERT_THAT(root_f1, NotNull());
+  ASSERT_THAT(root_f1_f2, NotNull());
 
   Bundle bundle;
   bundle.Add([&root]() { root.Cancel(); });
@@ -678,7 +697,7 @@ TEST_F(FiberTest, DetachedRootFiberWorks) {
 }
 
 static void CheckDeadlineAndWaitForCancel(absl::Time deadline) {
-  ASSERT_EQ(deadline, base::CurrentContext().deadline());
+  ASSERT_EQ(base::CurrentContext().deadline(), deadline);
   WaitForCancel();  // Deadline will cancel us.
 }
 
@@ -926,17 +945,15 @@ TEST_F(FiberTest, DynamicFiberInClosureThreadInheritsDeadline) {
 
 // Tests above should not have affected environmental contexts.
 TEST_F(FiberTest, EnvironmentalDeadlinesUnpermuted) {
-  EXPECT_EQ(absl::InfiniteFuture(), base::CurrentContext().deadline());
-  EXPECT_EQ(absl::InfiniteFuture(), base::BackgroundContext().deadline());
+  EXPECT_EQ(base::CurrentContext().deadline(), absl::InfiniteFuture());
+  EXPECT_EQ(base::BackgroundContext().deadline(), absl::InfiniteFuture());
 }
 
 // This returns the scheduler we are currently running under (if cooperative)
 // using an open-coded introspection.  Do not copy this code, this is NOT a
 // supported API.
 base::scheduling::Scheduler* GetCurrentScheduler() {
-  absl::base_internal::ThreadIdentity* identity;
-  identity =
-      absl::base_internal::CurrentThreadIdentityIfPresent();  // must exist
+  auto* identity = absl::base_internal::CurrentThreadIdentityIfPresent();
   return ::base::scheduling::Schedulable::GetBoundSchedulable(identity)
       ->manager;
 }
@@ -947,7 +964,7 @@ TEST_F(FiberTest, NewFiberTreeSetParallelism) {
   for (int parallelism = 1; parallelism <= max_parallelism; parallelism++) {
     auto f = NewTree(
         std::move(TreeOptions().set_max_cpu_slots(parallelism)), [parallelism] {
-          ASSERT_EQ(parallelism, GetCurrentScheduler()->num_slots());
+          ASSERT_EQ(GetCurrentScheduler()->num_slots(), parallelism);
         });
     f->Join();
   }
@@ -956,8 +973,8 @@ TEST_F(FiberTest, NewFiberTreeSetParallelism) {
 TEST_F(FiberTest, NewFiberTreeSetMaxCpuSlots) {
   const int num_cpu_slots = thread::DefaultDomain()->max_concurrency() + 1;
   auto f = NewTree(TreeOptions().set_max_cpu_slots(num_cpu_slots), [] {
-    ASSERT_EQ(thread::DefaultDomain()->max_concurrency(),
-              GetCurrentScheduler()->num_slots());
+    ASSERT_EQ(GetCurrentScheduler()->num_slots(),
+              thread::DefaultDomain()->max_concurrency());
   });
   f->Join();
 }
@@ -972,7 +989,7 @@ TEST_F(FiberTest, NewFiberTreeSetScheduler) {
     }
 
     void CheckSchedulerBody(base::scheduling::Scheduler* scheduler) {
-      ASSERT_TRUE(GetCurrentScheduler() == scheduler);
+      ASSERT_EQ(GetCurrentScheduler(), scheduler);
       Increment();
     }
 
@@ -1001,7 +1018,7 @@ TEST_F(FiberTest, NewFiberTreeSetScheduler) {
     fiber->Join();
   }
 
-  EXPECT_EQ(2 * kNumFibers, helper.count);
+  EXPECT_EQ(helper.count, 2 * kNumFibers);
 }
 
 TEST_F(FiberTest, RootFiberIsIndependent) {
@@ -1020,7 +1037,7 @@ TEST_F(FiberTest, RootFiberIsIndependent) {
   // "fiber"'s cancellation should not have affected "detached".  We test this
   // by making "detached" dependent on its own cancellation to complete.
   EXPECT_FALSE(detached_root->Cancelled());
-  EXPECT_EQ(-1, TrySelect({detached_root->OnJoinable()}));
+  EXPECT_EQ(TrySelect({detached_root->OnJoinable()}), -1);
 
   detached_root->Cancel();
   detached_root->Join();
@@ -1030,8 +1047,8 @@ TEST_F(FiberTest, ImplicitFiberIgnoresPastContextDeadline) {
   absl::Time deadline = absl::InfinitePast();
   base::WithDeadline wd(deadline);
   // Allow time for cancellation to be delivered, if it erroneously exists.
-  EXPECT_EQ(
-      -1, SelectUntil(deadline + absl::Milliseconds(5), {thread::OnCancel()}));
+  EXPECT_EQ(SelectUntil(deadline + absl::Milliseconds(5), {thread::OnCancel()}),
+            -1);
   EXPECT_LT(deadline, absl::Now());
   EXPECT_FALSE(thread::Cancelled());
 }
@@ -1039,15 +1056,15 @@ TEST_F(FiberTest, ImplicitFiberIgnoresPastContextDeadline) {
 TEST_F(FiberTest, ImplicitFiberIgnoresFutureContextDeadline) {
   absl::Time deadline = absl::Now() + absl::Milliseconds(1);
   base::WithDeadline wd(deadline);
-  EXPECT_EQ(
-      -1, SelectUntil(deadline + absl::Milliseconds(4), {thread::OnCancel()}));
+  EXPECT_EQ(SelectUntil(deadline + absl::Milliseconds(4), {thread::OnCancel()}),
+            -1);
   EXPECT_LT(deadline, absl::Now());
   EXPECT_FALSE(thread::Cancelled());
 }
 
 TEST_F(FiberTest, CurrentExists) {
   Fiber* current = Fiber::Current();
-  ASSERT_TRUE(current != nullptr);
+  ASSERT_THAT(current, NotNull());
 }
 
 TEST_F(FiberTest, ImplicitFiberParentsChild) {
@@ -1132,7 +1149,7 @@ TEST_F(FiberTest, Sleep) {
     absl::Time now = absl::Now();
     EXPECT_TRUE(CancellableSleepFor(d));
     absl::Time after = absl::Now();
-    EXPECT_LE(d, after - now);
+    EXPECT_GE(after - now, d);
     Fiber* me = Fiber::Current();
     const absl::Duration forever = absl::Hours(10000);
     thread::DefaultQueue()->ScheduleAt(absl::Now() + d,
@@ -1146,7 +1163,7 @@ TEST_F(FiberTest, Sleep) {
     absl::Time now = absl::Now();
     EXPECT_TRUE(thread::CancellableSleepFor(clock, d));
     absl::Time after = absl::Now();
-    EXPECT_LE(d, after - now);
+    EXPECT_GE(after - now, d);
     Fiber* me = Fiber::Current();
     const absl::Duration forever = absl::Hours(10000);
     thread::DefaultQueue()->ScheduleAt(absl::Now() + d,
@@ -1219,11 +1236,11 @@ TEST_F(FiberTest, DistinctFiberRun) {
   {
     DistinctFiberScopeTest scope(FiberOptions().SetInternedName("fname"));
     // Inner fiber must be distinct from outer fiber.
-    CHECK_NE(Fiber::Current(), outer);
-    CHECK_EQ(Fiber::Current()->options().name(), "fname");
+    EXPECT_THAT(Fiber::Current(), Ne(outer));
+    EXPECT_EQ(Fiber::Current()->options().name(), "fname");
   }
   // Outer fiber must be restored.
-  CHECK_EQ(Fiber::Current(), outer);
+  EXPECT_EQ(Fiber::Current(), outer);
 }
 
 TEST_F(FiberTest, DistinctFiberCancel) {
@@ -1237,15 +1254,16 @@ TEST_F(FiberTest, DistinctFiberCancel) {
       DistinctFiberScopeTest scope;
       inner = Fiber::Current();
       inner_initialized.Notify();
-      CHECK_EQ(thread::Select({OnCancel()}), 0);
-      CHECK(Cancelled());
+      EXPECT_EQ(thread::Select({OnCancel()}), 0);
+      EXPECT_TRUE(Cancelled());
     }
 
     // Inner cancellations must not affect outer fiber.
-    CHECK(!Cancelled());
+    EXPECT_FALSE(Cancelled());
   });
 
-  CHECK(inner_initialized.WaitForNotificationWithTimeout(absl::Seconds(5)));
+  ASSERT_TRUE(
+      inner_initialized.WaitForNotificationWithTimeout(absl::Seconds(5)));
   inner->Cancel();
 
   regular.Join();
@@ -1336,7 +1354,7 @@ TEST_F(FiberTest, DomainCacheDefaultFiberStackSizeFlag) {
 #endif
     // Despite the flag changing, we are still in the same domain, so these
     // should be equal.
-    ASSERT_EQ(recorded_stack_size, stack_size);
+    ASSERT_EQ(stack_size, recorded_stack_size);
   });
   j->Join();
 }
@@ -1377,6 +1395,9 @@ TEST_F(FiberTest, TestStackClassesInRange) {
 
   for (size_t requested_stack_size : requested_stack_size_partitions) {
     for (int flag_requested_stack_size : flag_requested_stack_size_partitions) {
+      SCOPED_TRACE(absl::StrCat(
+          "requested_stack_size=", requested_stack_size,
+          ", flag_requested_stack_size=", flag_requested_stack_size));
       int stack_size_class =
           internal::InternalRequestedStackSizeToStackSizeClass(
               requested_stack_size, flag_requested_stack_size);
@@ -1397,17 +1418,19 @@ TEST_F(FiberTest, TestStackSizes) {
 
   for (int idx = 0; idx < 100; ++idx) {
     const size_t requested_sz = distribution(generator);
+    SCOPED_TRACE(absl::StrCat("idx=", idx, ", requested_sz=", requested_sz));
 
     const int stack_class = internal::StackSizeToStackSizeClass(requested_sz);
     const size_t received_sz = internal::StackSizeClassToStackSize(stack_class);
 
-    EXPECT_LE(requested_sz, received_sz);
+    EXPECT_GE(received_sz, requested_sz);
     EXPECT_LT(received_sz, requested_sz * 2);
   }
 
   // Test specific edge cases.
   for (int idx = internal::kMinStackSizeLog2;
        idx <= internal::kMaxStackSizeLog2; ++idx) {
+    SCOPED_TRACE(absl::StrCat("idx=", idx));
     size_t requested_sz;
     size_t received_sz;
     int stack_class;
@@ -1416,14 +1439,14 @@ TEST_F(FiberTest, TestStackSizes) {
     requested_sz = 1ULL << idx;
     stack_class = internal::StackSizeToStackSizeClass(requested_sz);
     received_sz = internal::StackSizeClassToStackSize(stack_class);
-    EXPECT_EQ(requested_sz, received_sz);
+    EXPECT_EQ(received_sz, requested_sz);
 
     // 2^N + 1
     if (idx < internal::kMaxStackSizeLog2) {
       requested_sz = (1ULL << idx) + 1;
       stack_class = internal::StackSizeToStackSizeClass(requested_sz);
       received_sz = internal::StackSizeClassToStackSize(stack_class);
-      EXPECT_EQ(1ULL << (idx + 1), received_sz);
+      EXPECT_EQ(received_sz, 1ULL << (idx + 1));
     }
 
     // 2^N - 1
@@ -1431,7 +1454,7 @@ TEST_F(FiberTest, TestStackSizes) {
       requested_sz = (1ULL << idx) - 1;
       stack_class = internal::StackSizeToStackSizeClass(requested_sz);
       received_sz = internal::StackSizeClassToStackSize(stack_class);
-      EXPECT_EQ(1ULL << idx, received_sz);
+      EXPECT_EQ(received_sz, 1ULL << idx);
     }
   }
 }
@@ -1442,6 +1465,7 @@ TEST_F(FiberTest, TestMultipleStackSizes) {
   // so we loop through the sizes backwards.
   for (int j = internal::kMaxStackSizeLog2 - internal::kMinStackSizeLog2;
        j >= 0; j--) {
+    SCOPED_TRACE(absl::StrCat("j=", j));
     int size = internal::StackSizeClassToStackSize(j);
     auto f = thread::NewTree(
         TreeOptions().set_fiber_options(FiberOptions().SetStackSize(size)),
@@ -1477,32 +1501,32 @@ TEST_F(FiberTest, TestMultipleStackSizes) {
 TEST_F(FiberTest, CancellationColoring) {
   // Child fiber
   thread::Fiber([] {
-    EXPECT_EQ(base::internal::CancellationColor::kFibers,
-              base::internal::GetActiveCancellationColor());
+    EXPECT_EQ(base::internal::GetActiveCancellationColor(),
+              base::internal::CancellationColor::kFibers);
   }).Join();
 
   // Bundle
   {
     thread::Bundle b;
     b.Add([] {
-      EXPECT_EQ(base::internal::CancellationColor::kFibers,
-                base::internal::GetActiveCancellationColor());
+      EXPECT_EQ(base::internal::GetActiveCancellationColor(),
+                base::internal::CancellationColor::kFibers);
     });
     b.JoinAll();
   }
 
   // New tree
   thread::NewTree(thread::TreeOptions(), [] {
-    EXPECT_EQ(base::internal::CancellationColor::kFibers,
-              base::internal::GetActiveCancellationColor());
+    EXPECT_EQ(base::internal::GetActiveCancellationColor(),
+              base::internal::CancellationColor::kFibers);
   })->Join();
 
   // Detached tree
   {
     absl::Notification done;
     thread::Detach(thread::TreeOptions(), [&] {
-      EXPECT_EQ(base::internal::CancellationColor::kFibers,
-                base::internal::GetActiveCancellationColor());
+      EXPECT_EQ(base::internal::GetActiveCancellationColor(),
+                base::internal::CancellationColor::kFibers);
 
       done.Notify();
     });
@@ -1638,7 +1662,7 @@ TEST(PthreadExit, Works) {
 
   threads.push_back(std::make_unique<ClosureThread>([]() {
     absl::LeakCheckDisabler d;
-    CHECK(Fiber::Current() != nullptr);
+    EXPECT_THAT(Fiber::Current(), NotNull());
     pthread_exit(nullptr);
   }));
 
@@ -1650,7 +1674,7 @@ TEST(PthreadExit, Works) {
     return;
 #endif
     absl::LeakCheckDisabler d;
-    CHECK(Fiber::Current() != nullptr);
+    EXPECT_THAT(Fiber::Current(), NotNull());
     Fiber fiber([]() { pthread_exit(nullptr); });
     absl::SleepFor(absl::Milliseconds(100));
     pthread_exit(nullptr);
@@ -1734,7 +1758,7 @@ TEST(OneShotAlarm, SchedulesAfterDeadline) {
 TEST(OneShotAlarm, CancelBeforeRunning) {
   {
     internal::OneShotAlarm alarm(absl::Now() + absl::Hours(1),
-                                 [&] { CHECK(false) << "Should not run"; });
+                                 [&] { FAIL() << "Should not run"; });
   }
   absl::SleepFor(absl::Milliseconds(10));
 }
@@ -1742,7 +1766,7 @@ TEST(OneShotAlarm, CancelBeforeRunning) {
 TEST(OneShotAlarm, CancelInfiniteFuture) {
   {
     internal::OneShotAlarm alarm(absl::InfiniteFuture(),
-                                 [&] { CHECK(false) << "Should not run"; });
+                                 [&] { FAIL() << "Should not run"; });
   }
   absl::SleepFor(absl::Milliseconds(10));
 }
