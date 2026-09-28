@@ -27,6 +27,8 @@
 #include <string>
 #include <vector>
 
+#include "absl/random/distributions.h"
+
 namespace strings {
 
 using RandomEngine = std::mt19937;
@@ -44,30 +46,28 @@ struct InternTableBenchmark {
     RandomEngine rng(random_seed);
     const int kMinStringLength = 10;
     const int kMaxStringLength = 80;
-    std::uniform_int_distribution<int> random_to_1001(0, 1000);
-    // Avoid embedded '\0' to ensure c_str() does nothing surprising.
-    std::uniform_int_distribution<int> random_uint8(0x1, 0xFF);
     // Construct some strings.  Favor the middle of the range of allowed
     // lengths.
     for (size_t i = 0; i < strings.size(); ++i) {
-      int length = random_to_1001(rng) + random_to_1001(rng);
+      int length = absl::Uniform(rng, 0, 1001) + absl::Uniform(rng, 0, 1001);
       length = length / 2000.0 * (kMaxStringLength - kMinStringLength) +
                kMinStringLength;
       while (strings[i].size() < length) {
-        strings[i].push_back(static_cast<char>(random_uint8(rng)));
+        // Avoid embedded '\0' to ensure c_str() does nothing surprising.
+        strings[i].push_back(static_cast<char>(
+            absl::Uniform(absl::IntervalClosedClosed, rng, 0x1, 0xFF)));
       }
     }
     // Construct an array that indicates which strings to use.
     int first_cold_index = strings.size() * (1.0 - hot_fraction);
-    std::uniform_real_distribution<double> random_fraction(0.0, 1.0);
     for (size_t i = 0; i < indices.size(); i++) {
       int lo = first_cold_index;
       int hi = strings.size();
-      if (random_fraction(rng) < hot_fraction) {
+      if (absl::Bernoulli(rng, hot_fraction)) {
         lo = 0;
         hi = first_cold_index;
       }
-      indices[i] = std::uniform_int_distribution<int>(lo, hi - 1)(rng);
+      indices[i] = absl::Uniform(rng, lo, hi);
     }
   }
 };

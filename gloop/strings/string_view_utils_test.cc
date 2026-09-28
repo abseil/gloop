@@ -25,12 +25,12 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <random>
 #include <string>
 #include <vector>
 
 #include "absl/log/check.h"
 #include "absl/random/distributions.h"
-#include "absl/random/random.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -578,7 +578,7 @@ static void BM_FindLongestCommonPrefixNoPredict(benchmark::State& state) {
   std::string y = x;
   std::vector<int> random_lengths(32768);
   std::vector<int> random_terms(random_lengths.size());
-  absl::BitGen gen;
+  std::mt19937_64 gen;
   for (int i = 0; i < random_lengths.size(); ++i) {
     random_lengths[i] = absl::Uniform(gen, 0, len);
     random_terms[i] = absl::Uniform(gen, 0, random_lengths[i] + 1);

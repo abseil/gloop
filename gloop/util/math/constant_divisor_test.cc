@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <limits>
+#include <random>
 
 #include "absl/flags/flag.h"
 #include "absl/random/bit_gen_ref.h"
@@ -197,7 +198,7 @@ T ChooseDenominator(absl::BitGenRef random) {
 template <typename Divisor>
 void BM_Divide(benchmark::State& state) {
   typedef typename Divisor::value_type T;
-  absl::BitGen gen;
+  std::mt19937_64 gen;
   std::vector<T> values;
   for (int i = 0; i < 100000; ++i) {
     values.push_back(ChooseValue<T>(gen));
@@ -225,7 +226,7 @@ BENCHMARK_TEMPLATE(BM_Divide, ConstantDivisor<uint64_t>);
 template <typename Divisor>
 void BM_Modulo(benchmark::State& state) {
   typedef typename Divisor::value_type T;
-  absl::BitGen gen;
+  std::mt19937_64 gen;
   std::vector<T> values;
   for (int i = 0; i < 100000; ++i) {
     values.push_back(ChooseValue<T>(gen));
@@ -253,7 +254,7 @@ BENCHMARK_TEMPLATE(BM_Modulo, ConstantDivisor<uint64_t>);
 template <typename Divisor>
 void BM_ConstructDivisor(benchmark::State& state) {
   typedef typename Divisor::value_type T;
-  absl::BitGen gen;
+  std::mt19937_64 gen;
   std::vector<T> values;
   for (int i = 0; i < 2048; ++i) {
     values.push_back(ChooseDenominator<T>(gen));

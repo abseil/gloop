@@ -894,7 +894,7 @@ void BM_LittleEndian_Load64VariableLength(benchmark::State& state) {
   int bytes = state.range(0);
   static constexpr int kNumValues = 1000;
   std::vector<std::string> values(kNumValues);
-  absl::BitGen gen;
+  std::mt19937_64 gen;
   for (int i = 0; i < kNumValues; ++i) {
     values[i] = std::string(sizeof(uint64_t), '\0');
     uint64_t rand = bytes < 8 ? absl::Uniform(gen, 0UL, 1UL << (8 * bytes))
@@ -916,7 +916,7 @@ void BM_BigEndian_Load64VariableLength(benchmark::State& state) {
   int bytes = state.range(0);
   static constexpr int kNumValues = 1000;
   std::vector<std::string> values(kNumValues);
-  absl::BitGen gen;
+  std::mt19937_64 gen;
   for (int i = 0; i < kNumValues; ++i) {
     values[i] = std::string(sizeof(uint64_t), '\0');
     uint64_t rand = bytes < 8 ? absl::Uniform(gen, 0UL, 1UL << (8 * bytes))
@@ -937,7 +937,7 @@ void BM_LittleEndian_Store64VariableLength(benchmark::State& state) {
   int bytes = state.range(0);
   static constexpr int kNumValues = 1000;
   std::vector<uint64_t> values(kNumValues);
-  absl::BitGen gen;
+  std::mt19937_64 gen;
   for (int i = 0; i < kNumValues; ++i) {
     values[i] = bytes < 8 ? absl::Uniform(gen, 0UL, 1UL << (8 * bytes))
                           : absl::Uniform<uint64_t>(gen);
@@ -957,7 +957,7 @@ void BM_BigEndian_Store64VariableLength(benchmark::State& state) {
   int bytes = state.range(0);
   static constexpr int kNumValues = 1000;
   std::vector<uint64_t> values(kNumValues);
-  absl::BitGen gen;
+  std::mt19937_64 gen;
   for (int i = 0; i < kNumValues; ++i) {
     values[i] = bytes < 8 ? absl::Uniform(gen, 0UL, 1UL << (8 * bytes))
                           : absl::Uniform<uint64_t>(gen);

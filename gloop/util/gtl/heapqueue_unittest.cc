@@ -27,12 +27,13 @@
 #include <list>
 #include <memory>
 #include <queue>
+#include <random>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "absl/random/random.h"
+#include "absl/random/distributions.h"
 #include "benchmark/benchmark.h"
 #include "gloop/util/gtl/comparator.h"
 #include "gloop/util/gtl/stl_util.h"
@@ -471,7 +472,7 @@ struct CopyUntilTestData {
 };
 
 auto MakeQueuesAndCutoffs(int count, double cutoff_percentage) {
-  absl::BitGen gen;
+  std::mt19937_64 gen;
   std::vector<CopyUntilTestData> queues_and_cutoffs(kCopyUntilBatchSize);
   for (auto& [queue, cutoff] : queues_and_cutoffs) {
     for (int i = 0; i < count; ++i) {
@@ -552,7 +553,7 @@ struct EraseTestData {
   HeapQueue<uint32_t>::iterator erase_position;
 };
 auto MakeQueuesAndErasePositions(int count, int erase_idx_upper_bound) {
-  absl::BitGen gen;
+  std::mt19937_64 gen;
   std::vector<EraseTestData> queues_and_erase_positions(kEraseBatchSize);
   for (auto& [queue, erase_position] : queues_and_erase_positions) {
     for (int i = 0; i < count; ++i) {

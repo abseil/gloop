@@ -27,6 +27,7 @@
 #include <initializer_list>
 #include <iterator>
 #include <map>
+#include <random>
 #include <set>
 #include <string>
 #include <tuple>
@@ -40,7 +41,6 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/meta/internal/constexpr_testing.h"
 #include "absl/meta/type_traits.h"
-#include "absl/random/random.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -474,7 +474,7 @@ std::vector<K> MakeKeysForBenchmark(int64_t size) {
   for (int64_t i = 0; i < size + num_misses; ++i) {
     keys.push_back(MakeKey<K>(i));
   }
-  absl::BitGen rng;
+  std::mt19937_64 rng;
   std::shuffle(keys.begin(), keys.end(), rng);
   return keys;
 }

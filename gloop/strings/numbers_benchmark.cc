@@ -22,14 +22,13 @@
 #include <cstdint>
 #include <ctime>
 #include <iterator>
-#include <limits>
 #include <random>
 #include <string>
 #include <vector>
 
-#include "absl/base/internal/cycleclock.h"
 #include "absl/log/check.h"
 #include "absl/numeric/int128.h"
+#include "absl/random/distributions.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -40,9 +39,6 @@
 
 namespace strings {
 namespace {
-
-using RandomEngine = std::minstd_rand0;
-using absl::base_internal::CycleClock;
 
 template <typename int_type>
 void BM_fast_bufleft(benchmark::State& state) {
@@ -66,17 +62,14 @@ void BM_AutoDigitStrCmp(benchmark::State& state) {
   const std::string kPrefix = "abc";
   static const char* parts[] = {"future", "past", ":",  "0",   "1",
                                 "00",     "01",   "12", "012", "0012"};
-  RandomEngine rng(CycleClock::Now());
-  std::uniform_int_distribution<int> random_parts_index(0,
-                                                        std::size(parts) - 1);
+  std::mt19937_64 rng;
+  auto random_part = [&] {
+    return parts[absl::Uniform(rng, 0u, std::size(parts))];
+  };
   std::vector<std::string> v1(kNumStrings), v2(kNumStrings);
   for (int i = 0; i < kNumStrings; i++) {
-    v1[i] = absl::StrCat(kPrefix, parts[random_parts_index(rng)],
-                         parts[random_parts_index(rng)],
-                         parts[random_parts_index(rng)]);
-    v2[i] = absl::StrCat(kPrefix, parts[random_parts_index(rng)],
-                         parts[random_parts_index(rng)],
-                         parts[random_parts_index(rng)]);
+    v1[i] = absl::StrCat(kPrefix, random_part(), random_part(), random_part());
+    v2[i] = absl::StrCat(kPrefix, random_part(), random_part(), random_part());
   }
   int count = 0, positive = 0;
   while (state.KeepRunningBatch(kNumStrings)) {
@@ -97,17 +90,14 @@ void BM_AutoDigitStrCmpZ(benchmark::State& state) {
   const std::string kPrefix = "abc";
   static const char* parts[] = {"future", "past", ":",  "0",   "1",
                                 "00",     "01",   "12", "012", "0012"};
-  RandomEngine rng(CycleClock::Now());
-  std::uniform_int_distribution<int> random_parts_index(0,
-                                                        std::size(parts) - 1);
+  std::mt19937_64 rng;
+  auto random_part = [&] {
+    return parts[absl::Uniform(rng, 0u, std::size(parts))];
+  };
   std::vector<std::string> v1(kNumStrings), v2(kNumStrings);
   for (int i = 0; i < kNumStrings; i++) {
-    v1[i] = absl::StrCat(kPrefix, parts[random_parts_index(rng)],
-                         parts[random_parts_index(rng)],
-                         parts[random_parts_index(rng)]);
-    v2[i] = absl::StrCat(kPrefix, parts[random_parts_index(rng)],
-                         parts[random_parts_index(rng)],
-                         parts[random_parts_index(rng)]);
+    v1[i] = absl::StrCat(kPrefix, random_part(), random_part(), random_part());
+    v2[i] = absl::StrCat(kPrefix, random_part(), random_part(), random_part());
   }
   int count = 0, positive = 0;
   while (state.KeepRunningBatch(kNumStrings)) {
@@ -289,16 +279,14 @@ void BM_float32_buf(benchmark::State& state) {
 BENCHMARK(BM_float32_buf);
 
 void BM_HexStringToUint128(benchmark::State& state) {
-  RandomEngine rng(0);
-  std::uniform_int_distribution<uint64_t> random_uint64(
-      0, std::numeric_limits<uint64_t>::max());
+  std::mt19937_64 rng;
 
   constexpr int kNumStrings = 1000;
   std::vector<std::string> test_strings;
   test_strings.reserve(kNumStrings);
   for (int i = 0; i < kNumStrings; ++i) {
-    test_strings.push_back(Uint128ToHexString(
-        absl::MakeUint128(random_uint64(rng), random_uint64(rng))));
+    test_strings.push_back(Uint128ToHexString(absl::MakeUint128(
+        absl::Uniform<uint64_t>(rng), absl::Uniform<uint64_t>(rng))));
   }
   for (auto _ : state) {
     for (const std::string& s : test_strings) {
