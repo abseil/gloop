@@ -81,6 +81,7 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/base/casts.h"
 #include "absl/base/const_init.h"
 #include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/direct_mmap.h"  // For direct mmap
@@ -474,6 +475,11 @@ void Thread::set_nice_priority_level(int level) {
 }
 
 namespace {
+
+[[maybe_unused]] size_t RoundDownToPageSize(size_t size) {
+  size_t page_size = static_cast<size_t>(getpagesize());
+  return size & ~(page_size - 1);
+}
 
 size_t RoundUpToPageSize(size_t size) {
   size_t page_size = static_cast<size_t>(getpagesize());
@@ -1511,6 +1517,25 @@ void* Thread::ThreadBody(void* arg) {
                    thread_info->thread_id_);
     prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, stackaddr, stacksize,
           thread_stack_name);
+
+    const size_t tls_size = GetTLSSize();
+#if defined(__x86_64__) || defined(__i386__)
+    uintptr_t tls_lo = lo + stacksize - tls_size;
+    uintptr_t tls_hi = absl::bit_cast<uintptr_t>(__builtin_thread_pointer());
+#else
+    uintptr_t tls_lo = absl::bit_cast<uintptr_t>(__builtin_thread_pointer());
+    uintptr_t tls_hi = tls_lo + tls_size;
+#endif
+    // Only annotate pages that are entirely TLS variables so we do not split
+    // the VMA containing the active call stack.
+    tls_lo = RoundUpToPageSize(tls_lo);
+    tls_hi = RoundDownToPageSize(tls_hi);
+    if (tls_lo < tls_hi) {
+      absl::SNPrintF(thread_stack_name, sizeof(thread_stack_name), "tls:%u",
+                     thread_info->thread_id_);
+      prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, tls_lo, tls_hi - tls_lo,
+            thread_stack_name);
+    }
   }
 #endif  // HAVE_GOOGLE_THREAD_STACK
 
