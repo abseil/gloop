@@ -1677,7 +1677,7 @@ TEST(IntervalMapDanglingReferencesTest, Erase) {
   map.Set(35, 36, 7);
 
   auto it = map.find(18);
-  CHECK(it != map.end());
+  ASSERT_NE(it, map.end());
   EXPECT_EQ(it->start, 16);
   EXPECT_EQ(it->limit, 19);
   EXPECT_EQ(map.begin()->limit, 10);
@@ -1761,7 +1761,7 @@ TEST(IntervalMapDanglingReferencesTest, MergeValue) {
   map.Set(35, 36, 7);
 
   auto it = map.find(32);
-  CHECK(it != map.end());
+  ASSERT_NE(it, map.end());
   EXPECT_EQ(it->start, 30);
   EXPECT_EQ(it->limit, 33);
   EXPECT_EQ(map.begin()->limit, 10);
@@ -1889,12 +1889,14 @@ TEST(IntervalMapArgumentForwarding, SetWithMoveableValue) {
 
   int copy_count = 0;
   int move_count = 0;
-  ConstructorCounter value(&copy_count, &move_count);
+  ConstructorCounter value1(&copy_count, &move_count);
+  ConstructorCounter value2(&copy_count, &move_count);
+  ConstructorCounter value3(&copy_count, &move_count);
 
   // Reading and writing can be done with zero copies.
-  imap.Set(1, 2, std::move(value));
-  imap.SetNoOverlap(2, 3, std::move(value));
-  imap.SetAndCoalesce(2, 3, std::move(value));
+  imap.Set(1, 2, std::move(value1));
+  imap.SetNoOverlap(2, 3, std::move(value2));
+  imap.SetAndCoalesce(2, 3, std::move(value3));
 
   auto it = imap.find(1);
   ASSERT_NE(it, imap.end());
@@ -1984,14 +1986,14 @@ struct Tester {
   // Populates map from ents, calls SetAndCoalesce.
   Tester& Go(int start, int limit, const absl::string_view val) {
     std::string value = std::string(val);
-    for (int i = 0; i < ents.size(); ++i) {
-      map.Set(ents[i].start, ents[i].limit, ents[i].value);
+    for (const auto& ent : ents) {
+      map.Set(ent.start, ent.limit, ent.value);
     }
     map.SetAndCoalesce(SpecialType(start), SpecialType(limit), value);
     return *this;
   }
   Tester& Check(const absl::string_view expected) {
-    EXPECT_EQ(expected, ToString()) << " test line " << line;
+    EXPECT_EQ(ToString(), expected) << " test line " << line;
     return *this;
   }
   int line;
