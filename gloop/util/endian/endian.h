@@ -34,6 +34,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <iterator>
 #include <type_traits>
 
 #include "absl/base/casts.h"
@@ -43,6 +44,7 @@
 #include "absl/numeric/int128.h"
 #include "gloop/base/port.h"
 #include "gloop/base/uword.h"
+#include "gloop/util/endian/byte_range_traits.h"
 #include "gloop/util/gtl/unaligned.h"
 
 template <typename T>
@@ -231,6 +233,16 @@ class LittleEndian {
     return Load16(static_cast<const void*>(p));
   }
 
+  // Loads a 16-bit little-endian value from contiguous range 'p', asserting
+  // that 'p' is at least 2 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsReadableByteRange<C>::value>>
+  static uint16_t Load16(const C& p) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(uint16_t));
+    return Load16(static_cast<const void*>(std::data(p)));
+  }
+
   template <typename T = void*, size_t N = 0>
   static uint16_t Load16(const void* p) {
     return ToHost16(UNALIGNED_LOAD16(p));
@@ -243,6 +255,16 @@ class LittleEndian {
     return Store16(static_cast<void*>(p), v);
   }
 
+  // Stores a 16-bit little-endian value into contiguous range 'p', asserting
+  // that 'p' is at least 2 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsWritableByteRange<C>::value>>
+  static void Store16(C&& p, uint16_t v) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(uint16_t));
+    Store16(static_cast<void*>(std::data(p)), v);
+  }
+
   template <typename T = void*, size_t N = 0>
   static void Store16(void* p, uint16_t v) {
     UNALIGNED_STORE16(p, FromHost16(v));
@@ -253,6 +275,16 @@ class LittleEndian {
     static_assert(sizeof(T) * N >= 3,
                   "Not enough space in buffer to load value from");
     return Load24(static_cast<const void*>(p));
+  }
+
+  // Loads a 24-bit little-endian value from contiguous range 'p', asserting
+  // that 'p' is at least 3 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsReadableByteRange<C>::value>>
+  static uint32_t Load24(const C& p) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= size_t{3});
+    return Load24(static_cast<const void*>(std::data(p)));
   }
 
   template <typename T = const void*, size_t N = 0>
@@ -274,6 +306,16 @@ class LittleEndian {
     return Store24(static_cast<void*>(p), v);
   }
 
+  // Stores a 24-bit little-endian value into contiguous range 'p', asserting
+  // that 'p' is at least 3 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsWritableByteRange<C>::value>>
+  static void Store24(C&& p, uint32_t v) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= size_t{3});
+    Store24(static_cast<void*>(std::data(p)), v);
+  }
+
   template <typename T = void*, size_t N = 0>
   static void Store24(void* p, uint32_t v) {
 #ifdef IS_LITTLE_ENDIAN
@@ -293,6 +335,16 @@ class LittleEndian {
     return Load32(static_cast<const void*>(p));
   }
 
+  // Loads a 32-bit little-endian value from contiguous range 'p', asserting
+  // that 'p' is at least 4 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsReadableByteRange<C>::value>>
+  static uint32_t Load32(const C& p) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(uint32_t));
+    return Load32(static_cast<const void*>(std::data(p)));
+  }
+
   template <typename T = const void*, size_t N = 0>
   static uint32_t Load32(const void* p) {
     return ToHost32(UNALIGNED_LOAD32(p));
@@ -305,6 +357,16 @@ class LittleEndian {
     Store32(static_cast<void*>(p), v);
   }
 
+  // Stores a 32-bit little-endian value into contiguous range 'p', asserting
+  // that 'p' is at least 4 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsWritableByteRange<C>::value>>
+  static void Store32(C&& p, uint32_t v) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(uint32_t));
+    Store32(static_cast<void*>(std::data(p)), v);
+  }
+
   template <typename T = void*, size_t N = 0>
   static void Store32(void* p, uint32_t v) {
     UNALIGNED_STORE32(p, FromHost32(v));
@@ -315,6 +377,16 @@ class LittleEndian {
     static_assert(sizeof(T) * N >= sizeof(uint64_t),
                   "Not enough space in buffer to load value from");
     return Load64(static_cast<const void*>(p));
+  }
+
+  // Loads a 64-bit little-endian value from contiguous range 'p', asserting
+  // that 'p' is at least 8 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsReadableByteRange<C>::value>>
+  static uint64_t Load64(const C& p) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(uint64_t));
+    return Load64(static_cast<const void*>(std::data(p)));
   }
 
   template <typename T = const void*, size_t N = 0>
@@ -364,6 +436,16 @@ class LittleEndian {
     Store64(static_cast<void*>(p), v);
   }
 
+  // Stores a 64-bit little-endian value into contiguous range 'p', asserting
+  // that 'p' is at least 8 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsWritableByteRange<C>::value>>
+  static void Store64(C&& p, uint64_t v) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(uint64_t));
+    Store64(static_cast<void*>(std::data(p)), v);
+  }
+
   template <typename T = void*, size_t N = 0>
   static void Store64(void* p, uint64_t v) {
     UNALIGNED_STORE64(p, FromHost64(v));
@@ -374,6 +456,17 @@ class LittleEndian {
     static_assert(sizeof(T) * N >= 16,
                   "Not enough space in buffer to load value from");
     return Load128(static_cast<const void*>(p));
+  }
+
+  // Loads a 128-bit little-endian value from contiguous range 'p', asserting
+  // that 'p' is at least 16 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsReadableByteRange<C>::value>>
+  static absl::uint128 Load128(const C& p) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >=
+                          sizeof(absl::uint128));
+    return Load128(static_cast<const void*>(std::data(p)));
   }
 
   template <typename T = void*, size_t N = 0>
@@ -388,6 +481,17 @@ class LittleEndian {
     static_assert(sizeof(T) * N >= 16,
                   "Not enough space in buffer to store value");
     return Store128(static_cast<void*>(p), v);
+  }
+
+  // Stores a 128-bit little-endian value into contiguous range 'p', asserting
+  // that 'p' is at least 16 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsWritableByteRange<C>::value>>
+  static void Store128(C&& p, const absl::uint128 v) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >=
+                          sizeof(absl::uint128));
+    Store128(static_cast<void*>(std::data(p)), v);
   }
 
   template <typename T = void*, size_t N = 0>
@@ -419,6 +523,16 @@ class LittleEndian {
     return LoadUnsignedWord(static_cast<const void*>(p));
   }
 
+  // Loads a word-sized little-endian value from contiguous range 'p', asserting
+  // that 'p' is at least sizeof(uword_t) bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsReadableByteRange<C>::value>>
+  static uword_t LoadUnsignedWord(const C& p) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(uword_t));
+    return LoadUnsignedWord(static_cast<const void*>(std::data(p)));
+  }
+
   template <typename T = const void*, size_t N = 0>
   static uword_t LoadUnsignedWord(const void* p) {
     if constexpr (sizeof(uword_t) == 8)
@@ -429,9 +543,19 @@ class LittleEndian {
 
   template <typename T, size_t N>
   static void StoreUnsignedWord(T (&p)[N], uword_t v) {
-    static_assert(sizeof(T) * N <= sizeof(uword_t),
+    static_assert(sizeof(T) * N >= sizeof(uword_t),
                   "Not enough space in buffer to store value");
     StoreUnsignedWord(static_cast<void*>(p), v);
+  }
+
+  // Stores a word-sized little-endian value into contiguous range 'p',
+  // asserting that 'p' is at least sizeof(uword_t) bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsWritableByteRange<C>::value>>
+  static void StoreUnsignedWord(C&& p, uword_t v) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(uword_t));
+    StoreUnsignedWord(static_cast<void*>(std::data(p)), v);
   }
 
   template <typename T = const void*, size_t N = 0>
@@ -457,12 +581,32 @@ class LittleEndian {
   template <typename T>
   static T Load(const char* p);
 
+  // Loads a little-endian 'T' from contiguous range 'p', asserting that 'p' is
+  // at least sizeof(T) bytes.
+  template <typename T, int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsReadableByteRange<C>::value>>
+  static T Load(const C& p) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(T));
+    return Load<T>(reinterpret_cast<const char*>(std::data(p)));
+  }
+
   // Encodes 'value' in the format corresponding to T. Supported types are
   // described in Load<T>(). 'p' has no alignment restrictions. In-place Store
   // is safe (that is, it is safe to call
   // Store(x, reinterpret_cast<char*>(&x))).
   template <typename T>
   static void Store(T value, char* p);
+
+  // Stores 'value' in little-endian order into contiguous range 'p', asserting
+  // that 'p' is at least sizeof(T) bytes.
+  template <typename T, int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsWritableByteRange<C>::value>>
+  static void Store(T value, C&& p) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(T));
+    Store<T>(value, reinterpret_cast<char*>(std::data(p)));
+  }
 };
 
 // Utilities to convert numbers between the current hosts's native byte
@@ -531,6 +675,16 @@ class BigEndian {
     return Load16(static_cast<const void*>(p));
   }
 
+  // Loads a 16-bit big-endian value from contiguous range 'p', asserting that
+  // 'p' is at least 2 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsReadableByteRange<C>::value>>
+  static uint16_t Load16(const C& p) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(uint16_t));
+    return Load16(static_cast<const void*>(std::data(p)));
+  }
+
   template <typename T = const void*, size_t N = 0>
   static uint16_t Load16(const void* p) {
     return ToHost16(UNALIGNED_LOAD16(p));
@@ -541,6 +695,16 @@ class BigEndian {
     static_assert(sizeof(T) * N >= sizeof(uint16_t),
                   "Not enough space in buffer to store value");
     return Store16(static_cast<void*>(p), v);
+  }
+
+  // Stores a 16-bit big-endian value into contiguous range 'p', asserting that
+  // 'p' is at least 2 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsWritableByteRange<C>::value>>
+  static void Store16(C&& p, uint16_t v) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(uint16_t));
+    Store16(static_cast<void*>(std::data(p)), v);
   }
 
   template <typename T = void*, size_t N = 0>
@@ -555,6 +719,16 @@ class BigEndian {
     return Load24(static_cast<const void*>(p));
   }
 
+  // Loads a 24-bit big-endian value from contiguous range 'p', asserting that
+  // 'p' is at least 3 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsReadableByteRange<C>::value>>
+  static uint32_t Load24(const C& p) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= size_t{3});
+    return Load24(static_cast<const void*>(std::data(p)));
+  }
+
   template <typename T = const void*, size_t N = 0>
   static uint32_t Load24(const void* p) {
     const uint8_t* data = reinterpret_cast<const uint8_t*>(p);
@@ -566,6 +740,16 @@ class BigEndian {
     static_assert(sizeof(T) * N >= 3,
                   "Not enough space in buffer to store value");
     return Store24(static_cast<void*>(p), v);
+  }
+
+  // Stores a 24-bit big-endian value into contiguous range 'p', asserting that
+  // 'p' is at least 3 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsWritableByteRange<C>::value>>
+  static void Store24(C&& p, uint32_t v) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= size_t{3});
+    Store24(static_cast<void*>(std::data(p)), v);
   }
 
   template <typename T = void*, size_t N = 0>
@@ -582,6 +766,16 @@ class BigEndian {
     return ToHost32(UNALIGNED_LOAD32(p));
   }
 
+  // Loads a 32-bit big-endian value from contiguous range 'p', asserting that
+  // 'p' is at least 4 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsReadableByteRange<C>::value>>
+  static uint32_t Load32(const C& p) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(uint32_t));
+    return Load32(static_cast<const void*>(std::data(p)));
+  }
+
   template <typename T = const void*, size_t N = 0>
   static uint32_t Load32(const void* p) {
     return ToHost32(UNALIGNED_LOAD32(p));
@@ -592,6 +786,16 @@ class BigEndian {
     static_assert(sizeof(T) * N >= sizeof(uint32_t),
                   "Not enough space in buffer to store value");
     UNALIGNED_STORE32(x, FromHost32(v));
+  }
+
+  // Stores a 32-bit big-endian value into contiguous range 'p', asserting that
+  // 'p' is at least 4 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsWritableByteRange<C>::value>>
+  static void Store32(C&& p, uint32_t v) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(uint32_t));
+    Store32(static_cast<void*>(std::data(p)), v);
   }
 
   template <typename T = void*, size_t N = 0>
@@ -606,6 +810,17 @@ class BigEndian {
     return Load64(static_cast<const void*>(p));
   }
 
+  // Loads a 64-bit big-endian value from contiguous range 'p', asserting that
+  // 'p' is at least 8 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsReadableByteRange<C>::value>>
+  static uint64_t Load64(const C& p) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(uint64_t));
+    return Load64(static_cast<const void*>(std::data(p)));
+  }
+
+  template <typename T = const void*, size_t N = 0>
   static uint64_t Load64(const void* p) {
     return ToHost64(UNALIGNED_LOAD64(p));
   }
@@ -654,17 +869,67 @@ class BigEndian {
     return Store64(static_cast<void*>(p), v);
   }
 
+  // Stores a 64-bit big-endian value into contiguous range 'p', asserting that
+  // 'p' is at least 8 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsWritableByteRange<C>::value>>
+  static void Store64(C&& p, uint64_t v) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(uint64_t));
+    Store64(static_cast<void*>(std::data(p)), v);
+  }
+
   template <typename T = void*, size_t N = 0>
   static void Store64(void* p, uint64_t v) {
     UNALIGNED_STORE64(p, FromHost64(v));
   }
 
+  // Loads a 128-bit big-endian value from C array 'p' of at least 16 bytes.
+  template <typename T, size_t N>
+  static absl::uint128 Load128(T (&p)[N]) {
+    static_assert(sizeof(T) * N >= 16,
+                  "Not enough space in buffer to load value from");
+    return Load128(static_cast<const void*>(p));
+  }
+
+  // Loads a 128-bit big-endian value from contiguous range 'p', asserting that
+  // 'p' is at least 16 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsReadableByteRange<C>::value>>
+  static absl::uint128 Load128(const C& p) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >=
+                          sizeof(absl::uint128));
+    return Load128(static_cast<const void*>(std::data(p)));
+  }
+
+  template <typename T = const void*, size_t N = 0>
   static absl::uint128 Load128(const void* p) {
     return absl::MakeUint128(
         ToHost64(UNALIGNED_LOAD64(p)),
         ToHost64(UNALIGNED_LOAD64(reinterpret_cast<const uint64_t*>(p) + 1)));
   }
 
+  // Stores a 128-bit big-endian value into C array 'p' of at least 16 bytes.
+  template <typename T, size_t N>
+  static void Store128(T (&p)[N], const absl::uint128 v) {
+    static_assert(sizeof(T) * N >= 16,
+                  "Not enough space in buffer to store value");
+    Store128(static_cast<void*>(p), v);
+  }
+
+  // Stores a 128-bit big-endian value into contiguous range 'p', asserting that
+  // 'p' is at least 16 bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsWritableByteRange<C>::value>>
+  static void Store128(C&& p, const absl::uint128 v) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >=
+                          sizeof(absl::uint128));
+    Store128(static_cast<void*>(std::data(p)), v);
+  }
+
+  template <typename T = void*, size_t N = 0>
   static void Store128(void* p, const absl::uint128 v) {
     UNALIGNED_STORE64(p, FromHost64(absl::Uint128High64(v)));
     UNALIGNED_STORE64(reinterpret_cast<uint64_t*>(p) + 1,
@@ -696,6 +961,16 @@ class BigEndian {
     return LoadUnsignedWord(static_cast<const void*>(p));
   }
 
+  // Loads a word-sized big-endian value from contiguous range 'p', asserting
+  // that 'p' is at least sizeof(uword_t) bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsReadableByteRange<C>::value>>
+  static uword_t LoadUnsignedWord(const C& p) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(uword_t));
+    return LoadUnsignedWord(static_cast<const void*>(std::data(p)));
+  }
+
   template <typename T = const void*, size_t N = 0>
   static uword_t LoadUnsignedWord(const void* p) {
     if constexpr (sizeof(uword_t) == 8)
@@ -709,6 +984,16 @@ class BigEndian {
     static_assert(sizeof(T) * N >= sizeof(uword_t),
                   "Not enough space in buffer to store value");
     return StoreUnsignedWord(static_cast<void*>(p), v);
+  }
+
+  // Stores a word-sized big-endian value into contiguous range 'p', asserting
+  // that 'p' is at least sizeof(uword_t) bytes.
+  template <int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsWritableByteRange<C>::value>>
+  static void StoreUnsignedWord(C&& p, uword_t v) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(uword_t));
+    StoreUnsignedWord(static_cast<void*>(std::data(p)), v);
   }
 
   template <typename T = const void*, size_t N = 0>
@@ -734,12 +1019,32 @@ class BigEndian {
   template <typename T>
   static T Load(const char* p);
 
+  // Loads a big-endian 'T' from contiguous range 'p', asserting that 'p' is at
+  // least sizeof(T) bytes.
+  template <typename T, int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsReadableByteRange<C>::value>>
+  static T Load(const C& p) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(T));
+    return Load<T>(reinterpret_cast<const char*>(std::data(p)));
+  }
+
   // Encodes 'value' in the format corresponding to T. Supported types are
   // described in Load<T>(). 'p' has no alignment restrictions. In-place Store
   // is safe (that is, it is safe to call
   // Store(x, reinterpret_cast<char*>(&x))).
   template <typename T>
   static void Store(T value, char* p);
+
+  // Stores 'value' in big-endian order into contiguous range 'p', asserting
+  // that 'p' is at least sizeof(T) bytes.
+  template <typename T, int&... ExplicitArgumentBarrier, typename C,
+            typename = std::enable_if_t<
+                endian_internal::IsWritableByteRange<C>::value>>
+  static void Store(T value, C&& p) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(p) >= sizeof(T));
+    Store<T>(value, reinterpret_cast<char*>(std::data(p)));
+  }
 };  // BigEndian
 
 // Network byte order is big-endian
@@ -774,6 +1079,7 @@ FROMHOST_TYPE_MAP(uint32_t, float);
 FROMHOST_TYPE_MAP(uint64_t, double);
 FROMHOST_TYPE_MAP(uint8_t, bool);
 FROMHOST_TYPE_MAP(absl::uint128, absl::uint128);
+FROMHOST_TYPE_MAP(absl::uint128, absl::int128);
 #undef FROMHOST_TYPE_MAP
 
 // Default implementation for the unified FromHost(ValueType) API, which

@@ -26,12 +26,37 @@ package(
 )
 
 cc_library(
+    name = "byte_range_traits",
+    hdrs = [
+        "byte_range_traits.h",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/algorithm:container",
+    ],
+)
+
+cc_test(
+    name = "byte_range_traits_test",
+    srcs = ["byte_range_traits_test.cc"],
+    deps = [
+        ":byte_range_traits",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "endian",
     hdrs = [
         "endian.h",
         "endian-fp.h",
     ],
     deps = [
+        ":byte_range_traits",
         "//gloop:enforce_gloop_support",
         "//gloop/base:port",
         "//gloop/base:uword",
@@ -53,11 +78,14 @@ cc_test(
         "//gloop/base:port",
         "//gloop/base:uword",
         "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random:distributions",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
@@ -69,7 +97,11 @@ cc_test(
     deps = [
         ":endian",
         "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

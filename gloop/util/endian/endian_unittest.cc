@@ -23,20 +23,27 @@
 #include <stdio.h>
 
 #include <algorithm>
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <ios>
 #include <limits>
 #include <random>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "absl/base/casts.h"
+#include "absl/base/macros.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/numeric/int128.h"
 #include "absl/random/distributions.h"
 #include "absl/random/random.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/port.h"
 #include "gloop/base/uword.h"
@@ -1090,3 +1097,215 @@ TEST(BigEndianTest, GhtonlGntohlRoundtrip) {
   uint32_t test = 0x01234567;
   EXPECT_EQ(gntohl(ghtonl(test)), test);
 }
+
+namespace {
+
+bool IsHardened() {
+  bool hardened = false;
+  ABSL_HARDENING_ASSERT([&hardened]() {
+    hardened = true;
+    return true;
+  }());
+  return hardened;
+}
+
+using EndianTypes = ::testing::Types<LittleEndian, BigEndian>;
+
+template <typename T>
+class EndianSpanOverloads : public ::testing::Test {};
+TYPED_TEST_SUITE(EndianSpanOverloads, EndianTypes);
+
+TYPED_TEST(EndianSpanOverloads, LoadAndStore16) {
+  std::vector<uint8_t> buf(32, 0);
+  TypeParam::Store16(absl::MakeSpan(buf).subspan(2, 2), k16Value);
+  EXPECT_EQ(TypeParam::Load16(absl::MakeConstSpan(buf).subspan(2, 2)),
+            k16Value);
+  EXPECT_EQ(TypeParam::Load16(
+                absl::string_view(reinterpret_cast<const char*>(buf.data()),
+                                  buf.size())
+                    .substr(2, 2)),
+            k16Value);
+}
+
+TYPED_TEST(EndianSpanOverloads, LoadAndStore24) {
+  std::vector<uint8_t> buf(32, 0);
+  TypeParam::Store24(absl::MakeSpan(buf).subspan(5, 3), 0x123456);
+  EXPECT_EQ(TypeParam::Load24(absl::MakeConstSpan(buf).subspan(5, 3)),
+            0x123456u);
+  EXPECT_EQ(TypeParam::Load24(
+                absl::string_view(reinterpret_cast<const char*>(buf.data()),
+                                  buf.size())
+                    .substr(5, 3)),
+            0x123456u);
+}
+
+TYPED_TEST(EndianSpanOverloads, LoadAndStore32) {
+  std::vector<uint8_t> buf(32, 0);
+  TypeParam::Store32(absl::MakeSpan(buf).subspan(9, 4), k32Value);
+  EXPECT_EQ(TypeParam::Load32(absl::MakeConstSpan(buf).subspan(9, 4)),
+            k32Value);
+  EXPECT_EQ(TypeParam::Load32(
+                absl::string_view(reinterpret_cast<const char*>(buf.data()),
+                                  buf.size())
+                    .substr(9, 4)),
+            k32Value);
+}
+
+TYPED_TEST(EndianSpanOverloads, LoadAndStore64) {
+  std::vector<uint8_t> buf(32, 0);
+  TypeParam::Store64(absl::MakeSpan(buf).subspan(14, 8), k64Value);
+  EXPECT_EQ(TypeParam::Load64(absl::MakeConstSpan(buf).subspan(14, 8)),
+            k64Value);
+  EXPECT_EQ(TypeParam::Load64(
+                absl::string_view(reinterpret_cast<const char*>(buf.data()),
+                                  buf.size())
+                    .substr(14, 8)),
+            k64Value);
+}
+
+TYPED_TEST(EndianSpanOverloads, LoadAndStore128) {
+  std::vector<uint8_t> buf(32, 0);
+  TypeParam::Store128(absl::MakeSpan(buf).subspan(3, 16), k128Value);
+  EXPECT_EQ(TypeParam::Load128(absl::MakeConstSpan(buf).subspan(3, 16)),
+            k128Value);
+  EXPECT_EQ(TypeParam::Load128(
+                absl::string_view(reinterpret_cast<const char*>(buf.data()),
+                                  buf.size())
+                    .substr(3, 16)),
+            k128Value);
+}
+
+TYPED_TEST(EndianSpanOverloads, LoadAndStoreUnsignedWord) {
+  std::vector<uint8_t> buf(32, 0);
+  const uword_t word_val = static_cast<uword_t>(k64Value);
+  TypeParam::StoreUnsignedWord(absl::MakeSpan(buf).subspan(1, sizeof(uword_t)),
+                               word_val);
+  EXPECT_EQ(TypeParam::LoadUnsignedWord(
+                absl::MakeConstSpan(buf).subspan(1, sizeof(uword_t))),
+            word_val);
+}
+
+TYPED_TEST(EndianSpanOverloads, LoadAndStoreUnsignedWordCArray) {
+  const uword_t word_val = static_cast<uword_t>(k64Value);
+  uint8_t c_arr_word[sizeof(uword_t) * 2] = {};
+  TypeParam::StoreUnsignedWord(c_arr_word, word_val);
+  EXPECT_EQ(TypeParam::LoadUnsignedWord(c_arr_word), word_val);
+}
+
+TYPED_TEST(EndianSpanOverloads, LoadAndStore128CArray) {
+  uint8_t c_arr_128[16] = {};
+  TypeParam::Store128(c_arr_128, k128Value);
+  EXPECT_EQ(TypeParam::Load128(c_arr_128), k128Value);
+}
+
+TYPED_TEST(EndianSpanOverloads, GenericLoadAndStoreUint32) {
+  std::string str_buf(16, '\0');
+  TypeParam::Store(k32Value, str_buf);
+  EXPECT_EQ(TypeParam::template Load<uint32_t>(str_buf), k32Value);
+  EXPECT_EQ(TypeParam::template Load<uint32_t>(absl::string_view(str_buf)),
+            k32Value);
+}
+
+TYPED_TEST(EndianSpanOverloads, GenericLoadAndStoreDouble) {
+  std::string str_buf(16, '\0');
+  TypeParam::Store(kDoubleValue, absl::MakeSpan(str_buf).subspan(4, 8));
+  EXPECT_EQ(
+      TypeParam::template Load<double>(absl::string_view(str_buf).substr(4, 8)),
+      kDoubleValue);
+}
+
+TYPED_TEST(EndianSpanOverloads, GenericLoadAndStoreFloat) {
+  std::vector<uint8_t> buf(32, 0);
+  TypeParam::Store(kFloatValue, absl::MakeSpan(buf).subspan(4, 4));
+  EXPECT_EQ(
+      TypeParam::template Load<float>(absl::MakeConstSpan(buf).subspan(4, 4)),
+      kFloatValue);
+}
+
+TYPED_TEST(EndianSpanOverloads, GenericLoadAndStoreBool) {
+  std::vector<uint8_t> buf(32, 0);
+  TypeParam::Store(true, absl::MakeSpan(buf).subspan(0, 1));
+  EXPECT_TRUE(
+      TypeParam::template Load<bool>(absl::MakeConstSpan(buf).subspan(0, 1)));
+  TypeParam::Store(false, absl::MakeSpan(buf).subspan(0, 1));
+  EXPECT_FALSE(
+      TypeParam::template Load<bool>(absl::MakeConstSpan(buf).subspan(0, 1)));
+}
+
+TYPED_TEST(EndianSpanOverloads, GenericLoadAndStoreUint128) {
+  std::vector<uint8_t> buf(32, 0);
+  TypeParam::Store(k128Value, absl::MakeSpan(buf).subspan(0, 16));
+  EXPECT_EQ(TypeParam::template Load<absl::uint128>(
+                absl::MakeConstSpan(buf).subspan(0, 16)),
+            k128Value);
+}
+
+TYPED_TEST(EndianSpanOverloads, LoadAndStoreMultiByteElementContainer) {
+  std::array<uint32_t, 2> u32_arr = {0, 0};
+  TypeParam::Store64(u32_arr, k64Value);
+  EXPECT_EQ(TypeParam::Load64(u32_arr), k64Value);
+}
+
+TYPED_TEST(EndianSpanOverloads, LoadAndStoreContainersAndSpans) {
+  std::vector<uint8_t> vec(4, 0);
+  TypeParam::Store32(vec, k32Value);
+  const std::vector<uint8_t>& const_vec = vec;
+  EXPECT_EQ(TypeParam::Load32(const_vec), k32Value);
+  EXPECT_EQ(TypeParam::Load32(std::vector<uint8_t>(vec)), k32Value);
+
+  absl::Span<uint8_t> span = absl::MakeSpan(vec);
+  TypeParam::Store32(span, k32Value);
+  EXPECT_EQ(TypeParam::Load32(span), k32Value);
+
+  std::array<uint8_t, 4> arr = {};
+  TypeParam::Store32(arr, k32Value);
+  EXPECT_EQ(TypeParam::Load32(arr), k32Value);
+}
+
+template <typename T>
+class EndianDeathTest : public ::testing::Test {};
+TYPED_TEST_SUITE(EndianDeathTest, EndianTypes);
+
+TYPED_TEST(EndianDeathTest, OutOfBoundsAbortsWhenHardened) {
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    std::vector<uint8_t> buf(32, 0);
+    const auto sub = [&](size_t n) {
+      return absl::MakeConstSpan(buf).subspan(0, n);
+    };
+    const auto msub = [&](size_t n) {
+      return absl::MakeSpan(buf).subspan(0, n);
+    };
+
+    EXPECT_DEATH(TypeParam::Load16(sub(1)), "");
+    EXPECT_DEATH(TypeParam::Store16(msub(1), 0), "");
+
+    EXPECT_DEATH(TypeParam::Load24(sub(2)), "");
+    EXPECT_DEATH(TypeParam::Store24(msub(2), 0), "");
+
+    EXPECT_DEATH(TypeParam::Load32(sub(3)), "");
+    EXPECT_DEATH(TypeParam::Store32(msub(3), 0), "");
+
+    EXPECT_DEATH(TypeParam::Load64(sub(7)), "");
+    EXPECT_DEATH(TypeParam::Store64(msub(7), 0), "");
+
+    EXPECT_DEATH(TypeParam::Load128(sub(15)), "");
+    EXPECT_DEATH(TypeParam::Store128(msub(15), 0), "");
+
+    EXPECT_DEATH(TypeParam::LoadUnsignedWord(sub(sizeof(uword_t) - 1)), "");
+    EXPECT_DEATH(TypeParam::StoreUnsignedWord(msub(sizeof(uword_t) - 1), 0),
+                 "");
+
+    EXPECT_DEATH(TypeParam::template Load<uint32_t>(sub(3)), "");
+    EXPECT_DEATH(TypeParam::template Store<uint32_t>(0, msub(3)), "");
+    EXPECT_DEATH(TypeParam::template Load<bool>(sub(0)), "");
+    EXPECT_DEATH(TypeParam::template Store<bool>(true, msub(0)), "");
+  } else {
+    GTEST_SKIP() << "hardening is disabled";
+  }
+#else
+  GTEST_SKIP() << "death tests are not supported";
+#endif
+}
+
+}  // namespace
