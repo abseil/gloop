@@ -20,204 +20,170 @@
 
 #include "gloop/strings/numberformat.h"
 
-#include <features.h>
-#include <stdio.h>
-#include <sys/types.h>
-
 #include <cstdint>
 #include <limits>
-#include <string>
 
-#include "absl/log/check.h"
-#include "absl/strings/string_view.h"
 #include "gtest/gtest.h"
 
 namespace strings {
+namespace {
 
-static bool CheckBinaryEng(int64_t val, double thresh,
-                           absl::string_view expect) {
-  std::string got = strings::BinaryEng(val, thresh, 1);
-  CHECK_EQ(got, expect);
-  return true;
-}
-
-static bool CheckDecimalEng(int64_t val, double thresh,
-                            absl::string_view expect) {
-  std::string got = strings::DecimalEng(val, thresh, 1);
-  CHECK_EQ(got, expect);
-  return true;
-}
-
-static bool CheckDecimalEng(int64_t val, double thresh, uint precision,
-                            absl::string_view expect) {
-  std::string got = strings::DecimalEng(val, thresh, precision);
-  CHECK_EQ(got, expect);
-  return true;
-}
-
-static const int kDefaultVal = 123;
-
-static void CheckParseInt64(int64_t val, const char* str) {
-  const int64_t kZero = kDefaultVal;
-  const int64_t get = strings::ParseSuffixedInt64(str, kZero);
-  CHECK(val == get) << " exp=" << val << " got=" << get << " on=(" << str
-                    << ")";
-}
-
-static void CheckParseDouble(double val, const char* str) {
-  const double kZero = kDefaultVal;
-  const double get = strings::ParseSuffixedDouble(str, kZero);
-  CHECK(val == get) << " exp=" << val << " got=" << get << " on=(" << str
-                    << ")";
-}
-
-static void CheckParseDecimalInt64(int64_t val, const char* str) {
-  const int64_t kZero = kDefaultVal;
-  const int64_t get = strings::ParseDecimalSuffixedInt64(str, kZero);
-  CHECK(val == get) << " exp=" << val << " got=" << get << " on=(" << str
-                    << ")";
-}
-
-static void CheckParseDecimalDouble(double val, const char* str) {
-  const double kZero = kDefaultVal;
-  const double get = strings::ParseDecimalSuffixedDouble(str, kZero);
-  CHECK(val == get) << " exp=" << val << " got=" << get << " on=(" << str
-                    << ")";
-}
+constexpr int kDefaultVal = 123;
 
 TEST(NumberFormatTest, AllTests) {
-  const int64_t k87M = 87654321;
-  CheckBinaryEng(k87M, 10, "83.6M");
-  CheckBinaryEng(k87M, 1, "83.6M");
-  CheckDecimalEng(k87M, 10, "87.7M");
-  CheckDecimalEng(k87M, 1, "87.7M");
-  CheckDecimalEng(k87M, 10, 0, "88M");
-  CheckDecimalEng(k87M, 10, 1, "87.7M");
-  CheckDecimalEng(k87M, 10, 2, "87.65M");
-  CheckDecimalEng(k87M, 10, 4, "87.6543M");
-  CheckDecimalEng(k87M, 10, 6, "87.654321M");
+  constexpr int64_t k87M = 87654321;
+  EXPECT_EQ(BinaryEng(k87M, 10, 1), "83.6M");
+  EXPECT_EQ(BinaryEng(k87M, 1, 1), "83.6M");
+  EXPECT_EQ(DecimalEng(k87M, 10, 1), "87.7M");
+  EXPECT_EQ(DecimalEng(k87M, 1, 1), "87.7M");
+  EXPECT_EQ(DecimalEng(k87M, 10, 0), "88M");
+  EXPECT_EQ(DecimalEng(k87M, 10, 1), "87.7M");
+  EXPECT_EQ(DecimalEng(k87M, 10, 2), "87.65M");
+  EXPECT_EQ(DecimalEng(k87M, 10, 4), "87.6543M");
+  EXPECT_EQ(DecimalEng(k87M, 10, 6), "87.654321M");
 
   // Fails due to precision.  get =    87.654320999999996M
-  // CheckDecimalEng(k87M, 10, 15, "87.654321000000000M");
+  // EXPECT_EQ(DecimalEng(k87M, 10, 15), "87.654321000000000M");
 
   // This works
-  CheckDecimalEng(k87M, 10, 14, "87.65432100000000M");
+  EXPECT_EQ(DecimalEng(k87M, 10, 14), "87.65432100000000M");
 
   // Check negative numbers
-  CheckBinaryEng(-k87M, 10, "-83.6M");
-  CheckBinaryEng(-k87M, 1, "-83.6M");
-  CheckDecimalEng(-k87M, 10, "-87.7M");
-  CheckDecimalEng(-k87M, 1, "-87.7M");
+  EXPECT_EQ(BinaryEng(-k87M, 10, 1), "-83.6M");
+  EXPECT_EQ(BinaryEng(-k87M, 1, 1), "-83.6M");
+  EXPECT_EQ(DecimalEng(-k87M, 10, 1), "-87.7M");
+  EXPECT_EQ(DecimalEng(-k87M, 1, 1), "-87.7M");
 
-  const int64_t k7M = 7654321;
-  CheckBinaryEng(k7M, 10, "7474.9K");
-  CheckBinaryEng(k7M, 1, "7.3M");
-  CheckBinaryEng(k7M, 0, "7.3M");
-  CheckDecimalEng(k7M, 10, "7654.3K");
-  CheckDecimalEng(k7M, 1, "7.7M");
-  CheckDecimalEng(k7M, 0, "7.7M");
+  constexpr int64_t k7M = 7654321;
+  EXPECT_EQ(BinaryEng(k7M, 10, 1), "7474.9K");
+  EXPECT_EQ(BinaryEng(k7M, 1, 1), "7.3M");
+  EXPECT_EQ(BinaryEng(k7M, 0, 1), "7.3M");
+  EXPECT_EQ(DecimalEng(k7M, 10, 1), "7654.3K");
+  EXPECT_EQ(DecimalEng(k7M, 1, 1), "7.7M");
+  EXPECT_EQ(DecimalEng(k7M, 0, 1), "7.7M");
 
   // Test floating point thresh
-  const int64_t k500K = 500000;
-  CheckDecimalEng(k500K, 0, "0.5M");
-  CheckDecimalEng(k500K, 0.1, "0.5M");
-  CheckDecimalEng(k500K, 0.6, "500K");
+  constexpr int64_t k500K = 500000;
+  EXPECT_EQ(DecimalEng(k500K, 0, 1), "0.5M");
+  EXPECT_EQ(DecimalEng(k500K, 0.1, 1), "0.5M");
+  EXPECT_EQ(DecimalEng(k500K, 0.6, 1), "500K");
   // Don't want to start printing in Tera unless we specify a high precision
-  CheckDecimalEng(k500K, 0.0000001, 2, "0.50M");
-  CheckDecimalEng(k500K, 0.0000001, 7, "0.0000005T");
+  EXPECT_EQ(DecimalEng(k500K, 0.0000001, 2), "0.50M");
+  EXPECT_EQ(DecimalEng(k500K, 0.0000001, 7), "0.0000005T");
 
   // Test that large precision doesn't explode.
-  CheckDecimalEng(550000, 1, 12, "550K");
-  CheckDecimalEng(550000, 1, 37, "550K");
+  EXPECT_EQ(DecimalEng(550000, 1, 12), "550K");
+  EXPECT_EQ(DecimalEng(550000, 1, 37), "550K");
 
-  const int64_t kM = 1LL << 20;
-  CheckBinaryEng(kM, 10, "1M");
-  CheckBinaryEng(kM, 1, "1M");
-  CheckBinaryEng(kM, 0, "1M");
+  constexpr int64_t kM = 1LL << 20;
+  EXPECT_EQ(BinaryEng(kM, 10, 1), "1M");
+  EXPECT_EQ(BinaryEng(kM, 1, 1), "1M");
+  EXPECT_EQ(BinaryEng(kM, 0, 1), "1M");
 
-  const int64_t kMillion = 1000 * 1000;
-  CheckDecimalEng(kMillion, 10, "1M");
-  CheckDecimalEng(kMillion, 1, "1M");
-  CheckDecimalEng(kMillion, 0, "1M");
+  constexpr int64_t kMillion = 1000 * 1000;
+  EXPECT_EQ(DecimalEng(kMillion, 10, 1), "1M");
+  EXPECT_EQ(DecimalEng(kMillion, 1, 1), "1M");
+  EXPECT_EQ(DecimalEng(kMillion, 0, 1), "1M");
 
-  const int64_t kOne = 1;
-  CheckBinaryEng(kOne, 1, "1");
-  CheckBinaryEng(kOne, 10, "1");
+  constexpr int64_t kOne = 1;
+  EXPECT_EQ(BinaryEng(kOne, 1, 1), "1");
+  EXPECT_EQ(BinaryEng(kOne, 10, 1), "1");
 
-  const int64_t kZero = 0;
-  CheckDecimalEng(kZero, 0.1, "0");
-  CheckDecimalEng(kZero, 5, "0");
+  constexpr int64_t kZero = 0;
+  EXPECT_EQ(DecimalEng(kZero, 0.1, 1), "0");
+  EXPECT_EQ(DecimalEng(kZero, 5, 1), "0");
 
   // Check the example in numberformat.h:
-  CHECK_EQ(strings::DecimalEng(12345), "12.35K");
+  EXPECT_EQ(DecimalEng(12345), "12.35K");
   // which is different from the check precision for these tests:
-  CheckDecimalEng(12345, 1, "12.3K");
+  EXPECT_EQ(DecimalEng(12345, 1, 1), "12.3K");
+  EXPECT_EQ(BinaryEng(12345), "12.06K");
 
-  const int64_t kRoundDown = static_cast<int64_t>(kM * 4.449);
-  const int64_t kRoundUp = static_cast<int64_t>(kM * 4.49);
-  CheckBinaryEng(kRoundDown, 4, "4.4M");
-  CheckBinaryEng(kRoundUp, 4, "4.5M");
+  constexpr int64_t kRoundDown = static_cast<int64_t>(kM * 4.449);
+  constexpr int64_t kRoundUp = static_cast<int64_t>(kM * 4.49);
+  EXPECT_EQ(BinaryEng(kRoundDown, 4, 1), "4.4M");
+  EXPECT_EQ(BinaryEng(kRoundUp, 4, 1), "4.5M");
 
-  const int64_t k8p4M = static_cast<int64_t>(kM * 8.4);
-  CheckParseInt64(k8p4M, "8.4M");
-  CheckParseInt64(k8p4M, "8.4m");
+  constexpr int64_t k8p4M = static_cast<int64_t>(kM * 8.4);
+  EXPECT_EQ(ParseSuffixedInt64("8.4M", kDefaultVal), k8p4M);
+  EXPECT_EQ(ParseSuffixedInt64("8.4m", kDefaultVal), k8p4M);
 
-  const double k8p4Mf = kM * 8.4;
-  CheckParseDouble(k8p4Mf, "8.4M");
-  CheckParseDouble(k8p4Mf, "8.4m");
+  constexpr double k8p4Mf = kM * 8.4;
+  EXPECT_DOUBLE_EQ(ParseSuffixedDouble("8.4M", kDefaultVal), k8p4Mf);
+  EXPECT_DOUBLE_EQ(ParseSuffixedDouble("8.4m", kDefaultVal), k8p4Mf);
 
-  CheckParseInt64(kM, "1024k");
-  CheckParseInt64(kM, "1M");
-  CheckParseInt64(kM, "1m");
+  EXPECT_EQ(ParseSuffixedInt64("1024k", kDefaultVal), kM);
+  EXPECT_EQ(ParseSuffixedInt64("1M", kDefaultVal), kM);
+  EXPECT_EQ(ParseSuffixedInt64("1m", kDefaultVal), kM);
+  EXPECT_EQ(ParseSuffixedInt64("2G", kDefaultVal), 2LL << 30);
+  EXPECT_EQ(ParseSuffixedInt64("3T", kDefaultVal), 3LL << 40);
+  EXPECT_EQ(ParseSuffixedInt64("4P", kDefaultVal), 4LL << 50);
+  EXPECT_EQ(ParseDecimalSuffixedInt64("2G", kDefaultVal), 2'000'000'000LL);
+  EXPECT_EQ(ParseDecimalSuffixedInt64("3T", kDefaultVal), 3'000'000'000'000LL);
+  EXPECT_EQ(ParseDecimalSuffixedInt64("4P", kDefaultVal),
+            4'000'000'000'000'000LL);
 
-  const int kIntHalfM = 1 << 19;
-  CheckParseInt64(kIntHalfM, "0.5M");
-  CheckParseInt64(kIntHalfM, "512k");
-  CheckParseDecimalInt64(500000, "0.5M");
-  CheckParseDecimalInt64(512000, "512k");
+  constexpr int kIntHalfM = 1 << 19;
+  EXPECT_EQ(ParseSuffixedInt64("0.5M", kDefaultVal), kIntHalfM);
+  EXPECT_EQ(ParseSuffixedInt64("512k", kDefaultVal), kIntHalfM);
+  EXPECT_EQ(ParseDecimalSuffixedInt64("0.5M", kDefaultVal), 500000);
+  EXPECT_EQ(ParseDecimalSuffixedInt64("512k", kDefaultVal), 512000);
 
-  const double kDoubleHalfM = 1.0 * (1 << 19);
-  CheckParseDouble(kDoubleHalfM, "0.5M");
-  CheckParseDouble(kDoubleHalfM, "512k");
-  CheckParseDecimalDouble(500000.0, "0.5M");
-  CheckParseDecimalDouble(512000.0, "512k");
+  constexpr double kDoubleHalfM = 1.0 * (1 << 19);
+  EXPECT_DOUBLE_EQ(ParseSuffixedDouble("0.5M", kDefaultVal), kDoubleHalfM);
+  EXPECT_DOUBLE_EQ(ParseSuffixedDouble("512k", kDefaultVal), kDoubleHalfM);
+  EXPECT_DOUBLE_EQ(ParseDecimalSuffixedDouble("0.5M", kDefaultVal), 500000.0);
+  EXPECT_DOUBLE_EQ(ParseDecimalSuffixedDouble("512k", kDefaultVal), 512000.0);
 
   // error cases, should get default value of 123
-  CheckParseInt64(512, "512a");
-  CheckParseInt64(kDefaultVal, "");
-  CheckParseInt64(kDefaultVal, "WhatThe?");
+  EXPECT_EQ(ParseSuffixedInt64("512a", kDefaultVal), 512);
+  EXPECT_EQ(ParseSuffixedInt64("", kDefaultVal), kDefaultVal);
+  EXPECT_EQ(ParseSuffixedInt64("WhatThe?", kDefaultVal), kDefaultVal);
 
   // C99 allows hex floating point constants.
-  CheckParseInt64(1, "0x1.0");
+  EXPECT_EQ(ParseSuffixedInt64("0x1.0", kDefaultVal), 1);
 
   // 1ULL<<63, when stored in an int64, is negative, so special handling is
   // needed for that value. Make sure that this special handling is
   // correct.
-  CheckBinaryEng(static_cast<int64_t>(uint64_t{1} << 63), 1, "-8E");
+  EXPECT_EQ(BinaryEng(static_cast<int64_t>(uint64_t{1} << 63), 1, 1), "-8E");
 
   // Check minimum/maximum values that don't overflow.
-  CheckParseInt64(std::numeric_limits<int64_t>::min(),
-                  "-9223372036854775808");  // -2^63
-  CheckParseInt64(std::numeric_limits<int64_t>::max() - 1023,
-                  "9223372036854775295");  // 2^63-513
-  CheckParseInt64(std::numeric_limits<int64_t>::max() - 1023,
-                  "9223372036854774784");  // 2^63-1024
+  EXPECT_EQ(ParseSuffixedInt64("-9223372036854775808", kDefaultVal),
+            std::numeric_limits<int64_t>::min());  // -2^63
+  EXPECT_EQ(ParseSuffixedInt64("9223372036854775295", kDefaultVal),
+            std::numeric_limits<int64_t>::max() - 1023);  // 2^63-513
+  EXPECT_EQ(ParseSuffixedInt64("9223372036854774784", kDefaultVal),
+            std::numeric_limits<int64_t>::max() - 1023);  // 2^63-1024
 
   // Test overflow/underflow for ParseSuffixedInt64
-  CheckParseInt64(std::numeric_limits<int64_t>::max(),
-                  "9223372036854775808");        // 2^63, overflows by 1
-  CheckParseInt64(kDefaultVal, "10000000000G");  // overflows
-  CheckParseInt64(std::numeric_limits<int64_t>::min(),
-                  "-9223372036854775809");        // -2^63 - 1, underflows
-  CheckParseInt64(kDefaultVal, "-10000000000G");  // underflows
+  EXPECT_EQ(ParseSuffixedInt64("9223372036854775808", kDefaultVal),
+            std::numeric_limits<int64_t>::max());  // 2^63, overflows by 1
+  EXPECT_EQ(ParseSuffixedInt64("10000000000G", kDefaultVal),
+            kDefaultVal);  // overflows
+  EXPECT_EQ(ParseSuffixedInt64("-9223372036854775809", kDefaultVal),
+            std::numeric_limits<int64_t>::min());  // -2^63 - 1, underflows
+  EXPECT_EQ(ParseSuffixedInt64("-10000000000G", kDefaultVal),
+            kDefaultVal);  // underflows
 
   // Test overflow/underflow for ParseDecimalSuffixedInt64
-  CheckParseDecimalInt64(std::numeric_limits<int64_t>::max(),
-                         "9223372036854775808");        // overflows
-  CheckParseDecimalInt64(kDefaultVal, "10000000000G");  // overflows
-  CheckParseDecimalInt64(std::numeric_limits<int64_t>::min(),
-                         "-9223372036854775809");        // underflows
-  CheckParseDecimalInt64(kDefaultVal, "-10000000000G");  // underflows
+  EXPECT_EQ(ParseDecimalSuffixedInt64("9223372036854775808", kDefaultVal),
+            std::numeric_limits<int64_t>::max());  // overflows
+  EXPECT_EQ(ParseDecimalSuffixedInt64("10000000000G", kDefaultVal),
+            kDefaultVal);  // overflows
+  EXPECT_EQ(ParseDecimalSuffixedInt64("-9223372036854775809", kDefaultVal),
+            std::numeric_limits<int64_t>::min());  // underflows
+  EXPECT_EQ(ParseDecimalSuffixedInt64("-10000000000G", kDefaultVal),
+            kDefaultVal);  // underflows
 }
 
+TEST(NumberFormatTest, CustomUnitConvert) {
+  constexpr int64_t kTimeUnits[] = {365 * 24 * 3600, 24 * 3600, 3600, 60, 1};
+  const char* kTimeSuff[] = {"yr", "day", "hr", "min", ""};
+  EXPECT_EQ(UnitConvert(0, kTimeUnits, 0, kTimeSuff, 5, 1, 1), "0");
+  EXPECT_EQ(UnitConvert(90, kTimeUnits, 0, kTimeSuff, 5, 1, 1), "1.5min");
+  EXPECT_EQ(UnitConvert(7200, kTimeUnits, 0, kTimeSuff, 5, 1, 1), "2hr");
+}
+
+}  // namespace
 }  // namespace strings
