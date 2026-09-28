@@ -31,6 +31,7 @@
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/strings/ascii.h"
+#include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/init_google.h"
 #include "gloop/base/log_file_flags.h"

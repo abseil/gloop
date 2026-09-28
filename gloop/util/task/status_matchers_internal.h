@@ -24,6 +24,7 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_TASK_STATUS_MATCHERS_INTERNAL_H_
 #define THIRD_PARTY_GLOOP_UTIL_TASK_STATUS_MATCHERS_INTERNAL_H_
 
+#include <cstddef>
 #include <ostream>  // NOLINT
 #include <string>
 #include <string_view>

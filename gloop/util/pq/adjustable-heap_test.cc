@@ -20,8 +20,6 @@
 
 #include "gloop/util/pq/adjustable-heap.h"
 
-#include <stddef.h>
-
 #include <cstddef>
 #include <cstdint>
 #include <map>

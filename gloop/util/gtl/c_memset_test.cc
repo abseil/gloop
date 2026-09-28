@@ -21,6 +21,7 @@
 #include "gloop/util/gtl/c_memset.h"
 
 #include <array>
+#include <cstddef>
 #include <string>
 #include <type_traits>
 #include <utility>

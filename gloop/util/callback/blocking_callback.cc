@@ -26,6 +26,7 @@
 #include "absl/log/check.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
+#include "gloop/util/functional/from_callback.h"
 
 BlockingClosure::BlockingClosure(::util::functional::CallbackFunctor<> closure)
     : closure_(closure),
