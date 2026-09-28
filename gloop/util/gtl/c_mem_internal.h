@@ -53,6 +53,35 @@ inline constexpr bool kCanUseCFill =
     kIsTrivialDestRange<C> && sizeof(element_type_t<C>) == 1 &&
     std::is_trivially_copy_assignable_v<element_type_t<C>>;
 
+// True iff absl::c_copy(src, dest) / absl::c_copy_n(src, n, dest) would select
+// their range-to-range overloads, as opposed to range-to-iterator overloads
+template <typename S, typename D, typename = void>
+struct IsRangeToRangeTransfer : std::false_type {};
+
+template <typename S, typename D>
+struct IsRangeToRangeTransfer<
+    S, D,
+    absl::container_algorithm_internal::ResultOfRangeToRangeTransfer<S, D>>
+    : std::true_type {};
+
+// absl::c_copy() can stand in for memcpy when the element types match and can
+// be assigned (a trivial type may still delete its copy assignment).
+// absl::c_copy() does not constrain on the source having begin()/end(), so
+// check it here to avoid a hard error for data()/size()-only sources.
+template <typename D, typename S>
+inline constexpr bool kCanUseCCopy =
+    IsRangeToRangeTransfer<S, D>::value &&
+    absl::container_algorithm_internal::HasBeginEnd<const S&>::value &&
+    std::is_trivial_v<element_type_t<D>> &&
+    std::is_trivially_copy_assignable_v<element_type_t<D>> &&
+    std::is_same_v<element_type_t<D>, std::remove_cv_t<element_type_t<S>>>;
+
+// absl::c_copy_n() counts elements, so `num_bytes` is an element count only
+// for 1-byte elements.
+template <typename D, typename S>
+inline constexpr bool kCanUseCCopyN =
+    kCanUseCCopy<D, S> && sizeof(element_type_t<D>) == 1;
+
 // Returns the total size in bytes of the elements in `c`.
 template <typename C>
 constexpr size_t byte_size(const C& c) {

@@ -1287,6 +1287,34 @@ cc_test(
     deps = [
         ":c_mem_internal",
         "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "c_memcpy",
+    hdrs = ["c_memcpy.h"],
+    deps = [
+        ":c_mem_internal",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/base:core_headers",
+    ],
+)
+
+cc_test(
+    name = "c_memcpy_test",
+    size = "small",
+    srcs = ["c_memcpy_test.cc"],
+    deps = [
+        ":c_mem_internal",
+        ":c_memcpy",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

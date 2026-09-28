@@ -21,10 +21,12 @@
 #include "gloop/util/gtl/c_mem_internal.h"
 
 #include <array>
+#include <cstdint>
 #include <string>
 #include <type_traits>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "gtest/gtest.h"
 
@@ -39,6 +41,13 @@ struct NonAssignableByte {
   const char x;
 };
 static_assert(std::is_trivial_v<NonAssignableByte>);
+
+// Trivial (and trivially copyable), but std::copy cannot assign it.
+struct NonAssignable {
+  int x;
+  NonAssignable& operator=(const NonAssignable&) = delete;
+};
+static_assert(std::is_trivial_v<NonAssignable>);
 
 TEST(CMemInternal, ElementTypeT) {
   static_assert(std::is_same_v<element_type_t<std::vector<int>>, int>);
@@ -82,6 +91,49 @@ TEST(CMemInternal, CanUseCFill) {
   static_assert(!kCanUseCFill<std::vector<int>&>);
   static_assert(!kCanUseCFill<absl::Span<const char>>);
   static_assert(!kCanUseCFill<std::array<NonAssignableByte, 3>&>);
+}
+
+TEST(CMemInternal, IsRangeToRangeTransfer) {
+  static_assert(
+      IsRangeToRangeTransfer<std::vector<int>, std::vector<int>&>::value);
+  static_assert(
+      IsRangeToRangeTransfer<absl::Span<const int>, absl::Span<int>>::value);
+  static_assert(IsRangeToRangeTransfer<int[4], int (&)[4]>::value);
+
+  static_assert(
+      !IsRangeToRangeTransfer<std::vector<int>, std::vector<int>>::value);
+  static_assert(!IsRangeToRangeTransfer<int[2][2], int (&)[4]>::value);
+  static_assert(!IsRangeToRangeTransfer<int[4], int (&)[2][2]>::value);
+}
+
+TEST(CMemInternal, CanUseCCopy) {
+  // `S` is deduced from `const S&`, so it is never a reference type.
+  static_assert(kCanUseCCopy<std::vector<int>&, std::vector<int>>);
+  static_assert(kCanUseCCopy<std::string&, std::string>);
+  static_assert(kCanUseCCopy<std::string&, absl::string_view>);
+  static_assert(kCanUseCCopy<absl::Span<int>, absl::Span<const int>>);
+  static_assert(kCanUseCCopy<int (&)[4], int[4]>);
+
+  static_assert(!kCanUseCCopy<std::vector<int>, std::vector<int>>);
+  static_assert(!kCanUseCCopy<std::string, std::string>);
+  static_assert(!kCanUseCCopy<std::vector<int>&, std::vector<char>>);
+  static_assert(!kCanUseCCopy<absl::Span<const int>, absl::Span<const int>>);
+  static_assert(!kCanUseCCopy<int (&)[2][2], int[4]>);
+  static_assert(!kCanUseCCopy<int (&)[4], int[2][2]>);
+  static_assert(
+      !kCanUseCCopy<std::vector<NonTrivial>&, std::vector<NonTrivial>>);
+  static_assert(
+      !kCanUseCCopy<std::vector<NonAssignable>&, std::vector<NonAssignable>>);
+}
+
+TEST(CMemInternal, CanUseCCopyN) {
+  static_assert(kCanUseCCopyN<std::vector<char>&, std::vector<char>>);
+  static_assert(kCanUseCCopyN<std::string&, absl::string_view>);
+  static_assert(kCanUseCCopyN<absl::Span<uint8_t>, absl::Span<const uint8_t>>);
+
+  static_assert(!kCanUseCCopyN<std::vector<int>&, std::vector<int>>);
+  static_assert(!kCanUseCCopyN<std::vector<char>&, std::vector<uint8_t>>);
+  static_assert(!kCanUseCCopyN<std::vector<char>, std::vector<char>>);
 }
 
 TEST(CMemInternal, ByteSize) {
