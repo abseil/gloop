@@ -215,9 +215,9 @@ struct SubProcess::ChildBuffers {
       : cmsg_buf(CMSG_SPACE(num_chan * sizeof(int)), 0),
         parent_fds(num_chan, -1),
         dirent_scratch(needs_dirent_scratch
-                           ? new kernel_dirent64[kNumDirentScratchEntries]
-                           : nullptr,
-                       needs_dirent_scratch ? kNumDirentScratchEntries : 0) {
+                           ? gtl::MakeUniqueArrayForOverwrite<kernel_dirent64>(
+                                 kNumDirentScratchEntries)
+                           : nullptr) {
     errmsg_buf[0] = '\0';
     info_msgs[0] = '\0';
   }
@@ -350,9 +350,9 @@ SubProcess::SubProcess(int nfds)
       additional_wait_flags_(0),
       child_setup_logs_enabled_(false) {
   GlobalInit();
-  action_ = gtl::UniqueArray<ChannelAction>(new ChannelAction[nfds_], nfds_);
-  set_fd_ = gtl::UniqueArray<int>(new int[nfds_], nfds_);
-  fd_ = gtl::UniqueArray<int>(new int[nfds_], nfds_);
+  action_ = gtl::MakeUniqueArrayForOverwrite<ChannelAction>(nfds_);
+  set_fd_ = gtl::MakeUniqueArrayForOverwrite<int>(nfds_);
+  fd_ = gtl::MakeUniqueArrayForOverwrite<int>(nfds_);
   for (int i = CHAN_STDIN; i < CHAN_STDIN + nfds_; i++) {
     action_[i] = ACTION_CLOSE;
     set_fd_[i] = -1;
