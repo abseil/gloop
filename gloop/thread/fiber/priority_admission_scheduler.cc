@@ -63,6 +63,7 @@ void LinkedSchedulableList::PushTail(Schedulable* absl_nonnull schedulable) {
     schedulable->manager_ptr1 = nullptr;
     head_ = tail_ = schedulable;
   } else {
+    ABSL_RAW_DCHECK(tail_ != nullptr, "tail is null");
     schedulable->manager_ptr1 = nullptr;
     tail_->manager_ptr1 = schedulable;
     tail_ = schedulable;
