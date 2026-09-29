@@ -31,7 +31,6 @@
 #include <linux/futex.h>
 #include <stdint.h>
 #include <syscall.h>
-#include <unistd.h>
 
 #include <atomic>
 
