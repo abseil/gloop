@@ -1402,7 +1402,6 @@ cc_test(
         ":walltime",
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

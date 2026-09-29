@@ -36,7 +36,6 @@
 #include <limits>
 
 #include "absl/base/internal/cycleclock.h"
-#include "absl/log/check.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "benchmark/benchmark.h"
@@ -49,6 +48,8 @@ using absl::InfinitePast;
 using absl::base_internal::CycleClock;  // NOLINT
 using base::FromWallTime;
 using base::ToWallTime;
+using testing::DoubleEq;
+using testing::ExplainMatchResult;
 
 // Test that WallTime_CPS() returns a cycles-per-second value,
 // WallTime_SPC() returns the inverse.
@@ -65,11 +66,11 @@ TEST(Walltime, CyclesPerSecond) {
   double seconds_per_cycle = elapsed_walltime / elapsed_cycles;
   double epsilon = 0.02;
 
-  CHECK_LT(cycles_per_second, WallTime_CPS() * (1.0 + epsilon));
-  CHECK_GT(cycles_per_second, WallTime_CPS() * (1.0 - epsilon));
+  EXPECT_LT(cycles_per_second, WallTime_CPS() * (1.0 + epsilon));
+  EXPECT_GT(cycles_per_second, WallTime_CPS() * (1.0 - epsilon));
 
-  CHECK_LT(seconds_per_cycle, WallTime_SPC() * (1.0 + epsilon));
-  CHECK_GT(seconds_per_cycle, WallTime_SPC() * (1.0 - epsilon));
+  EXPECT_LT(seconds_per_cycle, WallTime_SPC() * (1.0 + epsilon));
+  EXPECT_GT(seconds_per_cycle, WallTime_SPC() * (1.0 - epsilon));
 }
 
 TEST(Walltime, WallTimeConverter) {
@@ -84,45 +85,43 @@ TEST(Walltime, WallTimeConverter) {
   double delta = (wtcc.CycleToWallTime(hundred_millis_later_cycletime) -
                   hundred_millis_later_walltime);
 
-  CHECK_LT(delta, 0.003);
-  CHECK_LT(-0.003, delta);
+  EXPECT_GT(delta, -0.003);
+  EXPECT_LT(delta, 0.003);
+}
+
+MATCHER(WallTimeRoundTrips, "") {
+  return ExplainMatchResult(DoubleEq(arg), ToWallTime(FromWallTime(arg)),
+                            result_listener);
 }
 
 TEST(BaseTime, RoundtripConversion) {
-#define TEST_CONVERSION_ROUND_TRIP(SOURCE, FROM, TO, MATCHER) \
-  EXPECT_THAT(TO(FROM(SOURCE)), MATCHER(SOURCE))
-
   // FromWallTime() and ToWallTime()
   WallTime now_wt = absl::GetCurrentTimeNanos() / 1e9;
-  TEST_CONVERSION_ROUND_TRIP(-1.5, FromWallTime, ToWallTime, testing::DoubleEq);
-  TEST_CONVERSION_ROUND_TRIP(-1, FromWallTime, ToWallTime, testing::DoubleEq);
-  TEST_CONVERSION_ROUND_TRIP(-0.5, FromWallTime, ToWallTime, testing::DoubleEq);
-  TEST_CONVERSION_ROUND_TRIP(0, FromWallTime, ToWallTime, testing::DoubleEq);
-  TEST_CONVERSION_ROUND_TRIP(0.5, FromWallTime, ToWallTime, testing::DoubleEq);
-  TEST_CONVERSION_ROUND_TRIP(1, FromWallTime, ToWallTime, testing::DoubleEq);
-  TEST_CONVERSION_ROUND_TRIP(1.5, FromWallTime, ToWallTime, testing::DoubleEq);
-  TEST_CONVERSION_ROUND_TRIP(now_wt, FromWallTime, ToWallTime,
-                             testing::DoubleEq)
-      << std::fixed << std::setprecision(17) << now_wt;
-
-#undef TEST_CONVERSION_ROUND_TRIP
+  EXPECT_THAT(-1.5, WallTimeRoundTrips());
+  EXPECT_THAT(-1.0, WallTimeRoundTrips());
+  EXPECT_THAT(-0.5, WallTimeRoundTrips());
+  EXPECT_THAT(0.0, WallTimeRoundTrips());
+  EXPECT_THAT(0.5, WallTimeRoundTrips());
+  EXPECT_THAT(1.0, WallTimeRoundTrips());
+  EXPECT_THAT(1.5, WallTimeRoundTrips());
+  EXPECT_THAT(now_wt, WallTimeRoundTrips());
 }
 
 TEST(Time, WallTimeLimits) {
-  EXPECT_EQ(InfinitePast(),
-            FromWallTime(-std::numeric_limits<WallTime>::max()));
-  EXPECT_EQ(InfinitePast(),
-            FromWallTime(-std::numeric_limits<WallTime>::infinity()));
+  EXPECT_EQ(FromWallTime(-std::numeric_limits<WallTime>::max()),
+            InfinitePast());
+  EXPECT_EQ(FromWallTime(-std::numeric_limits<WallTime>::infinity()),
+            InfinitePast());
 
-  EXPECT_EQ(InfiniteFuture(),
-            FromWallTime(std::numeric_limits<WallTime>::max()));
-  EXPECT_EQ(InfiniteFuture(),
-            FromWallTime(std::numeric_limits<WallTime>::infinity()));
+  EXPECT_EQ(FromWallTime(std::numeric_limits<WallTime>::max()),
+            InfiniteFuture());
+  EXPECT_EQ(FromWallTime(std::numeric_limits<WallTime>::infinity()),
+            InfiniteFuture());
 
-  EXPECT_EQ(std::numeric_limits<WallTime>::infinity(),
-            ToWallTime(InfiniteFuture()));
-  EXPECT_EQ(-std::numeric_limits<WallTime>::infinity(),
-            ToWallTime(InfinitePast()));
+  EXPECT_EQ(ToWallTime(InfiniteFuture()),
+            std::numeric_limits<WallTime>::infinity());
+  EXPECT_EQ(ToWallTime(InfinitePast()),
+            -std::numeric_limits<WallTime>::infinity());
 }
 
 TEST(Time, WallTimeResolution) {
@@ -142,7 +141,7 @@ static void BM_gettimeofday(benchmark::State& state) {
     gettimeofday(&tv, nullptr);
     w = tv.tv_sec + tv.tv_usec / 1000000.0;
   }
-  CHECK_GE(w, 0);
+  benchmark::DoNotOptimize(w);
 }
 BENCHMARK(BM_gettimeofday);
 
@@ -154,7 +153,7 @@ static void BM_syscall_gettimeofday(benchmark::State& state) {
     syscall(__NR_gettimeofday, &tv, nullptr);
     w = tv.tv_sec + tv.tv_usec / 1000000.0;
   }
-  CHECK_GE(w, 0);
+  benchmark::DoNotOptimize(w);
 }
 BENCHMARK(BM_syscall_gettimeofday);
 #endif
@@ -164,7 +163,7 @@ static void BM_CycleClock(benchmark::State& state) {
   for (auto _ : state) {
     c = CycleClock::Now();
   }
-  CHECK_GE(c, 0);
+  benchmark::DoNotOptimize(c);
 }
 BENCHMARK(BM_CycleClock);
 
@@ -173,7 +172,7 @@ static void BM_Time(benchmark::State& state) {
   for (auto _ : state) {
     t = time(nullptr);
   }
-  CHECK_GE(t, 0);
+  benchmark::DoNotOptimize(t);
 }
 BENCHMARK(BM_Time);
 
@@ -187,7 +186,7 @@ void BM_FromWallTime(benchmark::State& state) {
   for (auto _ : state) {
     t = base::FromWallTime(now);
   }
-  CHECK_GE(t, absl::UnixEpoch());
+  benchmark::DoNotOptimize(t);
 }
 BENCHMARK(BM_FromWallTime);
 
@@ -197,7 +196,7 @@ void BM_ToWallTime(benchmark::State& state) {
   for (auto _ : state) {
     t = base::ToWallTime(now);
   }
-  CHECK_GE(t, 0.0);
+  benchmark::DoNotOptimize(t);
 }
 BENCHMARK(BM_ToWallTime);
 
@@ -207,7 +206,7 @@ void BM_ToWallTime_Infinite(benchmark::State& state) {
   for (auto _ : state) {
     t = base::ToWallTime(inf);
   }
-  CHECK_GE(t, 0.0);
+  benchmark::DoNotOptimize(t);
 }
 BENCHMARK(BM_ToWallTime_Infinite);
 }  // namespace
