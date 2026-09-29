@@ -34,23 +34,16 @@
 
 #include "absl/strings/str_cat.h"
 #include "benchmark/benchmark.h"
+#include "gloop/util/gtl/internal/is_hardened.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace gtl {
 namespace {
 
+using ::gtl::internal::IsHardened;
 using testing::ElementsAre;
 using testing::Pointee;
-
-bool IsHardened() {
-  bool hardened = false;
-  ABSL_HARDENING_ASSERT([&hardened]() {
-    hardened = true;
-    return true;
-  }());
-  return hardened;
-}
 
 struct NonCopyablePair {
   explicit NonCopyablePair(int first, int second)

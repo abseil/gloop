@@ -23,13 +23,14 @@
 #include <array>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "absl/types/span.h"
+#include "gloop/util/gtl/internal/is_hardened.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace {
 
+using ::gtl::internal::IsHardened;
 using ::testing::ElementsAre;
 
 TEST(CMemmoveTest, WorksForContainersOfMultiByteType) {
@@ -130,15 +131,6 @@ TEST(CMemmoveTest, WorksForOverlappingRanges) {
   gtl::c_memmove(absl::MakeSpan(v2).subspan(1), absl::MakeConstSpan(v2),
                  3 * sizeof(int));
   EXPECT_THAT(v2, ElementsAre(1, 1, 2, 3));
-}
-
-bool IsHardened() {
-  bool hardened = false;
-  ABSL_HARDENING_ASSERT([&hardened]() {
-    hardened = true;
-    return true;
-  }());
-  return hardened;
 }
 
 TEST(CMemmoveDeathTest, CrashesOnOutOfBoundsWrite) {
