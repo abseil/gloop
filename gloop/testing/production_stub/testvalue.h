@@ -105,6 +105,7 @@
 #include <string>
 #include <type_traits>
 
+#include "absl/base/optimization.h"
 #include "absl/functional/bind_front.h"
 #include "absl/strings/string_view.h"
 #include "gloop/util/gtl/typeid.h"
@@ -231,7 +232,7 @@ void InternalSetter(T src, T* dst) {
 
 template <class T>
 void Adjust(absl::string_view label, T* var) {
-  if (IsEnabled()) {
+  if (ABSL_PREDICT_FALSE(IsEnabled())) {
     InternalAdjust(label, gtl::FastTypeId<T>(), var);
   }
 }
