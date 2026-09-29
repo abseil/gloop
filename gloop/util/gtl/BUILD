@@ -1120,7 +1120,7 @@ cc_test(
     deps = [
         ":subspan",
         "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/base:core_headers",
+        "//gloop/util/gtl/internal:is_hardened",
         "@abseil-cpp//absl/types:any_span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -1205,6 +1205,7 @@ cc_test(
     deps = [
         ":circularbuffer",
         "//gloop:gloop_test_main",
+        "//gloop/util/gtl/internal:is_hardened",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -1313,7 +1314,7 @@ cc_test(
         ":c_mem_internal",
         ":c_memcpy",
         "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/base:core_headers",
+        "//gloop/util/gtl/internal:is_hardened",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
@@ -1338,7 +1339,7 @@ cc_test(
     deps = [
         ":c_memmove",
         "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/base:core_headers",
+        "//gloop/util/gtl/internal:is_hardened",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
@@ -1363,8 +1364,8 @@ cc_test(
     deps = [
         ":c_memset",
         "//gloop:gloop_test_main",
+        "//gloop/util/gtl/internal:is_hardened",
         "@abseil-cpp//absl/algorithm:container",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

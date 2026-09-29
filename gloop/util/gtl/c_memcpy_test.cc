@@ -28,16 +28,17 @@
 #include <utility>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "gloop/util/gtl/c_mem_internal.h"
+#include "gloop/util/gtl/internal/is_hardened.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace gtl {
 namespace {
 
+using ::gtl::internal::IsHardened;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
 
@@ -306,15 +307,6 @@ TEST(CMemcpy, EnforcesDestinationValueCategory) {
   static_assert(!CanCMemcpyN<std::vector<int>, const std::vector<int>&>::value);
   static_assert(!CanCMemcpyN<std::string, absl::string_view>::value);
   static_assert(!CanCMemcpyN<int[3], const std::vector<int>&>::value);
-}
-
-bool IsHardened() {
-  bool hardened = false;
-  ABSL_HARDENING_ASSERT([&hardened]() {
-    hardened = true;
-    return true;
-  }());
-  return hardened;
 }
 
 TEST(CMemcpyDeathTest, CrashesOnOutOfBoundsWrite) {

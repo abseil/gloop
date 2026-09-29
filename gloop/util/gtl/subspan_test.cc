@@ -22,25 +22,17 @@
 
 #include <stddef.h>
 
-#include "absl/base/macros.h"
 #include "absl/types/any_span.h"
+#include "gloop/util/gtl/internal/is_hardened.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace {
 
+using ::gtl::internal::IsHardened;
 using ::testing::ElementsAre;
 
 using AnyIntSpan = absl::AnySpan<int>;
-
-bool IsHardened() {
-  bool hardened = false;
-  ABSL_HARDENING_ASSERT([&hardened]() {
-    hardened = true;
-    return true;
-  }());
-  return hardened;
-}
 
 TEST(SubspanTest, SubspanOrTruncate) {
   int arr[] = {0, 1, 2};

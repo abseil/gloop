@@ -67,6 +67,19 @@ cc_test(
 )
 
 cc_library(
+    name = "is_hardened",
+    testonly = True,
+    hdrs = ["is_hardened.h"],
+    visibility = [
+        "//gloop/util/gtl:__subpackages__",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+    ],
+)
+
+cc_library(
     name = "num_bases",
     hdrs = ["num_bases.h"],
     visibility = [

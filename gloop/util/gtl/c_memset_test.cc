@@ -28,13 +28,14 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "absl/base/macros.h"
 #include "absl/types/span.h"
+#include "gloop/util/gtl/internal/is_hardened.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace {
 
+using ::gtl::internal::IsHardened;
 using ::testing::ElementsAre;
 
 TEST(CMemsetTest, WorksForContainersOfMultiByteType) {
@@ -125,15 +126,6 @@ TEST(CMemsetNTest, WorksForRvalueSpans) {
   std::vector<char> v2 = {'a', 'b', 'c', 'd'};
   gtl::c_memset_n(absl::MakeSpan(v2).subspan(1, 3), 'x', 2);
   EXPECT_THAT(v2, ElementsAre('a', 'x', 'x', 'd'));
-}
-
-bool IsHardened() {
-  bool hardened = false;
-  ABSL_HARDENING_ASSERT([&hardened]() {
-    hardened = true;
-    return true;
-  }());
-  return hardened;
 }
 
 TEST(CMemsetNDeathTest, CrashesOnOutOfBoundsWrite) {
