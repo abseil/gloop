@@ -356,11 +356,8 @@ struct Shard {
   Table table;
   uint64_t next_key = 1;
 
-  // TODO: Measure memory usage (see bugjuggler issue),
-  // and either remove this TODO or revert the `ReclaimMemoryIfEmpty()`
-  // optimization depending on whether it has helped in practice. Shrinks the
-  // table's capacity if it is now empty after having grown beyond a certain
-  // threshold in the past.
+  // Shrinks the table's capacity if it is now empty after having grown beyond a
+  // certain threshold in the past.
   void ReclaimMemoryIfEmpty() {
     // Reclaim memory only if the table had grown beyond an arbitrary small
     // threshold. The threshold ensures we only pay the rehash() penalty for
