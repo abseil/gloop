@@ -168,4 +168,17 @@ TEST(CMemmoveDeathTest, CrashesOnOutOfBoundsRead) {
 #endif
 }
 
+TEST(CMemmoveDeathTest, RejectsPartialElementsInDebugBuilds) {
+  // Permitted, as with memmove(), but DCHECK-ed as a likely unit mix-up.
+  const std::vector<char> src = {1, 2, 3, 4, 5, 6};
+  std::vector<int> dest = {0, 0};
+  (void)src;
+  (void)dest;
+
+#if GTEST_HAS_DEATH_TEST
+  EXPECT_DEBUG_DEATH(gtl::c_memmove(dest, src, 2), "not a multiple");
+  EXPECT_DEBUG_DEATH(gtl::c_memmove(dest, src), "not a multiple");
+#endif
+}
+
 }  // namespace

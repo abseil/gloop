@@ -28,6 +28,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/base/internal/hardening.h"
+#include "absl/log/check.h"
 
 namespace gtl {
 namespace c_mem_internal {
@@ -89,20 +90,26 @@ constexpr size_t byte_size(const C& c) {
 }
 
 // Enforces the contracts for the destination type and checks that `dest` holds
-// at least `num_bytes`.
+// at least `num_bytes`. Writing a partial trailing element is permitted, as
+// with memcpy(), but is almost always a unit mix-up, so debug builds reject it.
 template <typename D>
-constexpr void CheckDestPreconditions(D& dest, size_t num_bytes) {
+void CheckDestPreconditions(D& dest, size_t num_bytes) {
   static_assert(!std::is_const_v<element_type_t<D>>,
                 "Destination container must not have a const value type.");
   static_assert(std::is_trivial_v<element_type_t<D>>,
                 "Destination container must have a trivial value type.");
   absl::base_internal::HardeningAssertLE(num_bytes, byte_size(dest));
+  // Multidimensional arrays count in their innermost element type.
+  using Scalar = std::remove_all_extents_t<element_type_t<D>>;
+  DCHECK_EQ(num_bytes % sizeof(Scalar), 0)
+      << "num_bytes (" << num_bytes << ") is not a multiple of the destination "
+      << "element size (" << sizeof(Scalar) << ")";
 }
 
 // Enforces the contracts for input types and checks that both `src` and `dest`
 // hold at least `num_bytes`.
 template <typename D, typename S>
-constexpr void CheckCopyPreconditions(D& dest, const S& src, size_t num_bytes) {
+void CheckCopyPreconditions(D& dest, const S& src, size_t num_bytes) {
   static_assert(std::is_trivially_copyable_v<element_type_t<S>>,
                 "Source container must have a trivially copyable value type.");
   absl::base_internal::HardeningAssertLE(num_bytes, byte_size(src));

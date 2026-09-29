@@ -84,13 +84,6 @@ TEST(CMemcpy, CopiesZeroBytesFromNonEmptyContainer) {
   EXPECT_THAT(dest, ElementsAre(7, 8, 9));
 }
 
-TEST(CMemcpy, CopiesPartialElements) {
-  const std::vector<char> src = {1, 2, 3, 4};
-  std::vector<int> dest = {0};
-  c_memcpy(dest, src, 2);
-  EXPECT_EQ(dest[0], 1 | (2 << 8));
-}
-
 TEST(CMemcpy, WorksForEmptyStdArrayWithExplicitZeroLength) {
   // Empty std::array has non-null data(), so the memcpy path is well-defined.
   std::array<int, 0> src = {};
@@ -420,6 +413,18 @@ TEST(CMemcpyDeathTest, CrashesOnOutOfBoundsReadForMultiByteTypes) {
   } else {
     GTEST_SKIP() << "hardening is disabled";
   }
+#else
+  GTEST_SKIP() << "death tests are not supported";
+#endif
+}
+
+TEST(CMemcpyDeathTest, RejectsPartialElementsInDebugBuilds) {
+#if GTEST_HAS_DEATH_TEST
+  // Permitted, as with memcpy(), but DCHECK-ed as a likely unit mix-up.
+  const std::vector<char> src = {1, 2, 3, 4, 5, 6};
+  std::vector<int> dest = {0, 0};
+  EXPECT_DEBUG_DEATH(c_memcpy(dest, src, 2), "not a multiple");
+  EXPECT_DEBUG_DEATH(c_memcpy(dest, src), "not a multiple");
 #else
   GTEST_SKIP() << "death tests are not supported";
 #endif

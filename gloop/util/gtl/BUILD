@@ -1277,6 +1277,7 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base:hardening",
+        "@abseil-cpp//absl/log:check",
     ],
 )
 
