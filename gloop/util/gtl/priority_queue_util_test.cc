@@ -27,6 +27,7 @@
 #include <numeric>
 #include <queue>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/log/check.h"
@@ -39,9 +40,10 @@
 namespace gtl {
 namespace {
 
-using testing::ElementsAre;
-using testing::ElementsAreArray;
-using testing::Pointee;
+using ::testing::ElementsAre;
+using ::testing::ElementsAreArray;
+using ::testing::NotNull;
+using ::testing::Pointee;
 
 TEST(PriorityQueueTest, ConsumeTop) {
   using IntPtr = std::unique_ptr<int>;
@@ -52,15 +54,17 @@ TEST(PriorityQueueTest, ConsumeTop) {
   };
   std::priority_queue<IntPtr, std::vector<IntPtr>, Comp> queue;
   for (int i = 0; i < 10; ++i) {
-    queue.emplace(new int(i));
+    queue.emplace(std::make_unique<int>(i));
   }
 
   for (int i = 9; i >= 0; --i) {
-    EXPECT_EQ(i, *queue.top());
-    EXPECT_EQ(i + 1, queue.size());
+    SCOPED_TRACE(absl::StrFormat("i = %d", i));
+    EXPECT_EQ(*queue.top(), i);
+    EXPECT_EQ(queue.size(), i + 1);
     auto t = ConsumeTop(&queue);
-    EXPECT_EQ(i, *t);
-    EXPECT_EQ(i, queue.size());
+    ASSERT_THAT(t, NotNull());
+    EXPECT_EQ(*t, i);
+    EXPECT_EQ(queue.size(), i);
   }
 }
 
@@ -178,28 +182,31 @@ TEST_F(PushDownHeapTest, LargeTree) {
 
 class PushDownHeapUniquePtrTest : public testing::Test {
  public:
-  std::vector<std::unique_ptr<int>> ToUniquePtrVec(std::vector<int> x) const {
+  std::vector<std::unique_ptr<int>> ToUniquePtrVec(
+      const std::vector<int>& x) const {
     std::vector<std::unique_ptr<int>> r;
-    for (int i : x) r.emplace_back(new int(i));
+    r.reserve(x.size());
+    for (int i : x) r.push_back(std::make_unique<int>(i));
     return r;
   }
 
   std::vector<testing::Matcher<const std::unique_ptr<int>&>>
-  ToUniquePtrMatcherVec(std::vector<int> x) const {
+  ToUniquePtrMatcherVec(const std::vector<int>& x) const {
     std::vector<testing::Matcher<const std::unique_ptr<int>&>> r;
+    r.reserve(x.size());
     for (int i : x) r.push_back(Pointee(i));
     return r;
   }
 
-  std::vector<std::unique_ptr<int>> PushedDown(size_t hole,
-                                               std::vector<int> x) const {
+  std::vector<std::unique_ptr<int>> PushedDown(
+      size_t hole, const std::vector<int>& x) const {
     auto upx = ToUniquePtrVec(x);
     push_down_heap(hole, upx.begin(), upx.end(),
-                   gtl::OrderByPointee(std::greater<int>()));
+                   OrderByPointee(std::greater<int>()));
     return upx;
   }
 
-  auto VecMatcher(std::vector<int> v)
+  auto VecMatcher(const std::vector<int>& v)
       -> decltype(ElementsAreArray(ToUniquePtrMatcherVec(v))) {
     return ElementsAreArray(ToUniquePtrMatcherVec(v));
   }
@@ -229,7 +236,9 @@ std::vector<int> TopOf(std::vector<int> heap) {
   get_all_top_heap(heap.begin(), heap.end(), std::equal_to<int>(), &top);
   CHECK_LE(top.size(), heap.size());
   for (size_t i = 0; i != top.size(); ++i) {
-    CHECK_LE(i, top[i]);
+    SCOPED_TRACE(absl::StrFormat("i = %zu", i));
+    EXPECT_GE(top[i], i);
+    CHECK_LT(top[i], heap.size());
     heap[i] = heap[top[i]];
   }
   heap.resize(top.size());
@@ -253,9 +262,7 @@ TEST(GetAllTopTest, LotsOfDups) {
   EXPECT_THAT(TopOf(h), ElementsAreArray(h.begin() + 567, h.end()));
 }
 
-namespace bench {
-
-static const int kMaxSize = 4 << 10;
+constexpr int kMaxSize = 4 << 10;
 
 template <typename Element, typename Generator>
 void PushDownImpl(benchmark::State& state, int vec_size,
@@ -266,6 +273,7 @@ void PushDownImpl(benchmark::State& state, int vec_size,
     if (tmp_reservoir.empty()) {
       state.PauseTiming();
       std::vector<Element> src;
+      src.reserve(vec_size);
       for (int i = 0; i < vec_size; ++i) {
         src.push_back(make_element(i));
       }
@@ -296,8 +304,6 @@ void BM_PushDownString(benchmark::State& state) {
       state, vec_size, [](int i) { return absl::StrFormat("%0*d", 30, i); });
 }
 BENCHMARK(BM_PushDownString)->Range(1, kMaxSize);
-
-}  // namespace bench
 
 }  // namespace
 }  // namespace gtl
