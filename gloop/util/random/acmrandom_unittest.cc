@@ -34,25 +34,33 @@
 
 #include "absl/container/fixed_array.h"
 #include "absl/flags/flag.h"
-#include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "benchmark/benchmark.h"
 #include "fuzztest/fuzztest.h"
 #include "gloop/util/math/mathutil.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 ABSL_FLAG(int32_t, num_urns, 1000, "Number of urns for collision test");
 
+namespace {
+
+using ::testing::AllOf;
+using ::testing::Each;
+using ::testing::Gt;
+using ::testing::Lt;
+
 // We asume that we that after 300000 experiments we are within 1% of
 // steady state (i.e. the average of the numbers generated so far are
 // withing 1% of the average steady state average of 2^30)
-const int kSteadyStateReached = 300000;
-const float kSteadyStateWithin = 0.01;
+constexpr int kSteadyStateReached = 300000;
+constexpr float kSteadyStateWithin = 0.01f;
 
 // Standard constants for ACMRandom
-const int M = 0x7FFFFFFF;
-const int A = 16807;
+constexpr int M = 0x7FFFFFFF;
+constexpr int A = 16807;
 
 // Seed values -1, 0 and M must be collapsed as seed value 1.
 TEST(ACMRandomTest, TestSeedSpecialCases) {
@@ -60,24 +68,25 @@ TEST(ACMRandomTest, TestSeedSpecialCases) {
   ACMRandom rnd0(0);
   ACMRandom rnd1(1);
   ACMRandom rndM(M);
-  const int32_t kExpected = 1 * A % M;
-  CHECK_EQ(kExpected, rndMinus1.Next());
-  CHECK_EQ(kExpected, rnd0.Next());
-  CHECK_EQ(kExpected, rnd1.Next());
-  CHECK_EQ(kExpected, rndM.Next());
+  constexpr int32_t kExpected = 1 * A % M;
+  EXPECT_EQ(rndMinus1.Next(), kExpected);
+  EXPECT_EQ(rnd0.Next(), kExpected);
+  EXPECT_EQ(rnd1.Next(), kExpected);
+  EXPECT_EQ(rndM.Next(), kExpected);
 }
 
 // Test expected 32bit randoms for the default seed.
 TEST(ACMRandomTest, TestExpected32) {
-  const int M = 0x7FFFFFFF;
-  const int A = 16807;
+  constexpr int M = 0x7FFFFFFF;
+  constexpr int A = 16807;
   absl::PrintF("Testing expected randoms...\n");
   ACMRandom rnd(301);
   int64_t r = 301;
   for (int i = 0; i < 1000; i++) {
+    SCOPED_TRACE(absl::StrCat("iteration=", i));
     // This is what the random number generator is doing in effect
     r = r * A % M;
-    CHECK_EQ(rnd.Next(), r);
+    EXPECT_EQ(rnd.Next(), r);
   }
 }
 
@@ -86,7 +95,7 @@ TEST(ACMRandomTest, TestExpected64) {
   absl::PrintF("Testing expected 64 bit randoms...\n");
   ACMRandom rnd(301);
   ACMRandom ref_rnd(301);
-  const int64_t expected[] = {
+  constexpr int64_t expected[] = {
       0x002698ad4b48ead0ull, 0x1bfb1e0316f2d5deull, 0x173a623c9725b477ull,
       0x0a447a02823ad868ull, 0x1df74948b3fbea7eull, 0x1bc8b594bcf01a39ull,
       0x07b767ca9520e99aull, 0x05e28b4320bfd20eull, 0x0105906a24823f57ull,
@@ -95,14 +104,15 @@ TEST(ACMRandomTest, TestExpected64) {
       0x006ba47b3448bea3ull, 0x3fe4fbf9a522891bull, 0x23e1a50ad6aebca3ull,
       0x1b263d39ea62be44ull, 0x13581d282e643b0eull};
   for (int i = 0; i < 1000; i++) {
+    SCOPED_TRACE(absl::StrCat("iteration=", i));
     // This is just repeating the Next64() implementation, and checking it
     // against a table of expected values.
     int64_t ref_value = ref_rnd.Next();
     ref_value = (ref_value - 1) * (M - 1) + ref_rnd.Next();
     if (i < std::size(expected)) {
-      CHECK_EQ(ref_value, expected[i]);
+      EXPECT_EQ(ref_value, expected[i]);
     }
-    CHECK_EQ(rnd.Next64(), ref_value);
+    EXPECT_EQ(rnd.Next64(), ref_value);
   }
 }
 
@@ -110,8 +120,8 @@ TEST(ACMRandomTest, TestUnbiasedUniform) {
   // Test UnbiasedUniform
   ACMRandom prng(691965);
 
-  int32_t range = 3 * (1L << 29);
-  int32_t thd = 1L << 30;
+  constexpr int32_t range = 3 * (1L << 29);
+  constexpr int32_t thd = 1L << 30;
 
   size_t countubu = 0;
   for (int i = 0; i < 100000; ++i) {
@@ -121,16 +131,17 @@ TEST(ACMRandomTest, TestUnbiasedUniform) {
     }
   }
 
-  CHECK_LT(fabs((thd + 0.0) / range - (countubu + 0.0) / 100000), 0.005);
+  EXPECT_NEAR(static_cast<double>(countubu) / 100000.0,
+              static_cast<double>(thd) / static_cast<double>(range), 0.005);
 }
 
 TEST(ACMRandomTest, UnbiasedUniform64InfiniteLoop) {
-  const int32_t seed = 0x37f63c08;
-  const uint64_t bound = uint64_t{0xbffffbb2b62a339};
+  constexpr int32_t seed = 0x37f63c08;
+  constexpr uint64_t bound = uint64_t{0xbffffbb2b62a339};
   ACMRandom rnd(seed);
 
   // All we care about here is that the algorithm terminates.
-  EXPECT_NE(0, rnd.UnbiasedUniform64(bound));
+  EXPECT_NE(rnd.UnbiasedUniform64(bound), 0);
 }
 
 // Functionality tests
@@ -145,30 +156,25 @@ TEST(ACMRandomTest, TestFunctionality) {
 
   // Test Uniform
   rnd.Reset(GTEST_FLAG_GET(random_seed));
-  int32_t zero = rnd.Uniform(0);
-  CHECK_EQ(zero, 0);
+  EXPECT_EQ(rnd.Uniform(0), 0);
 
   rnd.Reset(GTEST_FLAG_GET(random_seed));
-  int32_t uniform = rnd.Uniform(10000);
   // Uniform(n) returns next%n after Reset().
-  CHECK_EQ(next % 10000, uniform)
-      << " next: " << next << " uniform: " << uniform;
+  EXPECT_EQ(rnd.Uniform(10000), next % 10000) << " next: " << next;
 
   // Test RndFloat
   rnd.Reset(GTEST_FLAG_GET(random_seed));
   float rnd_float = rnd.RndFloat();
   float rnd_cmp = static_cast<float>(next) / static_cast<float>(0x80000000);
-  CHECK(MathUtil::AlmostEquals<float>(rnd_float, rnd_cmp));
+  EXPECT_TRUE(MathUtil::AlmostEquals<float>(rnd_float, rnd_cmp));
 
   // Test OneIn.
   // Uniform(n) returns next%n after Reset().
   rnd.Reset(GTEST_FLAG_GET(random_seed));
-  bool one_in_true = rnd.OneIn(next);
-  CHECK(one_in_true) << " next: " << next;
+  EXPECT_TRUE(rnd.OneIn(next)) << " next: " << next;
 
   rnd.Reset(GTEST_FLAG_GET(random_seed));
-  bool one_in_false = rnd.OneIn(next + 1);
-  CHECK(!one_in_false) << " next: " << next;
+  EXPECT_FALSE(rnd.OneIn(next + 1)) << " next: " << next;
 }
 
 // Since the the actual random number generator is well tested in the
@@ -188,35 +194,33 @@ TEST(ACMRandomTest, TestCollisions) {
     urns[rnd.Uniform(num_urns)]++;
   }
 
-  float expected = static_cast<float>(num_tests) / static_cast<float>(num_urns);
-  for (int i = 0; i < num_urns; i++) {
-    CHECK_LT(urns[i], expected * (1 + kSteadyStateWithin));
-    CHECK_GT(urns[i], expected * (1 - kSteadyStateWithin));
-  }
+  const float expected =
+      static_cast<float>(num_tests) / static_cast<float>(num_urns);
+  EXPECT_THAT(urns, Each(AllOf(Gt(expected * (1.0f - kSteadyStateWithin)),
+                               Lt(expected * (1.0f + kSteadyStateWithin)))));
 }
 
 // Check that RndFloat in fact returns floats in the range (0, 1).
 TEST(ACMRandomTest, TestRndFloatRange) {
-  int one_is_next = 1407677000L;  // rnd.Next() == 1
+  constexpr int one_is_next = 1407677000L;  // rnd.Next() == 1
   ACMRandom rnd(one_is_next);
-  CHECK_EQ(1, rnd.Next());
+  EXPECT_EQ(rnd.Next(), 1);
   rnd.Reset(one_is_next);
   float low_value = rnd.RndFloat();
-  CHECK_LT(0.0, low_value);
-  CHECK_GT(1.0, low_value);
+  EXPECT_THAT(low_value, AllOf(Gt(0.0f), Lt(1.0f)));
 
-  int negative_one_is_next = 739806647L;  // rnd.Next() == M - 1
+  constexpr int negative_one_is_next = 739806647L;  // rnd.Next() == M - 1
   rnd.Reset(negative_one_is_next);
-  CHECK_EQ(0x7FFFFFFE, rnd.Next());  // 0x7FFFFFFE = M - 1 = 2^31 - 2
+  EXPECT_EQ(rnd.Next(), 0x7FFFFFFE);  // 0x7FFFFFFE = M - 1 = 2^31 - 2
   rnd.Reset(negative_one_is_next);
   float high_value = rnd.RndFloat();
-  CHECK_LT(0.0, low_value);
-  CHECK_GT(1.0, high_value);
+  EXPECT_GT(low_value, 0.0f);
+  EXPECT_THAT(high_value, AllOf(Gt(0.0f), Lt(1.0f)));
 
 #ifndef GLOOP_UNSUPPORTED_LIBSTDCXX  // Missing std::make_unsigned<double>
-  CHECK_LE(std::abs(1.0 - (high_value - low_value)),
-           1e-7L);  // Within float precision.
-#endif              // GLOOP_UNSUPPORTED_LIBSTDCXX
+  EXPECT_NEAR(high_value - low_value, 1.0f,
+              1e-7f);  // Within float precision.
+#endif                 // GLOOP_UNSUPPORTED_LIBSTDCXX
 }
 
 TEST(ACMRandomTest, TestExpectedValues) {
@@ -226,22 +230,21 @@ TEST(ACMRandomTest, TestExpectedValues) {
     rnd.Next();
   }
 
-  EXPECT_EQ(static_cast<uint8_t>('\x80'), rnd.Rand8());
-  EXPECT_EQ(23206u, rnd.Rand16());
-  EXPECT_EQ(2010298588ul, rnd.Rand32());
-  EXPECT_EQ(uint64_t{1563726878470379363}, rnd.Rand64());
-  EXPECT_NEAR(0.688814, rnd.RandFloat(), 0.000001);
-  EXPECT_NEAR(0.165865, rnd.RandDouble(), 0.000001);
-  EXPECT_EQ(673287, rnd.UnbiasedUniform(1000000));
-  EXPECT_EQ(7754, rnd.UnbiasedUniform64(1000000));
-  EXPECT_EQ(905178, rnd.Uniform(1000000));
-  EXPECT_EQ(std::string("\x86\xa8"
-                        "5"),
-            rnd.RandString(3));
+  EXPECT_EQ(rnd.Rand8(), static_cast<uint8_t>('\x80'));
+  EXPECT_EQ(rnd.Rand16(), 23206u);
+  EXPECT_EQ(rnd.Rand32(), 2010298588ul);
+  EXPECT_EQ(rnd.Rand64(), uint64_t{1563726878470379363});
+  EXPECT_NEAR(rnd.RandFloat(), 0.688814, 0.000001);
+  EXPECT_NEAR(rnd.RandDouble(), 0.165865, 0.000001);
+  EXPECT_EQ(rnd.UnbiasedUniform(1000000), 673287);
+  EXPECT_EQ(rnd.UnbiasedUniform64(1000000), 7754);
+  EXPECT_EQ(rnd.Uniform(1000000), 905178);
+  EXPECT_EQ(rnd.RandString(3), std::string("\x86\xa8"
+                                           "5"));
 }
 
 // Microbenchmark of the seed update method.
-static void BM_ACMRandomNext(benchmark::State& state) {
+void BM_ACMRandomNext(benchmark::State& state) {
   ACMRandom rnd(ACMRandom::DeterministicSeed());
   uint32_t r = 0;
   for (auto s : state) {
@@ -251,7 +254,7 @@ static void BM_ACMRandomNext(benchmark::State& state) {
 }
 BENCHMARK(BM_ACMRandomNext);
 
-static void BM_ACMRandomUniform(benchmark::State& state) {
+void BM_ACMRandomUniform(benchmark::State& state) {
   const int arg = state.range(0);
 
   ACMRandom rnd(ACMRandom::DeterministicSeed());
@@ -263,7 +266,7 @@ static void BM_ACMRandomUniform(benchmark::State& state) {
 }
 BENCHMARK(BM_ACMRandomUniform)->Arg(24000);
 
-static void BM_ACMRandDouble(benchmark::State& state) {
+void BM_ACMRandDouble(benchmark::State& state) {
   ACMRandom rnd(ACMRandom::DeterministicSeed());
   double r = 0;
   for (auto s : state) {
@@ -273,7 +276,7 @@ static void BM_ACMRandDouble(benchmark::State& state) {
 }
 BENCHMARK(BM_ACMRandDouble);
 
-static void BM_ACMHostnamePidTimeSeed(benchmark::State& state) {
+void BM_ACMHostnamePidTimeSeed(benchmark::State& state) {
   double r = 0;
   for (auto s : state) {
     r += ACMRandom::HostnamePidTimeSeed();
@@ -285,8 +288,6 @@ BENCHMARK(BM_ACMHostnamePidTimeSeed);
 // ---------------------------------------------------------------------------
 // Fuzz tests for ACMRandom.
 // ---------------------------------------------------------------------------
-
-namespace {
 
 void ACMRandomNextIsInRange(int32_t seed) {
   ACMRandom rng(seed);
