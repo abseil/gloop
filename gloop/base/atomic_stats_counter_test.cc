@@ -23,119 +23,110 @@
 #include "gloop/base/atomic_stats_counter.h"
 
 #include <cstdint>
+#include <memory>
 
-#include "absl/log/check.h"
 #include "absl/synchronization/mutex.h"
 #include "gloop/thread/threadpool.h"
 #include "gtest/gtest.h"
 
-static const int kMaxRefCountThreads = 10;
+namespace {
+
+constexpr int kMaxRefCountThreads = 10;
 
 struct TestContext {  // state used by the tests
-  AbstractThreadPool* tp;
+  explicit TestContext(int num_threads = kMaxRefCountThreads)
+      : tp(std::make_unique<ThreadPool>(num_threads)) {}
+
+  std::unique_ptr<ThreadPool> tp;
 
   base::StatsCounter cnt;  // counter we're testing
 
   absl::Mutex mu;
-  int outstanding;         // number of threads outstanding; under mu
-  int64_t expected_final;  // expected final value of cnt
+  int outstanding = 0;         // number of threads outstanding; under mu
+  int64_t expected_final = 0;  // expected final value of cnt
 };
-
-// Initialize the values in a TestContext.
-// L < c->mu
-static void InitTestContext(TestContext* c) {
-  c->mu.lock();
-  c->expected_final = 0;
-  c->outstanding = 0;
-  c->mu.unlock();
-  c->cnt.Clear();
-}
 
 // Record that a thread has been started that will increment
 // the counters by n.
-static void AddThread(TestContext* c, int n) {
+void AddThread(TestContext* c, int n) {
   c->expected_final += n;
-  c->mu.lock();
+  absl::MutexLock l(c->mu);
   c->outstanding++;
-  c->mu.unlock();
 }
 
 // Increment c->cnt n times
-static void IncCounters(TestContext* c, int n) {
+void IncCounters(TestContext* c, int n) {
   for (int i = 0; i != n; i++) {
     c->cnt.Add(1);
   }
-  c->mu.lock();
+  absl::MutexLock l(c->mu);
   c->outstanding--;  // this thread is finished
-  c->mu.unlock();
+}
+
+// Increment c->cnt n times lossily.
+void LossyIncCounters(TestContext* c, int n) {
+  for (int i = 0; i != n; i++) {
+    c->cnt.LossyAdd(1);
+  }
+  absl::MutexLock l(c->mu);
+  c->outstanding--;  // this thread is finished
 }
 
 // Return whether c->outstanding is 0, which indicates whether all test threads
 // have finished their tasks.
 // L >= c->mu
-static bool ThreadsFinished(TestContext* c) { return c->outstanding == 0; }
+bool ThreadsFinished(TestContext* c) { return c->outstanding == 0; }
 
 // Test that the accumulated sum of all the atomic increments reaches
 // the right value, despite concurrency.
-// L < c->mu
-static void TestStatsCounterAdd(TestContext* c) {
-  InitTestContext(c);
+TEST(AtomicStatsCounter, StatsCounterAdd) {
+  TestContext context;
   for (int i = 0; i != kMaxRefCountThreads; i++) {
     int n = 10000000;
-    AddThread(c, n);
-    c->tp->Schedule([c, n] { IncCounters(c, n); });
+    AddThread(&context, n);
+    context.tp->Schedule([&context, n] { IncCounters(&context, n); });
   }
-  c->mu.LockWhen(
-      absl::Condition(&ThreadsFinished, c));  // wait for threads to finish
-  c->mu.unlock();
+  // wait for threads to finish
+  context.mu.LockWhen(absl::Condition(&ThreadsFinished, &context));
+  context.mu.unlock();
 
-  CHECK_EQ(c->cnt.value(), c->expected_final);
+  EXPECT_EQ(context.cnt.value(), context.expected_final);
 
   // check that increment need not be 1
-  c->cnt.Add(7);
-  CHECK_EQ(c->cnt.value(), c->expected_final + 7);
-}
-
-// Increment c->cnt n times lossily.
-static void LossyIncCounters(TestContext* c, int n) {
-  for (int i = 0; i != n; i++) {
-    c->cnt.LossyAdd(1);
-  }
-  c->mu.lock();
-  c->outstanding--;  // this thread is finished
-  c->mu.unlock();
+  context.cnt.Add(7);
+  EXPECT_EQ(context.cnt.value(), context.expected_final + 7);
 }
 
 // Test that the accumulated sum of all the atomic increments reaches
 // close to the right value, despite concurrency.
-// L < c->mu
-static void TestLossyStatsCounterAdd(TestContext* c) {
-  InitTestContext(c);
+TEST(AtomicStatsCounter, LossyStatsCounterAdd) {
+  TestContext context;
   for (int i = 0; i != kMaxRefCountThreads / 2; i++) {
     int n = 10000000;
-    AddThread(c, n);
-    c->tp->Schedule([c, n] { LossyIncCounters(c, n); });
+    AddThread(&context, n);
+    context.tp->Schedule([&context, n] { LossyIncCounters(&context, n); });
   }
-  c->mu.LockWhen(
-      absl::Condition(&ThreadsFinished, c));  // wait for threads to finish
-  c->mu.unlock();
+  // wait for threads to finish
+  context.mu.LockWhen(absl::Condition(&ThreadsFinished, &context));
+  context.mu.unlock();
 
   // Guess that we won't lose more than 7/8th of the counts.
-  CHECK_LE(c->expected_final / 8, c->cnt.value());
-  CHECK_LE(c->cnt.value(), c->expected_final);
+  EXPECT_GE(context.cnt.value(), context.expected_final / 8);
+  EXPECT_LE(context.cnt.value(), context.expected_final);
 
   // check that increment need not be 1
-  int64_t end_value = c->cnt.value();
-  c->cnt.LossyAdd(7);
-  CHECK_EQ(c->cnt.value(), end_value + 7);
+  const int64_t end_value = context.cnt.value();
+  context.cnt.LossyAdd(7);
+  EXPECT_EQ(context.cnt.value(), end_value + 7);
 }
 
-TEST(AtomicStatsCounter, StatsCounter) {
-  TestContext context;
-  context.tp = new ThreadPool(kMaxRefCountThreads);
-
-  TestStatsCounterAdd(&context);
-  TestLossyStatsCounterAdd(&context);
-
-  delete context.tp;
+TEST(AtomicStatsCounter, Clear) {
+  base::StatsCounter counter;
+  EXPECT_EQ(counter.value(), 0);
+  counter.Add(42);
+  EXPECT_EQ(counter.value(), 42);
+  counter.Clear();
+  EXPECT_EQ(counter.value(), 0);
 }
+
+}  // namespace
