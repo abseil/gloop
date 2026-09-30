@@ -35,7 +35,7 @@
 //
 //   // Tries to get "add" from the registry and runs it on success.
 //   std::function<int(int, int)> f = r.Get("add");
-//   if (f) {
+//   if (f != nullptr) {
 //     int answer = f(4, 2);
 //     // answer == 6
 //   }
@@ -192,7 +192,7 @@
 //   // Prefer using auto in your code, we include the full type for clarity.
 //   std::function<std::unique_ptr<Foo>(const Env&)> function
 //       = registry.Get("Key");
-//   if (!function) { HandleError(); }
+//   if (function == nullptr) { HandleError(); }
 //   std::unique_ptr<Foo> foo = function(GetEnv());
 //
 // To get all entries from the registry, call GetAll:
