@@ -18,6 +18,7 @@ load("@rules_cc//cc:cc_test.bzl", "cc_test")
 package(
     default_applicable_licenses = ["//gloop:license"],
     default_hdrs_check = "strict",
+    features = ["header_modules"],
 )
 
 cc_library(
