@@ -30,6 +30,7 @@
 #include <iostream>
 #include <limits>
 #include <ostream>
+#include <random>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -489,7 +490,7 @@ static void BM_BytesContainByteLessThan(benchmark::State& state,
   int percent_to_change = 0;
   std::vector<T> v;
   std::vector<T> w;
-  absl::BitGen random = MakeTestBitGen();
+  std::mt19937_64 random;
   for (int i = 0; i < kNumRandomNumbers; i++) {
     v.push_back(absl::Uniform<uint64_t>(random));
     w.push_back(absl::Uniform<uint64_t>(random));
