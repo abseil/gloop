@@ -116,6 +116,21 @@ void CheckCopyPreconditions(D& dest, const S& src, size_t num_bytes) {
   CheckDestPreconditions(dest, num_bytes);
 }
 
+// Enforces the contracts for input types and checks that both `lhs` and `rhs`
+// hold at least `num_bytes`.
+template <typename L, typename R>
+constexpr void CheckComparePreconditions(const L& lhs, const R& rhs,
+                                         size_t num_bytes) {
+  static_assert(
+      std::is_trivially_copyable_v<element_type_t<L>>,
+      "Compared container must have a trivially copyable value type.");
+  static_assert(
+      std::is_trivially_copyable_v<element_type_t<R>>,
+      "Compared container must have a trivially copyable value type.");
+  absl::base_internal::HardeningAssertLE(num_bytes, byte_size(lhs));
+  absl::base_internal::HardeningAssertLE(num_bytes, byte_size(rhs));
+}
+
 }  // namespace c_mem_internal
 }  // namespace gtl
 

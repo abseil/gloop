@@ -1296,6 +1296,30 @@ cc_test(
 )
 
 cc_library(
+    name = "c_memcmp",
+    hdrs = ["c_memcmp.h"],
+    deps = [
+        ":c_mem_internal",
+        "//gloop:enforce_gloop_support",
+    ],
+)
+
+cc_test(
+    name = "c_memcmp_test",
+    size = "small",
+    srcs = ["c_memcmp_test.cc"],
+    deps = [
+        ":c_memcmp",
+        "//gloop:gloop_test_main",
+        "//gloop/util/gtl/internal:is_hardened",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "c_memcpy",
     hdrs = ["c_memcpy.h"],
     deps = [
