@@ -388,7 +388,6 @@ cc_test(
         ":iterator_adaptors",
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/log:check",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
