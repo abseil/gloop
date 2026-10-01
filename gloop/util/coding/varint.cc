@@ -234,29 +234,37 @@ const char* Varint::Parse64BackwardSlow(const char* ptr, const char* base,
   return prev;
 }
 
+namespace {
+
+// Checks whether advancing `ptr` by `offset` bytes stays within `limit`
+// (`ptr + offset <= limit`) using `uintptr_t` arithmetic.
+//
+// The natural ways to write this bounds check are either
+// `ptr + offset <= limit` or `limit - ptr >= offset`. The former has
+// Undefined Behavior in C++ when `ptr` or `limit` is null and when `ptr` is
+// near the top of the address space. The latter compiles to SUB instead of
+// LEA, so is slower.
+//
+// By performing the comparison in the integer domain (uintptr_t), we avoid
+// both pointer arithmetic UB and relational pointer comparison UB (e.g. on
+// nullptr), while allowing the compiler to generate an efficient LEA
+// instruction.
+inline bool OffsetWithinLimit(const char* ptr, size_t offset,
+                              const char* limit) {
+  return reinterpret_cast<uintptr_t>(ptr) + offset <=
+         reinterpret_cast<uintptr_t>(limit);
+}
+
+}  // namespace
+
 const char* Varint::Parse64WithLimit(const char* p, const char* l,
                                      uint64_t* OUTPUT) {
-  // The natural ways to write this are either `p + kMax64 <= l` or
-  // `l - p >= kMax64`.  The former has UB when `p` is null and when `p` is
-  // near the top of the address space (which can't actually happen since
-  // that's kernel space).  The latter compiles to SUB instead of LEA, so
-  // is slower.  By using `reinterpret_cast<uintptr_t>` we can use LEA
-  // and avoid the null UB.
-  if (reinterpret_cast<uintptr_t>(p) + kMax64 <=
-      reinterpret_cast<uintptr_t>(l)) {
+  if (OffsetWithinLimit(p, kMax64, l)) {
     return Parse64(p, OUTPUT);
   } else {
     // See detailed comment in Varint::Parse64Fallback about this general
     // approach.
-#if defined(__GNUC__) && defined(__x86_64__)
-    // The `reinterpret_cast<uintptr_t>` confuses the register allocator
-    // and causes `ptr` to end up in `%r8`, taking another MOV to return
-    // it in `%rax`.  Explicitly put it in `%rax`.
-    register const unsigned char* ptr asm("rax") =
-#else
-    const unsigned char* ptr =
-#endif
-        reinterpret_cast<const unsigned char*>(p);
+    const unsigned char* ptr = reinterpret_cast<const unsigned char*>(p);
     const unsigned char* limit = reinterpret_cast<const unsigned char*>(l);
     uint64_t b, result;
     // NOLINTBEGIN(readability/braces) False positive.
