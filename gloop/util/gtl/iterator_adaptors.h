@@ -33,8 +33,8 @@
 #include "absl/base/attributes.h"
 #include "absl/base/optimization.h"
 #include "absl/base/throw_delegate.h"
-#include "absl/meta/type_traits.h"
 #include "gloop/util/gtl/compressed_tuple.h"
+#include "gloop/util/gtl/iterator_adaptor_traits_internal.h"
 #include "gloop/util/gtl/requires.h"
 
 namespace gtl {
@@ -713,6 +713,78 @@ template <typename C, typename E>
 using projection_view_t =
     internal::container_view<C, internal::ExtractorPolicy<E>>;
 
+namespace internal_gtl {
+
+template <typename C>
+struct UnpackStaticView<key_view_t<C>> {
+  constexpr std::pair<const C&, internal::FirstExtractor> operator()(
+      const key_view_t<C>& v) const {
+    return {v.container(), {}};
+  }
+};
+
+template <typename C>
+struct UnpackStaticView<value_view_t<C>> {
+  constexpr std::pair<const C&, internal::SecondExtractor> operator()(
+      const value_view_t<C>& v) const {
+    return {v.container(), {}};
+  }
+};
+
+template <typename C>
+struct UnpackStaticView<deref_view_t<C>> {
+  constexpr std::pair<const C&, internal::DereferencingExtractor<true>>
+  operator()(const deref_view_t<C>& v) const {
+    return {v.container(), {}};
+  }
+};
+
+template <typename C>
+struct UnpackStaticView<deref_second_view_t<C>> {
+  constexpr std::pair<const C&, internal::DereferencingSecondExtractor>
+  operator()(const deref_second_view_t<C>& v) const {
+    return {v.container(), {}};
+  }
+};
+
+template <typename C>
+struct UnpackStaticView<mutable_deref_view_t<C>> {
+  constexpr std::pair<const C&, internal::DereferencingExtractor<false>>
+  operator()(const mutable_deref_view_t<C>& v) const {
+    return {v.container(), {}};
+  }
+};
+
+template <typename C, typename E>
+struct UnpackStaticView<projection_view_t<C, E>> {
+  template <typename Proj = E,
+            std::enable_if_t<std::is_class_v<Proj> && std::is_empty_v<Proj> &&
+                                 std::is_default_constructible_v<Proj>,
+                             int> = 0>
+  constexpr std::pair<const C&, E> operator()(
+      const projection_view_t<C, E>& v) const {
+    return {v.container(), {}};
+  }
+};
+
+template <>
+struct ExtractorGuaranteedNoTemporaries<internal::FirstExtractor>
+    : std::true_type {};
+
+template <>
+struct ExtractorGuaranteedNoTemporaries<internal::SecondExtractor>
+    : std::true_type {};
+
+template <bool Const>
+struct ExtractorGuaranteedNoTemporaries<internal::DereferencingExtractor<Const>>
+    : std::true_type {};
+
+template <>
+struct ExtractorGuaranteedNoTemporaries<internal::DereferencingSecondExtractor>
+    : std::true_type {};
+
+}  // namespace internal_gtl
+
 // The key_view and value_view functions provide pretty ways to iterate either
 // the keys or the values of a map using range based for loops.
 //
@@ -755,7 +827,7 @@ constexpr auto value_view(C&& map ABSL_ATTRIBUTE_LIFETIME_BOUND) {
 //                  Publish(v);
 //                }
 template <int&... ExplicitArgumentBarrier, typename C>
-constexpr auto deref_second_view(C&& map) {
+constexpr auto deref_second_view(C&& map ABSL_ATTRIBUTE_LIFETIME_BOUND) {
   return deref_second_view_t<std::remove_reference_t<C>>(std::forward<C>(map));
 }
 
@@ -772,7 +844,7 @@ constexpr auto deref_second_view(C&& map) {
 // This is fine:  PublishAll(deref_view(Make());
 // This is not:   for (const auto& v : deref_view(Make())) { Publish(v); }
 template <int&... ExplicitArgumentBarrier, typename C>
-constexpr auto deref_view(C&& c) {
+constexpr auto deref_view(C&& c ABSL_ATTRIBUTE_LIFETIME_BOUND) {
   return deref_view_t<std::remove_reference_t<C>>(std::forward<C>(c));
 }
 

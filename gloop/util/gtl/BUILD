@@ -395,15 +395,21 @@ cc_test(
 )
 
 cc_library(
+    name = "iterator_adaptor_traits_internal",
+    hdrs = ["iterator_adaptor_traits_internal.h"],
+    deps = ["//gloop:enforce_gloop_support"],
+)
+
+cc_library(
     name = "iterator_adaptors",
     hdrs = ["iterator_adaptors.h"],
     deps = [
         ":compressed_tuple",
+        ":iterator_adaptor_traits_internal",
         ":requires",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:throw_delegate",
-        "@abseil-cpp//absl/meta:type_traits",
     ],
 )
 
