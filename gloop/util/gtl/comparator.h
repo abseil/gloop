@@ -31,6 +31,7 @@
 #include <compare>
 #include <functional>
 #include <limits>
+#include <optional>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -201,6 +202,37 @@ class ChainComparators : private gtl::CompressedTuple<C...> {
       return Call3Way(x, y, Tag<I + 1>());
     }
   }
+};
+
+// Applies Cmp to the values held by two std::optional arguments, ordering
+// empty arguments before all values.
+template <typename Cmp>
+class OptionalComparator : private gtl::CompressedTuple<Cmp> {
+  using Base = gtl::CompressedTuple<Cmp>;
+
+ public:
+  constexpr OptionalComparator() = default;
+  explicit constexpr OptionalComparator(Cmp cmp) : Base(std::move(cmp)) {}
+
+  template <typename T1, typename T2>
+  bool operator()(const std::optional<T1>& x,
+                  const std::optional<T2>& y) const {
+    if (!x.has_value() || !y.has_value()) {
+      return !x.has_value() && y.has_value();
+    }
+    return Impl()(*x, *y);
+  }
+
+  // Ternary result: <0 means x<y, 0 means x==y, >0 means x>y.
+  template <typename T1, typename T2>
+  int Compare(const std::optional<T1>& x, const std::optional<T2>& y) const {
+    if (x.has_value() && y.has_value()) return Compare3Way(Impl(), *x, *y);
+    if (x.has_value() == y.has_value()) return 0;
+    return x.has_value() ? kGreaterCompareResult : kLessCompareResult;
+  }
+
+ private:
+  const Cmp& Impl() const { return Base::template get<0>(); }
 };
 
 }  // namespace internal
@@ -483,6 +515,16 @@ using OrderByTupleElementGreater = OrderBy<TupleElement<N>, Greater>;
 template <typename C = Less>
 constexpr OrderBy<ExtractPointee, C> OrderByPointee(C c = C()) {
   return {{}, std::move(c)};
+}
+
+// OrderByOptional(c), where c defaults to Less().
+// Returns a comparator over std::optional arguments that orders empty ones
+// first and applies 'c' to the values of engaged ones. That is, for engaged 'a'
+// and 'b', 'OrderByOptional(c)(a, b)' is like 'c(*a, *b)'. Use
+// Reverse(OrderByOptional(c)) to order empty arguments last.
+template <typename C = Less>
+constexpr internal::OptionalComparator<C> OrderByOptional(C c = C()) {
+  return internal::OptionalComparator<C>(std::move(c));
 }
 
 // ChainComparators(c...) --

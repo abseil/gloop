@@ -30,6 +30,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <random>
 #include <set>
@@ -82,6 +83,7 @@ using ::gtl::LexicographicalComparator;
 using ::gtl::OrderBy;
 using ::gtl::OrderByFirst;
 using ::gtl::OrderByFirstGreater;
+using ::gtl::OrderByOptional;
 using ::gtl::OrderByPointee;
 using ::gtl::OrderBySecond;
 using ::gtl::OrderBySecondGreater;
@@ -623,6 +625,104 @@ TEST(OrderByPointeeTest, OrderByPointeeSupportsMoveOnlyComparator) {
                           Pointee(std::string("c"))));
 }
 #endif  // GLOOP_UNSUPPORTED_LIBSTDCXX
+
+struct Stats {
+  int m;
+};
+
+struct StatsRow {
+  int id;
+  std::optional<Stats> stats;
+};
+
+std::vector<std::optional<int>> StatsValues(
+    const std::vector<std::optional<Stats>>& v) {
+  std::vector<std::optional<int>> out;
+  for (const auto& s : v) {
+    out.push_back(s.has_value() ? std::optional<int>(s->m) : std::nullopt);
+  }
+  return out;
+}
+
+std::vector<int> RowIds(const std::vector<StatsRow>& rows) {
+  std::vector<int> ids;
+  for (const StatsRow& row : rows) ids.push_back(row.id);
+  return ids;
+}
+
+TEST(OrderByOptionalTest, Type) {
+  static_assert(std::is_same_v<decltype(OrderByOptional(Greater{})),
+                               gtl::internal::OptionalComparator<Greater>>);
+}
+
+TEST(OrderByOptionalTest, SortsEmptyFirst) {
+  std::vector<std::optional<Stats>> v = {Stats{2}, std::nullopt, Stats{1},
+                                         std::nullopt};
+  std::sort(v.begin(), v.end(), OrderByOptional(OrderBy(&Stats::m)));
+  EXPECT_THAT(StatsValues(v), ElementsAre(std::nullopt, std::nullopt, 1, 2));
+}
+
+TEST(OrderByOptionalTest, ReverseSortsEmptyLast) {
+  std::vector<std::optional<Stats>> v = {Stats{2}, std::nullopt, Stats{1},
+                                         std::nullopt};
+  std::sort(v.begin(), v.end(), Reverse(OrderByOptional(OrderBy(&Stats::m))));
+  EXPECT_THAT(StatsValues(v), ElementsAre(2, 1, std::nullopt, std::nullopt));
+}
+
+TEST(OrderByOptionalTest, CustomComparatorKeepsEmptyFirst) {
+  std::vector<std::optional<Stats>> v = {Stats{1}, std::nullopt, Stats{2},
+                                         std::nullopt};
+  std::sort(v.begin(), v.end(), OrderByOptional(OrderBy(&Stats::m, Greater())));
+  EXPECT_THAT(StatsValues(v), ElementsAre(std::nullopt, std::nullopt, 2, 1));
+}
+
+// The pattern from b/555781392: ordering rows by a field of an optional member,
+// ascending and, through std::function and Reverse, descending.
+TEST(OrderByOptionalTest, NestedInOrderBy) {
+  std::vector<StatsRow> rows = {
+      {1, Stats{20}}, {2, std::nullopt}, {3, Stats{10}}};
+  std::function<bool(const StatsRow&, const StatsRow&)> cmp =
+      OrderBy(&StatsRow::stats, OrderByOptional(OrderBy(&Stats::m)));
+  std::sort(rows.begin(), rows.end(), cmp);
+  EXPECT_THAT(RowIds(rows), ElementsAre(2, 3, 1));
+  std::sort(rows.begin(), rows.end(), Reverse(cmp));
+  EXPECT_THAT(RowIds(rows), ElementsAre(1, 3, 2));
+}
+
+TEST(OrderByOptionalTest, MatchesOptionalOperatorLess) {
+  std::vector<std::optional<int>> v = {3, std::nullopt, 1, 2, std::nullopt, 1};
+  std::vector<std::optional<int>> expected = v;
+  std::sort(expected.begin(), expected.end());
+  std::sort(v.begin(), v.end(), OrderByOptional());
+  EXPECT_EQ(v, expected);
+}
+
+TEST(OrderByOptionalTest, Compare) {
+  const auto cmp = OrderByOptional(OrderBy(&Stats::m));
+  const std::optional<Stats> empty;
+  const std::optional<Stats> one = Stats{1};
+  const std::optional<Stats> two = Stats{2};
+  EXPECT_EQ(cmp.Compare(empty, empty), 0);
+  EXPECT_LT(cmp.Compare(empty, one), 0);
+  EXPECT_GT(cmp.Compare(one, empty), 0);
+  EXPECT_LT(cmp.Compare(one, two), 0);
+  EXPECT_GT(cmp.Compare(two, one), 0);
+  EXPECT_EQ(cmp.Compare(one, one), 0);
+
+  const auto row_cmp = OrderBy(&StatsRow::stats, cmp);
+  EXPECT_LT(row_cmp.Compare(StatsRow{1, std::nullopt}, StatsRow{2, one}), 0);
+  EXPECT_EQ(row_cmp.Compare(StatsRow{1, two}, StatsRow{2, two}), 0);
+}
+
+TEST(OrderByOptionalTest, ChainedWithTieBreaker) {
+  std::vector<StatsRow> rows = {
+      {4, Stats{1}}, {3, std::nullopt}, {1, std::nullopt}, {2, Stats{1}}};
+  std::sort(rows.begin(), rows.end(),
+            ChainComparators(
+                OrderBy(&StatsRow::stats, OrderByOptional(OrderBy(&Stats::m))),
+                OrderBy(&StatsRow::id)));
+  EXPECT_THAT(RowIds(rows), ElementsAre(1, 3, 2, 4));
+}
 
 TEST(ChainComparatorsTest, NoComparators) {
   std::vector<int> v = {2, 1, 3};
