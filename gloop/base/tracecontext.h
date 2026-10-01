@@ -320,11 +320,10 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
   // These methods notify special handlers and any installed trace event
   // listeners about the current thead's `TraceContext` state changing.
   void BeforeSwapCurrent(base::ContextAccess, const TraceContext& to);
-  void BeforeSwapCurrent(base::ContextAccess, TraceContext* to);
   void AfterSwapCurrent(base::ContextAccess,
                         perftools::tracing::StringRef label =
                             perftools::tracing::TraceSourceLocation::current());
-  void BeforeRestoreCurrent(base::ContextAccess, TraceContext& from);
+  void BeforeRestoreCurrent(base::ContextAccess, const TraceContext& from);
   void AfterRestoreCurrent(
       base::ContextAccess,
       perftools::tracing::StringRef label =
@@ -1096,11 +1095,6 @@ inline void TraceContext::BeforeSwapCurrent(base::ContextAccess,
 #endif
 }
 
-inline void TraceContext::BeforeSwapCurrent(base::ContextAccess access,
-                                            TraceContext* to) {
-  BeforeSwapCurrent(access, *to);
-}
-
 inline void TraceContext::AfterSwapCurrent(
     base::ContextAccess, perftools::tracing::StringRef label) {
   using SyncContextAccess = perftools::tracing::core::SyncContext::Access;
@@ -1111,7 +1105,7 @@ inline void TraceContext::AfterSwapCurrent(
 }
 
 inline void TraceContext::BeforeRestoreCurrent(base::ContextAccess,
-                                               TraceContext& from) {
+                                               const TraceContext& from) {
   using SyncContextAccess = perftools::tracing::core::SyncContext::Access;
   if (sync_context_.has_listeners()) {
     sync_context_.BeforeRestoreCurrent(SyncContextAccess(), from.sync_context_);
@@ -1190,7 +1184,7 @@ class [[deprecated(
   void Swap(TraceContext* context) {
     using std::swap;
     CheckCallingThread();
-    current_->BeforeSwapCurrent(base::ContextAccess(), context);
+    current_->BeforeSwapCurrent(base::ContextAccess(), *context);
     swap(*current_, *context);
     current_->AfterSwapCurrent(base::ContextAccess());
   }
