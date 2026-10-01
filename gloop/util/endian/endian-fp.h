@@ -29,10 +29,14 @@
 #define THIRD_PARTY_GLOOP_UTIL_ENDIAN_ENDIAN_FP_H_
 
 #include <cstdint>
+#include <iterator>
+#include <type_traits>
 
 #include "absl/base/casts.h"
+#include "absl/base/macros.h"
 #include "absl/log/log.h"
 #include "gloop/base/port.h"
+#include "gloop/util/endian/byte_range_traits.h"
 #include "gloop/util/endian/endian.h"
 
 // This wraps the idea of a (possibly) byte-converted floating point number.
@@ -70,6 +74,16 @@ class FPFormatConverter {
     return ToHostFP(value);
   }
 
+  // Loads a network-byte-order value from the contiguous byte range 'buf',
+  // asserting that `endian_internal::ByteSize(buf) >= sizeof(FPType)`.
+  template <
+      typename C,
+      std::enable_if_t<endian_internal::IsReadableByteRange<C>::value, int> = 0>
+  static FPType LoadFromBuf(const C& buf) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(buf) >= sizeof(FPType));
+    return LoadFromBuf(reinterpret_cast<const char*>(std::data(buf)));
+  }
+
   // Stores a network-byte-order value into the supplied buffer.
   //
   // A little hacky but should optimize nicely.
@@ -82,6 +96,16 @@ class FPFormatConverter {
     } else {
       LOG(FATAL) << "Unknown floating point size";
     }
+  }
+
+  // Stores a network-byte-order value into the contiguous byte range 'buf',
+  // asserting that `endian_internal::ByteSize(buf) >= sizeof(FPType)`.
+  template <
+      typename C,
+      std::enable_if_t<endian_internal::IsWritableByteRange<C>::value, int> = 0>
+  static void StoreToBuf(C&& buf, FPType v) {
+    ABSL_HARDENING_ASSERT(endian_internal::ByteSize(buf) >= sizeof(FPType));
+    StoreToBuf(reinterpret_cast<char*>(std::data(buf)), v);
   }
 
  private:
