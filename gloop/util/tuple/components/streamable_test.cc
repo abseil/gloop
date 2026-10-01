@@ -43,6 +43,7 @@
 #include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/optional_ref.h"
 #include "absl/types/source_location.h"
 #include "gloop/util/gtl/extend/debug_printing.h"
 #include "gloop/util/gtl/extend/extend.h"
@@ -423,6 +424,51 @@ TEST(Optional, Basic) {
   EXPECT_EQ(to_string(optional<optional<int>>()), R"(nullopt)");
   EXPECT_EQ(to_string(optional<optional<int>>(optional<int>())),
             R"([nullopt])");
+}
+
+// Stand-in for custom optional-like types that expose .has_value(), unary
+// operator*, contextual conversion to bool, and std::nullopt
+// construction/comparison without deriving from std::optional.
+template <class T>
+struct MockOptional {
+  MockOptional() = default;
+
+  // Implicit construction from std::nullopt matching std::optional.
+  explicit MockOptional(::std::nullopt_t) {}
+
+  // Constructs an engaged MockOptional containing `v`.
+  explicit MockOptional(T v) : value(::std::move(v)) {}
+
+  // Returns true when `value` holds an engaged element.
+  bool has_value() const { return value.has_value(); }
+
+  // Contextual conversion to bool matching std::optional.
+  explicit operator bool() const { return value.has_value(); }
+
+  // Dereferences the underlying engaged element.
+  const T& operator*() const { return *value; }
+
+  // Compares true when disengaged, matching std::optional.
+  friend bool operator==(const MockOptional& opt, ::std::nullopt_t) {
+    return !opt.has_value();
+  }
+
+  // Backing std::optional storage for the test double.
+  ::std::optional<T> value;
+};
+
+TEST(Optional, CustomOptionalLike) {
+  EXPECT_EQ(to_string(MockOptional<::std::string>("hello")), R"(["hello"])");
+  EXPECT_EQ(to_string(MockOptional<int>()), R"(nullopt)");
+  EXPECT_EQ(to_string(MockOptional<int>(::std::nullopt)), R"(nullopt)");
+}
+
+TEST(Optional, OptionalRef) {
+  const ::std::string s = "hello";
+  EXPECT_EQ(to_string(::absl::optional_ref<const ::std::string>(s)),
+            R"(["hello"])");
+  EXPECT_EQ(to_string(::absl::optional_ref<int>()), R"(nullopt)");
+  EXPECT_EQ(to_string(::absl::optional_ref<int>(::std::nullopt)), R"(nullopt)");
 }
 
 TEST(ReferenceWrapper, Basic) {

@@ -294,6 +294,33 @@ struct is_instance_of<
 template <class T, template <class...> class U>
 inline constexpr bool is_instance_of_v = is_instance_of<T, U>::value;
 
+// Evaluates to true when T exposes the optional-like read interface
+// (.has_value(), unary operator*, and construction/comparison with
+// std::nullopt) on const references.
+template <class T, class = void>
+struct is_optional_like : ::std::false_type {};
+template <class T>
+struct is_optional_like<
+    T, ::std::void_t<
+           // Required to extract and format the engaged value via `*obj` in
+           // `printer::print`.
+           decltype(*::std::declval<const T&>()),
+
+           // Verifies that `std::nullopt` represents the disengaged state of
+           // `T` so printing `"nullopt"` when empty is semantically accurate.
+           decltype(::std::declval<const T&>() == ::std::nullopt),
+
+           // Required for `if (obj.has_value())` presence checks in
+           // `printer::print` (distinguishing optional-like types from raw
+           // pointers, smart pointers, and iterators) and to confirm `T` can be
+           // constructed in the disengaged `std::nullopt` state.
+           ::std::enable_if_t<::std::is_constructible_v<
+               bool, decltype(::std::declval<const T&>().has_value())>&& ::std::
+                                  is_constructible_v<T, ::std::nullopt_t>>>>
+    : ::std::true_type {};
+template <class T>
+inline constexpr bool is_optional_like_v = is_optional_like<T>::value;
+
 template <class T>
 struct is_integral_constant : ::std::false_type {};
 template <class T, T V>
@@ -588,10 +615,9 @@ class printer {
 
   // optional<T> is printed either as "nullopt" or as T.
   template <class T,
-            class = ::std::enable_if_t<is_instance_of_v<T, ::std::optional> &&
-                                       sizeof(T) != 0>>
+            class = ::std::enable_if_t<is_optional_like_v<T> && sizeof(T) != 0>>
   void print(const T& obj, rank<21>) const {
-    if (obj) {
+    if (obj.has_value()) {
       stream_ << "[";
       writer_(stream_, *obj);
       stream_ << "]";

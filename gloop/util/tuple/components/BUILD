@@ -264,6 +264,7 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:optional_ref",
         "@abseil-cpp//absl/types:source_location",
         "@gloop//gloop/util/status:codes_cc_proto",
         "@google_benchmark//:benchmark",
