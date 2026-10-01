@@ -42,6 +42,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/base/attributes.h"
@@ -1521,6 +1522,55 @@ TEST_F(SubProcessTest, FdRace) {
   for (size_t i = 0; i < std::size(fds); ++i) {
     close(fds[i]);
   }
+}
+
+// Closes the given descriptors in the child right after fork(). This gives the
+// child the descriptor table it would inherit if another parent thread closed
+// those descriptors between Start() opening its own fds and fork().
+class HolePunchingSubProcess : public SubProcess {
+ public:
+  HolePunchingSubProcess(int nfds, std::vector<int> holes)
+      : SubProcess(nfds), holes_(std::move(holes)) {}
+
+ protected:
+  void TEST_AfterForkBeforeExecEarly(int child_to_parent_fd) override {
+    for (int fd : holes_) {
+      lss_close(fd, &child_errno_);
+    }
+  }
+
+ private:
+  std::vector<int> holes_;
+};
+
+TEST_F(SubProcessTest, StartToleratesAlreadyClosedChildFd) {
+  const int kNumFds = 8;
+  // Occupy every descriptor below kNumFds, so none of the fds Start() opens
+  // lands below kNumFds.
+  std::vector<int> fillers;
+  for (;;) {
+    int fd = open("/dev/null", O_RDONLY);
+    ASSERT_GE(fd, 0);
+    if (fd >= kNumFds) {
+      close(fd);
+      break;
+    }
+    fillers.push_back(fd);
+  }
+  absl::Cleanup close_fillers = [&fillers] {
+    for (int fd : fillers) close(fd);
+  };
+
+  // Close fds 4 and 6 in the child. The child's open("/dev/null") reuses fd 4.
+  // Fd 6 stays closed, so when the child later closes every descriptor below
+  // kNumFds it hasn't been told to keep, close(6) returns EBADF, and Start()
+  // must still succeed.
+  HolePunchingSubProcess proc(kNumFds, {4, 6});
+  proc.SetProgram("/bin/true", {"true"});
+  proc.EnableChildSetupLogs(true);
+  ASSERT_TRUE(proc.Start()) << proc.error_text();
+  ASSERT_TRUE(proc.Wait());
+  EXPECT_EQ(0, proc.exit_status());
 }
 
 enum class FailWhen { NEVER, EARLY, LATE };
