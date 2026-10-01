@@ -878,6 +878,7 @@ cc_library(
         ":spinlock",
         "//gloop:enforce_gloop_support",
         "//gloop/base/scheduling:scheduling_mode",
+        "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/flags:flag",
@@ -893,6 +894,7 @@ cc_test(
     deps = [
         ":proc_maps",
         "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

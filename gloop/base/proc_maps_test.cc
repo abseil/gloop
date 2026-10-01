@@ -22,6 +22,12 @@
 
 #include <sys/sysmacros.h>
 
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <string>
+
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "gtest/gtest.h"
 
@@ -43,5 +49,84 @@ TEST(ProcMapsIteratorTest, FormatLineWithSharedMapping) {
   EXPECT_EQ(absl::string_view(line, len),
             "00001000-00002000 rw-s 00000000 00:00 0           \n");
 }
+
+TEST(ProcMapsIteratorTest, NextExtReadsCurrentProcessMaps) {
+  ProcMapsIterator::Buffer buffer;
+  ProcMapsIterator it(0, &buffer);
+  ASSERT_TRUE(it.Valid());
+  uint64_t start, end, offset;
+  int64_t inode;
+  char* flags;
+  char* filename;
+  dev_t dev;
+  int count = 0;
+  bool found_code = false;
+  const uintptr_t self_addr = reinterpret_cast<uintptr_t>(&buffer);
+  bool found_stack = false;
+  while (it.NextExt(&start, &end, &flags, &offset, &inode, &filename, &dev)) {
+    EXPECT_LT(start, end);
+    ASSERT_NE(flags, nullptr);
+    EXPECT_EQ(strlen(flags), 4u);
+    ASSERT_NE(filename, nullptr);
+    if (absl::StrContains(flags, 'x')) {
+      found_code = true;
+    }
+    if (self_addr >= start && self_addr < end) {
+      found_stack = true;
+    }
+    ++count;
+  }
+  EXPECT_GT(count, 0);
+  EXPECT_TRUE(found_code);
+  EXPECT_TRUE(found_stack);
+}
+
+#if defined(__linux__)
+TEST(ProcMapsIteratorTest, ParseProcMapsLine) {
+  proc_maps_internal::ParsedLine parsed{};
+  ASSERT_TRUE(proc_maps_internal::ParseProcMapsLine(
+      "  00001000-00002000   r-xp   00000100   fc:227   123456      /bin/cat",
+      &parsed));
+  EXPECT_EQ(parsed.start, 0x1000u);
+  EXPECT_EQ(parsed.end, 0x2000u);
+  EXPECT_STREQ(parsed.flags, "r-xp");
+  EXPECT_EQ(parsed.offset, 0x100u);
+  EXPECT_EQ(parsed.major, 0xfcu);
+  EXPECT_EQ(parsed.minor, 0x227u);
+  EXPECT_EQ(parsed.inode, 123456);
+  EXPECT_EQ(parsed.filename, "/bin/cat");
+
+  ASSERT_TRUE(proc_maps_internal::ParseProcMapsLine(
+      "00001000-00002000 rw-s 00000000 00:00 0           ", &parsed));
+  EXPECT_EQ(parsed.start, 0x1000u);
+  EXPECT_EQ(parsed.end, 0x2000u);
+  EXPECT_STREQ(parsed.flags, "rw-s");
+  EXPECT_EQ(parsed.offset, 0u);
+  EXPECT_EQ(parsed.major, 0u);
+  EXPECT_EQ(parsed.minor, 0u);
+  EXPECT_EQ(parsed.inode, 0);
+  EXPECT_EQ(parsed.filename, "");
+
+  EXPECT_FALSE(proc_maps_internal::ParseProcMapsLine("", &parsed));
+  EXPECT_FALSE(proc_maps_internal::ParseProcMapsLine("   ", &parsed));
+  EXPECT_FALSE(proc_maps_internal::ParseProcMapsLine("1000", &parsed));
+  EXPECT_FALSE(proc_maps_internal::ParseProcMapsLine("zzzz-2000 r-xp 0 00:00 0",
+                                                     &parsed));
+  EXPECT_FALSE(proc_maps_internal::ParseProcMapsLine("1000-zzzz r-xp 0 00:00 0",
+                                                     &parsed));
+  EXPECT_FALSE(proc_maps_internal::ParseProcMapsLine(
+      "1000-2000 rwxps 0 00:00 0", &parsed));
+  EXPECT_FALSE(proc_maps_internal::ParseProcMapsLine(
+      "1000\t-2000 r-xp 0 00:00 0", &parsed));
+  EXPECT_FALSE(proc_maps_internal::ParseProcMapsLine(
+      "1000-2000 r-xp zzzz 00:00 0", &parsed));
+  EXPECT_FALSE(proc_maps_internal::ParseProcMapsLine("1000-2000 r-xp 0 zz:00 0",
+                                                     &parsed));
+  EXPECT_FALSE(proc_maps_internal::ParseProcMapsLine("1000-2000 r-xp 0 00:zz 0",
+                                                     &parsed));
+  EXPECT_FALSE(proc_maps_internal::ParseProcMapsLine(
+      "1000-2000 r-xp 0 00:00 notanint", &parsed));
+}
+#endif
 
 }  // namespace
