@@ -25,6 +25,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "absl/base/casts.h"
@@ -34,6 +35,7 @@
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/random/random.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/arena.h"
@@ -42,6 +44,7 @@
 #include "gloop/util/random/distributions.h"
 #include "gloop/util/random/mt_random.h"
 #include "gloop/util/random/random_base.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 ABSL_FLAG(int32_t, test_size, 100, "Number of strings to test");
@@ -49,37 +52,99 @@ ABSL_FLAG(int32_t, log_max_length, 16, "N, where maximum string length is 2^N");
 
 namespace strings {
 
+class ArenaStringAccess {
+ public:
+  static char* EncodeLen(char* buf, uint32_t len) {
+    return ArenaString::EncodeLen(buf, len);
+  }
+};
+
+namespace {
+
+using ::benchmark::DoNotOptimize;
+using ::testing::IsEmpty;
+
 TEST(ArenaStringTest, Simple) {
-  std::vector<size_t> sizes = {0,   1,   2,     3,     63,    64,    127,  128,
-                               255, 256, 16201, 32767, 32768, 65535, 65536};
+  const std::vector<size_t> sizes = {0,     1,     2,     3,     63,
+                                     64,    127,   128,   255,   256,
+                                     16201, 32767, 32768, 65535, 65536};
 
   UnsafeArena arena(1 << 20);
-  for (auto size : sizes) {
-    SCOPED_TRACE(size);
-    std::string s(size, 'a');
-    ArenaString a(s, &arena);
+  for (const size_t size : sizes) {
+    SCOPED_TRACE(absl::StrCat("size=", size));
+    const std::string s(size, 'a');
+    const ArenaString a(s, &arena);
     EXPECT_EQ(a.str(), s);
+    EXPECT_EQ(a.size(), size);
+    EXPECT_EQ(a.empty(), s.empty());
   }
 }
 
-// Templatized so we can run with both BaseArena, its derived classes and C++
+// Traits so we can run with BaseArena, its derived classes, and C++
 // allocators.
-template <class A>
-void TestAssign(A a) {
+struct UnsafeArenaTraits {
+  using AllocatorType = UnsafeArena*;
+  UnsafeArena arena{1 << 20};
+  AllocatorType GetAllocator() { return &arena; }
+};
+
+struct SafeArenaTraits {
+  using AllocatorType = SafeArena*;
+  SafeArena arena{1 << 20};
+  AllocatorType GetAllocator() { return &arena; }
+};
+
+struct BaseArenaTraits {
+  using AllocatorType = BaseArena*;
+  UnsafeArena arena{1 << 20};
+  AllocatorType GetAllocator() { return &arena; }
+};
+
+struct ArenaTypeNameGenerator {
+  template <typename T>
+  static std::string GetName(int) {
+    if constexpr (std::is_same_v<T, UnsafeArenaTraits>) {
+      return "UnsafeArena";
+    } else if constexpr (std::is_same_v<T, SafeArenaTraits>) {
+      return "SafeArena";
+    } else if constexpr (std::is_same_v<T, BaseArenaTraits>) {
+      return "BaseArena";
+    }
+    return "Unknown";
+  }
+};
+
+using ArenaTypes =
+    ::testing::Types<UnsafeArenaTraits, SafeArenaTraits, BaseArenaTraits>;
+
+template <typename T>
+class ArenaStringTypedTest : public ::testing::Test {
+ protected:
+  typename T::AllocatorType GetAllocator() { return traits_.GetAllocator(); }
+
+ private:
+  T traits_;
+};
+
+TYPED_TEST_SUITE(ArenaStringTypedTest, ArenaTypes, ArenaTypeNameGenerator);
+
+TYPED_TEST(ArenaStringTypedTest, AssignAndConstruct) {
+  auto allocator = this->GetAllocator();
   MTRandom rng(GTEST_FLAG_GET(random_seed));
   std::vector<std::string> data;
   std::vector<ArenaString> arena_str;
 
-  data.reserve(absl::GetFlag(FLAGS_test_size));
-  arena_str.reserve(absl::GetFlag(FLAGS_test_size));
+  const int32_t test_size = absl::GetFlag(FLAGS_test_size);
+  const int32_t log_max_length = absl::GetFlag(FLAGS_log_max_length);
+  data.reserve(test_size);
+  arena_str.reserve(test_size);
 
-  for (int i = 0; i < absl::GetFlag(FLAGS_test_size); i++) {
+  for (int i = 0; i < test_size; ++i) {
     // using a skewed distribution over string lengths focuses the test on short
     // strings, including length 0.
-    data.push_back(
-        std::string(util_random::SkewedLow<int32_t>(
-                        rng, 0, (1 << absl::GetFlag(FLAGS_log_max_length)) - 1),
-                    'a' + rng.Uniform(26)));
+    data.push_back(std::string(
+        util_random::SkewedLow<int32_t>(rng, 0, (1 << log_max_length) - 1),
+        'a' + rng.Uniform(26)));
     const auto& str = data.back();
 
     VLOG(1) << "data[" << i << "] size=" << str.size() << ": "
@@ -88,42 +153,64 @@ void TestAssign(A a) {
     // test both assign() and constructor.
     if (absl::Bernoulli(rng, 1.0 / 2)) {
       arena_str.resize(i + 1);
-      arena_str[i].assign(str, a);
+      arena_str[i].assign(str, allocator);
     } else {
-      arena_str.push_back(ArenaString(str, a));
+      arena_str.push_back(ArenaString(str, allocator));
     }
   }
 
-  for (int i = 0; i < absl::GetFlag(FLAGS_test_size); i++) {
-    SCOPED_TRACE(i);
+  for (int i = 0; i < test_size; ++i) {
+    SCOPED_TRACE(absl::StrCat("i=", i, ", size=", data[i].size()));
 
-    EXPECT_EQ(data[i].size(), arena_str[i].size());
-    EXPECT_EQ(data[i].empty(), arena_str[i].empty());
-    EXPECT_EQ(0, memcmp(data[i].data(), arena_str[i].data(), data[i].size()));
-
-    absl::string_view str(data[i]);
-    EXPECT_EQ(str, arena_str[i].str());
-
-    arena_str[i].clear();
-    EXPECT_TRUE(arena_str[i].str().empty());
-    EXPECT_TRUE(arena_str[i].empty());
-    EXPECT_EQ(0, arena_str[i].size());
+    EXPECT_EQ(arena_str[i].size(), data[i].size());
+    EXPECT_EQ(arena_str[i].empty(), data[i].empty());
+    EXPECT_EQ(arena_str[i].str(), data[i]);
+    if (!data[i].empty()) {
+      EXPECT_EQ(
+          std::memcmp(arena_str[i].data(), data[i].data(), data[i].size()), 0);
+    }
   }
 }
 
-TEST(ArenaStringTest, AssignUnsafeArena) {
-  UnsafeArena arena(1 << 20);
-  TestAssign(&arena);
-}
+TYPED_TEST(ArenaStringTypedTest, Clear) {
+  auto allocator = this->GetAllocator();
 
-TEST(ArenaStringTest, AssignSafeArena) {
-  SafeArena arena(1 << 20);
-  TestAssign(&arena);
-}
+  // Test clearing a non-empty string.
+  ArenaString str("hello world", allocator);
+  EXPECT_FALSE(str.empty());
+  EXPECT_EQ(str.size(), 11);
+  EXPECT_EQ(str.str(), "hello world");
 
-TEST(ArenaStringTest, AssignBaseArena) {
-  UnsafeArena arena(1 << 20);
-  TestAssign(absl::implicit_cast<BaseArena*>(&arena));
+  str.clear();
+  EXPECT_THAT(str.str(), IsEmpty());
+  EXPECT_TRUE(str.empty());
+  EXPECT_EQ(str.size(), 0);
+
+  // Test clearing an empty string.
+  ArenaString empty_str("", allocator);
+  EXPECT_TRUE(empty_str.empty());
+  EXPECT_EQ(empty_str.size(), 0);
+
+  empty_str.clear();
+  EXPECT_THAT(empty_str.str(), IsEmpty());
+  EXPECT_TRUE(empty_str.empty());
+  EXPECT_EQ(empty_str.size(), 0);
+
+  // Test clearing randomized strings of varying lengths.
+  MTRandom rng(GTEST_FLAG_GET(random_seed));
+  const int32_t test_size = absl::GetFlag(FLAGS_test_size);
+  const int32_t log_max_length = absl::GetFlag(FLAGS_log_max_length);
+  for (int i = 0; i < test_size; ++i) {
+    SCOPED_TRACE(absl::StrCat("i=", i));
+    const std::string data(
+        util_random::SkewedLow<int32_t>(rng, 0, (1 << log_max_length) - 1),
+        'a' + rng.Uniform(26));
+    ArenaString arena_str(data, allocator);
+    arena_str.clear();
+    EXPECT_THAT(arena_str.str(), IsEmpty());
+    EXPECT_TRUE(arena_str.empty());
+    EXPECT_EQ(arena_str.size(), 0);
+  }
 }
 
 // Test static encode and decode methods.
@@ -131,36 +218,39 @@ TEST(ArenaStringTest, EncodeDecode) {
   MTRandom rng(GTEST_FLAG_GET(random_seed));
 
   // allocate a few extra characters so we can check for buffer overruns.
-  int buf_extra = 16;
-  int buf_size =
+  constexpr int kBufExtra = 16;
+  const int buf_size =
       ArenaString::EncSize(1 << absl::GetFlag(FLAGS_log_max_length)) +
-      buf_extra;
+      kBufExtra;
   absl::FixedArray<char, 0> buf(buf_size);
   memset(buf.data(), 0, buf.size());
 
-  for (int i = 0; i < absl::GetFlag(FLAGS_test_size); i++) {
+  const int32_t test_size = absl::GetFlag(FLAGS_test_size);
+  const int32_t log_max_length = absl::GetFlag(FLAGS_log_max_length);
+  for (int i = 0; i < test_size; ++i) {
+    SCOPED_TRACE(absl::StrCat("iteration=", i));
     // using a skewed distribution over string lengths focuses the test on short
     // strings, including length 0.
-    std::string raw = rng.RandString(util_random::SkewedLow<int32_t>(
-        rng, 0, (1 << absl::GetFlag(FLAGS_log_max_length)) - 1));
+    std::string raw = rng.RandString(
+        util_random::SkewedLow<int32_t>(rng, 0, (1 << log_max_length) - 1));
     absl::string_view str(raw);
 
     // encode the string; it should return data.
     char* enc = ArenaString::Encode(str, buf.data());
     if (raw.size() < 128) {
-      EXPECT_EQ(&buf[1], enc);
+      EXPECT_EQ(enc, &buf[1]);
     } else {
-      EXPECT_EQ(&buf[4], enc);
+      EXPECT_EQ(enc, &buf[4]);
     }
 
     // ensure we didn't write past the end of the encoding
-    for (int j = ArenaString::EncSize(str.size()); j < buf_extra; j++) {
-      EXPECT_EQ(0, buf[j]) << "size=" << str.size() << " j=" << j;
+    for (int j = ArenaString::EncSize(str.size()); j < kBufExtra; ++j) {
+      EXPECT_EQ(buf[j], 0) << "size=" << str.size() << " j=" << j;
     }
 
     // decode and verify the string.
     absl::string_view dec = ArenaString::Decode(enc);
-    EXPECT_EQ(str, dec);
+    EXPECT_EQ(dec, str);
 
     // clear buf
     memset(buf.data(), 0, ArenaString::EncSize(str.size()));
@@ -170,8 +260,20 @@ TEST(ArenaStringTest, EncodeDecode) {
 TEST(ArenaStringTest, Empty) {
   UnsafeArena arena(1 << 10);
   EXPECT_TRUE(ArenaString().empty());
-  EXPECT_TRUE(ArenaString("", &arena).empty());
-  EXPECT_FALSE(ArenaString("a", &arena).empty());
+  EXPECT_THAT(ArenaString().str(), IsEmpty());
+  EXPECT_EQ(ArenaString().size(), 0);
+  EXPECT_EQ(ArenaString().data(), nullptr);
+
+  const ArenaString empty_arena_str("", &arena);
+  EXPECT_TRUE(empty_arena_str.empty());
+  EXPECT_THAT(empty_arena_str.str(), IsEmpty());
+  EXPECT_EQ(empty_arena_str.size(), 0);
+  EXPECT_EQ(empty_arena_str.data(), nullptr);
+
+  const ArenaString non_empty_arena_str("a", &arena);
+  EXPECT_FALSE(non_empty_arena_str.empty());
+  EXPECT_EQ(non_empty_arena_str.size(), 1);
+  EXPECT_EQ(non_empty_arena_str.str(), "a");
 }
 
 //////////////////////////////// Benchmarks ////////////////////////////////
@@ -272,8 +374,8 @@ static void BM_copy_arenastring(benchmark::State& state) {
     data = ArenaString::Encode(a, &buf[(--n & 7)]);
   }
   a = ArenaString::Decode(data);
-  CHECK_EQ(0, memcmp(x.data(), a.data(), len));
-  CHECK_EQ(len, a.size());
+  CHECK_EQ(std::memcmp(a.data(), x.data(), len), 0);
+  CHECK_EQ(a.size(), len);
 }
 BENCHMARK(BM_copy_arenastring)->Range(0, 4 << 10);
 
@@ -292,17 +394,10 @@ static void BM_copy_stringpiece(benchmark::State& state) {
     memcpy(&buf[(n & 7)], data, len);
     a = absl::string_view(&buf[(--n & 7)], len);
   }
-  CHECK_EQ(0, memcmp(x.data(), a.data(), len));
-  CHECK_EQ(len, a.size());
+  CHECK_EQ(std::memcmp(a.data(), x.data(), len), 0);
+  CHECK_EQ(a.size(), len);
 }
 BENCHMARK(BM_copy_stringpiece)->Range(0, 4 << 10);
-
-class ArenaStringAccess {
- public:
-  static char* EncodeLen(char* buf, uint32_t len) {
-    return ArenaString::EncodeLen(buf, len);
-  }
-};
 
 // Benchmarks encoding an ArenaString without memcpy; this just consists of
 // encoding the length as a varint.
@@ -332,7 +427,7 @@ static void BM_decode_arenastring(benchmark::State& state) {
   ArenaString::Encode(x, buf.data());
 
   for (auto s : state) {
-    benchmark::DoNotOptimize(ArenaString::Decode(buf.data()));
+    DoNotOptimize(ArenaString::Decode(buf.data()));
   }
 }
 BENCHMARK(BM_decode_arenastring)->Range(0, 1 << 16);
@@ -350,7 +445,7 @@ static void BM_arenastring_str(benchmark::State& state) {
   for (auto s : state) {
     st = a.str();
   }
-  CHECK(st.size() == x.size());
+  CHECK_EQ(st.size(), x.size());
 }
 BENCHMARK(BM_arenastring_str)->Range(0, 1 << 16);
 
@@ -367,7 +462,7 @@ static void BM_arenastring_size(benchmark::State& state) {
   for (auto s : state) {
     size = a.size();
   }
-  CHECK(size == len);
+  CHECK_EQ(size, len);
 }
 BENCHMARK(BM_arenastring_size)->Range(0, 1 << 16);
 
@@ -384,10 +479,11 @@ static void BM_arenastring_data(benchmark::State& state) {
   for (auto s : state) {
     d = a.data();
   }
-  CHECK(d != x.data());
+  CHECK_NE(d, x.data());
 }
 BENCHMARK(BM_arenastring_data)->Range(0, 1 << 16);
 
+}  // namespace
 }  // namespace strings
 
 int main(int argc, char** argv) {
