@@ -131,13 +131,10 @@ cc_test(
     name = "to_callback_test",
     srcs = ["to_callback_test.cc"],
     deps = [
-        ":from_callback",
         ":to_callback",
         "//gloop:gloop_test_main",
         "//gloop/base:callback",
         "//gloop/base:context",
-        "//gloop/base:tracecontext",
-        "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

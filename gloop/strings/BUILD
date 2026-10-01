@@ -219,7 +219,6 @@ cc_test(
     deps = [
         ":escaping",
         "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
         "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
