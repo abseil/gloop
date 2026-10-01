@@ -95,6 +95,19 @@ Context* InlineCurrent() { return per_thread_context.pointer(); }
 
 }  // namespace
 
+// Defined in <path>
+ABSL_ATTRIBUTE_WEAK void CurrentTraceContextChanging(const TraceContext*,
+                                                     TraceContext*) {}
+
+// Invokes CurrentTraceContextChanging() under copts=-DENABLE_CONTEXT_ORIGIN
+static void NotifyTraceContextChanging(
+    [[maybe_unused]] const TraceContext* from,
+    [[maybe_unused]] TraceContext* to) {
+#ifdef ENABLE_CONTEXT_ORIGIN
+  CurrentTraceContextChanging(from, to);
+#endif
+}
+
 namespace internal {
 
 absl::NoDestructor<Context> background_context{Context::kDefault};
@@ -103,6 +116,7 @@ Context* absl_nonnull SwapContext(ContextAccess access,
                                   Context* absl_nonnull context,
                                   perftools::tracing::StringRef label) {
   Context* current = per_thread_context.pointer();
+  NotifyTraceContextChanging(current->trace(), context->trace());
   per_thread_context.set_pointer(context);
   return current;
 }
@@ -173,13 +187,10 @@ const TraceContext* CurrentTraceContextNoAlloc() {
   return c ? &c->trace_context() : nullptr;
 }
 
-// Defined in <path>
-ABSL_ATTRIBUTE_WEAK void CurrentTraceContextChanging(const TraceContext*,
-                                                     TraceContext*) {}
-
 ABSL_XRAY_ALWAYS_INSTRUMENT void SwapCurrentContext(Context* c) {
   using std::swap;
   Context* current = InlineCurrent();
+  NotifyTraceContextChanging(current->trace(), c->trace());
   swap(*current, *c);
 }
 
@@ -254,14 +265,13 @@ WithTraceContext::WithTraceContext(const TraceContext& switch_to,
     // This should be rare (and ideally illegal). Just make a copy of current.
     new (&previous_) TraceContext(*current);
   }
-#ifdef ENABLE_CONTEXT_ORIGIN
-  base::CurrentTraceContextChanging(&previous_, current);
-#endif
+  NotifyTraceContextChanging(&previous_, current);
 }
 
 WithTraceContext::WithTraceContext(TraceContext&& switch_to,
                                    perftools::tracing::StringRef label) {
   TraceContext* current = InlineCurrent()->trace();
+  NotifyTraceContextChanging(current, &switch_to);
   if (&switch_to != current) {
     new (&previous_) TraceContext(std::move(*current));
     current = new (current) TraceContext(std::move(switch_to));

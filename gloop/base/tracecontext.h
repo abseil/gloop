@@ -232,9 +232,6 @@ class WithLifetimeBoundContext;
 
 const TraceContext* CurrentTraceContextNoAlloc();
 
-#ifdef ENABLE_CONTEXT_ORIGIN
-void CurrentTraceContextChanging(const TraceContext*, TraceContext*);
-#endif
 }  // namespace base
 
 namespace perftools::tracing {
@@ -1102,9 +1099,6 @@ inline void TraceContext::BeforeSwapCurrent(base::ContextAccess,
 inline void TraceContext::BeforeSwapCurrent(base::ContextAccess access,
                                             TraceContext* to) {
   BeforeSwapCurrent(access, *to);
-#ifdef ENABLE_CONTEXT_ORIGIN
-  base::CurrentTraceContextChanging(this, to);
-#endif
 }
 
 inline void TraceContext::AfterSwapCurrent(
