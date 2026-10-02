@@ -116,8 +116,8 @@ void Activity(BlockingRefcount* counter, TaskControls* controls) {
   controls->done_.DecrementCount();
 }
 
-void Master(const BlockingRefcount* counter, absl::Notification* started,
-            absl::Notification* done) {
+void Primary(const BlockingRefcount* counter, absl::Notification* started,
+             absl::Notification* done) {
   started->Notify();
   counter->WaitForZero();
   done->Notify();
@@ -140,40 +140,40 @@ TEST_F(BlockingRefcountTest, BlockingRefcountCounts) {
   EXPECT_EQ(num_tasks, counter_.count());
   EXPECT_EQ(num_tasks, activity_controls.active_count_.value());
 
-  // Spawn the Master to block on the tasks.
-  absl::Notification master_started, master_done;
+  // Spawn the Primary to block on the tasks.
+  absl::Notification primary_started, primary_done;
   pool_.Schedule(absl::bind_front(
-      Master, absl::implicit_cast<const BlockingRefcount*>(&counter_),
-      &master_started, &master_done));
-  master_started.WaitForNotification();
+      Primary, absl::implicit_cast<const BlockingRefcount*>(&counter_),
+      &primary_started, &primary_done));
+  primary_started.WaitForNotification();
 
-  // Master should be blocked on WaitForZero now.
-  EXPECT_FALSE(
-      master_done.WaitForNotificationWithTimeout(absl::Milliseconds(2) /*ms*/));
-
-  // A second Master should be able to wait as well.
-  absl::Notification master2_started, master2_done;
-  pool_.Schedule(absl::bind_front(
-      Master, absl::implicit_cast<const BlockingRefcount*>(&counter_),
-      &master2_started, &master2_done));
-  master2_started.WaitForNotification();
-  EXPECT_FALSE(master2_done.WaitForNotificationWithTimeout(
+  // Primary should be blocked on WaitForZero now.
+  EXPECT_FALSE(primary_done.WaitForNotificationWithTimeout(
       absl::Milliseconds(2) /*ms*/));
 
-  // Some tasks finishing should not be sufficient to let the Masters
+  // A second Primary should be able to wait as well.
+  absl::Notification primary2_started, primary2_done;
+  pool_.Schedule(absl::bind_front(
+      Primary, absl::implicit_cast<const BlockingRefcount*>(&counter_),
+      &primary2_started, &primary2_done));
+  primary2_started.WaitForNotification();
+  EXPECT_FALSE(primary2_done.WaitForNotificationWithTimeout(
+      absl::Milliseconds(2) /*ms*/));
+
+  // Some tasks finishing should not be sufficient to let the Primaries
   // proceed.
   counter_.DecN(num_tasks - 1);
-  EXPECT_FALSE(
-      master_done.WaitForNotificationWithTimeout(absl::Milliseconds(2) /*ms*/));
-  EXPECT_FALSE(master2_done.HasBeenNotified());
+  EXPECT_FALSE(primary_done.WaitForNotificationWithTimeout(
+      absl::Milliseconds(2) /*ms*/));
+  EXPECT_FALSE(primary2_done.HasBeenNotified());
   counter_.IncN(num_tasks - 1);
 
   // Allowing the outstanding tasks to complete should enable the
-  // Masters to proceed.
+  // Primaries to proceed.
   activity_controls.finish_.Notify();
   activity_controls.done_.Wait();
-  master_done.WaitForNotification();
-  master2_done.WaitForNotification();
+  primary_done.WaitForNotification();
+  primary2_done.WaitForNotification();
   EXPECT_EQ(0, counter_.count());
 }
 
@@ -209,20 +209,20 @@ TEST_F(BlockingRefcountTest, BlockingRefcountReferenceWorks) {
   // closure creates 2 copies of its arguments.
   EXPECT_EQ(2 * num_tasks, counter_.count());
 
-  // Spawn the Master to block on the tasks.
-  absl::Notification master_started, master_done;
+  // Spawn the Primary to block on the tasks.
+  absl::Notification primary_started, primary_done;
   pool_.Schedule(absl::bind_front(
-      Master, absl::implicit_cast<const BlockingRefcount*>(&counter_),
-      &master_started, &master_done));
-  master_started.WaitForNotification();
+      Primary, absl::implicit_cast<const BlockingRefcount*>(&counter_),
+      &primary_started, &primary_done));
+  primary_started.WaitForNotification();
 
-  // Master should be blocked on WaitForZero now.
-  EXPECT_FALSE(master_done.HasBeenNotified());
+  // Primary should be blocked on WaitForZero now.
+  EXPECT_FALSE(primary_done.HasBeenNotified());
 
   // Allowing the outstanding tasks to complete should enable the
-  // Master to proceed.
+  // Primary to proceed.
   tasks_finish.Notify();
-  master_done.WaitForNotification();
+  primary_done.WaitForNotification();
   EXPECT_EQ(0, counter_.count());
 }
 
@@ -299,8 +299,8 @@ void SimpleActivity(BlockingRefcount* counter, absl::BlockingCounter* done,
   done->DecrementCount();
 }
 
-void SimpleMaster(const BlockingRefcount* counter, absl::BlockingCounter* done,
-                  int sleep_ms, int trials) {
+void SimplePrimary(const BlockingRefcount* counter, absl::BlockingCounter* done,
+                   int sleep_ms, int trials) {
   for (int i = 0; i < trials; ++i) {
     absl::SleepFor(absl::Milliseconds(sleep_ms));
     counter->WaitForZero();
@@ -313,7 +313,7 @@ void SimpleMaster(const BlockingRefcount* counter, absl::BlockingCounter* done,
 TEST_F(BlockingRefcountTest, StressTest) {
   const int num_tasks = 100;
   absl::BlockingCounter activity_done(num_tasks * 3 / 4);
-  absl::BlockingCounter master_done(num_tasks / 4);
+  absl::BlockingCounter primary_done(num_tasks / 4);
   for (int i = 0; i < num_tasks; ++i) {
     if ((i % 4) != 0) {
       pool_.Schedule(absl::bind_front(SimpleActivity, &counter_, &activity_done,
@@ -321,8 +321,9 @@ TEST_F(BlockingRefcountTest, StressTest) {
                                       i % 4, 5 + (i % 2)));
     } else {
       pool_.Schedule(absl::bind_front(
-          SimpleMaster, absl::implicit_cast<const BlockingRefcount*>(&counter_),
-          &master_done,
+          SimplePrimary,
+          absl::implicit_cast<const BlockingRefcount*>(&counter_),
+          &primary_done,
           // Create a little variance in behavior.
           4 - (i % 3), 4 + ((i / 2) % 3)));
     }
@@ -332,7 +333,7 @@ TEST_F(BlockingRefcountTest, StressTest) {
   EXPECT_EQ(0, counter_.count());
   // Make sure subsequent calls to WaitForZero do not block forever.
   counter_.WaitForZero();
-  master_done.Wait();
+  primary_done.Wait();
 }
 
 // This test exercises the case when the count reaches zero ephemerally while
@@ -375,8 +376,8 @@ TEST_F(BlockingRefcountTest, WaitReEntrancy) {
   EXPECT_TRUE(counter_.WaitForZeroWithTimeout(absl::Microseconds(1)));
 }
 
-void MasterWithTimeout(const BlockingRefcount* counter,
-                       absl::Notification* started, absl::Notification* done) {
+void PrimaryWithTimeout(const BlockingRefcount* counter,
+                        absl::Notification* started, absl::Notification* done) {
   started->Notify();
   // Use an absurdly large timeout to ensure we will wake up when the counter
   // is decremented, and not by a timeout.  With a timeout of 10, this thread
@@ -390,7 +391,7 @@ TEST_F(BlockingRefcountTest, WaitWithTimeoutWorksWhenNoTimeout) {
   counter_.Inc();
   absl::Notification started, done;
   pool_.Schedule(
-      absl::bind_front(MasterWithTimeout,
+      absl::bind_front(PrimaryWithTimeout,
                        absl::implicit_cast<const BlockingRefcount*>(&counter_),
                        &started, &done));
   started.WaitForNotification();
