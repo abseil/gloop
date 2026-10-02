@@ -45,7 +45,7 @@ struct TagQ {};
 
 template <>
 struct tag<S> {
-  typedef TagS type;
+  using type = TagS;
 };
 
 template <>
@@ -55,24 +55,24 @@ struct intrinsics<TagS> {
     using type = S;
   };
 
-  template <::size_t N, class T>
-  struct element : ::std::integral_constant<int, N> {
-    static_assert(::std::is_same<T, S>::value, "Wrong template argument");
+  template <size_t N, class T>
+  struct element : std::integral_constant<int, N> {
+    static_assert(std::is_same_v<T, S>, "Wrong template argument");
   };
 
   template <class T>
-  struct size : ::std::integral_constant<::size_t, 42> {
-    static_assert(::std::is_same<T, S>::value, "Wrong template argument");
+  struct size : std::integral_constant<size_t, 42> {
+    static_assert(std::is_same_v<T, S>, "Wrong template argument");
   };
 
-  template <::size_t N, class T>
+  template <size_t N, class T>
   static int get(T&& t) {
-    static_assert(::std::is_same<typename ::std::decay<T>::type, S>::value,
+    static_assert(std::is_same_v<std::decay_t<T>, S>,
                   "Wrong template argument");
     return N;
   }
 
-  template <::size_t N, class T>
+  template <size_t N, class T>
   static constexpr const char* name() {
     if constexpr (N == 0) return "S0";
     if constexpr (N == 1) return "S1";
@@ -87,24 +87,24 @@ template <>
 struct intrinsics<TagQ> {
   using has_all_elements = std::true_type;
 
-  template <::size_t N, class T>
-  struct element : ::std::integral_constant<int, N> {
-    static_assert(::std::is_same<T, Q>::value, "Wrong template argument");
+  template <size_t N, class T>
+  struct element : std::integral_constant<int, N> {
+    static_assert(std::is_same_v<T, Q>, "Wrong template argument");
   };
 
   template <class T>
-  struct size : ::std::integral_constant<::size_t, 42> {
-    static_assert(::std::is_same<T, Q>::value, "Wrong template argument");
+  struct size : std::integral_constant<size_t, 42> {
+    static_assert(std::is_same_v<T, Q>, "Wrong template argument");
   };
 
-  template <::size_t N, class T>
+  template <size_t N, class T>
   static int get(T&& t) {
-    static_assert(::std::is_same<typename ::std::decay<T>::type, Q>::value,
+    static_assert(std::is_same_v<std::decay_t<T>, Q>,
                   "Wrong template argument");
     return N;
   }
 
-  template <::size_t N, class T>
+  template <size_t N, class T>
   static constexpr const char* name() {
     if constexpr (N == 0) return "Q0";
     if constexpr (N == 1) return "Q1";
@@ -117,10 +117,10 @@ struct intrinsics<TagQ> {
 
 namespace {
 
-template <class T, ::size_t N, int R>
+template <class T, size_t N, int R>
 void VerifyElement() {
-  EXPECT_TRUE((::std::is_same<typename element<N, T>::type,
-                              ::std::integral_constant<int, R>>::value));
+  EXPECT_TRUE((std::is_same_v<typename element<N, T>::type,
+                              std::integral_constant<int, R>>));
 }
 
 TEST(Intrinsics, Element) {
@@ -142,19 +142,19 @@ TEST(Intrinsics, Element) {
 }
 
 TEST(Intrinsics, Size) {
-  EXPECT_EQ(42, size<S>::value);
-  EXPECT_EQ(42, size<const S>::value);
-  EXPECT_EQ(42, size<volatile S>::value);
-  EXPECT_EQ(42, size<S&>::value);
-  EXPECT_EQ(42, size<const volatile S&>::value);
-  EXPECT_EQ(42, size<const volatile S&&>::value);
+  EXPECT_EQ(size<S>::value, 42);
+  EXPECT_EQ(size<const S>::value, 42);
+  EXPECT_EQ(size<volatile S>::value, 42);
+  EXPECT_EQ(size<S&>::value, 42);
+  EXPECT_EQ(size<const volatile S&>::value, 42);
+  EXPECT_EQ(size<const volatile S&&>::value, 42);
 
-  EXPECT_EQ(42, size<Q>::value);
-  EXPECT_EQ(42, size<const Q>::value);
-  EXPECT_EQ(42, size<volatile Q>::value);
-  EXPECT_EQ(42, size<Q&>::value);
-  EXPECT_EQ(42, size<const volatile Q&>::value);
-  EXPECT_EQ(42, size<const volatile Q&&>::value);
+  EXPECT_EQ(size<Q>::value, 42);
+  EXPECT_EQ(size<const Q>::value, 42);
+  EXPECT_EQ(size<volatile Q>::value, 42);
+  EXPECT_EQ(size<Q&>::value, 42);
+  EXPECT_EQ(size<const volatile Q&>::value, 42);
+  EXPECT_EQ(size<const volatile Q&&>::value, 42);
 }
 
 template <class T>
@@ -173,24 +173,24 @@ TEST(Intrinsics, Get) {
   volatile Q vq = {};
   const volatile Q cvq = {};
 
-  EXPECT_EQ(0, get<0>(s));
-  EXPECT_EQ(1, get<1>(s));
-  EXPECT_EQ(0, get<0>(q));
-  EXPECT_EQ(1, get<1>(q));
+  EXPECT_EQ(get<0>(s), 0);
+  EXPECT_EQ(get<1>(s), 1);
+  EXPECT_EQ(get<0>(q), 0);
+  EXPECT_EQ(get<1>(q), 1);
 
   // With lvalues.
-  EXPECT_EQ(0, get<0>(cs));
-  EXPECT_EQ(0, get<0>(vs));
-  EXPECT_EQ(0, get<0>(cvs));
-  EXPECT_EQ(0, get<0>(cq));
-  EXPECT_EQ(0, get<0>(vq));
-  EXPECT_EQ(0, get<0>(cvq));
+  EXPECT_EQ(get<0>(cs), 0);
+  EXPECT_EQ(get<0>(vs), 0);
+  EXPECT_EQ(get<0>(cvs), 0);
+  EXPECT_EQ(get<0>(cq), 0);
+  EXPECT_EQ(get<0>(vq), 0);
+  EXPECT_EQ(get<0>(cvq), 0);
 
   // With rvalues.
-  EXPECT_EQ(0, get<0>(Make<S>()));
-  EXPECT_EQ(0, get<0>(Make<const S>()));
-  EXPECT_EQ(0, get<0>(Make<Q>()));
-  EXPECT_EQ(0, get<0>(Make<const Q>()));
+  EXPECT_EQ(get<0>(Make<S>()), 0);
+  EXPECT_EQ(get<0>(Make<const S>()), 0);
+  EXPECT_EQ(get<0>(Make<Q>()), 0);
+  EXPECT_EQ(get<0>(Make<const Q>()), 0);
 }
 
 TEST(Intrinsics, GetByType) {
@@ -204,50 +204,50 @@ TEST(Intrinsics, GetByType) {
   volatile Q vq = {};
   const volatile Q cvq = {};
 
-  typedef ::std::integral_constant<int, 0> Zero;
-  typedef ::std::integral_constant<int, 1> One;
+  using Zero = std::integral_constant<int, 0>;
+  using One = std::integral_constant<int, 1>;
 
-  EXPECT_EQ(0, get<Zero>(s));
-  EXPECT_EQ(1, get<One>(s));
-  EXPECT_EQ(0, get<Zero>(q));
-  EXPECT_EQ(1, get<One>(q));
+  EXPECT_EQ(get<Zero>(s), 0);
+  EXPECT_EQ(get<One>(s), 1);
+  EXPECT_EQ(get<Zero>(q), 0);
+  EXPECT_EQ(get<One>(q), 1);
 
   // With lvalues.
-  EXPECT_EQ(0, get<Zero>(cs));
-  EXPECT_EQ(0, get<Zero>(vs));
-  EXPECT_EQ(0, get<Zero>(cvs));
-  EXPECT_EQ(0, get<Zero>(cq));
-  EXPECT_EQ(0, get<Zero>(vq));
-  EXPECT_EQ(0, get<Zero>(cvq));
+  EXPECT_EQ(get<Zero>(cs), 0);
+  EXPECT_EQ(get<Zero>(vs), 0);
+  EXPECT_EQ(get<Zero>(cvs), 0);
+  EXPECT_EQ(get<Zero>(cq), 0);
+  EXPECT_EQ(get<Zero>(vq), 0);
+  EXPECT_EQ(get<Zero>(cvq), 0);
 
   // With rvalues.
-  EXPECT_EQ(0, get<Zero>(Make<S>()));
-  EXPECT_EQ(0, get<Zero>(Make<const S>()));
-  EXPECT_EQ(0, get<Zero>(Make<Q>()));
-  EXPECT_EQ(0, get<Zero>(Make<const Q>()));
+  EXPECT_EQ(get<Zero>(Make<S>()), 0);
+  EXPECT_EQ(get<Zero>(Make<const S>()), 0);
+  EXPECT_EQ(get<Zero>(Make<Q>()), 0);
+  EXPECT_EQ(get<Zero>(Make<const Q>()), 0);
 }
 
 TEST(Intrinsics, IndexOf) {
-  typedef ::std::integral_constant<int, 0> Zero;
-  typedef ::std::integral_constant<int, 1> One;
+  using Zero = std::integral_constant<int, 0>;
+  using One = std::integral_constant<int, 1>;
 
-  EXPECT_EQ(0, (index_of<Zero, S>()));
-  EXPECT_EQ(1, (index_of<One, S>()));
-  EXPECT_NE(2, (index_of<One, S>()));
+  EXPECT_EQ((index_of<Zero, S>()), 0);
+  EXPECT_EQ((index_of<One, S>()), 1);
+  EXPECT_NE((index_of<One, S>()), 2);
 }
 
 TEST(Intrinsics, Name) {
-  EXPECT_STREQ("S0", (name<0, S>()));
+  EXPECT_STREQ((name<0, S>()), "S0");
   static_assert(absl::string_view(name<0, S>()) == "S0");
-  EXPECT_STREQ("S1", (name<1, S>()));
-  EXPECT_STREQ("Q0", (name<0, Q>()));
-  EXPECT_STREQ("Q1", (name<1, Q>()));
+  EXPECT_STREQ((name<1, S>()), "S1");
+  EXPECT_STREQ((name<0, Q>()), "Q0");
+  EXPECT_STREQ((name<1, Q>()), "Q1");
 
-  EXPECT_STREQ("S0", (name<0, const S>()));
-  EXPECT_STREQ("S0", (name<0, volatile S>()));
-  EXPECT_STREQ("S0", (name<0, S&>()));
-  EXPECT_STREQ("S0", (name<0, const volatile S&>()));
-  EXPECT_STREQ("S0", (name<0, const volatile S&&>()));
+  EXPECT_STREQ((name<0, const S>()), "S0");
+  EXPECT_STREQ((name<0, volatile S>()), "S0");
+  EXPECT_STREQ((name<0, S&>()), "S0");
+  EXPECT_STREQ((name<0, const volatile S&>()), "S0");
+  EXPECT_STREQ((name<0, const volatile S&&>()), "S0");
 }
 
 TEST(Intrinsics, HasAllElements) {
@@ -261,22 +261,21 @@ TEST(Intrinsics, HasAllElements) {
 }
 
 TEST(Intrinsics, ModernAliases) {
-  EXPECT_TRUE((::std::same_as<tag_t<S>, TagS>));
-  EXPECT_TRUE((::std::same_as<tag_t<const S&>, TagS>));
-  EXPECT_TRUE((::std::same_as<tag_t<Q>, TagQ>));
-  EXPECT_TRUE((::std::same_as<tag_t<const volatile Q&&>, TagQ>));
+  EXPECT_TRUE((std::same_as<tag_t<S>, TagS>));
+  EXPECT_TRUE((std::same_as<tag_t<const S&>, TagS>));
+  EXPECT_TRUE((std::same_as<tag_t<Q>, TagQ>));
+  EXPECT_TRUE((std::same_as<tag_t<const volatile Q&&>, TagQ>));
 
   EXPECT_EQ(size_v<S>, 42);
   EXPECT_EQ(size_v<const S&>, 42);
   EXPECT_EQ(size_v<Q>, 42);
   EXPECT_EQ(size_v<const volatile Q&&>, 42);
 
+  EXPECT_TRUE((std::same_as<element_t<0, S>, std::integral_constant<int, 0>>));
   EXPECT_TRUE(
-      (::std::same_as<element_t<0, S>, ::std::integral_constant<int, 0>>));
-  EXPECT_TRUE((::std::same_as<element_t<1, const Q&>,
-                              ::std::integral_constant<int, 1>>));
+      (std::same_as<element_t<1, const Q&>, std::integral_constant<int, 1>>));
 
-  EXPECT_TRUE((::std::same_as<assemble_t<TagS, int, char>, S>));
+  EXPECT_TRUE((std::same_as<assemble_t<TagS, int, char>, S>));
 
   EXPECT_FALSE(has_all_elements_v<void>);
   EXPECT_FALSE(has_all_elements_v<int>);
