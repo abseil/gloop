@@ -28,7 +28,6 @@
 #include <vector>
 
 #include "absl/base/optimization.h"
-#include "absl/log/check.h"
 #include "benchmark/benchmark.h"
 #include "gloop/util/gtl/iterator_adaptors.h"
 #include "gmock/gmock.h"
@@ -40,7 +39,13 @@ namespace {
 using ::testing::ElementsAre;
 using ::testing::Field;
 using ::testing::IsEmpty;
+using ::testing::Pointwise;
 using ::testing::Ref;
+using ::testing::SizeIs;
+
+MATCHER(AddressEqualsPointer, "") {
+  return &std::get<0>(arg) == std::get<1>(arg);
+}
 
 struct ListId2 {};
 
@@ -82,103 +87,75 @@ void swap(TestItem& a, TestItem& b) {
   swap(a.n, b.n);
 }
 
-class IntrusiveListTest : public ::testing::Test {
- protected:
-  void CheckLists() {
-    CheckLists(l1, ll1);
-    if (::testing::Test::HasFailure()) return;
-    CheckLists(l2, ll2);
+void FillLists(TestList* list_a, CanonicalList* list_b, TestItem* elems,
+               int num_elems) {
+  list_a->clear();
+  list_b->clear();
+  for (int i = 0; i < num_elems; ++i) {
+    list_a->push_back(elems + i);
+    list_b->push_back(elems + i);
   }
-
-  void CheckLists(const TestList& list_a, const CanonicalList& list_b) {
-    ASSERT_EQ(list_a.size(), list_b.size());
-    TestList::const_iterator it_a = list_a.begin();
-    CanonicalList::const_iterator it_b = list_b.begin();
-    while (it_a != list_a.end()) {
-      EXPECT_EQ(&*it_a++, *it_b++);
-    }
-    EXPECT_EQ(list_a.end(), it_a);
-    EXPECT_EQ(list_b.end(), it_b);
-  }
-
-  void PrepareLists(int num_elems_1, int num_elems_2 = 0) {
-    FillLists(&l1, &ll1, e, num_elems_1);
-    FillLists(&l2, &ll2, e + num_elems_1, num_elems_2);
-  }
-
-  void FillLists(TestList* list_a, CanonicalList* list_b, TestItem* elems,
-                 int num_elems) {
-    list_a->clear();
-    list_b->clear();
-    for (int i = 0; i < num_elems; ++i) {
-      list_a->push_back(elems + i);
-      list_b->push_back(elems + i);
-    }
-    CheckLists(*list_a, *list_b);
-  }
-
-  TestItem e[10];
-  TestList l1, l2;
-  CanonicalList ll1, ll2;
-};
+}
 
 TEST(NewIntrusiveListTest, Basic) {
   TestList list1;
 
-  CHECK_EQ(sizeof(intrusive_link<TestItem>), sizeof(void*) * 2);
+  EXPECT_EQ(sizeof(intrusive_link<TestItem>), sizeof(void*) * 2);
 
-  for (int i = 0; i < 10; ++i) {
+  constexpr int kCount = 10;
+  for (int i = 0; i < kCount; ++i) {
     list1.push_front(new TestItem(i));
   }
-  CHECK_EQ(list1.size(), 10);
+  EXPECT_THAT(list1, SizeIs(kCount));
 
   // Verify we can reverse a list because we defined swap for TestItem.
   std::reverse(list1.begin(), list1.end());
-  CHECK_EQ(list1.size(), 10);
+  EXPECT_THAT(list1, SizeIs(kCount));
 
   // Check both const and non-const forward iteration.
   const TestList& clist1 = list1;
   int i = 0;
-  TestList::iterator iter = list1.begin();
+  auto iter = list1.begin();
   for (; iter != list1.end(); ++iter, ++i) {
-    CHECK_EQ(iter->n, i);
+    EXPECT_EQ(iter->n, i);
   }
-  CHECK(iter == clist1.end());
-  CHECK(iter != clist1.begin());
-  i = 0;
-  iter = list1.begin();
-  for (; iter != list1.end(); ++iter, ++i) {
-    CHECK_EQ(iter->n, i);
-  }
-  CHECK(iter == clist1.end());
-  CHECK(iter != clist1.begin());
+  EXPECT_EQ(iter, clist1.end());
+  EXPECT_NE(iter, clist1.begin());
 
-  CHECK_EQ(list1.front().n, 0);
-  CHECK_EQ(list1.back().n, 9);
+  i = 0;
+  auto citer = clist1.begin();
+  for (; citer != clist1.end(); ++citer, ++i) {
+    EXPECT_EQ(citer->n, i);
+  }
+  EXPECT_EQ(citer, clist1.end());
+  EXPECT_NE(citer, clist1.begin());
+
+  EXPECT_EQ(list1.front().n, 0);
+  EXPECT_EQ(list1.back().n, 9);
 
   // Verify we can swap 2 lists.
   TestList list2;
   list2.swap(list1);
-  CHECK_EQ(list1.size(), 0);
-  CHECK_EQ(list2.size(), 10);
+  EXPECT_THAT(list1, IsEmpty());
+  EXPECT_THAT(list2, SizeIs(kCount));
 
   // Check both const and non-const reverse iteration.
   const TestList& clist2 = list2;
-  TestList::reverse_iterator riter = list2.rbegin();
+  auto riter = list2.rbegin();
   i = 9;
   for (; riter != list2.rend(); ++riter, --i) {
-    CHECK_EQ(riter->n, i);
+    EXPECT_EQ(riter->n, i);
   }
-  CHECK(riter == clist2.rend());
-  CHECK(riter != clist2.rbegin());
+  EXPECT_EQ(riter, clist2.rend());
+  EXPECT_NE(riter, clist2.rbegin());
 
-  riter = list2.rbegin();
+  auto criter = clist2.rbegin();
   i = 9;
-  for (; riter != list2.rend(); ++riter, --i) {
-    CHECK_EQ(riter->n, i);
+  for (; criter != clist2.rend(); ++criter, --i) {
+    EXPECT_EQ(criter->n, i);
   }
-  CHECK(riter == clist2.rend());
-  CHECK(riter != clist2.rbegin());
+  EXPECT_EQ(criter, clist2.rend());
+  EXPECT_NE(criter, clist2.rbegin());
 
   while (!list2.empty()) {
     TestItem* e = &list2.front();
@@ -187,7 +164,7 @@ TEST(NewIntrusiveListTest, Basic) {
   }
 }
 
-static TestList ReturnPassedList(TestList list) { return list; }
+TestList ReturnPassedList(TestList list) { return list; }
 
 TEST(NewIntrusiveListTest, FromInitializerList) {
   TestItem e1, e2, e3;
@@ -204,44 +181,47 @@ TEST(NewIntrusiveListTest, FromSpan) {
 
 TEST(NewIntrusiveListTest, Erase) {
   TestList l;
-  TestItem* e[10];
+  constexpr int kCount = 10;
+  TestItem* e[kCount];
 
   // Create a list with 10 items.
-  for (int i = 0; i < 10; ++i) {
+  for (int i = 0; i < kCount; ++i) {
     e[i] = new TestItem(i);
     l.push_front(e[i]);
   }
 
   // Test that erase works.
-  for (int i = 0; i < 10; ++i) {
-    CHECK_EQ(l.size(), (10 - i));
+  for (int i = 0; i < kCount; ++i) {
+    SCOPED_TRACE(i);
+    EXPECT_EQ(l.size(), kCount - i);
 
-    TestList::iterator iter = l.erase(e[i]);
-    CHECK(iter != TestList::iterator(e[i]));
+    auto iter = l.erase(e[i]);
+    EXPECT_NE(iter, TestList::iterator(e[i]));
 
-    CHECK_EQ(l.size(), (10 - i - 1));
+    EXPECT_EQ(l.size(), kCount - i - 1);
     delete e[i];
   }
 }
 
 TEST(NewIntrusiveListTest, Insert) {
   TestList l;
-  TestList::iterator iter = l.end();
-  TestItem* e[10];
+  auto iter = l.end();
+  constexpr int kCount = 10;
+  TestItem* e[kCount];
 
   // Create a list with 10 items.
-  for (int i = 9; i >= 0; --i) {
+  for (int i = kCount - 1; i >= 0; --i) {
     e[i] = new TestItem(i);
     iter = l.insert(iter, e[i]);
-    CHECK_EQ(&(*iter), e[i]);
+    EXPECT_EQ(&*iter, e[i]);
   }
 
-  CHECK_EQ(l.size(), 10);
+  EXPECT_THAT(l, SizeIs(kCount));
 
   // Verify insertion order.
   iter = l.begin();
   for (TestItem* item : e) {
-    CHECK_EQ(&(*iter), item);
+    EXPECT_EQ(&*iter, item);
     iter = l.erase(item);
     delete item;
   }
@@ -253,7 +233,7 @@ TEST(NewIntrusiveListTest, Move) {
   {  // Move-construct from an empty list.
     TestList src;
     TestList dest(std::move(src));
-    EXPECT_TRUE(dest.empty());
+    EXPECT_THAT(dest, IsEmpty());
   }
 
   {  // Move-construct from a single item list.
@@ -262,24 +242,23 @@ TEST(NewIntrusiveListTest, Move) {
     src.push_front(&e);
 
     TestList dest(std::move(src));
-    EXPECT_TRUE(src.empty());  // NOLINT bugprone-use-after-move
-    ASSERT_THAT(dest.size(), 1);
-    EXPECT_THAT(&dest.front(), &e);
-    EXPECT_THAT(&dest.back(), &e);
+    EXPECT_THAT(src, IsEmpty());  // NOLINT bugprone-use-after-move
+    EXPECT_THAT(dest, ElementsAre(Ref(e)));
   }
 
   {  // Move-construct from a list with multiple items.
-    TestItem items[10];
+    constexpr int kCount = 10;
+    TestItem items[kCount];
     TestList src;
     for (TestItem& e : items) src.push_back(&e);
 
     TestList dest(std::move(src));
-    EXPECT_TRUE(src.empty());  // NOLINT bugprone-use-after-move
+    EXPECT_THAT(src, IsEmpty());  // NOLINT bugprone-use-after-move
     // Verify the items on the destination list.
-    ASSERT_THAT(dest.size(), 10);
+    ASSERT_THAT(dest, SizeIs(kCount));
     int i = 0;
     for (TestItem& e : dest) {
-      EXPECT_THAT(&e, &items[i++]) << " for index " << i;
+      EXPECT_EQ(&e, &items[i++]) << " for index " << i;
     }
   }
 
@@ -291,23 +270,23 @@ TEST(NewIntrusiveListTest, Move) {
 
     TestList dest(std::move(src));
     src.clear();
-    EXPECT_TRUE(src.empty());
+    EXPECT_THAT(src, IsEmpty());
   }
 }
 
 TEST(NewIntrusiveListTest, StaticInsertErase) {
   TestList l;
   TestItem e[2];
-  TestList::iterator i = l.begin();
+  auto i = l.begin();
   TestList::insert(i, &e[0]);
   TestList::insert(&e[0], &e[1]);
   TestList::erase(&e[0]);
   TestList::erase(TestList::iterator(&e[1]));
-  EXPECT_TRUE(l.empty());
+  EXPECT_THAT(l, IsEmpty());
 }
 
 TEST(NewIntrusiveListTest, PushPop) {
-  auto item = [](int n) { return testing::Field(&TestItem::n, n); };
+  auto item = [](int n) { return Field(&TestItem::n, n); };
   TestList l;
 
   TestItem item1(1);
@@ -319,25 +298,25 @@ TEST(NewIntrusiveListTest, PushPop) {
   l.push_front(&item1);
   EXPECT_THAT(l, ElementsAre(item(1)));
   l.pop_front();
-  EXPECT_THAT(l, ElementsAre());
+  EXPECT_THAT(l, IsEmpty());
 
   // push front, pop back.
   l.push_front(&item1);
   EXPECT_THAT(l, ElementsAre(item(1)));
   l.pop_back();
-  EXPECT_THAT(l, ElementsAre());
+  EXPECT_THAT(l, IsEmpty());
 
   // push back, pop front.
   l.push_back(&item1);
   EXPECT_THAT(l, ElementsAre(item(1)));
   l.pop_front();
-  EXPECT_THAT(l, ElementsAre());
+  EXPECT_THAT(l, IsEmpty());
 
   // push back, pop back.
   l.push_back(&item1);
   EXPECT_THAT(l, ElementsAre(item(1)));
   l.pop_back();
-  EXPECT_THAT(l, ElementsAre());
+  EXPECT_THAT(l, IsEmpty());
 
   // push and pop several times.
   l.push_back(&item3);
@@ -352,10 +331,15 @@ TEST(NewIntrusiveListTest, PushPop) {
   l.pop_front();
   EXPECT_THAT(l, ElementsAre(item(2)));
   l.pop_front();
-  EXPECT_THAT(l, ElementsAre());
+  EXPECT_THAT(l, IsEmpty());
 }
 
-TEST_F(IntrusiveListTest, Splice) {
+TEST(IntrusiveListTest, Splice) {
+  constexpr int kNumElements = 10;
+  TestItem e[kNumElements];
+  TestList l1, l2;
+  CanonicalList ll1, ll2;
+
   // We verify that the contents of this secondary list aren't affected by any
   // of the splices.
   intrusive_list<TestItem, ListId2> secondary_list;
@@ -372,7 +356,14 @@ TEST_F(IntrusiveListTest, Splice) {
       for (int pos = 0; pos <= l1_count; ++pos) {
         for (int first = 0; first <= l2_count; ++first) {
           for (int last = first; last <= l2_count; ++last) {
-            PrepareLists(l1_count, l2_count);
+            SCOPED_TRACE(::testing::Message()
+                         << "l1_count=" << l1_count << ", l2_count=" << l2_count
+                         << ", pos=" << pos << ", first=" << first
+                         << ", last=" << last);
+            FillLists(&l1, &ll1, e, l1_count);
+            EXPECT_THAT(l1, Pointwise(AddressEqualsPointer(), ll1));
+            FillLists(&l2, &ll2, e + l1_count, l2_count);
+            EXPECT_THAT(l2, Pointwise(AddressEqualsPointer(), ll2));
 
             l1.splice(std::next(l1.begin(), pos), l2,
                       std::next(l2.begin(), first),
@@ -381,12 +372,11 @@ TEST_F(IntrusiveListTest, Splice) {
                        std::next(ll2.begin(), first),
                        std::next(ll2.begin(), last));
 
-            CheckLists();
+            EXPECT_THAT(l1, Pointwise(AddressEqualsPointer(), ll1));
+            EXPECT_THAT(l2, Pointwise(AddressEqualsPointer(), ll2));
 
-            ASSERT_EQ(3, secondary_list.size());
-            for (int i = 0; i < 3; ++i) {
-              EXPECT_EQ(&e[i], &*std::next(secondary_list.begin(), i));
-            }
+            EXPECT_THAT(secondary_list,
+                        ElementsAre(Ref(e[0]), Ref(e[1]), Ref(e[2])));
           }
         }
       }
@@ -394,7 +384,7 @@ TEST_F(IntrusiveListTest, Splice) {
   }
 }
 
-TEST_F(IntrusiveListTest, SpliceRvalue) {
+TEST(IntrusiveListTest, SpliceRvalue) {
   TestItem e[3];
   intrusive_list<TestItem> primary_list;
   primary_list.push_back(&e[0]);
@@ -407,6 +397,8 @@ TEST_F(IntrusiveListTest, SpliceRvalue) {
 }
 
 TEST(NewIntrusiveListTest, Prefetch) {
+  // Test that prefetching subsequent and previous elements executes cleanly
+  // without faults.
   TestItem e[3];
   intrusive_list<TestItem> primary_list;
   intrusive_list<TestItem, ListId2> secondary_list;
@@ -484,41 +476,41 @@ TEST(NewIntrusiveListTest, HandleInheritanceHierarchies) {
   {
     intrusive_list<DerivedClass, DerivedLinkId> list;
     DerivedClass elements[2];
-    EXPECT_TRUE(list.empty());
+    EXPECT_THAT(list, IsEmpty());
     list.push_back(&elements[0]);
-    EXPECT_EQ(1, list.size());
+    EXPECT_EQ(list.size(), 1);
     list.push_back(&elements[1]);
-    EXPECT_EQ(2, list.size());
+    EXPECT_EQ(list.size(), 2);
     list.pop_back();
-    EXPECT_EQ(1, list.size());
+    EXPECT_EQ(list.size(), 1);
     list.pop_back();
-    EXPECT_TRUE(list.empty());
+    EXPECT_THAT(list, IsEmpty());
   }
   {
     intrusive_list<VirtuallyDerivedClassA, DerivedLinkId> list;
     VirtuallyDerivedClassA elements[2];
-    EXPECT_TRUE(list.empty());
+    EXPECT_THAT(list, IsEmpty());
     list.push_back(&elements[0]);
-    EXPECT_EQ(1, list.size());
+    EXPECT_EQ(list.size(), 1);
     list.push_back(&elements[1]);
-    EXPECT_EQ(2, list.size());
+    EXPECT_EQ(list.size(), 2);
     list.pop_back();
-    EXPECT_EQ(1, list.size());
+    EXPECT_EQ(list.size(), 1);
     list.pop_back();
-    EXPECT_TRUE(list.empty());
+    EXPECT_THAT(list, IsEmpty());
   }
   {
     intrusive_list<VirtuallyDerivedClassC, DerivedLinkId> list;
     VirtuallyDerivedClassC elements[2];
-    EXPECT_TRUE(list.empty());
+    EXPECT_THAT(list, IsEmpty());
     list.push_back(&elements[0]);
-    EXPECT_EQ(1, list.size());
+    EXPECT_EQ(list.size(), 1);
     list.push_back(&elements[1]);
-    EXPECT_EQ(2, list.size());
+    EXPECT_EQ(list.size(), 2);
     list.pop_back();
-    EXPECT_EQ(1, list.size());
+    EXPECT_EQ(list.size(), 1);
     list.pop_back();
-    EXPECT_TRUE(list.empty());
+    EXPECT_THAT(list, IsEmpty());
   }
   {
     intrusive_list<AbstractBase, BaseLinkId> list;
@@ -526,37 +518,37 @@ TEST(NewIntrusiveListTest, HandleInheritanceHierarchies) {
     VirtuallyDerivedClassA d2;
     VirtuallyDerivedClassB d3;
     VirtuallyDerivedClassC d4;
-    EXPECT_TRUE(list.empty());
+    EXPECT_THAT(list, IsEmpty());
     list.push_back(&d1);
-    EXPECT_EQ(1, list.size());
+    EXPECT_EQ(list.size(), 1);
     list.push_back(&d2);
-    EXPECT_EQ(2, list.size());
+    EXPECT_EQ(list.size(), 2);
     list.push_back(&d3);
-    EXPECT_EQ(3, list.size());
+    EXPECT_EQ(list.size(), 3);
     list.push_back(&d4);
-    EXPECT_EQ(4, list.size());
-    intrusive_list<AbstractBase, BaseLinkId>::iterator it = list.begin();
-    EXPECT_EQ("DerivedClass", (it++)->name());
-    EXPECT_EQ("VirtuallyDerivedClassA", (it++)->name());
-    EXPECT_EQ("VirtuallyDerivedClassB", (it++)->name());
-    EXPECT_EQ("VirtuallyDerivedClassC", (it++)->name());
+    EXPECT_EQ(list.size(), 4);
+    auto it = list.begin();
+    EXPECT_EQ((it++)->name(), "DerivedClass");
+    EXPECT_EQ((it++)->name(), "VirtuallyDerivedClassA");
+    EXPECT_EQ((it++)->name(), "VirtuallyDerivedClassB");
+    EXPECT_EQ((it++)->name(), "VirtuallyDerivedClassC");
   }
   {
     intrusive_list<templated_base_link::DerivedClass> list;
     templated_base_link::DerivedClass elements[2];
-    EXPECT_TRUE(list.empty());
+    EXPECT_THAT(list, IsEmpty());
     list.push_back(&elements[0]);
-    EXPECT_EQ(1, list.size());
+    EXPECT_EQ(list.size(), 1);
     list.push_back(&elements[1]);
-    EXPECT_EQ(2, list.size());
+    EXPECT_EQ(list.size(), 2);
     list.pop_back();
-    EXPECT_EQ(1, list.size());
+    EXPECT_EQ(list.size(), 1);
     list.pop_back();
-    EXPECT_TRUE(list.empty());
+    EXPECT_THAT(list, IsEmpty());
   }
 }
 
-class IntrusiveListTagTypeTest : public testing::Test {
+class IntrusiveListTagTypeTest : public ::testing::Test {
  protected:
   struct Tag {};
   class Element : public intrusive_link<Element, Tag> {};
@@ -564,10 +556,12 @@ class IntrusiveListTagTypeTest : public testing::Test {
 
 TEST_F(IntrusiveListTagTypeTest, TagTypeListID) {
   intrusive_list<Element, Tag> list;
-  {
-    Element e;
-    list.push_back(&e);
-  }
+  Element e;
+  EXPECT_THAT(list, IsEmpty());
+  list.push_back(&e);
+  EXPECT_THAT(list, ElementsAre(Ref(e)));
+  list.pop_back();
+  EXPECT_THAT(list, IsEmpty());
 }
 
 void BM_Erase_Insert(benchmark::State& state) {
