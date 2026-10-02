@@ -42,6 +42,13 @@ local_path_override(
     path = "gloop/ci/docker_toolchain",
 )
 
+# TODO: Remove Abseil patch once a new Abseil version with cpu_detect visibility is released.
+single_version_override(
+    module_name = "abseil-cpp",
+    patch_strip = 0,
+    patches = ["//gloop:abseil.patch"],
+)
+
 # Dev dependencies required for fuzz testing.
 # fuzztest is the main library. brotli, snappy, highwayhash, aspect_bazel_lib,
 # aspect_rules_esbuild, and rules_swift are transitive dependencies of fuzztest
