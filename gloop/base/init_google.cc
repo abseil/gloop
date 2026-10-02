@@ -98,10 +98,6 @@
 #include "gloop/base/user_name.h"
 #include "tcmalloc/malloc_extension.h"
 
-#ifdef ABSL_HAVE_MMAP
-#include <sys/mman.h>
-#endif
-
 #ifdef GOOGLE_HAVE_PRCTL
 #include <sys/prctl.h>
 #endif
@@ -157,10 +153,6 @@ ABSL_FLAG(bool, syslog_on_start, true,
 
 // TODO: This should move somewhere reasonable (selectserver.cc)
 ABSL_FLAG(std::string, data_version, "", "Data version of the server");
-
-#if defined(__ANDROID__)
-#define mlockall(flags) false
-#endif  // defined(__ANDROID__)
 
 // Operating system name used for diagnostic error messages.  Only
 // defined for operating systems for which errors are reported.
