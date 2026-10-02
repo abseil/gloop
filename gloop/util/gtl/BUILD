@@ -442,7 +442,6 @@ cc_test(
         "@googletest//:gtest_main",
         "@google_benchmark//:benchmark",
         "@abseil-cpp//absl/base:no_destructor",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
     ],
 )
