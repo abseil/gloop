@@ -713,6 +713,90 @@ template <typename C, typename E>
 using projection_view_t =
     internal::container_view<C, internal::ExtractorPolicy<E>>;
 
+namespace internal_gtl {
+
+template <typename T>
+struct UnpackStaticView;
+
+template <typename C>
+struct UnpackStaticView<key_view_t<C>> {
+  template <typename U = C,
+            std::enable_if_t<
+                !absl::type_traits_internal::IsView<std::remove_cv_t<U>>::value,
+                int> = 0>
+  constexpr std::pair<const C&, internal::FirstExtractor> operator()(
+      const key_view_t<C>& v) const {
+    return {v.container(), {}};
+  }
+};
+
+template <typename C>
+struct UnpackStaticView<value_view_t<C>> {
+  template <typename U = C,
+            std::enable_if_t<
+                !absl::type_traits_internal::IsView<std::remove_cv_t<U>>::value,
+                int> = 0>
+  constexpr std::pair<const C&, internal::SecondExtractor> operator()(
+      const value_view_t<C>& v) const {
+    return {v.container(), {}};
+  }
+};
+
+template <typename C>
+struct UnpackStaticView<deref_view_t<C>> {
+  template <typename U = C,
+            std::enable_if_t<
+                !absl::type_traits_internal::IsView<std::remove_cv_t<U>>::value,
+                int> = 0>
+  constexpr std::pair<const C&, internal::DereferencingExtractor<true>>
+  operator()(const deref_view_t<C>& v) const {
+    return {v.container(), {}};
+  }
+};
+
+template <typename C>
+struct UnpackStaticView<deref_second_view_t<C>> {
+  template <typename U = C,
+            std::enable_if_t<
+                !absl::type_traits_internal::IsView<std::remove_cv_t<U>>::value,
+                int> = 0>
+  constexpr std::pair<const C&, internal::DereferencingSecondExtractor>
+  operator()(const deref_second_view_t<C>& v) const {
+    return {v.container(), {}};
+  }
+};
+
+template <typename C>
+struct UnpackStaticView<mutable_deref_view_t<C>> {
+  template <typename U = C,
+            std::enable_if_t<
+                !absl::type_traits_internal::IsView<std::remove_cv_t<U>>::value,
+                int> = 0>
+  constexpr std::pair<const C&, internal::DereferencingExtractor<false>>
+  operator()(const mutable_deref_view_t<C>& v) const {
+    return {v.container(), {}};
+  }
+};
+
+template <typename T>
+struct IsStaticExtractor;
+
+template <>
+struct IsStaticExtractor<internal::FirstExtractor> : std::true_type {};
+
+template <>
+struct IsStaticExtractor<internal::SecondExtractor> : std::true_type {};
+
+template <bool Const>
+struct IsStaticExtractor<internal::DereferencingExtractor<Const>>
+    : std::true_type {};
+
+template <>
+struct IsStaticExtractor<internal::DereferencingSecondExtractor>
+    : std::true_type {};
+
+}  // namespace internal_gtl
+
 // The key_view and value_view functions provide pretty ways to iterate either
 // the keys or the values of a map using range based for loops.
 //
