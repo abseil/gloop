@@ -22,10 +22,9 @@
 
 #include "gloop/base/per_thread.h"
 
-#include <stdlib.h>
-
 #include <atomic>
 #include <cstdint>
+#include <cstdlib>
 #include <iterator>
 #include <memory>
 #include <thread>  // NOLINT(build/c++11)
@@ -36,34 +35,36 @@
 #include "benchmark/benchmark.h"
 #include "gtest/gtest.h"
 
-static PerThread::Key per_thread[10];
-static int destructor_count;
+namespace {
+
+PerThread::Key per_thread[10];
+int destructor_count;
 
 // base of range of values to be put in per-thread locations
-static char* value_base;
+char* value_base = nullptr;
 
-static void TestThread(int offset) {
+void TestThread(int offset) {
   void** my_locations[std::size(per_thread)];
   for (int i = 0; i != std::size(per_thread); i++) {
     my_locations[i] = PerThread::Data(per_thread[i]);
-    CHECK(*my_locations[i] == nullptr);
-    CHECK(*my_locations[i] == PerThread::GetData(per_thread[i]));
+    EXPECT_EQ(*my_locations[i], nullptr);
+    EXPECT_EQ(*my_locations[i], PerThread::GetData(per_thread[i]));
     *my_locations[i] = reinterpret_cast<void*>(
         reinterpret_cast<uintptr_t>(value_base) + offset + i);
-    CHECK(*my_locations[i] == PerThread::GetData(per_thread[i]));
+    EXPECT_EQ(*my_locations[i], PerThread::GetData(per_thread[i]));
   }
   for (int i = 0; i != std::size(per_thread); i++) {
-    CHECK(my_locations[i] == PerThread::Data(per_thread[i]));
-    CHECK(*my_locations[i] ==
-          reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(value_base) +
-                                  offset + i));
-    CHECK(*my_locations[i] == PerThread::GetData(per_thread[i]));
+    EXPECT_EQ(my_locations[i], PerThread::Data(per_thread[i]));
+    EXPECT_EQ(*my_locations[i],
+              reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(value_base) +
+                                      offset + i));
+    EXPECT_EQ(*my_locations[i], PerThread::GetData(per_thread[i]));
   }
 }
 
-static void Destructor(void* v) {
+void Destructor(void* v) {
   CHECK(v != nullptr);
-  CHECK(value_base <= reinterpret_cast<char*>(v)) << v;
+  CHECK(reinterpret_cast<char*>(v) >= value_base) << v;
   CHECK(reinterpret_cast<char*>(v) <
         reinterpret_cast<char*>(reinterpret_cast<uintptr_t>(value_base) +
                                 std::size(per_thread)))
@@ -73,7 +74,7 @@ static void Destructor(void* v) {
 
 // Run a thread, testing its use of the per-thread values
 // The values put in the thread's per-thread data are offset by "base".
-static void RunThread(int base) {
+void RunThread(int base) {
   value_base = reinterpret_cast<char*>(static_cast<uintptr_t>(base));
   std::thread t(TestThread, 0);
   TestThread(100);  // run TestThread() in parent too
@@ -89,7 +90,7 @@ TEST(PerThread, Test) {
   RunThread(0);
 
   // destructor will not be called for entry 0 because value is 0
-  ASSERT_EQ(std::size(per_thread) - 1, destructor_count);
+  ASSERT_EQ(destructor_count, std::size(per_thread) - 1);
 
   // zero the values in the main thread
   for (int i = 0; i != std::size(per_thread); i++) {
@@ -100,7 +101,7 @@ TEST(PerThread, Test) {
   RunThread(std::size(per_thread));
 
   // destructor_count should have increased by std::size(per_thread)
-  ASSERT_EQ(2 * std::size(per_thread) - 1, destructor_count);
+  ASSERT_EQ(destructor_count, 2 * std::size(per_thread) - 1);
 
   // zero the values in the main thread
   for (int i = 0; i != std::size(per_thread); i++) {
@@ -112,24 +113,24 @@ TEST(PerThread, Test) {
 // The original depth of recursion causes a bus error for darwin_x86_64. By
 // reducing these constants, I suspect some of the original integrity of the
 // test has been lost here (since the code under test is stack sensitive).
-static constexpr int kMoreStackFramesThanPageCache = 1100;
-static constexpr int kStackFramesInPageCache = 400;
+constexpr int kMoreStackFramesThanPageCache = 1100;
+constexpr int kStackFramesInPageCache = 400;
 #elif defined(__Fuchsia__)
 // Similar to the error on darwin, the Fuchsia emulator test page faults with
 // the original recursion depth.
 // TODO: Reexamine why this doesn't pass.
-static constexpr int kMoreStackFramesThanPageCache = 1000;
-static constexpr int kStackFramesInPageCache = 400;
+constexpr int kMoreStackFramesThanPageCache = 1000;
+constexpr int kStackFramesInPageCache = 400;
 #else
-static constexpr int kMoreStackFramesThanPageCache = 2000;
-static constexpr int kStackFramesInPageCache = 1000;
+constexpr int kMoreStackFramesThanPageCache = 2000;
+constexpr int kStackFramesInPageCache = 1000;
 #endif
 
 // This test verifies that we see the same per thread data block from both the
 // cache and pthread_getspecific in the per-thread destructor, where the
 // pthread API normally zeroes out this value.
 
-ABSL_CONST_INIT static PerThread::Key deep_ref_key{PerThread::kInvalid};
+ABSL_CONST_INIT PerThread::Key deep_ref_key{PerThread::kInvalid};
 
 struct PerThreadInfo {
   void** address;
@@ -138,7 +139,7 @@ struct PerThreadInfo {
 
 // Recursively checks the integrity of PerThread::GetData() for a range of
 // thread stack space that is some multiple of 'count'.
-static void CheckKeyInDestructor(int count, const PerThreadInfo* info) {
+void CheckKeyInDestructor(int count, const PerThreadInfo* info) {
   CHECK(PerThread::Data(info->key) == info->address);
   if (!count) {
     return;
@@ -146,7 +147,7 @@ static void CheckKeyInDestructor(int count, const PerThreadInfo* info) {
   CheckKeyInDestructor(count - 1, info);
 }
 
-static void KeyReferencingDestructor(void* v) {
+void KeyReferencingDestructor(void* v) {
   std::unique_ptr<PerThreadInfo> info =
       absl::WrapUnique(reinterpret_cast<PerThreadInfo*>(v));
 
@@ -155,7 +156,7 @@ static void KeyReferencingDestructor(void* v) {
   CheckKeyInDestructor(kMoreStackFramesThanPageCache, info.get());
 }
 
-static void TestThread2() {
+void TestThread2() {
   PerThread::Allocate(&deep_ref_key, KeyReferencingDestructor);
 
   // Create a new info object and store the per-thread's address and key in it.
@@ -177,9 +178,9 @@ TEST(PerThread, KeyRefsInDestructor) {
 }
 
 #if GTEST_GOOGLE3_MODE_
-ABSL_CONST_INIT static PerThread::Key benchmark_key{PerThread::kInvalid};
+ABSL_CONST_INIT PerThread::Key benchmark_key{PerThread::kInvalid};
 
-static void BM_PerThreadData(benchmark::State& state) {
+void BM_PerThreadData(benchmark::State& state) {
   PerThread::Allocate(&benchmark_key, free);
 
   void* last = nullptr;
@@ -191,3 +192,5 @@ static void BM_PerThreadData(benchmark::State& state) {
 }
 BENCHMARK(BM_PerThreadData)->ThreadPerCpu();
 #endif
+
+}  // namespace
