@@ -117,14 +117,18 @@ Context* absl_nonnull SwapContext(ContextAccess access,
                                   perftools::tracing::StringRef label) {
   Context* current = per_thread_context.pointer();
   NotifyTraceContextChanging(current->trace(), context->trace());
+  current->trace()->BeforeSwapCurrent(access, context->trace_context());
   per_thread_context.set_pointer(context);
+  context->trace()->AfterSwapCurrent(access, label);
   return current;
 }
 
 Context* absl_nonnull RestoreContext(ContextAccess access,
                                      Context* absl_nonnull context) {
   Context* current = per_thread_context.pointer();
+  current->trace()->BeforeRestoreCurrent(access, context->trace_context());
   per_thread_context.set_pointer(context);
+  context->trace()->AfterRestoreCurrent(access);
   return current;
 }
 
@@ -191,13 +195,17 @@ ABSL_XRAY_ALWAYS_INSTRUMENT void SwapCurrentContext(Context* c) {
   using std::swap;
   Context* current = InlineCurrent();
   NotifyTraceContextChanging(current->trace(), c->trace());
+  current->trace()->BeforeSwapCurrent(ContextAccess(), c->trace_context());
   swap(*current, *c);
+  current->trace()->AfterSwapCurrent(base::ContextAccess());
 }
 
 ABSL_XRAY_ALWAYS_INSTRUMENT void RestoreCurrentContext(Context* c) {
   using std::swap;
   Context* current = InlineCurrent();
+  current->trace()->BeforeRestoreCurrent(ContextAccess(), *c->trace());
   *current = std::move(*c);
+  current->trace()->AfterRestoreCurrent(ContextAccess());
 }
 
 ContextBuilder& ContextBuilder::set_trace_context(TraceContext tc) {
@@ -258,6 +266,7 @@ WithContext::~WithContext() {
 WithTraceContext::WithTraceContext(const TraceContext& switch_to,
                                    perftools::tracing::StringRef label) {
   TraceContext* current = InlineCurrent()->trace();
+  current->BeforeSwapCurrent(ContextAccess(), switch_to);
   if (&switch_to != current) {
     new (&previous_) TraceContext(std::move(*current));
     current = new (current) TraceContext(switch_to);
@@ -266,12 +275,14 @@ WithTraceContext::WithTraceContext(const TraceContext& switch_to,
     new (&previous_) TraceContext(*current);
   }
   NotifyTraceContextChanging(&previous_, current);
+  current->AfterSwapCurrent(ContextAccess(), label);
 }
 
 WithTraceContext::WithTraceContext(TraceContext&& switch_to,
                                    perftools::tracing::StringRef label) {
   TraceContext* current = InlineCurrent()->trace();
   NotifyTraceContextChanging(current, &switch_to);
+  current->BeforeSwapCurrent(ContextAccess(), switch_to);
   if (&switch_to != current) {
     new (&previous_) TraceContext(std::move(*current));
     current = new (current) TraceContext(std::move(switch_to));
@@ -280,11 +291,16 @@ WithTraceContext::WithTraceContext(TraceContext&& switch_to,
     DLOG(FATAL) << "Illegal call consuming <CurrentTraceContext>";
     new (&previous_) TraceContext(*current);
   }
+  current->AfterSwapCurrent(ContextAccess(), label);
 }
 
 WithTraceContext::~WithTraceContext() {
   TraceContext* current = InlineCurrent()->trace();
+  current->BeforeRestoreCurrent(ContextAccess(), previous_);
   *current = std::move(previous_);
+  current->AfterRestoreCurrent(ContextAccess());
+  DCHECK(!previous_.CanRecordAnnotations() &&
+         !previous_.has_sync_tracer());  // NOLINT
 }
 
 WithDeadline::WithDeadline(absl::Time new_deadline)

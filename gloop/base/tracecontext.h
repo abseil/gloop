@@ -113,9 +113,12 @@
 #include "absl/log/check.h"
 #include "absl/strings/string_view.h"
 #include "gloop/base/censushandle.h"
+#include "gloop/base/context_access.h"
 #include "gloop/base/context_origin.h"
 #include "gloop/base/port.h"
 #include "gloop/base/sysinfo.h"
+#include "gloop/perftools/tracing/string_label.h"
+#include "gloop/perftools/tracing/trace_source_location.h"
 
 // Indicates that the base::Context TraceContext API is supported in this build.
 // Otherwise, a nonfunctional TraceContext compatibility shim is provided to
@@ -153,6 +156,17 @@ class TraceContext {
   TraceContext& operator=(TraceContext&&) = default;
   explicit TraceContext(const TraceContext*) {}
   void CopyTo(TraceContext*) const {}
+  void BeforeSwapCurrent(base::ContextAccess, const TraceContext& to) {}
+  void AfterSwapCurrent(
+      base::ContextAccess,
+      perftools::tracing::StringRef label =
+          perftools::tracing::TraceSourceLocation::current()) {}
+  void BeforeRestoreCurrent(base::ContextAccess, const TraceContext& from) {}
+  void AfterRestoreCurrent(
+      base::ContextAccess,
+      perftools::tracing::StringRef label =
+          perftools::tracing::TraceSourceLocation::current()) {}
+  bool has_sync_tracer() const { return false; }
   friend void swap(TraceContext&, TraceContext&) noexcept {}
   static const TraceContext* Current() { return nullptr; }
   bool CanRecordAnnotations() const { return false; }
@@ -216,12 +230,9 @@ const TraceContext* CurrentTraceContextNoAlloc();
 #include <utility>
 
 #include "base/tracecontext-ktrace.h"
-#include "gloop/base/context_access.h"
 #include "gloop/base/xray/tracing_annotations.h"
-#include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/sync_context.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
-#include "gloop/perftools/tracing/trace_source_location.h"
 
 namespace base {
 class Context;
