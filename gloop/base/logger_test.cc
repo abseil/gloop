@@ -99,6 +99,7 @@ class LoggerTest : public Test {
         original_warning_logger_(GetLogger(absl::LogSeverity::kWarning)),
         original_error_logger_(GetLogger(absl::LogSeverity::kError)),
         original_fatal_logger_(GetLogger(absl::LogSeverity::kFatal)) {
+    absl::SetFlag(&FLAGS_logtofiles, true);
     absl::SetFlag(&FLAGS_logtostderr, false);
 
     info_logger_ = new StrictMock<MockInfoLogger>;
@@ -196,6 +197,23 @@ TEST_F(LoggerTest, Nullptr) {
   EnableLogToFiles(false);
   FlushLogFiles(absl::LogSeverity::kInfo);
   EnableLogToFiles(true);
+}
+
+TEST_F(LoggerTest, LogToFilesFlag) {
+  ActivateMockLoggers();
+  absl::SetFlag(&FLAGS_logtofiles, false);
+  EXPECT_FALSE(LogToFiles());
+  LOG(INFO) << "dropped from file loggers";
+  LOG(ERROR) << "also dropped from file loggers";
+
+  if (LoggingEnabledAt(absl::LogSeverity::kInfo)) {
+    EXPECT_CALL(*info_logger_,
+                Write(/* force_flush = */ IsFalse(), TimeTInMatchWindow(),
+                      EndsWith("hello world\n"), Ge(13)));
+  }
+  absl::SetFlag(&FLAGS_logtofiles, true);
+  EXPECT_TRUE(LogToFiles());
+  LOG(INFO) << "hello world";
 }
 #endif  // GLOOP_INTERNAL_PROD_LOGGING
 

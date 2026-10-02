@@ -132,13 +132,21 @@ namespace base_logging {
 extern ABSL_ATTRIBUTE_WEAK void EnableLogToFiles(bool on_off);
 }  // namespace base_logging
 
+ABSL_FLAG(bool, logtofiles, true, "log messages go to logfiles").OnUpdate([] {
+  if (base_logging::EnableLogToFiles != nullptr) {
+    base_logging::EnableLogToFiles(absl::GetFlag(FLAGS_logtofiles) &&
+                                   !absl::GetFlag(FLAGS_logtostderr));
+  }
+});
+
 ABSL_FLAG(bool, logtostderr, base_logging::internal::LogtostderrDefault(),
           "log messages go to stderr instead of logfiles")
     .OnUpdate([] {
       bool turning_on_off = absl::GetFlag(FLAGS_logtostderr);
       DeduceStderrThreshold(turning_on_off);
       if (base_logging::EnableLogToFiles != nullptr) {
-        base_logging::EnableLogToFiles(!turning_on_off);
+        base_logging::EnableLogToFiles(absl::GetFlag(FLAGS_logtofiles) &&
+                                       !turning_on_off);
       }
     });
 

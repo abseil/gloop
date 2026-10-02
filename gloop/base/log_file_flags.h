@@ -52,6 +52,9 @@ ABSL_DECLARE_FLAG(bool, stop_logging_if_full_disk);
 // If specified, a symbolic link to each logfile is put in this directory.
 ABSL_DECLARE_FLAG(std::string, log_link);
 
+// If true, log messages go to logfiles.  Defaults to true.
+ABSL_DECLARE_FLAG(bool, logtofiles);
+
 // If true, log messages go to stderr *instead* of `LogSink`s.  Defaults to
 // false unless the `GOOGLE_LOGTOSTDERR` environment variable is set.
 ABSL_DECLARE_FLAG(bool, logtostderr);
