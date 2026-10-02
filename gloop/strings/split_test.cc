@@ -41,7 +41,6 @@
 #pragma clang diagnostic pop
 
 #include "absl/container/flat_hash_set.h"
-#include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/strings/charset.h"
 #include "absl/strings/numbers.h"
@@ -53,8 +52,14 @@
 
 namespace strings {
 
-using ::testing::Contains;
+using ::testing::DoubleNear;
 using ::testing::ElementsAre;
+using ::testing::ElementsAreArray;
+using ::testing::IsEmpty;
+using ::testing::Pair;
+using ::testing::SizeIs;
+using ::testing::StrEq;
+using ::testing::UnorderedElementsAre;
 
 TEST(OldSplit, SplitOneString) {
   LOG(INFO) << "Testing SplitOneString";
@@ -78,13 +83,13 @@ TEST(OldSplit, SplitOneString) {
 
   source = testints[1];
   ASSERT_TRUE(SplitOneIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
-  ASSERT_EQ(1, value);
+  ASSERT_EQ(source, nullptr);
+  ASSERT_EQ(value, 1);
 
   source = testints[2];
   ASSERT_TRUE(SplitOneIntToken(&source, " ", &value));
   ASSERT_TRUE(source == testints[2] + 2);
-  ASSERT_EQ(1, value);
+  ASSERT_EQ(value, 1);
 
   source = testints[3];
   ASSERT_TRUE(!SplitOneIntToken(&source, " ", &value));
@@ -94,8 +99,8 @@ TEST(OldSplit, SplitOneString) {
 
   source = testints[5];
   ASSERT_TRUE(SplitOneIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
-  ASSERT_EQ(-1, value);
+  ASSERT_EQ(source, nullptr);
+  ASSERT_EQ(value, -1);
 
   // Parse decimal ints, with overflows
   const char* testoverflowints[] = {"2147483647",
@@ -109,42 +114,42 @@ TEST(OldSplit, SplitOneString) {
 
   source = testoverflowints[0];
   ASSERT_TRUE(SplitOneIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, std::numeric_limits<int32_t>::max());
 
   source = testoverflowints[1];
   ASSERT_TRUE(SplitOneIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, std::numeric_limits<int32_t>::min());
 
   source = testoverflowints[2];
   ASSERT_TRUE(SplitOneIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, std::numeric_limits<int32_t>::max());
 
   source = testoverflowints[3];
   ASSERT_TRUE(SplitOneIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, std::numeric_limits<int32_t>::min());
 
   source = testoverflowints[4];
   ASSERT_TRUE(SplitOneIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, std::numeric_limits<int32_t>::max());
 
   source = testoverflowints[5];
   ASSERT_TRUE(SplitOneIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, std::numeric_limits<int32_t>::min());
 
   source = testoverflowints[6];
   ASSERT_TRUE(SplitOneIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, std::numeric_limits<int32_t>::max());
 
   source = testoverflowints[7];
   ASSERT_TRUE(SplitOneIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, std::numeric_limits<int32_t>::min());
 
   // Parse decimal ints
@@ -156,7 +161,7 @@ TEST(OldSplit, SplitOneString) {
 
   source = testdecints[1];
   ASSERT_TRUE(SplitOneDecimalIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, 1);
 
   source = testdecints[2];
@@ -172,17 +177,17 @@ TEST(OldSplit, SplitOneString) {
 
   source = testdecints[5];
   ASSERT_TRUE(SplitOneDecimalIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, -1);
 
   source = testdecints[6];
   ASSERT_TRUE(SplitOneDecimalIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, 10);
 
   source = testdecints[7];
   ASSERT_TRUE(SplitOneDecimalIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, 90);
 
   source = testdecints[8];
@@ -209,7 +214,7 @@ TEST(OldSplit, SplitOneString) {
 
   source = testhexints[1];
   ASSERT_TRUE(SplitOneHexUint32Token(&source, " ", &uvalue32));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(uvalue32, 0);
 
   source = testhexints[2];
@@ -219,17 +224,17 @@ TEST(OldSplit, SplitOneString) {
 
   source = testhexints[3];
   ASSERT_TRUE(SplitOneHexUint32Token(&source, " ", &uvalue32));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(uvalue32, 0xff);
 
   source = testhexints[4];
   ASSERT_TRUE(SplitOneHexUint32Token(&source, " ", &uvalue32));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(uvalue32, 0xdeadbeefU);
 
   source = testhexints[5];
   ASSERT_TRUE(SplitOneHexUint64Token(&source, " ", &uvalue64));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(uvalue64, uint64_t{0xffffffff0000000du});
 
   source = testhexints[6];
@@ -237,7 +242,7 @@ TEST(OldSplit, SplitOneString) {
 
   source = testhexints[7];
   ASSERT_TRUE(SplitOneHexUint32Token(&source, " ", &uvalue32));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(uvalue32, 0xff);
 
   source = testhexints[8];
@@ -255,42 +260,42 @@ TEST(OldSplit, SplitOneString) {
 
   source = testdecoverflowints[0];
   ASSERT_TRUE(SplitOneDecimalIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, std::numeric_limits<int32_t>::max());
 
   source = testdecoverflowints[1];
   ASSERT_TRUE(SplitOneDecimalIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, std::numeric_limits<int32_t>::min());
 
   source = testdecoverflowints[2];
   ASSERT_TRUE(SplitOneDecimalIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, std::numeric_limits<int32_t>::max());
 
   source = testdecoverflowints[3];
   ASSERT_TRUE(SplitOneDecimalIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, std::numeric_limits<int32_t>::min());
 
   source = testdecoverflowints[4];
   ASSERT_TRUE(SplitOneDecimalIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, std::numeric_limits<int32_t>::max());
 
   source = testdecoverflowints[5];
   ASSERT_TRUE(SplitOneDecimalIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, std::numeric_limits<int32_t>::min());
 
   source = testdecoverflowints[6];
   ASSERT_TRUE(SplitOneDecimalIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, std::numeric_limits<int32_t>::max());
 
   source = testdecoverflowints[7];
   ASSERT_TRUE(SplitOneDecimalIntToken(&source, " ", &value));
-  ASSERT_TRUE(nullptr == source);
+  ASSERT_EQ(source, nullptr);
   ASSERT_EQ(value, std::numeric_limits<int32_t>::min());
 }
 
@@ -318,7 +323,6 @@ TEST(OldSplit, RepeatedSplitOneUint64Token) {
       24,
       771030399567649802,
   };
-  const int kNumTestNumbers = 3;
   std::string parse_string = "0x24,24,771030399567649802";
   curr_pos = parse_string.c_str();
   std::vector<uint64_t> parse_numbers;
@@ -326,10 +330,7 @@ TEST(OldSplit, RepeatedSplitOneUint64Token) {
     parse_numbers.push_back(value);
 
   ASSERT_EQ(curr_pos, (const char*)nullptr);
-  ASSERT_EQ(parse_numbers.size(), kNumTestNumbers);
-  for (int i = 0; i < kNumTestNumbers; ++i) {
-    ASSERT_EQ(parse_numbers[i], testnumbers[i]);
-  }
+  EXPECT_THAT(parse_numbers, ElementsAreArray(testnumbers));
 
   // test negative numbers (it should get converted to large positive numbers)
   parse_string.assign("0,-100");
@@ -337,9 +338,7 @@ TEST(OldSplit, RepeatedSplitOneUint64Token) {
   parse_numbers.clear();
   while (SplitOneUint64Token(&curr_pos, delim, &value))
     parse_numbers.push_back(value);
-  ASSERT_EQ(parse_numbers.size(), 2);
-  ASSERT_EQ(parse_numbers[0], uint64_t{0});
-  ASSERT_EQ(parse_numbers[1], static_cast<uint64_t>(-100));
+  EXPECT_THAT(parse_numbers, ElementsAre(0, static_cast<uint64_t>(-100)));
   ASSERT_EQ(curr_pos, (const char*)nullptr);
 
   // test error string
@@ -348,8 +347,7 @@ TEST(OldSplit, RepeatedSplitOneUint64Token) {
   parse_numbers.clear();
   while (SplitOneUint64Token(&curr_pos, delim, &value))
     parse_numbers.push_back(value);
-  ASSERT_EQ(parse_numbers.size(), 1);
-  ASSERT_EQ(parse_numbers[0], uint64_t{0});
+  EXPECT_THAT(parse_numbers, ElementsAre(0));
   ASSERT_EQ(curr_pos, parse_string.c_str() + 2);
 }
 
@@ -360,110 +358,79 @@ TEST(OldSplit, SplitStructuredLine) {
 
   // Same test cases as SplitStringAllowEmpty
   ASSERT_TRUE(!SplitStructuredLine(t = strdup(""), '#', "", &results));
-  ASSERT_EQ(results.size(), 1);
-  ASSERT_EQ(results[0], std::string(""));
+  EXPECT_THAT(results, ElementsAre(StrEq("")));
   results.clear();
   free(t);
 
   ASSERT_TRUE(!SplitStructuredLine(t = strdup("#"), '#', "", &results));
-  ASSERT_EQ(results.size(), 2);
-  ASSERT_EQ(results[0], std::string(""));
-  ASSERT_EQ(results[1], std::string(""));
+  EXPECT_THAT(results, ElementsAre(StrEq(""), StrEq("")));
   results.clear();
   free(t);
 
   ASSERT_TRUE(!SplitStructuredLine(t = strdup("ab"), '#', "", &results));
-  ASSERT_EQ(results.size(), 1);
-  ASSERT_EQ(results[0], std::string("ab"));
+  EXPECT_THAT(results, ElementsAre(StrEq("ab")));
   results.clear();
   free(t);
 
   ASSERT_TRUE(!SplitStructuredLine(t = strdup("ab#"), '#', "", &results));
-  ASSERT_EQ(results.size(), 2);
-  ASSERT_EQ(results[0], std::string("ab"));
-  ASSERT_EQ(results[1], std::string(""));
+  EXPECT_THAT(results, ElementsAre(StrEq("ab"), StrEq("")));
   results.clear();
   free(t);
 
   ASSERT_TRUE(!SplitStructuredLine(t = strdup("#cd"), '#', "", &results));
-  ASSERT_EQ(results.size(), 2);
-  ASSERT_EQ(results[0], std::string(""));
-  ASSERT_EQ(results[1], std::string("cd"));
+  EXPECT_THAT(results, ElementsAre(StrEq(""), StrEq("cd")));
   results.clear();
   free(t);
 
   ASSERT_TRUE(!SplitStructuredLine(t = strdup("ab#cd"), '#', "", &results));
-  ASSERT_EQ(results.size(), 2);
-  ASSERT_EQ(results[0], std::string("ab"));
-  ASSERT_EQ(results[1], std::string("cd"));
+  EXPECT_THAT(results, ElementsAre(StrEq("ab"), StrEq("cd")));
   results.clear();
   free(t);
 
   ASSERT_TRUE(!SplitStructuredLine(t = strdup("ab#cd#"), '#', "", &results));
-  ASSERT_EQ(results.size(), 3);
-  ASSERT_EQ(results[0], std::string("ab"));
-  ASSERT_EQ(results[1], std::string("cd"));
-  ASSERT_EQ(results[2], std::string(""));
+  EXPECT_THAT(results, ElementsAre(StrEq("ab"), StrEq("cd"), StrEq("")));
   results.clear();
   free(t);
 
   ASSERT_TRUE(!SplitStructuredLine(t = strdup("ab##cd"), '#', "", &results));
-  ASSERT_EQ(results.size(), 3);
-  ASSERT_EQ(results[0], std::string("ab"));
-  ASSERT_EQ(results[1], std::string(""));
-  ASSERT_EQ(results[2], std::string("cd"));
+  EXPECT_THAT(results, ElementsAre(StrEq("ab"), StrEq(""), StrEq("cd")));
   results.clear();
   free(t);
 
   ASSERT_TRUE(!SplitStructuredLine(t = strdup("##ab"), '#', "", &results));
-  ASSERT_EQ(results.size(), 3);
-  ASSERT_EQ(results[0], std::string(""));
-  ASSERT_EQ(results[1], std::string(""));
-  ASSERT_EQ(results[2], std::string("ab"));
+  EXPECT_THAT(results, ElementsAre(StrEq(""), StrEq(""), StrEq("ab")));
   results.clear();
   free(t);
 
   ASSERT_TRUE(!SplitStructuredLine(t = strdup("ab##"), '#', "", &results));
-  ASSERT_EQ(results.size(), 3);
-  ASSERT_EQ(results[0], std::string("ab"));
-  ASSERT_EQ(results[1], std::string(""));
-  ASSERT_EQ(results[2], std::string(""));
+  EXPECT_THAT(results, ElementsAre(StrEq("ab"), StrEq(""), StrEq("")));
   results.clear();
   free(t);
 
   // test cases for the "structured" part
   ASSERT_TRUE(
       !SplitStructuredLine(t = strdup("a,b([)4,45],c"), ',', "[]", &results));
-  ASSERT_EQ(results.size(), 3);
-  ASSERT_EQ(results[0], std::string("a"));
-  ASSERT_EQ(results[1], std::string("b([)4,45]"));
-  ASSERT_EQ(results[2], std::string("c"));
+  EXPECT_THAT(results, ElementsAre(StrEq("a"), StrEq("b([)4,45]"), StrEq("c")));
   results.clear();
   free(t);
 
   ASSERT_TRUE(!SplitStructuredLine(t = strdup("a,b(23,[4,45],c),d"), ',',
                                    "()[]", &results));
-  ASSERT_EQ(results.size(), 3);
-  ASSERT_EQ(results[0], std::string("a"));
-  ASSERT_EQ(results[1], std::string("b(23,[4,45],c)"));
-  ASSERT_EQ(results[2], std::string("d"));
+  EXPECT_THAT(results,
+              ElementsAre(StrEq("a"), StrEq("b(23,[4,45],c)"), StrEq("d")));
   results.clear();
   free(t);
 
   ASSERT_TRUE(!SplitStructuredLine(t = strdup("ab,b(23,[4,45],c),[,]"), ',',
                                    "()[]", &results));
-  ASSERT_EQ(results.size(), 3);
-  ASSERT_EQ(results[0], std::string("ab"));
-  ASSERT_EQ(results[1], std::string("b(23,[4,45],c)"));
-  ASSERT_EQ(results[2], std::string("[,]"));
+  EXPECT_THAT(results,
+              ElementsAre(StrEq("ab"), StrEq("b(23,[4,45],c)"), StrEq("[,]")));
   results.clear();
   free(t);
 
   ASSERT_TRUE(!SplitStructuredLine(t = strdup("abc,b'23,[4,45],c'"), ',', "[]'",
                                    &results));
-  ASSERT_EQ(results.size(), 2);
-  ASSERT_EQ(results[0], std::string("abc"));
-  ASSERT_EQ(results[1], std::string("b'23,[4,45],c'"));
+  EXPECT_THAT(results, ElementsAre(StrEq("abc"), StrEq("b'23,[4,45],c'")));
   results.clear();
   free(t);
 
@@ -492,8 +459,7 @@ TEST(OldSplit, SplitStructuredLine) {
 
   ASSERT_TRUE(!SplitStructuredLineWithEscapes(t = strdup("Blue\\'s Clues"), ',',
                                               "'", &results));
-  ASSERT_EQ(results.size(), 1);
-  ASSERT_EQ(results[0], std::string("Blue\\'s Clues"));
+  EXPECT_THAT(results, ElementsAre(StrEq("Blue\\'s Clues")));
   results.clear();
   free(t);
 
@@ -502,12 +468,9 @@ TEST(OldSplit, SplitStructuredLine) {
       t = strdup("\\{item1\\},it\\\\em2,{\\{subitem1\\},sub\\\\item2},"
                  "item4\\,item5,[5,{6,7}]"),
       ',', "{}[]", &results));
-  ASSERT_EQ(5, results.size());
-  ASSERT_STREQ("\\{item1\\}", results[0]);
-  ASSERT_STREQ("it\\\\em2", results[1]);
-  ASSERT_STREQ("{\\{subitem1\\},sub\\\\item2}", results[2]);
-  ASSERT_STREQ("item4\\,item5", results[3]);
-  ASSERT_STREQ("[5,{6,7}]", results[4]);
+  EXPECT_THAT(results, ElementsAre(StrEq("\\{item1\\}"), StrEq("it\\\\em2"),
+                                   StrEq("{\\{subitem1\\},sub\\\\item2}"),
+                                   StrEq("item4\\,item5"), StrEq("[5,{6,7}]")));
   results.clear();
   free(t);
 
@@ -515,94 +478,61 @@ TEST(OldSplit, SplitStructuredLine) {
   std::vector<absl::string_view> pieces;
 
   ASSERT_TRUE(SplitStructuredLine("", '#', "", &pieces));
-  ASSERT_EQ(1, pieces.size());
-  ASSERT_EQ("", pieces[0]);
+  EXPECT_THAT(pieces, ElementsAre(""));
   pieces.clear();
 
   ASSERT_TRUE(SplitStructuredLine("#", '#', "", &pieces));
-  ASSERT_EQ(2, pieces.size());
-  ASSERT_EQ("", pieces[0]);
-  ASSERT_EQ("", pieces[1]);
+  EXPECT_THAT(pieces, ElementsAre("", ""));
   pieces.clear();
 
   ASSERT_TRUE(SplitStructuredLine("ab", '#', "", &pieces));
-  ASSERT_EQ(1, pieces.size());
-  ASSERT_EQ("ab", pieces[0]);
+  EXPECT_THAT(pieces, ElementsAre("ab"));
   pieces.clear();
 
   ASSERT_TRUE(SplitStructuredLine("ab#", '#', "", &pieces));
-  ASSERT_EQ(2, pieces.size());
-  ASSERT_EQ("ab", pieces[0]);
-  ASSERT_EQ("", pieces[1]);
+  EXPECT_THAT(pieces, ElementsAre("ab", ""));
   pieces.clear();
 
   ASSERT_TRUE(SplitStructuredLine("#cd", '#', "", &pieces));
-  ASSERT_EQ(2, pieces.size());
-  ASSERT_EQ("", pieces[0]);
-  ASSERT_EQ("cd", pieces[1]);
+  EXPECT_THAT(pieces, ElementsAre("", "cd"));
   pieces.clear();
 
   ASSERT_TRUE(SplitStructuredLine("ab#cd", '#', "", &pieces));
-  ASSERT_EQ(2, pieces.size());
-  ASSERT_EQ("ab", pieces[0]);
-  ASSERT_EQ("cd", pieces[1]);
+  EXPECT_THAT(pieces, ElementsAre("ab", "cd"));
   pieces.clear();
 
   ASSERT_TRUE(SplitStructuredLine("ab#cd#", '#', "", &pieces));
-  ASSERT_EQ(3, pieces.size());
-  ASSERT_EQ("ab", pieces[0]);
-  ASSERT_EQ("cd", pieces[1]);
-  ASSERT_EQ("", pieces[2]);
+  EXPECT_THAT(pieces, ElementsAre("ab", "cd", ""));
   pieces.clear();
 
   ASSERT_TRUE(SplitStructuredLine("ab##cd", '#', "", &pieces));
-  ASSERT_EQ(3, pieces.size());
-  ASSERT_EQ("ab", pieces[0]);
-  ASSERT_EQ("", pieces[1]);
-  ASSERT_EQ("cd", pieces[2]);
+  EXPECT_THAT(pieces, ElementsAre("ab", "", "cd"));
   pieces.clear();
 
   ASSERT_TRUE(SplitStructuredLine("##ab", '#', "", &pieces));
-  ASSERT_EQ(3, pieces.size());
-  ASSERT_EQ("", pieces[0]);
-  ASSERT_EQ("", pieces[1]);
-  ASSERT_EQ("ab", pieces[2]);
+  EXPECT_THAT(pieces, ElementsAre("", "", "ab"));
   pieces.clear();
 
   ASSERT_TRUE(SplitStructuredLine("ab##", '#', "", &pieces));
-  ASSERT_EQ(3, pieces.size());
-  ASSERT_EQ("ab", pieces[0]);
-  ASSERT_EQ("", pieces[1]);
-  ASSERT_EQ("", pieces[2]);
+  EXPECT_THAT(pieces, ElementsAre("ab", "", ""));
   pieces.clear();
 
   // test cases for the "structured" part
   ASSERT_TRUE(SplitStructuredLine("a,b([)4,45],c", ',', "[]", &pieces));
-  ASSERT_EQ(3, pieces.size());
-  ASSERT_EQ("a", pieces[0]);
-  ASSERT_EQ("b([)4,45]", pieces[1]);
-  ASSERT_EQ("c", pieces[2]);
+  EXPECT_THAT(pieces, ElementsAre("a", "b([)4,45]", "c"));
   pieces.clear();
 
   ASSERT_TRUE(SplitStructuredLine("a,b(23,[4,45],c),d", ',', "()[]", &pieces));
-  ASSERT_EQ(3, pieces.size());
-  ASSERT_EQ("a", pieces[0]);
-  ASSERT_EQ("b(23,[4,45],c)", pieces[1]);
-  ASSERT_EQ("d", pieces[2]);
+  EXPECT_THAT(pieces, ElementsAre("a", "b(23,[4,45],c)", "d"));
   pieces.clear();
 
   ASSERT_TRUE(
       SplitStructuredLine("ab,b(23,[4,45],c),[,]", ',', "()[]", &pieces));
-  ASSERT_EQ(3, pieces.size());
-  ASSERT_EQ("ab", pieces[0]);
-  ASSERT_EQ("b(23,[4,45],c)", pieces[1]);
-  ASSERT_EQ("[,]", pieces[2]);
+  EXPECT_THAT(pieces, ElementsAre("ab", "b(23,[4,45],c)", "[,]"));
   pieces.clear();
 
   ASSERT_TRUE(SplitStructuredLine("abc,b'23,[4,45],c'", ',', "[]'", &pieces));
-  ASSERT_EQ(2, pieces.size());
-  ASSERT_EQ("abc", pieces[0]);
-  ASSERT_EQ("b'23,[4,45],c'", pieces[1]);
+  EXPECT_THAT(pieces, ElementsAre("abc", "b'23,[4,45],c'"));
   pieces.clear();
 
   // Check some error detection
@@ -617,8 +547,7 @@ TEST(OldSplit, SplitStructuredLine) {
   pieces.clear();
   ASSERT_TRUE(
       SplitStructuredLineWithEscapes("Blue\\'s Clues", ',', "'", &pieces));
-  ASSERT_EQ(1, pieces.size());
-  ASSERT_EQ("Blue\\'s Clues", pieces[0]);
+  EXPECT_THAT(pieces, ElementsAre("Blue\\'s Clues"));
   pieces.clear();
 
   // Verify documented behavior.
@@ -626,12 +555,9 @@ TEST(OldSplit, SplitStructuredLine) {
       "\\{item1\\},it\\\\em2,{\\{subitem1\\},sub\\\\item2},item4\\,item5,"
       "[5,{6,7}]",
       ',', "{}[]", &pieces));
-  ASSERT_EQ(5, pieces.size());
-  ASSERT_EQ("\\{item1\\}", pieces[0]);
-  ASSERT_EQ("it\\\\em2", pieces[1]);
-  ASSERT_EQ("{\\{subitem1\\},sub\\\\item2}", pieces[2]);
-  ASSERT_EQ("item4\\,item5", pieces[3]);
-  ASSERT_EQ("[5,{6,7}]", pieces[4]);
+  EXPECT_THAT(pieces, ElementsAre("\\{item1\\}", "it\\\\em2",
+                                  "{\\{subitem1\\},sub\\\\item2}",
+                                  "item4\\,item5", "[5,{6,7}]"));
   pieces.clear();
 }
 
@@ -708,7 +634,7 @@ TEST(OldSplit, SplitCSVLineWithDelimiterForStringsEmbeddedNUL) {
   std::vector<std::string> cols;
   SplitCSVLineWithDelimiterForStrings(absl::StrCat("a,b", nul_char, ",c"), ',',
                                       &cols);
-  EXPECT_EQ(cols.size(), 3);
+  EXPECT_THAT(cols, ElementsAre("a", "b", "c"));
 }
 
 TEST(OldSplit, SplitCSVLine) {
@@ -728,11 +654,9 @@ TEST(OldSplit, SplitCSVLine) {
 
   SafeStrCopy(&test_string, const_test_strings[test]);
   SplitCSVLine(test_string, &answer_vector);
-  ASSERT_EQ(answer_vector.size(), 4);
-  ASSERT_STREQ(answer_vector[0], "Google");
-  ASSERT_STREQ(answer_vector[1], "x");
-  ASSERT_STREQ(answer_vector[2], "Buchheit, Paul");
-  ASSERT_STREQ(answer_vector[3], "string with \" quote in it");
+  EXPECT_THAT(answer_vector,
+              ElementsAre(StrEq("Google"), StrEq("x"), StrEq("Buchheit, Paul"),
+                          StrEq("string with \" quote in it")));
   delete[] test_string;
   answer_vector.clear();
   test += 1;
@@ -741,10 +665,8 @@ TEST(OldSplit, SplitCSVLine) {
   // a line.
   SafeStrCopy(&test_string, const_test_strings[test]);
   SplitCSVLine(test_string, &answer_vector);
-  ASSERT_EQ(answer_vector.size(), 3);
-  ASSERT_STREQ(answer_vector[0], "Google");
-  ASSERT_STREQ(answer_vector[1], "hello");
-  ASSERT_STREQ(answer_vector[2], "");
+  EXPECT_THAT(answer_vector,
+              ElementsAre(StrEq("Google"), StrEq("hello"), StrEq("")));
   delete[] test_string;
   answer_vector.clear();
   test += 1;
@@ -753,10 +675,8 @@ TEST(OldSplit, SplitCSVLine) {
   // a term with whitespace.
   SafeStrCopy(&test_string, const_test_strings[test]);
   SplitCSVLine(test_string, &answer_vector);
-  ASSERT_EQ(answer_vector.size(), 3);
-  ASSERT_STREQ(answer_vector[0], "Google rocks");
-  ASSERT_STREQ(answer_vector[1], "hello");
-  ASSERT_STREQ(answer_vector[2], "");
+  EXPECT_THAT(answer_vector,
+              ElementsAre(StrEq("Google rocks"), StrEq("hello"), StrEq("")));
   delete[] test_string;
   answer_vector.clear();
   test += 1;
@@ -764,12 +684,8 @@ TEST(OldSplit, SplitCSVLine) {
   // Test empty strings.
   SafeStrCopy(&test_string, const_test_strings[test]);
   SplitCSVLine(test_string, &answer_vector);
-  ASSERT_EQ(answer_vector.size(), 5);
-  ASSERT_STREQ(answer_vector[0], "");
-  ASSERT_STREQ(answer_vector[1], "");
-  ASSERT_STREQ(answer_vector[2], "");
-  ASSERT_STREQ(answer_vector[3], "");
-  ASSERT_STREQ(answer_vector[4], "");
+  EXPECT_THAT(answer_vector, ElementsAre(StrEq(""), StrEq(""), StrEq(""),
+                                         StrEq(""), StrEq("")));
   delete[] test_string;
   answer_vector.clear();
   test += 1;
@@ -777,9 +693,7 @@ TEST(OldSplit, SplitCSVLine) {
   // Test a string containing a comma.
   SafeStrCopy(&test_string, const_test_strings[test]);
   SplitCSVLine(test_string, &answer_vector);
-  ASSERT_EQ(answer_vector.size(), 2);
-  ASSERT_STREQ(answer_vector[0], ",");
-  ASSERT_STREQ(answer_vector[1], "hello");
+  EXPECT_THAT(answer_vector, ElementsAre(StrEq(","), StrEq("hello")));
   delete[] test_string;
   answer_vector.clear();
   test += 1;
@@ -787,9 +701,7 @@ TEST(OldSplit, SplitCSVLine) {
   // Test omission of whitespace after a quoted string.
   SafeStrCopy(&test_string, const_test_strings[test]);
   SplitCSVLine(test_string, &answer_vector);
-  ASSERT_EQ(answer_vector.size(), 2);
-  ASSERT_STREQ(answer_vector[0], "abc");
-  ASSERT_STREQ(answer_vector[1], "hello");
+  EXPECT_THAT(answer_vector, ElementsAre(StrEq("abc"), StrEq("hello")));
   delete[] test_string;
   answer_vector.clear();
   test += 1;
@@ -797,9 +709,8 @@ TEST(OldSplit, SplitCSVLine) {
   // Test a quoted string followed by a comma.
   SafeStrCopy(&test_string, const_test_strings[test]);
   SplitCSVLine(test_string, &answer_vector);
-  ASSERT_EQ(answer_vector.size(), 2);
-  ASSERT_STREQ(answer_vector[0], "string without quotes");
-  ASSERT_STREQ(answer_vector[1], "");
+  EXPECT_THAT(answer_vector,
+              ElementsAre(StrEq("string without quotes"), StrEq("")));
   delete[] test_string;
   answer_vector.clear();
   test += 1;
@@ -833,8 +744,8 @@ TEST_F(SplitStringIntoKeyValuesTest, EmptyInputMultipleValues) {
                                         "\t ",  // Key separators
                                         " ,",   // Value separators
                                         &key, &values));
-  EXPECT_TRUE(key.empty());
-  EXPECT_TRUE(values.empty());
+  EXPECT_THAT(key, IsEmpty());
+  EXPECT_THAT(values, IsEmpty());
 }
 
 TEST_F(SplitStringIntoKeyValuesTest, EmptyValueInputMultipleValues) {
@@ -842,8 +753,8 @@ TEST_F(SplitStringIntoKeyValuesTest, EmptyValueInputMultipleValues) {
                                         "\t ",  // Key separators
                                         " ,",   // Value separators
                                         &key, &values));
-  EXPECT_EQ("key_with_no_value", key);
-  EXPECT_TRUE(values.empty());
+  EXPECT_EQ(key, "key_with_no_value");
+  EXPECT_THAT(values, IsEmpty());
 }
 
 TEST_F(SplitStringIntoKeyValuesTest, EmptyKeyInputMultipleValues) {
@@ -851,12 +762,8 @@ TEST_F(SplitStringIntoKeyValuesTest, EmptyKeyInputMultipleValues) {
                                        "\t ",  // Key separators
                                        " ,",   // Value separators
                                        &key, &values));
-  EXPECT_TRUE(key.empty());
-  ASSERT_EQ(4, values.size());
-  EXPECT_EQ("value", values[0]);
-  EXPECT_EQ("for", values[1]);
-  EXPECT_EQ("empty", values[2]);
-  EXPECT_EQ("key", values[3]);
+  EXPECT_THAT(key, IsEmpty());
+  EXPECT_THAT(values, ElementsAre("value", "for", "empty", "key"));
 }
 
 TEST_F(SplitStringIntoKeyValuesTest, KeyWithMultipleValues) {
@@ -864,11 +771,8 @@ TEST_F(SplitStringIntoKeyValuesTest, KeyWithMultipleValues) {
                                        "\t ",  // Key separators
                                        " ,",   // Value separators
                                        &key, &values));
-  EXPECT_EQ("key1", key);
-  ASSERT_EQ(3, values.size());
-  EXPECT_EQ("value1", values[0]);
-  EXPECT_EQ("value2", values[1]);
-  EXPECT_EQ("value3", values[2]);
+  EXPECT_EQ(key, "key1");
+  EXPECT_THAT(values, ElementsAre("value1", "value2", "value3"));
 }
 
 TEST_F(SplitStringIntoKeyValuesTest, EmptyInputSingleValue) {
@@ -876,8 +780,8 @@ TEST_F(SplitStringIntoKeyValuesTest, EmptyInputSingleValue) {
                                         "\t ",  // Key separators
                                         "",     // No value separators
                                         &key, &values));
-  EXPECT_TRUE(key.empty());
-  EXPECT_TRUE(values.empty());
+  EXPECT_THAT(key, IsEmpty());
+  EXPECT_THAT(values, IsEmpty());
 }
 
 TEST_F(SplitStringIntoKeyValuesTest, EmptyValueInputSingleValue) {
@@ -885,8 +789,8 @@ TEST_F(SplitStringIntoKeyValuesTest, EmptyValueInputSingleValue) {
                                         "\t ",  // Key separators
                                         "",     // No value separators
                                         &key, &values));
-  EXPECT_EQ("key_with_no_value", key);
-  EXPECT_TRUE(values.empty());
+  EXPECT_EQ(key, "key_with_no_value");
+  EXPECT_THAT(values, IsEmpty());
 }
 
 TEST_F(SplitStringIntoKeyValuesTest, EmptyKeyInputSingleValue) {
@@ -894,9 +798,8 @@ TEST_F(SplitStringIntoKeyValuesTest, EmptyKeyInputSingleValue) {
                                        "\t ",  // Key separators
                                        "",     // No value separators
                                        &key, &values));
-  EXPECT_TRUE(key.empty());
-  ASSERT_EQ(1, values.size());
-  EXPECT_EQ("value for empty key", values[0]);
+  EXPECT_THAT(key, IsEmpty());
+  EXPECT_THAT(values, ElementsAre("value for empty key"));
 }
 
 TEST_F(SplitStringIntoKeyValuesTest, KeyWithSingleValue) {
@@ -904,9 +807,8 @@ TEST_F(SplitStringIntoKeyValuesTest, KeyWithSingleValue) {
                                        "\t ",  // Key separators
                                        "",     // No value separators
                                        &key, &values));
-  EXPECT_EQ("key1", key);
-  ASSERT_EQ(1, values.size());
-  EXPECT_EQ("value1,   value2   value3", values[0]);
+  EXPECT_EQ(key, "key1");
+  EXPECT_THAT(values, ElementsAre("value1,   value2   value3"));
 }
 
 class SplitStringIntoKeyValuePairsTest : public testing::Test {
@@ -919,7 +821,7 @@ TEST_F(SplitStringIntoKeyValuePairsTest, EmptyString) {
                                            ":",   // Key-value delimiters
                                            ", ",  // Key-value pair delims
                                            &kv_pairs));
-  EXPECT_TRUE(kv_pairs.empty());
+  EXPECT_THAT(kv_pairs, IsEmpty());
 }
 
 TEST_F(SplitStringIntoKeyValuePairsTest, EmptySecondValue) {
@@ -927,11 +829,7 @@ TEST_F(SplitStringIntoKeyValuePairsTest, EmptySecondValue) {
                                             ":",   // Key-value delimiters
                                             ", ",  // Key-value pair delims
                                             &kv_pairs));
-  ASSERT_EQ(2, kv_pairs.size());
-  EXPECT_EQ("key1", kv_pairs[0].first);
-  EXPECT_EQ("value1", kv_pairs[0].second);
-  EXPECT_EQ("key2", kv_pairs[1].first);
-  EXPECT_EQ("", kv_pairs[1].second);
+  EXPECT_THAT(kv_pairs, ElementsAre(Pair("key1", "value1"), Pair("key2", "")));
 }
 
 TEST_F(SplitStringIntoKeyValuePairsTest, DelimiterInValue) {
@@ -939,11 +837,8 @@ TEST_F(SplitStringIntoKeyValuePairsTest, DelimiterInValue) {
                                            ":",   // Key-value delimiters
                                            ", ",  // Key-value pair delims
                                            &kv_pairs));
-  ASSERT_EQ(2, kv_pairs.size());
-  EXPECT_EQ("key1", kv_pairs[0].first);
-  EXPECT_EQ("va:ue1", kv_pairs[0].second);
-  EXPECT_EQ("key2", kv_pairs[1].first);
-  EXPECT_EQ("value2", kv_pairs[1].second);
+  EXPECT_THAT(kv_pairs,
+              ElementsAre(Pair("key1", "va:ue1"), Pair("key2", "value2")));
 }
 
 TEST(OldSplit, SplitStringToLines) {
@@ -1027,101 +922,77 @@ TEST(OldSplit, SplitLeadingIntValues) {
   // Empty:
   std::vector<int32_t> vec32;
   t = "";
-  ASSERT_EQ(t, SplitLeadingDec32Values(t, &vec32));
-  ASSERT_EQ(0, vec32.size());
+  EXPECT_EQ(SplitLeadingDec32Values(t, &vec32), t);
+  EXPECT_THAT(vec32, IsEmpty());
   t = " ";
-  ASSERT_EQ(t, SplitLeadingDec32Values(t, &vec32));
-  ASSERT_EQ(0, vec32.size());
+  EXPECT_EQ(SplitLeadingDec32Values(t, &vec32), t);
+  EXPECT_THAT(vec32, IsEmpty());
   t = " \t\r\n ";
-  ASSERT_EQ(t, SplitLeadingDec32Values(t, &vec32));
-  ASSERT_EQ(0, vec32.size());
+  EXPECT_EQ(SplitLeadingDec32Values(t, &vec32), t);
+  EXPECT_THAT(vec32, IsEmpty());
 
   // Single:
   t = "42";
-  ASSERT_EQ(strlen(t), SplitLeadingDec32Values(t, &vec32) - t);
-  ASSERT_EQ(1, vec32.size());
-  ASSERT_EQ(42, vec32[0]);
+  EXPECT_EQ(SplitLeadingDec32Values(t, &vec32) - t, strlen(t));
+  EXPECT_THAT(vec32, ElementsAre(42));
 
   // Nonempty vector:
   t = "43 44";
-  ASSERT_EQ(strlen(t), SplitLeadingDec32Values(t, &vec32) - t);
-  ASSERT_EQ(3, vec32.size());
-  ASSERT_EQ(42, vec32[0]);
-  ASSERT_EQ(43, vec32[1]);
-  ASSERT_EQ(44, vec32[2]);
+  EXPECT_EQ(SplitLeadingDec32Values(t, &vec32) - t, strlen(t));
+  EXPECT_THAT(vec32, ElementsAre(42, 43, 44));
   vec32.clear();
 
   // Simple:
   t = "0 1 2 3 4 16";
-  ASSERT_EQ(strlen(t), SplitLeadingDec32Values(t, &vec32) - t);
-  ASSERT_EQ(6, vec32.size());
-  ASSERT_EQ(0, vec32[0]);
-  ASSERT_EQ(1, vec32[1]);
-  ASSERT_EQ(2, vec32[2]);
-  ASSERT_EQ(3, vec32[3]);
-  ASSERT_EQ(4, vec32[4]);
-  ASSERT_EQ(16, vec32[5]);
+  EXPECT_EQ(SplitLeadingDec32Values(t, &vec32) - t, strlen(t));
+  EXPECT_THAT(vec32, ElementsAre(0, 1, 2, 3, 4, 16));
   vec32.clear();
 
   // Whitepace:
   t = "  42313 \n  123\t432  ";
-  ASSERT_EQ(strlen(t) - 2, SplitLeadingDec32Values(t, &vec32) - t);
-  ASSERT_EQ(3, vec32.size());
-  ASSERT_EQ(42313, vec32[0]);
-  ASSERT_EQ(123, vec32[1]);
-  ASSERT_EQ(432, vec32[2]);
+  EXPECT_EQ(SplitLeadingDec32Values(t, &vec32) - t, strlen(t) - 2);
+  EXPECT_THAT(vec32, ElementsAre(42313, 123, 432));
   vec32.clear();
 
   // Bad:
   t = "0 1 x 3 4 5";
-  ASSERT_EQ(3, SplitLeadingDec32Values(t, &vec32) - t);
-  ASSERT_EQ(2, vec32.size());
-  ASSERT_EQ(0, vec32[0]);
-  ASSERT_EQ(1, vec32[1]);
+  EXPECT_EQ(SplitLeadingDec32Values(t, &vec32) - t, 3);
+  EXPECT_THAT(vec32, ElementsAre(0, 1));
   vec32.clear();
   t = " 423u 1 2 3 4 5 ";
-  ASSERT_EQ(4, SplitLeadingDec32Values(t, &vec32) - t);
-  ASSERT_EQ(1, vec32.size());
-  ASSERT_EQ(423, vec32[0]);
+  EXPECT_EQ(SplitLeadingDec32Values(t, &vec32) - t, 4);
+  EXPECT_THAT(vec32, ElementsAre(423));
   vec32.clear();
 
   // Number forms:
   t = "+4 -3 0010";
-  ASSERT_EQ(strlen(t), SplitLeadingDec32Values(t, &vec32) - t);
-  ASSERT_EQ(3, vec32.size());
-  ASSERT_EQ(4, vec32[0]);
-  ASSERT_EQ(-3, vec32[1]);
-  ASSERT_EQ(10, vec32[2]);
+  EXPECT_EQ(SplitLeadingDec32Values(t, &vec32) - t, strlen(t));
+  EXPECT_THAT(vec32, ElementsAre(4, -3, 10));
   vec32.clear();
 
   t = "0x20";
-  ASSERT_EQ(1, SplitLeadingDec32Values(t, &vec32) - t);
-  ASSERT_EQ(1, vec32.size());
-  ASSERT_EQ(0, vec32[0]);
+  EXPECT_EQ(SplitLeadingDec32Values(t, &vec32) - t, 1);
+  EXPECT_THAT(vec32, ElementsAre(0));
   vec32.clear();
 
   t = "4294967296";
-  ASSERT_EQ(strlen(t), SplitLeadingDec32Values(t, &vec32) - t);
-  ASSERT_EQ(1, vec32.size());
-  ASSERT_EQ(std::numeric_limits<int32_t>::max(), vec32[0]);
+  EXPECT_EQ(SplitLeadingDec32Values(t, &vec32) - t, strlen(t));
+  EXPECT_THAT(vec32, ElementsAre(std::numeric_limits<int32_t>::max()));
   vec32.clear();
 
   t = "3-2";
-  ASSERT_EQ(1, SplitLeadingDec32Values(t, &vec32) - t);
-  ASSERT_EQ(1, vec32.size());
-  ASSERT_EQ(3, vec32[0]);
+  EXPECT_EQ(SplitLeadingDec32Values(t, &vec32) - t, 1);
+  EXPECT_THAT(vec32, ElementsAre(3));
   vec32.clear();
 
   t = "-9223372036854775808";
-  ASSERT_EQ(strlen(t), SplitLeadingDec32Values(t, &vec32) - t);
-  ASSERT_EQ(1, vec32.size());
-  ASSERT_EQ(INT_MIN, vec32[0]);
+  EXPECT_EQ(SplitLeadingDec32Values(t, &vec32) - t, strlen(t));
+  EXPECT_THAT(vec32, ElementsAre(INT_MIN));
   vec32.clear();
 
   t = "-100000000000000000000000000";
-  ASSERT_EQ(strlen(t), SplitLeadingDec32Values(t, &vec32) - t);
-  ASSERT_EQ(1, vec32.size());
-  ASSERT_EQ(INT_MIN, vec32[0]);
+  EXPECT_EQ(SplitLeadingDec32Values(t, &vec32) - t, strlen(t));
+  EXPECT_THAT(vec32, ElementsAre(INT_MIN));
   vec32.clear();
 
   // Now 64 bits.
@@ -1129,101 +1000,77 @@ TEST(OldSplit, SplitLeadingIntValues) {
   // Empty:
   std::vector<int64_t> vec64;
   t = "";
-  ASSERT_EQ(t, SplitLeadingDec64Values(t, &vec64));
-  ASSERT_EQ(0, vec64.size());
+  EXPECT_EQ(SplitLeadingDec64Values(t, &vec64), t);
+  EXPECT_THAT(vec64, IsEmpty());
   t = " ";
-  ASSERT_EQ(t, SplitLeadingDec64Values(t, &vec64));
-  ASSERT_EQ(0, vec64.size());
+  EXPECT_EQ(SplitLeadingDec64Values(t, &vec64), t);
+  EXPECT_THAT(vec64, IsEmpty());
   t = " \t\r\n ";
-  ASSERT_EQ(t, SplitLeadingDec64Values(t, &vec64));
-  ASSERT_EQ(0, vec64.size());
+  EXPECT_EQ(SplitLeadingDec64Values(t, &vec64), t);
+  EXPECT_THAT(vec64, IsEmpty());
 
   // Single:
   t = "42";
-  ASSERT_EQ(strlen(t), SplitLeadingDec64Values(t, &vec64) - t);
-  ASSERT_EQ(1, vec64.size());
-  ASSERT_EQ(42, vec64[0]);
+  EXPECT_EQ(SplitLeadingDec64Values(t, &vec64) - t, strlen(t));
+  EXPECT_THAT(vec64, ElementsAre(42));
 
   // Nonempty vector:
   t = "43 44";
-  ASSERT_EQ(strlen(t), SplitLeadingDec64Values(t, &vec64) - t);
-  ASSERT_EQ(3, vec64.size());
-  ASSERT_EQ(42, vec64[0]);
-  ASSERT_EQ(43, vec64[1]);
-  ASSERT_EQ(44, vec64[2]);
+  EXPECT_EQ(SplitLeadingDec64Values(t, &vec64) - t, strlen(t));
+  EXPECT_THAT(vec64, ElementsAre(42, 43, 44));
   vec64.clear();
 
   // Simple:
   t = "0 1 2 3 4 16";
-  ASSERT_EQ(strlen(t), SplitLeadingDec64Values(t, &vec64) - t);
-  ASSERT_EQ(6, vec64.size());
-  ASSERT_EQ(0, vec64[0]);
-  ASSERT_EQ(1, vec64[1]);
-  ASSERT_EQ(2, vec64[2]);
-  ASSERT_EQ(3, vec64[3]);
-  ASSERT_EQ(4, vec64[4]);
-  ASSERT_EQ(16, vec64[5]);
+  EXPECT_EQ(SplitLeadingDec64Values(t, &vec64) - t, strlen(t));
+  EXPECT_THAT(vec64, ElementsAre(0, 1, 2, 3, 4, 16));
   vec64.clear();
 
   // Whitepace:
   t = "  42313 \n  123\t464  ";
-  ASSERT_EQ(strlen(t) - 2, SplitLeadingDec64Values(t, &vec64) - t);
-  ASSERT_EQ(3, vec64.size());
-  ASSERT_EQ(42313, vec64[0]);
-  ASSERT_EQ(123, vec64[1]);
-  ASSERT_EQ(464, vec64[2]);
+  EXPECT_EQ(SplitLeadingDec64Values(t, &vec64) - t, strlen(t) - 2);
+  EXPECT_THAT(vec64, ElementsAre(42313, 123, 464));
   vec64.clear();
 
   // Bad:
   t = "0 1 x 3 4 5";
-  ASSERT_EQ(3, SplitLeadingDec64Values(t, &vec64) - t);
-  ASSERT_EQ(2, vec64.size());
-  ASSERT_EQ(0, vec64[0]);
-  ASSERT_EQ(1, vec64[1]);
+  EXPECT_EQ(SplitLeadingDec64Values(t, &vec64) - t, 3);
+  EXPECT_THAT(vec64, ElementsAre(0, 1));
   vec64.clear();
   t = " 423u 1 2 3 4 5 ";
-  ASSERT_EQ(4, SplitLeadingDec64Values(t, &vec64) - t);
-  ASSERT_EQ(1, vec64.size());
-  ASSERT_EQ(423, vec64[0]);
+  EXPECT_EQ(SplitLeadingDec64Values(t, &vec64) - t, 4);
+  EXPECT_THAT(vec64, ElementsAre(423));
   vec64.clear();
 
   // Number forms:
   t = "+4 -3 0010";
-  ASSERT_EQ(strlen(t), SplitLeadingDec64Values(t, &vec64) - t);
-  ASSERT_EQ(3, vec64.size());
-  ASSERT_EQ(4, vec64[0]);
-  ASSERT_EQ(-3, vec64[1]);
-  ASSERT_EQ(10, vec64[2]);
+  EXPECT_EQ(SplitLeadingDec64Values(t, &vec64) - t, strlen(t));
+  EXPECT_THAT(vec64, ElementsAre(4, -3, 10));
   vec64.clear();
 
   t = "0x20";
-  ASSERT_EQ(1, SplitLeadingDec64Values(t, &vec64) - t);
-  ASSERT_EQ(1, vec64.size());
-  ASSERT_EQ(0, vec64[0]);
+  EXPECT_EQ(SplitLeadingDec64Values(t, &vec64) - t, 1);
+  EXPECT_THAT(vec64, ElementsAre(0));
   vec64.clear();
 
   t = "4294967296";
-  ASSERT_EQ(strlen(t), SplitLeadingDec64Values(t, &vec64) - t);
-  ASSERT_EQ(1, vec64.size());
-  ASSERT_EQ(int64_t{4294967296}, vec64[0]);
+  EXPECT_EQ(SplitLeadingDec64Values(t, &vec64) - t, strlen(t));
+  EXPECT_THAT(vec64, ElementsAre(int64_t{4294967296}));
   vec64.clear();
 
   t = "3-2";
-  ASSERT_EQ(1, SplitLeadingDec64Values(t, &vec64) - t);
-  ASSERT_EQ(1, vec64.size());
-  ASSERT_EQ(3, vec64[0]);
+  EXPECT_EQ(SplitLeadingDec64Values(t, &vec64) - t, 1);
+  EXPECT_THAT(vec64, ElementsAre(3));
   vec64.clear();
 
   t = "-9223372036854775808";
-  ASSERT_EQ(strlen(t), SplitLeadingDec64Values(t, &vec64) - t);
-  ASSERT_EQ(1, vec64.size());
-  ASSERT_EQ(-0x7fffffffffffffffLL - 1, vec64[0]);
+  EXPECT_EQ(SplitLeadingDec64Values(t, &vec64) - t, strlen(t));
+  EXPECT_THAT(vec64, ElementsAre(-0x7fffffffffffffffLL - 1));
   vec64.clear();
 
   t = "-100000000000000000000000000";
-  ASSERT_EQ(strlen(t), SplitLeadingDec64Values(t, &vec64) - t);
-  ASSERT_EQ(1, vec64.size());
-  ASSERT_EQ(-0x7fffffffffffffffLL - 1, vec64[0]);
+  EXPECT_EQ(SplitLeadingDec64Values(t, &vec64) - t, strlen(t));
+  EXPECT_THAT(vec64, ElementsAre(-0x7fffffffffffffffLL - 1));
   vec64.clear();
 }
 
@@ -1233,63 +1080,63 @@ TEST(OldSplit, SplitRange) {
   // A value of 42 signifies that the value wasn't modified.
   from = to = 42;
   EXPECT_TRUE(SplitRange("", &from, &to));
-  EXPECT_EQ(42, from);
-  EXPECT_EQ(42, to);
+  EXPECT_EQ(from, 42);
+  EXPECT_EQ(to, 42);
 
   from = to = 42;
   EXPECT_TRUE(SplitRange(" ", &from, &to));
-  EXPECT_EQ(42, from);
-  EXPECT_EQ(42, to);
+  EXPECT_EQ(from, 42);
+  EXPECT_EQ(to, 42);
 
   from = to = 42;
   EXPECT_TRUE(SplitRange("-", &from, &to));
-  EXPECT_EQ(42, from);
-  EXPECT_EQ(42, to);
+  EXPECT_EQ(from, 42);
+  EXPECT_EQ(to, 42);
 
   from = to = 42;
   EXPECT_TRUE(SplitRange(" - ", &from, &to));
-  EXPECT_EQ(42, from);
-  EXPECT_EQ(42, to);
+  EXPECT_EQ(from, 42);
+  EXPECT_EQ(to, 42);
 
   from = to = 42;
   EXPECT_TRUE(SplitRange("7", &from, &to));
-  EXPECT_EQ(7, from);
-  EXPECT_EQ(42, to);
+  EXPECT_EQ(from, 7);
+  EXPECT_EQ(to, 42);
 
   from = to = 42;
   EXPECT_TRUE(SplitRange("7-", &from, &to));
-  EXPECT_EQ(7, from);
-  EXPECT_EQ(42, to);
+  EXPECT_EQ(from, 7);
+  EXPECT_EQ(to, 42);
 
   from = to = 42;
   EXPECT_TRUE(SplitRange("-7", &from, &to));
-  EXPECT_EQ(42, from);
-  EXPECT_EQ(7, to);
+  EXPECT_EQ(from, 42);
+  EXPECT_EQ(to, 7);
 
   from = to = 42;
   EXPECT_TRUE(SplitRange("7-17", &from, &to));
-  EXPECT_EQ(7, from);
-  EXPECT_EQ(17, to);
+  EXPECT_EQ(from, 7);
+  EXPECT_EQ(to, 17);
 
   from = to = 42;
   EXPECT_TRUE(SplitRange("7-17 ", &from, &to));
-  EXPECT_EQ(7, from);
-  EXPECT_EQ(17, to);
+  EXPECT_EQ(from, 7);
+  EXPECT_EQ(to, 17);
 
   from = to = 42;
   EXPECT_TRUE(SplitRange("009-0017", &from, &to));
-  EXPECT_EQ(9, from);
-  EXPECT_EQ(17, to);
+  EXPECT_EQ(from, 9);
+  EXPECT_EQ(to, 17);
 
   from = to = 42;
   EXPECT_TRUE(SplitRange("009- 0017", &from, &to));
-  EXPECT_EQ(9, from);
-  EXPECT_EQ(42, to);
+  EXPECT_EQ(from, 9);
+  EXPECT_EQ(to, 42);
 
   from = to = 42;
   EXPECT_TRUE(SplitRange("7-17 ignore after whitespace", &from, &to));
-  EXPECT_EQ(7, from);
-  EXPECT_EQ(17, to);
+  EXPECT_EQ(from, 7);
+  EXPECT_EQ(to, 17);
 
   //
   // Error cases
@@ -1297,24 +1144,24 @@ TEST(OldSplit, SplitRange) {
   from = to = 42;
 
   EXPECT_FALSE(SplitRange("1-2-", &from, &to));
-  EXPECT_EQ(42, from);
-  EXPECT_EQ(42, to);
+  EXPECT_EQ(from, 42);
+  EXPECT_EQ(to, 42);
 
   EXPECT_FALSE(SplitRange("-2-", &from, &to));
-  EXPECT_EQ(42, from);
-  EXPECT_EQ(42, to);
+  EXPECT_EQ(from, 42);
+  EXPECT_EQ(to, 42);
 
   EXPECT_FALSE(SplitRange("1-2-3", &from, &to));
-  EXPECT_EQ(42, from);
-  EXPECT_EQ(42, to);
+  EXPECT_EQ(from, 42);
+  EXPECT_EQ(to, 42);
 }
 
 TEST(SplitStringWithEscaping, EmptyString) {
   std::vector<std::string> result;
   SplitStringWithEscaping("", '=', &result);
-  EXPECT_THAT(result, ElementsAre());
+  EXPECT_THAT(result, IsEmpty());
   SplitStringWithEscaping(absl::string_view(nullptr, 0), '=', &result);
-  EXPECT_THAT(result, ElementsAre());
+  EXPECT_THAT(result, IsEmpty());
 }
 
 TEST(SplitStringWithEscaping, SimpleCase) {
@@ -1419,18 +1266,17 @@ TEST(SplitStringAndParseTest, Double) {
 
   values.clear();
   EXPECT_TRUE(SplitStringAndParse("1.0,2.0,3.0", ",", &safe_strtod, &values));
-  EXPECT_EQ(3, values.size());
-  EXPECT_NEAR(values[0], 1.0, 0.001);
-  EXPECT_NEAR(values[1], 2.0, 0.001);
-  EXPECT_NEAR(values[2], 3.0, 0.001);
+  EXPECT_THAT(values,
+              ElementsAre(DoubleNear(1.0, 0.001), DoubleNear(2.0, 0.001),
+                          DoubleNear(3.0, 0.001)));
 
   // Test empty values and appending
   EXPECT_TRUE(
       SplitStringAndParse(",,,5.5,,,8.21,13.7,,,", ",", &safe_strtod, &values));
-  EXPECT_EQ(6, values.size());
-  EXPECT_NEAR(values[3], 5.50, 0.001);
-  EXPECT_NEAR(values[4], 8.21, 0.001);
-  EXPECT_NEAR(values[5], 13.70, 0.001);
+  EXPECT_THAT(values,
+              ElementsAre(DoubleNear(1.0, 0.001), DoubleNear(2.0, 0.001),
+                          DoubleNear(3.0, 0.001), DoubleNear(5.50, 0.001),
+                          DoubleNear(8.21, 0.001), DoubleNear(13.70, 0.001)));
 
   // Test parsing failed and no change to output
   EXPECT_FALSE(
@@ -1442,7 +1288,7 @@ TEST(SplitStringAndParseTest, Double) {
   // Test parsing of empty string
   values.clear();
   EXPECT_TRUE(SplitStringAndParse(",,,,", ",", &safe_strtod, &values));
-  EXPECT_EQ(0, values.size());
+  EXPECT_THAT(values, IsEmpty());
 }
 
 namespace {
@@ -1469,18 +1315,12 @@ TEST(SplitStringAndParseTest, Boolean) {
   values.clear();
   EXPECT_TRUE(
       SplitStringAndParse(",,true,false,true", ",", &ParseBool, &values));
-  EXPECT_EQ(3, values.size());
-  EXPECT_EQ(true, values[0]);
-  EXPECT_EQ(false, values[1]);
-  EXPECT_EQ(true, values[2]);
+  EXPECT_THAT(values, ElementsAre(true, false, true));
 
   // Test empty values and appending
   EXPECT_TRUE(
       SplitStringAndParse("true,,,true,true,,,", ",", &ParseBool, &values));
-  EXPECT_EQ(6, values.size());
-  EXPECT_EQ(values[3], true);
-  EXPECT_EQ(values[4], true);
-  EXPECT_EQ(values[5], true);
+  EXPECT_THAT(values, ElementsAre(true, false, true, true, true, true));
 
   // Test parsing failed
   values.clear();
@@ -1491,7 +1331,7 @@ TEST(SplitStringAndParseTest, Boolean) {
   // Test parsing of empty string
   values.clear();
   EXPECT_TRUE(SplitStringAndParse(",,,,", ",", &ParseBool, &values));
-  EXPECT_EQ(0, values.size());
+  EXPECT_THAT(values, IsEmpty());
 }
 
 TEST(SplitStringAndParseTest, EmbeddedNulls) {
@@ -1509,14 +1349,10 @@ TEST(SplitStringAndParseTest, EmbeddedNulls) {
       "-500",
       11);
   std::string delim("\0", 1);
-  ASSERT_EQ(11, hasnulls.length());  // sanity check
+  ASSERT_EQ(hasnulls.length(), 11);  // sanity check
   std::vector<int32_t> values;
   EXPECT_TRUE(SplitStringAndParse(hasnulls, delim, &safe_strto32, &values));
-  EXPECT_EQ(4, values.size());
-  EXPECT_EQ(33, values[0]);
-  EXPECT_EQ(42, values[1]);
-  EXPECT_EQ(64, values[2]);
-  EXPECT_EQ(-5, values[3]);
+  EXPECT_THAT(values, ElementsAre(33, 42, 64, -5));
 }
 
 TEST(SplitStringAndParseToContainerDeathTest, InvalidInputs) {
@@ -1543,19 +1379,12 @@ TEST(SplitStringAndParseToContainerTest, UInt32) {
   values.clear();
   EXPECT_TRUE(
       SplitStringAndParseToContainer("1,2,3", ",", &safe_strtou32, &values));
-  EXPECT_EQ(3, values.size());
-  EXPECT_THAT(values, Contains(1));
-  EXPECT_THAT(values, Contains(2));
-  EXPECT_THAT(values, Contains(3));
+  EXPECT_THAT(values, ElementsAre(1, 2, 3));
 
   // Test empty values and duplicates and insertion into non-empty set
   EXPECT_TRUE(SplitStringAndParseToContainer(",,,5,5,,,8,21,,,,", ",",
                                              &safe_strtou32, &values));
-  EXPECT_EQ(6, values.size());
-  EXPECT_THAT(values, Contains(5));
-  EXPECT_EQ(1, values.count(5));
-  EXPECT_THAT(values, Contains(8));
-  EXPECT_THAT(values, Contains(21));
+  EXPECT_THAT(values, ElementsAre(1, 2, 3, 5, 8, 21));
 
   // Test parsing failed and no change to output
   EXPECT_FALSE(SplitStringAndParseToContainer(",,1.0,,dsf,,asdf", ",",
@@ -1571,7 +1400,7 @@ TEST(SplitStringAndParseToContainerTest, UInt32) {
   values.clear();
   EXPECT_TRUE(
       SplitStringAndParseToContainer(",,,,", ",", &safe_strtou32, &values));
-  EXPECT_EQ(0, values.size());
+  EXPECT_THAT(values, IsEmpty());
 }
 
 TEST(SplitStringAndParseToContainerTest, Parse_UInt32_UnorderedSet) {
@@ -1581,19 +1410,12 @@ TEST(SplitStringAndParseToContainerTest, Parse_UInt32_UnorderedSet) {
   EXPECT_TRUE(
       SplitStringAndParseToContainer("1,2,3", ",", &safe_strtou32, &values));
   EXPECT_GE(values.bucket_size(0), 0);  // Prevent cleanups to switch to Abseil.
-  EXPECT_EQ(3, values.size());
-  EXPECT_THAT(values, Contains(1));
-  EXPECT_THAT(values, Contains(2));
-  EXPECT_THAT(values, Contains(3));
+  EXPECT_THAT(values, UnorderedElementsAre(1, 2, 3));
 
   // Test empty values and duplicates and insertion into non-empty set
   EXPECT_TRUE(SplitStringAndParseToContainer(",,,5,5,,,8,21,,,,", ",",
                                              &safe_strtou32, &values));
-  EXPECT_EQ(6, values.size());
-  EXPECT_THAT(values, Contains(5));
-  EXPECT_EQ(1, values.count(5));
-  EXPECT_THAT(values, Contains(8));
-  EXPECT_THAT(values, Contains(21));
+  EXPECT_THAT(values, UnorderedElementsAre(1, 2, 3, 5, 8, 21));
 
   // Test parsing failed and no change to output
   EXPECT_FALSE(SplitStringAndParseToContainer(",,1.0,,dsf,,asdf", ",",
@@ -1609,7 +1431,7 @@ TEST(SplitStringAndParseToContainerTest, Parse_UInt32_UnorderedSet) {
   values.clear();
   EXPECT_TRUE(
       SplitStringAndParseToContainer(",,,,", ",", &safe_strtou32, &values));
-  EXPECT_EQ(0, values.size());
+  EXPECT_THAT(values, IsEmpty());
 }
 
 #ifndef _MSC_VER
@@ -1620,19 +1442,12 @@ TEST(SplitStringAndParseToContainerTest, Parse_UInt32_HashSet) {
   EXPECT_TRUE(
       SplitStringAndParseToContainer("1,2,3", ",", &safe_strtou32, &values));
   EXPECT_GE(values.elems_in_bucket(0), 0);  // Prevent switch to Abseil.
-  EXPECT_EQ(3, values.size());
-  EXPECT_THAT(values, Contains(1));
-  EXPECT_THAT(values, Contains(2));
-  EXPECT_THAT(values, Contains(3));
+  EXPECT_THAT(values, UnorderedElementsAre(1, 2, 3));
 
   // Test empty values and duplicates and insertion into non-empty set
   EXPECT_TRUE(SplitStringAndParseToContainer(",,,5,5,,,8,21,,,,", ",",
                                              &safe_strtou32, &values));
-  EXPECT_EQ(6, values.size());
-  EXPECT_THAT(values, Contains(5));
-  EXPECT_EQ(1, values.count(5));
-  EXPECT_THAT(values, Contains(8));
-  EXPECT_THAT(values, Contains(21));
+  EXPECT_THAT(values, UnorderedElementsAre(1, 2, 3, 5, 8, 21));
 
   // Test parsing failed and no change to output
   EXPECT_FALSE(SplitStringAndParseToContainer(",,1.0,,dsf,,asdf", ",",
@@ -1648,7 +1463,7 @@ TEST(SplitStringAndParseToContainerTest, Parse_UInt32_HashSet) {
   values.clear();
   EXPECT_TRUE(
       SplitStringAndParseToContainer(",,,,", ",", &safe_strtou32, &values));
-  EXPECT_EQ(0, values.size());
+  EXPECT_THAT(values, IsEmpty());
 }
 #endif
 
@@ -1658,19 +1473,12 @@ TEST(SplitStringAndParseToContainerTest, Parse_UInt32_AbseilHashSet) {
   values.clear();
   EXPECT_TRUE(
       SplitStringAndParseToContainer("1,2,3", ",", &safe_strtou32, &values));
-  EXPECT_EQ(3, values.size());
-  EXPECT_THAT(values, Contains(1));
-  EXPECT_THAT(values, Contains(2));
-  EXPECT_THAT(values, Contains(3));
+  EXPECT_THAT(values, UnorderedElementsAre(1, 2, 3));
 
   // Test empty values and duplicates and insertion into non-empty set
   EXPECT_TRUE(SplitStringAndParseToContainer(",,,5,5,,,8,21,,,,", ",",
                                              &safe_strtou32, &values));
-  EXPECT_EQ(6, values.size());
-  EXPECT_THAT(values, Contains(5));
-  EXPECT_EQ(1, values.count(5));
-  EXPECT_THAT(values, Contains(8));
-  EXPECT_THAT(values, Contains(21));
+  EXPECT_THAT(values, UnorderedElementsAre(1, 2, 3, 5, 8, 21));
 
   // Test parsing failed and no change to output
   EXPECT_FALSE(SplitStringAndParseToContainer(",,1.0,,dsf,,asdf", ",",
@@ -1686,7 +1494,7 @@ TEST(SplitStringAndParseToContainerTest, Parse_UInt32_AbseilHashSet) {
   values.clear();
   EXPECT_TRUE(
       SplitStringAndParseToContainer(",,,,", ",", &safe_strtou32, &values));
-  EXPECT_EQ(0, values.size());
+  EXPECT_THAT(values, IsEmpty());
 }
 
 TEST(SplitStringAndParseToContainerTest, EmbeddedNulls) {
@@ -1704,15 +1512,11 @@ TEST(SplitStringAndParseToContainerTest, EmbeddedNulls) {
       "-500",
       11);
   std::string delim("\0", 1);
-  ASSERT_EQ(11, hasnulls.length());  // sanity check
+  ASSERT_EQ(hasnulls.length(), 11);  // sanity check
   std::set<int32_t> values;
   EXPECT_TRUE(
       SplitStringAndParseToContainer(hasnulls, delim, &safe_strto32, &values));
-  EXPECT_EQ(4, values.size());
-  EXPECT_THAT(values, Contains(33));
-  EXPECT_THAT(values, Contains(42));
-  EXPECT_THAT(values, Contains(64));
-  EXPECT_THAT(values, Contains(-5));
+  EXPECT_THAT(values, ElementsAre(-5, 33, 42, 64));
 }
 
 // Test that SplitStringAndParseToContainer works with SimpleAtoi.
@@ -1720,10 +1524,7 @@ TEST(SplitStringAndParseToContainerTest, SimpleAtoi) {
   std::set<int> values;
   ASSERT_TRUE(SplitStringAndParseToContainer("1,2,3", ",",
                                              &absl::SimpleAtoi<int>, &values));
-  ASSERT_EQ(3, values.size());
-  EXPECT_THAT(values, Contains(1));
-  EXPECT_THAT(values, Contains(2));
-  EXPECT_THAT(values, Contains(3));
+  EXPECT_THAT(values, ElementsAre(1, 2, 3));
 }
 
 // Test that SplitStringAndParseToContainer fails with SimpleAtoi given an
@@ -1733,7 +1534,7 @@ TEST(SplitStringAndParseToContainerTest, SimpleAtoiFailure) {
   EXPECT_FALSE(SplitStringAndParseToContainer(
       "a,102", ",", &absl::SimpleAtoi<int32_t>, &values));
   // Parseable values will still go in the set.
-  EXPECT_THAT(values, testing::ElementsAre(102));
+  EXPECT_THAT(values, ElementsAre(102));
 }
 
 // Test that SplitStringAndParseToList works with SimpleAtoi.
@@ -1741,10 +1542,7 @@ TEST(SplitStringAndParseToListTest, SimpleAtoi) {
   std::deque<int> values;
   ASSERT_TRUE(
       SplitStringAndParseToList("1,2,3", ",", &absl::SimpleAtoi<int>, &values));
-  ASSERT_EQ(3, values.size());
-  EXPECT_THAT(values, Contains(1));
-  EXPECT_THAT(values, Contains(2));
-  EXPECT_THAT(values, Contains(3));
+  EXPECT_THAT(values, ElementsAre(1, 2, 3));
 }
 
 TEST(SplitStringAndParseToListTest, SimpleAtoiFailure) {
@@ -1752,7 +1550,7 @@ TEST(SplitStringAndParseToListTest, SimpleAtoiFailure) {
   EXPECT_FALSE(SplitStringAndParseToList("a,102", ",",
                                          &absl::SimpleAtoi<int32_t>, &values));
   // Parseable values will still go in the list.
-  EXPECT_THAT(values, testing::ElementsAre(102));
+  EXPECT_THAT(values, ElementsAre(102));
 }
 
 namespace {
@@ -1783,38 +1581,33 @@ TEST(SplitStringAndParseToContainerTest, OverloadedParse) {
   ASSERT_TRUE(SplitStringAndParseToContainer(
       "1,2,3", ",", (bool (*)(const std::string&, int32_t*))&OverloadedParse,
       &values32));
-  ASSERT_EQ(3, values32.size());
-  EXPECT_THAT(values32, Contains(10));
-  EXPECT_THAT(values32, Contains(20));
-  EXPECT_THAT(values32, Contains(30));
+  EXPECT_THAT(values32, ElementsAre(10, 20, 30));
 
   std::set<int64_t> values64;
   ASSERT_TRUE(SplitStringAndParseToContainer(
       "1,2,3", ",", (bool (*)(const std::string&, int64_t*))&OverloadedParse,
       &values64));
-  ASSERT_EQ(3, values64.size());
-  EXPECT_THAT(values64, Contains(100));
-  EXPECT_THAT(values64, Contains(200));
-  EXPECT_THAT(values64, Contains(300));
+  EXPECT_THAT(values64, ElementsAre(100, 200, 300));
 }
 
 // Tests usage examples given in split.h for SplitStringAndParseToContainer().
 TEST(SplitStringAndParseToContainerTest, UsageExamples) {
   {
     std::vector<double> values;
-    CHECK(SplitStringAndParse("1.0,2.0,3.0", ",", &safe_strtod, &values));
-    CHECK_EQ(3, values.size());
+    EXPECT_TRUE(SplitStringAndParse("1.0,2.0,3.0", ",", &safe_strtod, &values));
+    EXPECT_THAT(values, SizeIs(3));
   }
   {
     std::set<int64_t> values;
-    CHECK(
+    EXPECT_TRUE(
         SplitStringAndParseToContainer("3,1,1,2", ",", &safe_strto64, &values));
-    CHECK_EQ(3, values.size());
+    EXPECT_THAT(values, SizeIs(3));
   }
   {
     std::deque<int64_t> values;
-    CHECK(SplitStringAndParseToList("3,1,1,2", ",", &safe_strto64, &values));
-    CHECK_EQ(4, values.size());
+    EXPECT_TRUE(
+        SplitStringAndParseToList("3,1,1,2", ",", &safe_strto64, &values));
+    EXPECT_THAT(values, SizeIs(4));
   }
 }
 
@@ -1824,39 +1617,39 @@ TEST(Util, ClipString) {
   // Clip on a word boundary and make sure the string is as long as possible
   std::string s_to_be_clipped("a quick brown fox jumped over a lazy dog");
   ClipString(&s_to_be_clipped, 28);  // after fox
-  CHECK_EQ(s_to_be_clipped, "a quick brown fox jumped...");
+  EXPECT_EQ(s_to_be_clipped, "a quick brown fox jumped...");
 
   // A clip boundary equal to the max overcut length
   ClipString(&s_to_be_clipped, 12);
-  CHECK_EQ(s_to_be_clipped, "a quick...");
+  EXPECT_EQ(s_to_be_clipped, "a quick...");
 
   // Clip on word boundary even when clipping to short lengths
   ClipString(&s_to_be_clipped, 3);
-  CHECK_EQ(s_to_be_clipped, "a");
+  EXPECT_EQ(s_to_be_clipped, "a");
 
   // When there are no boundaries, just clip to the clip length.  The test
   // string has length equal to the max overcut length.
   std::string s_no_spaces("0123456789ab");
   ClipString(&s_no_spaces, 7);
-  CHECK_EQ(s_no_spaces, "0123...");
+  EXPECT_EQ(s_no_spaces, "0123...");
 
   // Do not clip strings of length <= the clip length
   std::string s_not_to_be_clipped("a quick");
   ClipString(&s_not_to_be_clipped, 18);
-  CHECK_EQ(s_not_to_be_clipped, "a quick");
+  EXPECT_EQ(s_not_to_be_clipped, "a quick");
   ClipString(&s_not_to_be_clipped, 7);
-  CHECK_EQ(s_not_to_be_clipped, "a quick");
+  EXPECT_EQ(s_not_to_be_clipped, "a quick");
 
   // Test clip lengths that are around the length of "..."
   std::string s_short_string("a quick");
   ClipString(&s_short_string, 4);
-  CHECK_EQ(s_short_string, "a...");
+  EXPECT_EQ(s_short_string, "a...");
   ClipString(&s_short_string, 3);
-  CHECK_EQ(s_short_string, "a..");
+  EXPECT_EQ(s_short_string, "a..");
   ClipString(&s_short_string, 2);
-  CHECK_EQ(s_short_string, "a.");
+  EXPECT_EQ(s_short_string, "a.");
   ClipString(&s_short_string, 1);
-  CHECK_EQ(s_short_string, "a");
+  EXPECT_EQ(s_short_string, "a");
 }
 
 }  // namespace strings

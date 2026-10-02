@@ -708,7 +708,6 @@ cc_test(
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:charset",
         "@abseil-cpp//absl/strings:string_view",
