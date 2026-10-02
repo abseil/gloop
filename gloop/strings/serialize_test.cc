@@ -50,6 +50,16 @@
 #include "gtest/gtest.h"
 
 namespace strings {
+namespace {
+
+using ::testing::ElementsAre;
+using ::testing::ElementsAreArray;
+using ::testing::IsEmpty;
+using ::testing::NanSensitiveDoubleEq;
+using ::testing::NanSensitiveFloatEq;
+using ::testing::Pair;
+using ::testing::SizeIs;
+using ::testing::UnorderedElementsAre;
 
 void TestUint32ToKeyAndBack(absl::Span<const uint32_t> input) {
   std::vector<uint32_t> vals;
@@ -61,7 +71,7 @@ void TestUint32ToKeyAndBack(absl::Span<const uint32_t> input) {
   std::sort(vals.begin(), vals.end());
   std::sort(keys.begin(), keys.end());
   ASSERT_EQ(vals.size(), keys.size());
-  for (int i = 0; i < vals.size(); i++) {
+  for (size_t i = 0; i < vals.size(); ++i) {
     EXPECT_EQ(KeyToUint32(keys[i]), vals[i]);
     EXPECT_EQ(KeyToUint32(Uint32ToKey(vals[i])), vals[i]);
   }
@@ -79,7 +89,7 @@ void TestUint64ToKeyAndBack(absl::Span<const uint64_t> input) {
   std::sort(vals.begin(), vals.end());
   std::sort(keys.begin(), keys.end());
   ASSERT_EQ(vals.size(), keys.size());
-  for (int i = 0; i < vals.size(); i++) {
+  for (size_t i = 0; i < vals.size(); ++i) {
     EXPECT_EQ(KeyToUint64(keys[i]), vals[i]);
     EXPECT_EQ(KeyToUint64(Uint64ToKey(vals[i])), vals[i]);
   }
@@ -99,7 +109,7 @@ void TestUint128ToKeyAndBack(
   std::sort(vals.begin(), vals.end());
   std::sort(keys.begin(), keys.end());
   ASSERT_EQ(vals.size(), keys.size());
-  for (int i = 0; i < vals.size(); i++) {
+  for (size_t i = 0; i < vals.size(); ++i) {
     EXPECT_EQ(KeyToUint128(keys[i]), vals[i]);
     EXPECT_EQ(KeyToUint128(Uint128ToKey(vals[i])), vals[i]);
   }
@@ -111,9 +121,7 @@ FUZZ_TEST(FuzzKeyFromUint128, TestUint128ToKeyAndBack)
 
 void TestInt128ToKeyAndBack(std::pair<int64_t, uint64_t> input) {
   const absl::int128 i128 = absl::MakeInt128(input.first, input.second);
-  const std::string key = Int128ToKey(i128);
-  const absl::int128 value = KeyToInt128(key);
-  EXPECT_EQ(value, i128);
+  EXPECT_EQ(KeyToInt128(Int128ToKey(i128)), i128);
 }
 FUZZ_TEST(FuzzKeyFromInt128, TestInt128ToKeyAndBack)
     .WithDomains(fuzztest::Arbitrary<std::pair<int64_t, uint64_t>>());
@@ -146,9 +154,10 @@ TEST(Serialize, DoubleToKeyGolden) {
       {-3.1187891975e-236, "p\366\2355}K\2736"},
   };
   for (const auto& testcase : golden_data) {
+    SCOPED_TRACE(absl::StrCat("input=", testcase.input));
     const std::string str(testcase.output, 8);
-    EXPECT_EQ(str, DoubleToKey(testcase.input));
-    EXPECT_EQ(testcase.input, KeyToDouble(str));
+    EXPECT_EQ(DoubleToKey(testcase.input), str);
+    EXPECT_EQ(KeyToDouble(str), testcase.input);
   }
 }
 
@@ -185,9 +194,9 @@ void TestKeyFromDouble(absl::Span<const double> input) {
   std::sort(keys.begin(), keys.end());
 
   ASSERT_EQ(vals.size(), keys.size());
-  for (int i = 0; i < vals.size(); i++) {
-    EXPECT_THAT(KeyToDouble(keys[i]), ::testing::NanSensitiveDoubleEq(vals[i]));
-    EXPECT_EQ(keys[i], DoubleToKey(vals[i])) << vals[i];
+  for (size_t i = 0; i < vals.size(); ++i) {
+    EXPECT_THAT(KeyToDouble(keys[i]), NanSensitiveDoubleEq(vals[i]));
+    EXPECT_EQ(DoubleToKey(vals[i]), keys[i]) << vals[i];
   }
 }
 FUZZ_TEST(FuzzKeyFromDouble, TestKeyFromDouble)
@@ -220,9 +229,10 @@ TEST(Serialize, FloatToKeyGolden) {
                      {-1.2451648512e+10, "/\306t\273"},
                      {1.8695803305e-07, "\264H\276\242"}};
   for (const auto& testcase : golden_data) {
+    SCOPED_TRACE(absl::StrCat("input=", testcase.input));
     const std::string str(testcase.output, 4);
-    EXPECT_EQ(str, FloatToKey(testcase.input));
-    EXPECT_EQ(testcase.input, KeyToFloat(str));
+    EXPECT_EQ(FloatToKey(testcase.input), str);
+    EXPECT_EQ(KeyToFloat(str), testcase.input);
   }
 }
 
@@ -250,9 +260,9 @@ void TestKeyFromFloat(absl::Span<const float> input) {
 
   std::sort(keys.begin(), keys.end());
   ASSERT_EQ(vals.size(), keys.size());
-  for (int i = 0; i < vals.size(); i++) {
-    EXPECT_THAT(KeyToFloat(keys[i]), ::testing::NanSensitiveFloatEq(vals[i]));
-    EXPECT_EQ(keys[i], FloatToKey(vals[i]));
+  for (size_t i = 0; i < vals.size(); ++i) {
+    EXPECT_THAT(KeyToFloat(keys[i]), NanSensitiveFloatEq(vals[i]));
+    EXPECT_EQ(FloatToKey(vals[i]), keys[i]);
   }
 }
 FUZZ_TEST(FuzzKeyFromFloat, TestKeyFromFloat)
@@ -266,37 +276,36 @@ void TestInt32ToKeyAndBack(absl::Span<const int32_t> input) {
 
   for (const int32_t value : input) {
     vals.push_back(value);
-    std::string s;
-    s = Int32ToKey(value);
+    std::string s = Int32ToKey(value);
     as_string.push_back(s);
-    EXPECT_EQ(s, Int32ToKey(value));
+    EXPECT_EQ(Int32ToKey(value), s);
     s = Int32ToOrderedString(value);
     as_increasing.push_back(s);
-    EXPECT_EQ(s, Int32ToOrderedString(value));
+    EXPECT_EQ(Int32ToOrderedString(value), s);
     ReverseOrderedStringFromInt32(value, &s);
     as_decreasing.push_back(s);
-    EXPECT_EQ(s, Int32ToReverseOrderedString(value));
+    EXPECT_EQ(Int32ToReverseOrderedString(value), s);
   }
 
   ASSERT_EQ(vals.size(), as_string.size());
   ASSERT_EQ(vals.size(), as_increasing.size());
   ASSERT_EQ(vals.size(), as_decreasing.size());
-  for (int i = 0; i < vals.size(); ++i) {
+  for (size_t i = 0; i < vals.size(); ++i) {
     EXPECT_EQ(KeyToInt32(as_string[i]), vals[i]);
     EXPECT_EQ(OrderedStringToInt32(as_increasing[i]), vals[i]);
     EXPECT_EQ(ReverseOrderedStringToInt32(as_decreasing[i]), vals[i]);
   }
   std::sort(vals.begin(), vals.end());
   std::sort(as_increasing.begin(), as_increasing.end());
-  for (int i = 0; i < vals.size(); ++i) {
+  for (size_t i = 0; i < vals.size(); ++i) {
     EXPECT_EQ(OrderedStringToInt32(as_increasing[i]), vals[i]);
   }
   std::sort(vals.begin(), vals.end(), std::greater<int32_t>());
   std::sort(as_decreasing.begin(), as_decreasing.end());
-  for (int i = 0; i < vals.size(); ++i) {
+  for (size_t i = 0; i < vals.size(); ++i) {
     EXPECT_EQ(ReverseOrderedStringToInt32(as_decreasing[i]), vals[i]);
   }
-  for (int i = 1; i < vals.size(); i++) {
+  for (size_t i = 1; i < vals.size(); ++i) {
     EXPECT_LE(OrderedStringToInt32(as_increasing[i - 1]),
               OrderedStringToInt32(as_increasing[i]));
     EXPECT_GE(ReverseOrderedStringToInt32(as_decreasing[i - 1]),
@@ -314,35 +323,35 @@ void TestInt64ToKeyAndBack(absl::Span<const int64_t> input) {
 
   for (const int64_t value : input) {
     vals.push_back(value);
-    std::string s;
-    s = Int64ToKey(value);
-    EXPECT_EQ(s, Int64ToKey(value));
+    std::string s = Int64ToKey(value);
+    EXPECT_EQ(Int64ToKey(value), s);
     as_string.push_back(s);
     s = Int64ToOrderedString(value);
     as_increasing.push_back(s);
-    EXPECT_EQ(s, Int64ToOrderedString(value));
+    EXPECT_EQ(Int64ToOrderedString(value), s);
     ReverseOrderedStringFromInt64(value, &s);
     as_decreasing.push_back(s);
-    EXPECT_EQ(s, Int64ToReverseOrderedString(value));
+    EXPECT_EQ(Int64ToReverseOrderedString(value), s);
   }
   ASSERT_EQ(vals.size(), as_string.size());
   ASSERT_EQ(vals.size(), as_increasing.size());
-  for (int i = 0; i < vals.size(); ++i) {
+  ASSERT_EQ(vals.size(), as_decreasing.size());
+  for (size_t i = 0; i < vals.size(); ++i) {
     EXPECT_EQ(KeyToInt64(as_string[i]), vals[i]);
     EXPECT_EQ(OrderedStringToInt64(as_increasing[i]), vals[i]);
     EXPECT_EQ(ReverseOrderedStringToInt64(as_decreasing[i]), vals[i]);
   }
   std::sort(vals.begin(), vals.end());
   std::sort(as_increasing.begin(), as_increasing.end());
-  for (int i = 0; i < vals.size(); ++i) {
+  for (size_t i = 0; i < vals.size(); ++i) {
     EXPECT_EQ(OrderedStringToInt64(as_increasing[i]), vals[i]);
   }
   std::sort(vals.begin(), vals.end(), std::greater<int64_t>());
   std::sort(as_decreasing.begin(), as_decreasing.end());
-  for (int i = 0; i < vals.size(); ++i) {
+  for (size_t i = 0; i < vals.size(); ++i) {
     EXPECT_EQ(ReverseOrderedStringToInt64(as_decreasing[i]), vals[i]);
   }
-  for (int i = 1; i < vals.size(); i++) {
+  for (size_t i = 1; i < vals.size(); ++i) {
     EXPECT_LE(OrderedStringToInt64(as_increasing[i - 1]),
               OrderedStringToInt64(as_increasing[i]));
     EXPECT_GE(ReverseOrderedStringToInt64(as_increasing[i - 1]),
@@ -356,27 +365,27 @@ TEST(Serialize, FloatEncodings) {
   double d1 = 2.718;
   double d2 = 0.0;
   std::string double_str = EncodeDouble(d1);
-  CHECK(DecodeDouble(double_str, &d2));
-  ASSERT_EQ(0, memcmp(&d1, &d2, sizeof(d1)));
+  ASSERT_TRUE(DecodeDouble(double_str, &d2));
+  ASSERT_EQ(memcmp(&d1, &d2, sizeof(d1)), 0);
   d2 = 0.0;
-  CHECK(!absl::StrContains(double_str, '\0'));  // doesn't have '\0'
-  CHECK(DecodeDouble(double_str.c_str(), &d2));
-  ASSERT_EQ(0, memcmp(&d1, &d2, sizeof(d1)));
+  EXPECT_FALSE(absl::StrContains(double_str, '\0'));  // doesn't have '\0'
+  ASSERT_TRUE(DecodeDouble(double_str.c_str(), &d2));
+  ASSERT_EQ(memcmp(&d1, &d2, sizeof(d1)), 0);
 
   float f1 = 2.718;
   float f2 = 0.0;
   std::string float_str = EncodeFloat(f1);
-  CHECK(DecodeFloat(float_str, &f2));
-  ASSERT_EQ(0, memcmp(&f1, &f2, sizeof(f1)));
+  ASSERT_TRUE(DecodeFloat(float_str, &f2));
+  ASSERT_EQ(memcmp(&f1, &f2, sizeof(f1)), 0);
   f2 = 0.0;
-  CHECK(!absl::StrContains(float_str, '\0'));  // doesn't have '\0'
-  CHECK(DecodeFloat(float_str.c_str(), &f2));
-  ASSERT_EQ(0, memcmp(&f1, &f2, sizeof(f1)));
+  EXPECT_FALSE(absl::StrContains(float_str, '\0'));  // doesn't have '\0'
+  ASSERT_TRUE(DecodeFloat(float_str.c_str(), &f2));
+  ASSERT_EQ(memcmp(&f1, &f2, sizeof(f1)), 0);
 
-  CHECK(!DecodeFloat(double_str, &f1));
-  CHECK(!DecodeFloat(double_str.c_str(), &f1));
-  CHECK(!DecodeDouble(float_str, &d1));
-  CHECK(!DecodeDouble(float_str.c_str(), &d1));
+  EXPECT_FALSE(DecodeFloat(double_str, &f1));
+  EXPECT_FALSE(DecodeFloat(double_str.c_str(), &f1));
+  EXPECT_FALSE(DecodeDouble(float_str, &d1));
+  EXPECT_FALSE(DecodeDouble(float_str.c_str(), &d1));
 }
 
 TEST(Serialize, UintEncodings) {
@@ -385,30 +394,30 @@ TEST(Serialize, UintEncodings) {
   uint32_t w1 = 0xDEADBEEF;
   uint32_t w2 = 0;
   std::string uint32_str = EncodeUint32(w1);
-  EXPECT_EQ(4, uint32_str.size());
-  CHECK(DecodeUint32(uint32_str, &w2));
-  EXPECT_EQ(w1, w2);
+  EXPECT_THAT(uint32_str, SizeIs(4));
+  ASSERT_TRUE(DecodeUint32(uint32_str, &w2));
+  EXPECT_EQ(w2, w1);
   w2 = 0;
-  CHECK(!absl::StrContains(uint32_str, '\0'));  // doesn't have '\0'
-  CHECK(DecodeUint32(uint32_str.c_str(), &w2));
-  EXPECT_EQ(w1, w2);
+  EXPECT_FALSE(absl::StrContains(uint32_str, '\0'));  // doesn't have '\0'
+  ASSERT_TRUE(DecodeUint32(uint32_str.c_str(), &w2));
+  EXPECT_EQ(w2, w1);
 
   uint64_t q1 = 0x021A098CABCD1234ULL;
   uint64_t q2 = 0;
   std::string uint64_str = EncodeUint64(q1);
-  EXPECT_EQ(8, uint64_str.size());
-  CHECK(DecodeUint64(uint64_str, &q2));
-  EXPECT_EQ(q1, q2);
+  EXPECT_THAT(uint64_str, SizeIs(8));
+  ASSERT_TRUE(DecodeUint64(uint64_str, &q2));
+  EXPECT_EQ(q2, q1);
   q2 = 0;
-  CHECK(!absl::StrContains(uint64_str, '\0'));  // doesn't have '\0'
-  CHECK(DecodeUint64(uint64_str.c_str(), &q2));
-  EXPECT_EQ(q1, q2);
+  EXPECT_FALSE(absl::StrContains(uint64_str, '\0'));  // doesn't have '\0'
+  ASSERT_TRUE(DecodeUint64(uint64_str.c_str(), &q2));
+  EXPECT_EQ(q2, q1);
 
   // Verify that DecodeUintNN() fails if the string is the wrong size.
-  CHECK(!DecodeUint32(uint64_str, &w1));
-  CHECK(!DecodeUint32(uint64_str.c_str(), &w1));
-  CHECK(!DecodeUint64(uint32_str, &q1));
-  CHECK(!DecodeUint64(uint32_str.c_str(), &q1));
+  EXPECT_FALSE(DecodeUint32(uint64_str, &w1));
+  EXPECT_FALSE(DecodeUint32(uint64_str.c_str(), &w1));
+  EXPECT_FALSE(DecodeUint64(uint32_str, &q1));
+  EXPECT_FALSE(DecodeUint64(uint32_str.c_str(), &q1));
 }
 
 struct st_pod {
@@ -421,30 +430,30 @@ TEST(Serialize, PODEncodeDecode) {
   uint64_t q1 = 0x012345670f0f0f0fULL;
   uint64_t q2 = 0;
   std::string uint64_str = EncodePOD(q1);
-  CHECK(DecodePOD(uint64_str, &q2));
-  EXPECT_EQ(q1, q2);
+  ASSERT_TRUE(DecodePOD(uint64_str, &q2));
+  EXPECT_EQ(q2, q1);
   q2 = 0;
-  CHECK(!absl::StrContains(uint64_str, '\0'));  // doesn't have '\0'
-  CHECK(DecodePOD(uint64_str.c_str(), &q2));
-  EXPECT_EQ(q1, q2);
+  EXPECT_FALSE(absl::StrContains(uint64_str, '\0'));  // doesn't have '\0'
+  ASSERT_TRUE(DecodePOD(uint64_str.c_str(), &q2));
+  EXPECT_EQ(q2, q1);
 
   st_pod st1 = {10, 2000000000L, 5.55555555555};
   st_pod st2;
   std::string st_str = EncodePOD(st1);
-  CHECK(DecodePOD(st_str, &st2));
-  EXPECT_EQ(st1.i, st2.i);
-  EXPECT_EQ(st1.l, st2.l);
-  EXPECT_EQ(st1.d, st2.d);
+  ASSERT_TRUE(DecodePOD(st_str, &st2));
+  EXPECT_EQ(st2.i, st1.i);
+  EXPECT_EQ(st2.l, st1.l);
+  EXPECT_EQ(st2.d, st1.d);
   st2 = st_pod();
-  CHECK(absl::StrContains(st_str, '\0'));  // has '\0'
+  EXPECT_TRUE(absl::StrContains(st_str, '\0'));  // has '\0'
   // This actually shouldn't work, because st_str contains a '\0' character
   // which will be construed as the end of its C string equivalent.
-  CHECK(!DecodePOD(st_str.c_str(), &st2));
+  EXPECT_FALSE(DecodePOD(st_str.c_str(), &st2));
 
-  CHECK(!DecodePOD(uint64_str, &st1));
-  CHECK(!DecodePOD(uint64_str.c_str(), &st1));
-  CHECK(!DecodePOD(st_str, &q1));
-  CHECK(!DecodePOD(st_str.c_str(), &q1));
+  EXPECT_FALSE(DecodePOD(uint64_str, &st1));
+  EXPECT_FALSE(DecodePOD(uint64_str.c_str(), &st1));
+  EXPECT_FALSE(DecodePOD(st_str, &q1));
+  EXPECT_FALSE(DecodePOD(st_str.c_str(), &q1));
 }
 
 struct PaddedStruct {
@@ -461,7 +470,7 @@ TEST(Serialize, PODWithPaddingEncodeDecode) {
 
   PaddedStruct y;
   ASSERT_TRUE(DecodePOD(encoded, &y));
-  EXPECT_EQ(std::tie(x.c, x.l, x.d), std::tie(y.c, y.l, y.d));
+  EXPECT_EQ(std::tie(y.c, y.l, y.d), std::tie(x.c, x.l, x.d));
 }
 
 TEST(Serialize, EncodeManyPOD) {
@@ -476,7 +485,7 @@ TEST(Serialize, EncodeManyPOD) {
 
   std::vector<char> decodech;
   ASSERT_TRUE(DecodeVectorPOD(vecch, &decodech));
-  EXPECT_THAT(decodech, testing::ElementsAre('a', 'b', 'y', 'z'));
+  EXPECT_THAT(decodech, ElementsAre('a', 'b', 'y', 'z'));
 
   const std::string vecu16 = EncodeManyPOD(std::vector<uint16_t>{1, 2, 9, 10});
   uint16_t plainc[] = {1, 2, 9, 10};
@@ -489,7 +498,7 @@ TEST(Serialize, EncodeManyPOD) {
 
   std::vector<uint16_t> decodeu16;
   ASSERT_TRUE(DecodeVectorPOD(vecu16, &decodeu16));
-  EXPECT_THAT(decodeu16, testing::ElementsAre(1, 2, 9, 10));
+  EXPECT_THAT(decodeu16, ElementsAre(1, 2, 9, 10));
 }
 
 TEST(Serialize, VectorPODEncodeDecode) {
@@ -497,37 +506,26 @@ TEST(Serialize, VectorPODEncodeDecode) {
   std::vector<int64_t> vi2;
   for (int64_t i = -5L; i < 5L; ++i) vi1.push_back(i * 100000000L);
   std::string vi_str = EncodeManyPOD(vi1);
-  CHECK(DecodeVectorPOD(vi_str, &vi2));
-  ASSERT_EQ(vi1.size(), vi2.size());
-  for (std::vector<int64_t>::iterator it1 = vi1.begin(), it2 = vi2.begin();
-       (it1 != vi1.end() && it2 != vi2.end()); ++it1, ++it2) {
-    EXPECT_EQ(*it1, *it2);
-  }
+  ASSERT_TRUE(DecodeVectorPOD(vi_str, &vi2));
+  EXPECT_THAT(vi2, ElementsAreArray(vi1));
 
   std::vector<char> vc1;
   std::vector<char> vc2;
   for (signed char c = -5; c < 5; ++c) vc1.push_back(static_cast<char>(c));
   std::string vc_str = EncodeManyPOD(vc1);
-  CHECK(DecodeVectorPOD(vc_str, &vc2));
-  EXPECT_EQ(vc1.size(), vc2.size());
-  for (std::vector<char>::iterator it1 = vc1.begin(), it2 = vc2.begin();
-       (it1 != vc1.end() && it2 != vc2.end()); ++it1, ++it2) {
-    EXPECT_EQ(*it1, *it2);
-  }
+  ASSERT_TRUE(DecodeVectorPOD(vc_str, &vc2));
+  EXPECT_THAT(vc2, ElementsAreArray(vc1));
 }
 
 TEST(Serialize, DictionaryParse) {
   std::string empty_string;
   std::vector<std::pair<std::string, std::string>> items;
-  CHECK(DictionaryParse(empty_string, &items));
+  ASSERT_TRUE(DictionaryParse(empty_string, &items));
+  EXPECT_THAT(items, IsEmpty());
   std::string dic1 = "goog:1,msft:2,amzn:3";
-  CHECK(DictionaryParse(dic1, &items));
-  EXPECT_EQ(items[0].first, "goog");
-  EXPECT_EQ(items[0].second, "1");
-  EXPECT_EQ(items[1].first, "msft");
-  EXPECT_EQ(items[1].second, "2");
-  EXPECT_EQ(items[2].first, "amzn");
-  EXPECT_EQ(items[2].second, "3");
+  ASSERT_TRUE(DictionaryParse(dic1, &items));
+  EXPECT_THAT(items, ElementsAre(Pair("goog", "1"), Pair("msft", "2"),
+                                 Pair("amzn", "3")));
 }
 
 TEST(Serialize, DictionaryEncodeDecodeUnordered) {
@@ -545,14 +543,10 @@ TEST(Serialize, DictionaryEncodeDecodeUnordered) {
 
   std::string encoded_intmap = DictionaryEncode(intmap);
   std::unordered_map<std::string, int32_t> intmap_copy;
-  CHECK(DictionaryInt32Decode(&intmap_copy, encoded_intmap))
+  ASSERT_TRUE(DictionaryInt32Decode(&intmap_copy, encoded_intmap))
       << " decode failed for " << encoded_intmap;
-  for (auto iter = intmap.cbegin(); iter != intmap.cend(); ++iter) {
-    EXPECT_EQ(iter->second, intmap_copy[iter->first]);
-  }
-  for (auto iter = intmap_copy.cbegin(); iter != intmap_copy.cend(); ++iter) {
-    EXPECT_EQ(iter->second, intmap[iter->first]);
-  }
+  EXPECT_THAT(intmap_copy, UnorderedElementsAre(Pair(google, 1), Pair(yahoo, 2),
+                                                Pair(empty, 4)));
 
   LOG(INFO) << "Testing int64map encode/decode";
   absl::node_hash_map<std::string, int64_t> int64map;
@@ -562,15 +556,10 @@ TEST(Serialize, DictionaryEncodeDecodeUnordered) {
 
   std::string encoded_int64map = DictionaryEncode(int64map);
   absl::node_hash_map<std::string, int64_t> int64map_copy;
-  CHECK(DictionaryInt64Decode(&int64map_copy, encoded_int64map))
+  ASSERT_TRUE(DictionaryInt64Decode(&int64map_copy, encoded_int64map))
       << " decode failed for " << encoded_int64map;
-  for (auto iter = int64map.cbegin(); iter != int64map.cend(); ++iter) {
-    EXPECT_EQ(iter->second, int64map_copy[iter->first]);
-  }
-  for (auto iter = int64map_copy.cbegin(); iter != int64map_copy.cend();
-       ++iter) {
-    EXPECT_EQ(iter->second, int64map[iter->first]);
-  }
+  EXPECT_THAT(int64map_copy, UnorderedElementsAre(Pair(google, 1), Pair(cnn, 2),
+                                                  Pair(empty, 4)));
 
   LOG(INFO) << "Testing double encode/decode";
   std::unordered_map<std::string, double> doublemap;
@@ -581,19 +570,15 @@ TEST(Serialize, DictionaryEncodeDecodeUnordered) {
 
   std::string encoded_doublemap = DictionaryEncode(doublemap);
   std::unordered_map<std::string, double> doublemap_copy;
-  CHECK(DictionaryDoubleDecode(&doublemap_copy, encoded_doublemap))
+  ASSERT_TRUE(DictionaryDoubleDecode(&doublemap_copy, encoded_doublemap))
       << " decode failed for " << encoded_doublemap;
-  for (auto iter = doublemap.cbegin(); iter != doublemap.cend(); ++iter) {
-    EXPECT_EQ(iter->second, doublemap_copy[iter->first]);
-  }
-  for (auto iter = doublemap_copy.cbegin(); iter != doublemap_copy.cend();
-       ++iter) {
-    EXPECT_EQ(iter->second, doublemap[iter->first]);
-  }
+  EXPECT_THAT(doublemap_copy,
+              UnorderedElementsAre(Pair(google, 1.0), Pair(cnn, 2.0),
+                                   Pair(yahoo, 3.0), Pair(empty, 12.0)));
 
   LOG(INFO) << "Testing bad input parse";
   std::string encoded_bad_input("google:2x,yahoo:1");  // "2x" should fail parse
-  CHECK(!DictionaryDoubleDecode(&doublemap_copy, encoded_bad_input))
+  EXPECT_FALSE(DictionaryDoubleDecode(&doublemap_copy, encoded_bad_input))
       << " decode succeeded for " << encoded_bad_input;
 }
 
@@ -714,4 +699,5 @@ TEST(SerializeDeathTest, KeyToUintUndersized) {
       "Check failed: key.size\\(\\) (==|>=) sizeof\\(v0\\) \\+ sizeof\\(v1\\)");
 }
 
+}  // namespace
 }  // namespace strings
