@@ -200,9 +200,10 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
       }
 
       // Find the next nonempty Array entry.
+      const size_t max_size = array_->max_size;
       for (;;) {
         ++index_;
-        if (index_ >= array_->max_size) {
+        if (index_ >= max_size) {
           node_ = nullptr;
           return *this;
         }
@@ -262,9 +263,10 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
       }
 
       // Find the next nonempty Array entry.
+      const size_t max_size = array_->max_size;
       for (;;) {
         ++index_;
-        if (index_ >= array_->max_size) {
+        if (index_ >= max_size) {
           node_ = nullptr;
           return *this;
         }
@@ -512,7 +514,8 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
 
   // Create an iterator that points to the beginning of "a".
   static iterator Begin(Array* a) {
-    for (size_t i = 0; i < a->max_size; ++i) {
+    const size_t max_size = a->max_size;
+    for (size_t i = 0; i < max_size; ++i) {
       Node* p = a->data[i].load(std::memory_order_acquire);
       if (p != nullptr) {
         return iterator(a, i, p);
