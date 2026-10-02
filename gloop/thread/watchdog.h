@@ -28,7 +28,6 @@
 
 #include <atomic>
 #include <cstdint>
-#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -38,7 +37,6 @@
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
-#include "gloop/base/callback.h"
 #include "gloop/base/examine_stack.h"
 #include "gloop/util/functional/from_callback.h"
 

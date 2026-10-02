@@ -27,7 +27,6 @@
 #include <utility>
 
 #include "absl/base/attributes.h"
-#include "absl/base/optimization.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
 #include "gloop/perftools/tracing/trace_source_location.h"

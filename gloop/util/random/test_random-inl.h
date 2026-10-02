@@ -28,7 +28,6 @@
 
 #include <cstdint>
 #include <initializer_list>
-#include <iterator>
 #include <vector>
 
 #include "absl/log/check.h"
