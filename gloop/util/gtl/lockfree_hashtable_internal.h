@@ -630,7 +630,8 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
       return std::make_pair(iter, false);
     }
 
-    if (size() >= array->max_size * kMaxLoadFactor) {
+    // Resize at 70% load.
+    if (size() * 10 >= array->max_size * 7) {
       Resize();
       array = AcquireArray();
     }
@@ -761,7 +762,6 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
   }
 
   static constexpr size_t kInitialArraySize = 4;
-  static constexpr float kMaxLoadFactor = 0.7f;
 
   //
   // Fields modified by writers
