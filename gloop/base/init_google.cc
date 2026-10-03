@@ -569,6 +569,7 @@ static void RealInitGoogle(absl::string_view usage, int* argc, char*** argv,
   // absl::InitializeSymbolizer() calls VDSOSupport::Init(), which must be
   // called before any setuid or chroot calls.
   absl::InitializeSymbolizer((*argv)[0]);
+
   int previous_init_google_state;
   {
     SpinLockHolder l(global_lock);
