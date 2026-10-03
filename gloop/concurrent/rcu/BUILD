@@ -191,9 +191,11 @@ cc_test(
     linkstatic = 1,
     shard_count = 2,
     deps = [
+        ":pile",
         ":rcu",
         "//gloop:gloop_test_main",
         "//gloop/base:googleinit",
+        "//gloop/base:percpu",
         "//gloop/base:signal_util_subtle",
         "//gloop/base:sysinfo",
         "//gloop/thread",
@@ -223,9 +225,11 @@ cc_test(
     linkstatic = 1,
     shard_count = 2,
     deps = [
+        ":pile",
         ":rcu",
         "//gloop:gloop_test_main",
         "//gloop/base:googleinit",
+        "//gloop/base:percpu",
         "//gloop/base:percpu_disable_rseq",
         "//gloop/base:signal_util_subtle",
         "//gloop/base:sysinfo",
