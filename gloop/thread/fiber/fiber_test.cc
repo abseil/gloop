@@ -1223,7 +1223,7 @@ TEST_F(FiberTest, ThreadLocalDoesNotDeadlock) {
 }
 #endif  // ABSL_HAVE_THREAD_LOCAL
 
-// Class that is in DistinctFiberScope white-list.
+// Class that is in DistinctFiberScope allowlist.
 class DistinctFiberScopeTest : public DistinctFiberScope {
  public:
   DistinctFiberScopeTest() : DistinctFiberScope(FiberOptions()) {}
