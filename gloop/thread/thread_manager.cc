@@ -966,6 +966,9 @@ static void TMOverseer() {
     }
 
     WaitStateScope scope(WaitStateScope::WaitState::kWaitingForWork);
+    if (watchdog) {
+      watchdog->Disable();
+    }
     if (ignore_wakeup_requests) {
       absl::SleepFor(deadline - absl::Now());
       // Clear any ignored wakeup request, since the overseer is waking up now.
