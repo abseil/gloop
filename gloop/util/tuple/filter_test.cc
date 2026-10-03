@@ -31,58 +31,64 @@ namespace util {
 namespace tuple {
 namespace {
 
-using ::std::make_tuple;
-
 class FilterIndex : public TestValues {};
 
 struct IndexEqualsValue {
-  template <::size_t I, class T>
-  struct apply : ::std::integral_constant<bool, I == T::value> {};
+  template <std::size_t I, class T>
+  struct apply : std::integral_constant<bool, I == T::value> {};
 };
 
 TEST_F(FilterIndex, Functional) {
-  EXPECT_EQ(make_tuple(), filter_index<IndexEqualsValue>(make_tuple()));
-  EXPECT_EQ(make_tuple(), filter_index<IndexEqualsValue>(make_tuple(x)));
-  EXPECT_EQ(make_tuple(a), filter_index<IndexEqualsValue>(make_tuple(a)));
-  EXPECT_EQ(make_tuple(a), filter_index<IndexEqualsValue>(make_tuple(a, x)));
-  EXPECT_EQ(make_tuple(b), filter_index<IndexEqualsValue>(make_tuple(x, b)));
-  EXPECT_EQ(make_tuple(a, c),
-            filter_index<IndexEqualsValue>(make_tuple(a, x, c)));
-  EXPECT_EQ(make_tuple(b), filter_index<IndexEqualsValue>(make_tuple(x, b, y)));
+  EXPECT_EQ(filter_index<IndexEqualsValue>(std::make_tuple()),
+            std::make_tuple());
+  EXPECT_EQ(filter_index<IndexEqualsValue>(std::make_tuple(x)),
+            std::make_tuple());
+  EXPECT_EQ(filter_index<IndexEqualsValue>(std::make_tuple(a)),
+            std::make_tuple(a));
+  EXPECT_EQ(filter_index<IndexEqualsValue>(std::make_tuple(a, x)),
+            std::make_tuple(a));
+  EXPECT_EQ(filter_index<IndexEqualsValue>(std::make_tuple(x, b)),
+            std::make_tuple(b));
+  EXPECT_EQ(filter_index<IndexEqualsValue>(std::make_tuple(a, x, c)),
+            std::make_tuple(a, c));
+  EXPECT_EQ(filter_index<IndexEqualsValue>(std::make_tuple(x, b, y)),
+            std::make_tuple(b));
 }
 
 class Filter : public TestValues {};
 
 struct NonNegative {
   template <class T>
-  struct apply : ::std::integral_constant<bool, (T::value >= 0)> {};
+  struct apply : std::integral_constant<bool, (T::value >= 0)> {};
 };
 
 TEST_F(Filter, Functional) {
-  EXPECT_EQ(make_tuple(), filter<NonNegative>(make_tuple()));
-  EXPECT_EQ(make_tuple(), filter<NonNegative>(make_tuple(x)));
-  EXPECT_EQ(make_tuple(a), filter<NonNegative>(make_tuple(a)));
-  EXPECT_EQ(make_tuple(a), filter<NonNegative>(make_tuple(x, a)));
-  EXPECT_EQ(make_tuple(a), filter<NonNegative>(make_tuple(a, x)));
-  EXPECT_EQ(make_tuple(a, b), filter<NonNegative>(make_tuple(a, x, b)));
-  EXPECT_EQ(make_tuple(a), filter<NonNegative>(make_tuple(x, a, y)));
+  EXPECT_EQ(filter<NonNegative>(std::make_tuple()), std::make_tuple());
+  EXPECT_EQ(filter<NonNegative>(std::make_tuple(x)), std::make_tuple());
+  EXPECT_EQ(filter<NonNegative>(std::make_tuple(a)), std::make_tuple(a));
+  EXPECT_EQ(filter<NonNegative>(std::make_tuple(x, a)), std::make_tuple(a));
+  EXPECT_EQ(filter<NonNegative>(std::make_tuple(a, x)), std::make_tuple(a));
+  EXPECT_EQ(filter<NonNegative>(std::make_tuple(a, x, b)),
+            std::make_tuple(a, b));
+  EXPECT_EQ(filter<NonNegative>(std::make_tuple(x, a, y)), std::make_tuple(a));
 }
 
 TEST_F(FilterIndex, Constexpr) {
-  constexpr auto kTuple = make_tuple(::std::integral_constant<::size_t, 0>{},
-                                     ::std::integral_constant<::size_t, 5>{});
+  constexpr auto kTuple =
+      std::make_tuple(std::integral_constant<std::size_t, 0>{},
+                      std::integral_constant<std::size_t, 5>{});
   constexpr auto kFiltered = filter_index<IndexEqualsValue>(kTuple);
   constexpr auto kExpected =
-      make_tuple(::std::integral_constant<::size_t, 0>{});
-  EXPECT_EQ(kExpected, kFiltered);
+      std::make_tuple(std::integral_constant<std::size_t, 0>{});
+  EXPECT_EQ(kFiltered, kExpected);
 }
 
 TEST_F(Filter, Constexpr) {
-  constexpr auto kTuple = make_tuple(::std::integral_constant<int, -1>{},
-                                     ::std::integral_constant<int, 42>{});
+  constexpr auto kTuple = std::make_tuple(std::integral_constant<int, -1>{},
+                                          std::integral_constant<int, 42>{});
   constexpr auto kFiltered = filter<NonNegative>(kTuple);
-  constexpr auto kExpected = make_tuple(::std::integral_constant<int, 42>{});
-  EXPECT_EQ(kExpected, kFiltered);
+  constexpr auto kExpected = std::make_tuple(std::integral_constant<int, 42>{});
+  EXPECT_EQ(kFiltered, kExpected);
 }
 
 }  // namespace
