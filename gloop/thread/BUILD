@@ -827,7 +827,6 @@ cc_test(
         "//gloop/util/random:shared_bit_gen",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",

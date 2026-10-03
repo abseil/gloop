@@ -28,7 +28,6 @@
 #include <vector>
 
 #include "absl/functional/bind_front.h"
-#include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
@@ -41,10 +40,13 @@
 
 namespace {
 
+using ::testing::ElementsAre;
+using ::testing::Pointee;
+
 // Define a PrioritizedWaitQueue that sorts in ascending order, so that we
 // get the same results as with a default std::sort().  That is, the queue item
 // with the _lowest_ priority is popped first.
-typedef PrioritizedWaitQueue<int, std::greater<int>> AscendingPriorityWaitQueue;
+using AscendingPriorityWaitQueue = PrioritizedWaitQueue<int, std::greater<int>>;
 
 // Returns a vector of integers which is formed by inserting consecutive values
 // from low to high, and then randomly shuffling.
@@ -102,10 +104,10 @@ static void PopRange(AscendingPriorityWaitQueue* q, int high) {
     VLOG(2) << "Popped " << r;
     results.push_back(r);
   }
-  CHECK(q->empty());
-  CHECK(!q->Pop(&r));
+  EXPECT_TRUE(q->empty());
+  EXPECT_FALSE(q->Pop(&r));
   std::sort(results.begin(), results.end());
-  for (int i = 0; i != high; ++i) CHECK_EQ(i, results[i]);
+  for (int i = 0; i != high; ++i) EXPECT_EQ(results[i], i);
 }
 
 // Since AscendingPriorityWaitQueue is a priority queue, we push everything on
@@ -125,8 +127,8 @@ static void TestPriorityFront(AscendingPriorityWaitQueue* q, int high) {
       VLOG(1) << "Sleeping for a second...";
       absl::SleepFor(absl::Seconds(1));
     }
-    CHECK(q->Pop(&front));
-    CHECK_EQ(front, i);
+    EXPECT_TRUE(q->Pop(&front));
+    EXPECT_EQ(front, i);
   }
 }
 
@@ -134,15 +136,15 @@ static void TestPriorityFront(AscendingPriorityWaitQueue* q, int high) {
 // sorted order.  (for PrioritizedWaitQueue)
 static void TestSortedPop(AscendingPriorityWaitQueue* q) {
   VLOG(1) << "Testing sorted pop";
-  CHECK(q->empty());
+  EXPECT_TRUE(q->empty());
   PushRangeRandomly(q, 0, 100);
   int r;
   for (int i = 0; i < 100; ++i) {
-    CHECK(q->Pop(&r));
+    EXPECT_TRUE(q->Pop(&r));
     VLOG(2) << "Popped " << r;
-    CHECK_EQ(i, r);
+    EXPECT_EQ(r, i);
   }
-  CHECK(q->empty());
+  EXPECT_TRUE(q->empty());
 }
 
 // Pop elements from q using the Wait method.  Make sure that exactly <high>
@@ -153,13 +155,13 @@ static void WaitRange(AscendingPriorityWaitQueue* q, int high) {
   std::vector<int> results;
   for (int i = 0; i != high; ++i) {
     int r;
-    CHECK(q->Wait(&r));
+    EXPECT_TRUE(q->Wait(&r));
     VLOG(2) << "Waited and got " << r;
     results.push_back(r);
   }
-  CHECK(q->empty());
+  EXPECT_TRUE(q->empty());
   std::sort(results.begin(), results.end());
-  for (int i = 0; i != high; ++i) CHECK(results[i] == i);
+  for (int i = 0; i != high; ++i) EXPECT_EQ(results[i], i);
 }
 
 // Push 0 and 1, then wait five seconds, and then push 2 and 3.
@@ -177,24 +179,24 @@ static void TestTimeout(AscendingPriorityWaitQueue* q, ThreadPool* pool) {
   pool->Schedule(absl::bind_front(SlowPush, q));
   bool timed_out;
   int r;
-  CHECK(q->WaitWithTimeout(&r, 3000, &timed_out));
-  CHECK(!timed_out);
-  CHECK_EQ(r, 0);
-  CHECK(q->WaitWithTimeout(&r, 100, &timed_out));
-  CHECK(!timed_out);
-  CHECK_EQ(r, 1);
-  CHECK(q->WaitWithTimeout(&r, 3500, &timed_out));
-  CHECK(timed_out);
-  CHECK(q->WaitWithTimeout(&r, 3500, &timed_out));
-  CHECK(!timed_out);
-  CHECK_EQ(r, 2);
-  CHECK(q->WaitWithTimeout(&r, 3000, &timed_out));
-  CHECK(!timed_out);
-  CHECK_EQ(r, 3);
+  EXPECT_TRUE(q->WaitWithTimeout(&r, 3000, &timed_out));
+  EXPECT_FALSE(timed_out);
+  EXPECT_EQ(r, 0);
+  EXPECT_TRUE(q->WaitWithTimeout(&r, 100, &timed_out));
+  EXPECT_FALSE(timed_out);
+  EXPECT_EQ(r, 1);
+  EXPECT_TRUE(q->WaitWithTimeout(&r, 3500, &timed_out));
+  EXPECT_TRUE(timed_out);
+  EXPECT_TRUE(q->WaitWithTimeout(&r, 3500, &timed_out));
+  EXPECT_FALSE(timed_out);
+  EXPECT_EQ(r, 2);
+  EXPECT_TRUE(q->WaitWithTimeout(&r, 3000, &timed_out));
+  EXPECT_FALSE(timed_out);
+  EXPECT_EQ(r, 3);
   VLOG(1) << "Testing StopWaiters";
   q->StopWaiters();
-  CHECK(!q->WaitWithTimeout(&r, absl::Seconds(1), &timed_out));
-  CHECK(!q->Wait(&r));
+  EXPECT_FALSE(q->WaitWithTimeout(&r, absl::Seconds(1), &timed_out));
+  EXPECT_FALSE(q->Wait(&r));
 }
 
 // Sleep briefly, notify <wait_started>, and Wait() for two elements.
@@ -225,7 +227,7 @@ static void TestQueueSizeLimit(ThreadPool* pool) {
   absl::Notification wait_started;
   pool->Schedule(absl::bind_front(SleepAndRead, &wq, &wait_started));
   wq.push(10);
-  CHECK(wait_started.HasBeenNotified());
+  EXPECT_TRUE(wait_started.HasBeenNotified());
   // This one shouldn't block.
   wq.push(11);
 }
@@ -233,11 +235,9 @@ static void TestQueueSizeLimit(ThreadPool* pool) {
 template <typename Queue>
 std::vector<int> ExtractAll(Queue* q) {
   std::vector<int> result;
-  int temp;
   while (!q->empty()) {
-    temp = q->top();
+    result.push_back(q->top());
     q->pop();
-    result.push_back(temp);
   }
   return result;
 }
@@ -273,7 +273,7 @@ TEST(PrioritizedWaitQueueTest, TestPrioritizedQueueCopy) {
   decltype(src_queue)::container_type dst_queue;
   src_queue.CopyTo(&dst_queue);
 
-  EXPECT_THAT(ExtractAll(&dst_queue), testing::ElementsAre(7, 5, 2));
+  EXPECT_THAT(ExtractAll(&dst_queue), ElementsAre(7, 5, 2));
 
   int temp;
   // Check the source to make sure the data is still there.
@@ -301,12 +301,12 @@ TEST(PrioritizedWaitQueueTest, TestPrioritizedQueueMove) {
   std::unique_ptr<int> val;
   bool timed_out;
   ASSERT_TRUE(queue.Pop(&val));
-  EXPECT_THAT(val, testing::Pointee(8));
+  EXPECT_THAT(val, Pointee(8));
   ASSERT_TRUE(queue.Wait(&val));
-  EXPECT_THAT(val, testing::Pointee(5));
+  EXPECT_THAT(val, Pointee(5));
   ASSERT_TRUE(
       queue.WaitWithTimeout(&val, absl::InfiniteDuration(), &timed_out));
-  EXPECT_THAT(val, testing::Pointee(2));
+  EXPECT_THAT(val, Pointee(2));
   EXPECT_FALSE(timed_out);
 }
 
@@ -320,7 +320,7 @@ TEST(PrioritizedWaitQueueTest, TestPrioritizedQueueSwap) {
   src_queue.SwapEmptyContainer(&dst_queue);
 
   EXPECT_TRUE(src_queue.empty());
-  EXPECT_THAT(ExtractAll(&dst_queue), testing::ElementsAre(7, 5, 2));
+  EXPECT_THAT(ExtractAll(&dst_queue), ElementsAre(7, 5, 2));
   EXPECT_TRUE(dst_queue.empty());
 }
 
@@ -333,7 +333,7 @@ TEST(PrioritizedWaitQueueTest, TestPrioritizedQueuePushMany) {
   decltype(src_queue)::container_type dst_queue;
   src_queue.SwapEmptyContainer(&dst_queue);
 
-  EXPECT_THAT(ExtractAll(&dst_queue), testing::ElementsAre(7, 5, 4, 1));
+  EXPECT_THAT(ExtractAll(&dst_queue), ElementsAre(7, 5, 4, 1));
 }
 
 TEST(PrioritizedWaitQueueTest, TestPrioritizedQueueBoundedPushMany) {
@@ -366,7 +366,7 @@ TEST(PrioritizedWaitQueueTest, TestPrioritizedQueueBoundedPushMany) {
 
   notify.WaitForNotification();
 
-  EXPECT_EQ(2, src_queue.size());
+  EXPECT_EQ(src_queue.size(), 2);
 }
 
 TEST(PrioritizedWaitQueueTest, TestPrioritizedQueuePushManyByMove) {
@@ -390,16 +390,16 @@ TEST(PrioritizedWaitQueueTest, TestPrioritizedQueuePushManyByMove) {
   std::unique_ptr<int> item;
 
   ASSERT_TRUE(src_queue.Pop(&item));
-  EXPECT_EQ(11, *item);
+  EXPECT_EQ(*item, 11);
 
   ASSERT_TRUE(src_queue.Pop(&item));
-  EXPECT_EQ(10, *item);
+  EXPECT_EQ(*item, 10);
 
   ASSERT_TRUE(src_queue.Pop(&item));
-  EXPECT_EQ(4, *item);
+  EXPECT_EQ(*item, 4);
 
   ASSERT_TRUE(src_queue.Pop(&item));
-  EXPECT_EQ(3, *item);
+  EXPECT_EQ(*item, 3);
 
   ASSERT_FALSE(src_queue.Pop(&item));
 }
