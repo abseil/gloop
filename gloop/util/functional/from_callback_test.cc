@@ -30,12 +30,12 @@
 #include "gloop/util/functional/to_callback.h"
 #include "gtest/gtest.h"
 
-using util::functional::FromCallback;
-using util::functional::FromCallbackWithOwnership;
-using util::functional::ToCallback;
-using util::functional::ToPermanentCallback;
-
 namespace {
+
+using ::util::functional::FromCallback;
+using ::util::functional::FromCallbackWithOwnership;
+using ::util::functional::ToCallback;
+using ::util::functional::ToPermanentCallback;
 
 void Nop() {}
 void Nop1(int unused) {}
@@ -71,7 +71,7 @@ TEST(CallbackToFunctor, ConvertsToFunction) {
 
   a();
   b(2);
-  EXPECT_EQ(19, c(2, 17));
+  EXPECT_EQ(c(2, 17), 19);
 }
 
 TEST(CallbackToFunctor, Copyable) {
@@ -93,16 +93,16 @@ TEST(CallbackToFunctor, Copyable) {
   Closure* c = ::util::functional::ToPermanentCallback(
       absl::bind_front(Helper::IncAndCountCopies, AccountCopy(&copies), &x));
 
-  EXPECT_EQ(3, copies);  // Binding should copy once.
+  EXPECT_EQ(copies, 3);  // Binding should copy once.
   std::function<void()> f = FromCallback(c);
-  EXPECT_EQ(3, copies);              // But conversion shouldn't.
+  EXPECT_EQ(copies, 3);              // But conversion shouldn't.
   std::function<void()> copy_f = f;  // "f" should be copyable.
-  EXPECT_EQ(3, copies);  // And neither should copying the conversion.
+  EXPECT_EQ(copies, 3);  // And neither should copying the conversion.
 
   f();
-  EXPECT_EQ(1, x);
+  EXPECT_EQ(x, 1);
   copy_f();
-  EXPECT_EQ(2, x);  // The copy should also invoke Inc, with the same prebound.
+  EXPECT_EQ(x, 2);  // The copy should also invoke Inc, with the same prebound.
 
   delete c;
 }
@@ -191,13 +191,13 @@ TEST(CallbackToFunctor, FromCallbackIsRepeatable) {
   for (int i = 1; i < 100; i++) {
     total1 = sum(total1, i);
     total2 = (*sum_callback)(total2, i);
-    EXPECT_EQ((i * i + i) / 2, total1);
+    EXPECT_EQ(total1, (i * i + i) / 2);
     EXPECT_EQ(total1, total2);
   }
 }
 
-static void Nop5(std::string a, float b, int c, int d, int e) {}
-static int IntNop5(std::string a, float b, int c, int d, int e) { return 0; }
+void Nop5(std::string a, float b, int c, int d, int e) {}
+int IntNop5(std::string a, float b, int c, int d, int e) { return 0; }
 
 TEST(CallbackToFunctor, ConvertTemporaryCallbackPreboundAndVariableArgs) {
   ::util::functional::CallbackFunctor<int, int> cb2 =
@@ -221,9 +221,9 @@ TEST(CallbackToFunctor, ConvertTemporaryResultCallbackPreboundAndVariableArgs) {
       ::util::functional::ToCallback(
           absl::bind_front(IntNop5, "", 0.0, 0, 0, 0));
 
-  EXPECT_EQ(0, FromCallback(rcb2)(0, 0));
-  EXPECT_EQ(0, FromCallback(rcb1)(0));
-  EXPECT_EQ(0, FromCallback(rcb0)());
+  EXPECT_EQ(FromCallback(rcb2)(0, 0), 0);
+  EXPECT_EQ(FromCallback(rcb1)(0), 0);
+  EXPECT_EQ(FromCallback(rcb0)(), 0);
 }
 
 TEST(CallbackToFunctor, ConvertPermanentCallbackPreboundAndVariableArgs) {
@@ -254,17 +254,17 @@ TEST(CallbackToFunctor, ConvertPermanentResultCallbackPreboundAndVariableArgs) {
       ::util::functional::ToPermanentCallback(
           absl::bind_front(IntNop5, "", 0.0, 0, 0, 0));
 
-  EXPECT_EQ(0, FromCallback(rcb2)(0, 0));
-  EXPECT_EQ(0, FromCallback(rcb1)(0));
-  EXPECT_EQ(0, FromCallback(rcb0)());
+  EXPECT_EQ(FromCallback(rcb2)(0, 0), 0);
+  EXPECT_EQ(FromCallback(rcb1)(0), 0);
+  EXPECT_EQ(FromCallback(rcb0)(), 0);
 }
 
-static int Adds2(int x) { return x + 2; }
+int Adds2(int x) { return x + 2; }
 
 TEST(CallbackToFunctor, MultipleConversions) {
-  typedef ::util::functional::ResultCallbackFunctor<int, int> ResultCB;
-  EXPECT_EQ(7, FromCallback(ToCallback<ResultCB>(Adds2))(5));
-  EXPECT_EQ(7, (*ToCallback<ResultCB>(Adds2))(5));
+  using ResultCB = ::util::functional::ResultCallbackFunctor<int, int>;
+  EXPECT_EQ(FromCallback(ToCallback<ResultCB>(Adds2))(5), 7);
+  EXPECT_EQ((*ToCallback<ResultCB>(Adds2))(5), 7);
 }
 
 TEST(CallbackToFunctor, WithOwnership) {
