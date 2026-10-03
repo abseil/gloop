@@ -1583,7 +1583,7 @@ void SubProcess::ForkAndExec(bool* success) {
   int clone_errno;
   char stack[4096] __attribute__((aligned(16)));
 
-#ifdef __GLIBC__
+#if defined(__GLIBC__) && !defined(GOOGLE_LIBC_IS_LLVM_LIBC)
   // As of eglibc-2.11.1:
   // sizeof(struct pthread) == 1168 in 32-bit mode,
   //                        == 2288 in 64-bit mode.
@@ -1640,7 +1640,7 @@ void SubProcess::ForkAndExec(bool* success) {
       // NOTE: CLONE_UNTRACED actually breaks strace for the child.
       int flags = CLONE_UNTRACED | SIGCHLD | CLONE_VM;
 
-#ifdef __GLIBC__
+#if defined(__GLIBC__) && !defined(GOOGLE_LIBC_IS_LLVM_LIBC)
       // This is a gross hack. See http://b/2916327 for discussion of
       // the problem, and other approaches that were attempted.
       //

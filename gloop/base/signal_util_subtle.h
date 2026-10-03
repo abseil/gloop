@@ -216,7 +216,8 @@ class ScopedPosixTimer {
                    int sig) {
     struct sigevent ev;
     ev.sigev_notify = SIGEV_THREAD_ID;
-#if defined(__GLIBC__) || defined(__ASYLO__)
+#if (defined(__GLIBC__) && !defined(GOOGLE_LIBC_IS_LLVM_LIBC)) || \
+    defined(__ASYLO__)
     // Libc doesn't feel like exposing <sigev_notify_thread_id>, because
     // it's not for normal people.  Like I care.
     ev._sigev_un._tid = absl::base_internal::GetTID();

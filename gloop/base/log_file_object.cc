@@ -293,7 +293,8 @@ void LogFileObject::FlushUnlocked() {
 
 void LogFileObject::FlushUnsafe() ABSL_NO_THREAD_SAFETY_ANALYSIS {
   if (file_ != nullptr) {
-#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 19)
+#if (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 19)) && \
+    !defined(GOOGLE_LIBC_IS_LLVM_LIBC)
     fflush_unlocked(file_);
 #else
     fflush(file_);
