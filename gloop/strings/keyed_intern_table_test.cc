@@ -49,6 +49,7 @@ namespace {
 using ::testing::Eq;
 using ::testing::Gt;
 using ::testing::Ne;
+using ::testing::SizeIs;
 using ::testing::Test;
 using ::testing::Types;
 
@@ -73,7 +74,8 @@ TYPED_TEST_P(KeyedInternTableInsertTest, InsertLookupNonEmpty) {
   KeyedInternTable<TypeParam> x;
   size_t expected_size = 0;
   for (absl::string_view s : kNonEmptyStrings) {
-    EXPECT_THAT(x.size(), Eq(expected_size));
+    SCOPED_TRACE(s);
+    EXPECT_THAT(x, SizeIs(expected_size));
     // Value not in table.
     EXPECT_THAT(x.ToKey(s), Eq(std::nullopt));
     const TypeParam result = x.Insert(s);
@@ -85,7 +87,7 @@ TYPED_TEST_P(KeyedInternTableInsertTest, InsertLookupNonEmpty) {
     EXPECT_THAT(x.ToStringView(result), Eq(s));
     // Value now in table; check identifier is consistent.
     EXPECT_THAT(x.ToKey(s), Eq(result));
-    EXPECT_THAT(x.size(), Eq(expected_size));
+    EXPECT_THAT(x, SizeIs(expected_size));
     // Check that string data was copied into the table, i.e. the pointed-to
     // data are in different memory locations.
     // Cast the pointers to void* to prevent gTest from trying to print them as
@@ -97,11 +99,12 @@ TYPED_TEST_P(KeyedInternTableInsertTest, InsertLookupNonEmpty) {
 
 TYPED_TEST_P(KeyedInternTableInsertTest, InsertLookupEmpty) {
   KeyedInternTable<TypeParam> x;
-  EXPECT_THAT(x.size(), Eq(0));
+  EXPECT_THAT(x, SizeIs(0));
   // Value not initially in table.
   EXPECT_THAT(x.ToKey(kEmptyStrings[0]), Eq(std::nullopt));
 
   for (absl::string_view s : kEmptyStrings) {
+    SCOPED_TRACE(s);
     const TypeParam result = x.Insert(s);
     // Double insertion results in consistent identifier.
     EXPECT_THAT(x.Insert(s), Eq(result));
@@ -109,7 +112,7 @@ TYPED_TEST_P(KeyedInternTableInsertTest, InsertLookupEmpty) {
     EXPECT_THAT(x.ToStringView(result), Eq(s));
     // Value now in table; check identifier is consistent.
     EXPECT_THAT(x.ToKey(s), Eq(result));
-    EXPECT_THAT(x.size(), Eq(1));
+    EXPECT_THAT(x, SizeIs(1));
   }
 }
 
@@ -119,6 +122,7 @@ TYPED_TEST_P(KeyedInternTableInsertTest, ReservePositive) {
   x.Reserve(0);
   x.Reserve(10);
   x.Reserve(0);
+  EXPECT_THAT(x, SizeIs(0));
 }
 
 REGISTER_TYPED_TEST_SUITE_P(KeyedInternTableInsertTest, InsertLookupNonEmpty,
@@ -139,17 +143,17 @@ TYPED_TEST_P(KeyedInternTableOverflowDeathTest, Overflow) {
   // Can not use std::numeric_limits<TypeParam> since
   // std::is_integral_v<TypeParam> might be false.  However all the TypeParam
   // have an effective range of uint8.
-  constexpr uint8_t uint8max = std::numeric_limits<uint8_t>::max();
+  constexpr uint8_t kUint8Max = std::numeric_limits<uint8_t>::max();
   static_assert(sizeof(TypeParam) == 1, "TypeParam too large");
-  static_assert(static_cast<int>(static_cast<TypeParam>(uint8max)) ==
-                    static_cast<int>(uint8max),
+  static_assert(static_cast<int>(static_cast<TypeParam>(kUint8Max)) ==
+                    static_cast<int>(kUint8Max),
                 "Round-trip to a larger signed int should be lossless");
 
   KeyedInternTable<TypeParam> x;
-  for (int i = 0; i <= uint8max; ++i) {
+  for (int i = 0; i <= kUint8Max; ++i) {
     x.Insert(absl::StrCat(i));
   }
-  EXPECT_THAT(x.size() - 1, Eq(std::numeric_limits<uint8_t>::max()));
+  EXPECT_THAT(x, SizeIs(static_cast<size_t>(kUint8Max) + 1));
   EXPECT_DEATH(x.Insert("abc123"), "256");
 }
 
@@ -161,7 +165,7 @@ TYPED_TEST_P(KeyedInternTableOverflowDeathTest, ReserveNegative) {
 TYPED_TEST_P(KeyedInternTableOverflowDeathTest, ReserveOverflow) {
   KeyedInternTable<TypeParam> x;
   constexpr size_t kLimit = std::numeric_limits<uint8_t>::max();
-  EXPECT_DEATH(x.Reserve(1 + kLimit), "Reserve()");
+  EXPECT_DEATH(x.Reserve(kLimit + 1), "Reserve()");
 }
 
 REGISTER_TYPED_TEST_SUITE_P(KeyedInternTableOverflowDeathTest, Overflow,
@@ -173,7 +177,7 @@ INSTANTIATE_TYPED_TEST_SUITE_P(KeyedInternTableOverflowDeathTestInstantiation,
                                OverflowIntegralTypes);
 
 template <typename RNG>
-static std::string RandomString(RNG* rng) {
+std::string RandomString(RNG* rng) {
   std::string str;
   str.resize(std::uniform_int_distribution<size_t>(0, 20)(*rng));
   std::generate(str.begin(), str.end(), [rng] {
@@ -186,7 +190,7 @@ TEST(KeyedInternTableTest, StressTest) {
   std::mt19937 rng(GTEST_FLAG_GET(random_seed));
   std::vector<std::string> random_strings;
   constexpr size_t kBufferLength = 4096;
-  for (int i = 0; i < kBufferLength; ++i) {
+  for (size_t i = 0; i < kBufferLength; ++i) {
     random_strings.push_back(RandomString(&rng));
   }
   // Check that the total length of strings stored is greater than the length
@@ -206,8 +210,9 @@ TEST(KeyedInternTableTest, StressTest) {
     gtl::STLSortAndRemoveDuplicates(&tmp);
     return tmp.size();
   }();
-  EXPECT_THAT(x.size(), Eq(number_of_unique_strings));
-  for (int i = 0; i < mapped_values.size(); ++i) {
+  EXPECT_THAT(x, SizeIs(number_of_unique_strings));
+  for (size_t i = 0; i < mapped_values.size(); ++i) {
+    SCOPED_TRACE(absl::StrCat("i=", i));
     EXPECT_THAT(x.ToStringView(mapped_values[i]), Eq(random_strings[i]));
   }
 }
