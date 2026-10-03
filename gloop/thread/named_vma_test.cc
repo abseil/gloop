@@ -20,7 +20,6 @@
 
 #include <cstdint>
 #include <string>
-#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "gloop/base/proc_maps.h"
