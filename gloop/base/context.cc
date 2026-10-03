@@ -39,6 +39,7 @@
 #include "gloop/base/static_threadlocal.h"
 #include "gloop/base/tracecontext.h"
 #include "gloop/perftools/tracing/string_label.h"
+#include "gloop/perftools/tracing/tracing_base.h"
 #include "gloop/util/refcount/reffed_ptr.h"
 
 // TODO: remove once properly soaked in production.
@@ -72,6 +73,16 @@ void swap(Context&, Context&) noexcept {}
 void SwapCurrentContext(Context* c) {}
 
 void RestoreCurrentContext(Context* c) {}
+
+ContextPtr CoSwapContext(ContextAccess, ContextPtr context,
+                         ::perftools::tracing::BarrierId,
+                         ::perftools::tracing::StringRef) {
+  return context;
+}
+
+void CoRestoreContext(ContextAccess, ContextPtr,
+                      ::perftools::tracing::BarrierId,
+                      ::perftools::tracing::StringRef) {}
 
 WithContext::WithContext(const Context&, perftools::tracing::StringRef) {}
 
@@ -133,6 +144,28 @@ Context* absl_nonnull RestoreContext(ContextAccess access,
 }
 
 }  // namespace internal
+
+ContextPtr CoSwapContext(ContextAccess access, ContextPtr context,
+                         ::perftools::tracing::BarrierId barrier_id,
+                         ::perftools::tracing::StringRef label) {
+  Context* current = per_thread_context.pointer();
+  current->trace()->SuspendContext(access, label);
+  Context* new_context = context.release();
+  per_thread_context.set_pointer(new_context);
+  new_context->trace()->ResumeContext(access, barrier_id, label);
+  return ContextPtr(current);
+}
+
+void CoRestoreContext(ContextAccess access, ContextPtr context,
+                      ::perftools::tracing::BarrierId barrier_id,
+                      ::perftools::tracing::StringRef label) {
+  Context* current = per_thread_context.pointer();
+  current->trace()->EndContext(access);
+  Context* new_context = context.release();
+  per_thread_context.set_pointer(new_context);
+  new_context->trace()->ResumeContext(access, barrier_id, label);
+  delete current;
+}
 
 Context::Context(ThreadInitType, perftools::tracing::StringRef thread_name)
     : Context(*InlineCurrent(), thread_name) {}

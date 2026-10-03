@@ -532,6 +532,41 @@ class WithThreadStatus {
   WithThreadStatus& operator=(const WithThreadStatus&) = delete;
 };
 
+// ContextPtr is an alias for a nonnull, owned Context instance.
+using ContextPtr = absl_nonnull std::unique_ptr<Context>;
+
+// Replaces the current thread local base::Context instance with the provided
+// context, assuming ownership of the pointer, and returning the previous value.
+//
+// This function is logically identical to base::SwapContext() except that:
+// - it is more efficient as it directly swaps the (owned) thread local pointer.
+// - the meaning for tracing is well defined to be a logical thread switch.
+//
+// `barrier_id` can be set to express a direct causality for tracing purposes,
+// expressing that the synchronous execution associated with `context` has a
+// causality to the currently active context.
+//
+// REQUIRES: caller has access, enforced through ContextAccess
+//
+// REQUIRES: context is not null
+ContextPtr CoSwapContext(
+    ContextAccess, ContextPtr context,
+    ::perftools::tracing::BarrierId barrier_id =
+        ::perftools::tracing::kNoBarrierId,
+    ::perftools::tracing::StringRef label =
+        ::perftools::tracing::TraceSourceLocation::current());
+
+// Replaces the current thread local base::Context instance with the provided
+// context, assuming ownership of the pointer.
+//
+// This function is logically identical to base::RestoreContext() except for
+// efficiency and tracing. See CoSwapContext() for motivation and details.
+void CoRestoreContext(ContextAccess, ContextPtr context,
+                      ::perftools::tracing::BarrierId barrier_id =
+                          ::perftools::tracing::kNoBarrierId,
+                      ::perftools::tracing::StringRef label =
+                          ::perftools::tracing::TraceSourceLocation::current());
+
 // Low-level APIs for changing the current context.
 //
 // NOTE: Callers are strongly advised to use WithContext, LocalTraceSpan, or

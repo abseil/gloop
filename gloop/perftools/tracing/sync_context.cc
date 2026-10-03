@@ -272,6 +272,81 @@ void SyncContext::Impl::BeforeSwap(const Impl* to) {
   internal::set_active_event_listener(nullptr);
 }
 
+bool SyncContext::Impl::ResumeContext(BarrierId barrier_id, StringRef label) {
+  // Make sure we are not resuming an abandoned instance.
+  if (listener_ == nullptr) {
+    // TODO: b/559675297 - change back to DFATAL
+    LOG_EVERY_N_SEC(ERROR, 60) << "ResumeContext() on an abandoned tracer";
+    return false;
+  }
+
+  // Make sure the thread does not own a listener..
+  if (TraceEventListener* current = internal::active_event_listener()) {
+    LOG_EVERY_N_SEC(ERROR, 60) << "ResumeContext() with an active listener";
+    return false;
+  }
+
+  switch (state_) {
+    case State::kDefault:
+      active_sync_id_ = sync_id_;
+      internal::set_active_sync_id(active_sync_id_);
+      listener_->OnTraceBeginSync(active_sync_id_, label);
+      break;
+    case State::kSuspended:
+      internal::set_active_sync_id(active_sync_id_);
+      listener_->OnTraceContinue(barrier_id);
+      break;
+    default:
+      LOG_EVERY_N_SEC(ERROR, 60) << "ResumeContext() with state " << state_;
+      return false;
+  }
+
+  // Update state to active and transfer listener ownership to thread.
+  state_ = State::kActive;
+  internal::set_active_event_listener(listener_);
+  listener_ = nullptr;
+
+  return true;
+}
+
+void SyncContext::Impl::SuspendContext(StringRef label) {
+  // Make sure we are not resuming to a zombie state
+  if (state_ == State::kZombie) return;
+
+  // Invariant: the active TLS context is active if not empty.
+  TraceEventListener* current = ActiveListener();
+  if (current == nullptr) return;
+
+  current->OnTraceWait(0, label);
+  internal::set_active_sync_id(kNoSyncId);
+  state_ = State::kSuspended;
+
+  // Swap active listener back to this instance. The current instance may be
+  // nested and still own an ignored nested listener instance.
+  if (listener_ != nullptr) listener_->ReleaseEventListener();
+  listener_ = current;
+  internal::set_active_event_listener(nullptr);
+}
+
+void SyncContext::Impl::EndContext() {
+  // Make sure we are not resuming to a zombie state
+  if (state_ == State::kZombie) return;
+
+  // Invariant: the active TLS context is active if not empty.
+  TraceEventListener* current = ActiveListener();
+  if (current == nullptr) return;
+
+  // End the current execution. The current context is now in a zombie state.
+  current->OnTraceEndSync(active_sync_id_);
+  internal::set_active_sync_id(active_sync_id_ = kNoSyncId);
+  state_ = State::kZombie;
+
+  // Take ownership of the listener.
+  if (listener_ != nullptr) listener_->ReleaseEventListener();
+  listener_ = current;
+  internal::set_active_event_listener(nullptr);
+}
+
 template <SyncContext::Impl::SwapOrRestore swap_or_restore>
 bool SyncContext::Impl::AfterSwap(StringRef label) {
   // Make sure we are not restoring to a zombie state
