@@ -20,8 +20,7 @@
 
 #include "gloop/util/gtl/switch.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <type_traits>
@@ -29,21 +28,25 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-namespace gtl {
 namespace {
+
+using ::gtl::switch_index;
+using ::testing::MockFunction;
+using ::testing::Pointee;
 
 struct MakeVoid {
   template <int I>
   void operator()(std::integral_constant<int, I>) const {}
 };
 
+// Verify that switch_index compiles and runs with functors returning void.
 TEST(SwitchIndex, VoidResult) { switch_index<0, 1>(MakeVoid(), 0); }
 
 struct Identity {
   // Check that the return values are not copied, only moved.
   template <int I>
   std::unique_ptr<int> operator()(std::integral_constant<int, I>) const {
-    return std::unique_ptr<int>(new int(I));
+    return std::make_unique<int>(I);
   }
 };
 
@@ -68,17 +71,18 @@ void TestSwitchIndex() {
   int counter = 0;
   MutableIdentity f;
   for (int i = From; i != From + N + 1; ++i) {
+    SCOPED_TRACE(testing::Message()
+                 << "From=" << From << ", N=" << N << ", i=" << i);
     // Test return values. They must be moved.
-    EXPECT_THAT((switch_index<From, From + N + 1>(Identity(), i)),
-                ::testing::Pointee(i));
+    EXPECT_THAT((switch_index<From, From + N + 1>(Identity(), i)), Pointee(i));
 
     // Doesn't copy the functor.
     switch_index<From, From + N + 1>(f, i);
     counter += i;
-    EXPECT_EQ(counter, f.counter);
+    EXPECT_EQ(f.counter, counter);
 
     // Test side effects.
-    ::testing::MockFunction<void(int)> callback;
+    MockFunction<void(int)> callback;
     EXPECT_CALL(callback, Call(i));
     switch_index<From, From + N + 1>(SetValue{callback.AsStdFunction()}, i);
   }
@@ -130,8 +134,8 @@ struct ConstantToPointerHelper {
 const int* ConstantToPointer(ConstantToPointerHelper ptr) { return ptr.ptr; }
 
 TEST(SwitchIndex, WorksWithFunctionPointer) {
-  EXPECT_EQ((&std::integral_constant<int, 3>::value),
-            (switch_index<0, 10>(&ConstantToPointer, 3)));
+  EXPECT_EQ((switch_index<0, 10>(&ConstantToPointer, 3)),
+            (&std::integral_constant<int, 3>::value));
 }
 
 struct Overloaded {
@@ -142,7 +146,7 @@ struct Overloaded {
   bool operator()(std::integral_constant<int, 7>) const { return true; }
 };
 
-TEST(SwitchIndex, WorksWithOverlads) {
+TEST(SwitchIndex, WorksWithOverloads) {
   EXPECT_FALSE((switch_index<0, 10>(Overloaded(), 3)));
   EXPECT_TRUE((switch_index<0, 10>(Overloaded(), 7)));
 }
@@ -150,15 +154,10 @@ TEST(SwitchIndex, WorksWithOverlads) {
 // Verify that switch_index compiles when the range is large.
 TEST(SwitchIndex, LargeRange) { switch_index<0, 8 << 10>(MakeVoid(), 0); }
 
-// TODO: Add test case for generic lambdas when available.
-// Tested with --per_file_copt=util/gtl/switch_test.cc@--std=c++14
-#if 0
 TEST(SwitchIndex, WorksWithGenericLambdas) {
   EXPECT_EQ(
-      (&std::integral_constant<int, 3>::value),
-      (switch_index<0, 10>([](auto n) { return &decltype(n)::value; }, 3)));
+      (switch_index<0, 10>([](auto n) { return &decltype(n)::value; }, 3)),
+      (&std::integral_constant<int, 3>::value));
 }
-#endif
 
 }  // namespace
-}  // namespace gtl
