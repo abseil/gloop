@@ -142,7 +142,14 @@ static int64_t* AllocateBacking(int num_cpus, int n, int* actual) {
 ABSL_CONST_INIT static SpinLock alloc_handle_lock_(
     absl::base_internal::SCHEDULE_KERNEL_ONLY);
 
-static int64_t* handle_freelist_ = nullptr;
+ABSL_CONST_INIT static int64_t* handle_freelist_
+    ABSL_GUARDED_BY(alloc_handle_lock_) = nullptr;
+ABSL_CONST_INIT static int64_t* backing_ ABSL_GUARDED_BY(alloc_handle_lock_) =
+    nullptr;
+ABSL_CONST_INIT static int backing_index_ ABSL_GUARDED_BY(alloc_handle_lock_) =
+    0;
+ABSL_CONST_INIT static int backing_limit_ ABSL_GUARDED_BY(alloc_handle_lock_) =
+    0;
 
 static void EnqueueHandle(Handle h)
     ABSL_EXCLUSIVE_LOCKS_REQUIRED(alloc_handle_lock_) {
@@ -155,6 +162,7 @@ static void EnqueueHandle(Handle h)
 Handle AllocHandle() {
   Handle ret;
   const int num_cpus = NumCPUs();
+  bool from_freelist = false;
   {
     SpinLockHolder h(alloc_handle_lock_);
     if (handle_freelist_ != nullptr) {
@@ -163,21 +171,28 @@ Handle AllocHandle() {
       int64_t* next = reinterpret_cast<int64_t*>(
           GetPointerAtomic(ret, 0)->load(std::memory_order_relaxed));
       handle_freelist_ = next;
+      from_freelist = true;
     } else {
-      // allocate more backing:
-      int n;
-      int64_t* backing = AllocateBacking(num_cpus, 1, &n);
-      // Take the first one:
-      ret.rep = backing;
-      // and return the rest to our freelist.
-      for (int i = 1; i < n; ++i) {
-        EnqueueHandle(GetBackingHandle(backing, num_cpus, i));
+      if (backing_index_ == backing_limit_) {
+        backing_ = AllocateBacking(num_cpus, 1, &backing_limit_);
+        backing_index_ = 0;
       }
+      ret = GetBackingHandle(backing_, num_cpus, backing_index_++);
     }
   }
-  // handles are specced as zero-initialized:
-  for (int i = 0; i < num_cpus; ++i) {
-    GetPointerAtomic(ret, i)->store(0, std::memory_order_relaxed);
+  if (from_freelist) {
+    // Handles are specced as zero-initialized. Fresh handles from
+    // AllocateBacking are backed by MAP_ANONYMOUS memory and are already zero
+    // without faulting pages. For recycled handles, CPU 0 held the freelist
+    // link; for other CPUs, avoid storing 0 if already zero so we do not
+    // write-fault untouched per-CPU pages.
+    GetPointerAtomic(ret, 0)->store(0, std::memory_order_relaxed);
+    for (int i = 1; i < num_cpus; ++i) {
+      std::atomic<int64_t>* p = GetPointerAtomic(ret, i);
+      if (p->load(std::memory_order_relaxed) != 0) {
+        p->store(0, std::memory_order_relaxed);
+      }
+    }
   }
   return ret;
 }
