@@ -61,7 +61,11 @@ TEST(ProcMapsIteratorTest, NextExtReadsCurrentProcessMaps) {
   dev_t dev;
   int count = 0;
   bool found_code = false;
-  const uintptr_t self_addr = reinterpret_cast<uintptr_t>(&buffer);
+  uintptr_t self_addr = reinterpret_cast<uintptr_t>(&buffer);
+#if defined(ABSL_HAVE_HWADDRESS_SANITIZER)
+  // HWASan stores the tag in the top byte of the pointer, mask it out.
+  self_addr &= static_cast<uintptr_t>(-1LL) >> 8;
+#endif
   bool found_stack = false;
   while (it.NextExt(&start, &end, &flags, &offset, &inode, &filename, &dev)) {
     EXPECT_LT(start, end);
