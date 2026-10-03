@@ -69,25 +69,25 @@ class ConstantDivisorTest : public ::testing::Test {};
 // builtin version.
 TEST(ConstantDivisorTemplateTest, Simple) {
   ConstantDivisor<int> divisor(3);
-  EXPECT_EQ(4, divisor.div(12));
-  EXPECT_EQ(1, divisor.mod(13));
-  EXPECT_EQ(4, 12 / divisor);
-  EXPECT_EQ(1, 13 % divisor);
+  EXPECT_EQ(divisor.div(12), 4);
+  EXPECT_EQ(divisor.mod(13), 1);
+  EXPECT_EQ(12 / divisor, 4);
+  EXPECT_EQ(13 % divisor, 1);
 }
 
 TEST(ConstantDivisorUint64Test, Bugs) {
   // If formula (27) from p231 is ever implemented, these divisors will break
   // if a >= is accidentally used instead of >.
-  EXPECT_EQ(uint64_t{828560257293048160},
-            ConstantDivisor<uint64_t>(21).div(uint64_t{17399765403154011380u}));
-  EXPECT_EQ(uint64_t{185733693349184273},
-            ConstantDivisor<uint64_t>(99).div(uint64_t{18387635641569243125u}));
+  EXPECT_EQ(ConstantDivisor<uint64_t>(21).div(uint64_t{17399765403154011380u}),
+            uint64_t{828560257293048160});
+  EXPECT_EQ(ConstantDivisor<uint64_t>(99).div(uint64_t{18387635641569243125u}),
+            uint64_t{185733693349184273});
 }
 
 TEST(ConstantDivisorUint16Test, Supports1) {
   ConstantDivisor<uint16_t> divisor(1);
-  ASSERT_EQ(42, 42 / divisor);
-  ASSERT_EQ(0, 42 % divisor);
+  ASSERT_EQ(42 / divisor, 42);
+  ASSERT_EQ(42 % divisor, 0);
 }
 
 TEST(ConstantDivisorUint8Test, Exhaustive) {
@@ -95,9 +95,9 @@ TEST(ConstantDivisorUint8Test, Exhaustive) {
   for (int denominator = 1; denominator < 256; ++denominator) {
     ConstantDivisor<uint8_t> divisor(denominator);
     for (int value = 0; value < 256; ++value) {
-      ASSERT_EQ(value / denominator, divisor.div(value))
+      ASSERT_EQ(divisor.div(value), value / denominator)
           << "denominator: " << denominator << " value: " << value;
-      ASSERT_EQ(value % denominator, divisor.mod(value))
+      ASSERT_EQ(divisor.mod(value), value % denominator)
           << "denominator: " << denominator << " value: " << value;
     }
   }
@@ -111,26 +111,26 @@ TYPED_TEST_SUITE(ConstantDivisorTest, Divisors);
 
 TYPED_TEST(ConstantDivisorTest, Simple) {
   TypeParam divisor(3);
-  EXPECT_EQ(4, divisor.div(12));
-  EXPECT_EQ(1, divisor.mod(13));
-  EXPECT_EQ(4, 12 / divisor);
-  EXPECT_EQ(1, 13 % divisor);
+  EXPECT_EQ(divisor.div(12), 4);
+  EXPECT_EQ(divisor.mod(13), 1);
+  EXPECT_EQ(12 / divisor, 4);
+  EXPECT_EQ(13 % divisor, 1);
 }
 
 TYPED_TEST(ConstantDivisorTest, CornerCases) {
-  EXPECT_EQ(1, TypeParam(5).div(5));
-  EXPECT_EQ(2, TypeParam(2).div(4));
+  EXPECT_EQ(TypeParam(5).div(5), 1);
+  EXPECT_EQ(TypeParam(2).div(4), 2);
   if constexpr (sizeof(typename TypeParam::value_type) >= sizeof(uint16_t)) {
-    EXPECT_EQ(100, TypeParam(5).div(500));
+    EXPECT_EQ(TypeParam(5).div(500), 100);
   }
   const auto kTypeMax =
       std::numeric_limits<typename TypeParam::value_type>::max();
   if constexpr (sizeof(typename TypeParam::value_type) >= sizeof(uint16_t)) {
-    EXPECT_EQ(kTypeMax / 345, TypeParam(345).div(kTypeMax));
+    EXPECT_EQ(TypeParam(345).div(kTypeMax), kTypeMax / 345);
   }
-  EXPECT_EQ(1, TypeParam(kTypeMax).div(kTypeMax));
-  EXPECT_EQ(1, TypeParam(kTypeMax - 1).div(kTypeMax));
-  EXPECT_EQ(0, TypeParam(kTypeMax).div((kTypeMax - 1)));
+  EXPECT_EQ(TypeParam(kTypeMax).div(kTypeMax), 1);
+  EXPECT_EQ(TypeParam(kTypeMax - 1).div(kTypeMax), 1);
+  EXPECT_EQ(TypeParam(kTypeMax).div(kTypeMax - 1), 0);
 }
 
 TYPED_TEST(ConstantDivisorTest, Bugs) {
@@ -138,10 +138,10 @@ TYPED_TEST(ConstantDivisorTest, Bugs) {
     GTEST_SKIP() << "This test is only for 32-bit and above.";
   } else {
     // Cases that triggered bugs found during initial implementation.
-    EXPECT_EQ(0, TypeParam(2969932030).div(265448460));
-    EXPECT_EQ(2, TypeParam(978790915).div(2489284541));
-    EXPECT_EQ(1, TypeParam(4113163180).div(4220126436));
-    EXPECT_EQ(2072455839, TypeParam(2).div(4144911678));
+    EXPECT_EQ(TypeParam(2969932030).div(265448460), 0);
+    EXPECT_EQ(TypeParam(978790915).div(2489284541), 2);
+    EXPECT_EQ(TypeParam(4113163180).div(4220126436), 1);
+    EXPECT_EQ(TypeParam(2).div(4144911678), 2072455839);
   }
 }
 
@@ -169,9 +169,9 @@ TYPED_TEST(ConstantDivisorTest, RandomCases) {
     T denominator = std::max<T>(2, ChooseValue<T>(gen));
     T value = ChooseValue<T>(gen);
     TypeParam divisor(denominator);
-    ASSERT_EQ(value / denominator, divisor.div(value))
+    ASSERT_EQ(divisor.div(value), value / denominator)
         << value << " / " << denominator;
-    ASSERT_EQ(value % denominator, divisor.mod(value));
+    ASSERT_EQ(divisor.mod(value), value % denominator);
   }
 }
 
