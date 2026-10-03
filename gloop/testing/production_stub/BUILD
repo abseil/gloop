@@ -31,6 +31,7 @@ cc_library(
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/hash",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:vlog_is_on",
@@ -48,9 +49,24 @@ cc_test(
         "//gloop:gloop_test_main",
         "//gloop/thread",
         "@abseil-cpp//absl/functional:bind_front",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "testvalue_benchmark",
+    size = "small",
+    srcs = ["testvalue_benchmark.cc"],
+    deps = [
+        ":testvalue",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

@@ -215,8 +215,8 @@ void Reset();
 extern std::atomic<bool> internal_enable;
 
 inline bool IsEnabled() {
-  // No need for synchronization here -- all access to other state used when we
-  // return true here is synchronized with a lock.
+  // No need for synchronization here -- InternalAdjust() synchronizes all
+  // access to the adjusters.
   return internal_enable.load(std::memory_order_relaxed);
 }
 
