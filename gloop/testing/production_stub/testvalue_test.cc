@@ -20,9 +20,15 @@
 
 #include "gloop/testing/production_stub/testvalue.h"
 
+#include <atomic>
 #include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/functional/bind_front.h"
+#include "absl/hash/hash.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
@@ -210,6 +216,137 @@ TEST_F(TestValue, ScopedForce) {
   x = 9876;
   Adjust(kLabel, &x);
   EXPECT_EQ(x, 9876);
+}
+
+TEST_F(TestValue, ManyLabels) {
+  // Register enough labels that many of them share slots in the internal label
+  // filter, and check that adjusters are still matched exactly by label.
+  constexpr int kNumLabels = 5000;
+  std::vector<std::string> labels;
+  for (int i = 0; i < kNumLabels; ++i) {
+    labels.push_back(absl::StrCat("many_labels_", i));
+  }
+  for (int i = 0; i < kNumLabels; i += 2) {
+    Force(labels[i], i);
+  }
+  for (int i = 0; i < kNumLabels; ++i) {
+    int x = -1;
+    Adjust(labels[i], &x);
+    EXPECT_EQ(x, i % 2 == 0 ? i : -1) << labels[i];
+  }
+
+  // Clear every fourth label, and replace the rest of the even labels.
+  for (int i = 0; i < kNumLabels; i += 4) {
+    Clear(labels[i]);
+    Force(labels[i + 2], -i);
+  }
+  for (int i = 0; i < kNumLabels; ++i) {
+    int x = -1;
+    Adjust(labels[i], &x);
+    EXPECT_EQ(x, i % 4 == 2 ? -(i - 2) : -1) << labels[i];
+  }
+
+  Reset();
+  for (int i = 0; i < kNumLabels; ++i) {
+    int x = -1;
+    Adjust(labels[i], &x);
+    EXPECT_EQ(x, -1) << labels[i];
+  }
+}
+
+TEST_F(TestValue, LabelFilterSaturation) {
+  // Register > 255 labels that collide in the same 128-entry filter slot to
+  // exercise saturating Add() and Remove() at UINT8_MAX.
+  constexpr int kNumColliding = 260;
+  std::vector<std::string> colliding;
+  for (int i = 0; static_cast<int>(colliding.size()) < kNumColliding; ++i) {
+    std::string candidate = absl::StrCat("saturate_", i);
+    if (absl::HashOf(absl::string_view(candidate)) % 128 == 0) {
+      colliding.push_back(std::move(candidate));
+    }
+  }
+  for (int i = 0; i < kNumColliding - 1; ++i) {
+    Force(colliding[i], i);
+  }
+  for (int i = 0; i < kNumColliding - 1; ++i) {
+    int x = -1;
+    Adjust(colliding[i], &x);
+    EXPECT_EQ(x, i);
+  }
+  int unregistered = -1;
+  Adjust(colliding.back(), &unregistered);
+  EXPECT_EQ(unregistered, -1);
+
+  for (int i = 0; i < kNumColliding - 1; ++i) {
+    Clear(colliding[i]);
+  }
+  for (int i = 0; i < kNumColliding; ++i) {
+    int x = -1;
+    Adjust(colliding[i], &x);
+    EXPECT_EQ(x, -1);
+  }
+
+  // Re-registering and clearing a label in a saturated slot still works.
+  Force(colliding[0], 42);
+  int x = -1;
+  Adjust(colliding[0], &x);
+  EXPECT_EQ(x, 42);
+  Clear(colliding[0]);
+  Adjust(colliding[0], &x);
+  EXPECT_EQ(x, 42);
+}
+
+TEST_F(TestValue, ConcurrentAdjustAndSetCallback) {
+  // Adjust() concurrently with SetCallback() (including overwriting an active
+  // callback) and Clear() on the same label. Run under ASAN/TSAN, this checks
+  // that entries are not deleted while in use, and that both SetCallback() and
+  // Clear() wait for in-flight callbacks of the removed entry.
+  constexpr int kNumThreads = 8;
+  constexpr int kNumIterations = 500;
+  constexpr absl::string_view kLabel = "concurrent";
+  std::atomic<bool> done = false;
+  {
+    ThreadPool pool(kNumThreads, ThreadPool::Options{.name_prefix = "Test"});
+    for (int i = 0; i < kNumThreads; ++i) {
+      pool.Schedule([&] {
+        while (!done.load(std::memory_order_relaxed)) {
+          int x = 0;
+          Adjust(kLabel, &x);
+          int y = 0;
+          Adjust("concurrent_unregistered", &y);
+          EXPECT_EQ(y, 0);
+        }
+      });
+    }
+    for (int i = 0; i < kNumIterations; ++i) {
+      std::unique_ptr<std::atomic<int>> calls1 =
+          std::make_unique<std::atomic<int>>(0);
+      SetCallback<int>(kLabel, [calls = calls1.get()](int*) {
+        calls->fetch_add(1, std::memory_order_relaxed);
+      });
+      while (calls1->load(std::memory_order_relaxed) == 0) {
+        absl::SleepFor(absl::Microseconds(10));
+      }
+
+      // Overwrite the active callback without an intervening Clear();
+      // SetCallback() must wait for in-flight `calls1` callbacks before
+      // returning, so destroying `calls1` immediately after is safe.
+      std::unique_ptr<std::atomic<int>> calls2 =
+          std::make_unique<std::atomic<int>>(0);
+      SetCallback<int>(kLabel, [calls = calls2.get()](int*) {
+        calls->fetch_add(1, std::memory_order_relaxed);
+      });
+      calls1.reset();
+
+      while (calls2->load(std::memory_order_relaxed) == 0) {
+        absl::SleepFor(absl::Microseconds(10));
+      }
+      Clear(kLabel);
+      // Clear() waited for all callbacks, so destroying `calls2` is safe.
+      calls2.reset();
+    }
+    done.store(true, std::memory_order_relaxed);
+  }
 }
 
 }  // namespace
