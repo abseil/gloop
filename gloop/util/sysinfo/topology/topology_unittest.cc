@@ -30,7 +30,6 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <ostream>
 #include <set>
 #include <string>
 #include <vector>
@@ -47,7 +46,6 @@
 #include "absl/strings/string_view.h"
 #include "gloop/base/init_google.h"
 #include "gloop/base/log_file_flags.h"
-#include "gloop/base/sysinfo.h"
 #include "gloop/testing/production_stub/testvalue.h"
 #include "gloop/util/os/core/cpu_set.h"
 #include "gloop/util/os/core/cpu_set_test_util.h"  // IWYU pragma: keep

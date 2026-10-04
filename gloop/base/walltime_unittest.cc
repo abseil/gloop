@@ -20,9 +20,6 @@
 
 #include "gloop/base/walltime.h"
 
-#include <stdio.h>
-#include <unistd.h>
-
 #include <cmath>
 #include <cstdint>
 #ifdef __linux__
@@ -31,8 +28,6 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include <iomanip>
-#include <ios>
 #include <limits>
 
 #include "absl/base/internal/cycleclock.h"
