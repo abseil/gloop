@@ -637,7 +637,9 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
 
     // k is now potentially dead to us.
     iter = InsertInArray(array, hash, func());
-    size_.fetch_add(1, std::memory_order_release);
+    // size_ is only modified under lock_, so an atomic RMW is not needed.
+    size_.store(size_.load(std::memory_order_relaxed) + 1,
+                std::memory_order_release);
     return std::make_pair(iter, true);
   }
 
@@ -706,7 +708,8 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
                        std::memory_order_relaxed);
     }
     old_nodes_.push_back(iter->node_);
-    size_.fetch_sub(1, std::memory_order_release);
+    size_.store(size_.load(std::memory_order_relaxed) - 1,
+                std::memory_order_release);
     // Clear the iterator so that a future use will crash the program.
     *iter = end();
   }
