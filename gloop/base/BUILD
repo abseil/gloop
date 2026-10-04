@@ -1661,7 +1661,6 @@ cc_test(
         ":atomic_stats_counter",
         "//gloop:gloop_test_main",
         "//gloop/thread",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
