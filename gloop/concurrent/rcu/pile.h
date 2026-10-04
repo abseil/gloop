@@ -232,22 +232,11 @@ inline void Pile<T>::Init() {
 
 template <typename T>
 inline void Pile<T>::Add(T t) {
-  using ::base::subtle::percpu::CompareAndSwap;
-  using ::base::subtle::percpu::GetCurrentCpu;
-  int cpu;
-  size_t i;
-  // This should be a AtomicIncrement which is moderately faster, but
-  // the API doesn't let you get both cpu + index.  It's totally
-  // possible to do so but sadly we haven't committed a better return
-  // type. :(
-  while (true) {
-    cpu = GetCurrentCpu();
-    std::atomic<int64_t>* loc = GetPointerAtomic(n_, cpu);
-    i = *loc;
-    if (cpu == CompareAndSwap(cpu, loc, i, i + 1)) {
-      break;
-    }
-  }
+  using ::base::subtle::percpu::AtomicFetchAdd;
+  using ::base::subtle::percpu::FetchAddResult;
+  const FetchAddResult res = AtomicFetchAdd(n_, 1);
+  const int cpu = res.cpu;
+  const size_t i = res.previous;
   // This is basically impossible to trigger, you'd OOM first.
   // We allow about a million pages, several hundred items per page,
   // and surely each item represents at least a few bytes of stranded memory.
