@@ -2352,7 +2352,6 @@ cc_test(
         ":config",
         ":init_google",
         ":log_file_flags",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/flags:config",

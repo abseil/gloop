@@ -577,6 +577,7 @@ cc_test(
         "thread_unittest.cc",
     ],
     deps = [
+        ":config",
         ":thread",
         ":thread-internal",
         ":thread_control",

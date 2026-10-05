@@ -41,6 +41,7 @@
 #include <optional>
 #include <ostream>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -81,6 +82,7 @@
 #include "gloop/base/sysinfo.h"
 #include "gloop/base/timer.h"
 #include "gloop/base/tracecontext.h"
+#include "gloop/thread/config.h"
 #include "gloop/thread/fiber/fiber.h"
 #include "gloop/thread/thread-internal.h"
 #include "gloop/thread/thread_control.h"

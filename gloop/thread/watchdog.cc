@@ -35,7 +35,6 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/const_init.h"
-#include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/cleanup/cleanup.h"
