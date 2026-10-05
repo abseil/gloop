@@ -213,7 +213,7 @@ ContextBuilder& ContextBuilder::set_trace_context(TraceContext tc) {
   return *this;
 }
 
-ContextBuilder& ContextBuilder::set_deadline(const absl::Time deadline) {
+ContextBuilder& ContextBuilder::set_deadline(absl::Time deadline) {
   context_.set_deadline(deadline);
   return *this;
 }
