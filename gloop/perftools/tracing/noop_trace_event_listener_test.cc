@@ -25,22 +25,23 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-using ::testing::Ne;
-
 namespace perftools::tracing {
 namespace {
 
+using ::testing::NotNull;
+
 TEST(NoopTraceEventListener, GetAndRelease) {
   TraceEventListener* listener = NoopTraceEventListener();
-  ASSERT_THAT(listener, Ne(nullptr));
+  ASSERT_THAT(listener, NotNull());
   listener->ReleaseEventListener();
 }
 
 TEST(NoopTraceEventListener, GetEventListener) {
   TraceEventListener* parent = NoopTraceEventListener();
-  ASSERT_THAT(parent, Ne(nullptr));
+  ASSERT_THAT(parent, NotNull());
   TraceEventListener* listener = parent->GetEventListener(SyncId(1));
-  ASSERT_THAT(listener, Ne(nullptr));
+  ASSERT_THAT(listener, NotNull());
+  EXPECT_EQ(listener, parent);
   listener->ReleaseEventListener();
 }
 
