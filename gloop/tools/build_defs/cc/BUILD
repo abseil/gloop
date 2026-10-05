@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Apache 2.0 Notice: 2026
+
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 
 package(

@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Apache 2.0 Notice: 2026
+
 # Description:
 #   Utility functions for sharing code originally written in Google's codebase.
 

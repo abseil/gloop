@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Apache 2.0 Notice: 2026
+
 # This package is part of Components, and generally cannot be modified in the
 # same changelist as other packages. See <link> for details.
 
