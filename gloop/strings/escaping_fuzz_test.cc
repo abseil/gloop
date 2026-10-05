@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-#include <string>
-
 #include "absl/strings/string_view.h"
 #include "fuzztest/fuzztest.h"
 #include "gloop/strings/escaping.h"
