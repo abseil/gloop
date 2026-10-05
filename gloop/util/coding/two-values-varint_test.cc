@@ -313,8 +313,7 @@ FUZZ_TEST(TwoValueVarint64FuzzTest, Encoding64FuzzTest);
 template <typename T>
 std::vector<T> GetValueArray(int n, int bit_shift) {
   std::vector<T> vals(n, 1ull << (bit_shift == -1 ? 0 : bit_shift));
-  std::seed_seq seed_seq({1, 2, 3});
-  absl::BitGen gen{seed_seq};
+  std::mt19937_64 gen;
   if (bit_shift == -1) {
     for (auto& x : vals) x = absl::Uniform<T>(gen);
   }

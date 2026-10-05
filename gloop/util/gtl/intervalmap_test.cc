@@ -32,6 +32,7 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/log/check.h"
+#include "absl/random/distributions.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -2125,16 +2126,14 @@ static void BM_StringLikeKeyErase(benchmark::State& state) {
   // Use a batch of maps to overflow the cache.
   const int kBatchSize = std::max(1, 1000 / arg);
   std::vector<IMap> maps(kBatchSize, src);
-  std::seed_seq seed{1, 2, 3};
-  std::mt19937 gen(seed);
-  std::uniform_int_distribution<> distrib(0, arg);
+  std::mt19937_64 gen;
   int num_items_processed = 0;
   while (state.KeepRunningBatch(kBatchSize)) {
     state.PauseTiming();
     maps.clear();
     maps.resize(kBatchSize, src);
     // Choose a random start index in the range [0, arg).
-    const int start_index = distrib(gen);
+    const int start_index = absl::Uniform(gen, 0, arg);
     typename IMap::key_type start(absl::StrFormat("%010d", start_index));
     // The limit is chosen so that the deleted range is approximately 1/10th
     // of the size of the map. Note that if the start_index is close to arg,
@@ -2360,9 +2359,7 @@ static void BM_IntKeyErase(benchmark::State& state) {
   // Use a batch of maps to overflow the cache.
   const int kBatchSize = std::max(1, 1000 / arg);
   std::vector<IMap> maps(kBatchSize, src);
-  std::seed_seq seed{1, 2, 3};
-  std::mt19937 gen(seed);
-  std::uniform_int_distribution<> distrib(0, arg);
+  std::mt19937_64 gen;
   int num_items_processed = 0;
   for (auto s : state) {
     state.PauseTiming();
@@ -2370,7 +2367,7 @@ static void BM_IntKeyErase(benchmark::State& state) {
     maps.clear();
     maps.resize(kBatchSize, src);
     // Choose a random start index in the range [0, arg).
-    const int start = distrib(gen);
+    const int start = absl::Uniform(gen, 0, arg);
     // The limit is chosen so that the deleted range is approximately 1/10th
     // of the size of the map.
     const int limit = start + arg / 10;

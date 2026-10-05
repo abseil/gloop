@@ -32,6 +32,7 @@
 #include "absl/base/log_severity.h"
 #include "absl/log/check.h"
 #include "absl/log/scoped_mock_log.h"
+#include "absl/random/distributions.h"
 #include "absl/strings/charset.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -1144,11 +1145,9 @@ void BM_CleanStringLineEndings(benchmark::State& state) {
 
   std::string teststring(size, ' ');
   std::minstd_rand0 rng(kDeterministicSeed);
-  std::uniform_int_distribution<int> random_to_3(0, 2);
   for (int i = 0; i < teststring.size(); i++) {
-    std::bernoulli_distribution one_in_line_len(1.0 / line_len);
-    if (one_in_line_len(rng)) {
-      int r = random_to_3(rng);
+    if (absl::Bernoulli(rng, 1.0 / line_len)) {
+      int r = absl::Uniform(rng, 0, 3);
       if (r == 0) {
         teststring[i] = '\r';
       } else if (r == 1) {

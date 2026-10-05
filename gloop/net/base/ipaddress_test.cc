@@ -49,6 +49,7 @@
 #include <iterator>
 #include <limits>
 #include <map>
+#include <random>
 #include <set>
 #include <sstream>
 #include <string>
@@ -5001,7 +5002,7 @@ static void BM_IsLoopbackIPAddress(benchmark::State& state) {
 BENCHMARK(BM_IsLoopbackIPAddress);
 
 void BM_IPRangeOrdering(benchmark::State& state) {
-  absl::InsecureBitGen rng;
+  std::mt19937_64 rng;
   std::vector<IPRange> in;
   for (int i = 0; i < 64; i++) {
     in.emplace_back(HostUInt32ToIPAddress(absl::Uniform<uint32_t>(rng)),
@@ -5018,7 +5019,7 @@ void BM_IPRangeOrdering(benchmark::State& state) {
 BENCHMARK(BM_IPRangeOrdering);
 
 void BM_IPRangeOrdering6(benchmark::State& state) {
-  absl::InsecureBitGen rng;
+  std::mt19937_64 rng;
   std::vector<IPRange> in;
   for (int i = 0; i < 64; i++) {
     in.emplace_back(
@@ -5040,7 +5041,7 @@ BENCHMARK(BM_IPRangeOrdering6);
 // 64-bit aligned and misaligned IPAddress.
 void BM_IPAddressFind(benchmark::State& state) {
   const int ip_version = state.range(0);
-  absl::InsecureBitGen rng;
+  std::mt19937_64 rng;
   // If IPAddress doesn't have 64-bit alignment then if an array element happens
   // to be 64-bit aligned, its neighbors will not.
   std::vector<IPAddress> array;

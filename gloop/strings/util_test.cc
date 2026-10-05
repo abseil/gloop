@@ -34,6 +34,7 @@
 
 #include "absl/container/fixed_array.h"
 #include "absl/log/log.h"
+#include "absl/random/distributions.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
@@ -805,8 +806,6 @@ void BM_StrStrDelimited(benchmark::State& state) {
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890";
 
   RandomEngine rng(kDeterministicSeed);
-  std::uniform_int_distribution<uint64_t> random_alphabet_index(
-      0, alphabet.size() - 1);
 
   // Construct a haystack of `num_haystack_items` items of `key_len`.
   std::vector<std::string> haystack_elements;
@@ -814,7 +813,7 @@ void BM_StrStrDelimited(benchmark::State& state) {
     std::string key;
     key.reserve(key_len);
     for (int i = 0; i < key_len; ++i) {
-      key.push_back(alphabet[random_alphabet_index(rng)]);
+      key.push_back(alphabet[absl::Uniform(rng, 0u, alphabet.size())]);
     }
     haystack_elements.push_back(key);
   }
