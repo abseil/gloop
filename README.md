@@ -91,5 +91,4 @@ build flags:
 
 ## Contact
 
-If you encounter problems or have questions, please contact the maintainers of
-the project using Gloop.
+If you encounter problems or have questions, please contact the maintainers of the project using Gloop.
