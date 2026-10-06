@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
+
 // This file contains internals that need to be shared between C++ and assembly
 // code. It shouldn't be referenced directly; instead use
 // "gloop/base/percpu.h".
