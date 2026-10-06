@@ -195,7 +195,6 @@ cc_library(
     srcs = ["multiplex_trace_event_listener.cc"],
     hdrs = ["multiplex_trace_event_listener.h"],
     visibility = [
-        ":base_visibility",
         ":internal_visibility",
         ":trace_event_listener_visibility",
     ],
