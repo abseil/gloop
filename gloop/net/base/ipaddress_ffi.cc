@@ -18,11 +18,11 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-#include "gloop/net/base/ipaddress_ffi.h"
-
 #include <compare>
 
 #include "gloop/net/base/ipaddress.h"
+
+// Crubit does not support operator<=> (b/570103121).
 
 extern "C" int CompareIPAddressForRust(const net_base::IPAddress* lhs,
                                        const net_base::IPAddress* rhs) {
