@@ -34,9 +34,13 @@ class Counter {
 
   // Note that we don't define the copy-assignment operator or copy constructor
   // because then we'd have to define it in counter_native.h.
-  Counter(Counter&& rhs) : value_(rhs.value()) {}
-  Counter& operator=(Counter&& rhs) {
-    value_.store(rhs.value(), std::memory_order_relaxed);
+  Counter(Counter&& rhs) noexcept
+      : value_(rhs.value_.exchange(0, std::memory_order_relaxed)) {}
+  Counter& operator=(Counter&& rhs) noexcept {
+    if (this != &rhs) {
+      value_.store(rhs.value_.exchange(0, std::memory_order_relaxed),
+                   std::memory_order_relaxed);
+    }
     return *this;
   }
 
@@ -62,7 +66,7 @@ class Counter {
   }
 
  private:
-  std::atomic<int64_t> value_;
+  std::atomic<int64_t> value_{0};
 };
 
 }  // namespace percpu

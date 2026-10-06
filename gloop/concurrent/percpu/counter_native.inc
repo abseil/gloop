@@ -42,8 +42,10 @@ class Counter {
   Counter(Counter&& rhs) noexcept
       : c_(std::exchange(rhs.c_, base::subtle::percpu::NullHandle())) {}
   Counter& operator=(Counter&& rhs) noexcept {
-    FreeHandle(c_);
-    c_ = std::exchange(rhs.c_, base::subtle::percpu::NullHandle());
+    if (this != &rhs) {
+      FreeHandle(c_);
+      c_ = std::exchange(rhs.c_, base::subtle::percpu::NullHandle());
+    }
     return *this;
   }
 

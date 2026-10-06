@@ -22,6 +22,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "absl/base/call_once.h"
@@ -80,6 +81,22 @@ TEST(PerCpuCounterTest, Move) {
   for (int i = 0; i < kNumCtrs; ++i) {
     EXPECT_EQ(kNumCtrs - i, ctrs[i].value());
   }
+
+  Counter src;
+  src.Add(42);
+  Counter dst(std::move(src));
+  EXPECT_EQ(dst.value(), 42);
+
+  Counter src2;
+  src2.Add(99);
+  dst = std::move(src2);
+  EXPECT_EQ(dst.value(), 99);
+
+  Counter& dst_alias = dst;
+  dst = std::move(dst_alias);
+  EXPECT_EQ(dst.value(), 99);
+  dst.Add(1);
+  EXPECT_EQ(dst.value(), 100);
 }
 
 absl::NoDestructor<Counter> c;
