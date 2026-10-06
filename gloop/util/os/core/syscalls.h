@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // Provides wrapper functions for POSIX syscalls, which will automatically retry
 // the actual syscalls in cases of EINTR (interrupts), when appropriate.
 //

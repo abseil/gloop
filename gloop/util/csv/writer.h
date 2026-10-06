@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // The Writer class writes CSV data in a format based on RFC 4180:
 //   http://tools.ietf.org/html/rfc4180
 // Writer output will be compliant with RFC 4180 except that by default,

@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // This defines some convenience functions and operator overloading to make it
 // easier to write more natural unit test code for cpu_set_t.
 
