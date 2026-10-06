@@ -1074,6 +1074,10 @@ ABSL_MUST_USE_RESULT inline bool PackedStringToIPAddress(const char* str,
   return PackedStringToIPAddress(absl::string_view(str, len), out);
 }
 
+// Parses the binary or packed string in non-textual network byte order form,
+// into an IPv4 or IPv6 address.
+absl::StatusOr<IPAddress> PackedStringToIPAddress(absl::string_view str);
+
 // Binary packed string conversion methods that CHECK()-fail on invalid input.
 inline IPAddress PackedStringToIPAddressOrDie(absl::string_view str) {
   IPAddress ip;
