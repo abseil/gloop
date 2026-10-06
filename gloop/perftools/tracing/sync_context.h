@@ -320,6 +320,34 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   // swaps lhs and rhs. Does neither verify nor change the TLS active sync id.
   friend void swap(SyncContext& lhs, SyncContext& rhs) noexcept;
 
+  // Set this instance as actively scoped SyncContext instance for the current
+  // thread, tracing the start of a possibly traced synchronous execution.
+  //
+  // This method will do nothing if this instance is empty.
+  //
+  // Otherwise, this method will install the bound trace event listener as the
+  // current instance for this thread, transferring ownership to the thread.
+  //
+  // Behavior for an instance suspended by a preceding call to `SuspendContext`:
+  // The thread's active sync_id will be set to this instance's active sync id
+  // as captured at the time of suspension. Then a `OnTraceContinue()` event
+  // will be emitted, including the `barrier_id` if `barrier_id` is specified.
+  //
+  // Behavior for an instance not previously suspended:
+  // The thread's active sync_id and this instance's active sync_id will be set
+  // to this instance's unique sync id as assigned at time of creation. Then a
+  // `OnTraceSyncBegin()` event will be emitted. If `barrier_id` is specified,
+  // then a `OnTraceObserved()` event is emitted with the provided `barrier_id`.
+  //
+  // Returns true if this context was successfully resumed as the instance
+  // for the current thread. Returns false if this instance is empty, or an
+  // error occurred installed the intance, in which case this instance is
+  // reset to an empty instance.
+  bool ResumeContext(Access, BarrierId barrier_id, StringRef label);
+
+  void SuspendContext(Access, StringRef label);
+  void EndContext(Access);
+
   // `BeforeSwapCurrent` and `BeforeRestoreCurrent` manage the 'per thread'
   // tracing state used by the tracing event listener framework, and must be
   // invoked directly before the current thread's context is changed from this
@@ -423,6 +451,10 @@ class SyncContext::Impl {
   // the current context.
   bool AfterSwapCurrent(StringRef label);
   bool AfterRestoreCurrent(StringRef label);
+
+  bool ResumeContext(BarrierId barrier_id, StringRef label);
+  void SuspendContext(StringRef label);
+  void EndContext();
 
   // Returns the active `sync_id` for this context which is set if this thread
   // is either the active scoped context for the current thread, or the context
@@ -567,6 +599,34 @@ inline SyncContext SyncContext::CreateNoop() const {
 inline void SyncContext::BeforeSwapCurrent(Access, const SyncContext& to) {
   if (impl_ != nullptr) {
     impl_->BeforeSwapCurrent(to.impl_);
+  }
+}
+
+inline bool SyncContext::ResumeContext(Access, BarrierId barrier_id,
+                                       StringRef label) {
+  if (Impl* impl = impl_; impl != nullptr) {
+    if (impl->ResumeContext(barrier_id, label)) {
+      return true;
+    }
+    impl_ = nullptr;
+    delete impl;
+  }
+  return false;
+}
+
+inline void SyncContext::SuspendContext(Access, StringRef label) {
+  if (Impl* impl = impl_; impl != nullptr) {
+    impl_ = nullptr;
+    impl->SuspendContext(label);
+    impl_ = impl;
+  }
+}
+
+inline void SyncContext::EndContext(Access) {
+  if (Impl* impl = impl_; impl != nullptr) {
+    impl_ = nullptr;
+    impl->EndContext();
+    delete impl;
   }
 }
 

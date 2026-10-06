@@ -257,6 +257,30 @@ cc_library(
 )
 
 cc_test(
+    name = "context_co_test",
+    srcs = ["context_co_test.cc"],
+    deps = [
+        ":censushandle",
+        ":context",
+        ":context_access",
+        ":tracecontext",
+        "//gloop:gloop_test_main",
+        "//gloop/perftools/tracing:mock_trace_event_listener",
+        "//gloop/perftools/tracing:multiplex_trace_event_listener",
+        "//gloop/perftools/tracing:test_only_access",
+        "//gloop/perftools/tracing:trace_event_listener",
+        "//gloop/perftools/tracing:tracing_base",
+        "//perftools/tracing/public:debug_trace_event_listener",
+        "//security/context/public:security_context",
+        "//security/context/testing:fake_security_context",
+        "//security/credentials/public:credentials",
+        "//stats/census/public:tagging_lib",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
     name = "context_test",
     size = "medium",
     srcs = ["context_test.cc"],
