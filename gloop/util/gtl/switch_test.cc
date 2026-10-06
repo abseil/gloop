@@ -20,30 +20,36 @@
 
 #include "gloop/util/gtl/switch.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <functional>
 #include <memory>
+#include <string>
 #include <type_traits>
+#include <utility>
 
+#include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace gtl {
 namespace {
 
+using ::testing::MockFunction;
+using ::testing::Pointee;
+
 struct MakeVoid {
   template <int I>
   void operator()(std::integral_constant<int, I>) const {}
 };
 
+// Verify that switch_index compiles and runs with functors returning void.
 TEST(SwitchIndex, VoidResult) { switch_index<0, 1>(MakeVoid(), 0); }
 
 struct Identity {
   // Check that the return values are not copied, only moved.
   template <int I>
   std::unique_ptr<int> operator()(std::integral_constant<int, I>) const {
-    return std::unique_ptr<int>(new int(I));
+    return std::make_unique<int>(I);
   }
 };
 
@@ -64,60 +70,65 @@ struct SetValue {
 };
 
 template <int From, int N>
-void TestSwitchIndex() {
+struct SwitchCase {
+  static constexpr int kFrom = From;
+  static constexpr int kN = N;
+};
+
+// Generates the Cartesian product of [FromMin, FromMax] x [NMin, NMax] as a
+// ::testing::Types list of SwitchCase<From, N>.
+template <int FromMin, int FromMax, int NMin, int NMax,
+          typename = std::make_index_sequence<(FromMax - FromMin + 1) *
+                                              (NMax - NMin + 1)>>
+struct CrossProduct;
+
+template <int FromMin, int FromMax, int NMin, int NMax, std::size_t... Is>
+struct CrossProduct<FromMin, FromMax, NMin, NMax, std::index_sequence<Is...>> {
+  static constexpr int kNCount = NMax - NMin + 1;
+
+  using type =
+      ::testing::Types<SwitchCase<FromMin + static_cast<int>(Is / kNCount),
+                                  NMin + static_cast<int>(Is % kNCount)>...>;
+};
+
+struct SwitchCaseNameGenerator {
+  template <typename T>
+  static std::string GetName(int) {
+    return absl::StrCat(T::kFrom < 0 ? "FromNeg" : "From",
+                        T::kFrom < 0 ? -T::kFrom : T::kFrom, "_N", T::kN);
+  }
+};
+
+template <typename T>
+class SwitchIndexTest : public ::testing::Test {};
+
+using SwitchCases = typename CrossProduct<-2, 4, 1, 20>::type;
+
+TYPED_TEST_SUITE(SwitchIndexTest, SwitchCases, SwitchCaseNameGenerator);
+
+// Test switch_index<From, From + N>(f, idx) with all values of From in
+// [-2, 5), N in [1, 20] and idx in [From, From + N).
+TYPED_TEST(SwitchIndexTest, Functional) {
+  constexpr int kFrom = TypeParam::kFrom;
+  constexpr int kN = TypeParam::kN;
+
   int counter = 0;
   MutableIdentity f;
-  for (int i = From; i != From + N + 1; ++i) {
+  for (int i = kFrom; i != kFrom + kN + 1; ++i) {
     // Test return values. They must be moved.
-    EXPECT_THAT((switch_index<From, From + N + 1>(Identity(), i)),
-                ::testing::Pointee(i));
+    EXPECT_THAT((switch_index<kFrom, kFrom + kN + 1>(Identity(), i)),
+                Pointee(i));
 
     // Doesn't copy the functor.
-    switch_index<From, From + N + 1>(f, i);
+    switch_index<kFrom, kFrom + kN + 1>(f, i);
     counter += i;
-    EXPECT_EQ(counter, f.counter);
+    EXPECT_EQ(f.counter, counter);
 
     // Test side effects.
-    ::testing::MockFunction<void(int)> callback;
+    MockFunction<void(int)> callback;
     EXPECT_CALL(callback, Call(i));
-    switch_index<From, From + N + 1>(SetValue{callback.AsStdFunction()}, i);
+    switch_index<kFrom, kFrom + kN + 1>(SetValue{callback.AsStdFunction()}, i);
   }
-}
-
-template <int From>
-void TestFrom() {
-  TestSwitchIndex<From, 1>();
-  TestSwitchIndex<From, 2>();
-  TestSwitchIndex<From, 3>();
-  TestSwitchIndex<From, 4>();
-  TestSwitchIndex<From, 5>();
-  TestSwitchIndex<From, 6>();
-  TestSwitchIndex<From, 7>();
-  TestSwitchIndex<From, 8>();
-  TestSwitchIndex<From, 9>();
-  TestSwitchIndex<From, 10>();
-  TestSwitchIndex<From, 11>();
-  TestSwitchIndex<From, 12>();
-  TestSwitchIndex<From, 13>();
-  TestSwitchIndex<From, 14>();
-  TestSwitchIndex<From, 15>();
-  TestSwitchIndex<From, 16>();
-  TestSwitchIndex<From, 17>();
-  TestSwitchIndex<From, 18>();
-  TestSwitchIndex<From, 19>();
-  TestSwitchIndex<From, 20>();
-}
-
-TEST(SwitchIndex, Functional) {
-  // Test switch_index<From, From + N>(f, idx) with all values of From in
-  // [-2, 5), N in [1, 20] and idx in [From, From + N).
-  TestFrom<-2>();
-  TestFrom<-1>();
-  TestFrom<0>();
-  TestFrom<1>();
-  TestFrom<2>();
-  TestFrom<3>();
-  TestFrom<4>();
 }
 
 struct ConstantToPointerHelper {
@@ -130,8 +141,8 @@ struct ConstantToPointerHelper {
 const int* ConstantToPointer(ConstantToPointerHelper ptr) { return ptr.ptr; }
 
 TEST(SwitchIndex, WorksWithFunctionPointer) {
-  EXPECT_EQ((&std::integral_constant<int, 3>::value),
-            (switch_index<0, 10>(&ConstantToPointer, 3)));
+  EXPECT_EQ((switch_index<0, 10>(&ConstantToPointer, 3)),
+            (&std::integral_constant<int, 3>::value));
 }
 
 struct Overloaded {
@@ -142,7 +153,7 @@ struct Overloaded {
   bool operator()(std::integral_constant<int, 7>) const { return true; }
 };
 
-TEST(SwitchIndex, WorksWithOverlads) {
+TEST(SwitchIndex, WorksWithOverloads) {
   EXPECT_FALSE((switch_index<0, 10>(Overloaded(), 3)));
   EXPECT_TRUE((switch_index<0, 10>(Overloaded(), 7)));
 }
@@ -150,15 +161,11 @@ TEST(SwitchIndex, WorksWithOverlads) {
 // Verify that switch_index compiles when the range is large.
 TEST(SwitchIndex, LargeRange) { switch_index<0, 8 << 10>(MakeVoid(), 0); }
 
-// TODO: Add test case for generic lambdas when available.
-// Tested with --per_file_copt=util/gtl/switch_test.cc@--std=c++14
-#if 0
 TEST(SwitchIndex, WorksWithGenericLambdas) {
   EXPECT_EQ(
-      (&std::integral_constant<int, 3>::value),
-      (switch_index<0, 10>([](auto n) { return &decltype(n)::value; }, 3)));
+      (switch_index<0, 10>([](auto n) { return &decltype(n)::value; }, 3)),
+      (&std::integral_constant<int, 3>::value));
 }
-#endif
 
 }  // namespace
 }  // namespace gtl

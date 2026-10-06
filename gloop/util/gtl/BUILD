@@ -636,6 +636,7 @@ cc_test(
     deps = [
         ":switch",
         "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
