@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Apache 2.0 Notice: 2026
+
 # Generic Barrier types as described by <link>++-concurrency#barriers
 
 load("@rules_cc//cc:cc_library.bzl", "cc_library")

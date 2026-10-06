@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // This defines the threadpool backing Fibers. It is used in both the
 // cooperative and non-cooperative case. The thread pool maintains a list of
 // idle threads and a list of active threads. The idle list is used to recycle
