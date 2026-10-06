@@ -26,6 +26,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <syscall.h>
 #include <time.h>
 #include <unistd.h>
@@ -1134,6 +1135,47 @@ TEST(PerCpuSingleThreadedTest, AllocHandle) {
 
   // It is always valid to free an empty handle.
   FreeHandle(NullHandle());
+}
+
+// Returns whether the page containing `p` is resident in memory.
+bool IsResident(const void* p) {
+  const uintptr_t page_size = sysconf(_SC_PAGESIZE);
+  unsigned char vec = 0;
+  CHECK_EQ(mincore(reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(p) &
+                                           ~(page_size - 1)),
+                   page_size, &vec),
+           0);
+  return vec & 1;
+}
+
+TEST(PerCpuSingleThreadedTest, AllocHandleDoesNotFaultPerCpuPages) {
+  // Collect the first handle of 4 newly mapped backings before touching any of
+  // them: each backing's first handle is page-aligned, and its CPU 0 page is
+  // non-resident (whereas recycled handles have a resident CPU 0 freelist
+  // link). Mapping 4 backings up front spans a 2 MiB hugepage boundary.
+  const uintptr_t page_size = sysconf(_SC_PAGESIZE);
+  std::vector<Handle> held;
+  std::vector<Handle> fresh;
+  while (fresh.size() < 4) {
+    ASSERT_LT(held.size(), 1 << 15);
+    Handle h = AllocHandle();
+    held.push_back(h);
+    if (reinterpret_cast<uintptr_t>(h.rep) % page_size == 0 &&
+        !IsResident(GetPointerAtomic(h, 0))) {
+      fresh.push_back(h);
+    }
+  }
+
+  // Writing to CPU 0 should fault only CPU 0's page, not a 2 MiB hugepage
+  // covering other CPUs' pages.
+  for (Handle h : fresh) {
+    GetPointerAtomic(h, 0)->store(1, std::memory_order_relaxed);
+    EXPECT_TRUE(IsResident(GetPointerAtomic(h, 0)));
+    for (int k = 1; k < NumCPUs(); ++k) {
+      ASSERT_FALSE(IsResident(GetPointerAtomic(h, k))) << "CPU " << k;
+    }
+  }
+  for (Handle h : held) FreeHandle(h);
 }
 
 // Test that static locks do the right thing:

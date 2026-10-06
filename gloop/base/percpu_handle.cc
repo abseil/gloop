@@ -128,6 +128,11 @@ static int64_t* AllocateBacking(int num_cpus, int n, int* actual) {
 
   const char kName[] = "percpu_handle_region";
   prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, mem, mmap_length, kName);
+#ifdef MADV_NOHUGEPAGE
+  // Adjacent backings merge into a single VMA; prevent first-touch 2 MiB
+  // hugepages from faulting pages for unused CPUs once the VMA spans >= 2 MiB.
+  madvise(mem, mmap_length, MADV_NOHUGEPAGE);
+#endif
 
   *actual = n;
   return static_cast<int64_t*>(mem);
