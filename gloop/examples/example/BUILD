@@ -22,9 +22,7 @@ cc_library(
         "@gloop//gloop/util/status",
         "@gloop//gloop/util/status:codes_cc_proto",
         "@gloop//gloop/util/status:ret_check",
-        "@gloop//gloop/util/status:status_builder",
         "@gloop//gloop/util/status:status_cc_proto",
-        "@gloop//gloop/util/status:status_macros",
     ],
 )
 
