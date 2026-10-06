@@ -119,6 +119,7 @@
 #include "gloop/base/sysinfo.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
+#include "gloop/perftools/tracing/tracing_base.h"
 
 // Indicates that the base::Context TraceContext API is supported in this build.
 // Otherwise, a nonfunctional TraceContext compatibility shim is provided to
@@ -156,6 +157,17 @@ class TraceContext {
   TraceContext& operator=(TraceContext&&) = default;
   explicit TraceContext(const TraceContext*) {}
   void CopyTo(TraceContext*) const {}
+
+  void ResumeContext(base::ContextAccess, BarrierId,
+                     ::perftools::tracing::StringRef =
+                         ::perftools::tracing::TraceSourceLocation::current()) {
+  }
+  void SuspendContext(
+      base::ContextAccess,
+      ::perftools::tracing::StringRef =
+          ::perftools::tracing::TraceSourceLocation::current()) {}
+  void EndContext(base::ContextAccess) {}
+
   void BeforeSwapCurrent(base::ContextAccess, const TraceContext& to) {}
   void AfterSwapCurrent(
       base::ContextAccess,
@@ -322,6 +334,19 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
   // Copy from this context to *c
   ABSL_DEPRECATE_AND_INLINE()
   void CopyTo(TraceContext* c) const { *c = *this; }
+
+  // See documentation for SyncContext::ResumeContext for details.
+  void ResumeContext(base::ContextAccess, uint64_t barrier_id,
+                     ::perftools::tracing::StringRef label =
+                         ::perftools::tracing::TraceSourceLocation::current());
+
+  // See documentation for SyncContext::SuspendContext for details.
+  void SuspendContext(base::ContextAccess,
+                      ::perftools::tracing::StringRef label =
+                          ::perftools::tracing::TraceSourceLocation::current());
+
+  // See documentation for SyncContext::EndContext for more details.
+  void EndContext(base::ContextAccess);
 
   // `BeforeSwapCurrent()`,`AfterSwapCurrent()`, `BeforeRestoreCurrent()` and
   // `AfterRestoreCurrent()` are invoked right before and after the current
@@ -1085,6 +1110,24 @@ inline void TraceContext::MaybeCopyKtraceAnnotationsFrom(
     }
   }
 #endif
+}
+
+inline void TraceContext::ResumeContext(
+    base::ContextAccess, ::perftools::tracing::BarrierId barrier_id,
+    ::perftools::tracing::StringRef label) {
+  using SyncContextAccess = perftools::tracing::core::SyncContext::Access;
+  sync_context_.ResumeContext(SyncContextAccess(), barrier_id, label);
+}
+
+inline void TraceContext::SuspendContext(
+    base::ContextAccess, ::perftools::tracing::StringRef label) {
+  using SyncContextAccess = perftools::tracing::core::SyncContext::Access;
+  sync_context_.SuspendContext(SyncContextAccess(), label);
+}
+
+inline void TraceContext::EndContext(base::ContextAccess) {
+  using SyncContextAccess = perftools::tracing::core::SyncContext::Access;
+  sync_context_.EndContext(SyncContextAccess());
 }
 
 inline void TraceContext::BeforeSwapCurrent(base::ContextAccess,
