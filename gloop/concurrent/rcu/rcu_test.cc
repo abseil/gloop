@@ -24,9 +24,12 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -51,8 +54,10 @@
 #include "absl/time/time.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/googleinit.h"
+#include "gloop/base/percpu.h"
 #include "gloop/base/signal_util_subtle.h"
 #include "gloop/base/sysinfo.h"
+#include "gloop/concurrent/rcu/pile.h"
 #include "gloop/thread/fiber/fiber-options.h"
 #include "gloop/thread/fiber/fiber.h"
 #include "gloop/thread/thread.h"
@@ -233,6 +238,90 @@ TEST_F(RcuTest, ShrinkPile) {
       d.Synchronize();
     }
   }
+}
+
+void* PageStart(const void* p) {
+  const uintptr_t page_size = sysconf(_SC_PAGESIZE);
+  return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(p) &
+                                 ~(page_size - 1));
+}
+
+bool IsResident(const void* p) {
+  unsigned char vec = 0;
+  CHECK_EQ(mincore(PageStart(p), sysconf(_SC_PAGESIZE), &vec), 0);
+  return vec & 1;
+}
+
+TEST_F(RcuTest, PileDoesNotFaultOrWriteUntouchedCpus) {
+  using ::base::subtle::percpu::AllocHandle;
+  using ::base::subtle::percpu::FreeHandle;
+  using ::base::subtle::percpu::GetPointerAtomic;
+  using ::base::subtle::percpu::Handle;
+
+  // Drain AllocHandle() until it starts a fresh backing, so that pile.Init()
+  // allocates all of its handles from that backing.
+  constexpr size_t kMaxHandles = 1 << 14;
+  const uintptr_t page_size = sysconf(_SC_PAGESIZE);
+  std::vector<Handle> held;
+  Handle probe;
+  do {
+    ASSERT_LT(held.size(), kMaxHandles)
+        << "AllocHandle never returned a fresh handle";
+    probe = AllocHandle();
+    held.push_back(probe);
+  } while (reinterpret_cast<uintptr_t>(probe.rep) % page_size != 0 ||
+           IsResident(GetPointerAtomic(probe, 0)));
+
+  rcu::Pile<int> pile;
+  pile.Init();
+
+  // Pile::Init() must not fault any per-CPU page in the backing.
+  for (int k = 0; k < NumCPUs(); ++k) {
+    EXPECT_FALSE(IsResident(GetPointerAtomic(probe, k))) << "CPU " << k;
+  }
+
+  // Add enough items to span more than one page so slice >= 1 is allocated on
+  // the active CPU and reclaimed across the two idle Iterate() rounds below.
+  constexpr int kNumItems =
+      rcu::PercpuGrowingArray::kPageSize / sizeof(int) + 1;
+  for (int i = 0; i < kNumItems; ++i) {
+    pile.Add(1);
+  }
+
+  // Protect all untouched CPU pages as read-only so any store to n_,
+  // highwater_, or slices_ on an idle CPU during Iterate() faults with SIGSEGV.
+  for (int k = 0; k < NumCPUs(); ++k) {
+    if (!IsResident(GetPointerAtomic(probe, k))) {
+      CHECK_EQ(
+          mprotect(PageStart(GetPointerAtomic(probe, k)), page_size, PROT_READ),
+          0);
+    }
+  }
+
+  static int sum = 0;
+  sum = 0;
+  pile.Iterate(+[](int x) { sum += x; });
+  EXPECT_EQ(sum, kNumItems);
+
+  // After two idle Iterate() rounds, upper slices are freed and highwater_ on
+  // the active CPU(s) returns to 0, so a third idle Iterate() must not write
+  // to any CPU page (including the previously active CPU).
+  pile.Iterate(+[](int) { ADD_FAILURE(); });
+  pile.Iterate(+[](int) { ADD_FAILURE(); });
+  for (int k = 0; k < NumCPUs(); ++k) {
+    CHECK_EQ(
+        mprotect(PageStart(GetPointerAtomic(probe, k)), page_size, PROT_READ),
+        0);
+  }
+  pile.Iterate(+[](int) { ADD_FAILURE(); });
+
+  for (int k = 0; k < NumCPUs(); ++k) {
+    CHECK_EQ(mprotect(PageStart(GetPointerAtomic(probe, k)), page_size,
+                      PROT_READ | PROT_WRITE),
+             0);
+  }
+  pile.Destroy();
+  for (Handle h : held) FreeHandle(h);
 }
 
 #ifdef ABSL_HAVE_LEAK_SANITIZER

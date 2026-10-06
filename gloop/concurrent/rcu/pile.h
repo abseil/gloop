@@ -147,7 +147,10 @@ class Pile {
   PercpuGrowingArray arr_;
 
   ::base::subtle::percpu::Handle n_;  // number of items Added from each CPU
-  // Last slice _unused_ in previous round.
+  // Per CPU, as of the last Iterate():
+  //   0     no slices >= 1 are allocated
+  //   1     idle; slices >= 1 are freed if the next round is also idle
+  //   >= 2  active; first slice unused
   ::base::subtle::percpu::Handle highwater_;
 
   // these are little functions because we can't properly define static consts
@@ -223,10 +226,6 @@ inline void Pile<T>::Init() {
   using ::base::subtle::percpu::AllocHandle;
   n_ = AllocHandle();
   highwater_ = AllocHandle();
-  for (int cpu : Range(tcmalloc::tcmalloc_internal::NumCPUs())) {
-    GetPointerAtomic(highwater_, cpu)
-        ->store(PercpuGrowingArray::kNumSlices, std::memory_order_relaxed);
-  }
   arr_.Init();
 }
 
@@ -281,31 +280,41 @@ inline void Pile<T>::Iterate(void (*f)(T t)) {
   const size_t kItemsPerPage = items_per_page();
   for (int cpu : Range(tcmalloc::tcmalloc_internal::NumCPUs())) {
     size_t n = GetPointerAtomic(n_, cpu)->load(std::memory_order_relaxed);
-    size_t page_end = n / kItemsPerPage + 1;
-    size_t remaining = n;
-    for (size_t page = 0; page < page_end; ++page) {
-      T* p = static_cast<T*>(arr_.GetPage(page, cpu));
-      size_t limit = remaining < kItemsPerPage ? remaining : kItemsPerPage;
-      for (size_t j = 0; j < limit; ++j) {
-        f(p[j]);
-      }
-      remaining -= limit;
+    size_t high =
+        GetPointerAtomic(highwater_, cpu)->load(std::memory_order_relaxed);
+    if (n == 0 && high == 0) {
+      continue;
     }
-    if (remaining != 0) {
-      ABSL_RAW_LOG(DFATAL, "Unexpected remainder of %zd found: %zd %zd %zd",
-                   remaining, n, page_end, kItemsPerPage);
+    if (n != 0) {
+      size_t page_end = n / kItemsPerPage + 1;
+      size_t remaining = n;
+      for (size_t page = 0; page < page_end; ++page) {
+        T* p = static_cast<T*>(arr_.GetPage(page, cpu));
+        size_t limit = remaining < kItemsPerPage ? remaining : kItemsPerPage;
+        for (size_t j = 0; j < limit; ++j) {
+          f(p[j]);
+        }
+        remaining -= limit;
+      }
+      if (remaining != 0) {
+        ABSL_RAW_LOG(DFATAL, "Unexpected remainder of %zd found: %zd %zd %zd",
+                     remaining, n, page_end, kItemsPerPage);
+      }
+      GetPointerAtomic(n_, cpu)->store(0, std::memory_order_relaxed);
     }
     // Slices past n and highwater haven't been used for 2
     // iterations. Get rid of them.
-    size_t high =
-        GetPointerAtomic(highwater_, cpu)->load(std::memory_order_relaxed);
+    // A highwater_ value of 0 means no slices >= 1 are allocated.
     size_t unused = arr_.PageToSlice(n) + 1;
-    for (int i = std::max(unused, high); i < PercpuGrowingArray::kNumSlices;
-         ++i) {
-      arr_.FreeSlice(i, cpu);
+    if (high != 0) {
+      for (int i = std::max(unused, high); i < PercpuGrowingArray::kNumSlices;
+           ++i) {
+        arr_.FreeSlice(i, cpu);
+      }
     }
-    GetPointerAtomic(highwater_, cpu)->store(unused, std::memory_order_relaxed);
-    GetPointerAtomic(n_, cpu)->store(0, std::memory_order_relaxed);
+    size_t next_high = (n == 0 && high == 1) ? 0 : unused;
+    GetPointerAtomic(highwater_, cpu)
+        ->store(next_high, std::memory_order_relaxed);
   }
 }
 
