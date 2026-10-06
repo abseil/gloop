@@ -50,6 +50,32 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+// Defined outside namespace gtl and the anonymous namespace to allow
+// std::tuple_size and std::tuple_element specializations.
+struct TupleLike {
+  int value;
+
+  bool operator==(const TupleLike& rhs) const { return value == rhs.value; }
+};
+
+template <std::size_t>
+const int& get(const TupleLike& t) {
+  return t.value;
+}
+
+namespace std {
+
+template <>
+struct tuple_size<TupleLike> : integral_constant<size_t, 1> {};
+
+template <>
+struct tuple_element<0, TupleLike> {
+  using type = int;
+};
+
+}  // namespace std
+
+namespace gtl {
 namespace {
 
 using ::testing::ElementsAre;
@@ -58,36 +84,6 @@ using ::testing::NanSensitiveFloatEq;
 using ::testing::Pair;
 using ::testing::Pointee;
 using ::testing::Pointwise;
-
-// The following using declarations ensure that the methods defined in
-// comparator.h are in the right namespace.
-
-// Extractors.
-using ::gtl::ExtractIdentity;
-using ::gtl::ExtractPointee;
-using ::gtl::First;
-using ::gtl::Second;
-using ::gtl::Size;
-using ::gtl::TupleElement;
-
-// Atomic comparators.
-using ::gtl::Greater;
-using ::gtl::Less;
-using ::gtl::NanFirstGreater;
-using ::gtl::NanFirstLess;
-
-// Composite comparators.
-using ::gtl::ChainComparators;
-using ::gtl::LexicographicalComparator;
-using ::gtl::OrderBy;
-using ::gtl::OrderByFirst;
-using ::gtl::OrderByFirstGreater;
-using ::gtl::OrderByPointee;
-using ::gtl::OrderBySecond;
-using ::gtl::OrderBySecondGreater;
-using ::gtl::OrderByTupleElement;
-using ::gtl::OrderByTupleElementGreater;
-using ::gtl::Reverse;
 
 using StringInt = std::pair<std::string, int>;
 
@@ -296,33 +292,6 @@ TEST(OrderByTupleElementTest, Works) {
       v, ElementsAre(StringInt("a", 3), StringInt("b", 1), StringInt("c", 2)));
 }
 
-struct TupleLike {
-  int value;
-
-  bool operator==(const TupleLike& rhs) const { return value == rhs.value; }
-};
-
-template <size_t>
-const int& get(const TupleLike& t) {
-  return t.value;
-}
-
-}  // namespace
-
-namespace std {
-
-template <>
-struct tuple_size<TupleLike> : std::integral_constant<std::size_t, 1> {};
-
-template <>
-struct tuple_element<0, TupleLike> {
-  using type = int;
-};
-
-}  // namespace std
-
-namespace {
-
 TEST(OrderByTupleElementTest, WorksWithTupleLikeObjects) {
   std::vector<TupleLike> v = {{3}, {2}};
 
@@ -423,7 +392,7 @@ TEST(ReverseTest, CompareWorks) {
   EXPECT_LE(cmp.Compare(str("x"), str("y")), 0);
 
   EXPECT_GT(base.Compare(str("xx"), str("y")), 0);
-  EXPECT_GT(base.Compare(str("xx"), str("y")), 0);
+  EXPECT_GE(base.Compare(str("xx"), str("y")), 0);
   EXPECT_LT(cmp.Compare(str("xx"), str("y")), 0);
   EXPECT_LE(cmp.Compare(str("xx"), str("y")), 0);
 }
@@ -450,7 +419,7 @@ TEST(OrderByPropertyTest, ChainComparators) {
 
 TEST(LexicographicalComparatorTest, Works) {
   std::vector<std::vector<int>> v{{1, 2, 3}, {3}, {2}, {1, 2, 1}, {}, {1, 2}};
-  std::sort(v.begin(), v.end(), gtl::LexicographicalComparator());
+  std::sort(v.begin(), v.end(), LexicographicalComparator());
   EXPECT_THAT(
       v, ElementsAre(ElementsAre(), ElementsAre(1, 2), ElementsAre(1, 2, 1),
                      ElementsAre(1, 2, 3), ElementsAre(2), ElementsAre(3)));
@@ -458,7 +427,7 @@ TEST(LexicographicalComparatorTest, Works) {
 
 TEST(LexicographicalComparatorTest, WorksNoMake) {
   std::vector<std::vector<int>> v{{1, 2, 3}, {3}, {2}, {1, 2, 1}, {}, {1, 2}};
-  std::sort(v.begin(), v.end(), gtl::LexicographicalComparator());
+  std::sort(v.begin(), v.end(), LexicographicalComparator());
   EXPECT_THAT(
       v, ElementsAre(ElementsAre(), ElementsAre(1, 2), ElementsAre(1, 2, 1),
                      ElementsAre(1, 2, 3), ElementsAre(2), ElementsAre(3)));
@@ -466,7 +435,7 @@ TEST(LexicographicalComparatorTest, WorksNoMake) {
 
 TEST(LexicographicalComparatorTest, WorksWithInnerComparator) {
   std::vector<std::vector<int>> v{{1, 2, 3}, {3}, {2}, {1, 2, 1}, {}, {1, 2}};
-  std::sort(v.begin(), v.end(), gtl::LexicographicalComparator(Greater()));
+  std::sort(v.begin(), v.end(), LexicographicalComparator(Greater()));
   EXPECT_THAT(v, ElementsAre(ElementsAre(), ElementsAre(3), ElementsAre(2),
                              ElementsAre(1, 2), ElementsAre(1, 2, 3),
                              ElementsAre(1, 2, 1)));
@@ -474,7 +443,7 @@ TEST(LexicographicalComparatorTest, WorksWithInnerComparator) {
 
 TEST(LexicographicalComparatorTest, ObjectWorksWithInnerComparator) {
   std::vector<std::vector<int>> v{{1, 2, 3}, {3}, {2}, {1, 2, 1}, {}, {1, 2}};
-  std::sort(v.begin(), v.end(), gtl::LexicographicalComparator(Greater()));
+  std::sort(v.begin(), v.end(), LexicographicalComparator(Greater()));
   EXPECT_THAT(v, ElementsAre(ElementsAre(), ElementsAre(3), ElementsAre(2),
                              ElementsAre(1, 2), ElementsAre(1, 2, 3),
                              ElementsAre(1, 2, 1)));
@@ -486,7 +455,7 @@ TEST(LexicographicalComparatorTest, VectorCustomSortExample) {
                                            {{2, 5}, {1, 6}, {2, 7}, {3, 8}},
                                            {{0, 9}, {0, 10}}};
   std::sort(std::begin(va), std::end(va),
-            gtl::LexicographicalComparator(OrderByFirst()));
+            LexicographicalComparator(OrderByFirst()));
   EXPECT_THAT(va, ElementsAre(ElementsAre(Pair(0, 9), Pair(0, 10)),
                               ElementsAre(Pair(1, 1), Pair(2, 2), Pair(3, 3)),
                               ElementsAre(Pair(2, 5), Pair(1, 6), Pair(2, 7),
@@ -571,7 +540,7 @@ class Derived : public Base {
   std::string z;
 };
 
-void PrintTo(const Derived& d, ::std::ostream* os) {
+void PrintTo(const Derived& d, std::ostream* os) {
   *os << "s: " << d.s() << " x: " << d.x() << " y: " << d.y << " z: " << d.z;
 }
 
@@ -591,9 +560,8 @@ TEST(OrderByPointeeTest, ExtractPointeeWithOrderBy) {
 }
 
 TEST(OrderByPointeeTest, Type) {
-  static_assert(std::is_same<decltype(OrderByPointee(Greater{})),
-                             OrderBy<ExtractPointee, Greater>>(),
-                "");
+  static_assert(std::is_same_v<decltype(OrderByPointee(Greater{})),
+                               OrderBy<ExtractPointee, Greater>>);
 }
 
 TEST(OrderByPointeeTest, OrderByPointee) {
@@ -818,7 +786,7 @@ TEST(ChainComparatorsTest, CompareTernary) {
   EXPECT_GT(cmp.Compare(X{2, 2}, X{1, 2}), 0);
 }
 
-TEST(ChainComparatorTest, WithCustom3wayCompare) {
+TEST(ChainComparatorsTest, WithCustom3wayCompare) {
   struct X {
     int x;
     std::string y;
@@ -1239,20 +1207,20 @@ TEST(VariousComparatorsTest, Constexpr) {
   };
   constexpr auto cmp = ChainComparators(
       OrderBy(&S::a), OrderBy(&S::get_b), OrderBy(&S::c, OrderByFirst()),
-      OrderBy(&S::d, gtl::LexicographicalComparator()));
+      OrderBy(&S::d, LexicographicalComparator()));
   EXPECT_TRUE(cmp(S{1, 2, {3, 4}, {1, 2, 3}}, S{4, 3, {2, 1}, {1, 2, 4}}));
 }
 
-TEST(VariousComparatorTest, MultiplyNested) {
+TEST(VariousComparatorsTest, MultiplyNested) {
   std::array<std::array<int, 3>, 3> a{}, b{};
   int n = 0;
   auto cmp1 = [&n](int x, int y) {
     ++n;
     return x < y;
   };
-  auto cmp2 = gtl::LexicographicalComparator(cmp1);
+  auto cmp2 = LexicographicalComparator(cmp1);
   auto cmp3 = ChainComparators(cmp2, cmp2, cmp2);
-  auto cmp4 = gtl::LexicographicalComparator(cmp3);
+  auto cmp4 = LexicographicalComparator(cmp3);
   auto cmp5 = ChainComparators(cmp4, cmp4, cmp4);
   EXPECT_FALSE(cmp5(a, b));
   EXPECT_EQ(n, 3 * 3 * 3 * 3 * 2);
@@ -1261,7 +1229,7 @@ TEST(VariousComparatorTest, MultiplyNested) {
   EXPECT_EQ(n, 3 * 3 * 3 * 3 * 2);
 }
 
-TEST(VariousComparatorTest, MultiplyNestedWithCustom3WayCompare) {
+TEST(VariousComparatorsTest, MultiplyNestedWithCustom3WayCompare) {
   struct CanaryCmp {
     int* n_2way;
     int* n_3way;
@@ -1280,9 +1248,9 @@ TEST(VariousComparatorTest, MultiplyNestedWithCustom3WayCompare) {
   int n_2way = 0;
   int n_3way = 0;
   CanaryCmp cmp1{&n_2way, &n_3way};
-  auto cmp2 = gtl::LexicographicalComparator(cmp1);
+  auto cmp2 = LexicographicalComparator(cmp1);
   auto cmp3 = ChainComparators(cmp2, cmp2, cmp2);
-  auto cmp4 = gtl::LexicographicalComparator(cmp3);
+  auto cmp4 = LexicographicalComparator(cmp3);
   auto cmp5 = ChainComparators(cmp4, cmp4, cmp4);
   EXPECT_FALSE(cmp5(a, b));
   EXPECT_EQ(n_2way, 0);
@@ -1293,7 +1261,7 @@ TEST(VariousComparatorTest, MultiplyNestedWithCustom3WayCompare) {
   EXPECT_EQ(n_3way, 3 * 3 * 3 * 3);
 }
 
-TEST(VariousComparatorTest, DefaultConstructible) {
+TEST(VariousComparatorsTest, DefaultConstructible) {
   struct SimpleExtractor {
     int operator()(int) const { return 0; }
   };
@@ -1317,7 +1285,7 @@ TEST(VariousComparatorTest, DefaultConstructible) {
   static_assert(std::is_default_constructible_v<decltype(cmp5)>);
 }
 
-TEST(VariousComparatorTest, NotDefaultConstructible) {
+TEST(VariousComparatorsTest, NotDefaultConstructible) {
   struct SimpleExtractor {
     int operator()(int) const { return 0; }
   };
@@ -1400,7 +1368,7 @@ void BM_LexicographicalComparatorSort(benchmark::State& state,
     std::generate(item.begin(), item.end(), generator);
     return item;
   };
-  auto cmp = gtl::LexicographicalComparator();
+  auto cmp = LexicographicalComparator();
   BM_Sort<Item>(state, gen, cmp);
 }
 
@@ -1430,3 +1398,4 @@ BENCHMARK(BM_LexicographicalComparatorIntSort);
 BENCHMARK(BM_LexicographicalComparatorStringSort);
 
 }  // namespace
+}  // namespace gtl
