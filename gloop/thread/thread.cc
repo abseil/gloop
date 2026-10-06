@@ -81,6 +81,7 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/base/casts.h"
 #include "absl/base/const_init.h"
 #include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/direct_mmap.h"  // For direct mmap
@@ -474,9 +475,18 @@ void Thread::set_nice_priority_level(int level) {
 
 namespace {
 
+// Rounds down size to the lower multiple of page size.
+size_t RoundDownToPageSize(size_t size) {
+  size_t page_size = static_cast<size_t>(getpagesize());
+  DCHECK(absl::has_single_bit(page_size));
+  return size & ~(page_size - 1);
+}
+
+// Rounds down size to the next multiple of page size.
 size_t RoundUpToPageSize(size_t size) {
   size_t page_size = static_cast<size_t>(getpagesize());
-  return (size + page_size - 1) & ~(page_size - 1);
+  DCHECK(absl::has_single_bit(page_size));
+  return RoundDownToPageSize(size + page_size - 1);
 }
 
 // Return the minimum valid stack size that can be passed to
@@ -1501,8 +1511,9 @@ void* Thread::ThreadBody(void* arg) {
   // Retrieve the current thread's stack and annotate it with a named VMA to
   // make stack identification in profiles/mappings tractable.
   if (size_t lo, hi; GoogleGetThreadStackLowHigh(&lo, &hi)) {
+    const size_t stack_top = hi + sizeof(size_t);
+    const size_t stacksize = stack_top - lo;
     const void* stackaddr = reinterpret_cast<const void*>(lo);
-    const size_t stacksize = GoogleGetThreadStackSize();
 
     // Upperbound of what we need, but the kernel allows a longer name.
     char thread_stack_name[32];
@@ -1510,6 +1521,30 @@ void* Thread::ThreadBody(void* arg) {
                    thread_info->thread_id_);
     prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, stackaddr, stacksize,
           thread_stack_name);
+
+    const size_t tls_size = GetTLSSize();
+    if (tls_size > 0 && tls_size <= stacksize) {
+#if defined(__x86_64__) || defined(__i386__)
+      // On x86, the thread pointer defines the high end of the TCB (variant 2
+      // defined in https://www.uclibc.org/docs/tls.pdf).
+      uintptr_t tls_lo = stack_top - tls_size;
+      uintptr_t tls_hi = absl::bit_cast<uintptr_t>(__builtin_thread_pointer());
+#else
+      // Other platforms relevant to Gloop use TLS variant 1.
+      uintptr_t tls_lo = absl::bit_cast<uintptr_t>(__builtin_thread_pointer());
+      uintptr_t tls_hi = tls_lo + tls_size;
+#endif
+      // Only annotate pages that are entirely TLS variables so we do not split
+      // the VMA containing the active call stack.
+      tls_lo = RoundUpToPageSize(tls_lo);
+      tls_hi = RoundDownToPageSize(tls_hi);
+      if (tls_lo < tls_hi) {
+        absl::SNPrintF(thread_stack_name, sizeof(thread_stack_name), "tls:%u",
+                       thread_info->thread_id_);
+        prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, tls_lo, tls_hi - tls_lo,
+              thread_stack_name);
+      }
+    }
   }
 #endif  // HAVE_GOOGLE_THREAD_STACK
 

@@ -18,9 +18,10 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+#include <pthread.h>
+
 #include <cstdint>
 #include <string>
-#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "gloop/base/proc_maps.h"
