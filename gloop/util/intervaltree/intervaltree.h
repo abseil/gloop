@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // Container class for managing sets of intervals.
 // Each interval is a (begin, end, value) tuples.
 //

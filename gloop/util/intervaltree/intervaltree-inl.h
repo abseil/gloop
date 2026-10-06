@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // Inline methods, not meant to be included by client code.
 
 #ifndef THIRD_PARTY_GLOOP_UTIL_INTERVALTREE_INTERVALTREE_INL_H_

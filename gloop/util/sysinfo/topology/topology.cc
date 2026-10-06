@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // Interface to the CPU and memory node topology of a system.
 
 #include "gloop/util/sysinfo/topology/topology.h"

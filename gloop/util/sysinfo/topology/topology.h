@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // Interface to the CPU and memory bank topology of a system.
 
 #ifndef THIRD_PARTY_GLOOP_UTIL_SYSINFO_TOPOLOGY_TOPOLOGY_H_
