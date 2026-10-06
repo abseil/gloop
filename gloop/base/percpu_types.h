@@ -135,26 +135,29 @@ class ABSL_LOCKABLE PerCpuSpinLock {
       return AnnotateAcquiredCpuForTsan(
           RseqFunction_PerCpuTryLock(RseqAbi(), percpu_lock_, lock_value));
     } else {
-      // We wrap this in a lambda so that we can move it out-of-line, since we
-      // expect this path to be very cold.
-      return [=, this]() ABSL_ATTRIBUTE_COLD {
-        // This may force percpu initialization; the fast path in TryLockImpl()
-        // uses IsFastNoInit().
-        if (percpu::IsFast()) {
-          return AnnotateAcquiredCpuForTsan(
-              RseqFunction_PerCpuTryLock(RseqAbi(), percpu_lock_, lock_value));
-        } else {
-          const int cpu = GetCurrentCpu();
-          int64_t previous = 0;
-          if (GetPointerAtomic(percpu_lock_, cpu)
-                  ->compare_exchange_strong(previous, lock_value,
-                                            std::memory_order_acquire,
-                                            std::memory_order_relaxed)) {
-            return cpu;
+      // We move this out-of-line since we expect this path to be very cold.
+      struct Impl {
+        ABSL_ATTRIBUTE_COLD static int Invoke(PerCpuSpinLock* self,
+                                              int64_t lock_value) {
+          // This may force percpu initialization; the fast path in
+          // TryLockImpl() uses IsFastNoInit().
+          if (percpu::IsFast()) {
+            return self->AnnotateAcquiredCpuForTsan(RseqFunction_PerCpuTryLock(
+                RseqAbi(), self->percpu_lock_, lock_value));
+          } else {
+            const int cpu = GetCurrentCpu();
+            int64_t previous = 0;
+            if (GetPointerAtomic(self->percpu_lock_, cpu)
+                    ->compare_exchange_strong(previous, lock_value,
+                                              std::memory_order_acquire,
+                                              std::memory_order_relaxed)) {
+              return cpu;
+            }
+            return -1;
           }
-          return -1;
         }
-      }();
+      };
+      return Impl::Invoke(this, lock_value);
     }
   }
 
@@ -178,20 +181,23 @@ class ABSL_LOCKABLE PerCpuSpinLock {
     if (ABSL_PREDICT_TRUE(result >= 0)) {
       return result;
     }
-    // We wrap this in a lambda so that we can move it out-of-line, since we
-    // expect this path to be very cold.
-    return [=]() ABSL_ATTRIBUTE_COLD {
+    // We move this out-of-line since we expect this path to be very cold.
+    struct Impl {
+      ABSL_ATTRIBUTE_COLD static int Invoke(TryLocker try_lock,
+                                            int64_t lock_value) {
 #ifdef ABSL_HAVE_SCHED_YIELD
-      sched_yield();
+        sched_yield();
 #endif
-      int iteration = 1;
-      int result;
-      do {
-        Delay(iteration++);
-        result = try_lock(lock_value);
-      } while (result < 0);
-      return result;
-    }();
+        int iteration = 1;
+        int result;
+        do {
+          Delay(iteration++);
+          result = try_lock(lock_value);
+        } while (result < 0);
+        return result;
+      }
+    };
+    return Impl::Invoke(std::forward<TryLocker>(try_lock), lock_value);
   }
 
   // Delays for iteration number `iteration`.

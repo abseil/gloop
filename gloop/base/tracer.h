@@ -1334,7 +1334,7 @@ class Tracer {
   // Slow path for Unref(), which calls OnRefCountZero() if no stop
   // time has been set. Returns a unique_ptr to the tracer if it is ready
   // to be deallocated.
-  std::unique_ptr<Tracer> UnrefSlow() ABSL_ATTRIBUTE_COLD;
+  ABSL_ATTRIBUTE_COLD std::unique_ptr<Tracer> UnrefSlow();
 
   // Attributes of this trace span.
   uint64_t span_id_ = 0;
