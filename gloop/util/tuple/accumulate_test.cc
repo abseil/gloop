@@ -20,8 +20,7 @@
 
 #include "gloop/util/tuple/accumulate.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -30,22 +29,22 @@
 #include "gloop/util/tuple/int_pack.h"
 #include "gloop/util/tuple/push_front.h"
 #include "gloop/util/tuple/test_util.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace util {
 namespace tuple {
 namespace {
 
-using ::std::make_tuple;
-using ::std::tuple;
+using ::testing::Ref;
 
 // This indirection is needed to work around a certain gcc bug.
 //
 //  template <int... Is>
 //  void Foo() {
-//    typedef decltype(make_tuple(Is...)) T;
+//    typedef decltype(std::make_tuple(Is...)) T;
 //    // Fails when compiled with GCC.
-//    static_assert(is_same<T, tuple<>>::value, "");
+//    static_assert(is_same<T, std::tuple<>>::value, "");
 //  }
 //
 //  Foo<>();
@@ -53,53 +52,53 @@ using ::std::tuple;
 // See <internal thread>.
 //
 // TODO: Remove this struct when the bug is fixed.
-template <::size_t N>
+template <size_t N>
 struct MakeSizeT {
-  typedef size_t type;
+  using type = size_t;
 };
 
-template <::size_t... N>
-tuple<typename MakeSizeT<N>::type...> ToTuple(int_pack<N...> pack) {
-  return make_tuple(N...);
+template <size_t... N>
+std::tuple<typename MakeSizeT<N>::type...> ToTuple(int_pack<N...> pack) {
+  return std::make_tuple(N...);
 }
 
-template <::size_t N>
+template <size_t N>
 decltype(ToTuple(make_int_pack<0, N>())) MakeTuple() {
   return ToTuple(make_int_pack<0, N>());
 }
 
-template <::size_t N, class T>
-decltype(push_front(MakeTuple<N>(), ::std::declval<T>())) MakeTuple(T first) {
+template <size_t N, class T>
+decltype(push_front(MakeTuple<N>(), std::declval<T>())) MakeTuple(T first) {
   return push_front(MakeTuple<N>(), first);
 }
 
 template <class T>
 struct ToValueTuple;
 
-template <::size_t... N>
+template <size_t... N>
 struct ToValueTuple<int_pack<N...>> {
-  typedef tuple<TestValues::Value<N>...> type;
+  using type = std::tuple<TestValues::Value<N>...>;
 };
 
-template <::size_t N>
+template <size_t N>
 struct MakeValueTuple : ToValueTuple<typename make_int_pack<0, N>::type> {};
 
 TEST(MakeTuple, Functional) {
   // Test for the test helper MakeTuple<N>().
-  EXPECT_EQ(make_tuple(), MakeTuple<0>());
-  EXPECT_EQ(make_tuple(0), MakeTuple<1>());
-  EXPECT_EQ(make_tuple(0, 1), MakeTuple<2>());
+  EXPECT_EQ(MakeTuple<0>(), std::make_tuple());
+  EXPECT_EQ(MakeTuple<1>(), std::make_tuple(0));
+  EXPECT_EQ(MakeTuple<2>(), std::make_tuple(0, 1));
 
-  EXPECT_EQ(make_tuple(0.5), MakeTuple<0>(0.5));
-  EXPECT_EQ(make_tuple(0.5, 0), MakeTuple<1>(0.5));
-  EXPECT_EQ(make_tuple(0.5, 0, 1), MakeTuple<2>(0.5));
+  EXPECT_EQ(MakeTuple<0>(0.5), std::make_tuple(0.5));
+  EXPECT_EQ(MakeTuple<1>(0.5), std::make_tuple(0.5, 0));
+  EXPECT_EQ(MakeTuple<2>(0.5), std::make_tuple(0.5, 0, 1));
 }
 
 class AccumulateIndex : public TestValues {};
 
 struct AppendIndex {
-  template <::size_t I, class T>
-  ::std::string operator()(::std::string state, const T& value) const {
+  template <size_t I, class T>
+  std::string operator()(std::string state, const T& value) const {
     if (!state.empty()) state.push_back(' ');
     absl::StrAppend(&state, I, " ", value);
     return state;
@@ -107,37 +106,41 @@ struct AppendIndex {
 };
 
 TEST_F(AccumulateIndex, ReturnByValue) {
-  EXPECT_EQ("N",
-            accumulate_index(AppendIndex(), make_tuple(), std::string("N")));
-  EXPECT_EQ("N 0 42", accumulate_index(AppendIndex(), make_tuple(42), "N"));
-  EXPECT_EQ("N 0 42 1 hello",
-            accumulate_index(AppendIndex(), make_tuple(42, "hello"), "N"));
+  EXPECT_EQ(
+      accumulate_index(AppendIndex(), std::make_tuple(), std::string("N")),
+      "N");
+  EXPECT_EQ(accumulate_index(AppendIndex(), std::make_tuple(42), "N"),
+            "N 0 42");
+  EXPECT_EQ(accumulate_index(AppendIndex(), std::make_tuple(42, "hello"), "N"),
+            "N 0 42 1 hello");
 
-  EXPECT_EQ("N 0 0 1 1 2 2 3 3 4 4 5 5 6 6 7 7 8 8",
-            accumulate_index(AppendIndex(), MakeTuple<9>(), "N"));
-  EXPECT_EQ("N 0 0 1 1 2 2 3 3 4 4 5 5 6 6 7 7 8 8 9 9",
-            accumulate_index(AppendIndex(), MakeTuple<10>(), "N"));
-  EXPECT_EQ("N 0 0 1 1 2 2 3 3 4 4 5 5 6 6 7 7 8 8 9 9 10 10",
-            accumulate_index(AppendIndex(), MakeTuple<11>(), "N"));
+  EXPECT_EQ(accumulate_index(AppendIndex(), MakeTuple<9>(), "N"),
+            "N 0 0 1 1 2 2 3 3 4 4 5 5 6 6 7 7 8 8");
+  EXPECT_EQ(accumulate_index(AppendIndex(), MakeTuple<10>(), "N"),
+            "N 0 0 1 1 2 2 3 3 4 4 5 5 6 6 7 7 8 8 9 9");
+  EXPECT_EQ(accumulate_index(AppendIndex(), MakeTuple<11>(), "N"),
+            "N 0 0 1 1 2 2 3 3 4 4 5 5 6 6 7 7 8 8 9 9 10 10");
 }
 
 TEST_F(AccumulateIndex, ReturnByValueShortcut) {
-  EXPECT_EQ("N", accumulate_index(AppendIndex(), make_tuple(std::string("N"))));
-  EXPECT_EQ("N 1 42", accumulate_index(AppendIndex(), make_tuple("N", 42)));
-  EXPECT_EQ("N 1 42 2 hello",
-            accumulate_index(AppendIndex(), make_tuple("N", 42, "hello")));
+  EXPECT_EQ(accumulate_index(AppendIndex(), std::make_tuple(std::string("N"))),
+            "N");
+  EXPECT_EQ(accumulate_index(AppendIndex(), std::make_tuple("N", 42)),
+            "N 1 42");
+  EXPECT_EQ(accumulate_index(AppendIndex(), std::make_tuple("N", 42, "hello")),
+            "N 1 42 2 hello");
 
-  EXPECT_EQ("N 1 0 2 1 3 2 4 3 5 4 6 5 7 6 8 7 9 8",
-            accumulate_index(AppendIndex(), MakeTuple<9>("N")));
-  EXPECT_EQ("N 1 0 2 1 3 2 4 3 5 4 6 5 7 6 8 7 9 8 10 9",
-            accumulate_index(AppendIndex(), MakeTuple<10>("N")));
-  EXPECT_EQ("N 1 0 2 1 3 2 4 3 5 4 6 5 7 6 8 7 9 8 10 9 11 10",
-            accumulate_index(AppendIndex(), MakeTuple<11>("N")));
+  EXPECT_EQ(accumulate_index(AppendIndex(), MakeTuple<9>("N")),
+            "N 1 0 2 1 3 2 4 3 5 4 6 5 7 6 8 7 9 8");
+  EXPECT_EQ(accumulate_index(AppendIndex(), MakeTuple<10>("N")),
+            "N 1 0 2 1 3 2 4 3 5 4 6 5 7 6 8 7 9 8 10 9");
+  EXPECT_EQ(accumulate_index(AppendIndex(), MakeTuple<11>("N")),
+            "N 1 0 2 1 3 2 4 3 5 4 6 5 7 6 8 7 9 8 10 9 11 10");
 }
 
 template <class State>
 struct IdentityIndex {
-  template <::size_t I, class T>
+  template <size_t I, class T>
   State& operator()(State& state, const T& value) const {
     return state;
   }
@@ -145,95 +148,101 @@ struct IdentityIndex {
 
 TEST_F(AccumulateIndex, ReturnStateByReference) {
   int n = 0;
-  EXPECT_EQ(&n, &accumulate_index(IdentityIndex<int>(), MakeTuple<0>(), n));
-  EXPECT_EQ(&n, &accumulate_index(IdentityIndex<int>(), MakeTuple<1>(), n));
-  EXPECT_EQ(&n, &accumulate_index(IdentityIndex<int>(), MakeTuple<2>(), n));
-  EXPECT_EQ(&n, &accumulate_index(IdentityIndex<int>(), MakeTuple<9>(), n));
-  EXPECT_EQ(&n, &accumulate_index(IdentityIndex<int>(), MakeTuple<10>(), n));
-  EXPECT_EQ(&n, &accumulate_index(IdentityIndex<int>(), MakeTuple<11>(), n));
+  EXPECT_THAT(accumulate_index(IdentityIndex<int>(), MakeTuple<0>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate_index(IdentityIndex<int>(), MakeTuple<1>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate_index(IdentityIndex<int>(), MakeTuple<2>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate_index(IdentityIndex<int>(), MakeTuple<9>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate_index(IdentityIndex<int>(), MakeTuple<10>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate_index(IdentityIndex<int>(), MakeTuple<11>(), n),
+              Ref(n));
 
-  EXPECT_EQ(&n,
-            &accumulate_index(IdentityIndex<const int>(), MakeTuple<0>(), n));
-  EXPECT_EQ(&n,
-            &accumulate_index(IdentityIndex<const int>(), MakeTuple<1>(), n));
-  EXPECT_EQ(&n,
-            &accumulate_index(IdentityIndex<const int>(), MakeTuple<2>(), n));
-  EXPECT_EQ(&n,
-            &accumulate_index(IdentityIndex<const int>(), MakeTuple<9>(), n));
-  EXPECT_EQ(&n,
-            &accumulate_index(IdentityIndex<const int>(), MakeTuple<10>(), n));
-  EXPECT_EQ(&n,
-            &accumulate_index(IdentityIndex<const int>(), MakeTuple<11>(), n));
+  EXPECT_THAT(accumulate_index(IdentityIndex<const int>(), MakeTuple<0>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate_index(IdentityIndex<const int>(), MakeTuple<1>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate_index(IdentityIndex<const int>(), MakeTuple<2>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate_index(IdentityIndex<const int>(), MakeTuple<9>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate_index(IdentityIndex<const int>(), MakeTuple<10>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate_index(IdentityIndex<const int>(), MakeTuple<11>(), n),
+              Ref(n));
 }
 
 TEST_F(AccumulateIndex, ReturnStateByReferenceShortcut) {
   auto t1 = MakeTuple<1>();
-  EXPECT_EQ(&get<0>(t1), &accumulate_index(IdentityIndex<::size_t>(), t1));
+  EXPECT_THAT(accumulate_index(IdentityIndex<size_t>(), t1), Ref(get<0>(t1)));
   auto t2 = MakeTuple<2>();
-  EXPECT_EQ(&get<0>(t2), &accumulate_index(IdentityIndex<::size_t>(), t2));
+  EXPECT_THAT(accumulate_index(IdentityIndex<size_t>(), t2), Ref(get<0>(t2)));
   auto t3 = MakeTuple<3>();
-  EXPECT_EQ(&get<0>(t3), &accumulate_index(IdentityIndex<::size_t>(), t3));
+  EXPECT_THAT(accumulate_index(IdentityIndex<size_t>(), t3), Ref(get<0>(t3)));
   auto t10 = MakeTuple<10>();
-  EXPECT_EQ(&get<0>(t10), &accumulate_index(IdentityIndex<::size_t>(), t10));
+  EXPECT_THAT(accumulate_index(IdentityIndex<size_t>(), t10), Ref(get<0>(t10)));
   auto t12 = MakeTuple<12>();
-  EXPECT_EQ(&get<0>(t12), &accumulate_index(IdentityIndex<::size_t>(), t12));
+  EXPECT_THAT(accumulate_index(IdentityIndex<size_t>(), t12), Ref(get<0>(t12)));
   auto t11 = MakeTuple<11>();
-  EXPECT_EQ(&get<0>(t11), &accumulate_index(IdentityIndex<::size_t>(), t11));
+  EXPECT_THAT(accumulate_index(IdentityIndex<size_t>(), t11), Ref(get<0>(t11)));
 
-  EXPECT_EQ(&get<0>(t1),
-            &accumulate_index(IdentityIndex<const ::size_t>(), t1));
-  EXPECT_EQ(&get<0>(t2),
-            &accumulate_index(IdentityIndex<const ::size_t>(), t2));
-  EXPECT_EQ(&get<0>(t3),
-            &accumulate_index(IdentityIndex<const ::size_t>(), t3));
-  EXPECT_EQ(&get<0>(t10),
-            &accumulate_index(IdentityIndex<const ::size_t>(), t10));
-  EXPECT_EQ(&get<0>(t12),
-            &accumulate_index(IdentityIndex<const ::size_t>(), t12));
-  EXPECT_EQ(&get<0>(t11),
-            &accumulate_index(IdentityIndex<const ::size_t>(), t11));
+  EXPECT_THAT(accumulate_index(IdentityIndex<const size_t>(), t1),
+              Ref(get<0>(t1)));
+  EXPECT_THAT(accumulate_index(IdentityIndex<const size_t>(), t2),
+              Ref(get<0>(t2)));
+  EXPECT_THAT(accumulate_index(IdentityIndex<const size_t>(), t3),
+              Ref(get<0>(t3)));
+  EXPECT_THAT(accumulate_index(IdentityIndex<const size_t>(), t10),
+              Ref(get<0>(t10)));
+  EXPECT_THAT(accumulate_index(IdentityIndex<const size_t>(), t12),
+              Ref(get<0>(t12)));
+  EXPECT_THAT(accumulate_index(IdentityIndex<const size_t>(), t11),
+              Ref(get<0>(t11)));
 }
 
 struct SecondIndex {
-  template <::size_t N, class T, class U>
+  template <size_t N, class T, class U>
   U& operator()(T& t, U& u) const {
     return u;
   }
 };
 
 TEST_F(AccumulateIndex, ReturnElementByReference) {
-  EXPECT_EQ(&a, &accumulate_index(SecondIndex(), ::std::tie(), a));
-  EXPECT_EQ(&b, &accumulate_index(SecondIndex(), ::std::tie(b), a));
-  EXPECT_EQ(&c, &accumulate_index(SecondIndex(), ::std::tie(b, c), a));
+  EXPECT_THAT(accumulate_index(SecondIndex(), std::tie(), a), Ref(a));
+  EXPECT_THAT(accumulate_index(SecondIndex(), std::tie(b), a), Ref(b));
+  EXPECT_THAT(accumulate_index(SecondIndex(), std::tie(b, c), a), Ref(c));
 }
 
 TEST_F(AccumulateIndex, ReturnElementByReferenceShortcut) {
-  EXPECT_EQ(&a, &accumulate_index(SecondIndex(), ::std::tie(a)));
-  EXPECT_EQ(&b, &accumulate_index(SecondIndex(), ::std::tie(a, b)));
-  EXPECT_EQ(&c, &accumulate_index(SecondIndex(), ::std::tie(a, b, c)));
+  EXPECT_THAT(accumulate_index(SecondIndex(), std::tie(a)), Ref(a));
+  EXPECT_THAT(accumulate_index(SecondIndex(), std::tie(a, b)), Ref(b));
+  EXPECT_THAT(accumulate_index(SecondIndex(), std::tie(a, b, c)), Ref(c));
 }
 
 struct PackIndex {
-  template <::size_t N, class T, class U>
-  ::std::tuple<::size_t, T, U> operator()(const T& t, const U& u) const {
-    return make_tuple(N, t, u);
+  template <size_t N, class T, class U>
+  std::tuple<size_t, T, U> operator()(const T& t, const U& u) const {
+    return std::make_tuple(N, t, u);
   }
 };
 
 TEST_F(AccumulateIndex, CallTree) {
-  EXPECT_EQ(a, accumulate_index(PackIndex(), make_tuple(), a));
-  EXPECT_EQ(make_tuple(0, a, b),
-            accumulate_index(PackIndex(), make_tuple(b), a));
-  EXPECT_EQ(make_tuple(1, make_tuple(0, a, b), c),
-            accumulate_index(PackIndex(), make_tuple(b, c), a));
+  EXPECT_EQ(accumulate_index(PackIndex(), std::make_tuple(), a), a);
+  EXPECT_EQ(accumulate_index(PackIndex(), std::make_tuple(b), a),
+            std::make_tuple(0, a, b));
+  EXPECT_EQ(accumulate_index(PackIndex(), std::make_tuple(b, c), a),
+            std::make_tuple(1, std::make_tuple(0, a, b), c));
 }
 
 TEST_F(AccumulateIndex, CallTreeShortcut) {
-  EXPECT_EQ(a, accumulate_index(PackIndex(), make_tuple(a)));
-  EXPECT_EQ(make_tuple(1, a, b),
-            accumulate_index(PackIndex(), make_tuple(a, b)));
-  EXPECT_EQ(make_tuple(2, make_tuple(1, a, b), c),
-            accumulate_index(PackIndex(), make_tuple(a, b, c)));
+  EXPECT_EQ(accumulate_index(PackIndex(), std::make_tuple(a)), a);
+  EXPECT_EQ(accumulate_index(PackIndex(), std::make_tuple(a, b)),
+            std::make_tuple(1, a, b));
+  EXPECT_EQ(accumulate_index(PackIndex(), std::make_tuple(a, b, c)),
+            std::make_tuple(2, std::make_tuple(1, a, b), c));
 }
 
 struct CopyTracker {
@@ -244,7 +253,7 @@ struct CopyTracker {
 };
 
 struct PassCopyTrackerIndex {
-  template <::size_t N, class T>
+  template <size_t N, class T>
   CopyTracker operator()(CopyTracker state, const T& t) const {
     return 0;
   }
@@ -265,7 +274,7 @@ class Accumulate : public TestValues {};
 
 struct Append {
   template <class T>
-  ::std::string operator()(::std::string state, const T& value) const {
+  std::string operator()(std::string state, const T& value) const {
     if (!state.empty()) state.push_back(' ');
     absl::StrAppend(&state, value);
     return state;
@@ -273,26 +282,28 @@ struct Append {
 };
 
 TEST_F(Accumulate, ReturnByValue) {
-  EXPECT_EQ("N", accumulate(Append(), make_tuple(), "N"));
-  EXPECT_EQ("N 42", accumulate(Append(), make_tuple(42), "N"));
-  EXPECT_EQ("N 42 hello", accumulate(Append(), make_tuple(42, "hello"), "N"));
+  EXPECT_EQ(accumulate(Append(), std::make_tuple(), "N"), "N");
+  EXPECT_EQ(accumulate(Append(), std::make_tuple(42), "N"), "N 42");
+  EXPECT_EQ(accumulate(Append(), std::make_tuple(42, "hello"), "N"),
+            "N 42 hello");
 
-  EXPECT_EQ("N 0 1 2 3 4 5 6 7 8", accumulate(Append(), MakeTuple<9>(), "N"));
-  EXPECT_EQ("N 0 1 2 3 4 5 6 7 8 9",
-            accumulate(Append(), MakeTuple<10>(), "N"));
-  EXPECT_EQ("N 0 1 2 3 4 5 6 7 8 9 10",
-            accumulate(Append(), MakeTuple<11>(), "N"));
+  EXPECT_EQ(accumulate(Append(), MakeTuple<9>(), "N"), "N 0 1 2 3 4 5 6 7 8");
+  EXPECT_EQ(accumulate(Append(), MakeTuple<10>(), "N"),
+            "N 0 1 2 3 4 5 6 7 8 9");
+  EXPECT_EQ(accumulate(Append(), MakeTuple<11>(), "N"),
+            "N 0 1 2 3 4 5 6 7 8 9 10");
 }
 
 TEST_F(Accumulate, ReturnByValueShortcut) {
-  EXPECT_EQ("N", accumulate(Append(), make_tuple(std::string("N"))));
-  EXPECT_EQ("N 42", accumulate(Append(), make_tuple("N", 42)));
-  EXPECT_EQ("N 42 hello", accumulate(Append(), make_tuple("N", 42, "hello")));
+  EXPECT_EQ(accumulate(Append(), std::make_tuple(std::string("N"))), "N");
+  EXPECT_EQ(accumulate(Append(), std::make_tuple("N", 42)), "N 42");
+  EXPECT_EQ(accumulate(Append(), std::make_tuple("N", 42, "hello")),
+            "N 42 hello");
 
-  EXPECT_EQ("N 0 1 2 3 4 5 6 7 8", accumulate(Append(), MakeTuple<9>("N")));
-  EXPECT_EQ("N 0 1 2 3 4 5 6 7 8 9", accumulate(Append(), MakeTuple<10>("N")));
-  EXPECT_EQ("N 0 1 2 3 4 5 6 7 8 9 10",
-            accumulate(Append(), MakeTuple<11>("N")));
+  EXPECT_EQ(accumulate(Append(), MakeTuple<9>("N")), "N 0 1 2 3 4 5 6 7 8");
+  EXPECT_EQ(accumulate(Append(), MakeTuple<10>("N")), "N 0 1 2 3 4 5 6 7 8 9");
+  EXPECT_EQ(accumulate(Append(), MakeTuple<11>("N")),
+            "N 0 1 2 3 4 5 6 7 8 9 10");
 }
 
 template <class State>
@@ -305,41 +316,41 @@ struct Identity {
 
 TEST_F(Accumulate, ReturnStateByReference) {
   int n = 0;
-  EXPECT_EQ(&n, &accumulate(Identity<int>(), MakeTuple<0>(), n));
-  EXPECT_EQ(&n, &accumulate(Identity<int>(), MakeTuple<1>(), n));
-  EXPECT_EQ(&n, &accumulate(Identity<int>(), MakeTuple<2>(), n));
-  EXPECT_EQ(&n, &accumulate(Identity<int>(), MakeTuple<9>(), n));
-  EXPECT_EQ(&n, &accumulate(Identity<int>(), MakeTuple<10>(), n));
-  EXPECT_EQ(&n, &accumulate(Identity<int>(), MakeTuple<11>(), n));
+  EXPECT_THAT(accumulate(Identity<int>(), MakeTuple<0>(), n), Ref(n));
+  EXPECT_THAT(accumulate(Identity<int>(), MakeTuple<1>(), n), Ref(n));
+  EXPECT_THAT(accumulate(Identity<int>(), MakeTuple<2>(), n), Ref(n));
+  EXPECT_THAT(accumulate(Identity<int>(), MakeTuple<9>(), n), Ref(n));
+  EXPECT_THAT(accumulate(Identity<int>(), MakeTuple<10>(), n), Ref(n));
+  EXPECT_THAT(accumulate(Identity<int>(), MakeTuple<11>(), n), Ref(n));
 
-  EXPECT_EQ(&n, &accumulate(Identity<const int>(), MakeTuple<0>(), n));
-  EXPECT_EQ(&n, &accumulate(Identity<const int>(), MakeTuple<1>(), n));
-  EXPECT_EQ(&n, &accumulate(Identity<const int>(), MakeTuple<2>(), n));
-  EXPECT_EQ(&n, &accumulate(Identity<const int>(), MakeTuple<9>(), n));
-  EXPECT_EQ(&n, &accumulate(Identity<const int>(), MakeTuple<10>(), n));
-  EXPECT_EQ(&n, &accumulate(Identity<const int>(), MakeTuple<11>(), n));
+  EXPECT_THAT(accumulate(Identity<const int>(), MakeTuple<0>(), n), Ref(n));
+  EXPECT_THAT(accumulate(Identity<const int>(), MakeTuple<1>(), n), Ref(n));
+  EXPECT_THAT(accumulate(Identity<const int>(), MakeTuple<2>(), n), Ref(n));
+  EXPECT_THAT(accumulate(Identity<const int>(), MakeTuple<9>(), n), Ref(n));
+  EXPECT_THAT(accumulate(Identity<const int>(), MakeTuple<10>(), n), Ref(n));
+  EXPECT_THAT(accumulate(Identity<const int>(), MakeTuple<11>(), n), Ref(n));
 }
 
 TEST_F(Accumulate, ReturnStateByReferenceShortcut) {
   auto t1 = MakeTuple<1>();
-  EXPECT_EQ(&get<0>(t1), &accumulate(Identity<::size_t>(), t1));
+  EXPECT_THAT(accumulate(Identity<size_t>(), t1), Ref(get<0>(t1)));
   auto t2 = MakeTuple<2>();
-  EXPECT_EQ(&get<0>(t2), &accumulate(Identity<::size_t>(), t2));
+  EXPECT_THAT(accumulate(Identity<size_t>(), t2), Ref(get<0>(t2)));
   auto t3 = MakeTuple<3>();
-  EXPECT_EQ(&get<0>(t3), &accumulate(Identity<::size_t>(), t3));
+  EXPECT_THAT(accumulate(Identity<size_t>(), t3), Ref(get<0>(t3)));
   auto t10 = MakeTuple<10>();
-  EXPECT_EQ(&get<0>(t10), &accumulate(Identity<::size_t>(), t10));
+  EXPECT_THAT(accumulate(Identity<size_t>(), t10), Ref(get<0>(t10)));
   auto t11 = MakeTuple<11>();
-  EXPECT_EQ(&get<0>(t11), &accumulate(Identity<::size_t>(), t11));
+  EXPECT_THAT(accumulate(Identity<size_t>(), t11), Ref(get<0>(t11)));
   auto t12 = MakeTuple<12>();
-  EXPECT_EQ(&get<0>(t12), &accumulate(Identity<::size_t>(), t12));
+  EXPECT_THAT(accumulate(Identity<size_t>(), t12), Ref(get<0>(t12)));
 
-  EXPECT_EQ(&get<0>(t1), &accumulate(Identity<const ::size_t>(), t1));
-  EXPECT_EQ(&get<0>(t2), &accumulate(Identity<const ::size_t>(), t2));
-  EXPECT_EQ(&get<0>(t3), &accumulate(Identity<const ::size_t>(), t3));
-  EXPECT_EQ(&get<0>(t10), &accumulate(Identity<const ::size_t>(), t10));
-  EXPECT_EQ(&get<0>(t11), &accumulate(Identity<const ::size_t>(), t11));
-  EXPECT_EQ(&get<0>(t12), &accumulate(Identity<const ::size_t>(), t12));
+  EXPECT_THAT(accumulate(Identity<const size_t>(), t1), Ref(get<0>(t1)));
+  EXPECT_THAT(accumulate(Identity<const size_t>(), t2), Ref(get<0>(t2)));
+  EXPECT_THAT(accumulate(Identity<const size_t>(), t3), Ref(get<0>(t3)));
+  EXPECT_THAT(accumulate(Identity<const size_t>(), t10), Ref(get<0>(t10)));
+  EXPECT_THAT(accumulate(Identity<const size_t>(), t11), Ref(get<0>(t11)));
+  EXPECT_THAT(accumulate(Identity<const size_t>(), t12), Ref(get<0>(t12)));
 }
 
 struct Second {
@@ -350,36 +361,36 @@ struct Second {
 };
 
 TEST_F(Accumulate, ReturnElementByReference) {
-  EXPECT_EQ(&a, &accumulate(Second(), ::std::tie(), a));
-  EXPECT_EQ(&b, &accumulate(Second(), ::std::tie(b), a));
-  EXPECT_EQ(&c, &accumulate(Second(), ::std::tie(b, c), a));
+  EXPECT_THAT(accumulate(Second(), std::tie(), a), Ref(a));
+  EXPECT_THAT(accumulate(Second(), std::tie(b), a), Ref(b));
+  EXPECT_THAT(accumulate(Second(), std::tie(b, c), a), Ref(c));
 }
 
 TEST_F(Accumulate, ReturnElementByReferenceShortcut) {
-  EXPECT_EQ(&a, &accumulate(Second(), ::std::tie(a)));
-  EXPECT_EQ(&b, &accumulate(Second(), ::std::tie(a, b)));
-  EXPECT_EQ(&c, &accumulate(Second(), ::std::tie(a, b, c)));
+  EXPECT_THAT(accumulate(Second(), std::tie(a)), Ref(a));
+  EXPECT_THAT(accumulate(Second(), std::tie(a, b)), Ref(b));
+  EXPECT_THAT(accumulate(Second(), std::tie(a, b, c)), Ref(c));
 }
 
 struct Pack {
   template <class T, class U>
-  ::std::tuple<T, U> operator()(const T& t, const U& u) const {
-    return make_tuple(t, u);
+  std::tuple<T, U> operator()(const T& t, const U& u) const {
+    return std::make_tuple(t, u);
   }
 };
 
 TEST_F(Accumulate, CallTree) {
-  EXPECT_EQ(a, accumulate(Pack(), make_tuple(), a));
-  EXPECT_EQ(make_tuple(a, b), accumulate(Pack(), make_tuple(b), a));
-  EXPECT_EQ(make_tuple(make_tuple(a, b), c),
-            accumulate(Pack(), make_tuple(b, c), a));
+  EXPECT_EQ(accumulate(Pack(), std::make_tuple(), a), a);
+  EXPECT_EQ(accumulate(Pack(), std::make_tuple(b), a), std::make_tuple(a, b));
+  EXPECT_EQ(accumulate(Pack(), std::make_tuple(b, c), a),
+            std::make_tuple(std::make_tuple(a, b), c));
 }
 
 TEST_F(Accumulate, CallTreeShortcut) {
-  EXPECT_EQ(a, accumulate(Pack(), make_tuple(a)));
-  EXPECT_EQ(make_tuple(a, b), accumulate(Pack(), make_tuple(a, b)));
-  EXPECT_EQ(make_tuple(make_tuple(a, b), c),
-            accumulate(Pack(), make_tuple(a, b, c)));
+  EXPECT_EQ(accumulate(Pack(), std::make_tuple(a)), a);
+  EXPECT_EQ(accumulate(Pack(), std::make_tuple(a, b)), std::make_tuple(a, b));
+  EXPECT_EQ(accumulate(Pack(), std::make_tuple(a, b, c)),
+            std::make_tuple(std::make_tuple(a, b), c));
 }
 
 struct PassCopyTracker {
@@ -403,8 +414,8 @@ TEST_F(Accumulate, NoCopiesShortcut) {
 class AccumulateTypeIndex : public TestValues {};
 
 struct AppendTypeIndex {
-  template <::size_t I, class T>
-  ::std::string operator()(::std::string state) const {
+  template <size_t I, class T>
+  std::string operator()(std::string state) const {
     if (!state.empty()) state.push_back(' ');
     absl::StrAppend(&state, I, " ", T::value);
     return state;
@@ -412,16 +423,16 @@ struct AppendTypeIndex {
 };
 
 TEST_F(AccumulateTypeIndex, ReturnByValue) {
-  EXPECT_EQ("N",
-            accumulate_index<tuple<>>(AppendTypeIndex(), std::string("N")));
-  EXPECT_EQ("N 0 0", accumulate_index<tuple<A>>(AppendTypeIndex(), "N"));
-  EXPECT_EQ("N 0 0 1 1",
-            (accumulate_index<tuple<A, B>>(AppendTypeIndex(), "N")));
+  EXPECT_EQ(accumulate_index<std::tuple<>>(AppendTypeIndex(), std::string("N")),
+            "N");
+  EXPECT_EQ(accumulate_index<std::tuple<A>>(AppendTypeIndex(), "N"), "N 0 0");
+  EXPECT_EQ((accumulate_index<std::tuple<A, B>>(AppendTypeIndex(), "N")),
+            "N 0 0 1 1");
 }
 
 template <class State>
 struct IdentityTypeIndex {
-  template <::size_t I, class T>
+  template <size_t I, class T>
   State& operator()(State& state) const {
     return state;
   }
@@ -429,50 +440,62 @@ struct IdentityTypeIndex {
 
 TEST_F(AccumulateTypeIndex, ReturnStateByReference) {
   int n = 0;
-  EXPECT_EQ(&n, &accumulate_index<MakeValueTuple<0>::type>(
-                    IdentityTypeIndex<int>(), n));
-  EXPECT_EQ(&n, &accumulate_index<MakeValueTuple<1>::type>(
-                    IdentityTypeIndex<int>(), n));
-  EXPECT_EQ(&n, &accumulate_index<MakeValueTuple<2>::type>(
-                    IdentityTypeIndex<int>(), n));
-  EXPECT_EQ(&n, &accumulate_index<MakeValueTuple<8>::type>(
-                    IdentityTypeIndex<int>(), n));
-  EXPECT_EQ(&n, &accumulate_index<MakeValueTuple<9>::type>(
-                    IdentityTypeIndex<int>(), n));
-  EXPECT_EQ(&n, &accumulate_index<MakeValueTuple<10>::type>(
-                    IdentityTypeIndex<int>(), n));
+  EXPECT_THAT(
+      accumulate_index<MakeValueTuple<0>::type>(IdentityTypeIndex<int>(), n),
+      Ref(n));
+  EXPECT_THAT(
+      accumulate_index<MakeValueTuple<1>::type>(IdentityTypeIndex<int>(), n),
+      Ref(n));
+  EXPECT_THAT(
+      accumulate_index<MakeValueTuple<2>::type>(IdentityTypeIndex<int>(), n),
+      Ref(n));
+  EXPECT_THAT(
+      accumulate_index<MakeValueTuple<8>::type>(IdentityTypeIndex<int>(), n),
+      Ref(n));
+  EXPECT_THAT(
+      accumulate_index<MakeValueTuple<9>::type>(IdentityTypeIndex<int>(), n),
+      Ref(n));
+  EXPECT_THAT(
+      accumulate_index<MakeValueTuple<10>::type>(IdentityTypeIndex<int>(), n),
+      Ref(n));
 
-  EXPECT_EQ(&n, &accumulate_index<MakeValueTuple<0>::type>(
-                    IdentityTypeIndex<const int>(), n));
-  EXPECT_EQ(&n, &accumulate_index<MakeValueTuple<1>::type>(
-                    IdentityTypeIndex<const int>(), n));
-  EXPECT_EQ(&n, &accumulate_index<MakeValueTuple<2>::type>(
-                    IdentityTypeIndex<const int>(), n));
-  EXPECT_EQ(&n, &accumulate_index<MakeValueTuple<8>::type>(
-                    IdentityTypeIndex<const int>(), n));
-  EXPECT_EQ(&n, &accumulate_index<MakeValueTuple<9>::type>(
-                    IdentityTypeIndex<const int>(), n));
-  EXPECT_EQ(&n, &accumulate_index<MakeValueTuple<10>::type>(
-                    IdentityTypeIndex<const int>(), n));
+  EXPECT_THAT(accumulate_index<MakeValueTuple<0>::type>(
+                  IdentityTypeIndex<const int>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate_index<MakeValueTuple<1>::type>(
+                  IdentityTypeIndex<const int>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate_index<MakeValueTuple<2>::type>(
+                  IdentityTypeIndex<const int>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate_index<MakeValueTuple<8>::type>(
+                  IdentityTypeIndex<const int>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate_index<MakeValueTuple<9>::type>(
+                  IdentityTypeIndex<const int>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate_index<MakeValueTuple<10>::type>(
+                  IdentityTypeIndex<const int>(), n),
+              Ref(n));
 }
 
 struct PackTypeIndex {
-  template <::size_t N, class T, class U>
-  ::std::tuple<::size_t, U, int> operator()(const U& u) const {
-    return make_tuple(N, u, T::value);
+  template <size_t N, class T, class U>
+  std::tuple<size_t, U, int> operator()(const U& u) const {
+    return std::make_tuple(N, u, T::value);
   }
 };
 
 TEST_F(AccumulateTypeIndex, CallTree) {
-  EXPECT_EQ(a, accumulate_index<tuple<>>(PackTypeIndex(), a));
-  EXPECT_EQ(make_tuple(0, a, 1),
-            accumulate_index<tuple<B>>(PackTypeIndex(), a));
-  EXPECT_EQ(make_tuple(1, make_tuple(0, a, 1), 2),
-            (accumulate_index<tuple<B, C>>(PackTypeIndex(), a)));
+  EXPECT_EQ(accumulate_index<std::tuple<>>(PackTypeIndex(), a), a);
+  EXPECT_EQ(accumulate_index<std::tuple<B>>(PackTypeIndex(), a),
+            std::make_tuple(0, a, 1));
+  EXPECT_EQ((accumulate_index<std::tuple<B, C>>(PackTypeIndex(), a)),
+            std::make_tuple(1, std::make_tuple(0, a, 1), 2));
 }
 
 struct PassCopyTrackerTypeIndex {
-  template <::size_t N, class T>
+  template <size_t N, class T>
   CopyTracker operator()(CopyTracker state) const {
     return 0;
   }
@@ -486,7 +509,7 @@ class AccumulateType : public TestValues {};
 
 struct AppendType {
   template <class T>
-  ::std::string operator()(::std::string state) const {
+  std::string operator()(std::string state) const {
     if (!state.empty()) state.push_back(' ');
     absl::StrAppend(&state, T::value);
     return state;
@@ -494,9 +517,9 @@ struct AppendType {
 };
 
 TEST_F(AccumulateType, ReturnByValue) {
-  EXPECT_EQ("N", accumulate<tuple<>>(AppendType(), std::string("N")));
-  EXPECT_EQ("N 0", accumulate<tuple<A>>(AppendType(), "N"));
-  EXPECT_EQ("N 0 1", (accumulate<tuple<A, B>>(AppendType(), "N")));
+  EXPECT_EQ(accumulate<std::tuple<>>(AppendType(), std::string("N")), "N");
+  EXPECT_EQ(accumulate<std::tuple<A>>(AppendType(), "N"), "N 0");
+  EXPECT_EQ((accumulate<std::tuple<A, B>>(AppendType(), "N")), "N 0 1");
 }
 
 template <class State>
@@ -509,39 +532,46 @@ struct IdentityType {
 
 TEST_F(AccumulateType, ReturnStateByReference) {
   int n = 0;
-  EXPECT_EQ(&n, &accumulate<MakeValueTuple<0>::type>(IdentityType<int>(), n));
-  EXPECT_EQ(&n, &accumulate<MakeValueTuple<1>::type>(IdentityType<int>(), n));
-  EXPECT_EQ(&n, &accumulate<MakeValueTuple<2>::type>(IdentityType<int>(), n));
-  EXPECT_EQ(&n, &accumulate<MakeValueTuple<8>::type>(IdentityType<int>(), n));
-  EXPECT_EQ(&n, &accumulate<MakeValueTuple<9>::type>(IdentityType<int>(), n));
-  EXPECT_EQ(&n, &accumulate<MakeValueTuple<10>::type>(IdentityType<int>(), n));
+  EXPECT_THAT(accumulate<MakeValueTuple<0>::type>(IdentityType<int>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate<MakeValueTuple<1>::type>(IdentityType<int>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate<MakeValueTuple<2>::type>(IdentityType<int>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate<MakeValueTuple<8>::type>(IdentityType<int>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate<MakeValueTuple<9>::type>(IdentityType<int>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate<MakeValueTuple<10>::type>(IdentityType<int>(), n),
+              Ref(n));
 
-  EXPECT_EQ(&n,
-            &accumulate<MakeValueTuple<0>::type>(IdentityType<const int>(), n));
-  EXPECT_EQ(&n,
-            &accumulate<MakeValueTuple<1>::type>(IdentityType<const int>(), n));
-  EXPECT_EQ(&n,
-            &accumulate<MakeValueTuple<2>::type>(IdentityType<const int>(), n));
-  EXPECT_EQ(&n,
-            &accumulate<MakeValueTuple<8>::type>(IdentityType<const int>(), n));
-  EXPECT_EQ(&n,
-            &accumulate<MakeValueTuple<9>::type>(IdentityType<const int>(), n));
-  EXPECT_EQ(
-      &n, &accumulate<MakeValueTuple<10>::type>(IdentityType<const int>(), n));
+  EXPECT_THAT(accumulate<MakeValueTuple<0>::type>(IdentityType<const int>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate<MakeValueTuple<1>::type>(IdentityType<const int>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate<MakeValueTuple<2>::type>(IdentityType<const int>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate<MakeValueTuple<8>::type>(IdentityType<const int>(), n),
+              Ref(n));
+  EXPECT_THAT(accumulate<MakeValueTuple<9>::type>(IdentityType<const int>(), n),
+              Ref(n));
+  EXPECT_THAT(
+      accumulate<MakeValueTuple<10>::type>(IdentityType<const int>(), n),
+      Ref(n));
 }
 
 struct PackType {
   template <class T, class U>
-  ::std::tuple<U, int> operator()(const U& u) const {
-    return make_tuple(u, T::value);
+  std::tuple<U, int> operator()(const U& u) const {
+    return std::make_tuple(u, T::value);
   }
 };
 
 TEST_F(AccumulateType, CallTree) {
-  EXPECT_EQ(a, accumulate<tuple<>>(PackType(), a));
-  EXPECT_EQ(make_tuple(a, 1), accumulate<tuple<B>>(PackType(), a));
-  EXPECT_EQ(make_tuple(make_tuple(a, 1), 2),
-            (accumulate<tuple<B, C>>(PackType(), a)));
+  EXPECT_EQ(accumulate<std::tuple<>>(PackType(), a), a);
+  EXPECT_EQ(accumulate<std::tuple<B>>(PackType(), a), std::make_tuple(a, 1));
+  EXPECT_EQ((accumulate<std::tuple<B, C>>(PackType(), a)),
+            std::make_tuple(std::make_tuple(a, 1), 2));
 }
 
 struct PassCopyTrackerType {
