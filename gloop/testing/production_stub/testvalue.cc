@@ -22,15 +22,19 @@
 
 #include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
+#include <limits>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/base/const_init.h"
+#include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/hash/hash.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/log/vlog_is_on.h"
@@ -67,9 +71,87 @@ struct MapEntry {
   }
 };
 
-typedef absl::flat_hash_map<std::string, MapEntry*> Map;
+// A label paired with its precomputed hash, so that when
+// LabelFilter::MayContain returns true (or in Clear) we do not hash the label a
+// second time for adjuster_map.
+struct HashedLabel {
+  explicit HashedLabel(absl::string_view l) : label(l), hash(absl::HashOf(l)) {}
+  // Implicit for heterogeneous equality lookup in Map (via StringEq).
+  operator absl::string_view() const { return label; }
+
+  absl::string_view label;
+  size_t hash;
+};
+
+struct LabelHash {
+  using is_transparent = void;
+  size_t operator()(absl::string_view label) const {
+    return absl::HashOf(label);
+  }
+  size_t operator()(HashedLabel label) const { return label.hash; }
+};
+
+typedef absl::flat_hash_map<std::string, MapEntry*, LabelHash> Map;
 
 static Map* adjuster_map ABSL_GUARDED_BY(map_lock) = nullptr;
+
+// A saturating counting filter over the hashes of the labels that currently
+// have an adjuster in adjuster_map: each slot counts the labels that hash to
+// it, saturating at UINT8_MAX (after which it is never decremented). This lets
+// InternalAdjust() skip labels without an adjuster (the overwhelmingly common
+// case) with a single load, without contending on map_lock, while fitting in
+// two dedicated cache lines.
+class alignas(ABSL_CACHELINE_SIZE) LabelFilter {
+ public:
+  constexpr LabelFilter() = default;
+
+  // Returns false if `label` definitely has no adjuster; true if it may have
+  // one.
+  bool MayContain(HashedLabel label) const {
+    // A relaxed load suffices: all updates to a slot are serialized under
+    // `map_lock`, and keep the slot > 0 while `label` is registered (any
+    // SetCallback(label) either writes > 0 or synchronizes via `map_lock` with
+    // the earlier Add() that did). Thus, if SetCallback(label) happens-before
+    // Adjust(label) and Adjust(label) happens-before Clear(label), write-read
+    // and read-write coherence on the slot guarantee this load sees a value
+    // > 0; the caller then locks `map_lock` to synchronize access to the map.
+    // Using `relaxed` also avoids a spurious TSAN happens-before edge from
+    // Clear() (when Remove() stores 0) to subsequent Adjust() calls that miss
+    // in the filter.
+    return Slot(label).load(std::memory_order_relaxed) != 0;
+  }
+
+  void Add(HashedLabel label) ABSL_EXCLUSIVE_LOCKS_REQUIRED(map_lock) {
+    std::atomic<uint8_t>& slot = Slot(label);
+    if (uint8_t count = slot.load(std::memory_order_relaxed);
+        count < std::numeric_limits<uint8_t>::max()) {
+      slot.store(count + 1, std::memory_order_relaxed);
+    }
+  }
+
+  void Remove(HashedLabel label) ABSL_EXCLUSIVE_LOCKS_REQUIRED(map_lock) {
+    std::atomic<uint8_t>& slot = Slot(label);
+    if (uint8_t count = slot.load(std::memory_order_relaxed);
+        count < std::numeric_limits<uint8_t>::max()) {
+      DCHECK_GT(count, 0);
+      slot.store(count - 1, std::memory_order_relaxed);
+    }
+  }
+
+ private:
+  static constexpr size_t kNumSlots = 128;
+
+  const std::atomic<uint8_t>& Slot(HashedLabel label) const {
+    return slots_[label.hash % kNumSlots];
+  }
+  std::atomic<uint8_t>& Slot(HashedLabel label) {
+    return slots_[label.hash % kNumSlots];
+  }
+
+  std::atomic<uint8_t> slots_[kNumSlots] = {};
+};
+
+ABSL_CONST_INIT static LabelFilter label_filter;
 
 ABSL_CONST_INIT std::atomic<bool> internal_enable{false};
 
@@ -77,11 +159,14 @@ void Enable() { internal_enable.store(true, std::memory_order_relaxed); }
 
 void InternalAdjust(absl::string_view label, size_t type_id, void* dst) {
   DCHECK(IsEnabled());
+  const HashedLabel hashed_label(label);
+  if (!label_filter.MayContain(hashed_label)) return;
+
   MapEntry* entry = nullptr;
   {
     absl::MutexLock l(map_lock);
     if (adjuster_map != nullptr) {
-      Map::const_iterator iter = adjuster_map->find(label);
+      Map::const_iterator iter = adjuster_map->find(hashed_label);
       if (iter != adjuster_map->end() && iter->second != nullptr) {
         entry = iter->second;
         DCHECK(entry->live);
@@ -128,10 +213,12 @@ static void InternalDeleteEntry(MapEntry* entry)
 // entry.
 static MapEntry* InternalClear(absl::string_view label)
     ABSL_EXCLUSIVE_LOCKS_REQUIRED(map_lock) {
-  Map::iterator iter = adjuster_map->find(label);
+  const HashedLabel hashed_label(label);
+  Map::iterator iter = adjuster_map->find(hashed_label);
   if (iter != adjuster_map->end() && iter->second != nullptr) {
     MapEntry* entry = iter->second;
     iter->second = nullptr;
+    label_filter.Remove(hashed_label);
     return entry;
   }
   return nullptr;
@@ -141,21 +228,17 @@ void InternalSetCallback(absl::string_view label, size_t type_id,
                          std::function<void(void*)> run_callback) {
   VLOG(1) << "setting adjuster for " << label;
   CHECK(IsEnabled()) << "Did not call testing::testvalue::Enable";
-  MapEntry* old_entry = nullptr;
   absl::MutexLock l(map_lock);
   if (adjuster_map == nullptr) {
     adjuster_map = new Map;
   }
-  for (;;) {
-    MapEntry** slot = &(*adjuster_map)[label];
-    if (*slot != nullptr) {
-      // Hold on to the old entry, so that we can replace it in the map before
-      // we release the lock to delete it.
-      old_entry = InternalClear(label);
-      continue;
-    }
-    *slot = new MapEntry(type_id, std::move(run_callback));
-    break;
+  // Replace any old entry in a single step, without updating the filter, so
+  // that concurrent Adjust() calls observe either the old or the new adjuster.
+  MapEntry** slot = &(*adjuster_map)[label];
+  MapEntry* old_entry =
+      std::exchange(*slot, new MapEntry(type_id, std::move(run_callback)));
+  if (old_entry == nullptr) {
+    label_filter.Add(HashedLabel(label));
   }
   InternalDeleteEntry(old_entry);
 }
