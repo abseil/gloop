@@ -1104,14 +1104,19 @@ TEST(PerCpuSingleThreadedTest, AllocHandle) {
   static const int kNumIters = 10;
   static const int kNumHandles = 10 * 1000;
   std::vector<Handle> handles;
+  handles.reserve(kNumHandles);
   for (int i = 0; i < kNumIters; ++i) {
     for (int j = 0; j < kNumHandles; ++j) {
-      Handle h = AllocHandle();
+      handles.push_back(AllocHandle());
+    }
+
+    for (int j = 0; j < kNumHandles; ++j) {
+      Handle h = handles[j];
       for (int k = 0; k < NumCPUs(); ++k) {
+        ASSERT_EQ(GetPointerAtomic(h, k)->load(std::memory_order_relaxed), 0);
         // write junk into it
         GetPointerAtomic(h, k)->store(i + j + k, std::memory_order_relaxed);
       }
-      handles.push_back(h);
     }
 
     for (int j = 0; j < kNumHandles; ++j) {
