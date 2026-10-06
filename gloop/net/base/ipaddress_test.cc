@@ -352,6 +352,17 @@ TEST(IPAddressTest, ToAndFromString6) {
   EXPECT_EQ(addr.ToString(), kIPString);
 }
 
+TEST(IPAddressTest, PackedStringToIPAddress) {
+  IPAddress addr;
+  ASSERT_TRUE(StringToIPAddress("2001:db8:300:1800::f", &addr));
+
+  EXPECT_THAT(PackedStringToIPAddress(addr.ToPackedString()),
+              IsOkAndHolds(addr));
+  EXPECT_THAT(
+      PackedStringToIPAddress("banana"),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("banana")));
+}
+
 // The main purpose of this test is to validate that
 // StringToIPAddressWithOptionalScope has feature parity with StringToIPAddress.
 //

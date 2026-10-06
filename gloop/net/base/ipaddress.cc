@@ -833,6 +833,16 @@ bool PackedStringToIPAddress(absl::string_view str, IPAddress* out) {
   return false;
 }
 
+absl::StatusOr<IPAddress> PackedStringToIPAddress(absl::string_view str) {
+  IPAddress a;
+
+  if (PackedStringToIPAddress(str, &a)) {
+    return a;
+  }
+  return util::InvalidArgumentErrorBuilder()
+         << "failed to parse packed string into IP address: '" << str << "'";
+}
+
 bool PackedStringToSocketAddress(absl::string_view str, SocketAddress* out) {
   IPAddress ip;
   uint16_t network_order_port;
