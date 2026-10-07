@@ -532,8 +532,31 @@ class WithThreadStatus {
   WithThreadStatus& operator=(const WithThreadStatus&) = delete;
 };
 
+// ======================================================================
+//
 // Low-level APIs for changing the current context.
 //
+// Please do not (attempt to) use the below APIs without the explicit
+// consent of the Core library owners and/or Dapper team.
+// ======================================================================
+
+// Installs the supplied context, indicating that work associated with the
+// current thread local context has ceased, and that the current thread will
+// proceed to process work associated with the supplied context.
+//
+// Tracing specific details:
+// ----------------------------------------------------------------------
+// This method will cause an `End` processing event to be emitted on the
+// tracer for the active thread local context directly before it is being
+// updated, and a `Begin` or `Continue` event to be emitted on the tracer
+// of the new context directly after it has been set as the new thread
+// local context. There is no causal assumption between the two events.
+//
+// REQUIRES: caller has access, enforced through `ThreadContextAccess`
+void SetThreadContext(ThreadContextAccess, Context context,
+                      perftools::tracing::StringRef label =
+                          perftools::tracing::TraceSourceLocation::current());
+
 // NOTE: Callers are strongly advised to use WithContext, LocalTraceSpan, or
 // other scoped APIs instead. Misuse of the APIs below could lead to
 // memory leaks and lost credentials.
