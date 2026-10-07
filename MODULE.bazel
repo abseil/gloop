@@ -42,6 +42,20 @@ local_path_override(
     path = "gloop/ci/docker_toolchain",
 )
 
+# TODO: Remove once a new Abseil version with cpu_detect visibility is released.
+git_override(
+    module_name = "abseil-cpp",
+    commit = "682c5617b301fc596052bb70ab5f391cb49b5eed",
+    remote = "https://github.com/abseil/abseil-cpp",
+)
+
+# Older tcmalloc is not compatible with the newer Abseil.
+git_override(
+    module_name = "tcmalloc",
+    commit = "d2d40a163c32a1667a125cac232c187febc31ba5",
+    remote = "https://github.com/google/tcmalloc",
+)
+
 # Dev dependencies required for fuzz testing.
 # fuzztest is the main library. brotli, snappy, highwayhash, aspect_bazel_lib,
 # aspect_rules_esbuild, and rules_swift are transitive dependencies of fuzztest
