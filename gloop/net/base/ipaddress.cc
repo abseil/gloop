@@ -714,6 +714,16 @@ bool StringToIPAddress(absl::string_view str, IPAddress* out) {
   return false;
 }
 
+absl::StatusOr<IPAddress> StringToIPAddress(absl::string_view str) {
+  IPAddress a;
+
+  if (StringToIPAddress(str, &a)) {
+    return a;
+  }
+  return util::InvalidArgumentErrorBuilder()
+         << "failed to convert string into IPAddress: '" << str << "'";
+}
+
 namespace {
 
 // Maps error values from getaddrinfo(3) to canonical Status codes.

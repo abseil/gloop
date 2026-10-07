@@ -82,6 +82,7 @@
 #include "fuzztest/fuzztest.h"
 #include "gloop/strings/host_port.h"
 #include "gloop/util/endian/endian.h"
+#include "gloop/util/task/status_matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -350,6 +351,15 @@ TEST(IPAddressTest, ToAndFromString6) {
   EXPECT_EQ(IPAddressToPTRString(addr), kPTRString);
   EXPECT_TRUE(PTRStringToIPAddress(kPTRString, &addr));
   EXPECT_EQ(addr.ToString(), kIPString);
+}
+
+TEST(IPAddressTest, StringToIPAddress) {
+  ABSL_ASSERT_OK_AND_ASSIGN(IPAddress addr,
+                            StringToIPAddress("2001:db8:300:1800::f"));
+  EXPECT_EQ(addr.ToString(), "2001:db8:300:1800::f");
+
+  EXPECT_THAT(StringToIPAddress("guava"),
+              StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("guava")));
 }
 
 TEST(IPAddressTest, PackedStringToIPAddress) {

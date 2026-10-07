@@ -1038,6 +1038,9 @@ absl::StatusOr<SocketAddress> MakeSocketAddressFromSockaddrIn6(
 ABSL_MUST_USE_RESULT bool StringToIPAddress(absl::string_view str,
                                             IPAddress* out);
 
+// As above, except returns the IPAddress or error via StatusOr.
+absl::StatusOr<IPAddress> StringToIPAddress(absl::string_view str);
+
 // Parse an IPv4 or IPv6 address in textual form to an IPAddress.
 //
 // This difference between this function and others is that this function
