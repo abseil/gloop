@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 //
 // This header defines the `StringRef` and `StringLabel` classes which
 // respectively reference or manage string contents, or application defined

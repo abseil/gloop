@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // The `PERFTOOLS_VERIFY(cond)` and `PERFTOOLS_VERIFY_<op>(lhs, rhs)` macros
 // defined in this header are similar to Abseil's CHECK macros. They verify that
 // the required condition holds, and if not, print the failed condition, values

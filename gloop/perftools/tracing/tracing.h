@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // This file defines the 'public' tracing API for causality tracing.
 //
 #ifndef THIRD_PARTY_GLOOP_PERFTOOLS_TRACING_TRACING_H_

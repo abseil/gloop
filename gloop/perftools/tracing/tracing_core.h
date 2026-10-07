@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // This file defines the 'core' tracing API for Dapper causality tracing.
 //
 // All functions declare in this header are intended to be called only by Dapper
