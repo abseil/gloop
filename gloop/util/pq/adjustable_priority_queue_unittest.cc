@@ -22,21 +22,18 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <cstdlib>
-#include <iosfwd>
-#include <iostream>
-#include <ostream>
 #include <utility>
 #include <vector>
 
 #include "absl/container/flat_hash_set.h"
-#include "absl/log/check.h"
 #include "absl/random/random.h"
+#include "absl/strings/str_cat.h"
 #include "benchmark/benchmark.h"
-#include "gloop/base/init_google.h"
 #include "gloop/util/gtl/stl_util.h"
 #include "gloop/util/random/acmrandom.h"
 #include "gtest/gtest.h"
+
+namespace {
 
 struct TestElement {
   bool operator<(const TestElement& other) const {
@@ -71,63 +68,68 @@ void CheckPQTop(std::vector<TestElement>* elements,
   std::sort(max_priority_indices.begin(), max_priority_indices.end());
   std::vector<TestElement*> top_elements;
   pq->AllTop(&top_elements);
-  CHECK_EQ(top_elements.size(), max_priority_indices.size());
+  ASSERT_EQ(top_elements.size(), max_priority_indices.size());
   std::vector<int> pqtop_indices(top_elements.size());
   for (int64_t i = 0; i < top_elements.size(); ++i) {
     pqtop_indices[i] = top_elements[i]->heap_index;
   }
-  CHECK(max_priority_indices == pqtop_indices);
+  EXPECT_EQ(pqtop_indices, max_priority_indices);
 }
 
-void Test1(ACMRandom* r) {
+class AdjustablePriorityQueueParamTest : public testing::TestWithParam<int> {};
+
+TEST_P(AdjustablePriorityQueueParamTest, PriorityOrdering) {
+  const int test_num = GetParam();
+  ACMRandom r(314159 + test_num);
   AdjustablePriorityQueue<TestElement> pq;
   constexpr int64_t num_test_elements = 200;
   std::vector<TestElement> test_elements(num_test_elements);
-  CHECK(pq.IsEmpty());
-  CHECK(!pq.Contains(&test_elements[0]));
+  ASSERT_TRUE(pq.IsEmpty());
+  ASSERT_FALSE(pq.Contains(&test_elements[0]));
   absl::flat_hash_set<TestElement*> inpq;
   for (int64_t i = 0; i < num_test_elements; ++i) {
+    SCOPED_TRACE(absl::StrCat("inserting i=", i));
     test_elements[i].priority =
-        (double)(int)(absl::Uniform<float>(absl::IntervalOpen, *r, 0, 1) * 10);
+        (double)(int)(absl::Uniform<float>(absl::IntervalOpen, r, 0, 1) * 10);
     test_elements[i].label = i;  // for easier debugging
-    CHECK(!pq.Contains(&test_elements[i]));
+    ASSERT_FALSE(pq.Contains(&test_elements[i]));
     pq.Add(&test_elements[i]);
-    CHECK(pq.Contains(&test_elements[i]));
+    ASSERT_TRUE(pq.Contains(&test_elements[i]));
     inpq.insert(&test_elements[i]);
     CheckPQTop(&test_elements, &pq, &inpq);
   }
   for (int64_t i = 0; i < num_test_elements; ++i) {
     // Test that check still succeeds even for element that wasn't just
     // inserted.
-    CHECK(pq.Contains(&test_elements[i]));
+    EXPECT_TRUE(pq.Contains(&test_elements[i]));
   }
   TestElement not_in_pq;
   not_in_pq.heap_index = 5;  // Make it plausible.
-  CHECK(!pq.Contains(&not_in_pq));
+  EXPECT_FALSE(pq.Contains(&not_in_pq));
 
-  int num_test_operations = 10000;
-  CHECK_EQ(pq.Size(), num_test_elements);
+  constexpr int kNumTestOperations = 10000;
+  ASSERT_EQ(pq.Size(), num_test_elements);
 
   CheckPQTop(&test_elements, &pq, &inpq);
 
-  for (int i = 0; i < num_test_operations; ++i) {
-    int64_t elem_num = absl::Uniform<int32_t>(*r, 0, num_test_elements);
+  for (int i = 0; i < kNumTestOperations; ++i) {
+    SCOPED_TRACE(absl::StrCat("operation i=", i));
+    int64_t elem_num = absl::Uniform<int32_t>(r, 0, num_test_elements);
     TestElement* el = &(test_elements[elem_num]);
     if (inpq.find(el) == inpq.end()) {  // not in pq
       el->priority =
-          (double)(int)(absl::Uniform<float>(absl::IntervalOpen, *r, 0, 1) *
-                        10);
+          (double)(int)(absl::Uniform<float>(absl::IntervalOpen, r, 0, 1) * 10);
       pq.Add(el);
       inpq.insert(el);
     } else {
-      if (absl::Uniform<int32_t>(*r, 0, 2)) {
+      if (absl::Uniform<int32_t>(r, 0, 2)) {
         el->priority =
-            (double)(int)(absl::Uniform<float>(absl::IntervalOpen, *r, 0, 1) *
+            (double)(int)(absl::Uniform<float>(absl::IntervalOpen, r, 0, 1) *
                           10);
         pq.NoteChangedPriority(el);
       } else {
         pq.Remove(el);
-        CHECK(!pq.Contains(el));
+        ASSERT_FALSE(pq.Contains(el));
         inpq.erase(el);
       }
     }
@@ -142,15 +144,17 @@ void Test1(ACMRandom* r) {
   CheckPQTop(&test_elements, &pq3, &inpq);
 }
 
-void ClearTest(ACMRandom* r) {
+TEST_P(AdjustablePriorityQueueParamTest, Clear) {
+  const int test_num = GetParam();
+  ACMRandom r(314159 + test_num);
   AdjustablePriorityQueue<TestElement> pq;
 
-  const int64_t kNumElements = absl::Uniform<int32_t>(*r, 0, 500) + 100;
+  const int64_t kNumElements = absl::Uniform<int32_t>(r, 0, 500) + 100;
   std::vector<TestElement*> reference;
 
   // Create a queue with a many elements.
   for (int64_t i = 0; i < kNumElements; ++i) {
-    CHECK_EQ(i, pq.Size());
+    ASSERT_EQ(pq.Size(), i);
     TestElement* const element = new TestElement;
     pq.Add(element);
     reference.push_back(element);
@@ -158,26 +162,34 @@ void ClearTest(ACMRandom* r) {
 
   // Clear the queue and validate its size.
   pq.Clear();
-  CHECK_EQ(0, pq.Size());
+  EXPECT_EQ(pq.Size(), 0);
 
   gtl::STLDeleteElements(&reference);
 }
 
-void HeapifyTest(ACMRandom* r) {
-  const int64_t kNumElements = absl::Uniform<int64_t>(*r, 0, 500) + 100;
+TEST_P(AdjustablePriorityQueueParamTest, Heapify) {
+  const int test_num = GetParam();
+  ACMRandom r(314159 + test_num);
+  const int64_t kNumElements = absl::Uniform<int64_t>(r, 0, 500) + 100;
   std::vector<TestElement*> refs(kNumElements);
   for (TestElement*& ref : refs) {
     ref = new TestElement;
-    ref->priority = absl::Uniform<int32_t>(*r, 0, 10000);
+    ref->priority = absl::Uniform<int32_t>(r, 0, 10000);
   }
   AdjustablePriorityQueue<TestElement> pq(refs.begin(), refs.end());
-  CHECK_EQ(kNumElements, pq.Size());
+  ASSERT_EQ(pq.Size(), kNumElements);
   pq.CheckValid();
 
   gtl::STLDeleteElements(&refs);
 }
 
-static void BM_Add(benchmark::State& state) {
+INSTANTIATE_TEST_SUITE_P(, AdjustablePriorityQueueParamTest,
+                         testing::Range(0, 5),
+                         [](const testing::TestParamInfo<int>& info) {
+                           return absl::StrCat("Iteration", info.param);
+                         });
+
+void BM_Add(benchmark::State& state) {
   int64_t heap_size = state.range(0);
   AdjustablePriorityQueue<TestElement> pq;
   ACMRandom rnd(301);
@@ -200,7 +212,7 @@ static void BM_Add(benchmark::State& state) {
 }
 BENCHMARK(BM_Add)->Range(64, 8192);
 
-static void BM_Remove(benchmark::State& state) {
+void BM_Remove(benchmark::State& state) {
   int64_t heap_size = state.range(0);
   AdjustablePriorityQueue<TestElement> pq;
   ACMRandom rnd(301);
@@ -226,20 +238,20 @@ BENCHMARK(BM_Remove)->Range(64, 8192);
 
 TEST(AdjustablePriorityQueueTest, FunctorCompression) {
   // Do not rely in the exact size of `std::vector`.
-  static constexpr int kBaseSize = sizeof(std::vector<TestElement*>);
+  constexpr int kBaseSize = sizeof(std::vector<TestElement*>);
 
   EXPECT_EQ(sizeof(AdjustablePriorityQueue<TestElement>), kBaseSize);
 
-  static constexpr int kFunctorSize = 8;
+  constexpr int kFunctorSize = 8;
   struct Cmp {
     bool operator()(const TestElement& a, const TestElement& b) { return true; }
     char dummy[kFunctorSize];
   };
-  EXPECT_GT(sizeof(AdjustablePriorityQueue<TestElement, Cmp>),
+  EXPECT_EQ(sizeof(AdjustablePriorityQueue<TestElement, Cmp>),
             kBaseSize + kFunctorSize);
 }
 
-static void BM_Pop(benchmark::State& state) {
+void BM_Pop(benchmark::State& state) {
   int64_t heap_size = state.range(0);
   AdjustablePriorityQueue<TestElement> pq;
   ACMRandom rnd(301);
@@ -260,7 +272,7 @@ static void BM_Pop(benchmark::State& state) {
 }
 BENCHMARK(BM_Pop)->Range(64, 8192);
 
-static void BM_Heapify(benchmark::State& state) {
+void BM_Heapify(benchmark::State& state) {
   const int64_t heap_size = state.range(0);
   ACMRandom rnd(301);
   std::vector<TestElement*> elems(heap_size);
@@ -277,7 +289,7 @@ static void BM_Heapify(benchmark::State& state) {
 }
 BENCHMARK(BM_Heapify)->Range(64, 8192);
 
-static void BM_AddAll(benchmark::State& state) {
+void BM_AddAll(benchmark::State& state) {
   const int64_t heap_size = state.range(0);
   ACMRandom rnd(301);
   std::vector<TestElement*> elems(heap_size);
@@ -297,20 +309,4 @@ static void BM_AddAll(benchmark::State& state) {
 }
 BENCHMARK(BM_AddAll)->Range(64, 8192);
 
-int main(int argc, char* argv[]) {
-  InitGoogle(argv[0], &argc, &argv, true);
-  if (!benchmark::GetBenchmarkFilter().empty()) {
-    benchmark::RunSpecifiedBenchmarks();
-    exit(0);
-  }
-
-  ACMRandom r(314159);
-  int num_tests = 5;
-  for (int test_num = 0; test_num < num_tests; ++test_num) {
-    Test1(&r);
-    ClearTest(&r);
-    HeapifyTest(&r);
-  }
-  std::cout << "PASS" << std::endl;
-  return 0;
-}
+}  // namespace
