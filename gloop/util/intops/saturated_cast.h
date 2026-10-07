@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // Provides a saturated_cast function template to facilitate conversion between
 // numeric types, with clipping at range boundaries in case the conversion would
 // otherwise result in overflow or underflow.

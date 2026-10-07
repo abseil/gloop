@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 //
 // This is a simple program which you can disassemble to convince yourself that
 // the compiler is smart enough to use StrongInt properly.

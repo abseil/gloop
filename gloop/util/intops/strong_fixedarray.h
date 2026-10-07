@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // This file provides the StrongFixedArray container that wraps around
 // FixedArray.  The wrapper restrict indexing to a pre-specified type-safe
 // integer type or IntType (see util/intops/strong_int.h).  It prevents

@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // Unit tests for saturated_cast. Since there is some trickiness in terms with
 // conversions between types, especially between signed and unsigned, types, we
 // test from all supported types to all supported types, including uint128.

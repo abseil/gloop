@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // This file provides the StrongArray, which wraps a C native array of
 // values, indexed by an StrongInt (see util/intops/string_int.h), as
 // well as the ConstStrongArray for wrapping const arrays. Both prevents
