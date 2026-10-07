@@ -33,17 +33,16 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-using std::placeholders::_1;
-
-using testing::ElementsAre;
-using util::functional::ToCallback;
-using util::functional::ToPermanentCallback;
-
 namespace {
-// When updating examples in to_callback.h, please ensure edits are
-// replicated here.
 namespace examples {
 
+using ::std::placeholders::_1;
+using ::testing::IsNull;
+using ::testing::NotNull;
+using ::util::functional::ToCallback;
+
+// When updating examples in to_callback.h, please ensure edits are
+// replicated here.
 void Nop() {}
 void Nop1(int unused) {}
 int Sum(int a, int b) { return a + b; }
@@ -61,7 +60,7 @@ TEST(FunctorToCallback, Examples) {
   Closure* f = ToCallback(std::bind(&M::member_nop, m));
   ::util::functional::ResultCallbackFunctor<int, int> g =
       ToCallback(std::bind(Sum, 5, _1));
-  util::functional::ResultCallbackFunctor<int, int, int> h = ToCallback(Sum);
+  ::util::functional::ResultCallbackFunctor<int, int, int> h = ToCallback(Sum);
   struct F {
     int operator()() { return 1; }
   };
@@ -74,21 +73,35 @@ TEST(FunctorToCallback, Examples) {
 
   // Make sure examples actually run; this also handles cleanup as the above
   // were all created as temporary callbacks.
-  a->Run();                  // Nop()
-  (*b)(1);                   // Nop1(1)
-  c->Run();                  // Nop()
-  d->Run();                  // Nop1(42)
-  (*e)(1);                   // Nop1(1)
+  ASSERT_THAT(a, NotNull());
+  a->Run();  // Nop()
+  (*b)(1);   // Nop1(1)
+  ASSERT_THAT(c, NotNull());
+  c->Run();  // Nop()
+  ASSERT_THAT(d, NotNull());
+  d->Run();  // Nop1(42)
+  (*e)(1);   // Nop1(1)
+  ASSERT_THAT(f, NotNull());
   f->Run();                  // M::member_nop()
-  EXPECT_EQ(7, (*g)(2));     // Sum(5, 2)
-  EXPECT_EQ(5, (*h)(3, 2));  // Sum(3, 2)
-  EXPECT_EQ(1, (*i)());      // (F())()
+  EXPECT_EQ((*g)(2), 7);     // Sum(5, 2)
+  EXPECT_EQ((*h)(3, 2), 5);  // Sum(3, 2)
+  EXPECT_EQ((*i)(), 1);      // (F())()
   (*j)("Example 3");         // LOG(INFO) << "Example 3";
-  EXPECT_EQ(k, nullptr);     // Empty std::function
-  EXPECT_EQ(l, nullptr);     // Null function pointer
+  EXPECT_THAT(k, IsNull());  // Empty std::function
+  EXPECT_THAT(l, IsNull());  // Null function pointer
 }
 
 }  // namespace examples
+}  // namespace
+
+namespace util {
+namespace functional {
+namespace {
+
+using ::std::placeholders::_1;
+using ::testing::ElementsAre;
+using ::testing::IsNull;
+using ::testing::NotNull;
 
 // Tests below adapted from ToCallback.
 int32_t Inc(int32_t val) { return val + 1; }
@@ -98,51 +111,51 @@ std::string GetTraceStatus() { return base::CurrentContext().thread_status(); }
 
 TEST(FunctorToCallback, Closure) {
   Closure* c = ToCallback([] {});
+  ASSERT_THAT(c, NotNull());
   c->Run();
   std::unique_ptr<Closure> p(ToPermanentCallback([] {}));
+  ASSERT_THAT(p, NotNull());
   p->Run();
 }
 
 TEST(FunctorToCallback, ResultCallback) {
-  ::util::functional::ResultCallbackFunctor<int32_t> c = ToCallback(One);
-  EXPECT_EQ(1, (*c)());
-  ::util::functional::ResultCallbackFunctor<int32_t> p(
-      ToPermanentCallback(One));
-  EXPECT_EQ(1, (*p)());
+  ResultCallbackFunctor<int32_t> c = ToCallback(One);
+  EXPECT_EQ((*c)(), 1);
+  ResultCallbackFunctor<int32_t> p(ToPermanentCallback(One));
+  EXPECT_EQ((*p)(), 1);
 }
 
 TEST(FunctorToCallback, ResultCallback1) {
-  ::util::functional::ResultCallbackFunctor<int32_t, int32_t> c =
-      ToCallback(Inc);
-  EXPECT_EQ(1, (*c)(0));
-  ::util::functional::ResultCallbackFunctor<int32_t, int32_t> p(
-      ToPermanentCallback(Inc));
-  EXPECT_EQ(1, (*p)(0));
+  ResultCallbackFunctor<int32_t, int32_t> c = ToCallback(Inc);
+  EXPECT_EQ((*c)(0), 1);
+  ResultCallbackFunctor<int32_t, int32_t> p(ToPermanentCallback(Inc));
+  EXPECT_EQ((*p)(0), 1);
 }
 
 TEST(FunctorToCallback, Binding) {
-  ::util::functional::ResultCallbackFunctor<int32_t> c =
-      ToCallback(std::bind(Inc, 2));
-  EXPECT_EQ(3, (*c)());
-  ::util::functional::ResultCallbackFunctor<int32_t> p(
-      ToPermanentCallback(std::bind(Inc, 2)));
-  EXPECT_EQ(3, (*p)());
+  ResultCallbackFunctor<int32_t> c = ToCallback(std::bind(Inc, 2));
+  EXPECT_EQ((*c)(), 3);
+  ResultCallbackFunctor<int32_t> p(ToPermanentCallback(std::bind(Inc, 2)));
+  EXPECT_EQ((*p)(), 3);
 }
 
 TEST(FunctorToCallback, ExplicitConversion) {
-  ToCallback<Closure>([] {})->Run();
-  std::unique_ptr<Closure>(ToPermanentCallback<Closure>([] {}))->Run();
+  Closure* c = ToCallback<Closure>([] {});
+  ASSERT_THAT(c, NotNull());
+  c->Run();
+  std::unique_ptr<Closure> p(ToPermanentCallback<Closure>([] {}));
+  ASSERT_THAT(p, NotNull());
+  p->Run();
 }
 
 TEST(FunctorToCallback, ResultTypeConversion) {
-  ::util::functional::ResultCallbackFunctor<int64_t> c = ToCallback(One);
-  EXPECT_EQ(1, (*c)());
+  ResultCallbackFunctor<int64_t> c = ToCallback(One);
+  EXPECT_EQ((*c)(), 1);
 }
 
 TEST(FunctorToCallback, ArgumentTypeConversion) {
-  ::util::functional::ResultCallbackFunctor<int32_t, int64_t> c =
-      ToCallback(Inc);
-  EXPECT_EQ(1, (*c)(0));
+  ResultCallbackFunctor<int32_t, int64_t> c = ToCallback(Inc);
+  EXPECT_EQ((*c)(0), 1);
 }
 
 TEST(FunctorToCallback, FunctorObject) {
@@ -150,33 +163,31 @@ TEST(FunctorToCallback, FunctorObject) {
     int32_t operator()() const { return 2; }
   };
 
-  ::util::functional::ResultCallbackFunctor<int32_t> c =
-      ToCallback(FunctorTwo());
-  EXPECT_EQ(2, (*c)());
+  ResultCallbackFunctor<int32_t> c = ToCallback(FunctorTwo());
+  EXPECT_EQ((*c)(), 2);
 }
 
 TEST(FunctorToCallback, PassesMoveOnlyArguments) {
   struct Helper {
     static int TakesUnique(std::unique_ptr<int> v) { return *v; }
   };
-  ::util::functional::ResultCallbackFunctor<int, std::unique_ptr<int>> c =
+  ResultCallbackFunctor<int, std::unique_ptr<int>> c =
       ToCallback(std::bind(Helper::TakesUnique, _1));
-  EXPECT_EQ(1, (*c)(std::unique_ptr<int>(new int(1))));
+  EXPECT_EQ((*c)(std::make_unique<int>(1)), 1);
 }
 
-::util::functional::ResultCallbackFunctor<int32_t> Identity(
-    ::util::functional::ResultCallbackFunctor<int32_t> c) {
+ResultCallbackFunctor<int32_t> Identity(ResultCallbackFunctor<int32_t> c) {
   return c;
 }
 
-::util::functional::ResultCallbackFunctor<int32_t, int32_t> Identity(
-    ::util::functional::ResultCallbackFunctor<int32_t, int32_t> c) {
+ResultCallbackFunctor<int32_t, int32_t> Identity(
+    ResultCallbackFunctor<int32_t, int32_t> c) {
   return c;
 }
 
 TEST(FunctorToCallback, InvalidConversions) {
-  EXPECT_EQ(1, (*Identity(ToCallback(One)))());
-  EXPECT_EQ(1, (*Identity(ToCallback(Inc)))(0));
+  EXPECT_EQ((*Identity(ToCallback(One)))(), 1);
+  EXPECT_EQ((*Identity(ToCallback(Inc)))(0), 1);
 }
 
 TEST(FunctorToCallback, CopyOnlyFunctor) {
@@ -187,14 +198,13 @@ TEST(FunctorToCallback, CopyOnlyFunctor) {
     int operator()() { return 1; }
   };
 
-  ::util::functional::ResultCallbackFunctor<int> c =
-      ToCallback(CopyOnlyFunctor());
-  EXPECT_EQ(1, (*c)());
+  ResultCallbackFunctor<int> c = ToCallback(CopyOnlyFunctor());
+  EXPECT_EQ((*c)(), 1);
   c = ToCallback(std::bind(CopyOnlyFunctor()));
-  EXPECT_EQ(1, (*c)());
+  EXPECT_EQ((*c)(), 1);
   CopyOnlyFunctor f;
   c = ToCallback(std::bind(f));
-  EXPECT_EQ(1, (*c)());
+  EXPECT_EQ((*c)(), 1);
 }
 
 TEST(FunctorToCallback, MoveOnlyFunctor) {
@@ -206,9 +216,8 @@ TEST(FunctorToCallback, MoveOnlyFunctor) {
     int operator()() const { return 1; }
   };
 
-  ::util::functional::ResultCallbackFunctor<int> c =
-      ToCallback(MoveOnlyFunctor());
-  EXPECT_EQ(1, (*c)());
+  ResultCallbackFunctor<int> c = ToCallback(MoveOnlyFunctor());
+  EXPECT_EQ((*c)(), 1);
 }
 
 // SUBTLE: C++ allows operator()() to distinguish between being invoked on a
@@ -227,14 +236,13 @@ TEST(FunctorToCallback, LvalueRvalueInvocation) {
     std::string operator()() & { return "cat"; }
   };
   const LvalueOnlyFunctor lvf = {};
-  ::util::functional::ResultCallbackFunctor<std::string> pcb_lvf1(
-      ToPermanentCallback(lvf));
-  EXPECT_EQ("cat", (*pcb_lvf1)());
+  ResultCallbackFunctor<std::string> pcb_lvf1(ToPermanentCallback(lvf));
+  EXPECT_EQ((*pcb_lvf1)(), "cat");
   // Note that we can still construct the actual callback with a temporary.  It
   // is copied to an lvalue within the returned callback.
-  ::util::functional::ResultCallbackFunctor<std::string> pcb_lvf2(
+  ResultCallbackFunctor<std::string> pcb_lvf2(
       ToPermanentCallback(LvalueOnlyFunctor()));
-  EXPECT_EQ("cat", (*pcb_lvf2)());
+  EXPECT_EQ((*pcb_lvf2)(), "cat");
 
   // Only a functor when referenced as an rvalue.  May only be bound into a
   // temporary callback.  Here, we take advantage of this to encapsulate data
@@ -243,22 +251,20 @@ TEST(FunctorToCallback, LvalueRvalueInvocation) {
     std::string operator()() && { return std::move(pet); }
     std::string pet = "dog";
   };
-  ::util::functional::ResultCallbackFunctor<std::string> cb_rvf1 =
-      ToCallback(RvalueIsFunctor());
-  EXPECT_EQ("dog", (*cb_rvf1)());
+  ResultCallbackFunctor<std::string> cb_rvf1 = ToCallback(RvalueIsFunctor());
+  EXPECT_EQ((*cb_rvf1)(), "dog");
   const RvalueIsFunctor rvf = {};  // Not invokable.
-  ::util::functional::ResultCallbackFunctor<std::string> cb_rvf2 =
-      ToCallback(rvf);
+  ResultCallbackFunctor<std::string> cb_rvf2 = ToCallback(rvf);
   // As above, even though "cb_rvf2" was constructed with an lvalue, we invoke
   // against the temporary copy embedded in the returned callback.
-  EXPECT_EQ("dog", (*cb_rvf2)());
+  EXPECT_EQ((*cb_rvf2)(), "dog");
 }
 
 TEST(FunctorToCallback, LvalueFunctor) {
   struct Functor {
    public:
     ~Functor() { value_ = 24; }
-    void operator()() const { EXPECT_EQ(42, value_); }
+    void operator()() const { EXPECT_EQ(value_, 42); }
 
    private:
     int value_ = 42;
@@ -269,6 +275,7 @@ TEST(FunctorToCallback, LvalueFunctor) {
     Functor f;
     cb = ToCallback(f);
   }
+  ASSERT_THAT(cb, NotNull());
   cb->Run();
 }
 
@@ -277,8 +284,7 @@ TEST(FunctorToCallback, ForwardByValue) {
     static void F(std::vector<int> v) { v.push_back(4); }  // Called by value.
   };
 
-  ::util::functional::CallbackFunctor<std::vector<int>&> cb =
-      ToCallback(Helper::F);
+  CallbackFunctor<std::vector<int>&> cb = ToCallback(Helper::F);
   std::vector<int> v = {1, 2, 3};
   (*cb)(v);
   EXPECT_THAT(v, ElementsAre(1, 2, 3));
@@ -290,19 +296,18 @@ TEST(FunctorToCallback, ConstFunctorWithNonConstCallOperator) {
   };
   const Functor f = {};
   Closure* cb = ToCallback(f);
+  ASSERT_THAT(cb, NotNull());
   cb->Run();
 }
 
 TEST(FunctorToCallback, TraceContext) {
   base::WithThreadStatus w1("foo");
-  ::util::functional::ResultCallbackFunctor<std::string> c =
-      ToCallback(GetTraceStatus);
-  ::util::functional::ResultCallbackFunctor<std::string> p(
-      ToPermanentCallback(GetTraceStatus));
+  ResultCallbackFunctor<std::string> c = ToCallback(GetTraceStatus);
+  ResultCallbackFunctor<std::string> p(ToPermanentCallback(GetTraceStatus));
   base::WithThreadStatus w2("bar");
-  EXPECT_EQ("foo", (*c)());
-  EXPECT_EQ("bar", GetTraceStatus());
-  EXPECT_EQ("bar", (*p)());
+  EXPECT_EQ((*c)(), "foo");
+  EXPECT_EQ(GetTraceStatus(), "bar");
+  EXPECT_EQ((*p)(), "bar");
 }
 
 TEST(FunctorToCallback, ConvertibleAmbiguities) {
@@ -312,14 +317,14 @@ TEST(FunctorToCallback, ConvertibleAmbiguities) {
     static void Fn() {}
     static void Fn(int) {}
     static void Fn(void*) {}
-    static void Fn(::util::functional::ResultCallbackFunctor<int> cb) { ; }
-    static void Fn(::util::functional::ResultCallbackFunctor<int, int> cb) { ; }
+    static void Fn(ResultCallbackFunctor<int> cb) { ; }
+    static void Fn(ResultCallbackFunctor<int, int> cb) { ; }
   };
   // Fn argument convertible to a
-  // ::util::functional::ResultCallbackFunctor<int>.
+  // ResultCallbackFunctor<int>.
   X::Fn(ToPermanentCallback([] { return 123; }));
   // Fn argument convertible to a
-  // ::util::functional::ResultCallbackFunctor<int,int>.
+  // ResultCallbackFunctor<int,int>.
   X::Fn(ToPermanentCallback([](int x) { return 123 + x; }));
 }
 
@@ -327,23 +332,28 @@ TEST(FunctorToCallback, EmptyFunctors) {
   // Empty std::functions should be converted to null.
   std::function<void()> empty_function;
   Closure* empty_closure = ToPermanentCallback(empty_function);
-  ASSERT_EQ(nullptr, empty_closure);
+  ASSERT_THAT(empty_closure, IsNull());
 
   // Null function pointers should be converted to null.
   void (*function_ptr)() = nullptr;
   Closure* empty_closure2 = ToCallback(function_ptr);
-  ASSERT_EQ(nullptr, empty_closure2);
+  ASSERT_THAT(empty_closure2, IsNull());
 
   // Non-null function pointers are functors and should convert.
   function_ptr = examples::Nop;
   Closure* non_empty = ToCallback(function_ptr);
-  ASSERT_NE(nullptr, non_empty);
+  ASSERT_THAT(non_empty, NotNull());
   non_empty->Run();
 }
 
 TEST(FunctorToCallback, ResultCallbackVoid) {
-  ::util::functional::ResultCallbackFunctor<void> c =
-      ToPermanentCallback([] {});
+  bool called = false;
+  ResultCallbackFunctor<void> c =
+      ToPermanentCallback([&called] { called = true; });
+  (*c)();
+  EXPECT_TRUE(called);
 }
 
 }  // namespace
+}  // namespace functional
+}  // namespace util
