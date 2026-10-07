@@ -532,6 +532,82 @@ class WithThreadStatus {
   WithThreadStatus& operator=(const WithThreadStatus&) = delete;
 };
 
+// Installs the supplied context, indicating that work associated with the
+// current thread local context has ceased, and that the current thread will
+// proceed work associated with the supplied context.
+//
+// A practical example for this is where work that should be associated with a
+// specific context is tail called from work associated with another context.
+// Symmetric transfers in C++20 coroutines are a specific use case where
+// 'scoping' a context for resumed work is infeasible.
+//
+// Applications can express that there is a causal relationship between the
+// ceased execution on the old context and the resumed execution under the
+// new context by specifying a `barrier_id` value. A good example here is a
+// child coroutine that finishes executing: it can directly yield the current
+// thread through symmetric transfers to the waiting parent coroutine, which
+// resumes work under the context associated with that coroutine.
+//
+// There are also cases where there is no necessary causal relationship. For
+// example, a threadpool may execute queued work items that may or may not be
+// related, and the completion of one work item frees up the thread for other
+// work items. Instead of a more traditional scoped 'WithContext' context
+// placement, an implementation could directly hot-swap the contexts, and
+// only restore a background context once the work queue is empty.
+//
+// Correct usage of this API without leaking context resources or trace data
+// permanently into possibly long lived threads or out of functions requires
+// that there is an enclosing `base::WithContext` object scoping any possible
+// calls to `SetThreadContext`. This ensures that the original context present
+// at the construction of the `WithContext` is automatically restored as the
+// instance goes out of scope.
+//
+// This function integrates with the execution tracing framework documented in
+// <link>. In the presence of a tracer, the following
+// processing events are generated:
+//
+// If 'context' is a default (not previously swapped out or suspended) instance,
+// assuming sync ids 1 and 7 for the old and new context respectively, then the
+// following events are generated (full details omitted):
+//
+//   sync_id: 1 END
+//   sync_id: 7 BEGIN label: <label>
+//
+// If a barrier id is specified, then either of the two below events sequences
+// may be emitted. As of now which form is used is unspecified and subject to
+// change. They both express the 'X follows Y' causality.
+//
+//   # Signal->observed causality
+//   sync_id: 1 SIGNAL coop_id: <barrier>
+//   sync_id: 1 END
+//   sync_id: 7 BEGIN label: <label>
+//   sync_id: 1 OBSERVED coop_id: <barrier>
+//
+//   # Spawn causality:
+//   sync_id: 1 SPAWN coop_id: 7
+//   sync_id: 1 END
+//   sync_id: 7 BEGIN label: <label>
+//
+// If `context` is a suspended (previously 'swapped out') intance, then
+// the following events are generated:
+//
+//   sync_id: 1 SIGNAL coop_id: <barrier_id>
+//   sync_id: 1 END
+//   sync_id: 7 CONTINUE coop_id: <barrier_id>
+//
+// The CONTINUE here matches the preceding WAIT event recorded for sync_id 7
+// when the context was swapped out of TLS (suspended). Callers should for
+// now abstain from mixing the (deprecated) `SwapCurrentContext` with this
+// method as they have subtle differences in semantics beyond the fact that
+// the swap function is deprecated.
+//
+// REQUIRES: caller has access, enforced through `ThreadContextAccess`
+void SetThreadContext(
+    ThreadContextAccess, Context context,
+    perftools::tracing::BarrierId barrier_id = perftools::tracing::kNoBarrierId,
+    perftools::tracing::StringRef label =
+        perftools::tracing::TraceSourceLocation::current());
+
 // Low-level APIs for changing the current context.
 //
 // NOTE: Callers are strongly advised to use WithContext, LocalTraceSpan, or
