@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 //
 // Legacy Google-specific variation on `<cmath>` `std::is*` predicates.
 // New code should prefer to use the standard form.
