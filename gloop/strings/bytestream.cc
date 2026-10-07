@@ -32,7 +32,6 @@
 
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/nullability.h"
-#include "absl/memory/memory.h"
 #include "absl/strings/internal/resize_uninitialized.h"
 #include "absl/strings/string_view.h"
 
@@ -133,7 +132,7 @@ char* absl_nonnull CheckedArrayByteSink::GetAppendBuffer(
 
 GrowingArrayByteSink::GrowingArrayByteSink(size_t estimated_size)
     : capacity_(estimated_size),
-      buf_(absl::make_unique_for_overwrite<char[]>(estimated_size)),
+      buf_(std::make_unique_for_overwrite<char[]>(estimated_size)),
       size_(0) {}
 
 void GrowingArrayByteSink::Append(const char* absl_nonnull bytes, size_t n) {
@@ -178,7 +177,7 @@ absl_nonnull std::unique_ptr<char[]> GrowingArrayByteSink::GetBuffer(
 
 void GrowingArrayByteSink::Expand(size_t amount) {  // Expand by at least 50%.
   size_t new_capacity = std::max(capacity_ + amount, (3 * capacity_) / 2);
-  auto bigger = absl::make_unique_for_overwrite<char[]>(new_capacity);
+  auto bigger = std::make_unique_for_overwrite<char[]>(new_capacity);
   memcpy(bigger.get(), buf_.get(), size_);
   buf_ = std::move(bigger);
   capacity_ = new_capacity;
@@ -188,7 +187,7 @@ void GrowingArrayByteSink::ShrinkToFit() {
   // Shrink only if the buffer is large and size_ is less than 3/4
   // of capacity_.
   if (capacity_ > 256 && size_ < (3 * capacity_) / 4) {
-    auto just_enough = absl::make_unique_for_overwrite<char[]>(size_);
+    auto just_enough = std::make_unique_for_overwrite<char[]>(size_);
     memcpy(just_enough.get(), buf_.get(), size_);
     buf_ = std::move(just_enough);
     capacity_ = size_;

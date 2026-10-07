@@ -78,7 +78,6 @@ cc_library(
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/base:raw_logging_internal",
-        "@abseil-cpp//absl/memory",
         "@abseil-cpp//absl/strings:internal",
         "@abseil-cpp//absl/strings:string_view",
     ],
