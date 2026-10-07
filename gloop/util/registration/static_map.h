@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // This header provides template/preprocessor code that allows creating static
 // maps in a distributed (and thread-safe) fashion. Attempts to set different
 // values for the same key are detected, and CHECK'ed for.
