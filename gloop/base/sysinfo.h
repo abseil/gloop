@@ -317,8 +317,8 @@ bool ProcFileReadable(const char* filespec, pid_t pid);
 // doesn't have a well-defined maximum length.
 //
 // WARNING: Will not work correctly with > 1 scanf arg. See (b/35995071)
-bool ScanFileForKeyword(FILE* f, const char* keyword, const char* format, ...)
-    ABSL_SCANF_ATTRIBUTE(3, 4);
+ABSL_SCANF_ATTRIBUTE(3, 4)
+bool ScanFileForKeyword(FILE* f, const char* keyword, const char* format, ...);
 
 // The maximum size string that ScanFileForKeyword() might return if
 // you don't specify a width limit.
@@ -333,15 +333,17 @@ bool ScanFileForKeyword(FILE* f, const char* keyword, const char* format, ...)
 // if both succeed else false.
 //
 // WARNING: Will not work correctly with > 1 scanf arg. See (b/35995071)
+ABSL_SCANF_ATTRIBUTE(4, 5)
 bool ReadProcKeyword(const char* filename, pid_t pid, const char* keyword,
-                     const char* format, ...) ABSL_SCANF_ATTRIBUTE(4, 5);
+                     const char* format, ...);
 
 // ReadProcKeywordQuiet() is the same as ReadProcKeyword() but doesn't
 // log an error if the file can't be opened or the keyword isn't found
 //
 // WARNING: Will not work correctly with > 1 scanf arg. See (b/35995071)
+ABSL_SCANF_ATTRIBUTE(4, 5)
 bool ReadProcKeywordQuiet(const char* filename, pid_t pid, const char* keyword,
-                          const char* format, ...) ABSL_SCANF_ATTRIBUTE(4, 5);
+                          const char* format, ...);
 
 // ReadProcField()
 //
@@ -365,8 +367,9 @@ bool ReadProcKeywordQuiet(const char* filename, pid_t pid, const char* keyword,
 // when only some of the values were parsed correctly.
 // Fix existing users who depend on that feature and remove
 // support for parsing multiple values from this function.
+ABSL_SCANF_ATTRIBUTE(4, 5)
 bool ReadProcField(const char* spec, pid_t pid, int field, const char* format,
-                   ...) ABSL_SCANF_ATTRIBUTE(4, 5);
+                   ...);
 
 // ParseProcessStat()
 //
