@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 #ifndef UTIL_TASK_SLEEP_H__
 #define UTIL_TASK_SLEEP_H__
 

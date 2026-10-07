@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // A Task object is used to coordinate an asynchronous activity.
 // It allows the creator of the task to supply a callback that will
 // execute when the task completes.  It also provides support for

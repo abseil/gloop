@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // A SyncTask object supports synchronously calling code
 // that requires a Task.  The object can be reused by
 // calling Reset() between uses.
