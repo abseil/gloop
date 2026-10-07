@@ -61,14 +61,14 @@ ABSL_CONST_INIT CountingMutex::Handle CountingMutex::null_handle_{nullptr};
 
 namespace {
 
-using FreeList = std::deque<std::atomic<uint32_t>*>;
+using FreeList = std::deque<std::atomic<uint16_t>*>;
 
 // Mutex guarding all operations on the handle freelist.
 ABSL_CONST_INIT absl::Mutex freelist_mutex(absl::kConstInit);
 
 // Returns a reference to the global free list, which is never destroyed.
-std::deque<std::atomic<uint32_t>*>& freelist() {
-  static absl::NoDestructor<std::deque<std::atomic<uint32_t>*>> list;
+std::deque<std::atomic<uint16_t>*>& freelist() {
+  static absl::NoDestructor<std::deque<std::atomic<uint16_t>*>> list;
   return *list;
 }
 
@@ -177,45 +177,52 @@ bool CountingMutex::ThreadContext::HasReader(const CountingMutex* p) const {
 
 // CPU slots:
 // ----------
-// In all comments and documentation we refer to the uint32_t counter value
+// In all comments and documentation we refer to the uint16_t counter value
 // for each CPU in the percpu Handler as a 'cpu slot' or 'cpu slot value'.
 //
-// Recasting percpu handles to uint32_t values:
-// --------------------------------------------
-// We internally cast / map the percpu handle's std::atomic<int64_t>* to an
-// std::atomic<uint32_t>*. We require the value to be unsigned, as we allow all
-// counters to overflow. The number of outstanding locks is always less than an
-// int32 value, however, threads could diabolically migrate to some CPU A when
-// obtaining a lock. and migrate to CPU B when releasing a lock, causing the one
-// counter to continuously increase and the other to continuously decrease. With
-// defined overflow, this is not an issue, as we only care about the cumulative
-// value of all slots, which will then always be (over or underflow to) the
-// correct value.
+// Per-CPU uint16_t slots and 32-bit `pending_` overflow handling:
+// ---------------------------------------------------------------
+// Each 128-byte CPU region is partitioned into 64 `std::atomic<uint16_t>`
+// handle slots, halving per-instance memory overhead while preserving the
+// 128-byte CPU stride (`cpu << 7`). Because `pending_` must remain `uint32_t`
+// for 32-bit `base::Futex` operations and unbounded global reader counts,
+// `uint16_t` slots must NEVER wrap modulo 2^16: a 16-bit wrap on one CPU slot
+// would not cancel out against a 32-bit wrap or another CPU's slot when summed
+// in 32-bit arithmetic by `WaitReaderLocks()`.
+//
+// Instead, active CPU slots are strictly bounded to `{1, 3, 5, ..., 0xFFFF}`
+// (representing 0 to 32,767 local readers):
+//   - On lock (`RefFast<2>` / `ReaderLockSlow`): if an active slot is saturated
+//     at `0xFFFF` (65,534 counts = 32,767 readers), the fast path falls back to
+//     `ReaderLockInitFast` / `ReaderLockInitSlow`. Under `mu_`, the slot is
+//     reset from `0xFFFF` to `3` (active with 1 local reader) and `0xFFFE`
+//     (65,534) counts are flushed into the 32-bit `pending_` counter.
+//   - On unlock (`RefFast<-2>` / `ReaderUnlockSlow`): if an active slot is `1`
+//     (0 local readers, e.g. due to cross-CPU thread migration or a prior
+//     saturation flush), the fast path falls back to `ReaderUnlockPending()`,
+//     which subtracts 2 directly from `pending_`.
 //
 // Active vs Inactive slots:
 // -------------------------
-// A cpu slot is active if its value is odd, inactive if its value is even. All
-// cpu slots are zero initialized. A slot can only change from active to
+// A cpu slot is active if its value is odd, inactive if its value is 0 (even).
+// All cpu slots are zero initialized. A slot can only change from active to
 // inactive or vice versa while holding mutex `mu_`. Lock counts are always
-// added or subtracted as multiples of 2. I.e., any add or sub operation never
-// changes the active state of the slot.
-// The value of an 'inactive slot' has no meaning: we allow the code to
-// optimistically increment or decrement the count of a CPU slot assuming it's
-// active. Ignoring the value of inactive slots simplifies the logic  as we
-// don't need to care about 'rolling back' a change on an inactive slot.
+// added or subtracted as multiples of 2 without changing the active bit or
+// wrapping modulo 2^16.
 //
 // Total lock count and `pending_` values.
 // ---------------------------------------
 // ReaderLockSlow() will always have initialized or added a count of 2 to some
-// cpu slot upon return: it blocks in the presence of competing writer locks,
-// and synchronizes with other readers that may race / compete with each other
-// activating a CPU slot.
+// cpu slot (or flushed saturation to `pending_`) upon return: it blocks in the
+// presence of competing writer locks, and synchronizes with other readers that
+// may race / compete with each other activating or flushing a CPU slot.
 // However, ReaderUnlockSlow() is not allowed to block, nor is it allowed to
 // 'activate' a CPU slot as it may execute concurrently with a writer awaiting
 // reader locks to be released. For this purpose, if ReaderUnlockSlow() runs
-// into an inactive slot, it will instead decrement the shared `pending_`
-// counter. The 'logical' total pending lock count is thus defined as:
-//   `Σ slot[0..NumCPU> WHERE value & 1 <> 0 + pending_`
+// into an inactive (`0`) or empty-active (`1`) slot, it will instead decrement
+// the shared `pending_` counter. The 'logical' total pending lock count is thus
+// defined as:
+//   `Σ (slot[0..NumCPU> - 1) WHERE (value & 1) != 0 + pending_`
 //
 // Writer locks
 // ------------
@@ -230,38 +237,32 @@ bool CountingMutex::ThreadContext::HasReader(const CountingMutex* p) const {
 //
 // Implementation details for SLOW (non RSEQ) Lock / Unlock logic.
 // ---------------------------------------------------------------
-// Both ReaderLockSlow() and ReaderUnlockSlow() optimistically add or subtract a
-// delta of 2 from the current cpu's slot. A non conditional fetch_add/fetch_sub
-// is faster than a load/CAS alternative, especially in highly concurrent use
-// cases on high core machines. Both functions check the result of the
-// fetch_add/fetch_sub to confirm the slot to be active.
+// Both ReaderLockSlow() and ReaderUnlockSlow() use a compare_exchange_weak loop
+// on the current CPU's `std::atomic<uint16_t>` slot so that inactive (`0`),
+// saturated (`0xFFFF`), or empty-active (`1` on unlock) slots are never
+// modified in place.
 //
-// ReaderLockSlow: if the slot is found inactive after the fetch_add(), the
-// `mu_` mutex is exclusively locked. As multiple readers could be competing on
-// the same CPU slot absent RSEQ critical sections and fences, the code checks
-// if the slot is active again after obtaining the exclusive lock. If the slot
-// is still inactive, it sets it to a value of 3, representing a count of 1 and
-// active state (2 + 1). It is possible that another reader competed with the
-// current thread, and already activated the slot, in which case the code simply
-// adds a lock count to it, i.e.: fetch_add(2).
+// ReaderLockSlow: if the slot is active and `< 0xFFFF`, increments it by 2 via
+// CAS. Otherwise (`(val & 1) == 0` or `val == 0xFFFF`), acquires `mu_` in
+// ReaderLockInitSlow: if the slot is still inactive, stores `3`; if saturated
+// at `0xFFFF`, CAS-resets it to `3` and flushes `0xFFFE` to `pending_`; else
+// CAS-increments it by 2.
 //
-// ReaderUnlockSlow: if the slot is found inactive after the fetch_sub(), we
-// simply decrease the shared `pending_` counter by 2, optionally signaling a
-// potentially waiting writer if we caused the `pending_` value to drop to zero.
+// ReaderUnlockSlow: if the slot is active and `>= 3`, decrements it by 2 via
+// CAS. Otherwise (`(val & 1) == 0` or `val == 1`), decreases the shared
+// `pending_` counter by 2, signaling any waiting writer if `pending_` drops to
+// zero.
 //
 // Implementation details for FAST (RSEQ) Lock / Unlock logic.
 // -----------------------------------------------------------
-// The RSEQ based code is similar to the slow code: the same invariants on
-// active and inactive slots apply. The RSEQ critical section allows us to use
-// normal unlocked load/store sequences. Instead of optimistically decreasing
-// the value, we load the current value, check the active state (odd), and if
-// active, store value + 2. Logically:
+// The RSEQ critical section uses unlocked 16-bit load/store sequences while
+// enforcing the same `{1, 3, ..., 0xFFFF}` bounds. Logically:
 //
 //   rseq {
-//     std::atomic<uint32_t>* ptr = GetPtr(percpu_data, rseq_cpu);
-//     uint32_t value = *ptr;
-//     if value == 0 goto slow_path
-//     value += delta
+//     std::atomic<uint16_t>* ptr = GetPtr(percpu_data, rseq_cpu);
+//     uint16_t value = *ptr;
+//     if ((value & 1) == 0) goto slow_path;
+//     if (value + delta overflows/underflows uint16_t) goto slow_path;
 //     *ptr = value + delta;
 //   }
 //
@@ -271,12 +272,11 @@ bool CountingMutex::ThreadContext::HasReader(const CountingMutex* p) const {
 // `percpu_data_` to a static inactive handle, `null_handle_`. As the
 // `percpu_data_` is loaded inside the critical section (which we make sure is
 // complete or restarted), doing so directly disables any change of any CPU
-// counter, and we have a single (predicted) branch inside the rseq.
+// counter.
 //
-// In the slow path, we use rseq to safely initialize the CPU slot: the `mu_`
-// locks synchronizes against any writer lock, the rseq makes sure we can
-// naively initialize the slot, as we don't have any optimistic updates
-// competing on the same CPU.
+// In the slow path (`ReaderLockInitFast`), we use rseq under `mu_` to safely
+// activate an inactive slot (`0 -> 3`), increment an active slot (`v -> v + 2`)
+// or reset a saturated slot (`0xFFFF -> 3`) and flush `0xFFFE` to `pending_`.
 //
 // The use case for `reader_locks_`
 // --------------------------------
@@ -289,7 +289,7 @@ bool CountingMutex::ThreadContext::HasReader(const CountingMutex* p) const {
 // and updates of active slots. Consequently, a CountingMutex dominated by
 // exclusive locks has performance parity with `absl::Mutex`.
 
-CountingMutex::Handle CountingMutex::InitHandle(std::atomic<uint32_t>* ptr) {
+CountingMutex::Handle CountingMutex::InitHandle(std::atomic<uint16_t>* ptr) {
   const int num_cpus = absl::base_internal::NumCPUs();
   for (int i = 0; i < num_cpus + 2; ++i) {
     ptr[i * kPerRegion].store(0, std::memory_order_relaxed);
@@ -303,7 +303,7 @@ CountingMutex::Handle CountingMutex::AllocHandle() {
     // Fast path: we have a free-listed handle: minimize critical section.
     absl::ReleasableMutexLock lock(freelist_mutex);
     if (ABSL_PREDICT_TRUE(!list.empty())) {
-      std::atomic<uint32_t>* ptr = list.back();
+      std::atomic<uint16_t>* ptr = list.back();
       list.pop_back();
       lock.Release();
       return InitHandle(ptr);
@@ -315,7 +315,7 @@ CountingMutex::Handle CountingMutex::AllocHandle() {
   // 'not registered' indexes. This allows a single branch fast path.
   const int num_cpus = absl::base_internal::NumCPUs();
   const size_t n = kPerRegion * num_cpus + 2 * kPerRegion;
-  auto* ptr = new std::atomic<uint32_t>[n];
+  auto* ptr = new std::atomic<uint16_t>[n];
   auto* const ptr_end = ptr + kPerRegion;
   Handle handle = InitHandle(ptr++);
 
@@ -338,7 +338,7 @@ void CountingMutex::FreeHandle(Handle handle) {
 
 void CountingMutex::WaitReaderLocks() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mu_) {
   uint32_t pending = 0;
-  std::atomic<uint32_t>* ptr = handle_.ptr;
+  std::atomic<uint16_t>* ptr = handle_.ptr;
   percpu_data_.store(null_handle_.ptr, std::memory_order_release);
   if (ABSL_PREDICT_TRUE(IsFast())) {
     for (int cpu = 0, n = absl::base_internal::NumCPUs(); cpu < n; ++cpu) {
@@ -349,7 +349,7 @@ void CountingMutex::WaitReaderLocks() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mu_) {
         base::subtle::percpu::FenceCpu(cpu);
 
         // Increase `pending`, removing the (always on) last bit.
-        uint32_t value = ptr->load(std::memory_order_relaxed);
+        uint16_t value = ptr->load(std::memory_order_relaxed);
         ptr->store(0, std::memory_order_release);
         DCHECK(value & 1);
         pending += value - 1;
@@ -362,7 +362,7 @@ void CountingMutex::WaitReaderLocks() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mu_) {
         // Increase `pending`, removing the (always on) last bit.
         // Note that we must use exchange(), as ReaderUnlock() calls can execute
         // concurrently, so we need to make sure those are ordered correctly.
-        uint32_t value = ptr->exchange(0, std::memory_order_acq_rel);
+        uint16_t value = ptr->exchange(0, std::memory_order_acq_rel);
         DCHECK(value & 1);
         pending += value - 1;
       }
@@ -409,11 +409,18 @@ bool CountingMutex::MutexLockForReadLock(bool try_lock) {
 
 bool CountingMutex::ReaderLockInitSlow(bool try_lock) {
   if (!MutexLockForReadLock(try_lock)) return false;
-  std::atomic<uint32_t>* ptr = GetPtr(base::subtle::percpu::GetCurrentCpu());
-  if (ptr->load(std::memory_order_acquire) & 1) {
-    ptr->fetch_add(2, std::memory_order_acq_rel);
-  } else {
+  std::atomic<uint16_t>* ptr = GetPtr(base::subtle::percpu::GetCurrentCpu());
+  uint16_t val = ptr->load(std::memory_order_acquire);
+  if ((val & 1) == 0) {
     ptr->store(3, std::memory_order_release);
+  } else {
+    while (!ptr->compare_exchange_weak(val, val == 0xFFFF ? 3 : val + 2,
+                                       std::memory_order_acq_rel,
+                                       std::memory_order_acquire)) {
+    }
+    if (val == 0xFFFF) {
+      pending_.fetch_add(0xFFFE, std::memory_order_acq_rel);
+    }
   }
   reader_locks_ = true;
   MutexUnlockForReadLock(try_lock);
@@ -424,54 +431,70 @@ bool CountingMutex::ReaderLockInitFast(bool try_lock) {
 #if COUNTING_MUTEX_USE_RSEQ
   if (!MutexLockForReadLock(try_lock)) return false;
 #if defined(__x86_64__)
-  uint32_t value;
-  std::atomic<uint64_t>* ptr;
+  uint32_t value, overflow;
+  std::atomic<uint16_t>* ptr;
   asm volatile(
       PERCPU_RSEQ_PROLOGUE(CountingMutex_InitFast, ptr)
 
       // Start
       //   ptr = GetPointerAtomic(handle_, cpu)
       //   value = *ptr
-      //   value |= 1
-      //   value += 2
-      //   *ptr = value
+      //   if (value == 0xFFFF) {
+      //     *ptr = 3
+      //     overflow = 1
+      //   } else {
+      //     *ptr = (value | 1) + 2
+      //     overflow = 0
+      //   }
       "4:\n"
       PERCPU_RSEQ_LOAD_CPU_ID(ptr)
-      "shl   %[shift], %[ptr]\n"
-      "lea   (%[handle_], %[ptr]), %[ptr]\n"
-      "mov   (%[ptr]), %[value]\n"
-      "or    $1, %[value]\n"
-      "add   $2, %[value]\n"
-      "mov   %[value], (%[ptr])\n"
+      "shl    %[shift], %[ptr]\n"
+      "lea    (%[handle_], %[ptr]), %[ptr]\n"
+      "movzwl (%[ptr]), %[value]\n"
+      "or     $1, %[value]\n"
+      "add    $2, %[value]\n"
+      "mov    %[value], %[overflow]\n"
+      "shr    $16, %[overflow]\n"
+      "lea    (%q[value], %q[overflow], 2), %[value]\n"
+      "movw   %w[value], (%[ptr])\n"
 
       // Commit
       "5:\n"
 
-      : [ptr] "=&r"(ptr), [value] "=&r"(value)
+      : [ptr] "=&r"(ptr), [value] "=&r"(value), [overflow] "=&r"(overflow)
       : PERCPU_RSEQ_INPUTS,
         [shift] "n"(kRegionShift),
-        [handle_] "r"(handle_)
-      : PERCPU_RSEQ_CLOBBERS);
+        [handle_] "r"(handle_.ptr)
+      : PERCPU_RSEQ_CLOBBERS, "memory");
+  if (ABSL_PREDICT_FALSE(overflow)) {
+    pending_.fetch_add(0xFFFE, std::memory_order_acq_rel);
+  }
 #elif defined(__aarch64__)
-  uint32_t value;
+  uint32_t value, overflow;
   int64_t ptr, percpu_data;
   asm volatile(
-      PERCPU_RSEQ_PROLOGUE(CountingMutex_RefFast, ptr)
+      PERCPU_RSEQ_PROLOGUE(CountingMutex_InitFast, ptr)
 
       "4:\n"
       PERCPU_RSEQ_LOAD_CPU_ID(ptr)
-      "ldr %[percpu_data], [%[self], %c[handle_]]\n"
-      "lsl %[ptr], %[ptr], %c[kRegionShift]\n"
-      "ldr %w[value], [%[percpu_data], %[ptr]]\n"
-      "orr %w[value], %w[value], 1\n"
-      "add %w[value], %w[value], 2\n"
-      "str %w[value], [%[percpu_data], %[ptr]]\n"
+      "ldr  %[percpu_data], [%[self], %c[handle_]]\n"
+      "lsl  %[ptr], %[ptr], %c[kRegionShift]\n"
+      "ldrh %w[value], [%[percpu_data], %[ptr]]\n"
+      "orr  %w[value], %w[value], #1\n"
+      "add  %w[value], %w[value], #2\n"
+      "lsr  %w[overflow], %w[value], #16\n"
+      "add  %w[value], %w[value], %w[overflow], lsl #1\n"
+      "strh %w[value], [%[percpu_data], %[ptr]]\n"
       "5:\n"
-      : [ptr] "=&r"(ptr), [value] "=&r"(value), [percpu_data] "=&r"(percpu_data)
+      : [ptr] "=&r"(ptr), [value] "=&r"(value), [overflow] "=&r"(overflow),
+        [percpu_data] "=&r"(percpu_data)
       : PERCPU_RSEQ_INPUTS, [self] "r"(this),
         [handle_] "n"(offsetof(CountingMutex, handle_)),
         [kRegionShift] "n"(kRegionShift)
-      : PERCPU_RSEQ_CLOBBERS);
+      : PERCPU_RSEQ_CLOBBERS, "memory");
+  if (ABSL_PREDICT_FALSE(overflow)) {
+    pending_.fetch_add(0xFFFE, std::memory_order_acq_rel);
+  }
 #else  // defined(__aarch64__)
   static_assert(false, "Invalid platform inside ReaderLockInitFast()");
 #endif

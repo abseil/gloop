@@ -269,11 +269,11 @@ class ABSL_LOCKABLE CountingMutex {
   // a specific (newly added) architecture.
   static constexpr int kRegionSize = 128;
   static constexpr int kRegionShift = 7;
-  static constexpr int kPerRegion = kRegionSize / sizeof(uint32_t);
+  static constexpr int kPerRegion = kRegionSize / sizeof(uint16_t);
 
   // Handle instance
   struct Handle {
-    std::atomic<uint32_t>* ptr = nullptr;
+    std::atomic<uint16_t>* ptr = nullptr;
   };
 
   // Returns true if CountingMutex RSEQ code is enabled, and RSEQ is available.
@@ -338,8 +338,8 @@ class ABSL_LOCKABLE CountingMutex {
   template <int32_t delta>
   bool RefFast();
 
-  // Returns a std::atomic<uint32_t> pointer into the slot for `cpu`.
-  std::atomic<uint32_t>* GetPtr(int cpu);
+  // Returns a std::atomic<uint16_t> pointer into the slot for `cpu`.
+  std::atomic<uint16_t>* GetPtr(int cpu);
 
   void AwaitSlow(const absl::Condition& cond) ABSL_SHARED_LOCKS_REQUIRED(this);
   bool AwaitSlow(const absl::Condition& cond, absl::Duration timeout)
@@ -356,13 +356,13 @@ class ABSL_LOCKABLE CountingMutex {
   static void FreeHandle(Handle handle);
 
   // Returns an initialized handle from the provided ptr.
-  static Handle InitHandle(std::atomic<uint32_t>* ptr);
+  static Handle InitHandle(std::atomic<uint16_t>* ptr);
 
   // Handle for this mutex.
   Handle handle_ = AllocHandle();
 
   // Fast per cpu data pointer. May be temporarily repointed to `null_handle_`.
-  std::atomic<std::atomic<uint32_t>*> percpu_data_{handle_.ptr};
+  std::atomic<std::atomic<uint16_t>*> percpu_data_{handle_.ptr};
 
   std::atomic<uint32_t> pending_{0};
   bool reader_locks_ ABSL_GUARDED_BY(this) = false;
@@ -423,70 +423,136 @@ inline int CountingMutex::GetCurrentCpu() {
 #endif
 }
 
-inline std::atomic<uint32_t>* CountingMutex::GetPtr(int cpu) {
+inline std::atomic<uint16_t>* CountingMutex::GetPtr(int cpu) {
   return percpu_data_.load(std::memory_order_acquire) + cpu * kPerRegion;
 }
 
 template <int32_t delta>
 bool CountingMutex::RefFast() {
+  static_assert(delta == 2 || delta == -2, "Invalid delta");
 #if COUNTING_MUTEX_USE_RSEQ
 #if defined(__x86_64__)
   uint32_t value;
-  std::atomic<uint32_t>*ptr, *percpu_data;
-  asm volatile goto(
-      PERCPU_RSEQ_PROLOGUE(CountingMutex_RefFast, ptr)
+  std::atomic<uint16_t>*ptr, *percpu_data;
+  if constexpr (delta == 2) {
+    asm volatile goto(
+        PERCPU_RSEQ_PROLOGUE(CountingMutex_RefFast, ptr)
 
-      // Start
-      //   percpu_data = percpu_data_
-      //   ptr = GetPointerAtomic(percpu_data, rseq_cpu)
-      //   value = *ptr
-      //   if (value & 1) == 0 goto slow_path
-      //   value += delta
-      //   *ptr = value
-      "4:\n"
-      PERCPU_RSEQ_LOAD_CPU_ID(ptr)
-      "mov   (%[percpu_data_]), %[percpu_data]\n"
-      "shl   %[shift], %[ptr]\n"
-      "lea   (%[percpu_data], %[ptr]), %[ptr]\n"
-      "mov   (%[ptr]), %[value]\n"
-      "test  $1, %[value]\n"
-      "jz    %[slow_path]\n"
-      "add   %[delta], %[value]\n"
-      "mov   %[value], (%[ptr])\n"
-      // Commit
-      "5:\n"
+        // Start
+        //   percpu_data = percpu_data_
+        //   ptr = GetPointerAtomic(percpu_data, rseq_cpu)
+        //   value = *ptr
+        //   if (value & 1) == 0 goto slow_path
+        //   if (value == 0xFFFF) goto slow_path
+        //   *ptr = value + 2
+        "4:\n"
+        PERCPU_RSEQ_LOAD_CPU_ID(ptr)
+        "mov    (%[percpu_data_]), %[percpu_data]\n"
+        "shl    %[shift], %[ptr]\n"
+        "lea    (%[percpu_data], %[ptr]), %[ptr]\n"
+        "movzwl (%[ptr]), %[value]\n"
+        "test   $1, %[value]\n"
+        "jz     %[slow_path]\n"
+        "addw   $2, %w[value]\n"
+        "jc     %[slow_path]\n"
+        "movw   %w[value], (%[ptr])\n"
+        // Commit
+        "5:\n"
 
-      : [ptr] "=&r"(ptr), [value] "=&r"(value), [percpu_data] "=&r"(percpu_data)
-      : PERCPU_RSEQ_INPUTS, [shift] "n"(kRegionShift),
-        [delta] "n"(delta), [percpu_data_] "r"(&percpu_data_)
-      : PERCPU_RSEQ_CLOBBERS
-      : slow_path);
+        : [ptr] "=&r"(ptr), [value] "=&r"(value),
+          [percpu_data] "=&r"(percpu_data)
+        : PERCPU_RSEQ_INPUTS, [shift] "n"(kRegionShift),
+          [percpu_data_] "r"(&percpu_data_)
+        : PERCPU_RSEQ_CLOBBERS, "memory"
+        : slow_path);
+  } else {
+    asm volatile goto(
+        PERCPU_RSEQ_PROLOGUE(CountingMutex_RefFast, ptr)
+
+        // Start
+        //   percpu_data = percpu_data_
+        //   ptr = GetPointerAtomic(percpu_data, rseq_cpu)
+        //   value = *ptr
+        //   if (value & 1) == 0 goto slow_path
+        //   if (value == 1) goto slow_path
+        //   *ptr = value - 2
+        "4:\n"
+        PERCPU_RSEQ_LOAD_CPU_ID(ptr)
+        "mov    (%[percpu_data_]), %[percpu_data]\n"
+        "shl    %[shift], %[ptr]\n"
+        "lea    (%[percpu_data], %[ptr]), %[ptr]\n"
+        "movzwl (%[ptr]), %[value]\n"
+        "test   $1, %[value]\n"
+        "jz     %[slow_path]\n"
+        "subw   $2, %w[value]\n"
+        "jc     %[slow_path]\n"
+        "movw   %w[value], (%[ptr])\n"
+        // Commit
+        "5:\n"
+
+        : [ptr] "=&r"(ptr), [value] "=&r"(value),
+          [percpu_data] "=&r"(percpu_data)
+        : PERCPU_RSEQ_INPUTS, [shift] "n"(kRegionShift),
+          [percpu_data_] "r"(&percpu_data_)
+        : PERCPU_RSEQ_CLOBBERS, "memory"
+        : slow_path);
+  }
   return true;
 slow_path:
 #elif defined(__aarch64__)
   uint32_t value;
   int64_t ptr, percpu_data;
-  asm volatile goto(
-      // CountingMutex_RefFast rseq meta and trampoline.
-      PERCPU_RSEQ_PROLOGUE(CountingMutex_RefFast, ptr)
+  if constexpr (delta == 2) {
+    asm volatile goto(
+        // CountingMutex_RefFast rseq meta and trampoline.
+        PERCPU_RSEQ_PROLOGUE(CountingMutex_RefFast, ptr)
 
-      "4:\n"
-      PERCPU_RSEQ_LOAD_CPU_ID(ptr)
-      "ldr %[percpu_data], [%[self], %c[percpu_data_]]\n"
-      "lsl %[ptr], %[ptr], %c[kRegionShift]\n"
-      "ldr %w[value], [%[percpu_data], %[ptr]]\n"
-      "tbnz %w[value], 0, 6f\n"
-      "b %[slow_path]\n"
-      "6:\n"
-      "add %w[value], %w[value], %w[delta]\n"
-      "str %w[value], [%[percpu_data], %[ptr]]\n"
-      "5:\n"
-      : [ptr] "=&r"(ptr), [value] "=&r"(value), [percpu_data] "=&r"(percpu_data)
-      : PERCPU_RSEQ_INPUTS, [self] "r"(this),
-        [percpu_data_] "n"(offsetof(CountingMutex, percpu_data_)),
-        [kRegionShift] "n"(kRegionShift), [delta] "r"(delta)
-      : PERCPU_RSEQ_CLOBBERS
-      : slow_path);
+        "4:\n"
+        PERCPU_RSEQ_LOAD_CPU_ID(ptr)
+        "ldr  %[percpu_data], [%[self], %c[percpu_data_]]\n"
+        "lsl  %[ptr], %[ptr], %c[kRegionShift]\n"
+        "ldrh %w[value], [%[percpu_data], %[ptr]]\n"
+        "tbz  %w[value], 0, 6f\n"
+        "add  %w[value], %w[value], #2\n"
+        "tbz  %w[value], 16, 7f\n"
+        "6:\n"
+        "b    %[slow_path]\n"
+        "7:\n"
+        "strh %w[value], [%[percpu_data], %[ptr]]\n"
+        "5:\n"
+        : [ptr] "=&r"(ptr), [value] "=&r"(value),
+          [percpu_data] "=&r"(percpu_data)
+        : PERCPU_RSEQ_INPUTS, [self] "r"(this),
+          [percpu_data_] "n"(offsetof(CountingMutex, percpu_data_)),
+          [kRegionShift] "n"(kRegionShift)
+        : PERCPU_RSEQ_CLOBBERS, "memory"
+        : slow_path);
+  } else {
+    asm volatile goto(
+        // CountingMutex_RefFast rseq meta and trampoline.
+        PERCPU_RSEQ_PROLOGUE(CountingMutex_RefFast, ptr)
+
+        "4:\n"
+        PERCPU_RSEQ_LOAD_CPU_ID(ptr)
+        "ldr  %[percpu_data], [%[self], %c[percpu_data_]]\n"
+        "lsl  %[ptr], %[ptr], %c[kRegionShift]\n"
+        "ldrh %w[value], [%[percpu_data], %[ptr]]\n"
+        "tbz  %w[value], 0, 6f\n"
+        "sub  %w[value], %w[value], #2\n"
+        "tbz  %w[value], 16, 7f\n"
+        "6:\n"
+        "b    %[slow_path]\n"
+        "7:\n"
+        "strh %w[value], [%[percpu_data], %[ptr]]\n"
+        "5:\n"
+        : [ptr] "=&r"(ptr), [value] "=&r"(value),
+          [percpu_data] "=&r"(percpu_data)
+        : PERCPU_RSEQ_INPUTS, [self] "r"(this),
+          [percpu_data_] "n"(offsetof(CountingMutex, percpu_data_)),
+          [kRegionShift] "n"(kRegionShift)
+        : PERCPU_RSEQ_CLOBBERS, "memory"
+        : slow_path);
+  }
   return true;
 slow_path:
 #else  // defined(__aarch64__)
@@ -498,21 +564,29 @@ slow_path:
 
 inline bool CountingMutex::ReaderLockSlow(bool try_lock) {
   ABSL_TSAN_MUTEX_PRE_LOCK(this, __tsan_mutex_try_read_lock);
-  std::atomic<uint32_t>* ptr = GetPtr(GetCurrentCpu());
-  if ((ptr->fetch_add(2, std::memory_order_acq_rel) & 1) == 0) {
-    ABSL_TSAN_MUTEX_POST_LOCK(this, __tsan_mutex_try_read_lock_failed, 0);
-    return ReaderLockInitSlow(try_lock);
-  } else {
-    ABSL_TSAN_MUTEX_POST_LOCK(this, __tsan_mutex_try_read_lock, 0);
-    return true;
+  std::atomic<uint16_t>* ptr = GetPtr(GetCurrentCpu());
+  uint16_t val = ptr->load(std::memory_order_relaxed);
+  while ((val & 1) != 0 && val < 0xFFFF) {
+    if (ptr->compare_exchange_weak(val, val + 2, std::memory_order_acq_rel,
+                                   std::memory_order_relaxed)) {
+      ABSL_TSAN_MUTEX_POST_LOCK(this, __tsan_mutex_try_read_lock, 0);
+      return true;
+    }
   }
+  ABSL_TSAN_MUTEX_POST_LOCK(this, __tsan_mutex_try_read_lock_failed, 0);
+  return ReaderLockInitSlow(try_lock);
 }
 
 inline void CountingMutex::ReaderUnlockSlow() {
-  std::atomic<uint32_t>* ptr = GetPtr(GetCurrentCpu());
-  if ((ptr->fetch_sub(2, std::memory_order_acq_rel) & 1) == 0) {
-    ReaderUnlockPending();
+  std::atomic<uint16_t>* ptr = GetPtr(GetCurrentCpu());
+  uint16_t val = ptr->load(std::memory_order_relaxed);
+  while ((val & 1) != 0 && val >= 3) {
+    if (ptr->compare_exchange_weak(val, val - 2, std::memory_order_acq_rel,
+                                   std::memory_order_relaxed)) {
+      return;
+    }
   }
+  ReaderUnlockPending();
 }
 
 inline bool CountingMutex::ReaderLockFallback(bool try_lock) {
