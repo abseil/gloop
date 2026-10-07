@@ -69,7 +69,11 @@ class Counter {
   void Clear() {
     const int cpus = NumCPUs();
     for (int i = 0; i < cpus; ++i) {
-      GetPointerAtomic(c_, i)->store(0, std::memory_order_relaxed);
+      std::atomic<int64_t>* p = GetPointerAtomic(c_, i);
+      // Check for zero to avoid faulting in a new, private page unnecessarily.
+      if (p->load(std::memory_order_relaxed) != 0) {
+        p->store(0, std::memory_order_relaxed);
+      }
     }
   }
 
