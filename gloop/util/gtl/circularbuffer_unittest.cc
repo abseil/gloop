@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <iterator>
 #include <map>
@@ -29,6 +30,7 @@
 #include <new>
 #include <ostream>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -42,8 +44,8 @@ namespace gtl {
 namespace {
 
 using ::gtl::internal::IsHardened;
-using testing::ElementsAre;
-using testing::Pointee;
+using ::testing::ElementsAre;
+using ::testing::Pointee;
 
 struct NonCopyablePair {
   explicit NonCopyablePair(int first, int second)
@@ -568,6 +570,7 @@ class ArrayAllocator {
   ArrayAllocator(ArrayAllocatorStorage<T, N>* storage) : storage_(storage) {}
 
   T* allocate(size_t n) {
+    EXPECT_GT(n, 0U) << "allocator::allocate must not be called with n == 0";
     if (storage_ != nullptr && !storage_->allocated && n <= N) {
       storage_->allocated = true;
       return reinterpret_cast<T*>(storage_->array.data());
@@ -577,6 +580,9 @@ class ArrayAllocator {
   }
 
   void deallocate(T* p, size_t n) {
+    EXPECT_NE(p, nullptr)
+        << "allocator::deallocate must not be called with null pointer";
+    EXPECT_GT(n, 0U) << "allocator::deallocate must not be called with n == 0";
     if (storage_ != nullptr &&
         p == reinterpret_cast<T*>(storage_->array.data())) {
       storage_->allocated = false;
@@ -595,6 +601,27 @@ template <typename T, size_t N>
 bool operator==(const ArrayAllocator<T, N>& lhs,
                 const ArrayAllocator<T, N>& rhs) {
   return lhs.storage() == rhs.storage();
+}
+
+TEST_F(CircularBufferTest, ZeroCapacityAndEmptyBaseOptimization) {
+  ArrayAllocatorStorage<int, 3> storage;
+  ArrayAllocator<int, 3> allocator(&storage);
+
+  {
+    CircularBuffer<int, ArrayAllocator<int, 3>> custom_alloc_buffer(0,
+                                                                    allocator);
+#ifndef _WIN32
+    EXPECT_LT(sizeof(CircularBuffer<int>), sizeof(custom_alloc_buffer));
+#endif
+    EXPECT_FALSE(storage.allocated);
+
+    // Verify moved-from buffer destruction does not invoke deallocate(nullptr,
+    // 0).
+    CircularBuffer<int, ArrayAllocator<int, 3>> moved_buffer(
+        std::move(custom_alloc_buffer));
+    EXPECT_FALSE(storage.allocated);
+  }
+  EXPECT_FALSE(storage.allocated);
 }
 
 TEST_F(CircularBufferTest, CustomAllocatorCopyMove) {

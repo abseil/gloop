@@ -43,6 +43,7 @@
 #include <utility>
 
 #include "absl/algorithm/container.h"
+#include "absl/base/attributes.h"
 #include "absl/base/macros.h"
 #include "absl/log/check.h"
 #include "gloop/util/gtl/container_logging.h"
@@ -370,10 +371,13 @@ class CircularBuffer {
   }
 
   pointer Allocate(size_type n) {
+    if (n == 0) return nullptr;
     return std::allocator_traits<allocator_type>::allocate(allocator_, n);
   }
 
   void Deallocate(pointer p, size_type n) {
+    ABSL_HARDENING_ASSERT((p == nullptr) == (n == 0));
+    if (p == nullptr) return;
     std::allocator_traits<allocator_type>::deallocate(allocator_, p, n);
   }
 
@@ -415,7 +419,7 @@ class CircularBuffer {
     return absolute;
   }
 
-  allocator_type allocator_;
+  ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS allocator_type allocator_;
   size_type capacity_;
   size_type begin_;
   size_type size_;
