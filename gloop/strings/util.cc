@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // TODO: visit each const_cast.  Some of them are no longer necessary
 // because last Single Unix Spec.
 

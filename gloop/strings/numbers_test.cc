@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // This file tests string processing functions related to numeric values.
 
 #include "gloop/strings/numbers.h"

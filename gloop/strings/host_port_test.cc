@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // based on contributions of various authors in strings/strutil_unittest.cc
 //
 // These are functions for parsing host and port out of a string.

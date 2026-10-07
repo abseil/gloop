@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // A simple class that efficiently allocates strings on an arena, storing size
 // as either a single byte or 4 bytes. Useful for storing large numbers of small
 // strings with a very small memory overhead: 0 bytes for len == 0, 1 byte for

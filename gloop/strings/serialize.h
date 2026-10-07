@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // Refactored from contributions of various authors in strings/strutil.h
 //
 // This file contains conversion functions from various data types to

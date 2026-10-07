@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // A collection of methods to convert back and forth between a number
 // and a human-readable string representing the number.
 
