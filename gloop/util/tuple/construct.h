@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // Function templates direct_initialize and brace_initialize create an instance
 // of an object by passing all elements from the supplied tuple to the objects
 // constructor. The difference between the two functions is the initialization

@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // Function template unref() creates a new tuple where every element is a
 // copy of the corresponding element in the original tuple. References
 // are removed from all elements.

@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 //
 // Function template cat() constructs a tuple that is a concatenation of all
 // tuples passed as arguments. It's similar to std::tuple_cat.

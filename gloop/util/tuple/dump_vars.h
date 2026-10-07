@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // This file is a historical include that redirects to the dump_vars.h header in
 // a separate directory that plays nicely with <link>, which has stricter
 // dependency rules. Use that header in new code, particulary code that has

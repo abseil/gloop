@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 //
 // The family of generate algorithms calls a polymorphic functor a number of
 // times and returns all results packed in a tuple.

@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 //
 // Function template swap(Tuple&, Tuple&) swaps two tuples. A standard swap
 // idiom is used to swap each element:

@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // Function template all_of(predicate, t) returns true if the predicate is
 // true for all elements in the tuple.
 //

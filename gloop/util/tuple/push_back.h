@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // Function template push_back() inserts a copy of the object to the back
 // of the tuple; push_back_ref() inserts a reference.
 //

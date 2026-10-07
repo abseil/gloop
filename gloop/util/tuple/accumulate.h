@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 //
 // Accumulate, also known as left fold and reduce, applies the binary operation
 // to elements of the tuple continuously until only one value remains.
