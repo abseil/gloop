@@ -24,6 +24,7 @@
 #include "absl/base/config.h"
 #include "absl/base/internal/tracing.h"
 #include "absl/log/check.h"
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/blocking_counter.h"
 #include "absl/synchronization/notification.h"
@@ -108,15 +109,16 @@ TEST(TracingCore, ApiWithActiveSync) {
   EXPECT_CALL(mock, OnTraceObserved(BarrierId{123}, Eq("Peekaboo")));
   EXPECT_CALL(mock, OnTraceSignal(BarrierId{123}, Eq("Ping")));
 
-  EXPECT_CALL(mock,
-              OnTraceSend(Eq("Send it"), MsgOrigin::kClient, MsgId{3232}));
-  EXPECT_CALL(mock,
-              OnTraceReceive(Eq("praise"), MsgOrigin::kServer, MsgId{3232}));
+  EXPECT_CALL(mock, OnTraceSend(Eq("Send it"), MsgOrigin::kClient, MsgId{3232},
+                                absl::StatusCode::kOk));
+  EXPECT_CALL(mock, OnTraceReceive(Eq("praise"), MsgOrigin::kServer,
+                                   MsgId{3232}, absl::StatusCode::kOk));
 
   EXPECT_CALL(mock, OnTraceSessionStart(Eq("Start"), MsgId{842},
                                         EndPoint::kStreamingClient));
-  EXPECT_CALL(mock, OnTraceSessionEnd(Eq("End"), MsgId{842},
-                                      EndPoint::kStreamingServer));
+  EXPECT_CALL(
+      mock, OnTraceSessionEnd(Eq("End"), MsgId{842}, EndPoint::kStreamingServer,
+                              absl::StatusCode::kOk));
 
   EXPECT_CALL(mock, OnTraceStreamingSend(MsgOrigin::kClient, MsgId{842},
                                          MsgSequence{0}, MsgFlags::kDefault));

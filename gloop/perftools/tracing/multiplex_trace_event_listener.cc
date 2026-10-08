@@ -27,6 +27,7 @@
 
 #include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "absl/status/status.h"
 #include "gloop/base/examine_stack.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
@@ -155,12 +156,14 @@ class Mux final : public TraceEventListener {
     RDispatch(&TraceEventListener::OnTraceEndRegion);
   }
 
-  void OnTraceSend(StringRef label, MsgOrigin origin, MsgId id) final {
-    Dispatch(&TraceEventListener::OnTraceSend, label, origin, id);
+  void OnTraceSend(StringRef label, MsgOrigin origin, MsgId id,
+                   absl::StatusCode status) final {
+    Dispatch(&TraceEventListener::OnTraceSend, label, origin, id, status);
   }
 
-  void OnTraceReceive(StringRef label, MsgOrigin origin, MsgId id) final {
-    Dispatch(&TraceEventListener::OnTraceReceive, label, origin, id);
+  void OnTraceReceive(StringRef label, MsgOrigin origin, MsgId id,
+                      absl::StatusCode status) final {
+    Dispatch(&TraceEventListener::OnTraceReceive, label, origin, id, status);
   }
 
   void OnTraceSessionStart(StringRef label, MsgId id,
@@ -168,8 +171,10 @@ class Mux final : public TraceEventListener {
     Dispatch(&TraceEventListener::OnTraceSessionStart, label, id, end_point);
   }
 
-  void OnTraceSessionEnd(StringRef label, MsgId id, EndPoint end_point) final {
-    RDispatch(&TraceEventListener::OnTraceSessionEnd, label, id, end_point);
+  void OnTraceSessionEnd(StringRef label, MsgId id, EndPoint end_point,
+                         absl::StatusCode status) final {
+    RDispatch(&TraceEventListener::OnTraceSessionEnd, label, id, end_point,
+              status);
   }
 
   void OnTraceStreamingSend(MsgOrigin origin, MsgId id, MsgSequence sequence,

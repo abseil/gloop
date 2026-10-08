@@ -24,6 +24,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
@@ -40,10 +41,13 @@ void TraceEventListener::OnTraceWait(BarrierId, StringRef) {}
 void TraceEventListener::OnTraceContinue(BarrierId) {}
 void TraceEventListener::OnTraceObserved(BarrierId, StringRef) {}
 void TraceEventListener::OnTraceSignal(BarrierId, StringRef) {}
-void TraceEventListener::OnTraceSend(StringRef, MsgOrigin, MsgId) {}
-void TraceEventListener::OnTraceReceive(StringRef, MsgOrigin, MsgId) {}
+void TraceEventListener::OnTraceSend(StringRef, MsgOrigin, MsgId,
+                                     absl::StatusCode) {}
+void TraceEventListener::OnTraceReceive(StringRef, MsgOrigin, MsgId,
+                                        absl::StatusCode) {}
 void TraceEventListener::OnTraceSessionStart(StringRef, MsgId, EndPoint) {}
-void TraceEventListener::OnTraceSessionEnd(StringRef, MsgId, EndPoint) {}
+void TraceEventListener::OnTraceSessionEnd(StringRef, MsgId, EndPoint,
+                                           absl::StatusCode) {}
 void TraceEventListener::OnTraceStreamingSend(MsgOrigin, MsgId, MsgSequence,
                                               MsgFlags) {}
 void TraceEventListener::OnTraceStreamingReceive(MsgOrigin, MsgId, MsgSequence,

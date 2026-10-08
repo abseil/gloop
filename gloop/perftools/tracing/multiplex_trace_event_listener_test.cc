@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/test_only_access.h"
@@ -94,23 +95,25 @@ TEST(MultiplexTraceEventListener, Basics) {
   EXPECT_CALL(first, OnTraceSignal(BarrierId{7648223}, Eq("Ping")));
   EXPECT_CALL(second, OnTraceSignal(BarrierId{7648223}, Eq("Ping")));
 
-  EXPECT_CALL(first,
-              OnTraceSend(Eq("Send it!"), MsgOrigin::kClient, MsgId{3332}));
-  EXPECT_CALL(second,
-              OnTraceSend(Eq("Send it!"), MsgOrigin::kClient, MsgId{3332}));
-  EXPECT_CALL(first,
-              OnTraceReceive(Eq("Send it!"), MsgOrigin::kServer, MsgId{3332}));
-  EXPECT_CALL(second,
-              OnTraceReceive(Eq("Send it!"), MsgOrigin::kServer, MsgId{3332}));
+  EXPECT_CALL(first, OnTraceSend(Eq("Send it!"), MsgOrigin::kClient,
+                                 MsgId{3332}, absl::StatusCode::kOk));
+  EXPECT_CALL(second, OnTraceSend(Eq("Send it!"), MsgOrigin::kClient,
+                                  MsgId{3332}, absl::StatusCode::kOk));
+  EXPECT_CALL(first, OnTraceReceive(Eq("Send it!"), MsgOrigin::kServer,
+                                    MsgId{3332}, absl::StatusCode::kOk));
+  EXPECT_CALL(second, OnTraceReceive(Eq("Send it!"), MsgOrigin::kServer,
+                                     MsgId{3332}, absl::StatusCode::kOk));
 
   EXPECT_CALL(first, OnTraceSessionStart(Eq("Start"), MsgId{842},
                                          EndPoint::kStreamingClient));
   EXPECT_CALL(second, OnTraceSessionStart(Eq("Start"), MsgId{842},
                                           EndPoint::kStreamingClient));
   EXPECT_CALL(second, OnTraceSessionEnd(Eq("End"), MsgId{842},
-                                        EndPoint::kStreamingServer));
+                                        EndPoint::kStreamingServer,
+                                        absl::StatusCode::kInternal));
   EXPECT_CALL(first, OnTraceSessionEnd(Eq("End"), MsgId{842},
-                                       EndPoint::kStreamingServer));
+                                       EndPoint::kStreamingServer,
+                                       absl::StatusCode::kInternal));
 
   EXPECT_CALL(first,
               OnTraceStreamingSend(MsgOrigin::kClient, MsgId{842},
@@ -153,11 +156,14 @@ TEST(MultiplexTraceEventListener, Basics) {
   listener.OnTraceContinue(BarrierId{3412442});
   listener.OnTraceObserved(BarrierId{3412442}, "Peekaboo");
   listener.OnTraceSignal(BarrierId{7648223}, "Ping");
-  listener.OnTraceSend("Send it!", MsgOrigin::kClient, MsgId{3332});
-  listener.OnTraceReceive("Send it!", MsgOrigin::kServer, MsgId{3332});
+  listener.OnTraceSend("Send it!", MsgOrigin::kClient, MsgId{3332},
+                       absl::StatusCode::kOk);
+  listener.OnTraceReceive("Send it!", MsgOrigin::kServer, MsgId{3332},
+                          absl::StatusCode::kOk);
 
   listener.OnTraceSessionStart("Start", MsgId{842}, EndPoint::kStreamingClient);
-  listener.OnTraceSessionEnd("End", MsgId{842}, EndPoint::kStreamingServer);
+  listener.OnTraceSessionEnd("End", MsgId{842}, EndPoint::kStreamingServer,
+                             absl::StatusCode::kInternal);
 
   listener.OnTraceStreamingSend(MsgOrigin::kClient, MsgId{842}, MsgSequence{1},
                                 MsgFlags::kHalfClose);
