@@ -31,10 +31,12 @@
 #include <vector>
 
 #include "absl/base/nullability.h"
+#include "absl/base/thread_annotations.h"
 #include "absl/container/fixed_array.h"
 #include "gloop/base/scheduling/domain.h"
 #include "gloop/base/scheduling/low-level-support.h"
 #include "gloop/base/scheduling/scheduler.h"
+#include "gloop/base/spinlock.h"
 #include "gloop/thread/fiber/scheduler-types.h"
 
 namespace thread {
@@ -114,36 +116,42 @@ class PriorityAdmissionScheduler : public base::scheduling::Scheduler {
   base::scheduling::Slot Wake(
       base::scheduling::Schedulable* absl_nonnull schedulable) override;
   base::scheduling::Slot WakeLocked(
-      base::scheduling::Schedulable* absl_nonnull schedulable);
+      base::scheduling::Schedulable* absl_nonnull schedulable)
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   base::scheduling::Schedulable* absl_nullable ScheduleManaged(
       base::scheduling::Slot managing, base::scheduling::Schedulable* prev,
       bool runnable) override;
   base::scheduling::Schedulable* absl_nullable ScheduleManagedLocked(
       base::scheduling::Slot managing, base::scheduling::Schedulable* prev,
-      bool runnable);
+      bool runnable) ABSL_EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   bool StopRunning(base::scheduling::Slot managing,
                    base::scheduling::Schedulable* current,
                    bool runnable) override;
   bool StopRunningLocked(base::scheduling::Slot managing,
-                         base::scheduling::Schedulable* current, bool runnable);
+                         base::scheduling::Schedulable* current, bool runnable)
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
-  void Enqueue(base::scheduling::Schedulable* schedulable);
+  void Enqueue(base::scheduling::Schedulable* schedulable)
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
-  base::scheduling::Schedulable* absl_nullable Dequeue();
+  base::scheduling::Schedulable* absl_nullable Dequeue()
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
-  void DeleteChildSlotLocked(base::scheduling::Schedulable* schedulable);
+  void DeleteChildSlotLocked(base::scheduling::Schedulable* schedulable)
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   const int num_priorities_;
   std::atomic<int> num_queued_{0};
   std::atomic<int> num_running_{0};
-  thread::internal::CombinerLock lock_;
-  internal::LinkedSchedulableList in_progress_;
-  absl::FixedArray<internal::LinkedSchedulableList> per_priority_;
-  int queued_or_running_ = 0;
-  int active_slots_ = 0;
-  std::vector<base::scheduling::Slot> idle_slots_;
+  SpinLock lock_;
+  internal::LinkedSchedulableList in_progress_ ABSL_GUARDED_BY(lock_);
+  absl::FixedArray<internal::LinkedSchedulableList> per_priority_
+      ABSL_GUARDED_BY(lock_);
+  int queued_or_running_ ABSL_GUARDED_BY(lock_) = 0;
+  int active_slots_ ABSL_GUARDED_BY(lock_) = 0;
+  std::vector<base::scheduling::Slot> idle_slots_ ABSL_GUARDED_BY(lock_);
 };
 
 }  // namespace thread

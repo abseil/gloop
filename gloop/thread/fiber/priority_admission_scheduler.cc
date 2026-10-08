@@ -30,6 +30,7 @@
 #include "gloop/base/raw_logging.h"
 #include "gloop/base/scheduling/domain.h"
 #include "gloop/base/scheduling/scheduler.h"
+#include "gloop/base/spinlock.h"
 
 using base::scheduling::Domain;
 using base::scheduling::Schedulable;
@@ -178,22 +179,10 @@ void PriorityAdmissionScheduler::SetChildPriority(Scheduler* absl_nonnull child,
 
 void PriorityAdmissionScheduler::DeleteManagedSchedulable(
     Schedulable* schedulable) {
-  struct Combinable {
-    struct Args {
-      PriorityAdmissionScheduler* scheduler;
-      Schedulable* schedulable;
-    };
-
-    static intptr_t DeleteChildSlot(Args* args) {
-      args->scheduler->DeleteChildSlotLocked(args->schedulable);
-      return 0;
-    }
-  };
-
   if (schedulable->is_flag_set(kFlagIndexForAdmission)) {
     if (schedulable->type == Schedulable::kChildSlot) {
-      Combinable::Args args{this, schedulable};
-      lock_.ExecuteLocked(Combinable::DeleteChildSlot, &args);
+      ::SpinLockHolder lock_holder(lock_);
+      DeleteChildSlotLocked(schedulable);
     } else {
       ABSL_RAW_DCHECK(schedulable->type == Schedulable::kWorkItem,
                       "invalid type");
@@ -207,19 +196,10 @@ void PriorityAdmissionScheduler::DeleteManagedSchedulable(
 }
 
 Slot PriorityAdmissionScheduler::Wake(Schedulable* absl_nonnull schedulable) {
-  struct Combinable {
-    struct Args {
-      PriorityAdmissionScheduler* scheduler;
-      Schedulable* schedulable;
-    };
-
-    static intptr_t Wake(Args* args) {
-      return args->scheduler->WakeLocked(args->schedulable).AsWord();
-    }
-  };
-
-  Combinable::Args args{this, schedulable};
-  Slot result = Slot::FromWord(lock_.ExecuteLocked(Combinable::Wake, &args));
+  Slot result = [&] {
+    ::SpinLockHolder lock_holder(lock_);
+    return WakeLocked(schedulable);
+  }();
   if (VLOG_IS_ON(3)) {
     ABSL_RAW_LOG(INFO, "Root::Wake %p -> %ld", schedulable, result.AsWord());
   }
@@ -242,22 +222,10 @@ Slot PriorityAdmissionScheduler::WakeLocked(
 
 Schedulable* absl_nullable PriorityAdmissionScheduler::ScheduleManaged(
     Slot managing_slot, Schedulable* prev, bool runnable) {
-  struct Combinable {
-    struct Args {
-      PriorityAdmissionScheduler* scheduler;
-      Slot managing_slot;
-      Schedulable* prev;
-      bool runnable;
-    };
-
-    static Schedulable* ScheduleManaged(Args* args) {
-      return args->scheduler->ScheduleManagedLocked(args->managing_slot,
-                                                    args->prev, args->runnable);
-    }
-  };
-
-  Combinable::Args args{this, managing_slot, prev, runnable};
-  Schedulable* result = lock_.ExecuteLocked(Combinable::ScheduleManaged, &args);
+  Schedulable* result = [&] {
+    ::SpinLockHolder lock_holder(lock_);
+    return ScheduleManagedLocked(managing_slot, prev, runnable);
+  }();
   if (VLOG_IS_ON(3)) {
     ABSL_RAW_LOG(INFO, "Root::Sched (%ld) %p -> %p", managing_slot.AsWord(),
                  prev, result);
@@ -296,24 +264,8 @@ Schedulable* absl_nullable PriorityAdmissionScheduler::ScheduleManagedLocked(
 bool PriorityAdmissionScheduler::StopRunning(Slot managing_slot,
                                              Schedulable* current,
                                              bool runnable) {
-  struct Combinable {
-    struct Args {
-      PriorityAdmissionScheduler* scheduler;
-      Slot managing_slot;
-      Schedulable* current;
-      bool runnable;
-    };
-
-    static intptr_t StopRunning(Args* args) {
-      return args->scheduler->StopRunningLocked(args->managing_slot,
-                                                args->current, args->runnable);
-    }
-  };
-  if (VLOG_IS_ON(3)) {
-    ABSL_RAW_LOG(INFO, "Root::Stop %p", current);
-  }
-  Combinable::Args args{this, managing_slot, current, runnable};
-  return lock_.ExecuteLocked(Combinable::StopRunning, &args);
+  ::SpinLockHolder lock_holder(lock_);
+  return StopRunningLocked(managing_slot, current, runnable);
 }
 
 bool PriorityAdmissionScheduler::StopRunningLocked(Slot managing_slot,
