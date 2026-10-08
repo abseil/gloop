@@ -34,6 +34,9 @@
 
 #include "gtest/gtest.h"
 
+namespace util_intops {
+namespace {
+
 DEFINE_SAFE_INT_TYPE(SafeInt8, int8_t, ::util_intops::LogFatalOnError);
 DEFINE_SAFE_INT_TYPE(SafeUInt8, uint8_t, ::util_intops::LogFatalOnError);
 DEFINE_SAFE_INT_TYPE(SafeInt16, int16_t, ::util_intops::LogFatalOnError);
@@ -43,8 +46,6 @@ DEFINE_SAFE_INT_TYPE(SafeInt64, int64_t, ::util_intops::LogFatalOnError);
 DEFINE_SAFE_INT_TYPE(SafeUInt32, uint32_t, ::util_intops::LogFatalOnError);
 DEFINE_SAFE_INT_TYPE(SafeUInt64, uint64_t, ::util_intops::LogFatalOnError);
 
-namespace util_intops {
-
 //
 // Test cases that apply to signed and unsigned types equally.
 //
@@ -52,12 +53,12 @@ namespace util_intops {
 template <typename T>
 class SignNeutralSafeIntTest : public ::testing::Test {
  public:
-  typedef T SafeIntTypeUnderTest;
+  using SafeIntTypeUnderTest = T;
 };
 
-typedef ::testing::Types<SafeInt8, SafeUInt8, SafeInt16, SafeUInt16, SafeInt32,
-                         SafeUInt32, SafeInt64, SafeUInt64>
-    AllSafeIntTypes;
+using AllSafeIntTypes =
+    ::testing::Types<SafeInt8, SafeUInt8, SafeInt16, SafeUInt16, SafeInt32,
+                     SafeUInt32, SafeInt64, SafeUInt64>;
 
 class SafeIntTypeNames {
  public:
@@ -70,49 +71,49 @@ class SafeIntTypeNames {
 TYPED_TEST_SUITE(SignNeutralSafeIntTest, AllSafeIntTypes, SafeIntTypeNames);
 
 TYPED_TEST(SignNeutralSafeIntTest, TestCtors) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   {  // Test default construction.
     T x;
-    EXPECT_EQ(V(), x.value());
+    EXPECT_EQ(x.value(), V());
   }
 
   {  // Test construction from a value.
     T x(93);
-    EXPECT_EQ(V(93), x.value());
+    EXPECT_EQ(x.value(), V(93));
   }
 
   {  // Test copy construction.
     T x(76);
     T y(x);
-    EXPECT_EQ(V(76), y.value());
+    EXPECT_EQ(y.value(), V(76));
   }
 }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestUnaryOperators) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   {  // Test unary plus of positive values.
     T x(123);
-    EXPECT_EQ(V(123), (+x).value());
+    EXPECT_EQ((+x).value(), V(123));
   }
   {  // Test logical not of positive values.
     T x(123);
-    EXPECT_EQ(false, !x);
-    EXPECT_EQ(true, !!x);
+    EXPECT_FALSE(!x);
+    EXPECT_TRUE(!!x);
   }
   {  // Test logical not of zero.
     T x(0);
-    EXPECT_EQ(true, !x);
-    EXPECT_EQ(false, !!x);
+    EXPECT_TRUE(!x);
+    EXPECT_FALSE(!!x);
   }
 }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestCtorFailures) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   {  // Test out-of-bounds construction.
     if (std::numeric_limits<V>::is_signed || sizeof(V) < sizeof(uint64_t)) {
@@ -134,36 +135,36 @@ TYPED_TEST(SignNeutralSafeIntTest, TestCtorFailures) {
 }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestIncrementDecrement) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   {  // Test simple increments and decrements.
     T x(0);
-    EXPECT_EQ(V(0), x.value());
-    EXPECT_EQ(V(0), (x++).value());
-    EXPECT_EQ(V(1), x.value());
-    EXPECT_EQ(V(2), (++x).value());
-    EXPECT_EQ(V(2), x.value());
-    EXPECT_EQ(V(2), (x--).value());
-    EXPECT_EQ(V(1), x.value());
-    EXPECT_EQ(V(0), (--x).value());
-    EXPECT_EQ(V(0), x.value());
+    EXPECT_EQ(x.value(), V(0));
+    EXPECT_EQ((x++).value(), V(0));
+    EXPECT_EQ(x.value(), V(1));
+    EXPECT_EQ((++x).value(), V(2));
+    EXPECT_EQ(x.value(), V(2));
+    EXPECT_EQ((x--).value(), V(2));
+    EXPECT_EQ(x.value(), V(1));
+    EXPECT_EQ((--x).value(), V(0));
+    EXPECT_EQ(x.value(), V(0));
   }
 }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestIncrementDecrementFailures) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   {  // Test overflowing increment.
     T x(std::numeric_limits<V>::max() - 1);
-    EXPECT_EQ(std::numeric_limits<V>::max(), (++x).value());
+    EXPECT_EQ((++x).value(), std::numeric_limits<V>::max());
     EXPECT_DEATH(x++, "overflow");
     EXPECT_DEATH(++x, "overflow");
   }
   {  // Test underflowing decrement.
     T x(std::numeric_limits<V>::min() + 1);
-    EXPECT_EQ(std::numeric_limits<V>::min(), (--x).value());
+    EXPECT_EQ((--x).value(), std::numeric_limits<V>::min());
     EXPECT_DEATH(x--, "underflow");
     EXPECT_DEATH(--x, "underflow");
   }
@@ -174,14 +175,14 @@ TYPED_TEST(SignNeutralSafeIntTest, TestIncrementDecrementFailures) {
     T x(xval);                                 \
     T y(yval);                                 \
     V expected = x.value() op y.value();       \
-    EXPECT_EQ(expected, (x op y).value());     \
-    EXPECT_EQ(expected, (x op## = y).value()); \
-    EXPECT_EQ(expected, x.value());            \
+    EXPECT_EQ((x op y).value(), expected);     \
+    EXPECT_EQ((x op## = y).value(), expected); \
+    EXPECT_EQ(x.value(), expected);            \
   }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestAdd) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   // Test positive vs. positive addition.
   TEST_T_OP_T(9, +, 3)
@@ -190,8 +191,8 @@ TYPED_TEST(SignNeutralSafeIntTest, TestAdd) {
 }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestAddFailures) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   {  // Test overflowing addition.
     T x(std::numeric_limits<V>::max());
@@ -206,8 +207,8 @@ TYPED_TEST(SignNeutralSafeIntTest, TestAddFailures) {
 }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestSubtract) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   // Test positive vs. positive subtraction.
   TEST_T_OP_T(9, -, 3)
@@ -216,8 +217,8 @@ TYPED_TEST(SignNeutralSafeIntTest, TestSubtract) {
 }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestSubtractFailures) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   {  // Test underflowing subtraction.
     T x(std::numeric_limits<V>::min());
@@ -236,14 +237,14 @@ TYPED_TEST(SignNeutralSafeIntTest, TestSubtractFailures) {
     T x(xval);                                 \
     numtype y = yval;                          \
     V expected = x.value() op y;               \
-    EXPECT_EQ(expected, (x op y).value());     \
-    EXPECT_EQ(expected, (x op## = y).value()); \
-    EXPECT_EQ(expected, x.value());            \
+    EXPECT_EQ((x op y).value(), expected);     \
+    EXPECT_EQ((x op## = y).value(), expected); \
+    EXPECT_EQ(x.value(), expected);            \
   }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestMultiply) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   // Test positive vs. positive multiplication across types.
   TEST_T_OP_NUM(9, *, int32_t, 3);
@@ -271,14 +272,14 @@ TYPED_TEST(SignNeutralSafeIntTest, TestMultiply) {
      // Multiplication is the only operator that takes one numeric type and
      // one StrongInt type *and* is commutative.  This was a real bug.
     T x(0);
-    EXPECT_EQ(0, (x * static_cast<float>(1.1)).value());
-    EXPECT_EQ(0, (static_cast<float>(1.1) * x).value());
+    EXPECT_EQ((x * static_cast<float>(1.1)).value(), 0);
+    EXPECT_EQ((static_cast<float>(1.1) * x).value(), 0);
   }
 }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestMultiplyFailures) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   {  // Test overflowing multiplication.
     T x(std::numeric_limits<V>::max());
@@ -288,8 +289,8 @@ TYPED_TEST(SignNeutralSafeIntTest, TestMultiplyFailures) {
 }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestDivide) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   // Test positive vs. positive division across types.
   TEST_T_OP_NUM(9, /, int32_t, 3);
@@ -305,7 +306,7 @@ TYPED_TEST(SignNeutralSafeIntTest, TestDivide) {
 }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestDivideFailures) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
 
   {  // Test divide by zero.
     T x(93);
@@ -315,8 +316,8 @@ TYPED_TEST(SignNeutralSafeIntTest, TestDivideFailures) {
 }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestModulo) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   // Test positive vs. positive modulo across signedness.
   TEST_T_OP_NUM(7, %, int32_t, 6);
@@ -328,7 +329,7 @@ TYPED_TEST(SignNeutralSafeIntTest, TestModulo) {
 }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestModuloFailures) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
 
   {  // Test modulo by zero.
     T x(93);
@@ -338,8 +339,8 @@ TYPED_TEST(SignNeutralSafeIntTest, TestModuloFailures) {
 }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestLeftShift) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   // Test basic shift.
   TEST_T_OP_NUM(0x09, <<, int, 3);
@@ -348,8 +349,8 @@ TYPED_TEST(SignNeutralSafeIntTest, TestLeftShift) {
 }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestLeftShiftFailures) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   {  // Test shift by a negative.
     T x(9);
@@ -370,8 +371,8 @@ TYPED_TEST(SignNeutralSafeIntTest, TestLeftShiftFailures) {
 }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestRightShift) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   // Test basic shift.
   TEST_T_OP_NUM(0x09, >>, int, 3);
@@ -380,7 +381,7 @@ TYPED_TEST(SignNeutralSafeIntTest, TestRightShift) {
 }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestRightShiftFailures) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
 
   {  // Test shift by a negative.
     T x(9);
@@ -395,40 +396,40 @@ TYPED_TEST(SignNeutralSafeIntTest, TestRightShiftFailures) {
 }
 
 TYPED_TEST(SignNeutralSafeIntTest, TestFloatToIntTruncation) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
 
   // Test construction from float.
   {
     float f = 93.123;
     T x(f);
-    EXPECT_EQ(93, x.value());
+    EXPECT_EQ(x.value(), 93);
   }
   {
     float f = 93.76;
     T x(f);
-    EXPECT_EQ(93, x.value());
+    EXPECT_EQ(x.value(), 93);
   }
   // Test construction from double.
   {
     double f = 93.123;
     T x(f);
-    EXPECT_EQ(93, x.value());
+    EXPECT_EQ(x.value(), 93);
   }
   {
     double f = 93.76;
     T x(f);
-    EXPECT_EQ(93, x.value());
+    EXPECT_EQ(x.value(), 93);
   }
   // Test construction from long double.
   {
     long double f = 93.123;
     T x(f);
-    EXPECT_EQ(93, x.value());
+    EXPECT_EQ(x.value(), 93);
   }
   {
     long double f = 93.76;
     T x(f);
-    EXPECT_EQ(93, x.value());
+    EXPECT_EQ(x.value(), 93);
   }
 }
 
@@ -487,7 +488,7 @@ TYPED_TEST(SignNeutralSafeIntTest, TestUnaryOperatorsConstexpr) {
 template <typename T>
 class SignedSafeIntTest : public ::testing::Test {
  public:
-  typedef T SafeIntTypeUnderTest;
+  using SafeIntTypeUnderTest = T;
 
   static constexpr T kTestConstexprIntPos{93};
   static constexpr T kTestConstexprIntNeg{-93};
@@ -505,47 +506,47 @@ constexpr T SignedSafeIntTest<T>::kTestConstexprFloatPos;
 template <typename T>
 constexpr T SignedSafeIntTest<T>::kTestConstexprFloatNeg;
 
-typedef ::testing::Types<SafeInt8, SafeInt16, SafeInt32, SafeInt64>
-    SignedSafeIntTypes;
+using SignedSafeIntTypes =
+    ::testing::Types<SafeInt8, SafeInt16, SafeInt32, SafeInt64>;
 
 TYPED_TEST_SUITE(SignedSafeIntTest, SignedSafeIntTypes, SafeIntTypeNames);
 
 TYPED_TEST(SignedSafeIntTest, ConstexprInitWorks) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  EXPECT_EQ(93, SignedSafeIntTest<T>::kTestConstexprIntPos.value());
-  EXPECT_EQ(-93, SignedSafeIntTest<T>::kTestConstexprIntNeg.value());
-  EXPECT_EQ(13, SignedSafeIntTest<T>::kTestConstexprFloatPos.value());
-  EXPECT_EQ(-13, SignedSafeIntTest<T>::kTestConstexprFloatNeg.value());
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  EXPECT_EQ(SignedSafeIntTest<T>::kTestConstexprIntPos.value(), 93);
+  EXPECT_EQ(SignedSafeIntTest<T>::kTestConstexprIntNeg.value(), -93);
+  EXPECT_EQ(SignedSafeIntTest<T>::kTestConstexprFloatPos.value(), 13);
+  EXPECT_EQ(SignedSafeIntTest<T>::kTestConstexprFloatNeg.value(), -13);
 }
 
 TYPED_TEST(SignedSafeIntTest, TestCtors) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   {  // Test construction from a negative value.
     T x(-1);
-    EXPECT_EQ(V(-1), x.value());
+    EXPECT_EQ(x.value(), V(-1));
   }
 }
 
 TYPED_TEST(SignedSafeIntTest, TestUnaryOperators) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   {  // Test unary plus and minus of positive values.
     T x(123);
-    EXPECT_EQ(V(123), (+x).value());
-    EXPECT_EQ(V(-123), (-x).value());
+    EXPECT_EQ((+x).value(), V(123));
+    EXPECT_EQ((-x).value(), V(-123));
   }
   {  // Test unary plus and minus of negative values.
     T x(-123);
-    EXPECT_EQ(V(-123), (+x).value());
-    EXPECT_EQ(V(123), (-x).value());
+    EXPECT_EQ((+x).value(), V(-123));
+    EXPECT_EQ((-x).value(), V(123));
   }
   {  // Test logical not of negative values.
     T x(-123);
-    EXPECT_EQ(false, !x);
-    EXPECT_EQ(true, !!x);
+    EXPECT_FALSE(!x);
+    EXPECT_TRUE(!!x);
   }
 }
 
@@ -559,8 +560,8 @@ TYPED_TEST(SignedSafeIntTest, TestUnaryOperatorsConstexpr) {
 }
 
 TYPED_TEST(SignedSafeIntTest, TestUnaryOperatorsFailures) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   {  // Test unary minus of negative values.
     T y(std::numeric_limits<V>::min());
@@ -569,8 +570,8 @@ TYPED_TEST(SignedSafeIntTest, TestUnaryOperatorsFailures) {
 }
 
 TYPED_TEST(SignedSafeIntTest, TestAdd) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   // Test negative vs. positive addition.
   TEST_T_OP_T(-9, +, 3)
@@ -581,8 +582,8 @@ TYPED_TEST(SignedSafeIntTest, TestAdd) {
 }
 
 TYPED_TEST(SignedSafeIntTest, TestAddFailures) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   {  // Test underflow by addition of a negative.
     T x(std::numeric_limits<V>::min());
@@ -592,8 +593,8 @@ TYPED_TEST(SignedSafeIntTest, TestAddFailures) {
 }
 
 TYPED_TEST(SignedSafeIntTest, TestSubtract) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   // Test negative vs. positive subtraction.
   TEST_T_OP_T(-9, -, 3)
@@ -623,8 +624,8 @@ TYPED_TEST(SignedSafeIntTest, TestSubtractConstexpr) {
 }
 
 TYPED_TEST(SignedSafeIntTest, TestSubtractFailures) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   {  // Test overflow by subtraction of a negative.
     T x(std::numeric_limits<V>::max());
@@ -634,8 +635,8 @@ TYPED_TEST(SignedSafeIntTest, TestSubtractFailures) {
 }
 
 TYPED_TEST(SignedSafeIntTest, TestMultiply) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   // Test negative vs. positive multiplication across types.
   TEST_T_OP_NUM(-9, *, int32_t, 3);
@@ -669,8 +670,8 @@ TYPED_TEST(SignedSafeIntTest, TestMultiply) {
 }
 
 TYPED_TEST(SignedSafeIntTest, TestMultiplyFailures) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   {  // Test underflowing multiplication.
     T x(std::numeric_limits<V>::min());
@@ -700,8 +701,8 @@ TYPED_TEST(SignedSafeIntTest, TestMultiplyFailures) {
 }
 
 TYPED_TEST(SignedSafeIntTest, TestDivide) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   // Test negative vs. positive division across types.
   TEST_T_OP_NUM(-9, /, int32_t, 3);
@@ -727,8 +728,8 @@ TYPED_TEST(SignedSafeIntTest, TestDivide) {
 }
 
 TYPED_TEST(SignedSafeIntTest, TestDivideFailures) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   {  // Test overflowing division.
     T x(std::numeric_limits<V>::min());
@@ -738,8 +739,8 @@ TYPED_TEST(SignedSafeIntTest, TestDivideFailures) {
 }
 
 TYPED_TEST(SignedSafeIntTest, TestModulo) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   // Test negative vs. positive modulo across signedness.
   TEST_T_OP_NUM(-7, %, int32_t, 6);
@@ -757,8 +758,8 @@ TYPED_TEST(SignedSafeIntTest, TestModulo) {
 }
 
 TYPED_TEST(SignedSafeIntTest, TestModuloFailures) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   {  // Test overflowing modulo.
     T x(std::numeric_limits<V>::min());
@@ -768,7 +769,7 @@ TYPED_TEST(SignedSafeIntTest, TestModuloFailures) {
 }
 
 TYPED_TEST(SignedSafeIntTest, TestLeftShiftFailures) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
 
   {  // Test shift of a negative.
     T x(-9);
@@ -778,7 +779,7 @@ TYPED_TEST(SignedSafeIntTest, TestLeftShiftFailures) {
 }
 
 TYPED_TEST(SignedSafeIntTest, TestRightShiftFailures) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
 
   {  // Test shift of a negative.
     T x(-9);
@@ -794,7 +795,7 @@ TYPED_TEST(SignedSafeIntTest, TestRightShiftFailures) {
 template <typename T>
 class UnsignedSafeIntTest : public ::testing::Test {
  public:
-  typedef T SafeIntTypeUnderTest;
+  using SafeIntTypeUnderTest = T;
 
   static constexpr T kTestConstexprInt{203};
   static constexpr T kTestConstexprFloat{173.81};
@@ -805,19 +806,19 @@ constexpr T UnsignedSafeIntTest<T>::kTestConstexprInt;
 template <typename T>
 constexpr T UnsignedSafeIntTest<T>::kTestConstexprFloat;
 
-typedef ::testing::Types<SafeUInt8, SafeUInt16, SafeUInt32, SafeUInt64>
-    UnsignedSafeIntTypes;
+using UnsignedSafeIntTypes =
+    ::testing::Types<SafeUInt8, SafeUInt16, SafeUInt32, SafeUInt64>;
 
 TYPED_TEST_SUITE(UnsignedSafeIntTest, UnsignedSafeIntTypes, SafeIntTypeNames);
 
 TYPED_TEST(UnsignedSafeIntTest, ConstexprInitWorks) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  EXPECT_EQ(203, UnsignedSafeIntTest<T>::kTestConstexprInt.value());
-  EXPECT_EQ(173, UnsignedSafeIntTest<T>::kTestConstexprFloat.value());
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  EXPECT_EQ(UnsignedSafeIntTest<T>::kTestConstexprInt.value(), 203);
+  EXPECT_EQ(UnsignedSafeIntTest<T>::kTestConstexprFloat.value(), 173);
 }
 
 TYPED_TEST(UnsignedSafeIntTest, TestCtors) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
 
   {  // Test out-of-bounds construction.
     EXPECT_DEATH(T(-1), "bounds");
@@ -834,18 +835,18 @@ TYPED_TEST(UnsignedSafeIntTest, TestCtors) {
 }
 
 TYPED_TEST(UnsignedSafeIntTest, TestUnaryOperators) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
-  typedef typename T::ValueType V;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
+  using V = typename T::ValueType;
 
   {  // Test bitwise not of positive values.
     T x(123);
-    EXPECT_EQ(V(~(x.value())), (~x).value());
-    EXPECT_EQ(x.value(), (~~x).value());
+    EXPECT_EQ((~x).value(), V(~(x.value())));
+    EXPECT_EQ((~~x).value(), x.value());
   }
   {  // Test bitwise not of zero.
     T x(0x00);
-    EXPECT_EQ(V(~(x.value())), (~x).value());
-    EXPECT_EQ(x.value(), (~~x).value());
+    EXPECT_EQ((~x).value(), V(~(x.value())));
+    EXPECT_EQ((~~x).value(), x.value());
   }
 }
 
@@ -858,7 +859,7 @@ TYPED_TEST(UnsignedSafeIntTest, TestUnaryOperatorsConstexpr) {
   constexpr T z = ~~T{123};
   EXPECT_EQ(x, T{123});
   EXPECT_EQ(y, T{V{std::numeric_limits<V>::max() & ~V{123}}});
-  EXPECT_EQ(x, z);
+  EXPECT_EQ(z, x);
 }
 
 TYPED_TEST(UnsignedSafeIntTest, TestBitwiseAndConstexpr) {
@@ -880,7 +881,7 @@ TYPED_TEST(UnsignedSafeIntTest, TestBitwiseXorConstexpr) {
 }
 
 TYPED_TEST(UnsignedSafeIntTest, TestMultiply) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
 
   {  // Test multiplication by a negative.
     T x(93);
@@ -890,7 +891,7 @@ TYPED_TEST(UnsignedSafeIntTest, TestMultiply) {
 }
 
 TYPED_TEST(UnsignedSafeIntTest, TestDivide) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
 
   {  // Test division by a negative.
     T x(93);
@@ -900,7 +901,7 @@ TYPED_TEST(UnsignedSafeIntTest, TestDivide) {
 }
 
 TYPED_TEST(UnsignedSafeIntTest, TestModulo) {
-  typedef typename TestFixture::SafeIntTypeUnderTest T;
+  using T = typename TestFixture::SafeIntTypeUnderTest;
 
   {  // Test modulo by a negative.
     T x(93);
@@ -909,4 +910,8 @@ TYPED_TEST(UnsignedSafeIntTest, TestModulo) {
   }
 }
 
+#undef TEST_T_OP_T
+#undef TEST_T_OP_NUM
+
+}  // namespace
 }  // namespace util_intops
