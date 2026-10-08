@@ -37,6 +37,9 @@ template <typename T>
 class TraceSpan;
 class WithTraceEventListener;
 class LinkContextsImpl;
+namespace testing {
+struct TestOnlyAccess;
+}  // namespace testing
 }  // namespace tracing
 }  // namespace perftools
 
@@ -51,6 +54,12 @@ class WithSecurityContext;
 namespace privacy::context {
 class DdtBaseAccess;
 }  // namespace privacy::context
+
+namespace c9::internal {
+class CoThread;
+class SchedulingContext;
+class SuspensionToken;
+}  // namespace c9::internal
 
 namespace base {
 
@@ -164,6 +173,10 @@ class ContextAccess {
   friend class ::TraceContext;
   friend class ::CurrentTraceContext;
 
+  friend class ::c9::internal::CoThread;
+  friend class ::c9::internal::SchedulingContext;
+  friend class ::c9::internal::SuspensionToken;
+
   template <typename T>
   friend class ::perftools::tracing::TraceSpan;
   friend class ::perftools::tracing::WithTraceEventListener;
@@ -173,11 +186,25 @@ class ContextAccess {
   friend void RestoreCurrentContext(Context* c);
   friend void SwapCurrentTraceContext(TraceContext* tc);
   friend void RestoreCurrentTraceContextFrom(TraceContext* tc);
+  friend struct ::perftools::tracing::testing::TestOnlyAccess;
 
   friend ContextAccess ContextAccessForTesting();
 };
 
 constexpr ContextAccess::ContextAccess() noexcept = default;
+
+// Access token (passkey) for `base::Context` restricted APIs providing
+// direct access to the thread local `base::Context` instance as well as
+// other `base::Context` related internals.
+class ThreadContextAccess {
+  explicit constexpr ThreadContextAccess() = default;
+
+  friend class ::c9::internal::CoThread;
+  friend class ::c9::internal::SchedulingContext;
+  friend class ::c9::internal::SuspensionToken;
+
+  friend struct ::perftools::tracing::testing::TestOnlyAccess;
+};
 
 }  // namespace base
 
