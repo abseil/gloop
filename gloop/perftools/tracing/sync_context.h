@@ -173,21 +173,26 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   // Access token for testing purposes
   class Access;
 
-  // State of this context. The default state of a context is `kDefault`.
+  // State of this context. The default state of a context is `kEmpty`.
+  //
   // Possible state transitions are:
   //
-  //                    Nested  -----
-  //                      ▲          |
-  //                      |          |
-  //                      ▼          ▼
-  //    --► Default --► Active  ----► Zombie
-  //                      ▲          ▲
-  //                      |          |
-  //                      ▼          |
-  //                  Suspended -----
+  //                         Nested  -----
+  //                           ▲          |
+  //                           |          |
+  //                           ▼          ▼
+  //  kEmpty --► Default --► Active  ----► Zombie / kEmpty
+  //                           ▲          ▲
+  //                           |          |
+  //                           ▼          |
+  //                        Suspended ----
   //
   enum class State : uint8_t {
-    // A newly created instance that has never been scoped.
+    // An empty instance. Operations on empty instances are no-ops,
+    // except 'AddListener' which changes the state to `kDefault`
+    kEmpty,
+
+    // A non empty instance that has never been scoped.
     kDefault,
 
     // An instance that is the current active (TLS) instance for some thread.
@@ -220,6 +225,18 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   SyncContext(SyncContext&&) noexcept;
   SyncContext& operator=(const SyncContext&);
   SyncContext& operator=(SyncContext&&) noexcept;
+
+  // Returns true if this instance is empty, false if this instance is part of
+  // a causality trace graph and contains event listeners requiring processing
+  // event notifications. This method is the fastest way to check if this
+  // instance is empty or not, and preferable over `state() == State::kEmpty`.
+  bool empty() const;
+
+  // bool operator, allowing for more natural `if (sync_context_)` semantics.
+  explicit operator bool() const;
+
+  // Returns the state of the current instance.
+  State state() const;
 
   // Returns a copy of this `SyncContext` instance with the intention
   // of this new instance to be scoped on a separate thread context.
@@ -288,6 +305,24 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   // being added to the instance. This unique `sync_id` value identifies
   // the (planned or active) code execution.
   SyncId sync_id() const;
+
+  // Returns the active `sync_id` for this context which is set if this thread
+  // is either the active scoped context for the current thread, or the context
+  // was the active context but is suspended, for example by a `BreakTraceSpan`
+  // Otherwise returns `kNoSyncId`
+  //
+  // Typically, `active_sync_id` is equal to `sync_id` when this context is
+  // either active or suspended. However, when scoped contexts of the same
+  // execution graph are nested, the inner context will adopt the active
+  // `sync_id` value of the outer scope. The latter can happen in certain
+  // situations where a function or `AnyInvocable` was scheduled to run on a
+  // different thread, but was eventually executed (and scoped) inlined with
+  // the currently executing (and traced) code.
+  //
+  // active_sync_id() is intended to be used for diagnostics and testing
+  // purposes only. Applications should have no expectations on the value
+  // returned by active_sync_id().
+  SyncId active_sync_id() const;
 
   // Returns true if this instance is part of a causality trace graph and
   // contains event listeners requiring processing event notifications.
@@ -408,6 +443,8 @@ class SyncContext::Impl {
 
   // Implementation of SyncContext accessors
   SyncId sync_id() const;
+  SyncId active_sync_id() const;
+  SyncContext::State state() const;
   TraceEventListener* listener() const;
 
   // Implementation of SyncContext::same_trace()
@@ -423,20 +460,6 @@ class SyncContext::Impl {
   // the current context.
   bool AfterSwapCurrent(StringRef label);
   bool AfterRestoreCurrent(StringRef label);
-
-  // Returns the active `sync_id` for this context which is set if this thread
-  // is either the active scoped context for the current thread, or the context
-  // was the active context but is suspended, for example by a `BreakTraceSpan`
-  // Otherwise returns `kNoSyncId`
-  //
-  // Typically, `active_sync_id` is equal to `sync_id` when this context is
-  // either active or suspended. However, when scoped contexts of the same
-  // execution graph are nested, the inner context will adopt the active
-  // `sync_id` value of the outer scope. The latter can happen in certain
-  // situations where a function or `AnyInvocable` was scheduled to run on a
-  // different thread, but was eventually executed (and scoped) inlined with
-  // the currently executing (and traced) code.
-  SyncId active_sync_id() const;
 
   static Impl* CreateForTesting(TraceEventListener* listener, SyncId sync_id,
                                 SyncId active_sync_id);
@@ -477,6 +500,8 @@ class SyncContext::Impl {
 std::ostream& operator<<(std::ostream&, SyncContext::State);
 
 inline SyncId SyncContext::Impl::sync_id() const { return sync_id_; }
+
+inline SyncContext::State SyncContext::Impl::state() const { return state_; }
 
 inline SyncId SyncContext::Impl::active_sync_id() const {
   return active_sync_id_;
@@ -540,12 +565,24 @@ inline SyncContext& SyncContext::operator=(const SyncContext& rhs) {
 
 inline constexpr SyncContext::SyncContext(Impl* context) : impl_(context) {}
 
+inline bool SyncContext::empty() const { return impl_ == nullptr; }
+
+inline SyncContext::operator bool() const { return !empty(); }
+
+inline SyncContext::State SyncContext::state() const {
+  return impl_ ? impl_->state() : State::kEmpty;
+}
+
 inline TraceEventListener* SyncContext::listener() const {
   return impl_ ? impl_->listener() : nullptr;
 }
 
 inline SyncId SyncContext::sync_id() const {
   return impl_ ? impl_->sync_id() : kNoSyncId;
+}
+
+inline SyncId SyncContext::active_sync_id() const {
+  return impl_ ? impl_->active_sync_id() : kNoSyncId;
 }
 
 inline bool SyncContext::ContainsListener(TraceEventListener* listener) const {

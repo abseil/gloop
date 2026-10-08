@@ -45,6 +45,8 @@ SyncId tls_active_sync_id() { return active_sync_id(); }
 
 std::ostream& operator<<(std::ostream& s, SyncContext::State state) {
   switch (state) {
+    case SyncContext::State::kEmpty:
+      return s << "Empty";
     case SyncContext::State::kDefault:
       return s << "Default";
     case SyncContext::State::kNested:

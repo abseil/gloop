@@ -138,7 +138,7 @@ class Context {
     EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
     EXPECT_THAT(active_trace_span_id(), Eq(0));
     EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
-    EXPECT_FALSE(thread_context_.has_listeners());
+    EXPECT_TRUE(thread_context_.empty());
 
     internal::set_active_sync_id(kNoSyncId);
     internal::set_active_trace_span_id(0);
@@ -160,7 +160,7 @@ class Context {
   static void RemoveListenerFromCurrent(TraceEventListener* tel) {
     thread_context_.sync_.RemoveListenerFromCurrent(access(), tel);
   }
-  bool has_listeners() const { return sync_.has_listeners(); }
+  bool empty() const { return sync_.empty(); }
 
   SyncContext& sync_context() { return sync_; }
   const SyncContext& sync_context() const { return sync_; }
@@ -219,7 +219,10 @@ class SyncContextTest : public ::testing::Test {
 TEST(SyncContextValueSemantics, DefaultCtor) {
   SyncContext context;
   EXPECT_THAT(context.sync_id(), Eq(kNoSyncId));
-  EXPECT_FALSE(context.has_listeners());
+  EXPECT_THAT(context.active_sync_id(), Eq(kNoSyncId));
+  EXPECT_FALSE(context);
+  EXPECT_TRUE(context.empty());
+  EXPECT_THAT(context.state(), Eq(SyncContext::State::kEmpty));
   EXPECT_THAT(context.listener(), Eq(nullptr));
   EXPECT_FALSE(context.same_trace(context));
 }
@@ -227,8 +230,8 @@ TEST(SyncContextValueSemantics, DefaultCtor) {
 TEST(SyncContextValueSemantics, OperationsOnDefaultInstanceAreNops) {
   MockTraceEventListener mock;
   SyncContext context, other;
-  EXPECT_FALSE(context.CreateThread("Thread").has_listeners());
-  EXPECT_FALSE(context.CreateNoop().has_listeners());
+  EXPECT_TRUE(context.CreateThread("Thread").empty());
+  EXPECT_TRUE(context.CreateNoop().empty());
   context.BeforeSwapCurrent(access(), other);
   context.AfterSwapCurrent(access(), /*span_id=*/1, "Swap");
   context.BeforeRestoreCurrent(access(), other);
@@ -239,15 +242,15 @@ TEST(SyncContextValueSemantics, OperationsOnDefaultInstanceAreNops) {
 
   using std::swap;
   swap(context, other);
-  EXPECT_FALSE(context.has_listeners());
-  EXPECT_FALSE(other.has_listeners());
+  EXPECT_TRUE(context.empty());
+  EXPECT_TRUE(other.empty());
 }
 
 TEST(SyncContextValueSemantics, CopyConstruct) {
   SyncContext empty1;
   SyncContext empty2(empty1);
-  EXPECT_FALSE(empty1.has_listeners());
-  EXPECT_FALSE(empty2.has_listeners());
+  EXPECT_TRUE(empty1.empty());
+  EXPECT_TRUE(empty2.empty());
 
   StrictMock<MockTraceEventListener> mock1, mock2;
   SyncContext src;
@@ -264,8 +267,8 @@ TEST(SyncContextValueSemantics, CopyAssign) {
   SyncContext empty1;
   SyncContext empty2;
   empty2 = empty1;
-  EXPECT_FALSE(empty1.has_listeners());
-  EXPECT_FALSE(empty2.has_listeners());
+  EXPECT_TRUE(empty1.empty());
+  EXPECT_TRUE(empty2.empty());
 
   StrictMock<MockTraceEventListener> mock1, mock2;
   SyncContext src;
@@ -281,14 +284,14 @@ TEST(SyncContextValueSemantics, CopyAssign) {
   SyncContext empty;
   EXPECT_CALL(mock2, ReleaseEventListener());
   context = empty;
-  EXPECT_FALSE(context.has_listeners());
+  EXPECT_TRUE(context.empty());
 }
 
 TEST(SyncContextValueSemantics, MoveConstruct) {
   SyncContext empty1;
   SyncContext empty2(std::move(empty1));
-  EXPECT_FALSE(empty1.has_listeners());  // NOLINT
-  EXPECT_FALSE(empty2.has_listeners());
+  EXPECT_TRUE(empty1.empty());  // NOLINT
+  EXPECT_TRUE(empty2.empty());
 
   StrictMock<MockTraceEventListener> mock;
   SyncContext src;
@@ -304,8 +307,8 @@ TEST(SyncContextValueSemantics, MoveAssign) {
   SyncContext empty1;
   SyncContext empty2;
   empty2 = std::move(empty1);
-  EXPECT_FALSE(empty1.has_listeners());  // NOLINT
-  EXPECT_FALSE(empty2.has_listeners());
+  EXPECT_TRUE(empty1.empty());  // NOLINT
+  EXPECT_TRUE(empty2.empty());
 
   StrictMock<MockTraceEventListener> mock;
   SyncContext src;
@@ -385,18 +388,22 @@ TEST_F(SyncContextTest, AddListener) {
   StrictMock<MockTraceEventListener> mock;
   SyncContext root;
   root.AddListener(&mock);
-  EXPECT_TRUE(root.has_listeners());
+  EXPECT_TRUE(root);
+  EXPECT_FALSE(root.empty());
+  EXPECT_THAT(root.sync_id(), Eq(kMainSyncId));
+  EXPECT_THAT(root.active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(root.state(), Eq(SyncContext::State::kDefault));
   EXPECT_CALL(mock, ReleaseEventListener());
 }
 
 TEST_F(SyncContextTest, AddNullptrListener) {
   SyncContext root;
   root.AddListener(nullptr);
-  EXPECT_FALSE(root.has_listeners());
+  EXPECT_TRUE(root.empty());
 
   WithContext with(Context{});
   Context::AddListenerToCurrent(nullptr);
-  EXPECT_FALSE(Context::Current().has_listeners());
+  EXPECT_TRUE(Context::Current().empty());
 }
 
 TEST_F(SyncContextTest, ListenersAreReleaseInLifoOrder) {
@@ -405,7 +412,7 @@ TEST_F(SyncContextTest, ListenersAreReleaseInLifoOrder) {
   SyncContext root;
   root.AddListener(&mock1);
   root.AddListener(&mock2);
-  EXPECT_TRUE(root.has_listeners());
+  EXPECT_FALSE(root.empty());
   EXPECT_CALL(mock2, ReleaseEventListener());
   EXPECT_CALL(mock1, ReleaseEventListener());
 }
@@ -501,16 +508,16 @@ TEST_F(SyncContextTest, RemoveListener) {
   EXPECT_CALL(mock, Extract(&mock));
   EXPECT_CALL(mock, ReleaseEventListener());
   root.RemoveListener(&mock);
-  EXPECT_FALSE(root.has_listeners());
+  EXPECT_TRUE(root.empty());
 }
 
 TEST_F(SyncContextTest, RemoveNullptrListener) {
   Context root;
   root.RemoveListener(nullptr);
-  EXPECT_FALSE(root.has_listeners());
+  EXPECT_TRUE(root.empty());
 
   Context::RemoveListenerFromCurrent(nullptr);
-  EXPECT_FALSE(Context::Current().has_listeners());
+  EXPECT_TRUE(Context::Current().empty());
 }
 
 TEST_F(SyncContextTest, RemoveListeners) {
@@ -578,12 +585,12 @@ TEST_F(SyncContextTest, CornerCaseAddDuplicateListener) {
   EXPECT_CALL(mock, Extract(&mock));
   EXPECT_CALL(mock, ReleaseEventListener());
   root.RemoveListener(&mock);
-  EXPECT_TRUE(root.has_listeners());
+  EXPECT_FALSE(root.empty());
 
   EXPECT_CALL(mock, Extract(&mock));
   EXPECT_CALL(mock, ReleaseEventListener());
   root.RemoveListener(&mock);
-  EXPECT_FALSE(root.has_listeners());
+  EXPECT_TRUE(root.empty());
 }
 
 TEST_F(SyncContextTest, CreateThread) {
@@ -594,7 +601,7 @@ TEST_F(SyncContextTest, CreateThread) {
   EXPECT_CALL(mock1, OnTraceSpawn(sync_id, Eq("Child")));
   EXPECT_CALL(mock1, GetEventListener(sync_id)).WillOnce(Return(&mock2));
   Context context = Context::CreateThread("Child");
-  EXPECT_TRUE(context.has_listeners());
+  EXPECT_FALSE(context.empty());
   EXPECT_THAT(context.sync_id(), Eq(sync_id));
 }
 
@@ -899,7 +906,7 @@ TEST_F(SyncContextTest, CornerCaseSwapRestoreAbandonNestedContext) {
   // Swap back tc1 --> was nested, now abandoned
   // TODO: b/559675297 - change back to EXPECT_DEBUG_DEATH
   Context::Swap(tc2);
-  EXPECT_FALSE(tc2.has_listeners());
+  EXPECT_TRUE(tc2.empty());
 
   // Restore
   Context::Restore(tc1);
@@ -929,7 +936,7 @@ TEST_F(SyncContextTest, SwapAbandonNestedTraceContext) {
   // tc1 for synchronous tracing:
   // TODO: b/559675297 - change back to EXPECT_DEBUG_DEATH
   Context::Restore(tc2);
-  EXPECT_FALSE(tc2.has_listeners());
+  EXPECT_TRUE(tc2.empty());
 }
 
 TEST_F(SyncContextTest, SwapNestedContextIntoDifferentSyncOfSameTrace) {
