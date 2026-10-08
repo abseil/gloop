@@ -158,7 +158,7 @@ ABSL_FLAG(bool, threadmanager_ignore_policy, true,
           "NOTE: This flag is only intended for short-term rollbacks in case "
           "of an issue and will be enabled for all users then removed soon. ");
 
-ABSL_FLAG(bool, threadmanager_use_executor_impl, true,
+ABSL_FLAG(bool, threadmanager_use_executor_impl, false,
           "If true, threadmanager implementations will be backed by a shared "
           "thread pool. If false, they will use the historical ThreadManager "
           "implementation. "
