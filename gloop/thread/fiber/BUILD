@@ -214,7 +214,6 @@ cc_library(
     visibility = [
         "//gloop/thread/fiber:__subpackages__",
         "//gloop/thread/fiber/internal:__subpackages__",
-        "//thread/fiber/internal:__pkg__",
     ],
     deps = [
         ":fiber-options",
@@ -255,10 +254,7 @@ cc_test(
     name = "fiber_test",
     srcs = ["fiber_test.cc"],
     linkstatic = 1,
-    visibility = [
-        "//devtools/crosstool/perflab/benchmarks:__pkg__",
-        "//waymo/os/bfc:__subpackages__",
-    ],
+    visibility = ["//waymo/os/bfc:__subpackages__"],
     deps = [
         ":channel",
         ":fiber",
@@ -309,10 +305,7 @@ cc_test(
     name = "bundle_test",
     srcs = ["bundle_test.cc"],
     linkstatic = 1,
-    visibility = [
-        "//devtools/crosstool/perflab/benchmarks:__pkg__",
-        "//waymo/os/bfc:__subpackages__",
-    ],
+    visibility = ["//waymo/os/bfc:__subpackages__"],
     deps = [
         ":fiber",
         ":select",
