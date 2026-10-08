@@ -846,7 +846,7 @@ cc_test(
         "//gloop:gloop_test_main",
         "//gloop/util/random:shared_bit_gen",
         "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

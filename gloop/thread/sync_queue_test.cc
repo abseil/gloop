@@ -24,8 +24,8 @@
 #include <cstddef>
 #include <vector>
 
-#include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "absl/strings/str_cat.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "gloop/thread/thread_options.h"
@@ -57,20 +57,23 @@ static void PushRange(Q* q, int low, int high) {
 // threads are pushing or popping things from the queue.
 template <template <typename> class T>
 static void TestOrder(T<int>* q) {
+  SCOPED_TRACE("TestOrder");
   VLOG(1) << "Testing order";
-  CHECK(q->empty());
+  EXPECT_TRUE(q->empty());
   PushRange(q, 0, 100);
   int r;
   for (int i = 100; i;) {
     i -= 2;
-    CHECK(q->Pop(&r));
-    CHECK_EQ(r, i);
+    SCOPED_TRACE(absl::StrCat("even i=", i));
+    EXPECT_TRUE(q->Pop(&r));
+    EXPECT_EQ(r, i);
   }
   for (int i = 1; i != 101; i += 2) {
-    CHECK(q->Pop(&r));
-    CHECK_EQ(r, i);
+    SCOPED_TRACE(absl::StrCat("odd i=", i));
+    EXPECT_TRUE(q->Pop(&r));
+    EXPECT_EQ(r, i);
   }
-  CHECK(q->empty());
+  EXPECT_TRUE(q->empty());
 }
 
 // Push the numbers between 0 and 999 inclusive from several threads in the
@@ -96,6 +99,7 @@ static void PushRanges(Q* q, ThreadPool* pool) {
 // inclusive.
 template <class Q>
 static void PopRange(Q* q, int high) {
+  SCOPED_TRACE("PopRange");
   std::vector<int> results;
   // Give up if we don't get all the elements back from the queue
   // in 10 seconds.
@@ -110,10 +114,10 @@ static void PopRange(Q* q, int high) {
     VLOG(2) << "Popped " << r;
     results.push_back(r);
   }
-  CHECK(q->empty());
-  CHECK(!q->Pop(&r));
+  EXPECT_TRUE(q->empty());
+  EXPECT_FALSE(q->Pop(&r));
   std::sort(results.begin(), results.end());
-  for (int i = 0; i != high; ++i) CHECK_EQ(i, results[i]);
+  for (int i = 0; i != high; ++i) EXPECT_EQ(results[i], i);
 }
 
 // Take all the elements from q in one operation by SwapQuque. Make sure that
@@ -121,6 +125,7 @@ static void PopRange(Q* q, int high) {
 // between 0 and high-1 inclusive.
 template <class Q>
 static void GetAllElements(Q* q, std::size_t high) {
+  SCOPED_TRACE("GetAllElements");
   // Give up if we don't get all the elements back from the queue
   // in 10 seconds.
   int timeout = 10;
@@ -131,12 +136,12 @@ static void GetAllElements(Q* q, std::size_t high) {
   }
   typename Q::container_type results;
   q->SwapEmptyContainer(&results);
-  CHECK(q->empty());
+  EXPECT_TRUE(q->empty());
 
   std::vector<typename Q::value_type> vector_results(results.begin(),
                                                      results.end());
   std::sort(vector_results.begin(), vector_results.end());
-  for (std::size_t i = 0; i != high; ++i) CHECK_EQ(i, vector_results[i]);
+  for (size_t i = 0; i != high; ++i) EXPECT_EQ(vector_results[i], i);
 }
 
 // Insert integers between low inclusive and high exclusive into q.
@@ -174,6 +179,7 @@ static void PushRangesRandomly(Q* q, ThreadPool* pool) {
 // break it.
 template <class Q>
 static void TestFront(Q* q, int high) {
+  SCOPED_TRACE("TestFront");
   std::vector<int> results;
   int timeout = 10;
   int r = 0;
@@ -193,16 +199,16 @@ static void TestFront(Q* q, int high) {
         VLOG(1) << "Sleeping for a second...";
         absl::SleepFor(absl::Seconds(1));
       }
-      CHECK(q->Pop(&trash));
-      CHECK_EQ(trash, r);
+      EXPECT_TRUE(q->Pop(&trash));
+      EXPECT_EQ(trash, r);
       VLOG(2) << "Fronted and popped " << r;
       results.push_back(r);
     }
   }
-  CHECK(q->empty());
-  CHECK(!q->Front(&r));
+  EXPECT_TRUE(q->empty());
+  EXPECT_FALSE(q->Front(&r));
   std::sort(results.begin(), results.end());
-  for (int i = 0; i < high; ++i) CHECK_EQ(i, results[i]);
+  for (int i = 0; i < high; ++i) EXPECT_EQ(results[i], i);
 }
 
 TEST(ThreadSafeQueueTest, TestQueues) {
