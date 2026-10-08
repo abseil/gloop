@@ -29,6 +29,39 @@ package(
 )
 
 cc_library(
+    name = "abstract_simple_selectable",
+    hdrs = ["abstract_simple_selectable.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":select-internal",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/synchronization",
+    ],
+)
+
+cc_test(
+    name = "abstract_simple_selectable_test",
+    srcs = ["abstract_simple_selectable_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":abstract_simple_selectable",
+        ":fiber",
+        ":select",
+        ":selectables",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_matchers",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "arrival-order-scheduler",
     srcs = ["arrival-order-scheduler.cc"],
     hdrs = ["arrival-order-scheduler.h"],
