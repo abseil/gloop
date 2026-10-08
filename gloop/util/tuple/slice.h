@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 //
 // Function templates slice() and slice_range() return a subset of the original
 // tuple with only the elements with the specified indices.

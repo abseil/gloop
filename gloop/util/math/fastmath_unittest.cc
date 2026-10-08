@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 // Tests fast math functions for exp2, log2 to verify they do not
 // introduce too large an error.  Also tests that they run faster
 // than the standard <cmath> versions.

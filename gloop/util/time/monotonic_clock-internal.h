@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 #ifndef THIRD_PARTY_GLOOP_UTIL_TIME_MONOTONIC_CLOCK_INTERNAL_H_
 #define THIRD_PARTY_GLOOP_UTIL_TIME_MONOTONIC_CLOCK_INTERNAL_H_
 

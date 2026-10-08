@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 // Useful string functions and so forth.  This is a grab-bag file.
 //
 // You might also want to look at memutil.h, which holds mem*()

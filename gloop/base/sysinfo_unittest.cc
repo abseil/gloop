@@ -553,7 +553,7 @@ TEST(SysinfoUnittest, SystemLoadAverageForTimeRange) {
 TEST(SysinfoUnittest, PhysicalAndFreeMem) {
   // Make sure PhysicalMem() returns a plausible value.
   EXPECT_GE(PhysicalMem(), uint64_t{128} << 20);  // 128 MB
-  EXPECT_LE(PhysicalMem(), uint64_t{1} << 50);    // 1 PB
+  EXPECT_LE(PhysicalMem(), uint64_t{1} << 50);
   // Make sure the FreeMem returns a plausible value.
   EXPECT_GE(FreeMem(), 0);
   EXPECT_LE(FreeMem(), PhysicalMem());

@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 // Defines tuple intrinsics for gtl::string_hash_map<>::value_type so it can be
 // used with algorithms in //gloop/util/tuple.
 

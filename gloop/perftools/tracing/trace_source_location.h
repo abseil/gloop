@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 #ifndef THIRD_PARTY_GLOOP_PERFTOOLS_TRACING__TRACE_SOURCE_LOCATION_H_
 #define THIRD_PARTY_GLOOP_PERFTOOLS_TRACING__TRACE_SOURCE_LOCATION_H_
 

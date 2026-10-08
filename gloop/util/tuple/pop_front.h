@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 // Function template pop_front() returns a copy of the tuple without the
 // first element. The type type of the Nth element in the resulting tuple is the
 // same as the (N+1)th element in the original tuple.

@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 //  Kendall's Tau is a non-parametric (or rank) correlation metric
 //  described on pp.642-3 of the Numerical Recipes.  Briefly, given N
 //  data points (xi,yi) where xi is f1(i) and yi is f2(i), the tau

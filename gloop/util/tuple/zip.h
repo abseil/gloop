@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 //
 // Function template zip() converts a bunch of tuples into a single tuple of
 // tuples. The ith element of the result is a tuple composed of ith elements of

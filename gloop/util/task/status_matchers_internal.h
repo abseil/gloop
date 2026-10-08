@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 // IWYU pragma: private, include "util/task/status_matchers.h"
 // IWYU pragma: friend util/task/status_matchers.h
 

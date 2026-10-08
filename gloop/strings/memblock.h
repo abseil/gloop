@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 // This module implements a variable-sized memory block abstraction.
 // Subclasses can be defined to allocate/deallocate the blocks in
 // different ways.

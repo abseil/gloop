@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 // Function template transform() applies a polymorphic functor to all elements
 // of the tuple and returns all results packed in a tuple of the same size.
 //

@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 // Metafunction find_index<> returns the index of the first element in the
 // tuple with the matching type. If the tuple doesn't contain elements of
 // the specified type, the result is static_cast<size_t>(-1).

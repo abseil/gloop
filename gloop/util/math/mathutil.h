@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 //
 // This class is intended to contain a collection of useful (static)
 // mathematical functions, properly coded (by consulting numerical

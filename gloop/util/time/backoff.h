@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 // A library for computing backoff delay times.
 //
 // For testing code that uses this library, see backoff_test_util.h

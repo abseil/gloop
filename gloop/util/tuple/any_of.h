@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 // Function template any_of(predicate, t) returns true if the predicate is
 // true for at least one element in the tuple.
 //

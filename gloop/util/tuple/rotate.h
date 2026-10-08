@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 //
 // rotate<M>(make_tuple(a1, a2, ..., aM, ..., aN)) evaluates to
 // make_tuple(aM, ..., aN, a1, ..., aM-1). M must be in [0, N]. It's similar to

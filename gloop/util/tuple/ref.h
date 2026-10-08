@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 //
 // Function template ref() creates a tuple of references to the elements in the
 // original tuple. It's handy when you need to do manipulations with tuples

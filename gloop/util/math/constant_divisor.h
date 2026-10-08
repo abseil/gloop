@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 // Provides faster division in situations where the same divisor is used
 // repeatedly but is not known at compile time. For example, a hash table might
 // not be sized until the model is loaded, but once loaded it is not resized for

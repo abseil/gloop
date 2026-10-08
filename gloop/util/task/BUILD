@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Apache 2.0 Notice: 2026
-
 # Libraries in this low-level package may not depend on libraries in packages
 # that are not low level.   For more information, including how to submit
 # changes to this file, see    <link>

@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 // Utilities for dealing with hex+ASCII dumps.
 
 #include "gloop/strings/hex_ascii_dump.h"

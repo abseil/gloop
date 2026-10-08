@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 //
 // Unit test cases for SafeInt.  Some of this overlaps with the testing for
 // StrongInt, but it's important to test not only that SafeInt fails when

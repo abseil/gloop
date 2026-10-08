@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 // Utility classes to complete a parent task once all child tasks complete.
 
 #ifndef THIRD_PARTY_GLOOP_UTIL_TASK_CHILD_TASK_BARRIER_H_

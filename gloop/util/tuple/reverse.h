@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 // Function template reverse() reverses elements in the tuple.
 //
 //   tuple<int, string, double> a(42, "hello", 0.5);

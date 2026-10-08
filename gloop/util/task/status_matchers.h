@@ -18,8 +18,6 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// Apache 2.0 Notice: 2026
-
 #ifndef THIRD_PARTY_GLOOP_UTIL_TASK_STATUS_MATCHERS_H_
 #define THIRD_PARTY_GLOOP_UTIL_TASK_STATUS_MATCHERS_H_
 // In most cases, you should be using the Abseil status matchers.  See:
