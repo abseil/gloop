@@ -355,68 +355,6 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   // swaps lhs and rhs. Does neither verify nor change the TLS active sync id.
   friend void swap(SyncContext& lhs, SyncContext& rhs) noexcept;
 
-  // Set this instance as the actively scoped instance for the current thread,
-  // tracing the start of a possibly traced synchronous execution.
-  //
-  // This method will do nothing if this instance is empty.
-  //
-  // Otherwise, this method will install the bound trace event listener as the
-  // current instance for this thread, transferring ownership to the thread.
-  //
-  // Behavior for an instance suspended by a preceding call to `SuspendContext`:
-  // ---------------------------------------------------------------------------
-  // The thread's active sync_id will be set to this instance's active sync id
-  // as captured at the time of suspension. Then a `OnTraceContinue()` event
-  // will be emitted, including the `barrier_id` if `barrier_id` is specified.
-  //
-  // Behavior for an instance not previously suspended:
-  // ---------------------------------------------------------------------------
-  // The thread's active sync_id and this instance's active sync_id will be set
-  // to this instance's unique sync id as assigned at time of creation. Then a
-  // `OnTraceSyncBegin()` event will be emitted. If `barrier_id` is specified,
-  // then a `OnTraceObserved()` event is emitted with the provided `barrier_id`.
-  //
-  // Returns true if this context was successfully resumed as the instance
-  // for the current thread. Returns false if this instance is empty, or an
-  // error occurred installing the intance, in which case this instance is
-  // reset to an empty instance.
-  bool ResumeContext(Access, BarrierId barrier_id, StringRef label);
-
-  // Suspends this instance as the actively scoped instance for the current
-  // thread, tracing the suspension of the current synchronous execution, for
-  // example where the current code is about to block or wait.
-  //
-  // This method will do nothing if this instance is empty.
-  //
-  // Otherwise, this instance must be the current active instance for this
-  // thread. A `OnTraceWait()` event will be emitted with the provided `label`,
-  // and the thread's active sync_id will be reset to `kNoSyncId`. This
-  // instance's active sync_id is retained, allowing a subsequent call to
-  // `ResumeContext` to continue the suspended synchronous execution.
-  //
-  // Ownership of the thread's trace event listener is transferred back to
-  // this instance.
-  //
-  // Returns true if this context was successfully suspended. Returns false if
-  // this instance is empty, or an error occurred suspending the instance, in
-  // which case this instance is reset to an empty instance.
-  bool SuspendContext(Access, StringRef label);
-
-  // Ends this instance as the actively scoped instance for the current thread,
-  // tracing the end of the current synchronous execution.
-  //
-  // This method will do nothing if this instance is empty.
-  //
-  // Otherwise, this instance must be the current active instance for this
-  // thread. A `OnTraceEndSync()` event will be emitted, and both the thread's
-  // and this instance's active sync_id will be reset to `kNoSyncId`. The
-  // thread's trace event listener is uninstalled and released.
-  //
-  // The instance is always reset to an empty instance. Returns true if this
-  // context was successfully ended. Returns false if this instance is empty,
-  // or an error occurred ending the instance.
-  bool EndContext(Access);
-
   // `BeforeSwapCurrent` and `BeforeRestoreCurrent` manage the 'per thread'
   // tracing state used by the tracing event listener framework, and must be
   // invoked directly before the current thread's context is changed from this
@@ -442,8 +380,6 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
                                       SyncId sync_id, SyncId active_sync_id);
 
  private:
-  friend class SyncContextTestPeer;
-
   // SyncContext follows a pimpl pattern for two main reasons:
   // - the fast path is that no execution tracers are installed. Using a pimpl
   //   pattern minimizes the footprint of the SyncContext class.
@@ -525,17 +461,10 @@ class SyncContext::Impl {
   bool AfterSwapCurrent(StringRef label);
   bool AfterRestoreCurrent(StringRef label);
 
-  // Implementations of ResumeContext, SuspendContext and EndContext.
-  bool ResumeContext(BarrierId barrier_id, StringRef label);
-  bool SuspendContext(StringRef label);
-  bool EndContext();
-
   static Impl* CreateForTesting(TraceEventListener* listener, SyncId sync_id,
                                 SyncId active_sync_id);
 
  private:
-  friend class SyncContextTestPeer;
-
   class Shared;
   using SharedPtr = std::shared_ptr<Shared>;
 
@@ -670,40 +599,6 @@ inline SyncContext SyncContext::CreateThread(StringRef label) const {
 
 inline SyncContext SyncContext::CreateNoop() const {
   return SyncContext(impl_ ? impl_->CreateNoop() : nullptr);
-}
-
-inline bool SyncContext::ResumeContext(Access, BarrierId barrier_id,
-                                       StringRef label) {
-  if (Impl* impl = impl_; impl != nullptr) {
-    if (impl->ResumeContext(barrier_id, label)) {
-      return true;
-    }
-    impl_ = nullptr;
-    delete impl;
-  }
-  return false;
-}
-
-inline bool SyncContext::SuspendContext(Access, StringRef label) {
-  if (Impl* impl = impl_; impl != nullptr) {
-    impl_ = nullptr;
-    if (impl->SuspendContext(label)) {
-      impl_ = impl;
-      return true;
-    }
-    delete impl;
-  }
-  return false;
-}
-
-inline bool SyncContext::EndContext(Access) {
-  if (Impl* impl = impl_; impl != nullptr) {
-    impl_ = nullptr;
-    const bool ended = impl->EndContext();
-    delete impl;
-    return ended;
-  }
-  return false;
 }
 
 inline void SyncContext::BeforeSwapCurrent(Access, const SyncContext& to) {

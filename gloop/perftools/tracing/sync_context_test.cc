@@ -49,40 +49,12 @@ using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::StrictMock;
 
-using State = SyncContext::State;
-
 class SyncContextTestPeer {
  public:
   static SyncContext::Access access() { return SyncContext::Access(); }
-
-  // Creates a new SyncContext instance for testing, allowing any and all
-  // values to be explicitly set as required.
-  static SyncContext NewSync(TraceEventListener* listener,
-                             State state = State::kDefault,
-                             SyncId active_sync_id = kNoSyncId) {
-    MockTraceEventListener must_not_be_null;
-    SyncContext context;
-    context.impl_ = SyncContext::Impl::New(&must_not_be_null);
-    context.impl_->listener_ = listener;
-    context.impl_->state_ = state;
-    context.impl_->active_sync_id_ = active_sync_id;
-    return context;
-  };
 };
 
 namespace {
-
-// Namespace level convenience helper.
-SyncContext NewSync(TraceEventListener* listener, State state = State::kDefault,
-                    SyncId active_sync_id = kNoSyncId) {
-  return SyncContextTestPeer::NewSync(listener, state, active_sync_id);
-}
-
-// Convenience helper to set up TLS data.
-void SetupTLS(SyncId active_sync_id, TraceEventListener* listener) {
-  internal::set_active_sync_id(active_sync_id);
-  internal::set_active_event_listener(listener);
-}
 
 // RawThread runs some invocable on a raw thread, i.e., not copying or
 // initializing any per-thread context and other gloop specific goodies.
@@ -242,15 +214,6 @@ class WithContext {
 class SyncContextTest : public ::testing::Test {
  public:
   ~SyncContextTest() override { Context::Cleanup(); }
-};
-
-// Test fixture automatically resetting TLS context.
-class AutoCleanupSyncContextTest : public ::testing::Test {
- public:
-  ~AutoCleanupSyncContextTest() override {
-    internal::set_active_sync_id(kNoSyncId);
-    internal::set_active_event_listener(nullptr);
-  }
 };
 
 TEST(SyncContextValueSemantics, DefaultCtor) {
@@ -1035,164 +998,6 @@ TEST_F(SyncContextTest, IsolateFromSideEffectsInReleaseFromWithContext) {
   Context context;
   context.AddListener(mock);
   WithContext with(std::move(context));
-}
-
-TEST_F(AutoCleanupSyncContextTest, ResumeDefaultContext) {
-  StrictMock<MockTraceEventListener> mock;
-  SyncContext context = NewSync(&mock);
-
-  EXPECT_CALL(mock, OnTraceBeginSync(Eq(kMainSyncId), Eq("Begin")));
-  EXPECT_TRUE(context.ResumeContext(access(), kNoBarrierId, "Begin"));
-
-  EXPECT_THAT(context.state(), Eq(State::kActive));
-  EXPECT_THAT(context.active_sync_id(), Eq(context.sync_id()));
-  EXPECT_THAT(context.listener(), Eq(nullptr));
-
-  EXPECT_THAT(active_sync_id(), Eq(context.sync_id()));
-  EXPECT_THAT(internal::active_event_listener(), Eq(&mock));
-}
-
-TEST_F(AutoCleanupSyncContextTest, ResumeSuspendedContext) {
-  StrictMock<MockTraceEventListener> mock;
-  SyncContext context = NewSync(&mock, State::kSuspended, SyncId(4));
-
-  EXPECT_CALL(mock, OnTraceContinue(Eq(BarrierId(1234))));
-  EXPECT_TRUE(context.ResumeContext(access(), BarrierId(1234), "Resume"));
-
-  EXPECT_THAT(context.state(), Eq(State::kActive));
-  EXPECT_THAT(context.active_sync_id(), Eq(SyncId(4)));
-  EXPECT_THAT(context.listener(), Eq(nullptr));
-
-  EXPECT_THAT(active_sync_id(), Eq(SyncId(4)));
-  EXPECT_THAT(internal::active_event_listener(), Eq(&mock));
-}
-
-TEST_F(AutoCleanupSyncContextTest, ResumeFailsOnAbandonedTracer) {
-  SyncContext context = NewSync(nullptr);
-
-  EXPECT_FALSE(context.ResumeContext(access(), kNoBarrierId, "Begin"));
-  EXPECT_TRUE(context.empty());
-}
-
-TEST_F(AutoCleanupSyncContextTest, ResumeFailsWithActiveListener) {
-  StrictMock<MockTraceEventListener> mock, tls;
-  SyncContext context = NewSync(&mock);
-  SetupTLS(SyncId(5), &tls);
-
-  EXPECT_CALL(mock, ReleaseEventListener());
-  EXPECT_FALSE(context.ResumeContext(access(), kNoBarrierId, "Begin"));
-  EXPECT_TRUE(context.empty());
-}
-
-TEST_F(AutoCleanupSyncContextTest, ResumeFailsWithInvalidState) {
-  for (State state : {
-           State::kNested,
-           State::kActive,
-           State::kZombie,
-       }) {
-    StrictMock<MockTraceEventListener> mock;
-    SyncContext context = NewSync(&mock, state);
-
-    EXPECT_CALL(mock, ReleaseEventListener());
-    EXPECT_FALSE(context.ResumeContext(access(), kNoBarrierId, "Begin"));
-    EXPECT_TRUE(context.empty());
-  }
-}
-
-TEST_F(AutoCleanupSyncContextTest, SuspendActiveContext) {
-  StrictMock<MockTraceEventListener> mock;
-  SyncContext context = NewSync(nullptr, State::kActive, SyncId(5));
-  SetupTLS(SyncId(5), &mock);
-
-  EXPECT_CALL(mock, OnTraceWait(Eq(kNoBarrierId), Eq("Wait")));
-  EXPECT_TRUE(context.SuspendContext(access(), "Wait"));
-
-  EXPECT_THAT(context.state(), Eq(State::kSuspended));
-  EXPECT_THAT(context.active_sync_id(), Eq(SyncId(5)));
-  EXPECT_THAT(context.listener(), Eq(&mock));
-
-  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
-  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
-}
-
-TEST_F(AutoCleanupSyncContextTest, SuspendContextReleasesNestedListener) {
-  StrictMock<MockTraceEventListener> mock, nested;
-  SyncContext context = NewSync(&nested, State::kActive, SyncId(5));
-  SetupTLS(SyncId(5), &mock);
-
-  EXPECT_CALL(mock, OnTraceWait(Eq(kNoBarrierId), Eq("Wait")));
-  EXPECT_CALL(nested, ReleaseEventListener());
-  EXPECT_TRUE(context.SuspendContext(access(), "Wait"));
-
-  EXPECT_THAT(context.state(), Eq(State::kSuspended));
-  EXPECT_THAT(context.active_sync_id(), Eq(SyncId(5)));
-  EXPECT_THAT(context.listener(), Eq(&mock));
-
-  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
-  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
-}
-
-TEST_F(AutoCleanupSyncContextTest, SuspendFailsWithoutActiveListener) {
-  StrictMock<MockTraceEventListener> mock;
-  SyncContext context = NewSync(nullptr, State::kActive);
-
-  EXPECT_FALSE(context.SuspendContext(access(), "Wait"));
-  EXPECT_TRUE(context.empty());
-}
-
-TEST_F(AutoCleanupSyncContextTest, SuspendFailsWithInvalidState) {
-  for (State state : {
-           State::kDefault,
-           State::kNested,
-           State::kSuspended,
-           State::kZombie,
-       }) {
-    StrictMock<MockTraceEventListener> mock;
-    SyncContext context = NewSync(nullptr, state, SyncId(5));
-    SetupTLS(SyncId(5), &mock);
-
-    EXPECT_FALSE(context.SuspendContext(access(), "Suspend"));
-    EXPECT_TRUE(context.empty());
-  }
-}
-
-TEST_F(AutoCleanupSyncContextTest, EndContext) {
-  StrictMock<MockTraceEventListener> mock;
-  SyncContext context = NewSync(nullptr, State::kActive, SyncId(5));
-  SetupTLS(SyncId(5), &mock);
-
-  EXPECT_CALL(mock, OnTraceEndSync(SyncId(5)));
-  EXPECT_CALL(mock, ReleaseEventListener());
-  EXPECT_TRUE(context.EndContext(access()));
-  EXPECT_TRUE(context.empty());
-}
-
-TEST_F(AutoCleanupSyncContextTest, EndContextReleasesNestedListener) {
-  StrictMock<MockTraceEventListener> mock, nested;
-  SyncContext context = NewSync(&nested, State::kActive, SyncId(5));
-  SetupTLS(SyncId(5), &mock);
-
-  EXPECT_CALL(mock, OnTraceEndSync(SyncId(5)));
-  EXPECT_CALL(mock, ReleaseEventListener());
-  EXPECT_CALL(nested, ReleaseEventListener());
-  EXPECT_TRUE(context.EndContext(access()));
-  EXPECT_TRUE(context.empty());
-}
-
-TEST_F(AutoCleanupSyncContextTest, EndFailsWithInvalidState) {
-  for (State state : {
-           State::kDefault,
-           State::kNested,
-           State::kSuspended,
-           State::kZombie,
-       }) {
-    StrictMock<MockTraceEventListener> mock;
-    SyncContext context = NewSync(nullptr, state, SyncId(5));
-    SetupTLS(SyncId(5), &mock);
-
-    EXPECT_FALSE(context.EndContext(access()));
-    EXPECT_TRUE(context.empty());
-  }
 }
 
 }  // namespace
