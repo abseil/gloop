@@ -72,7 +72,8 @@ cc_library(
     ],
     deps = [
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/strings",
+        "//gloop/base:config",
+        "@abseil-cpp//absl/strings:string_view",
     ],
 )
 
