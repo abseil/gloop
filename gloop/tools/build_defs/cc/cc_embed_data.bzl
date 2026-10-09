@@ -266,6 +266,7 @@ def _cc_skylark_embed_data_impl(ctx):
         CcInfo(
             compilation_context = compilation_context,
             linking_context = linking_context,
+            debug_context = cc_common.create_debug_context(compilation_outputs),
         ),
     ]
 
