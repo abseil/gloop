@@ -227,6 +227,104 @@ bool SyncContext::Impl::ContainsListener(TraceEventListener* listener) const {
   return this_listener != nullptr && this_listener->Contains(listener);
 }
 
+// TODO: b/559675297 - change errors to DFATAL?
+bool SyncContext::Impl::ResumeContext(BarrierId barrier_id, StringRef label) {
+  if (listener_ == nullptr) {
+    LOG_EVERY_N_SEC(ERROR, 60) << "ResumeContext() on an abandoned tracer";
+    return false;
+  }
+
+  // Make sure the thread does not own a listener..
+  if (internal::active_event_listener() != nullptr) {
+    LOG_EVERY_N_SEC(ERROR, 60) << "ResumeContext() with an active listener";
+    return false;
+  }
+
+  switch (state_) {
+    case State::kDefault:
+      active_sync_id_ = sync_id_;
+      internal::set_active_sync_id(active_sync_id_);
+      listener_->OnTraceBeginSync(active_sync_id_, label);
+      if (barrier_id != kNoBarrierId) {
+        listener_->OnTraceObserved(barrier_id, label);
+      }
+      break;
+    case State::kSuspended:
+      internal::set_active_sync_id(active_sync_id_);
+      listener_->OnTraceContinue(barrier_id);
+      break;
+    default:
+      LOG_EVERY_N_SEC(ERROR, 60) << "ResumeContext() with state " << state_;
+      return false;
+  }
+
+  // Update state to active and transfer listener ownership to thread.
+  state_ = State::kActive;
+  internal::set_active_event_listener(listener_);
+  listener_ = nullptr;
+
+  return true;
+}
+
+bool SyncContext::Impl::SuspendContext(StringRef label) {
+  // Make sure we are indeed active
+  if (state_ != State::kActive) {
+    LOG_EVERY_N_SEC(ERROR, 60) << "SuspendContext() with state " << state_;
+    return false;
+  }
+
+  // Make sure the thread owns a listener.
+  TraceEventListener* current = internal::active_event_listener();
+  if (current == nullptr) {
+    LOG_EVERY_N_SEC(ERROR, 60) << "SuspendContext() without an active listener";
+    return false;
+  }
+
+  // Emit wait
+  current->OnTraceWait(kNoBarrierId, label);
+
+  state_ = State::kSuspended;
+  active_sync_id_ = tls_active_sync_id();
+
+  // Swap active listener back to this instance. The current instance may be
+  // nested and still own an ignored nested listener instance.
+  if (listener_ != nullptr) listener_->ReleaseEventListener();
+  listener_ = current;
+
+  // Set TLS to empty
+  internal::set_active_sync_id(kNoSyncId);
+  internal::set_active_event_listener(nullptr);
+
+  return true;
+}
+
+bool SyncContext::Impl::EndContext() {
+  // Make sure the thread owns a listener.
+  TraceEventListener* current = internal::active_event_listener();
+  if (current == nullptr) {
+    // TODO: b/559675297 - change back to DFATAL
+    LOG_EVERY_N_SEC(ERROR, 60) << "EndContext() without an active listener";
+    return false;
+  }
+
+  if (state_ != State::kActive) {
+    LOG_EVERY_N_SEC(ERROR, 60) << "EndContext() with state " << state_;
+    return false;
+  }
+
+  // End the current execution. The current context is now in a zombie state.
+  current->OnTraceEndSync(active_sync_id_);
+  internal::set_active_sync_id(active_sync_id_ = kNoSyncId);
+  state_ = State::kZombie;
+
+  // Take ownership of the listener.
+  if (listener_ != nullptr) listener_->ReleaseEventListener();
+  listener_ = current;
+  internal::set_active_event_listener(nullptr);
+
+  return true;
+}
+
 template <SyncContext::Impl::SwapOrRestore swap_or_restore>
 void SyncContext::Impl::BeforeSwap(const Impl* to) {
   // Make sure we are not restoring from a 'to be deleted' zombie state.
