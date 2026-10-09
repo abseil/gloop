@@ -269,6 +269,7 @@ cc_library(
         "//gloop/util/status:status_macros",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_builder",
         "@abseil-cpp//absl/status:status_matchers",
         "@abseil-cpp//absl/strings",
         "@gloop//gloop/util/status:codes_cc_proto",
