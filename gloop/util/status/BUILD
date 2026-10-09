@@ -458,30 +458,3 @@ cc_test(
         "@googletest//:gtest",
     ],
 )
-
-cc_library(
-    name = "verify",
-    hdrs = ["verify.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/strings:str_format",
-        "@abseil-cpp//absl/types:source_location",
-    ],
-)
-
-cc_test(
-    name = "verify_test",
-    srcs = ["verify_test.cc"],
-    deps = [
-        ":verify",
-        "//gloop:gloop_test_main",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:status_matchers",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
-    ],
-)
