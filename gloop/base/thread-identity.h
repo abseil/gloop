@@ -27,4 +27,12 @@
 
 #include "absl/base/internal/thread_identity.h"  // IWYU pragma: export
 
+namespace base {
+using ThreadIdentity = ::absl::base_internal::ThreadIdentity;
+
+inline ThreadIdentity* GetCurrentThreadIdentityIfPresent() {
+  return ::absl::base_internal::CurrentThreadIdentityIfPresent();
+}
+}  // namespace base
+
 #endif  // THIRD_PARTY_GLOOP_BASE_THREAD_IDENTITY_H_

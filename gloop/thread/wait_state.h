@@ -54,7 +54,7 @@ namespace thread {
 //  }
 class WaitStateScope {
  public:
-  using WaitState = absl::base_internal::ThreadIdentity::WaitState;
+  using WaitState = base::ThreadIdentity::WaitState;
 
   // TODO: b/357097463 - Use `using enum WaitState` once C++20 is allowed here.
   inline static constexpr WaitState kActive = WaitState::kActive;
@@ -71,10 +71,10 @@ class WaitStateScope {
   ~WaitStateScope();
 
  private:
-  WaitStateScope(absl::base_internal::ThreadIdentity* ti, WaitState state);
+  WaitStateScope(base::ThreadIdentity* ti, WaitState state);
 
   // Pointer to this thread's metadata. If nullptr, this scope is not enabled.
-  absl::base_internal::ThreadIdentity* ti_;
+  base::ThreadIdentity* ti_;
   // Only set if ti_ != nullptr.
   WaitState old_state_;
 };
