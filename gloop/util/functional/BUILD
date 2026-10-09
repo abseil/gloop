@@ -76,6 +76,7 @@ cc_test(
         ":from_callback",
         ":to_callback",
         "//gloop:gloop_test_main",
+        "//gloop/base:callback",
         "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/functional:bind_front",
         "@google_benchmark//:benchmark",
