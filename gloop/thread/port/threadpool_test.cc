@@ -77,7 +77,7 @@ bool ScheduleIfReadyToRunByDeadline(absl::Time deadline, ThreadPool* pool,
     if (absl::Now() > deadline) {
       return false;
     }
-    // TODO sleep for ~1ms here once absl::SleepFor is available.
+    absl::SleepFor(absl::Milliseconds(1));
   }
   return true;
 }
