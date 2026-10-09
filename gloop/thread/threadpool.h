@@ -80,11 +80,6 @@ class AbstractThreadPool : public thread::Executor {
 
   ///////////////////////////////////////////////////////////////////////////
 
-  // This method is deprecated and does nothing. ThreadPool implementations are
-  // started on construction.
-  ABSL_DEPRECATE_AND_INLINE()
-  void StartWorkers() {}
-
   // Like TryAdd, except if the callback is not able to run immediately because
   // the number of waiting threads is not greater than the number of outstanding
   // jobs, this routine does not enqueue the callback and instead returns false.
