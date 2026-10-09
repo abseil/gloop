@@ -31,7 +31,6 @@
 #if defined(GTL_EXTEND_INTERNAL_TURN_OFF_FIELD_NAMES_FOR_TEST)
 #define GTL_EXTEND_PARSE_FIELD_NAMES 0
 #elif defined(TARGET_OS_OSX) || defined(__ANDROID__)
-// TODO: Implement field names for these.
 #define GTL_EXTEND_PARSE_FIELD_NAMES 0
 #elif ABSL_HAVE_BUILTIN(__builtin_dump_struct)
 #define GTL_EXTEND_PARSE_FIELD_NAMES 1

@@ -141,8 +141,6 @@ class ErrorSpace {
   // Otherwise, some module intializers that register error spaces may not
   // have executed and Find() might not locate the error space of
   // interest.
-  // TODO: Find() always returns null in Microsoft Visual Studio
-  // builds due to compiler bugs.
   // TODO: Mark ErrorSpace const. Requires call side cleanups.
   static ErrorSpace* Find(absl::string_view name);
 
