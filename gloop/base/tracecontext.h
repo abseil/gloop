@@ -811,9 +811,23 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
   // REQUIRES: tracer_ != nullptr
   void RefTracer();
 
-  // Copy ktrace annotations from c if they are present and ktrace annotations
-  // are enabled.
-  void MaybeCopyKtraceAnnotationsFrom(const TraceContext& c);
+  // Ktrace intergration: available for (non android) linux only.
+#if defined(__linux__) && !defined(__ANDROID__)
+  // Copies ktrace rpc_id annotations from 'this' to 'to' if the rpc_id of
+  // this instance and `to` are different. This method is called through
+  // `MaybeCopyKtraceRpcIdTo()` from the context hooks invoked during any
+  // of the thread local (trace) context modification methods.
+  void CopyKtraceRpcIdTo(const TraceContext& to) const;
+
+  // Invokes `CopyKtraceRpcIdTo()` if ktrace annotations are enabled.
+  void MaybeCopyKtraceRpcIdTo(const TraceContext& to) const {
+    if (ABSL_PREDICT_FALSE(base::ktrace::ShouldAddKtraceAnnotations())) {
+      CopyKtraceRpcIdTo(to);
+    }
+  }
+#else
+  void MaybeCopyKtraceRpcIdTo(const TraceContext&) const {}
+#endif
 
   // Wraps a call to base::GetNoopTracer() to inline tracer() and avoids
   // the dependency mess.
@@ -1048,7 +1062,6 @@ inline TraceContext& TraceContext::operator=(TraceContext&& c) noexcept {
     return *this;
   }
   AbandonTracer();
-  MaybeCopyKtraceAnnotationsFrom(c);
   this->rpc_id_ = c.rpc_id_;
   this->parent_rpc_id_ = c.parent_rpc_id_;
   this->global_id_ = c.global_id_;
@@ -1071,39 +1084,13 @@ inline TraceContext& TraceContext::operator=(TraceContext&& c) noexcept {
   return *this;
 }
 
-inline void TraceContext::MaybeCopyKtraceAnnotationsFrom(
-    [[maybe_unused]] const TraceContext& c) {
-#if defined(__linux__) && !defined(__ANDROID__)
-  if (ABSL_PREDICT_FALSE(base::ktrace::ShouldAddKtraceAnnotations())) {
-    if (this == base::CurrentTraceContextNoAlloc()) {
-      // Sixteen bits of argument go into ktrace
-      // Change thread-local tracecontext.rpc_id_: ppid(marker) pid(new rpc_id)
-      if (this->rpc_id_ != c.rpc_id_) {
-        KTRACE_SYSCALL_A(base::ktrace::kKtraceTraceContextSetRPC2);
-        KTRACE_SYSCALL_B(base::ktrace::PackRpcidTo16(c.rpc_id_));
-      }
-    }
-  }
-#endif
-}
-
 inline void TraceContext::BeforeSwapCurrent(base::ContextAccess,
                                             const TraceContext& to) {
   using SyncContextAccess = perftools::tracing::core::SyncContext::Access;
   if (sync_context_.has_listeners()) {
     sync_context_.BeforeSwapCurrent(SyncContextAccess(), to.sync_context_);
   }
-
-#if defined(__linux__) && !defined(__ANDROID__)
-  if (ABSL_PREDICT_FALSE(base::ktrace::ShouldAddKtraceAnnotations())) {
-    if (rpc_id_ != to.rpc_id_) {
-      // Sixteen bits of argument go into ktrace
-      // Change thread-local tracecontext.rpc_id_:ppid(marker)  pid(new rpc_id)
-      KTRACE_SYSCALL_A(base::ktrace::kKtraceTraceContextSetRPC4);
-      KTRACE_SYSCALL_B(base::ktrace::PackRpcidTo16(to.rpc_id_));
-    }
-  }
-#endif
+  MaybeCopyKtraceRpcIdTo(to);
 }
 
 inline void TraceContext::AfterSwapCurrent(
@@ -1121,15 +1108,7 @@ inline void TraceContext::BeforeRestoreCurrent(base::ContextAccess,
   if (sync_context_.has_listeners()) {
     sync_context_.BeforeRestoreCurrent(SyncContextAccess(), from.sync_context_);
   }
-
-#if defined(__linux__) && !defined(__ANDROID__)
-  if (ABSL_PREDICT_FALSE(base::ktrace::ShouldAddKtraceAnnotations())) {
-    if (rpc_id_ != from.rpc_id_) {
-      KTRACE_SYSCALL_A(base::ktrace::kKtraceTraceContextSetRPC7);
-      KTRACE_SYSCALL_B(base::ktrace::PackRpcidTo16(from.rpc_id_));
-    }
-  }
-#endif
+  from.MaybeCopyKtraceRpcIdTo(*this);
 }
 
 inline void TraceContext::AfterRestoreCurrent(
