@@ -140,9 +140,6 @@ namespace internal {
 //
 // <link> cannot handle pack expansion, so this ensures the Run()
 // function to be inlined is not a pack expansion.
-//
-// TODO: Reenable inlining once a solution to temporary
-// introduction is identified.
 template <typename R, typename... Args>
 class ResultCallbackFunctorImplBase;
 

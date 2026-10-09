@@ -222,7 +222,7 @@ void SysTopologyGenerator::UpdateCacheInfoForSnc(
   int num_nodes_with_cpu = absl::c_count_if(
       node_level->children,
       [&](const auto& node) { return CpuSetCountCpus(node.second) != 0; });
-  // TODO: Note that this applies to SNC2/3 only. It is not a
+  // Note that this applies to SNC2/3 only. It is not a
   // compatible approach for other types of sub-numa configuration such as SNC4,
   // and not for sub-subsequent platforms with sub-numa support.
   if (num_nodes_with_cpu != 4 && num_nodes_with_cpu != 6) {
