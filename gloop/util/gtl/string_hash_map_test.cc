@@ -32,36 +32,40 @@
 #include "absl/container/internal/unordered_map_lookup_test.h"
 #include "absl/container/internal/unordered_map_modifiers_test.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/any.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 // Note that we are opening absl::container_internal namespace here
 // as a workaround because INSTANTIATE_TYPED_TEST_CASE_P assumes local
 // namespacing
-namespace absl {
-namespace container_internal {
+namespace absl::container_internal {
+namespace {
 
-using gtl::string_hash_map;
-using testing::Gt;
-using testing::HasSubstr;
-using testing::Pair;
-using testing::UnorderedElementsAre;
-
-using MapTypes = ::testing::Types<string_hash_map<
-    int, absl::container_internal::StatefulTestingHash,
-    absl::container_internal::StatefulTestingEqual,
-    absl::container_internal::Alloc<std::pair<const absl::string_view, int>>>>;
+using MapTypes = ::testing::Types<
+    ::gtl::string_hash_map<int, StatefulTestingHash, StatefulTestingEqual,
+                           Alloc<std::pair<const absl::string_view, int>>>>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(StringHashMap, ConstructorTest, MapTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(StringHashMap, LookupTest, MapTypes);
 INSTANTIATE_TYPED_TEST_SUITE_P(StringHashMap, ModifiersTest, MapTypes);
 
-using M = string_hash_map<int>;
+}  // namespace
+}  // namespace absl::container_internal
+
+namespace gtl {
+namespace {
+
+using ::testing::Contains;
+using ::testing::Gt;
+using ::testing::HasSubstr;
+using ::testing::Pair;
+using ::testing::SizeIs;
+using ::testing::UnorderedElementsAre;
 
 TEST(Insert, BraceInit) {
-  M m;
+  string_hash_map<int> m;
   m.insert({"a", 1});
+  EXPECT_THAT(m, UnorderedElementsAre(Pair("a", 1)));
 }
 
 class WeirdString : public absl::string_view {
@@ -89,27 +93,28 @@ TEST(ConvertibleToWeirdString, Insert) {
   string_hash_map<int> m;
   ConvertibleToWeirdString s = {"0123456789012345"};
   m.insert(std::make_pair(s, 0));
-  EXPECT_TRUE(m.count(s.s));
+  EXPECT_EQ(m.count(s.s), 1);
 }
 
 TEST(ConvertibleToWeirdString, Emplace) {
   string_hash_map<int> m;
   ConvertibleToWeirdString s = {"0123456789012345"};
   m.emplace(s, 0);
-  EXPECT_TRUE(m.count(s.s));
+  EXPECT_EQ(m.count(s.s), 1);
 }
 
 TEST(ConvertibleToWeirdString, Piecewise) {
   string_hash_map<int> m;
   ConvertibleToWeirdString s = {"0123456789012345"};
   m.emplace(std::piecewise_construct, std::tie(s), std::tie());
-  EXPECT_TRUE(m.count(s.s));
+  EXPECT_EQ(m.count(s.s), 1);
 }
 
 TEST(ExplicitConversion, Emplace) {
   string_hash_map<std::vector<std::string>> m;
   // Compiles, following the C++17 rules.
   m.emplace("abc", 42);
+  EXPECT_THAT(m, Contains(Pair("abc", SizeIs(42))));
 }
 
 TEST(ValueType, InsertEmplace) {
@@ -120,10 +125,15 @@ TEST(ValueType, InsertEmplace) {
   EXPECT_FALSE(m.emplace(std::move(*m.begin())).second);
 }
 
-template <class Expected, class Actual>
-void ExpectSame(Expected&& expected, Actual&& actual) {
-  static_assert(std::is_same<Expected, Actual>(), "");
-  EXPECT_EQ(&expected, &actual);
+template <typename Expected, typename Actual>
+::testing::AssertionResult IsSame(Expected&& expected, Actual&& actual) {
+  static_assert(std::is_same_v<Expected, Actual>);
+  if (&expected == &actual) {
+    return ::testing::AssertionSuccess();
+  }
+  return ::testing::AssertionFailure()
+         << "Address " << static_cast<const void*>(&actual) << " != expected "
+         << static_cast<const void*>(&expected);
 }
 
 TEST(ValueType, Get) {
@@ -134,33 +144,32 @@ TEST(ValueType, Get) {
   int& value = elem.value();
   const int& const_value = value;
 
-  ExpectSame(value, elem.value());
-  ExpectSame(const_value, const_elem.value());
-  ExpectSame(std::move(value), std::move(elem).value());
-  ExpectSame(std::move(const_value), std::move(const_elem).value());
+  EXPECT_TRUE(IsSame(value, elem.value()));
+  EXPECT_TRUE(IsSame(const_value, const_elem.value()));
+  EXPECT_TRUE(IsSame(std::move(value), std::move(elem).value()));
+  EXPECT_TRUE(IsSame(std::move(const_value), std::move(const_elem).value()));
 
-  ExpectSame(value, get<1>(elem));
-  ExpectSame(const_value, get<1>(const_elem));
-  ExpectSame(std::move(value), get<1>(std::move(elem)));
-  ExpectSame(std::move(const_value), get<1>(std::move(const_elem)));
+  EXPECT_TRUE(IsSame(value, get<1>(elem)));
+  EXPECT_TRUE(IsSame(const_value, get<1>(const_elem)));
+  EXPECT_TRUE(IsSame(std::move(value), get<1>(std::move(elem))));
+  EXPECT_TRUE(IsSame(std::move(const_value), get<1>(std::move(const_elem))));
 
   EXPECT_EQ(get<0>(elem), "hello");
   EXPECT_EQ(get<1>(elem), 42);
 
-  static_assert(std::tuple_size<string_hash_map<int>::value_type>::value == 2,
+  static_assert(std::tuple_size_v<string_hash_map<int>::value_type> == 2,
                 "std::tuple_size is not specialized");
-  static_assert(std::is_same_v<typename std::tuple_element<
-                                   0, string_hash_map<int>::value_type>::type,
-                               absl::string_view>,
-                "std::tuple_element<0> is not specialized");
-  static_assert(std::is_same_v<typename std::tuple_element<
-                                   1, string_hash_map<int>::value_type>::type,
-                               int>,
-                "std::tuple_element<1> is not specialized");
   static_assert(
-      std::is_same_v<typename std::tuple_element<
-                         1, string_hash_map<double>::value_type>::type,
-                     double>,
+      std::is_same_v<std::tuple_element_t<0, string_hash_map<int>::value_type>,
+                     absl::string_view>,
+      "std::tuple_element<0> is not specialized");
+  static_assert(
+      std::is_same_v<std::tuple_element_t<1, string_hash_map<int>::value_type>,
+                     int>,
+      "std::tuple_element<1> is not specialized");
+  static_assert(
+      std::is_same_v<
+          std::tuple_element_t<1, string_hash_map<double>::value_type>, double>,
       "std::tuple_element<1> is not specialized");
 }
 
@@ -183,6 +192,8 @@ TEST(ValueType, Compare) {
 TEST(StringHashMap, OfAny) {
   string_hash_map<std::any> m;
   m["a"] = std::any();
+  ASSERT_EQ(m.count("a"), 1);
+  EXPECT_FALSE(m.at("a").has_value());
 }
 
 // TEST(StringHashMap, NotCompile) {
@@ -203,8 +214,8 @@ TEST(StringHashMap, Matchers) {
 #endif  // !defined(_MSC_VER) && !defined(__ANDROID__)
 
 TEST(StringHashMap, MergeExtractInsert) {
-  gtl::string_hash_map<int> set1 = {{"A", 1}, {"B", 2}},
-                            set2 = {{"A", -1}, {"C", -3}};
+  string_hash_map<int> set1 = {{"A", 1}, {"B", 2}};
+  string_hash_map<int> set2 = {{"A", -1}, {"C", -3}};
 
   EXPECT_THAT(set1, UnorderedElementsAre(Pair("A", 1), Pair("B", 2)));
   EXPECT_THAT(set2, UnorderedElementsAre(Pair("A", -1), Pair("C", -3)));
@@ -222,7 +233,7 @@ TEST(StringHashMap, MergeExtractInsert) {
   EXPECT_THAT(set1, UnorderedElementsAre(Pair("B", 2), Pair("C", -3)));
 
   auto insert_result = set2.insert(std::move(node));
-  EXPECT_FALSE(node);
+  EXPECT_FALSE(node);  // NOLINT(bugprone-use-after-move)
   EXPECT_FALSE(insert_result.inserted);
   EXPECT_TRUE(insert_result.node);
   EXPECT_EQ(insert_result.node.key(), "A");
@@ -239,12 +250,12 @@ TEST(StringHashMap, MergeExtractInsert) {
   node.mapped() = 17;
 
   insert_result = set2.insert(std::move(node));
-  EXPECT_FALSE(node);
+  EXPECT_FALSE(node);  // NOLINT(bugprone-use-after-move)
   EXPECT_TRUE(insert_result.inserted);
   EXPECT_FALSE(insert_result.node);
   EXPECT_THAT(*insert_result.position, Pair("B", 17));
   EXPECT_THAT(set2, UnorderedElementsAre(Pair("A", -1), Pair("B", 17)));
 }
 
-}  // namespace container_internal
-}  // namespace absl
+}  // namespace
+}  // namespace gtl
