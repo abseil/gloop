@@ -6,6 +6,12 @@
       "github": "mkruskal-google",
       "name": "Mike Kruskal",
       "github_user_id": 62662355
+    },
+    {
+      "email": "pzk@google.com",
+      "github": "pzk",
+      "name": "Prashant Kumar",
+      "github_user_id": 8846005
     }
   ],
   "repository": ["github:abseil/gloop"],
