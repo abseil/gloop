@@ -57,3 +57,111 @@ cc_test(
         "@googletest//:gtest",
     ],
 )
+
+cc_library(
+    name = "freelist",
+    srcs = ["freelist.cc"],
+    hdrs = ["freelist.h"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/synchronization",
+    ],
+)
+
+cc_test(
+    name = "freelist_test",
+    srcs = ["freelist_test.cc"],
+    deps = [
+        ":freelist",
+        ":freelist_param_testlib",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log:check",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "freelist_mock",
+    testonly = 1,
+    hdrs = ["freelist_mock.h"],
+    deps = [
+        ":freelist",
+        "//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest_for_library",
+    ],
+)
+
+cc_library(
+    name = "freelist_param_testlib_impl",
+    testonly = True,
+    srcs = [
+        "freelist_param_testlib.cc",
+        "freelist_param_testlib.h",
+    ],
+    visibility = ["//visibility:private"],
+    deps = [
+        ":freelist",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:reflection",
+        "@abseil-cpp//absl/log:check",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest_for_library",
+        "@re2",
+    ],
+    alwayslink = True,
+)
+
+cc_library(
+    name = "freelist_param_testlib",
+    testonly = True,
+    hdrs = ["freelist_param_testlib.h"],
+    visibility = [
+        "//visibility:private",
+    ],
+    deps = [
+        ":freelist",
+        ":freelist_param_testlib_impl",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:reflection",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest_for_library",
+    ],
+)
+
+cc_library(
+    name = "threadlocal_freelist",
+    srcs = ["threadlocal_freelist.cc"],
+    hdrs = ["threadlocal_freelist.h"],
+    deps = [
+        ":freelist",
+        "//gloop:enforce_gloop_support",
+        "//gloop/thread",
+    ],
+)
+
+cc_test(
+    name = "threadlocal_freelist_test",
+    srcs = ["threadlocal_freelist_test.cc"],
+    deps = [
+        ":freelist_param_testlib",
+        ":threadlocal_freelist",
+        "//gloop:gloop_test_main",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
