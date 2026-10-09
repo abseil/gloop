@@ -562,8 +562,9 @@ void Thread::CreatePthread(pthread_attr_t& attr) {
       // Try again with some backoff each successive time.
       const int retries = 20;
       const absl::Duration min_delay = absl::Milliseconds(100);  // 1/10 seconds
-      const absl::Duration backoff = absl::Milliseconds(1000);   // 1 seconds
-      // Max backoff ends up being 100 + 1000 * 19 = 19100 ms.
+      const absl::Duration backoff = absl::Seconds(1);
+      // Max single backoff delay: 100ms + 19 * 1s = 19.1s.
+      // Total retry wait time: 20 * 100ms + (19 * 20 / 2) * 1s = 192s.
       for (int i = 0; i < retries; i++) {
         res = pthread_create(&tid_, &attr, ThreadBody, this);
         if (res != EAGAIN) {
@@ -580,12 +581,10 @@ void Thread::CreatePthread(pthread_attr_t& attr) {
             FATAL,
             "pthread_create failed due to being unable to allocate "
             "resources (e.g. memory, tid) to construct the thread. This "
-            "generally "
-            "indicates that you are trying to create too many threads; either "
-            "by "
-            "implementation error (leaking threads, unbounded thread creation) "
-            "or "
-            "specification error (memory or address space limits).");
+            "generally indicates that you are trying to create too many "
+            "threads; either by implementation error (leaking threads, "
+            "unbounded thread creation) or specification error (memory or "
+            "address space limits).");
       }
     }
 
