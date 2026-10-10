@@ -3401,7 +3401,7 @@ void TestOneIPowN() {
 
 template <typename T>
 void TestTwoIPowN() {
-  int limit = std::is_integral<T>::value ? std::numeric_limits<T>::digits : 63;
+  int limit = std::is_integral_v<T> ? std::numeric_limits<T>::digits : 63;
   for (int i = 0; i < limit; ++i) {
     // Computations are exact.
     EXPECT_EQ(MathUtil::IPow(T{2}, i), static_cast<T>(uint64_t{1} << i));
@@ -3411,9 +3411,8 @@ void TestTwoIPowN() {
 template <typename T>
 void TestTenIPowN() {
   LOG(INFO) << "Testing 10^N for type " << typeid(T).name();
-  int limit = std::is_integral<T>::value
-                  ? std::numeric_limits<T>::digits10
-                  : std::numeric_limits<uint64_t>::digits10;
+  int limit = std::is_integral_v<T> ? std::numeric_limits<T>::digits10
+                                    : std::numeric_limits<uint64_t>::digits10;
   LOG(INFO) << "IPow10 of " << limit << " is " << MathUtil::IPow10(limit);
   for (int i = 0; i <= limit; ++i) {
     // Computations are exact.
