@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Apache 2.0 Notice: 2026
+
 # Standalone fallback toolchain module when building outside the Docker container.
 # Inside the container, this module is overridden via /etc/bazel.bazelrc to point to /opt/docker_toolchain.
 
