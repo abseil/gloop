@@ -60,14 +60,14 @@ class ExplainingEq : public ::testing::MatcherInterface<T> {
  public:
   explicit ExplainingEq(const T& rhs) : rhs_(rhs) {}
 
-  virtual ~ExplainingEq() {}
+  ~ExplainingEq() override {}
 
-  virtual void DescribeTo(::std::ostream* os) const {
+  void DescribeTo(::std::ostream* os) const override {
     *os << "is equal to " << rhs_;
   }
 
-  virtual bool MatchAndExplain(T lhs,
-                               ::testing::MatchResultListener* listener) const {
+  bool MatchAndExplain(
+      T lhs, ::testing::MatchResultListener* listener) const override {
     *listener << "which is equal to " << lhs;
     return lhs == rhs_;
   }
@@ -85,12 +85,12 @@ Matcher<T> ExEq(const T& n) {
 template <typename TupleT>
 class ExplainingEqPair : public ::testing::MatcherInterface<TupleT> {
  public:
-  virtual void DescribeTo(::std::ostream* os) const {
+  void DescribeTo(::std::ostream* os) const override {
     *os << " are an equal pair";
   }
 
-  virtual bool MatchAndExplain(TupleT arg,
-                               ::testing::MatchResultListener* listener) const {
+  bool MatchAndExplain(
+      TupleT arg, ::testing::MatchResultListener* listener) const override {
     auto lhs = get<0>(arg);
     auto rhs = get<1>(arg);
 
