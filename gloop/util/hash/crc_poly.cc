@@ -197,12 +197,13 @@ template <class Base, typename CRCValue>
 class CRCHWPolyMul : public Base {
  public:
   CRCHWPolyMul() {}
-  virtual ~CRCHWPolyMul() {}
+  ~CRCHWPolyMul() override {}
 
-  virtual void Extend(uint64_t* lo, uint64_t* hi, const void* bytes,
-                      int64_t length) const;
-  virtual void ExtendByZeroes(uint64_t* lo, uint64_t* hi, int64_t length) const;
-  virtual void InitTables();
+  void Extend(uint64_t* lo, uint64_t* hi, const void* bytes,
+              int64_t length) const override;
+  void ExtendByZeroes(uint64_t* lo, uint64_t* hi,
+                      int64_t length) const override;
+  void InitTables() override;
 
  private:
   static constexpr size_t kCRCValueBitSize = sizeof(CRCValue) * CHAR_BIT;

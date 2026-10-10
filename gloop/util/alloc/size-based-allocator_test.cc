@@ -41,12 +41,12 @@ class TestAllocator : public SizeBasedAllocator {
   // This type is neither copyable nor movable.
   TestAllocator(const TestAllocator&) = delete;
   TestAllocator& operator=(const TestAllocator&) = delete;
-  virtual ~TestAllocator() {}
+  ~TestAllocator() override {}
 
  private:
-  virtual void PickAllocationRange(uint32_t requested_size, Block* start,
-                                   uint32_t* actual_size,
-                                   Range** chosen_range) const {
+  void PickAllocationRange(uint32_t requested_size, Block* start,
+                           uint32_t* actual_size,
+                           Range** chosen_range) const override {
     LOG(QFATAL) << "Not implemented";
   }
 };

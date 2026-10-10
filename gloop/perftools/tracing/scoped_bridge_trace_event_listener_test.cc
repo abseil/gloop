@@ -54,7 +54,7 @@ class ScopedBridgeTraceEventListenerTest : public ::testing::Test {
     internal::set_active_event_listener(nullptr);
   }
 
-  ~ScopedBridgeTraceEventListenerTest() {
+  ~ScopedBridgeTraceEventListenerTest() override {
     internal::set_active_event_listener(nullptr);
   }
 };
