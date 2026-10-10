@@ -51,7 +51,6 @@ cc_test(
     deps = [
         ":blocking_callback",
         "//gloop:gloop_test_main",
-        "//gloop/base:callback",
         "//gloop/thread",
         "//gloop/util/functional:from_callback",
         "//gloop/util/functional:to_callback",
