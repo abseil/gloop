@@ -934,7 +934,7 @@ Writer<raw_type>::Writer(absl::Span<const raw_type> input, const int complexity,
 }
 
 template <typename raw_type>
-Writer<raw_type>::~Writer() {}
+Writer<raw_type>::~Writer() = default;
 
 template <typename raw_type>
 inline bool Writer<raw_type>::MoreFrequentThenSmaller(const ValueFreq& p1,
@@ -1830,7 +1830,7 @@ inline ReaderImpl<Base>::ReaderImpl() {
 }
 
 template <class Base>
-inline ReaderImpl<Base>::~ReaderImpl() {}
+inline ReaderImpl<Base>::~ReaderImpl() = default;
 
 template <class Base>
 inline void ReaderImpl<Base>::Bind(const_uint64_ptr const shrunk_array,
@@ -2142,7 +2142,7 @@ typedef ReaderImpl<ShrunkArray::UnalignedLittleEndianReader>
 
 // Reader
 
-ShrunkArray::Reader::~Reader() {}
+ShrunkArray::Reader::~Reader() = default;
 
 ShrunkArray::Reader* ShrunkArray::Reader::New() { return new impl::Reader; }
 
@@ -2171,11 +2171,12 @@ uint64_t ShrunkArray::Reader::SharedGet(size_t position) const {
   return absl::down_cast<const impl::Reader*>(this)->SharedGet(position);
 }
 
-ShrunkArray::Reader::Reader() {}
+ShrunkArray::Reader::Reader() = default;
 
 // UnalignedLittleEndianReader
 
-ShrunkArray::UnalignedLittleEndianReader::~UnalignedLittleEndianReader() {}
+ShrunkArray::UnalignedLittleEndianReader::~UnalignedLittleEndianReader() =
+    default;
 
 ShrunkArray::UnalignedLittleEndianReader*
 ShrunkArray::UnalignedLittleEndianReader::New() {
@@ -2211,4 +2212,5 @@ uint64_t ShrunkArray::UnalignedLittleEndianReader::SharedGet(
       ->SharedGet(position);
 }
 
-ShrunkArray::UnalignedLittleEndianReader::UnalignedLittleEndianReader() {}
+ShrunkArray::UnalignedLittleEndianReader::UnalignedLittleEndianReader() =
+    default;
