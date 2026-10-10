@@ -71,7 +71,7 @@ class StrongArrayTest : public ::testing::Test {
   typedef StrongArray<T, std::string> ArrayType;
   typedef StrongArray<T, const std::string> ConstArrayType;
 
-  StrongArrayTest() {}
+  StrongArrayTest() = default;
 };
 
 TYPED_TEST_SUITE(StrongArrayTest, SupportedStrongIntTypes);
