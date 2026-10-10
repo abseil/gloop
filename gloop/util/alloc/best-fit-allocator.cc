@@ -32,7 +32,7 @@ namespace alloc {
 BestFitAllocator::BestFitAllocator(uint32_t num_blocks)
     : SizeBasedAllocator(num_blocks) {}
 
-BestFitAllocator::~BestFitAllocator() {}
+BestFitAllocator::~BestFitAllocator() = default;
 
 void BestFitAllocator::PickAllocationRange(uint32_t requested_size,
                                            Block* start, uint32_t* actual_size,
