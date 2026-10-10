@@ -127,10 +127,10 @@ TEST(GenericPrinterTest, NotStreamableXvalue) {
 TEST(GenericPrinterTest, StreamAdapter) {
   std::stringstream ss;
   static_assert(
-      std::is_same<typename std::remove_reference<
-                       decltype(ss << gtl::GenericPrint())>::type,
-                   absl::internal_generic_printer::GenericPrintStreamAdapter::
-                       Impl<std::stringstream>>::value,
+      std::is_same_v<
+          std::remove_reference_t<decltype(ss << gtl::GenericPrint())>,
+          absl::internal_generic_printer::GenericPrintStreamAdapter::Impl<
+              std::stringstream>>,
       "expected ostream << gtl::GenericPrint() to yield adapter impl");
 
   ss << gtl::GenericPrint() << "again, " << "back-up, " << "cue, "

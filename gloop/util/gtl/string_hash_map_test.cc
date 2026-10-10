@@ -147,20 +147,19 @@ TEST(ValueType, Get) {
   EXPECT_EQ(get<0>(elem), "hello");
   EXPECT_EQ(get<1>(elem), 42);
 
-  static_assert(std::tuple_size<string_hash_map<int>::value_type>::value == 2,
+  static_assert(std::tuple_size_v<string_hash_map<int>::value_type> == 2,
                 "std::tuple_size is not specialized");
-  static_assert(std::is_same_v<typename std::tuple_element<
-                                   0, string_hash_map<int>::value_type>::type,
-                               absl::string_view>,
-                "std::tuple_element<0> is not specialized");
-  static_assert(std::is_same_v<typename std::tuple_element<
-                                   1, string_hash_map<int>::value_type>::type,
-                               int>,
-                "std::tuple_element<1> is not specialized");
   static_assert(
-      std::is_same_v<typename std::tuple_element<
-                         1, string_hash_map<double>::value_type>::type,
-                     double>,
+      std::is_same_v<std::tuple_element_t<0, string_hash_map<int>::value_type>,
+                     absl::string_view>,
+      "std::tuple_element<0> is not specialized");
+  static_assert(
+      std::is_same_v<std::tuple_element_t<1, string_hash_map<int>::value_type>,
+                     int>,
+      "std::tuple_element<1> is not specialized");
+  static_assert(
+      std::is_same_v<
+          std::tuple_element_t<1, string_hash_map<double>::value_type>, double>,
       "std::tuple_element<1> is not specialized");
 }
 
