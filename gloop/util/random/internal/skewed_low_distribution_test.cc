@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 #include "gloop/util/random/internal/skewed_low_distribution.h"
 
 #include <algorithm>

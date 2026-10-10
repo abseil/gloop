@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // Implementation of the convenience functions for manipulating cpu_set_t
 // provided by glibc.
 

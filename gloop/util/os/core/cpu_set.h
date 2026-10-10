@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // This defines some convenience functions for manipulating cpu_set_t
 // provided by glibc.  Use this if you need to deal with syscalls which expect
 // to use cpu_set_t arguments, such as sched_setaffinity().

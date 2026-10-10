@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // Unit tests for cpu_set utility functions.
 
 #include "gloop/util/os/core/cpu_set.h"
