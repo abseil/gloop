@@ -126,7 +126,7 @@ class DomainTestScheduler : public base::scheduling::Scheduler {
 
  private:
   // REQUIRES: num_schedulables_ == 0.  Must be called by Release().
-  virtual ~DomainTestScheduler();
+  ~DomainTestScheduler() override;
 
   // REQUIRES: ExpectWakeup(schedulable) previously called.
   Slot Wake(Schedulable* schedulable) override;
