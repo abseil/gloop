@@ -55,7 +55,7 @@ class FifoSemaphoreTest : public ::testing::Test {
   typedef std::vector<std::unique_ptr<FifoSemaphore>> SemaphoreVec;
 
  protected:
-  FifoSemaphoreTest() {}
+  FifoSemaphoreTest() = default;
 
   ~FifoSemaphoreTest() override { Cleanup(); }
 
