@@ -1,3 +1,5 @@
+// Apache 2.0 Notice: 2026
+
 #ifndef GLOOP_EXAMPLES_EXAMPLE_H_
 #define GLOOP_EXAMPLES_EXAMPLE_H_
 

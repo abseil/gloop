@@ -1,3 +1,5 @@
+// Apache 2.0 Notice: 2026
+
 #include "absl/strings/string_view.h"
 #include "example/embedded_test_data.h"
 #include "gtest/gtest.h"
