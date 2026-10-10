@@ -18,6 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+// Apache 2.0 Notice: 2026
+
 // IWYU pragma: private, include "util/gtl/extend/debug_printing.h"
 
 #ifndef THIRD_PARTY_GLOOP_UTIL_GTL_EXTEND_REFLECTION_EXTENSION_H_
