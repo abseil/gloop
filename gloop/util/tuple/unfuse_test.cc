@@ -29,7 +29,6 @@ namespace tuple {
 namespace {
 
 using ::std::get;
-using ::std::make_tuple;
 using ::std::tuple;
 
 int FusedMinus(const tuple<int, int>& a) { return get<0>(a) - get<1>(a); }

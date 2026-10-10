@@ -30,9 +30,7 @@ namespace util {
 namespace tuple {
 namespace {
 
-using ::std::get;
 using ::std::make_tuple;
-using ::std::tie;
 
 class Unref : public TestValues {};
 
