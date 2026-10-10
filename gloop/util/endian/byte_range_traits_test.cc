@@ -41,7 +41,7 @@ struct TriviallyCopyable {
 
 // Element type with a user-provided destructor (not trivially copyable).
 struct NonTriviallyCopyable {
-  ~NonTriviallyCopyable() {}
+  ~NonTriviallyCopyable() = default;
   uint32_t a = 0;
 };
 
