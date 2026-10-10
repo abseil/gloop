@@ -47,9 +47,9 @@ class Waiter : public Thread {
   // This type is neither copyable nor movable.
   Waiter(const Waiter&) = delete;
   Waiter& operator=(const Waiter&) = delete;
-  ~Waiter() {}
+  ~Waiter() override {}
 
-  virtual void Run() { closure_->Wait(); }
+  void Run() override { closure_->Wait(); }
 
  private:
   BlockingClosure* closure_;
