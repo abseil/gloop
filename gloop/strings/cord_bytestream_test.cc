@@ -141,7 +141,7 @@ static absl::Cord MakeHuge(absl::string_view prefix) {
 
 class SinkAdapator {
  public:
-  virtual ~SinkAdapator() {}
+  virtual ~SinkAdapator() = default;
   virtual size_t Length() const = 0;
   virtual strings::ByteSink* Sink() = 0;
   virtual void Clear() = 0;

@@ -60,7 +60,7 @@ strings::TypeId CordByteSink::GetTypeId() const {
   return strings::TypeId::For<CordByteSink>();
 }
 
-CordReader::~CordReader() {}
+CordReader::~CordReader() = default;
 
 bool CordReader::BtreeAdvance() {
   size_t available = length_ - used_;
@@ -223,7 +223,7 @@ void CordReader::CopyToWithSharing(strings::ByteSink* absl_nonnull sink,
             absl::Cord::CordRep::Unref(static_cast<absl::Cord::CordRep*>(arg));
           });
     } else {
-      sink->Append(current_chunk_.data(), fragment_size);
+      sink->Append(absl::string_view(current_chunk_.data(), fragment_size));
     }
     current_chunk_.remove_prefix(fragment_size);
     n -= fragment_size;
