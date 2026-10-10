@@ -67,8 +67,8 @@ static_assert(kSomeUnsignedInt64 > std::numeric_limits<int64_t>::max(), "");
 
 // Converts from any integral type to uint128. This is needed since uint128
 // disallows some implicit conversions because they are "unsafe".
-template <typename T, typename Enabled = typename std::enable_if<
-                          std::is_convertible<T, uint64_t>::value>::type>
+template <typename T, typename Enabled =
+                          std::enable_if_t<std::is_convertible_v<T, uint64_t>>>
 absl::uint128 ConvertToUint128(T from) {
   return absl::uint128(absl::implicit_cast<uint64_t>(from));
 }
@@ -81,8 +81,8 @@ template <typename TypeParam>
 class SaturatedCastTest : public testing::Test {
  protected:
   bool IsTypeParamUnsigned() {
-    return std::is_unsigned<TypeParam>::value ||
-           std::is_same<TypeParam, absl::uint128>::value;
+    return std::is_unsigned_v<TypeParam> ||
+           std::is_same_v<TypeParam, absl::uint128>;
   }
 
   template <typename From>
@@ -180,7 +180,7 @@ TYPED_TEST(SaturatedCastTest, FromNegativeInt8) {
 
 TYPED_TEST(SaturatedCastTest, FromUnsignedInt8) {
   const auto from = kSomeUnsignedInt8;
-  if (std::is_same<TypeParam, int8_t>::value) {
+  if (std::is_same_v<TypeParam, int8_t>) {
     this->ExpectSaturatesMax(from);
   } else {
     this->ExpectLossless(from);
@@ -189,8 +189,7 @@ TYPED_TEST(SaturatedCastTest, FromUnsignedInt8) {
 
 TYPED_TEST(SaturatedCastTest, FromInt16) {
   const auto from = kSomeInt16;
-  if (std::is_same<TypeParam, int8_t>::value ||
-      std::is_same<TypeParam, uint8_t>::value) {
+  if (std::is_same_v<TypeParam, int8_t> || std::is_same_v<TypeParam, uint8_t>) {
     this->ExpectSaturatesMax(from);
   } else {
     this->ExpectLossless(from);
@@ -199,7 +198,7 @@ TYPED_TEST(SaturatedCastTest, FromInt16) {
 
 TYPED_TEST(SaturatedCastTest, FromNegativeInt16) {
   const auto from = kSomeNegativeInt16;
-  if (this->IsTypeParamUnsigned() || std::is_same<TypeParam, int8_t>::value) {
+  if (this->IsTypeParamUnsigned() || std::is_same_v<TypeParam, int8_t>) {
     this->ExpectSaturatesMin(from);
   } else {
     this->ExpectLossless(from);
@@ -208,9 +207,8 @@ TYPED_TEST(SaturatedCastTest, FromNegativeInt16) {
 
 TYPED_TEST(SaturatedCastTest, FromUnsignedInt16) {
   const auto from = kSomeUnsignedInt16;
-  if (std::is_same<TypeParam, int8_t>::value ||
-      std::is_same<TypeParam, uint8_t>::value ||
-      std::is_same<TypeParam, int16_t>::value) {
+  if (std::is_same_v<TypeParam, int8_t> || std::is_same_v<TypeParam, uint8_t> ||
+      std::is_same_v<TypeParam, int16_t>) {
     this->ExpectSaturatesMax(from);
   } else {
     this->ExpectLossless(from);
@@ -219,10 +217,9 @@ TYPED_TEST(SaturatedCastTest, FromUnsignedInt16) {
 
 TYPED_TEST(SaturatedCastTest, FromInt32) {
   const auto from = kSomeInt32;
-  if (std::is_same<TypeParam, int8_t>::value ||
-      std::is_same<TypeParam, uint8_t>::value ||
-      std::is_same<TypeParam, int16_t>::value ||
-      std::is_same<TypeParam, uint16_t>::value) {
+  if (std::is_same_v<TypeParam, int8_t> || std::is_same_v<TypeParam, uint8_t> ||
+      std::is_same_v<TypeParam, int16_t> ||
+      std::is_same_v<TypeParam, uint16_t>) {
     this->ExpectSaturatesMax(from);
   } else {
     this->ExpectLossless(from);
@@ -231,8 +228,8 @@ TYPED_TEST(SaturatedCastTest, FromInt32) {
 
 TYPED_TEST(SaturatedCastTest, FromNegativeInt32) {
   const auto from = kSomeNegativeInt32;
-  if (this->IsTypeParamUnsigned() || std::is_same<TypeParam, int8_t>::value ||
-      std::is_same<TypeParam, int16_t>::value) {
+  if (this->IsTypeParamUnsigned() || std::is_same_v<TypeParam, int8_t> ||
+      std::is_same_v<TypeParam, int16_t>) {
     this->ExpectSaturatesMin(from);
   } else {
     this->ExpectLossless(from);
@@ -241,11 +238,10 @@ TYPED_TEST(SaturatedCastTest, FromNegativeInt32) {
 
 TYPED_TEST(SaturatedCastTest, FromUnsignedInt32) {
   const auto from = kSomeUnsignedInt32;
-  if (std::is_same<TypeParam, int8_t>::value ||
-      std::is_same<TypeParam, uint8_t>::value ||
-      std::is_same<TypeParam, int16_t>::value ||
-      std::is_same<TypeParam, uint16_t>::value ||
-      std::is_same<TypeParam, int32_t>::value) {
+  if (std::is_same_v<TypeParam, int8_t> || std::is_same_v<TypeParam, uint8_t> ||
+      std::is_same_v<TypeParam, int16_t> ||
+      std::is_same_v<TypeParam, uint16_t> ||
+      std::is_same_v<TypeParam, int32_t>) {
     this->ExpectSaturatesMax(from);
   } else {
     this->ExpectLossless(from);
@@ -254,12 +250,11 @@ TYPED_TEST(SaturatedCastTest, FromUnsignedInt32) {
 
 TYPED_TEST(SaturatedCastTest, FromInt64) {
   const auto from = kSomeInt64;
-  if (std::is_same<TypeParam, int8_t>::value ||
-      std::is_same<TypeParam, uint8_t>::value ||
-      std::is_same<TypeParam, int16_t>::value ||
-      std::is_same<TypeParam, uint16_t>::value ||
-      std::is_same<TypeParam, int32_t>::value ||
-      std::is_same<TypeParam, uint32_t>::value) {
+  if (std::is_same_v<TypeParam, int8_t> || std::is_same_v<TypeParam, uint8_t> ||
+      std::is_same_v<TypeParam, int16_t> ||
+      std::is_same_v<TypeParam, uint16_t> ||
+      std::is_same_v<TypeParam, int32_t> ||
+      std::is_same_v<TypeParam, uint32_t>) {
     this->ExpectSaturatesMax(from);
   } else {
     this->ExpectLossless(from);
@@ -268,9 +263,9 @@ TYPED_TEST(SaturatedCastTest, FromInt64) {
 
 TYPED_TEST(SaturatedCastTest, FromNegativeInt64) {
   const auto from = kSomeNegativeInt64;
-  if (this->IsTypeParamUnsigned() || std::is_same<TypeParam, int8_t>::value ||
-      std::is_same<TypeParam, int16_t>::value ||
-      std::is_same<TypeParam, int32_t>::value) {
+  if (this->IsTypeParamUnsigned() || std::is_same_v<TypeParam, int8_t> ||
+      std::is_same_v<TypeParam, int16_t> ||
+      std::is_same_v<TypeParam, int32_t>) {
     this->ExpectSaturatesMin(from);
   } else {
     this->ExpectLossless(from);
@@ -279,13 +274,12 @@ TYPED_TEST(SaturatedCastTest, FromNegativeInt64) {
 
 TYPED_TEST(SaturatedCastTest, FromUnsignedInt64) {
   const auto from = kSomeUnsignedInt64;
-  if (std::is_same<TypeParam, int8_t>::value ||
-      std::is_same<TypeParam, uint8_t>::value ||
-      std::is_same<TypeParam, int16_t>::value ||
-      std::is_same<TypeParam, uint16_t>::value ||
-      std::is_same<TypeParam, int32_t>::value ||
-      std::is_same<TypeParam, uint32_t>::value ||
-      std::is_same<TypeParam, int64_t>::value) {
+  if (std::is_same_v<TypeParam, int8_t> || std::is_same_v<TypeParam, uint8_t> ||
+      std::is_same_v<TypeParam, int16_t> ||
+      std::is_same_v<TypeParam, uint16_t> ||
+      std::is_same_v<TypeParam, int32_t> ||
+      std::is_same_v<TypeParam, uint32_t> ||
+      std::is_same_v<TypeParam, int64_t>) {
     this->ExpectSaturatesMax(from);
   } else {
     this->ExpectLossless(from);
@@ -298,7 +292,7 @@ TYPED_TEST(SaturatedCastTest, FromUint128) {
 
   const TypeParam max_saturated_cast =
       saturated_cast<TypeParam>(absl::Uint128Max());
-  if (std::is_same<TypeParam, absl::uint128>::value) {
+  if (std::is_same_v<TypeParam, absl::uint128>) {
     EXPECT_EQ(absl::Uint128Max(), ConvertToUint128(max_saturated_cast));
   } else {
     EXPECT_EQ(std::numeric_limits<TypeParam>::max(), max_saturated_cast);
