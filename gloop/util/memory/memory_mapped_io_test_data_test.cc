@@ -42,7 +42,7 @@ namespace {
 // Tests the test data for the MemoryMappedIO and ScopedMmap classes.
 class MemoryMappedIOTestDataTest : public testing::Test {
  protected:
-  MemoryMappedIOTestDataTest() {}
+  MemoryMappedIOTestDataTest() = default;
 
   ~MemoryMappedIOTestDataTest() {}
 
