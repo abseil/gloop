@@ -68,7 +68,7 @@ ABSL_FLAG(
     "behavior long term, set force_eager_thread_creation on ThreadPool "
     "construction.");
 
-AbstractThreadPool::~AbstractThreadPool() {}
+AbstractThreadPool::~AbstractThreadPool() = default;
 
 // Run callback->Run().  To permit a callback to be wrapped in another.
 static void RunCallback(WatchdogCallback callback, WatchDog* watchdog) {

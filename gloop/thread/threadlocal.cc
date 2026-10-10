@@ -51,7 +51,7 @@ absl::Span<Instance*>* Var::PerThreadInstances() {
 ABSL_CONST_INIT static absl::Mutex global_lock(absl::kConstInit);
 static bool inited = false;
 
-Instance::~Instance() {}
+Instance::~Instance() = default;
 
 static void DeleteList(const std::vector<const Instance*>& del) {
   for (const Instance* instance : del) {

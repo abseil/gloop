@@ -46,6 +46,6 @@ Options::Options()
       io_class_(-1),
       joinable_(false) {}
 
-Options::~Options() {}
+Options::~Options() = default;
 
 }  // namespace thread
