@@ -35,7 +35,7 @@ class InlineExecutorTest : public testing::Test {
         e2_(thread::NewInlineExecutor()),
         total_calls_(0) {}
 
-  virtual ~InlineExecutorTest() {}
+  ~InlineExecutorTest() override {}
 
  public:
   void Counter() { total_calls_++; }

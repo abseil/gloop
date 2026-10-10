@@ -78,7 +78,7 @@ class ProducerThread : public Thread {
   }
 
  protected:
-  virtual void Run() {
+  void Run() override {
     for (int i = 0; i < length; i++) {
       queue->Put(&work[start_ + i]);
       // System.err.println("Sent " + work[start+i].index);
@@ -100,7 +100,7 @@ class ConsumerThread : public Thread {
   }
 
  protected:
-  virtual void Run() {
+  void Run() override {
     WorkItem* item;
     while ((item = (WorkItem*)queue->Get()) != nullptr) {
       // System.err.println("Recv " + item.index);

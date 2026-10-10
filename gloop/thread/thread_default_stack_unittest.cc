@@ -40,7 +40,7 @@ class TestThread : public Thread {
 
   TestThread() { Init(kMaxRecursionDepth); }
 
-  virtual void Run() {
+  void Run() override {
     int32_t onstack[kOnStackSize];
     for (int i = 0; i < kOnStackSize; i++) onstack[i] = 0;
     result_ = 0;

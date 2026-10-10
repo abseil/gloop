@@ -223,13 +223,13 @@ class PeriodicClosureWithSimulatedClockTest : public testing::Test {
         &clock_);
   }
 
-  virtual void SetUp() {
+  void SetUp() override {
     pc_.Start();
     // Note: counter_ gets initially incremented at time 0.
     ASSERT_TRUE(AwaitCountWithTimeout(1));
   }
 
-  virtual void TearDown() { pc_.Stop(); }
+  void TearDown() override { pc_.Stop(); }
 
   static void Inc(absl::Mutex* mu, int* i) {
     absl::MutexLock lock(*mu);
