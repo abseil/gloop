@@ -24,9 +24,11 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
+#include "benchmark/benchmark.h"
 #include "gloop/util/freelist/freelist_param_testlib.h"
 #include "gtest/gtest.h"
 
@@ -73,6 +75,35 @@ INSTANTIATE_TEST_SUITE_P(
     GetTestName);
 
 using FreelistDisabledTest = FreeListBaseTest;
+TEST_F(FreelistDisabledTest, FreeList) {
+  absl::SetFlag(&FLAGS_use_freelists, false);
+
+  auto fl =
+      std::make_unique<FreeList<FreeListConformanceTest::EnsureDeleted>>(kSize);
+
+  // Free list fl is initially empty
+  CHECK(fl->CheckRep());
+  CHECK_EQ(fl->size(), 0);
+  EnsureDeleted* const ed = fl->New();
+  CHECK(ed != nullptr);
+  CHECK(fl->CanDelete(ed));
+  CHECK_EQ(fl->size(), 0);
+  CHECK(fl->CheckRep());
+  fl->Delete(ed);
+  CHECK_EQ(fl->size(), 0);  // freelist should be empty
+  CHECK_EQ(EnsureDeleted::live(), 0);
+
+  std::vector<EnsureDeleted*> items(4, nullptr);
+  fl->NewMany(items.data(), items.size());
+  CHECK_EQ(fl->size(), 0);
+  CHECK_EQ(EnsureDeleted::live(), 4);
+  fl->DeleteMany(items.data(), items.size());
+  CHECK_EQ(fl->size(), 0);
+  CHECK_EQ(EnsureDeleted::live(), 0);
+  fl->Clear();
+  CHECK_EQ(fl->size(), 0);
+}
+
 TEST_F(FreelistDisabledTest, ThreadSafeFreeList) {
   absl::SetFlag(&FLAGS_use_freelists, false);
 
@@ -84,10 +115,22 @@ TEST_F(FreelistDisabledTest, ThreadSafeFreeList) {
   CHECK_EQ(fl->size(), 0);
   EnsureDeleted* const ed = fl->New();
   CHECK(ed != nullptr);
+  CHECK(fl->CanDelete(ed));
   CHECK_EQ(fl->size(), 0);
   CHECK(fl->CheckRep());
   fl->Delete(ed);
   CHECK_EQ(fl->size(), 0);  // freelist should be empty
+  CHECK_EQ(EnsureDeleted::live(), 0);
+
+  std::vector<EnsureDeleted*> items(4, nullptr);
+  fl->NewMany(items.data(), items.size());
+  CHECK_EQ(fl->size(), 0);
+  CHECK_EQ(EnsureDeleted::live(), 4);
+  fl->DeleteMany(items.data(), items.size());
+  CHECK_EQ(fl->size(), 0);
+  CHECK_EQ(EnsureDeleted::live(), 0);
+  fl->Clear();
+  CHECK_EQ(fl->size(), 0);
 }
 
 // Test FastAllocator
@@ -307,6 +350,87 @@ TEST_F(ScopedFreeListPointerTest, BasicCase) {
   }
   EXPECT_EQ(1, free_list.size());  // Instance returned to list
 }
+
+void BM_FreeList_NewDelete(benchmark::State& state) {
+  FreeList<int> freelist(/*max_length=*/64);
+  freelist.Delete(freelist.New());
+  FreeList<int>* fl = &freelist;
+  for (auto s : state) {
+    benchmark::DoNotOptimize(fl);
+    int* p = fl->FreeList<int>::New();
+    benchmark::DoNotOptimize(p);
+    fl->FreeList<int>::Delete(p);
+  }
+}
+BENCHMARK(BM_FreeList_NewDelete);
+
+void BM_FreeList_VirtualNewDelete(benchmark::State& state) {
+  FreeList<int> freelist(/*max_length=*/64);
+  freelist.Delete(freelist.New());
+  AbstractFreeList<int>* fl = &freelist;
+  for (auto s : state) {
+    benchmark::DoNotOptimize(fl);
+    int* p = fl->New();
+    benchmark::DoNotOptimize(p);
+    fl->Delete(p);
+  }
+}
+BENCHMARK(BM_FreeList_VirtualNewDelete);
+
+void BM_FreeList_BatchedNewDelete(benchmark::State& state) {
+  const int batch_size = state.range(0);
+  FreeList<int> freelist(batch_size);
+  std::vector<int*> items(batch_size);
+  int** const ptrs = items.data();
+  for (int i = 0; i < batch_size; ++i) {
+    ptrs[i] = freelist.New();
+  }
+  for (int i = 0; i < batch_size; ++i) {
+    freelist.Delete(ptrs[i]);
+  }
+  FreeList<int>* fl = &freelist;
+  while (state.KeepRunningBatch(batch_size)) {
+    benchmark::DoNotOptimize(fl);
+    for (int i = 0; i < batch_size; ++i) {
+      ptrs[i] = fl->FreeList<int>::New();
+    }
+    benchmark::DoNotOptimize(ptrs);
+    for (int i = 0; i < batch_size; ++i) {
+      fl->FreeList<int>::Delete(ptrs[i]);
+    }
+  }
+}
+BENCHMARK(BM_FreeList_BatchedNewDelete)->Arg(16)->Arg(64)->Arg(256);
+
+void BM_ThreadSafeFreeList_NewDelete(benchmark::State& state) {
+  ThreadSafeFreeList<int> freelist(/*max_length=*/64);
+  freelist.Delete(freelist.New());
+  ThreadSafeFreeList<int>* fl = &freelist;
+  for (auto s : state) {
+    benchmark::DoNotOptimize(fl);
+    int* p = fl->ThreadSafeFreeList<int>::New();
+    benchmark::DoNotOptimize(p);
+    fl->ThreadSafeFreeList<int>::Delete(p);
+  }
+}
+BENCHMARK(BM_ThreadSafeFreeList_NewDelete);
+
+void BM_ThreadSafeFreeList_NewManyDeleteMany(benchmark::State& state) {
+  const int batch_size = state.range(0);
+  ThreadSafeFreeList<int> freelist(batch_size);
+  std::vector<int*> items(batch_size);
+  int** const ptrs = items.data();
+  freelist.NewMany(ptrs, batch_size);
+  freelist.DeleteMany(ptrs, batch_size);
+  ThreadSafeFreeList<int>* fl = &freelist;
+  while (state.KeepRunningBatch(batch_size)) {
+    benchmark::DoNotOptimize(fl);
+    fl->ThreadSafeFreeList<int>::NewMany(ptrs, batch_size);
+    benchmark::DoNotOptimize(ptrs);
+    fl->ThreadSafeFreeList<int>::DeleteMany(ptrs, batch_size);
+  }
+}
+BENCHMARK(BM_ThreadSafeFreeList_NewManyDeleteMany)->Arg(16)->Arg(64)->Arg(256);
 
 }  // namespace
 }  // namespace freelist

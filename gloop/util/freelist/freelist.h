@@ -232,9 +232,12 @@ TrivialFactory<T>& GetDefaultTrivialFactoryInstance() {
 template <class T>
 class FreeList : public AbstractFreeList<T> {
  private:
-  T** list_;        // List of free objects
+  // List of free objects. Remains null when freelists are disabled
+  // (!absl::GetFlag(FLAGS_use_freelists) at construction).
+  T** absl_nullable list_;
   int max_length_;  // Maximum number of free objects to keep
-  int size_;        // Number of free objects
+  // Number of free objects. Always 0 when `list_` is null.
+  int size_;
 
  protected:
   ObjectFactory<T>* factory_;  // Factory class for new objects
@@ -330,9 +333,12 @@ class ThreadSafeFreeList : public AbstractFreeList<T> {
 
  private:
   mutable absl::Mutex lock_;
-  T** list_;              // List of free objects
+  // List of free objects. Remains null when freelists are disabled
+  // (!absl::GetFlag(FLAGS_use_freelists) at construction).
+  T** absl_nullable list_;
   const int max_length_;  // Maximum number of free objects to keep
-  int size_;              // Number of free objects
+  // Number of free objects. Always 0 when `list_` is null.
+  int size_;
 
   bool CanDeleteLocked(T* x) const;
 
@@ -371,14 +377,18 @@ void AbstractFreeList<T>::DeleteMany(T** ptr, int n) {
 // Implementation - FreeList
 template <class T>
 FreeList<T>::FreeList(int max_length, ObjectFactory<T>* factory)
-    : list_(std::allocator<T*>().allocate(max_length)),
+    : list_(absl::GetFlag(FLAGS_use_freelists)
+                ? std::allocator<T*>().allocate(max_length)
+                : nullptr),
       max_length_(max_length),
       size_(0),
       factory_(factory) {}
 
 template <class T>
 FreeList<T>::FreeList(int max_length)
-    : list_(std::allocator<T*>().allocate(max_length)),
+    : list_(absl::GetFlag(FLAGS_use_freelists)
+                ? std::allocator<T*>().allocate(max_length)
+                : nullptr),
       max_length_(max_length),
       size_(0),
       factory_(&freelist_internal::GetDefaultTrivialFactoryInstance<T>()) {}
@@ -386,12 +396,16 @@ FreeList<T>::FreeList(int max_length)
 template <class T>
 FreeList<T>::~FreeList() {
   Clear();
-  std::allocator<T*>().deallocate(list_, max_length_);
+  if (list_ != nullptr) {
+    std::allocator<T*>().deallocate(list_, max_length_);
+  }
 }
 
 template <class T>
 void FreeList<T>::Clear() {
+  // When `list_` is null, `size_` is guaranteed to be 0.
   for (int i = 0; i < size_; i++) {
+    DCHECK(list_ != nullptr);
     factory_->Delete(list_[i]);
   }
   size_ = 0;
@@ -399,7 +413,9 @@ void FreeList<T>::Clear() {
 
 template <class T>
 inline T* FreeList<T>::New() {
+  // When `list_` is null, `size_` is guaranteed to be 0.
   if (size_ > 0) {
+    DCHECK(list_ != nullptr);
     T* retval = list_[--size_];
     return retval;
   } else {
@@ -410,7 +426,7 @@ inline T* FreeList<T>::New() {
 template <class T>
 inline void FreeList<T>::Delete(T* x) {
   if (x == nullptr) return;
-  if ((size_ < max_length_) && absl::GetFlag(FLAGS_use_freelists)) {
+  if ((size_ < max_length_) && (list_ != nullptr)) {
     list_[size_++] = x;
   } else {
     factory_->Delete(x);
@@ -424,8 +440,11 @@ bool FreeList<T>::CheckRep() const {
 
 template <class T>
 bool FreeList<T>::CanDelete(T* x) const {
-  for (int i = 0; i < size_; ++i)
+  // When `list_` is null, `size_` is guaranteed to be 0.
+  for (int i = 0; i < size_; ++i) {
+    DCHECK(list_ != nullptr);
     if (list_[i] == x) return false;  // x already deleted
+  }
   return true;
 }
 
@@ -439,14 +458,18 @@ std::string FreeList<T>::DebugString() const {
 template <class T>
 ThreadSafeFreeList<T>::ThreadSafeFreeList(int max_length,
                                           ObjectFactory<T>* factory)
-    : list_(std::allocator<T*>().allocate(max_length)),
+    : list_(absl::GetFlag(FLAGS_use_freelists)
+                ? std::allocator<T*>().allocate(max_length)
+                : nullptr),
       max_length_(max_length),
       size_(0),
       factory_(factory) {}
 
 template <class T>
 ThreadSafeFreeList<T>::ThreadSafeFreeList(int max_length)
-    : list_(std::allocator<T*>().allocate(max_length)),
+    : list_(absl::GetFlag(FLAGS_use_freelists)
+                ? std::allocator<T*>().allocate(max_length)
+                : nullptr),
       max_length_(max_length),
       size_(0),
       factory_(&freelist_internal::GetDefaultTrivialFactoryInstance<T>()) {}
@@ -454,16 +477,21 @@ ThreadSafeFreeList<T>::ThreadSafeFreeList(int max_length)
 template <class T>
 ThreadSafeFreeList<T>::~ThreadSafeFreeList() {
   // No lock. If you're racing with the destructor, it's your own lookout.
-  for (int i = 0; i < size_; i++) {
-    factory_->Delete(list_[i]);
+  if (list_ != nullptr) {
+    for (int i = 0; i < size_; i++) {
+      DCHECK(list_ != nullptr);
+      factory_->Delete(list_[i]);
+    }
+    std::allocator<T*>().deallocate(list_, max_length_);
   }
-  std::allocator<T*>().deallocate(list_, max_length_);
 }
 
 template <class T>
 void ThreadSafeFreeList<T>::Clear() {
   absl::MutexLock l(lock_);
+  // When `list_` is null, `size_` is guaranteed to be 0.
   for (int i = 0; i < size_; i++) {
+    DCHECK(list_ != nullptr);
     factory_->Delete(list_[i]);
   }
   size_ = 0;
@@ -473,7 +501,9 @@ template <class T>
 inline T* ThreadSafeFreeList<T>::New() {
   {
     absl::MutexLock l(lock_);
+    // When `list_` is null, `size_` is guaranteed to be 0.
     if (size_ > 0) {
+      DCHECK(list_ != nullptr);
       T* retval = list_[--size_];
       return retval;
     }
@@ -484,10 +514,10 @@ inline T* ThreadSafeFreeList<T>::New() {
 
 template <class T>
 void ThreadSafeFreeList<T>::NewMany(T** ptr, int N) {
-  {
+  if (list_ != nullptr) {
     absl::MutexLock l(lock_);
     const int num_to_grab = std::min(N, size_);
-    memcpy(ptr, list_ + size_ - num_to_grab, sizeof(T*) * num_to_grab);
+    memcpy(ptr, list_ + (size_ - num_to_grab), sizeof(T*) * num_to_grab);
     N -= num_to_grab;
     size_ -= num_to_grab;
     ptr += num_to_grab;
@@ -502,7 +532,7 @@ void ThreadSafeFreeList<T>::NewMany(T** ptr, int N) {
 template <class T>
 inline void ThreadSafeFreeList<T>::Delete(T* x) {
   if (x == nullptr) return;
-  if (absl::GetFlag(FLAGS_use_freelists)) {
+  if (list_ != nullptr) {
     absl::MutexLock l(lock_);
     if (size_ < max_length_) {
       list_[size_++] = x;
@@ -515,7 +545,7 @@ inline void ThreadSafeFreeList<T>::Delete(T* x) {
 
 template <class T>
 void ThreadSafeFreeList<T>::DeleteMany(T** ptr, int N) {
-  if (absl::GetFlag(FLAGS_use_freelists)) {
+  if (list_ != nullptr) {
     absl::MutexLock l(lock_);
     for (; N > 0 && size_ < max_length_; --N) {
       T* d = *ptr++;
@@ -541,8 +571,11 @@ bool ThreadSafeFreeList<T>::CanDelete(T* x) const {
 
 template <class T>
 bool ThreadSafeFreeList<T>::CanDeleteLocked(T* x) const {
-  for (int i = 0; i < size_; ++i)
+  // When `list_` is null, `size_` is guaranteed to be 0.
+  for (int i = 0; i < size_; ++i) {
+    DCHECK(list_ != nullptr);
     if (list_[i] == x) return false;  // x already deleted
+  }
   return true;
 }
 
