@@ -24,11 +24,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <deque>
-#include <memory>
 #include <type_traits>
-#include <vector>
 
-#include "absl/base/attributes.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/container/chunked_queue.h"
 #include "absl/log/check.h"

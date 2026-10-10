@@ -33,7 +33,6 @@
 #include "absl/base/attributes.h"
 #include "absl/base/optimization.h"
 #include "absl/base/throw_delegate.h"
-#include "absl/meta/type_traits.h"
 #include "gloop/util/gtl/compressed_tuple.h"
 #include "gloop/util/gtl/requires.h"
 

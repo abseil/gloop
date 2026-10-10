@@ -28,8 +28,10 @@
 #include <random>
 #include <string>
 
+#include "absl/base/config.h"
 #include "absl/container/fixed_array.h"
 #include "absl/flags/declare.h"
+#include "absl/flags/flag.h"
 #include "absl/log/log.h"
 #include "absl/random/random.h"
 #include "absl/strings/cord.h"

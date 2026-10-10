@@ -192,7 +192,7 @@ void WatchDog::SetCallback(WatchdogCallback callback) {
 }
 
 void WatchDog::RefreshAliveTimestamp() {
-  // Reading from TSC here is fairly expensive (~1.5kgcu fleetwide as of 2019)
+  // Reading from TSC here is fairly expensive
   // so we have a counter store the last observed time on WatchDog::CheckAlive()
   // calls. A background thread (ThreadLivenessWatcher in thread.cc)
   // periodically calls CheckAlive() which will thus ensure a relatively fresh

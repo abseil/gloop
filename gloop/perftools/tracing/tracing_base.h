@@ -27,7 +27,6 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/casts.h"
-#include "absl/base/config.h"
 #include "absl/log/check.h"
 
 namespace perftools::tracing {

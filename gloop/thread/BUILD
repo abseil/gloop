@@ -910,7 +910,6 @@ cc_library(
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base:timer",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:die_if_null",
         "@abseil-cpp//absl/synchronization",
