@@ -387,7 +387,7 @@ class TestThread : public Thread {
   absl::Notification parent_notify;
 
  protected:
-  void Run() {
+  void Run() override {
     pid = getpid();
     tid = GetTID();
 
@@ -446,7 +446,7 @@ TEST(SysinfoUnittest, HasPosixThreads) {
   class GetPidThread : public Thread {
    public:
     GetPidThread() { SetJoinable(true); }
-    void Run() { pid_ = getpid(); }
+    void Run() override { pid_ = getpid(); }
     pid_t pid_;
   };
   GetPidThread t;

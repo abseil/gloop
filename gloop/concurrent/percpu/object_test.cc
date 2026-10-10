@@ -77,7 +77,7 @@ class PerCpuTest : public testing::Test {
     }
   }
 
-  ~PerCpuTest() {
+  ~PerCpuTest() override {
     // these tests might mess with CPU affinity, make sure we're not
     // pinned somewhere we don't much want to be.
     cpu_set_t set;
