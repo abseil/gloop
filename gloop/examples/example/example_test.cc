@@ -1,3 +1,5 @@
+// Apache 2.0 Notice: 2026
+
 #include "example/example.h"
 
 #include "gtest/gtest.h"
