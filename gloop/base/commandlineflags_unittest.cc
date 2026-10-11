@@ -1287,7 +1287,7 @@ TEST_F(ParseCommandLineTest, TwoDashArgFirst) {
 }  // namespace
 namespace commandlineflags_unittest {
 struct UserType {
-  UserType() {}
+  UserType() = default;
   explicit UserType(const std::string& v) : value(v) {}
   std::string value;
 

@@ -273,7 +273,7 @@ class LogFileSink final : public absl::LogSink, public base_logging::Logger {
  public:
   explicit LogFileSink(absl::LogSeverity severity)
       : log_file_(GetLogFile(severity)) {}
-  ~LogFileSink() override {}
+  ~LogFileSink() override = default;
 
   // LogSink interface
   void Send(const absl::LogEntry& entry) override {

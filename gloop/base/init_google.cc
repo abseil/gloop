@@ -867,7 +867,7 @@ namespace {
 // Provides a fake base class against which __cxa_pure_virtual() below will use
 // typeid, to hopefully print a class name.
 class FakeBaseClass {
-  virtual ~FakeBaseClass() {}
+  virtual ~FakeBaseClass() = default;
   virtual void foo() = 0;
 };
 }  // namespace

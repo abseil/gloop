@@ -351,7 +351,7 @@ class Test2 : public Gladiator {
 
 class NonGladiator {
  public:
-  virtual ~NonGladiator() {}
+  virtual ~NonGladiator() = default;
 };
 
 class Test3 : public NonGladiator {
@@ -362,7 +362,7 @@ class Test3 : public NonGladiator {
 
 class Test4 {
  public:
-  virtual ~Test4() {}
+  virtual ~Test4() = default;
   int d, d2;
   explicit Test4(const int inp) { d = inp; }
 };
@@ -702,7 +702,7 @@ TEST(ArenaTest, STL) {
           int_set_(int_less, arena) {}
 
     // The destructor does nothing, no need to call it
-    ~WithCharStar() {}
+    ~WithCharStar() = default;
 
     UnsafeArena* arena_;
     CStringVec string_vec_;
@@ -760,7 +760,7 @@ TEST(ArenaTest, STL) {
           int_set_(int_less, arena) {}
 
     // Destructor does nothing, no need to call it
-    ~WithAString() {}
+    ~WithAString() = default;
 
     UnsafeArena* arena_;
     AStringVec string_vec_;

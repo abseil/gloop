@@ -74,7 +74,7 @@ class NSSInfo {
   NSSInfo(const NSSInfo&) = delete;
   NSSInfo& operator=(const NSSInfo&) = delete;
 
-  ~NSSInfo() {}
+  ~NSSInfo() = default;
 
   // Lookup Takes an appropriate "key" value, and looks up the
   // specified object in the cache or via NSS. Returns true if the

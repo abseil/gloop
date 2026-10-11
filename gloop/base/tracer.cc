@@ -68,7 +68,7 @@ class NoopTracer : public base::Tracer {
       SetStartTimeNow();
     }
   }
-  ~NoopTracer() override {}
+  ~NoopTracer() override = default;
 
   void Attach(base::TraceEntrySource* source) override {}
   void Detach(base::TraceEntrySource* source, bool save_clone) override {}
@@ -355,9 +355,9 @@ bool Tracer::GetErrorStatus() const { return false; }
 
 // We keep the vtable and empty destructors out of any/every .o that includes
 // tracer.h by declaring these empty destructors in the .cc file)
-TraceConsumer::~TraceConsumer() {}
-TraceEntrySink::~TraceEntrySink() {}
-TraceEntrySource::~TraceEntrySource() {}
+TraceConsumer::~TraceConsumer() = default;
+TraceEntrySink::~TraceEntrySink() = default;
+TraceEntrySource::~TraceEntrySource() = default;
 
 void TraceEntrySink::EmitLazy(
     perftools::tracing::channels::ChannelID channel_id, absl::Time time,
