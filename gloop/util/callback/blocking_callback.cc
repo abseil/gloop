@@ -34,7 +34,7 @@ BlockingClosure::BlockingClosure(::util::functional::CallbackFunctor<> closure)
 
 BlockingClosure::BlockingClosure() : closure_(nullptr), repeatable_(true) {}
 
-BlockingClosure::~BlockingClosure() {}
+BlockingClosure::~BlockingClosure() = default;
 
 // virtual
 void BlockingClosure::Run() {
