@@ -115,13 +115,13 @@ class ContextTest : public ::testing::Test {
   {
   }
 
-  ~ContextTest() {
+  ~ContextTest() override {
 #if BASE_CONTEXT_HAVE_SECURITYCONTEXT
     dummy_peer_->Unref();
 #endif
   }
 
-  void TearDown() {
+  void TearDown() override {
     Context d;
     RestoreCurrentContext(&d);
   }
