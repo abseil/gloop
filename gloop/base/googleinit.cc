@@ -481,11 +481,10 @@ void GoogleInitializer::TypeData::RunIfNecessary(GoogleInitializer* init) {
   }
 }
 
-static_assert(std::is_trivially_destructible<GoogleInitializer>::value,
+static_assert(std::is_trivially_destructible_v<GoogleInitializer>,
               "GoogleInitializers are created in static storage, and must be "
               "trivially destructible.");
 static_assert(
-    std::is_trivially_destructible<
-        GoogleInitializer::DependencyRegisterer>::value,
+    std::is_trivially_destructible_v<GoogleInitializer::DependencyRegisterer>,
     "DependencyRegisterers are created in static storage, and must be "
     "trivially destructible.");
