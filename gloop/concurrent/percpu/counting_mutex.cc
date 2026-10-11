@@ -113,7 +113,7 @@ ABSL_CONST_INIT thread_local struct ThreadContextData {
   const CountingMutex* mutex;
   ThreadContextBlock* blocks;
 } tls_data = {nullptr, nullptr};
-static_assert(std::is_trivial<ThreadContextData>::value, "");
+static_assert(std::is_trivial_v<ThreadContextData>, "");
 
 }  // namespace
 
