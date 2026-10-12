@@ -387,7 +387,7 @@ void DoTimingTest() {
   for (int n = 0; n < kIterations; ++n) {
     const astring s("wowza yowza kowza kowza kowza kowza kowza kowza", &arena);
     CHECK(!arena.is_empty());
-    CHECK_EQ('w', s.c_str()[0]);
+    CHECK_EQ('w', s[0]);
   }
   const int64_t arenacycles = CycleClock::Now() - t;
 
@@ -405,7 +405,7 @@ void DoTimingTest() {
   t = CycleClock::Now();
   for (int n = 0; n < kIterations; ++n) {
     const astring s("wowza yowza kowza", stringalloc);
-    CHECK_EQ('w', s.c_str()[0]);
+    CHECK_EQ('w', s[0]);
   }
   const int64_t arenaalloccycles = CycleClock::Now() - t;
   arena.Reset();
@@ -413,14 +413,14 @@ void DoTimingTest() {
   t = CycleClock::Now();
   for (int n = 0; n < kIterations; ++n) {
     const std::string s("wowza yowza kowza");
-    CHECK_EQ('w', s.c_str()[0]);
+    CHECK_EQ('w', s[0]);
   }
   const int64_t malloccycles = CycleClock::Now() - t;
 
   t = CycleClock::Now();
   for (int n = 0; n < kIterations; ++n) {
     const std::string s("wowza yowza kowza");
-    CHECK_EQ('w', s.c_str()[0]);
+    CHECK_EQ('w', s[0]);
   }
   const int64_t pthreadcycles = CycleClock::Now() - t;
 

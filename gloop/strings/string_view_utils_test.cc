@@ -45,10 +45,10 @@ TEST(StringPieceUtils, RemoveLeadingWhitespace) {
   absl::string_view data(text);
   // check that all whitespace is removed
   EXPECT_EQ(strings::RemoveLeadingWhitespace(&data), 11);
-  EXPECT_EQ(*(data.data()), 'Q');
+  EXPECT_EQ(data[0], 'Q');
   // check that non-whitespace is not removed
   EXPECT_EQ(strings::RemoveLeadingWhitespace(&data), 0);
-  EXPECT_EQ(*(data.data()), 'Q');
+  EXPECT_EQ(data[0], 'Q');
   data.remove_prefix(sizeof("Quick") - 1);
 
   // check termination handling
@@ -94,13 +94,13 @@ TEST(StringPieceUtils, RemoveUntil) {
   std::string text = "The Quick Brown Fox\nJumped Over A\n\nLazy Dog";
   absl::string_view data(text);
   EXPECT_EQ(strings::RemoveUntil(&data, '\n'), 20);
-  EXPECT_EQ(*(data.data()), 'J');
+  EXPECT_EQ(data[0], 'J');
   // check that we don't remove multiple copies of the sentinel
   EXPECT_EQ(strings::RemoveUntil(&data, '\n'), 14);
-  EXPECT_EQ(*(data.data()), '\n');
+  EXPECT_EQ(data[0], '\n');
   // check removing a singleton sentinel
   EXPECT_EQ(strings::RemoveUntil(&data, '\n'), 1);
-  EXPECT_EQ(*(data.data()), 'L');
+  EXPECT_EQ(data[0], 'L');
 
   // check that termination without sentinel works
   EXPECT_EQ(strings::RemoveUntil(&data, '\n'), 8);
