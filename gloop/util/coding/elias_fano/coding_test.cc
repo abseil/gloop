@@ -40,6 +40,7 @@
 #include "absl/random/uniform_int_distribution.h"
 #include "absl/random/zipf_distribution.h"
 #include "absl/status/status_matchers.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "benchmark/benchmark.h"
@@ -55,7 +56,7 @@ namespace testing {
 
 struct CodecAccess {
   // Encoder.
-  static void SetBit(Encoder* enc, BitPos pos) { return enc->SetBit(pos); }
+  static void SetBit(Encoder* enc, BitPos pos) { enc->SetBit(pos); }
   static size_t ForceFinalize(Encoder* enc) {
     enc->size_ = enc->opts_.size();
     enc->last_value_ = enc->opts_.max_value();
@@ -72,6 +73,13 @@ struct CodecAccess {
 };
 
 namespace {
+
+using ::absl_testing::IsOk;
+using ::absl_testing::IsOkAndHolds;
+using ::fuzztest::Arbitrary;
+using ::fuzztest::BitFlagCombinationOf;
+using ::fuzztest::VectorOf;
+using ::testing::ElementsAreArray;
 
 uint32_t NumOnes(absl::Span<const uint64_t> bitmap) {
   uint32_t res = 0;
@@ -111,31 +119,47 @@ std::shared_ptr<Decoder> EncodeIndex(absl::Span<const uint64_t> bitmap) {
   return MakeSharedDecoder<Decoder>(std::move(mem), encoded);
 }
 
+MATCHER_P(MatchesSelectQueries, bitmap, "") {
+  int zeros = 0, ones = 0;
+  for (size_t mask_no = 0; mask_no < bitmap.size(); ++mask_no) {
+    for (int bit_no = 0; bit_no < 64; ++bit_no) {
+      bool bit = bitmap[mask_no] & (uint64_t{1} << bit_no);
+      BitPos expected_pos(static_cast<uint64_t>(mask_no) * 64 + bit_no);
+
+      if (bit) {
+        BitPos actual = CodecAccess::SelectOne(arg, ones);
+        if (actual != expected_pos) {
+          *result_listener << "SelectOne(" << ones << ") = " << actual.value()
+                           << ", expected " << expected_pos.value()
+                           << " at bit " << bit_no << " in word " << mask_no;
+          return false;
+        }
+        ++ones;
+      } else {
+        BitPos actual = CodecAccess::SelectZero(arg, zeros);
+        if (actual != expected_pos) {
+          *result_listener << "SelectZero(" << zeros << ") = " << actual.value()
+                           << ", expected " << expected_pos.value()
+                           << " at bit " << bit_no << " in word " << mask_no;
+          return false;
+        }
+        ++zeros;
+      }
+    }
+  }
+  return true;
+}
+
 class SelectIndexTest : public ::testing::Test {
  public:
   void Test(absl::Span<const uint32_t> positions) {
+    SCOPED_TRACE(absl::StrCat("positions.size()=", positions.size()));
     TestBitmap(BitmapFromPositions(positions.back() + 1, positions));
   }
 
   void TestBitmap(absl::Span<const uint64_t> bitmap) {
     auto decoder = EncodeIndex(bitmap);
-
-    int zeros = 0, ones = 0;
-    for (int mask_no = 0; mask_no < bitmap.size(); mask_no++) {
-      for (int bit_no = 0; bit_no < 64; bit_no++) {
-        bool bit = bitmap[mask_no] & (1LL << bit_no);
-        BitPos position(static_cast<uint64_t>(mask_no) * 64 + bit_no);
-
-        if (bit) {
-          EXPECT_EQ(position, CodecAccess::SelectOne(*decoder, ones)) << ones;
-          ones++;
-        } else {
-          EXPECT_EQ(position, CodecAccess::SelectZero(*decoder, zeros))
-              << zeros;
-          zeros++;
-        }
-      }
-    }
+    EXPECT_THAT(*decoder, MatchesSelectQueries(bitmap));
   }
 
   std::vector<uint64_t> BitmapFromPositions(
@@ -217,22 +241,17 @@ TEST_F(SelectIndexTest, RandomTestsWithVariousDistribution) {
   TestBitmap(RandomBitmapWithJumps(1000000, 1000000));
 }
 
-using ::fuzztest::Arbitrary;
-using ::fuzztest::BitFlagCombinationOf;
-using ::fuzztest::VectorOf;
-
 void TestIteration(absl::Span<const char> mem,
                    absl::Span<const uint64_t> values) {
   auto dec = Decoder::Make(mem);
-  ABSL_EXPECT_OK(dec);
-  EXPECT_EQ(dec->size(), values.size());
-  for (auto i = dec->begin(), e = dec->end(); i != e; ++i) {
-    EXPECT_EQ(*i, values[i.index()]);
-  }
+  ASSERT_THAT(dec, IsOk());
+  EXPECT_THAT(*dec, ElementsAreArray(values));
+
   auto fdec = ForwardDecoder::Make(mem);
-  ABSL_EXPECT_OK(fdec);
+  ASSERT_THAT(fdec, IsOk());
   EXPECT_EQ(fdec->size(), values.size());
   for (; fdec->index() != fdec->size(); fdec->Next()) {
+    SCOPED_TRACE(absl::StrCat("index=", fdec->index()));
     EXPECT_EQ(fdec->value(), values[fdec->index()]);
   }
 }
@@ -240,15 +259,17 @@ void TestIteration(absl::Span<const char> mem,
 void CheckOneIndexOps(absl::Span<const char> mem,
                       absl::Span<const uint64_t> values) {
   auto dec = Decoder::Make(mem);
-  ABSL_EXPECT_OK(dec);
+  ASSERT_THAT(dec, IsOk());
   EXPECT_EQ(dec->size(), values.size());
   for (size_t i = 0; i != values.size(); ++i) {
+    SCOPED_TRACE(absl::StrCat("i=", i));
     EXPECT_EQ(*dec->IteratorAt(i), values[i]);
   }
   auto fdec = ForwardDecoder::Make(mem);
-  ABSL_EXPECT_OK(fdec);
+  ASSERT_THAT(fdec, IsOk());
   EXPECT_EQ(fdec->size(), values.size());
   for (size_t i = 0; i != values.size(); ++i) {
+    SCOPED_TRACE(absl::StrCat("i=", i));
     fdec->AdvanceToIndex(i);
     EXPECT_EQ(fdec->value(), values[i]);
   }
@@ -259,12 +280,13 @@ void CheckOneIndexOps(absl::Span<const char> mem,
 void CheckZeroIndexOps(absl::Span<const char> mem,
                        absl::Span<const uint64_t> values) {
   auto dec = Decoder::Make(mem);
-  ABSL_EXPECT_OK(dec);
+  ASSERT_THAT(dec, IsOk());
   EXPECT_EQ(dec->size(), values.size());
   size_t i = 0;
   for (auto x : *dec) {
+    SCOPED_TRACE(absl::StrCat("i=", i, ", x=", x));
     EXPECT_LE(i, values.size());
-    EXPECT_EQ(values[i], x);
+    EXPECT_EQ(x, values[i]);
     if (i > 0 && values[i - 1] < values[i]) {
       uint64_t diff = values[i] - values[i - 1];
       // Get a pseudorandom value in between 'values[i-1]' and 'values[i]'
@@ -307,6 +329,12 @@ void Roundtrip(std::vector<uint64_t> values,
 FUZZ_TEST(CodingTest, Roundtrip)
     .WithDomains(VectorOf(Arbitrary<uint64_t>()),
                  BitFlagCombinationOf({Options::ONES, Options::ZEROS}));
+
+TEST(CodingTest, Empty) { Roundtrip({}); }
+
+TEST(CodingTest, SingleElement) { Roundtrip({42}); }
+
+TEST(CodingTest, DuplicateElements) { Roundtrip({1, 1, 1, 5, 5, 10}); }
 
 TEST(CodingTest, CutAtWord) {
   // N = 32, max_value = 65 => l = 1
@@ -352,8 +380,8 @@ TEST(CodingTest, DISABLED_MaxEncoding1111111110000____00001) {
   auto dec = Decoder::Make(mem);
   ABSL_EXPECT_OK(dec);
 
-  for (uint64_t i = 1; i < N; ++i) EXPECT_EQ(0, *dec->IteratorAt(i - 1));
-  EXPECT_EQ(M, *dec->IteratorAt(N - 1));
+  for (uint64_t i = 1; i < N; ++i) EXPECT_EQ(*dec->IteratorAt(i - 1), 0);
+  EXPECT_EQ(*dec->IteratorAt(N - 1), M);
 }
 
 TEST(CodingTest, DISABLED_MaxEncoding00000000000111111111____1) {
@@ -368,7 +396,7 @@ TEST(CodingTest, DISABLED_MaxEncoding00000000000111111111____1) {
 
   auto dec = Decoder::Make(mem);
   ABSL_EXPECT_OK(dec);
-  for (uint64_t i = 0; i < N; ++i) EXPECT_EQ(M, *dec->IteratorAt(i));
+  for (uint64_t i = 0; i < N; ++i) EXPECT_EQ(*dec->IteratorAt(i), M);
 }
 
 TEST(Finalize, Equivalent) {
@@ -380,9 +408,7 @@ TEST(Finalize, Equivalent) {
   }
 
   absl::string_view e1_encoded = e1.Finalize();
-  auto e2_encoded = e2.FinalizeToStr();
-  ABSL_ASSERT_OK(e2_encoded);
-  ASSERT_EQ(e1_encoded, *e2_encoded);
+  EXPECT_THAT(e2.FinalizeToStr(), IsOkAndHolds(e1_encoded));
 }
 
 namespace bm {
@@ -555,13 +581,13 @@ void Encode(benchmark::State* state) {
   while (state->KeepRunningBatch(size)) {
     Encoder enc(opts, absl::MakeSpan(encoded));
     for (auto v : dec) enc.Append(v);
-    CHECK(enc.Finalize().ok());
+    CHECK_OK(enc.Finalize());
     DoNotOptimize(enc);
   }
   // Get stats.
   Encoder enc(opts, absl::MakeSpan(encoded));
   for (auto v : dec) enc.Append(v);
-  CHECK(enc.Finalize().ok());
+  CHECK_OK(enc.Finalize());
   state->SetLabel(GetInfo(encoded)->DebugString());
 }
 CODING_BENCHMARK_WITH_EVERY_INDEX(Encode);
