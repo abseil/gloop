@@ -121,8 +121,8 @@ const std::string kAliasesTest2Alias2 = "AliasesTest2Alias2";
 
 class AliasesBase {
  public:
-  AliasesBase() {}
-  virtual ~AliasesBase() {}
+  AliasesBase() = default;
+  virtual ~AliasesBase() = default;
   virtual const std::string& name() const { return kAliasesBase; }
 };
 
@@ -202,8 +202,8 @@ const char kUnusedNoArgumentsTest[] = "UnusedNoArgumentsTest";
 
 class NoArgumentsBase {
  public:
-  NoArgumentsBase() {}
-  virtual ~NoArgumentsBase() {}
+  NoArgumentsBase() = default;
+  virtual ~NoArgumentsBase() = default;
   virtual std::string name() const { return kNoArgumentsBase; }
 };
 
@@ -303,7 +303,7 @@ const char kOneArgumentTest2[] = "OneArgumentTest2";
 class OneArgumentBase {
  public:
   OneArgumentBase(int32_t t1) : t1_(t1) {}
-  virtual ~OneArgumentBase() {}
+  virtual ~OneArgumentBase() = default;
   virtual std::string name() const { return kOneArgumentBase; }
 
   int32_t t1_;
@@ -402,7 +402,7 @@ const std::string kTwoArgumentsTest2 = "TwoArgumentsTest2";
 class TwoArgumentsBase {
  public:
   TwoArgumentsBase(int32_t t1, const std::string& t2) : t1_(t1), t2_(t2) {}
-  virtual ~TwoArgumentsBase() {}
+  virtual ~TwoArgumentsBase() = default;
   virtual const std::string& name() const { return kTwoArgumentsBase; }
 
   int32_t t1_;
@@ -509,7 +509,7 @@ class ThreeArgumentsBase {
  public:
   ThreeArgumentsBase(int32_t t1, const std::string& t2, void* t3)
       : t1_(t1), t2_(t2), t3_(t3) {}
-  virtual ~ThreeArgumentsBase() {}
+  virtual ~ThreeArgumentsBase() = default;
   virtual const std::string& name() const { return kThreeArgumentsBase; }
 
   int32_t t1_;
@@ -622,7 +622,7 @@ class FourArgumentsBase {
  public:
   FourArgumentsBase(int32_t t1, const std::string& t2, void* t3, void* t4)
       : t1_(t1), t2_(t2), t3_(t3), t4_(t4) {}
-  virtual ~FourArgumentsBase() {}
+  virtual ~FourArgumentsBase() = default;
   virtual const std::string& name() const { return kFourArgumentsBase; }
 
   int32_t t1_;
@@ -741,8 +741,8 @@ class SingletonBase {
   virtual const std::string& name() const { return kSingletonBase; }
 
  protected:
-  SingletonBase() {}
-  virtual ~SingletonBase() {}
+  SingletonBase() = default;
+  virtual ~SingletonBase() = default;
 };
 
 DEFINE_REGISTERER(SingletonBase);
@@ -750,8 +750,8 @@ DEFINE_REGISTERER(SingletonBase);
 
 class SingletonTest1 : public SingletonBase {
  public:
-  SingletonTest1() {}
-  ~SingletonTest1() override {}
+  SingletonTest1() = default;
+  ~SingletonTest1() override = default;
 
   const std::string& name() const override { return kSingletonTest1; }
 };
@@ -759,8 +759,8 @@ REGISTER_SINGLETON(SingletonTest1);
 
 class SingletonTest2 : public SingletonBase {
  public:
-  SingletonTest2() {}
-  ~SingletonTest2() override {}
+  SingletonTest2() = default;
+  ~SingletonTest2() override = default;
 
   const std::string& name() const override { return kSingletonTest2; }
 };
@@ -881,7 +881,7 @@ TEST(Typedef, CreateByName) {
 // implementation that has been injected into the object.
 class DependencyInterface {
  public:
-  virtual ~DependencyInterface() {}
+  virtual ~DependencyInterface() = default;
   virtual std::string const& Type() const = 0;
 };
 
