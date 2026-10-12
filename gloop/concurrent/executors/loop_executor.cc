@@ -52,7 +52,7 @@ class ABSL_SCOPED_LOCKABLE LoopExecutor::ScopedLoopRunningRegion {
     }
   }
 
-  ~ScopedLoopRunningRegion() ABSL_UNLOCK_FUNCTION() {}
+  ~ScopedLoopRunningRegion() ABSL_UNLOCK_FUNCTION() = default;
 
   // Returns true if this or another thread is already executing tasks
   // on behalf of the LoopExecutor.
