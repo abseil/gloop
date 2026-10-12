@@ -746,7 +746,7 @@ TEST(DefineStruct, ZeroCtor) {
 }
 
 TEST(DefineStruct, OneCtor) {
-  static_assert(!std::is_convertible<int, OneCtor>::value,
+  static_assert(!std::is_convertible_v<int, OneCtor>,
                 "Constructor should be explicit");
   {
     OneCtor obj(42);
