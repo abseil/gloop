@@ -457,8 +457,8 @@ bool OnlyWhitespace(absl::string_view s);
 // enough space had been available.)
 //
 // A drop-in replacement for the safe_snprintf() macro.
-int SafeSnprintf(char* str, size_t size, const char* format, ...)
-    ABSL_PRINTF_ATTRIBUTE(3, 4);
+ABSL_PRINTF_ATTRIBUTE(3, 4)
+int SafeSnprintf(char* str, size_t size, const char* format, ...);
 
 // Reads a line (terminated by delim) from file into *str. Reads delim from
 // file, but doesn't copy it into *str. Returns true if read a delim-terminated
