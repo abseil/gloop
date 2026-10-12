@@ -75,18 +75,6 @@ void TraceContext::RefTracer() { get_raw_tracer()->Ref(get_tracer_owner()); }
 void TraceContext::FromThread() { *this = *Current(); }
 
 void TraceContext::set_rpc_id(uint64_t rpc_id) {
-#if defined(__linux__) && !defined(__ANDROID__)
-  if (ABSL_PREDICT_FALSE(base::ktrace::ShouldAddKtraceAnnotations())) {
-    if (this == base::CurrentTraceContextNoAlloc()) {
-      // Sixteen bits of argument go into ktrace
-      // Change thread-local tracecontext.rpc_id_:ppid(marker)  pid(new rpc_id)
-      if (this->rpc_id_ != rpc_id) {
-        KTRACE_SYSCALL_A(base::ktrace::kKtraceTraceContextSetRPC4);
-        KTRACE_SYSCALL_B(base::ktrace::PackRpcidTo16(rpc_id_));
-      }
-    }
-  }
-#endif
   // If the rpc_id changes, our tracer_ is no longer valid.
   // Note that trace event listeners can span any number of rpc ids.
   AbandonTracer();
@@ -362,6 +350,20 @@ void TraceContext::UnsafeSetTracerAttributes(base::Tracer& tracer) {
   tracer.trace_id_ = global_id();
   tracer.trace_mask_.store(mask(), std::memory_order_relaxed);
 }
+
+#if defined(__linux__) && !defined(__ANDROID__)
+
+void TraceContext::CopyKtraceRpcIdTo(const TraceContext& to) const {
+  DCHECK(base::ktrace::ShouldAddKtraceAnnotations());
+  if (rpc_id_ != to.rpc_id_) {
+    // Sixteen bits of argument go into ktrace
+    // Change thread-local tracecontext.rpc_id_:ppid(marker)  pid(new rpc_id)
+    KTRACE_SYSCALL_A(base::ktrace::kKtraceTraceContextSetRPC4);
+    KTRACE_SYSCALL_B(base::ktrace::PackRpcidTo16(to.rpc_id_));
+  }
+}
+
+#endif  // __linux__ && !__ANDROID__
 
 namespace {
 // String representations of the trace levels.
