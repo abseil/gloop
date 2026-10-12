@@ -244,4 +244,49 @@ TEST(PortTest, TestSizedDelete) {
   }
 }
 
+#ifdef _WIN32
+// Verify that Windows SDK macros cleaned up by base/port.h do not collide with
+// C++ scoped identifiers or member functions, while unqualified Win32 API and
+// constant usages remain valid.
+enum class ScopedErrorEnum {
+  ERROR = 1,
+  DELETE = 2,
+  DIFFERENCE = 3,
+  REASON_OTHER = 4,
+  REASON_UNKNOWN = 5,
+  NO_ERROR = 6,
+  ERROR_NOT_FOUND = 7,
+  STATUS_PENDING = 8,
+};
+
+struct MessageHolder {
+  int GetMessage() const { return 42; }
+};
+
+TEST(PortTest, TestWindowsMacroCleanup) {
+  EXPECT_EQ(static_cast<int>(ScopedErrorEnum::ERROR), 1);
+  EXPECT_EQ(static_cast<int>(ScopedErrorEnum::DELETE), 2);
+  EXPECT_EQ(static_cast<int>(ScopedErrorEnum::DIFFERENCE), 3);
+  EXPECT_EQ(static_cast<int>(ScopedErrorEnum::REASON_OTHER), 4);
+  EXPECT_EQ(static_cast<int>(ScopedErrorEnum::REASON_UNKNOWN), 5);
+  EXPECT_EQ(static_cast<int>(ScopedErrorEnum::NO_ERROR), 6);
+  EXPECT_EQ(static_cast<int>(ScopedErrorEnum::ERROR_NOT_FOUND), 7);
+  EXPECT_EQ(static_cast<int>(ScopedErrorEnum::STATUS_PENDING), 8);
+
+  // Unqualified Win32 error/status constants should still be usable.
+  EXPECT_EQ(NO_ERROR, 0L);
+  EXPECT_EQ(ERROR_NOT_FOUND, 1168L);
+  EXPECT_EQ(STATUS_PENDING, static_cast<DWORD>(0x00000103L));
+  EXPECT_EQ(STILL_ACTIVE, STATUS_PENDING);
+
+  // Member function named GetMessage() and Win32 ::GetMessage declaration
+  // should both resolve without macro collision.
+  MessageHolder holder;
+  EXPECT_EQ(holder.GetMessage(), 42);
+  using Win32GetMessageFn = decltype(&::GetMessage);
+  static_assert(
+      std::is_same_v<Win32GetMessageFn, BOOL (*)(LPMSG, HWND, UINT, UINT)>);
+}
+#endif  // _WIN32
+
 }  // namespace port_test
