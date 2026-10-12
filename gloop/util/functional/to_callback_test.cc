@@ -193,8 +193,8 @@ TEST(FunctorToCallback, InvalidConversions) {
 TEST(FunctorToCallback, CopyOnlyFunctor) {
   // Copyable, but not movable.
   struct CopyOnlyFunctor {
-    CopyOnlyFunctor() {}
-    CopyOnlyFunctor(const CopyOnlyFunctor&) {}
+    CopyOnlyFunctor() = default;
+    CopyOnlyFunctor(const CopyOnlyFunctor&) = default;
     int operator()() { return 1; }
   };
 
@@ -210,7 +210,7 @@ TEST(FunctorToCallback, CopyOnlyFunctor) {
 TEST(FunctorToCallback, MoveOnlyFunctor) {
   // Movable, but not copyable.
   struct MoveOnlyFunctor {
-    MoveOnlyFunctor() {}
+    MoveOnlyFunctor() = default;
     MoveOnlyFunctor(MoveOnlyFunctor&&) = default;
     MoveOnlyFunctor& operator=(MoveOnlyFunctor&&) = default;
     int operator()() const { return 1; }
