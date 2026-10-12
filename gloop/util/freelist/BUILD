@@ -88,6 +88,23 @@ cc_test(
     ],
 )
 
+# Microbenchmarks for freelist implementations.
+cc_test(
+    name = "freelist_benchmark",
+    srcs = ["freelist_benchmark.cc"],
+    # Align benchmark and instantiated template functions to 64-byte cache
+    # line boundaries so small code changes do not shift hot loops or
+    # out-of-line virtual methods across 32B DSB / 64B I-cache boundaries.
+    copts = ["-falign-functions=64"],
+    deps = [
+        ":freelist",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/flags:flag",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 cc_library(
     name = "freelist_mock",
     testonly = 1,
