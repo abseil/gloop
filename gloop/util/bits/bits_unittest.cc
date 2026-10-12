@@ -60,7 +60,7 @@ absl::BitGen MakeTestBitGen() { return absl::BitGen(); }
 // Generate a random number of type T with the same range as that of T.
 template <typename T>
 T RandomBits(absl::BitGen* random) {
-  return absl::Uniform<typename std::make_unsigned<T>::type>(*random);
+  return absl::Uniform<std::make_unsigned_t<T>>(*random);
 }
 
 template <>
@@ -182,13 +182,13 @@ void BitsTest::RandomCopyBitsTester<DestType, SrcType, true>::Impl(
 template <typename DestType>
 void BitsTest::RandomCopyBitsTestDestType() {
   RandomCopyBitsTestTwoTypes<DestType, int8_t,
-                             !std::is_same<DestType, absl::uint128>::value>();
+                             !std::is_same_v<DestType, absl::uint128>>();
   RandomCopyBitsTestTwoTypes<DestType, uint8_t,
-                             !std::is_same<DestType, absl::uint128>::value>();
+                             !std::is_same_v<DestType, absl::uint128>>();
   RandomCopyBitsTestTwoTypes<DestType, int16_t,
-                             !std::is_same<DestType, absl::uint128>::value>();
+                             !std::is_same_v<DestType, absl::uint128>>();
   RandomCopyBitsTestTwoTypes<DestType, uint16_t,
-                             !std::is_same<DestType, absl::uint128>::value>();
+                             !std::is_same_v<DestType, absl::uint128>>();
   RandomCopyBitsTestTwoTypes<DestType, int32_t, true>();
   RandomCopyBitsTestTwoTypes<DestType, uint32_t, true>();
   RandomCopyBitsTestTwoTypes<DestType, int64_t, true>();
