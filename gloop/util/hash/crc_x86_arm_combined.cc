@@ -46,7 +46,7 @@ namespace {
 class CRC32AcceleratedX86ARMCombined : public CRC32 {
  public:
   CRC32AcceleratedX86ARMCombined() { this->is_default_ = false; }
-  ~CRC32AcceleratedX86ARMCombined() override {}
+  ~CRC32AcceleratedX86ARMCombined() override = default;
   void Extend(uint64_t* lo, uint64_t* absl_nullable hi, const void* bytes,
               int64_t length) const override;
   void ExtendByZeroes(uint64_t* lo, uint64_t* hi,

@@ -1856,8 +1856,8 @@ const int CRC::N_POLYS = std::size(crc_internal::poly_list);
 const struct CRC::Poly* const CRC::POLYS = crc_internal::poly_list;
 
 // Constructor and destructor for base class CRC.
-CRC::~CRC() {}
-CRC::CRC() {}
+CRC::~CRC() = default;
+CRC::CRC() = default;
 
 // The "constructor" for a CRC with a default polynomial.
 CRC* CRC::Default(int degree, size_t roll_length) {
