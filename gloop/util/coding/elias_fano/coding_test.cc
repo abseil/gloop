@@ -55,7 +55,7 @@ namespace testing {
 
 struct CodecAccess {
   // Encoder.
-  static void SetBit(Encoder* enc, BitPos pos) { return enc->SetBit(pos); }
+  static void SetBit(Encoder* enc, BitPos pos) { enc->SetBit(pos); }
   static size_t ForceFinalize(Encoder* enc) {
     enc->size_ = enc->opts_.size();
     enc->last_value_ = enc->opts_.max_value();
@@ -72,6 +72,10 @@ struct CodecAccess {
 };
 
 namespace {
+
+using ::fuzztest::Arbitrary;
+using ::fuzztest::BitFlagCombinationOf;
+using ::fuzztest::VectorOf;
 
 uint32_t NumOnes(absl::Span<const uint64_t> bitmap) {
   uint32_t res = 0;
@@ -121,16 +125,16 @@ class SelectIndexTest : public ::testing::Test {
     auto decoder = EncodeIndex(bitmap);
 
     int zeros = 0, ones = 0;
-    for (int mask_no = 0; mask_no < bitmap.size(); mask_no++) {
+    for (size_t mask_no = 0; mask_no < bitmap.size(); ++mask_no) {
       for (int bit_no = 0; bit_no < 64; bit_no++) {
         bool bit = bitmap[mask_no] & (1LL << bit_no);
         BitPos position(static_cast<uint64_t>(mask_no) * 64 + bit_no);
 
         if (bit) {
-          EXPECT_EQ(position, CodecAccess::SelectOne(*decoder, ones)) << ones;
+          EXPECT_EQ(CodecAccess::SelectOne(*decoder, ones), position) << ones;
           ones++;
         } else {
-          EXPECT_EQ(position, CodecAccess::SelectZero(*decoder, zeros))
+          EXPECT_EQ(CodecAccess::SelectZero(*decoder, zeros), position)
               << zeros;
           zeros++;
         }
@@ -217,10 +221,6 @@ TEST_F(SelectIndexTest, RandomTestsWithVariousDistribution) {
   TestBitmap(RandomBitmapWithJumps(1000000, 1000000));
 }
 
-using ::fuzztest::Arbitrary;
-using ::fuzztest::BitFlagCombinationOf;
-using ::fuzztest::VectorOf;
-
 void TestIteration(absl::Span<const char> mem,
                    absl::Span<const uint64_t> values) {
   auto dec = Decoder::Make(mem);
@@ -264,7 +264,7 @@ void CheckZeroIndexOps(absl::Span<const char> mem,
   size_t i = 0;
   for (auto x : *dec) {
     EXPECT_LE(i, values.size());
-    EXPECT_EQ(values[i], x);
+    EXPECT_EQ(x, values[i]);
     if (i > 0 && values[i - 1] < values[i]) {
       uint64_t diff = values[i] - values[i - 1];
       // Get a pseudorandom value in between 'values[i-1]' and 'values[i]'
@@ -352,8 +352,8 @@ TEST(CodingTest, DISABLED_MaxEncoding1111111110000____00001) {
   auto dec = Decoder::Make(mem);
   ABSL_EXPECT_OK(dec);
 
-  for (uint64_t i = 1; i < N; ++i) EXPECT_EQ(0, *dec->IteratorAt(i - 1));
-  EXPECT_EQ(M, *dec->IteratorAt(N - 1));
+  for (uint64_t i = 1; i < N; ++i) EXPECT_EQ(*dec->IteratorAt(i - 1), 0);
+  EXPECT_EQ(*dec->IteratorAt(N - 1), M);
 }
 
 TEST(CodingTest, DISABLED_MaxEncoding00000000000111111111____1) {
@@ -368,7 +368,7 @@ TEST(CodingTest, DISABLED_MaxEncoding00000000000111111111____1) {
 
   auto dec = Decoder::Make(mem);
   ABSL_EXPECT_OK(dec);
-  for (uint64_t i = 0; i < N; ++i) EXPECT_EQ(M, *dec->IteratorAt(i));
+  for (uint64_t i = 0; i < N; ++i) EXPECT_EQ(*dec->IteratorAt(i), M);
 }
 
 TEST(Finalize, Equivalent) {
@@ -382,7 +382,7 @@ TEST(Finalize, Equivalent) {
   absl::string_view e1_encoded = e1.Finalize();
   auto e2_encoded = e2.FinalizeToStr();
   ABSL_ASSERT_OK(e2_encoded);
-  ASSERT_EQ(e1_encoded, *e2_encoded);
+  ASSERT_EQ(*e2_encoded, e1_encoded);
 }
 
 namespace bm {
@@ -555,13 +555,13 @@ void Encode(benchmark::State* state) {
   while (state->KeepRunningBatch(size)) {
     Encoder enc(opts, absl::MakeSpan(encoded));
     for (auto v : dec) enc.Append(v);
-    CHECK(enc.Finalize().ok());
+    CHECK_OK(enc.Finalize());
     DoNotOptimize(enc);
   }
   // Get stats.
   Encoder enc(opts, absl::MakeSpan(encoded));
   for (auto v : dec) enc.Append(v);
-  CHECK(enc.Finalize().ok());
+  CHECK_OK(enc.Finalize());
   state->SetLabel(GetInfo(encoded)->DebugString());
 }
 CODING_BENCHMARK_WITH_EVERY_INDEX(Encode);
