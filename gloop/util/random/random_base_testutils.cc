@@ -31,6 +31,7 @@
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "absl/random/distributions.h"
 #include "absl/strings/str_format.h"
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/random/random_base.h"
@@ -852,7 +853,7 @@ void DifferenceTest(const char* names, class RandomBase* gen1,
 void StringTest(const char* name, class RandomBase* gen) {
   CHECK_GT(absl::GetFlag(FLAGS_max_string_len), 0);
   for (int i = 0; i < absl::GetFlag(FLAGS_string_test_count); ++i) {
-    int len = gen->Rand32() % absl::GetFlag(FLAGS_max_string_len);
+    int len = absl::Uniform(*gen, 0, absl::GetFlag(FLAGS_max_string_len));
     std::string s = gen->RandString(len);
 
     CHECK(s.length() == len);

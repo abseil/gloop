@@ -213,6 +213,7 @@ cc_library(
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/random:distributions",
         "@abseil-cpp//absl/strings:str_format",
     ],
 )
