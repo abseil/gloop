@@ -887,7 +887,7 @@ void ShowHash() {
 template <typename T>
 void GenericTupleTest() {
   ShowHash<T>();
-  GenericTupleTestNDimensions<T, std::tuple_size<T>::value>(T());
+  GenericTupleTestNDimensions<T, std::tuple_size_v<T>>(T());
 }
 
 TEST(Hash, EmptyTuple) { ShowHash<std::tuple<>>(); }
