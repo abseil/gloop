@@ -140,7 +140,9 @@ cc_library(
         "object_emulated.inc",
         "object_native.inc",
     ],
-    visibility = ["//visibility:public"],
+    visibility = [
+        "//visibility:public",
+    ],
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base:percpu",
