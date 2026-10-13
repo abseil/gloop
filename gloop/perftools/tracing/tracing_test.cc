@@ -286,10 +286,24 @@ TEST(TracingApiTest, TraceScopedSuspend) {
 TEST(TracingApiTest, TraceSendReceiveDefaultSequence) {
   StrictMock<MockTraceEventListener> mock;
   WithListener with(&mock);
-  EXPECT_CALL(mock, OnTraceSend(Eq("Send it"), MsgOrigin::kClient, 12345));
+  EXPECT_CALL(mock, OnTraceSend(Eq("Send it"), MsgOrigin::kClient, 12345,
+                                absl::StatusCode::kOk));
   TraceSend("Send it", MsgOrigin::kClient, 12345);
-  EXPECT_CALL(mock, OnTraceReceive(Eq("Got it"), MsgOrigin::kClient, 12345));
+  EXPECT_CALL(mock, OnTraceReceive(Eq("Got it"), MsgOrigin::kClient, 12345,
+                                   absl::StatusCode::kOk));
   TraceReceive("Got it", MsgOrigin::kClient, 12345);
+}
+
+TEST(TracingApiTest, TraceSendReceiveWithStatusCode) {
+  StrictMock<MockTraceEventListener> mock;
+  WithListener with(&mock);
+  EXPECT_CALL(mock, OnTraceSend(Eq("Send it"), MsgOrigin::kServer, 12345,
+                                absl::StatusCode::kCancelled));
+  TraceSend("Send it", MsgOrigin::kServer, 12345, absl::StatusCode::kCancelled);
+  EXPECT_CALL(mock, OnTraceReceive(Eq("Got it"), MsgOrigin::kClient, 12345,
+                                   absl::StatusCode::kDeadlineExceeded));
+  TraceReceive("Got it", MsgOrigin::kClient, 12345,
+               absl::StatusCode::kDeadlineExceeded);
 }
 
 TEST(TracingApiTest, TraceStartEndSession) {
@@ -303,18 +317,48 @@ TEST(TracingApiTest, TraceStartEndSession) {
   TraceSessionStart("Server", 54321, EndPoint::kStreamingServer);
 }
 
+TEST(TracingApiTest, TraceSessionEnd) {
+  StrictMock<MockTraceEventListener> mock;
+  WithListener with(&mock);
+  EXPECT_CALL(mock,
+              OnTraceSessionEnd(Eq("Client"), 12345, EndPoint::kStreamingClient,
+                                absl::StatusCode::kOk));
+  EXPECT_CALL(mock,
+              OnTraceSessionEnd(Eq("Server"), 54321, EndPoint::kStreamingServer,
+                                absl::StatusCode::kAborted));
+  TraceSessionEnd("Client", 12345, EndPoint::kStreamingClient);
+  TraceSessionEnd("Server", 54321, EndPoint::kStreamingServer,
+                  absl::StatusCode::kAborted);
+}
+
 TEST(TracingApiTest, TraceStreamingSendReceive) {
   StrictMock<MockTraceEventListener> mock;
   WithListener with(&mock);
-  EXPECT_CALL(mock, OnTraceStreamingSend(MsgOrigin::kClient, 12345,
-                                         MsgSequence{1}, MsgFlags::kHalfClose));
-  EXPECT_CALL(mock,
-              OnTraceStreamingReceive(MsgOrigin::kClient, 12345, MsgSequence{2},
-                                      MsgFlags::kControl));
+  EXPECT_CALL(
+      mock, OnTraceStreamingSend(MsgOrigin::kClient, 12345, MsgSequence{1},
+                                 MsgFlags::kHalfClose, absl::StatusCode::kOk));
+  EXPECT_CALL(
+      mock, OnTraceStreamingReceive(MsgOrigin::kClient, 12345, MsgSequence{2},
+                                    MsgFlags::kControl, absl::StatusCode::kOk));
   TraceStreamingSend(MsgOrigin::kClient, 12345, MsgSequence{1},
                      MsgFlags::kHalfClose);
   TraceStreamingReceive(MsgOrigin::kClient, 12345, MsgSequence{2},
                         MsgFlags::kControl);
+}
+
+TEST(TracingApiTest, TraceStreamingSendReceiveWithStatusCode) {
+  StrictMock<MockTraceEventListener> mock;
+  WithListener with(&mock);
+  EXPECT_CALL(mock, OnTraceStreamingSend(MsgOrigin::kServer, 12345,
+                                         MsgSequence{1}, MsgFlags::kHalfClose,
+                                         absl::StatusCode::kUnavailable));
+  EXPECT_CALL(mock, OnTraceStreamingReceive(MsgOrigin::kClient, 12345,
+                                            MsgSequence{2}, MsgFlags::kControl,
+                                            absl::StatusCode::kInternal));
+  TraceStreamingSend(MsgOrigin::kServer, 12345, MsgSequence{1},
+                     MsgFlags::kHalfClose, absl::StatusCode::kUnavailable);
+  TraceStreamingReceive(MsgOrigin::kClient, 12345, MsgSequence{2},
+                        MsgFlags::kControl, absl::StatusCode::kInternal);
 }
 
 }  // namespace

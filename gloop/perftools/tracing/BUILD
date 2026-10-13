@@ -263,6 +263,7 @@ cc_library(
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:tracing_internal",
         "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
     ],
 )
 
@@ -280,6 +281,7 @@ cc_test(
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:tracing_internal",
         "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
