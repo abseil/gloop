@@ -620,7 +620,7 @@ TYPED_TEST(StrongIntTest, TestMultiplyOperators) {
   // Test positive vs. positive multiplication.
   TEST_T_OP_NUM(9, *, V, 3);
   TEST_NUM_OP_T(V, 9, *, 3);
-  if constexpr (std::is_signed<V>::value) {
+  if constexpr (std::is_signed_v<V>) {
     // Test negative vs. positive multiplication.
     TEST_T_OP_NUM(-9, *, V, 3);
     TEST_NUM_OP_T(V, -9, *, 3);
@@ -637,7 +637,7 @@ TYPED_TEST(StrongIntTest, TestMultiplyOperators) {
   // Test multiplication by zero.
   TEST_T_OP_NUM(93, *, V, 0);
   TEST_NUM_OP_T(V, 93, *, 0);
-  if constexpr (std::is_signed<V>::value) {
+  if constexpr (std::is_signed_v<V>) {
     // Test multiplication by a negative.
     TEST_T_OP_NUM(93, *, V, -1);
     TEST_NUM_OP_T(V, 93, *, -1);
@@ -693,7 +693,7 @@ TYPED_TEST(StrongIntTest, TestDivideOperators) {
 
   // Test positive vs. positive division.
   TEST_T_OP_NUM(9, /, V, 3);
-  if constexpr (std::is_signed<V>::value) {
+  if constexpr (std::is_signed_v<V>) {
     // Test negative vs. positive division.
     TEST_T_OP_NUM(-9, /, V, 3);
     // Test positive vs. negative division.
@@ -1185,14 +1185,14 @@ TEST(StrongIntTest, TestConversion) {
 // static_cast<ValueType>(init_value) in the _constexpr_ constructor body.
 template <typename T>
 struct StrongIntTestHelper {
-  template <typename U, typename = typename std::enable_if<
-                            std::is_constructible<StrongInt<void, T>, U>::value,
-                            void>::type>
+  template <typename U,
+            typename = std::enable_if_t<
+                std::is_constructible_v<StrongInt<void, T>, U>, void>>
   StrongIntTestHelper(U x) {}  // NOLINT
 };
 
-static_assert(!std::is_convertible<void, StrongIntTestHelper<int>>::value, "");
-static_assert(std::is_convertible<int, StrongIntTestHelper<int>>::value, "");
+static_assert(!std::is_convertible_v<void, StrongIntTestHelper<int>>, "");
+static_assert(std::is_convertible_v<int, StrongIntTestHelper<int>>, "");
 
 // Test the IsStrongInt type trait.
 static_assert(IsStrongInt<StrongInt8>::value, "");
