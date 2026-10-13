@@ -20,6 +20,7 @@
 
 #include "gloop/perftools/tracing/tracing.h"
 
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/string_label.h"
@@ -93,13 +94,23 @@ TEST(TracingApiTest, Inactive) {
   TraceObserved(BarrierId{1245});
   TraceObserved(&wait1);
   TraceSend("Send it", MsgOrigin::kClient, MsgId{1});
+  TraceSend("Send it", MsgOrigin::kClient, MsgId{1},
+            absl::StatusCode::kInvalidArgument);
   TraceReceive("Praise", MsgOrigin::kServer, MsgId{1});
+  TraceReceive("Praise", MsgOrigin::kServer, MsgId{1},
+               absl::StatusCode::kInvalidArgument);
   TraceSessionStart("Start", MsgId{842}, EndPoint::kStreamingClient);
   TraceSessionEnd("End", MsgId{842}, EndPoint::kStreamingServer);
+  TraceSessionEnd("End", MsgId{842}, EndPoint::kStreamingServer,
+                  absl::StatusCode::kInvalidArgument);
   TraceStreamingSend(MsgOrigin::kClient, MsgId{842}, MsgSequence{0},
                      MsgFlags::kDefault);
   TraceStreamingSend(MsgOrigin::kServer, MsgId{842}, MsgSequence{17},
+                     MsgFlags::kDefault, absl::StatusCode::kInvalidArgument);
+  TraceStreamingSend(MsgOrigin::kServer, MsgId{842}, MsgSequence{17},
                      MsgFlags::kHalfClose);
+  TraceStreamingReceive(MsgOrigin::kClient, MsgId{842}, MsgSequence{0},
+                        MsgFlags::kDefault, absl::StatusCode::kInvalidArgument);
   TraceStreamingReceive(MsgOrigin::kClient, MsgId{842}, MsgSequence{0},
                         MsgFlags::kDefault);
   TraceStreamingReceive(MsgOrigin::kServer, MsgId{842}, MsgSequence{13},

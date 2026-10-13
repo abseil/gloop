@@ -441,6 +441,7 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/status",
     ],
 )
 
@@ -454,6 +455,7 @@ cc_test(
         ":tracing",
         ":tracing_base",
         "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:string_view",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

@@ -24,6 +24,7 @@
 #define THIRD_PARTY_GLOOP_PERFTOOLS_TRACING_TRACING_H_
 
 #include "absl/log/check.h"
+#include "absl/status/status.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
@@ -88,10 +89,16 @@ void TraceObserved(const void* object,
                    StringRef label = TraceSourceLocation::current());
 
 // Emits the `OnTraceSend()` event if the current thread is traced.
-void TraceSend(StringRef label, MsgOrigin origin, MsgId id);
+// The status code is typically set on outgoing responses only to
+// communicate any server-side error back to the client.
+void TraceSend(StringRef label, MsgOrigin origin, MsgId id,
+               absl::StatusCode status_code = absl::StatusCode::kOk);
 
 // Emits the `OnTraceReceive()` event if the current thread is traced.
-void TraceReceive(StringRef label, MsgOrigin origin, MsgId id);
+// The status code is typically set on incoming responses only, providing
+// a possible server-side or transport level error for the client.
+void TraceReceive(StringRef label, MsgOrigin origin, MsgId id,
+                  absl::StatusCode status_code = absl::StatusCode::kOk);
 
 // Emits the `OnTraceSessionStart()` event if the current thread is traced.
 // This event is emitted for session based protocols such as streaming RPCs.
@@ -105,19 +112,28 @@ void TraceSessionStart(StringRef label, MsgId id, EndPoint end_point);
 
 // Emits the `OnTraceSessionEnd()` event if the current thread is traced.
 // See `TraceSessionStart()` for documentation.
-void TraceSessionEnd(StringRef label, MsgId id, EndPoint end_point);
+// The status code can be set to indicate some server-side or client-side
+// error closing the channel, or sending half close message across the session.
+void TraceSessionEnd(StringRef label, MsgId id, EndPoint end_point,
+                     absl::StatusCode status_code = absl::StatusCode::kOk);
 
 // Emits the `OnTraceStreamingSend()` event if the current thread is traced.
 // 'id' contains the RPC id identifying the streaming message session and
 // `sequence` contains the sequence number for the message.
+// The status code is typically set on outgoing responses only to
+// communicate any server-side error back to the client.
 void TraceStreamingSend(MsgOrigin origin, MsgId id, MsgSequence sequence,
-                        MsgFlags flags);
+                        MsgFlags flags,
+                        absl::StatusCode status_code = absl::StatusCode::kOk);
 
 // Emits the `OnTraceStreamingReceive()` event if the current thread is traced.
 // 'id' contains the RPC id identifying the streaming message session and
 // `sequence` contains the sequence number for the message.
-void TraceStreamingReceive(MsgOrigin origin, MsgId id, MsgSequence sequence,
-                           MsgFlags flags);
+// The status code is typically set on incoming responses only, providing
+// a possible server-side or transport level error for the client.
+void TraceStreamingReceive(
+    MsgOrigin origin, MsgId id, MsgSequence sequence, MsgFlags flags,
+    absl::StatusCode status_code = absl::StatusCode::kOk);
 
 // `ScopedDisableTraceEventListeners` disables any trace events to be emitted.
 // This class is intended to be used by tracers and tracer implementations.
@@ -232,11 +248,13 @@ inline void TraceObserved(const void* object, StringRef label) {
   core::TraceObserved(object, label);
 }
 
-inline void TraceSend(StringRef label, MsgOrigin origin, MsgId id) {
+inline void TraceSend(StringRef label, MsgOrigin origin, MsgId id,
+                      absl::StatusCode status_code) {
   core::TraceSend(label, origin, id);
 }
 
-inline void TraceReceive(StringRef label, MsgOrigin origin, MsgId id) {
+inline void TraceReceive(StringRef label, MsgOrigin origin, MsgId id,
+                         absl::StatusCode status_code) {
   core::TraceReceive(label, origin, id);
 }
 
@@ -244,17 +262,19 @@ inline void TraceSessionStart(StringRef label, MsgId id, EndPoint end_point) {
   core::TraceSessionStart(label, id, end_point);
 }
 
-inline void TraceSessionEnd(StringRef label, MsgId id, EndPoint end_point) {
+inline void TraceSessionEnd(StringRef label, MsgId id, EndPoint end_point,
+                            absl::StatusCode status_code) {
   core::TraceSessionEnd(label, id, end_point);
 }
 
 inline void TraceStreamingSend(MsgOrigin origin, MsgId id, MsgSequence sequence,
-                               MsgFlags flags) {
+                               MsgFlags flags, absl::StatusCode status_code) {
   core::TraceStreamingSend(origin, id, sequence, flags);
 }
 
 inline void TraceStreamingReceive(MsgOrigin origin, MsgId id,
-                                  MsgSequence sequence, MsgFlags flags) {
+                                  MsgSequence sequence, MsgFlags flags,
+                                  absl::StatusCode status_code) {
   core::TraceStreamingReceive(origin, id, sequence, flags);
 }
 
