@@ -31,6 +31,7 @@
 #define THIRD_PARTY_GLOOP_PERFTOOLS_TRACING_TRACING_CORE_H_
 
 #include "absl/log/check.h"
+#include "absl/status/status.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
@@ -62,13 +63,15 @@ void TraceSignal(const void* barrier, StringRef label);
 // `sequence` contains the sequence number for the message if it is part of
 // a streaming request or response, or `kNoMsgSequence` if this message is
 // a unary RPC request or response for which we record no sequence number.
-void TraceSend(StringRef label, MsgOrigin origin, MsgId id);
+void TraceSend(StringRef label, MsgOrigin origin, MsgId id,
+               absl::StatusCode status_code);
 
 // Emits the `OnTraceReceive()` event if the current thread is traced.
 // `sequence` contains the sequence number for the message if it is part of
 // a streaming request or response, or `kNoMsgSequence` if this message is
 // a unary RPC request or response for which we record no sequence number.
-void TraceReceive(StringRef label, MsgOrigin origin, MsgId id);
+void TraceReceive(StringRef label, MsgOrigin origin, MsgId id,
+                  absl::StatusCode status_code);
 
 // Emits the `OnTraceSessionStart()` event if the current thread is traced.
 // See documentation in the public API in 'tracing.h' for more details.
@@ -76,17 +79,18 @@ void TraceSessionStart(StringRef label, MsgId id, EndPoint end_point);
 
 // Emits the `OnTraceSessionEnd()` event if the current thread is traced.
 // See documentation in the public API in 'tracing.h' for more details.
-void TraceSessionEnd(StringRef label, MsgId id, EndPoint end_point);
+void TraceSessionEnd(StringRef label, MsgId id, EndPoint end_point,
+                     absl::StatusCode status_code);
 
 // Emits the `OnTraceStreamingSend()` event if the current thread is traced.
 // See documentation in the public API in 'tracing.h' for more details.
 void TraceStreamingSend(MsgOrigin origin, MsgId id, MsgSequence sequence,
-                        MsgFlags flags);
+                        MsgFlags flags, absl::StatusCode status_code);
 
 // Emits the `OnTraceStreamingReceive()` event if the current thread is traced.
 // See documentation in the public API in 'tracing.h' for more details.
 void TraceStreamingReceive(MsgOrigin origin, MsgId id, MsgSequence sequence,
-                           MsgFlags flags);
+                           MsgFlags flags, absl::StatusCode status_code);
 
 // Emits the `OnTraceMark()` event if the current thread is traced.
 void TraceMark(StringRef label, TraceSourceLocation location);
@@ -153,15 +157,17 @@ inline void TraceSignal(const void* barrier, StringRef label) {
   }
 }
 
-inline void TraceSend(StringRef label, MsgOrigin origin, MsgId id) {
+inline void TraceSend(StringRef label, MsgOrigin origin, MsgId id,
+                      absl::StatusCode status_code) {
   if (auto* listener = internal::active_event_listener()) {
-    listener->OnTraceSend(label, origin, id);
+    listener->OnTraceSend(label, origin, id, status_code);
   }
 }
 
-inline void TraceReceive(StringRef label, MsgOrigin origin, MsgId id) {
+inline void TraceReceive(StringRef label, MsgOrigin origin, MsgId id,
+                         absl::StatusCode status_code) {
   if (auto* listener = internal::active_event_listener()) {
-    listener->OnTraceReceive(label, origin, id);
+    listener->OnTraceReceive(label, origin, id, status_code);
   }
 }
 
@@ -171,23 +177,25 @@ inline void TraceSessionStart(StringRef label, MsgId id, EndPoint end_point) {
   }
 }
 
-inline void TraceSessionEnd(StringRef label, MsgId id, EndPoint end_point) {
+inline void TraceSessionEnd(StringRef label, MsgId id, EndPoint end_point,
+                            absl::StatusCode status_code) {
   if (auto* listener = internal::active_event_listener()) {
-    listener->OnTraceSessionEnd(label, id, end_point);
+    listener->OnTraceSessionEnd(label, id, end_point, status_code);
   }
 }
 
 inline void TraceStreamingSend(MsgOrigin origin, MsgId id, MsgSequence sequence,
-                               MsgFlags flags) {
+                               MsgFlags flags, absl::StatusCode status_code) {
   if (auto* listener = internal::active_event_listener()) {
-    listener->OnTraceStreamingSend(origin, id, sequence, flags);
+    listener->OnTraceStreamingSend(origin, id, sequence, flags, status_code);
   }
 }
 
 inline void TraceStreamingReceive(MsgOrigin origin, MsgId id,
-                                  MsgSequence sequence, MsgFlags flags) {
+                                  MsgSequence sequence, MsgFlags flags,
+                                  absl::StatusCode status_code) {
   if (auto* listener = internal::active_event_listener()) {
-    listener->OnTraceStreamingReceive(origin, id, sequence, flags);
+    listener->OnTraceStreamingReceive(origin, id, sequence, flags, status_code);
   }
 }
 
