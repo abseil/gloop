@@ -23,6 +23,7 @@
 
 #include <cstddef>
 #include <iterator>
+#include <string>
 #include <type_traits>
 #include <utility>
 
@@ -77,11 +78,27 @@ inline constexpr bool kCanUseCCopy =
     std::is_trivially_copy_assignable_v<element_type_t<D>> &&
     std::is_same_v<element_type_t<D>, std::remove_cv_t<element_type_t<S>>>;
 
+// True iff `T` (ignoring cvref qualifiers) is a `std::basic_string`
+// specialization, whose `data()` buffer includes a trailing null terminator at
+// index `size()`.
+template <typename T>
+struct IsBasicString : std::false_type {};
+
+template <typename CharT, typename Traits, typename Alloc>
+struct IsBasicString<std::basic_string<CharT, Traits, Alloc>> : std::true_type {
+};
+
+template <typename T>
+inline constexpr bool kIsBasicString =
+    IsBasicString<std::remove_cv_t<std::remove_reference_t<T>>>::value;
+
 // absl::c_copy_n() counts elements, so `num_bytes` is an element count only
-// for 1-byte elements.
+// for 1-byte elements. `std::basic_string` sources are excluded because
+// callers may pass `src.size() + 1` to copy the trailing null terminator,
+// which is in bounds for `src.data()` but out of bounds for `src.begin()`.
 template <typename D, typename S>
 inline constexpr bool kCanUseCCopyN =
-    kCanUseCCopy<D, S> && sizeof(element_type_t<D>) == 1;
+    kCanUseCCopy<D, S> && sizeof(element_type_t<D>) == 1 && !kIsBasicString<S>;
 
 // Returns the total size in bytes of the elements in `c`.
 template <typename C>
@@ -89,21 +106,39 @@ constexpr size_t byte_size(const C& c) {
   return std::size(c) * sizeof(*std::data(c));
 }
 
+// Returns the total number of bytes that may be safely read from
+// `std::data(c)`. For `std::basic_string`, `data()` points to a buffer of
+// `size() + 1` elements that includes the trailing null terminator.
+template <typename C>
+constexpr size_t readable_byte_size(const C& c) {
+  if constexpr (kIsBasicString<C>) {
+    return (std::size(c) + 1) * sizeof(*std::data(c));
+  } else {
+    return byte_size(c);
+  }
+}
+
 // Enforces the contracts for the destination type and checks that `dest` holds
-// at least `num_bytes`. Writing a partial trailing element is permitted, as
-// with memcpy(), but is almost always a unit mix-up, so debug builds reject it.
+// at least `num_bytes` (bounded by `max_dest_bytes`). Writing a partial
+// trailing element is permitted, as with memcpy(), but is almost always a unit
+// mix-up, so debug builds reject it.
 template <typename D>
-void CheckDestPreconditions(D& dest, size_t num_bytes) {
+void CheckDestPreconditions(D& dest, size_t num_bytes, size_t max_dest_bytes) {
   static_assert(!std::is_const_v<element_type_t<D>>,
                 "Destination container must not have a const value type.");
   static_assert(std::is_trivial_v<element_type_t<D>>,
                 "Destination container must have a trivial value type.");
-  absl::base_internal::HardeningAssertLE(num_bytes, byte_size(dest));
+  absl::base_internal::HardeningAssertLE(num_bytes, max_dest_bytes);
   // Multidimensional arrays count in their innermost element type.
   using Scalar = std::remove_all_extents_t<element_type_t<D>>;
   DCHECK_EQ(num_bytes % sizeof(Scalar), 0)
       << "num_bytes (" << num_bytes << ") is not a multiple of the destination "
       << "element size (" << sizeof(Scalar) << ")";
+}
+
+template <typename D>
+void CheckDestPreconditions(D& dest, size_t num_bytes) {
+  CheckDestPreconditions(dest, num_bytes, byte_size(dest));
 }
 
 // Enforces the contracts for input types and checks that both `src` and `dest`
@@ -112,8 +147,19 @@ template <typename D, typename S>
 void CheckCopyPreconditions(D& dest, const S& src, size_t num_bytes) {
   static_assert(std::is_trivially_copyable_v<element_type_t<S>>,
                 "Source container must have a trivially copyable value type.");
-  absl::base_internal::HardeningAssertLE(num_bytes, byte_size(src));
-  CheckDestPreconditions(dest, num_bytes);
+  const size_t src_bytes = readable_byte_size(src);
+  absl::base_internal::HardeningAssertLE(num_bytes, src_bytes);
+  size_t dest_bytes = byte_size(dest);
+  if constexpr (kIsBasicString<D> && kIsBasicString<S> &&
+                sizeof(element_type_t<D>) == sizeof(element_type_t<S>)) {
+    // Modifying `dest.data()[dest.size()]` on a `std::basic_string` is
+    // well-defined when the value written is `CharT()`, which holds when the
+    // last copied element is `src`'s trailing null terminator.
+    if (num_bytes == src_bytes) {
+      dest_bytes = readable_byte_size(dest);
+    }
+  }
+  CheckDestPreconditions(dest, num_bytes, dest_bytes);
 }
 
 // Enforces the contracts for input types and checks that both `lhs` and `rhs`
@@ -127,8 +173,8 @@ constexpr void CheckComparePreconditions(const L& lhs, const R& rhs,
   static_assert(
       std::is_trivially_copyable_v<element_type_t<R>>,
       "Compared container must have a trivially copyable value type.");
-  absl::base_internal::HardeningAssertLE(num_bytes, byte_size(lhs));
-  absl::base_internal::HardeningAssertLE(num_bytes, byte_size(rhs));
+  absl::base_internal::HardeningAssertLE(num_bytes, readable_byte_size(lhs));
+  absl::base_internal::HardeningAssertLE(num_bytes, readable_byte_size(rhs));
 }
 
 }  // namespace c_mem_internal

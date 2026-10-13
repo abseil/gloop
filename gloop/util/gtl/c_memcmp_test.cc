@@ -162,6 +162,15 @@ TEST(CMemcmp, WorksForStringAndStringView) {
   EXPECT_EQ(c_memcmp(lhs, rhs), 0);
 }
 
+TEST(CMemcmp, WorksForStringWithNullTerminator) {
+  const std::string lhs = "ab";
+  const std::string rhs_with_nul("ab\0c", 4);
+  const std::string rhs_longer = "abc";
+  EXPECT_EQ(c_memcmp(lhs, rhs_with_nul, lhs.size() + 1), 0);
+  EXPECT_EQ(c_memcmp_n(lhs, rhs_with_nul, lhs.size() + 1), 0);
+  EXPECT_LT(c_memcmp(lhs, rhs_longer, lhs.size() + 1), 0);
+}
+
 TEST(CMemcmp, WorksForContainersOfDifferentElementTypes) {
   std::vector<int> lhs = {'a' | ('b' << 8) | ('c' << 16) | ('d' << 24)};
   std::vector<char> rhs = {'a', 'b', 'c', 'd'};
@@ -389,6 +398,21 @@ TEST(CMemcmpDeathTest, CrashesOnOutOfBoundsReadRhsForSingleByteTypes) {
     std::vector<char> rhs = {'a', 'b', 'c'};
     EXPECT_DEATH(c_memcmp(lhs, rhs, 4), "");
     EXPECT_DEATH(c_memcmp_n(lhs, rhs, 4), "");
+  } else {
+    GTEST_SKIP() << "hardening is disabled";
+  }
+#else
+  GTEST_SKIP() << "death tests are not supported";
+#endif
+}
+
+TEST(CMemcmpDeathTest, CrashesOnOutOfBoundsReadPastStringNullTerminator) {
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    const std::string lhs = "ab";
+    const std::string rhs = "abcd";
+    EXPECT_DEATH(c_memcmp(lhs, rhs, lhs.size() + 2), "");
+    EXPECT_DEATH(c_memcmp(rhs, lhs, lhs.size() + 2), "");
   } else {
     GTEST_SKIP() << "hardening is disabled";
   }

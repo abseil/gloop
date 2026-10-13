@@ -126,6 +126,17 @@ TEST(CMemInternal, CanUseCCopy) {
       !kCanUseCCopy<std::vector<NonAssignable>&, std::vector<NonAssignable>>);
 }
 
+TEST(CMemInternal, IsBasicString) {
+  static_assert(kIsBasicString<std::string>);
+  static_assert(kIsBasicString<const std::string&>);
+  static_assert(kIsBasicString<std::wstring&>);
+  static_assert(kIsBasicString<std::u16string>);
+
+  static_assert(!kIsBasicString<absl::string_view>);
+  static_assert(!kIsBasicString<std::vector<char>>);
+  static_assert(!kIsBasicString<char[4]>);
+}
+
 TEST(CMemInternal, CanUseCCopyN) {
   static_assert(kCanUseCCopyN<std::vector<char>&, std::vector<char>>);
   static_assert(kCanUseCCopyN<std::string&, absl::string_view>);
@@ -134,6 +145,8 @@ TEST(CMemInternal, CanUseCCopyN) {
   static_assert(!kCanUseCCopyN<std::vector<int>&, std::vector<int>>);
   static_assert(!kCanUseCCopyN<std::vector<char>&, std::vector<uint8_t>>);
   static_assert(!kCanUseCCopyN<std::vector<char>, std::vector<char>>);
+  static_assert(!kCanUseCCopyN<std::vector<char>&, std::string>);
+  static_assert(!kCanUseCCopyN<std::string&, std::string>);
 }
 
 TEST(CMemInternal, ByteSize) {
@@ -148,6 +161,20 @@ TEST(CMemInternal, ByteSize) {
 
   constexpr std::array<char, 0> kEmpty = {};
   static_assert(byte_size(kEmpty) == 0);
+}
+
+TEST(CMemInternal, ReadableByteSize) {
+  constexpr std::array<int, 3> kArr = {1, 2, 3};
+  static_assert(readable_byte_size(kArr) == 3 * sizeof(int));
+
+  constexpr absl::string_view kSv = "abc";
+  static_assert(readable_byte_size(kSv) == 3);
+
+  const std::string s = "abc";
+  EXPECT_EQ(readable_byte_size(s), 4);
+
+  const std::u16string u16 = u"ab";
+  EXPECT_EQ(readable_byte_size(u16), 3 * sizeof(char16_t));
 }
 
 }  // namespace

@@ -185,6 +185,21 @@ TEST(CMemcpy, WorksForStringAndStringView) {
   EXPECT_EQ(dest, "ab3");
 }
 
+TEST(CMemcpy, WorksForStringSourceWithNullTerminator) {
+  const std::string src = "ab";
+  std::array<char, 3> dest = {'1', '2', '3'};
+  c_memcpy(dest, src, src.size() + 1);
+  EXPECT_THAT(dest, ElementsAre('a', 'b', '\0'));
+}
+
+TEST(CMemcpy, WorksForStringToStringWithNullTerminator) {
+  const std::string src = "ab";
+  std::string dest = "12";
+  c_memcpy(dest, src, src.size() + 1);
+  EXPECT_EQ(dest, "ab");
+  EXPECT_EQ(dest.c_str()[2], '\0');
+}
+
 TEST(CMemcpy, WorksForContainersOfDifferentElementTypes) {
   std::vector<char> src = {'a', 'b', 'c', 'd'};
   std::vector<int> dest = {0};
@@ -402,6 +417,34 @@ TEST(CMemcpyDeathTest, CrashesOnOutOfBoundsReadForMultiByteTypes) {
     std::vector<int> src = {1, 2, 3};
     std::vector<int> dest = {0, 0, 0, 0};
     EXPECT_DEATH(c_memcpy(dest, src, 4 * sizeof(int)), "");
+  } else {
+    GTEST_SKIP() << "hardening is disabled";
+  }
+#else
+  GTEST_SKIP() << "death tests are not supported";
+#endif
+}
+
+TEST(CMemcpyDeathTest, CrashesOnOutOfBoundsReadPastStringNullTerminator) {
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    const std::string src = "ab";
+    std::array<char, 4> dest = {};
+    EXPECT_DEATH(c_memcpy(dest, src, src.size() + 2), "");
+  } else {
+    GTEST_SKIP() << "hardening is disabled";
+  }
+#else
+  GTEST_SKIP() << "death tests are not supported";
+#endif
+}
+
+TEST(CMemcpyDeathTest, CrashesOnStringToStringNonNullTerminatorOverflow) {
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    const std::string src = "abcd";
+    std::string dest = "123";
+    EXPECT_DEATH(c_memcpy(dest, src, 4), "");
   } else {
     GTEST_SKIP() << "hardening is disabled";
   }

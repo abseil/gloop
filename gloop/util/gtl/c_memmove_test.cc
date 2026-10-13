@@ -21,6 +21,7 @@
 #include "gloop/util/gtl/c_memmove.h"
 
 #include <array>
+#include <string>
 #include <vector>
 
 #include "absl/types/span.h"
@@ -68,6 +69,18 @@ TEST(CMemmoveTest, WorksForContainersOfSingleByteType) {
   std::array<char, 3> dest = {'1', '2', '3'};
   gtl::c_memmove(dest, src, 2);
   EXPECT_THAT(dest, ElementsAre('a', 'b', '3'));
+}
+
+TEST(CMemmoveTest, WorksForStringSourceWithNullTerminator) {
+  const std::string src = "ab";
+  std::array<char, 3> dest = {'1', '2', '3'};
+  gtl::c_memmove(dest, src, src.size() + 1);
+  EXPECT_THAT(dest, ElementsAre('a', 'b', '\0'));
+
+  std::string dest_str = "12";
+  gtl::c_memmove(dest_str, src, src.size() + 1);
+  EXPECT_EQ(dest_str, "ab");
+  EXPECT_EQ(dest_str.c_str()[2], '\0');
 }
 
 TEST(CMemmoveTest, WorksForContainersOfDifferentElementTypes) {
@@ -150,6 +163,32 @@ TEST(CMemmoveDeathTest, CrashesOnOutOfBoundsWrite) {
 TEST(CMemmoveDeathTest, CrashesOnOutOfBoundsRead) {
   std::vector<char> src = {'a', 'b', 'c'};
   std::vector<char> dest = {'1', '2', '3', '4'};
+  (void)src;
+  (void)dest;
+
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    EXPECT_DEATH(gtl::c_memmove(dest, src, 4), "");
+  }
+#endif
+}
+
+TEST(CMemmoveDeathTest, CrashesOnOutOfBoundsReadPastStringNullTerminator) {
+  const std::string src = "ab";
+  std::array<char, 4> dest = {};
+  (void)src;
+  (void)dest;
+
+#if GTEST_HAS_DEATH_TEST
+  if (IsHardened()) {
+    EXPECT_DEATH(gtl::c_memmove(dest, src, src.size() + 2), "");
+  }
+#endif
+}
+
+TEST(CMemmoveDeathTest, CrashesOnStringToStringNonNullTerminatorOverflow) {
+  const std::string src = "abcd";
+  std::string dest = "123";
   (void)src;
   (void)dest;
 
