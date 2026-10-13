@@ -63,9 +63,9 @@ using IsReadableByteRange = IsReadableByteRangeImpl<C>;
 template <typename C,
           // Abseil and util/endian are friends owned by the same team.
           // NOLINTNEXTLINE(abseil-no-internal-dependencies)
-          bool = absl::container_algorithm_internal::
-                     IsPermissibleDestinationRange<C>::value &&
-                 HasDataAndSize<std::add_lvalue_reference_t<C>>::value>
+          bool =
+              absl::container_algorithm_internal::IsBorrowedRange<C>::value &&
+              HasDataAndSize<std::add_lvalue_reference_t<C>>::value>
 struct IsWritableByteRangeImpl : std::false_type {};
 
 template <typename C>
