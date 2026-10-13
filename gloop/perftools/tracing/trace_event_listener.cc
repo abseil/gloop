@@ -24,6 +24,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
@@ -57,6 +58,33 @@ void TraceEventListener::OnTraceEndRegion() {}
 void TraceEventListener::OnTraceControlFlow(StringRef, ControlFlowType,
                                             ControlFlowId,
                                             ControlFlowSequence) {}
+
+// TODO: b/573156798 - default to old methods until complete.
+void TraceEventListener::OnTraceSend(StringRef label, MsgOrigin origin,
+                                     MsgId msg_id, absl::StatusCode) {
+  OnTraceSend(label, origin, msg_id);
+}
+void TraceEventListener::OnTraceReceive(StringRef label, MsgOrigin origin,
+                                        MsgId msg_id, absl::StatusCode) {
+  OnTraceReceive(label, origin, msg_id);
+}
+void TraceEventListener::OnTraceSessionEnd(StringRef label, MsgId msg_id,
+                                           EndPoint end_point,
+                                           absl::StatusCode) {
+  OnTraceSessionEnd(label, msg_id, end_point);
+}
+void TraceEventListener::OnTraceStreamingSend(MsgOrigin origin, MsgId msg_id,
+                                              MsgSequence sequence,
+                                              MsgFlags flags,
+                                              absl::StatusCode) {
+  OnTraceStreamingSend(origin, msg_id, sequence, flags);
+}
+void TraceEventListener::OnTraceStreamingReceive(MsgOrigin origin, MsgId msg_id,
+                                                 MsgSequence sequence,
+                                                 MsgFlags flags,
+                                                 absl::StatusCode) {
+  OnTraceStreamingReceive(origin, msg_id, sequence, flags);
+}
 
 TraceEventListener* TraceEventListener::GetBridgingEventListener(StringRef) {
   return nullptr;

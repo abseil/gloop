@@ -26,6 +26,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
@@ -269,12 +270,24 @@ class TraceEventListener {
   virtual void OnTraceSend(StringRef label, MsgOrigin origin, MsgId id);
   virtual void OnTraceReceive(StringRef label, MsgOrigin origin, MsgId id);
 
+  // TraceSend / TraceReceive events including a status code.
+  // The default implementation invokes the above methods.
+  virtual void OnTraceSend(StringRef label, MsgOrigin origin, MsgId id,
+                           absl::StatusCode status_code);
+  virtual void OnTraceReceive(StringRef label, MsgOrigin origin, MsgId id,
+                              absl::StatusCode status_code);
+
   // `SessionStart()` and `SessionFinish()` events are emitted when client and
   // server sessions start and finish for some given client/server session.
   // `EndPoint` identifies the end point and type of session.
   virtual void OnTraceSessionStart(StringRef label, MsgId id,
                                    EndPoint end_point);
   virtual void OnTraceSessionEnd(StringRef label, MsgId id, EndPoint end_point);
+
+  // OnTraceSessionEnd event including a status code.
+  // The default implementation invokes the above method.
+  virtual void OnTraceSessionEnd(StringRef label, MsgId id, EndPoint end_point,
+                                 absl::StatusCode status_code);
 
   // `StreamingSend()` and `StreamingReceive()` events are emitted when
   // streaming request / response messages are sent or received. `id` uniquely
@@ -286,6 +299,15 @@ class TraceEventListener {
                                     MsgFlags flags);
   virtual void OnTraceStreamingReceive(MsgOrigin origin, MsgId id,
                                        MsgSequence seq, MsgFlags flags);
+
+  // TraceStreamingSend / TraceStreamingReceive events including a status code.
+  // The default implementation invokes the above methods.
+  virtual void OnTraceStreamingSend(MsgOrigin origin, MsgId id, MsgSequence seq,
+                                    MsgFlags flags,
+                                    absl::StatusCode status_code);
+  virtual void OnTraceStreamingReceive(MsgOrigin origin, MsgId id,
+                                       MsgSequence seq, MsgFlags flags,
+                                       absl::StatusCode status_code);
 
   // The `Mark` event is emitted typically from an application annotation to
   // mark a specific condition or location in the executing code. For example,

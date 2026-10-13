@@ -156,11 +156,17 @@ class Mux final : public TraceEventListener {
   }
 
   void OnTraceSend(StringRef label, MsgOrigin origin, MsgId id) final {
-    Dispatch(&TraceEventListener::OnTraceSend, label, origin, id);
+    // TODO: b/998670467 - remove explicit disambiguation
+    using Fn = void (TraceEventListener::*)(StringRef, MsgOrigin, MsgId);
+    Dispatch(static_cast<Fn>(&TraceEventListener::OnTraceSend), label, origin,
+             id);
   }
 
   void OnTraceReceive(StringRef label, MsgOrigin origin, MsgId id) final {
-    Dispatch(&TraceEventListener::OnTraceReceive, label, origin, id);
+    // TODO: b/998670467 - remove explicit disambiguation
+    using Fn = void (TraceEventListener::*)(StringRef, MsgOrigin, MsgId);
+    Dispatch(static_cast<Fn>(&TraceEventListener::OnTraceReceive), label,
+             origin, id);
   }
 
   void OnTraceSessionStart(StringRef label, MsgId id,
@@ -169,19 +175,28 @@ class Mux final : public TraceEventListener {
   }
 
   void OnTraceSessionEnd(StringRef label, MsgId id, EndPoint end_point) final {
-    RDispatch(&TraceEventListener::OnTraceSessionEnd, label, id, end_point);
+    // TODO: b/998670467 - remove explicit disambiguation
+    using Fn = void (TraceEventListener::*)(StringRef, MsgId, EndPoint);
+    RDispatch(static_cast<Fn>(&TraceEventListener::OnTraceSessionEnd), label,
+              id, end_point);
   }
 
   void OnTraceStreamingSend(MsgOrigin origin, MsgId id, MsgSequence sequence,
                             MsgFlags flags) final {
-    Dispatch(&TraceEventListener::OnTraceStreamingSend, origin, id, sequence,
-             flags);
+    // TODO: b/998670467 - remove explicit disambiguation
+    using Fn =
+        void (TraceEventListener::*)(MsgOrigin, MsgId, MsgSequence, MsgFlags);
+    Dispatch(static_cast<Fn>(&TraceEventListener::OnTraceStreamingSend), origin,
+             id, sequence, flags);
   }
 
   void OnTraceStreamingReceive(MsgOrigin origin, MsgId id, MsgSequence sequence,
                                MsgFlags flags) final {
-    Dispatch(&TraceEventListener::OnTraceStreamingReceive, origin, id, sequence,
-             flags);
+    // TODO: b/998670467 - remove explicit disambiguation
+    using Fn =
+        void (TraceEventListener::*)(MsgOrigin, MsgId, MsgSequence, MsgFlags);
+    Dispatch(static_cast<Fn>(&TraceEventListener::OnTraceStreamingReceive),
+             origin, id, sequence, flags);
   }
 
   void OnTraceControlFlow(StringRef label, ControlFlowType type,

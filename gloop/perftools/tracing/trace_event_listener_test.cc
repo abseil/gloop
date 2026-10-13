@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
@@ -105,23 +106,58 @@ TEST(TraceEventListener, InvokeAllEvents) {
   listener.OnTraceObserved(BarrierId{3412442}, "Peekaboo");
   listener.OnTraceSignal(BarrierId{7648223}, "Ping");
 
-  listener.OnTraceSend("Send it!", MsgOrigin::kClient, MsgId{3332});
-  listener.OnTraceReceive("Send it!", MsgOrigin::kServer, MsgId{3332});
+  listener.OnTraceSend("Send it!", MsgOrigin::kClient, MsgId{3332},
+                       absl::StatusCode::kOk);
+  listener.OnTraceReceive("Send it!", MsgOrigin::kServer, MsgId{3332},
+                          absl::StatusCode::kOk);
 
   listener.OnTraceSessionStart("Start Client", MsgId{842},
                                EndPoint::kStreamingClient);
   listener.OnTraceStreamingSend(MsgOrigin::kClient, MsgId{842}, MsgSequence{0},
-                                MsgFlags::kDefault);
+                                MsgFlags::kDefault, absl::StatusCode::kOk);
   listener.OnTraceStreamingReceive(MsgOrigin::kServer, MsgId{842},
-                                   MsgSequence{0}, MsgFlags::kDefault);
+                                   MsgSequence{0}, MsgFlags::kDefault,
+                                   absl::StatusCode::kOk);
   listener.OnTraceSessionEnd("Finish Client", MsgId{842},
-                             EndPoint::kStreamingClient);
+                             EndPoint::kStreamingClient, absl::StatusCode::kOk);
 
   listener.OnTraceMark("Not Marc", TraceSourceLocation());
   listener.OnTraceBeginRegion("Here, not there", TraceSourceLocation());
   listener.OnTraceEndRegion();
   listener.OnTraceControlFlow("Flow", ControlFlowType::kSchedule,
                               ControlFlowId{3421}, ControlFlowSequence(1));
+}
+
+TEST(TraceEventListener, StatusCodeMethodsInvokeLegacyMethodsByDefault) {
+  StrictMock<MockTraceEventListener> mock;
+  // MockTraceEventListener only mocks the legacy overloads, so we invoke the
+  // status code overloads through the base class to reach the defaults.
+  TraceEventListener& listener = mock;
+
+  EXPECT_CALL(mock, OnTraceSend(Eq("Send"), MsgOrigin::kClient, MsgId{1}));
+  listener.OnTraceSend("Send", MsgOrigin::kClient, MsgId{1},
+                       absl::StatusCode::kOk);
+
+  EXPECT_CALL(mock, OnTraceReceive(Eq("Recv"), MsgOrigin::kServer, MsgId{2}));
+  listener.OnTraceReceive("Recv", MsgOrigin::kServer, MsgId{2},
+                          absl::StatusCode::kCancelled);
+
+  EXPECT_CALL(
+      mock, OnTraceSessionEnd(Eq("End"), MsgId{3}, EndPoint::kStreamingClient));
+  listener.OnTraceSessionEnd("End", MsgId{3}, EndPoint::kStreamingClient,
+                             absl::StatusCode::kOk);
+
+  EXPECT_CALL(mock, OnTraceStreamingSend(MsgOrigin::kClient, MsgId{4},
+                                         MsgSequence{5}, MsgFlags::kDefault));
+  listener.OnTraceStreamingSend(MsgOrigin::kClient, MsgId{4}, MsgSequence{5},
+                                MsgFlags::kDefault, absl::StatusCode::kOk);
+
+  EXPECT_CALL(mock,
+              OnTraceStreamingReceive(MsgOrigin::kServer, MsgId{6},
+                                      MsgSequence{7}, MsgFlags::kDefault));
+  listener.OnTraceStreamingReceive(MsgOrigin::kServer, MsgId{6}, MsgSequence{7},
+                                   MsgFlags::kDefault,
+                                   absl::StatusCode::kInternal);
 }
 
 TEST(TraceEventListenerPtr, ConfirmValidUniquePtrImplementation) {
