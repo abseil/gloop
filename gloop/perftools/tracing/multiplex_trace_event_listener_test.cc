@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/test_only_access.h"
@@ -102,6 +103,16 @@ TEST(MultiplexTraceEventListener, Basics) {
               OnTraceReceive(Eq("Send it!"), MsgOrigin::kServer, MsgId{3332}));
   EXPECT_CALL(second,
               OnTraceReceive(Eq("Send it!"), MsgOrigin::kServer, MsgId{3332}));
+  EXPECT_CALL(first, OnTraceSend(Eq("Send it!"), MsgOrigin::kClient,
+                                 MsgId{3332}, absl::StatusCode::kCancelled));
+  EXPECT_CALL(second, OnTraceSend(Eq("Send it!"), MsgOrigin::kClient,
+                                  MsgId{3332}, absl::StatusCode::kCancelled));
+  EXPECT_CALL(first,
+              OnTraceReceive(Eq("Send it!"), MsgOrigin::kServer, MsgId{3332},
+                             absl::StatusCode::kDeadlineExceeded));
+  EXPECT_CALL(second,
+              OnTraceReceive(Eq("Send it!"), MsgOrigin::kServer, MsgId{3332},
+                             absl::StatusCode::kDeadlineExceeded));
 
   EXPECT_CALL(first, OnTraceSessionStart(Eq("Start"), MsgId{842},
                                          EndPoint::kStreamingClient));
@@ -111,6 +122,12 @@ TEST(MultiplexTraceEventListener, Basics) {
                                         EndPoint::kStreamingServer));
   EXPECT_CALL(first, OnTraceSessionEnd(Eq("End"), MsgId{842},
                                        EndPoint::kStreamingServer));
+  EXPECT_CALL(second, OnTraceSessionEnd(Eq("End"), MsgId{842},
+                                        EndPoint::kStreamingServer,
+                                        absl::StatusCode::kUnavailable));
+  EXPECT_CALL(first, OnTraceSessionEnd(Eq("End"), MsgId{842},
+                                       EndPoint::kStreamingServer,
+                                       absl::StatusCode::kUnavailable));
 
   EXPECT_CALL(first,
               OnTraceStreamingSend(MsgOrigin::kClient, MsgId{842},
@@ -124,6 +141,18 @@ TEST(MultiplexTraceEventListener, Basics) {
   EXPECT_CALL(second,
               OnTraceStreamingReceive(MsgOrigin::kClient, MsgId{842},
                                       MsgSequence{2}, MsgFlags::kControl));
+  EXPECT_CALL(first, OnTraceStreamingSend(MsgOrigin::kClient, MsgId{842},
+                                          MsgSequence{1}, MsgFlags::kHalfClose,
+                                          absl::StatusCode::kAborted));
+  EXPECT_CALL(second, OnTraceStreamingSend(MsgOrigin::kClient, MsgId{842},
+                                           MsgSequence{1}, MsgFlags::kHalfClose,
+                                           absl::StatusCode::kAborted));
+  EXPECT_CALL(first, OnTraceStreamingReceive(MsgOrigin::kClient, MsgId{842},
+                                             MsgSequence{2}, MsgFlags::kControl,
+                                             absl::StatusCode::kInternal));
+  EXPECT_CALL(second, OnTraceStreamingReceive(
+                          MsgOrigin::kClient, MsgId{842}, MsgSequence{2},
+                          MsgFlags::kControl, absl::StatusCode::kInternal));
 
   EXPECT_CALL(first,
               OnTraceMark(Eq("Not Marc"), EqSourceLocation("foo.cc", 11)));
@@ -155,14 +184,26 @@ TEST(MultiplexTraceEventListener, Basics) {
   listener.OnTraceSignal(BarrierId{7648223}, "Ping");
   listener.OnTraceSend("Send it!", MsgOrigin::kClient, MsgId{3332});
   listener.OnTraceReceive("Send it!", MsgOrigin::kServer, MsgId{3332});
+  listener.OnTraceSend("Send it!", MsgOrigin::kClient, MsgId{3332},
+                       absl::StatusCode::kCancelled);
+  listener.OnTraceReceive("Send it!", MsgOrigin::kServer, MsgId{3332},
+                          absl::StatusCode::kDeadlineExceeded);
 
   listener.OnTraceSessionStart("Start", MsgId{842}, EndPoint::kStreamingClient);
   listener.OnTraceSessionEnd("End", MsgId{842}, EndPoint::kStreamingServer);
+  listener.OnTraceSessionEnd("End", MsgId{842}, EndPoint::kStreamingServer,
+                             absl::StatusCode::kUnavailable);
 
   listener.OnTraceStreamingSend(MsgOrigin::kClient, MsgId{842}, MsgSequence{1},
                                 MsgFlags::kHalfClose);
   listener.OnTraceStreamingReceive(MsgOrigin::kClient, MsgId{842},
                                    MsgSequence{2}, MsgFlags::kControl);
+  listener.OnTraceStreamingSend(MsgOrigin::kClient, MsgId{842}, MsgSequence{1},
+                                MsgFlags::kHalfClose,
+                                absl::StatusCode::kAborted);
+  listener.OnTraceStreamingReceive(MsgOrigin::kClient, MsgId{842},
+                                   MsgSequence{2}, MsgFlags::kControl,
+                                   absl::StatusCode::kInternal);
 
   listener.OnTraceMark("Not Marc", SourceLocation("foo.cc", 11));
   listener.OnTraceBeginRegion("Here, not there", SourceLocation("foo.cc", 12));
