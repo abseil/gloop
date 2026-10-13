@@ -689,8 +689,8 @@ TEST_F(ReffedPtrAssignTest, StdMove) {
 }
 
 TEST_F(ReffedPtrAssignTest, NoThrowMoves) {
-  static_assert(std::is_nothrow_move_constructible<reffed_ptr<RC>>::value, "");
-  static_assert(std::is_nothrow_move_assignable<reffed_ptr<RC>>::value, "");
+  static_assert(std::is_nothrow_move_constructible_v<reffed_ptr<RC>>, "");
+  static_assert(std::is_nothrow_move_assignable_v<reffed_ptr<RC>>, "");
 
   // Since reffed_ptr is nothrow move constructible, vector resizes should move
   // rather than copy reffed_ptrs.
