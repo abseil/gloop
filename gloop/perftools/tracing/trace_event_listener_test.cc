@@ -25,6 +25,7 @@
 
 #include "absl/status/status.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
+#include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
 #include "gmock/gmock.h"
@@ -49,6 +50,20 @@ class DefaultTraceEventListener : public TraceEventListener {
  public:
   TraceEventListener* GetEventListener(SyncId) override { return this; }
   void ReleaseEventListener() override {}
+};
+
+// Mocks only the legacy overloads; the status code overloads use the
+// TraceEventListener defaults.
+// TODO: b/573156798 - remove once old methods are deleted.
+class LegacyTraceEventListener : public DefaultTraceEventListener {
+ public:
+  MOCK_METHOD(void, OnTraceSend, (StringRef, MsgOrigin, MsgId));
+  MOCK_METHOD(void, OnTraceReceive, (StringRef, MsgOrigin, MsgId));
+  MOCK_METHOD(void, OnTraceSessionEnd, (StringRef, MsgId, EndPoint));
+  MOCK_METHOD(void, OnTraceStreamingSend,
+              (MsgOrigin, MsgId, MsgSequence, MsgFlags));
+  MOCK_METHOD(void, OnTraceStreamingReceive,
+              (MsgOrigin, MsgId, MsgSequence, MsgFlags));
 };
 
 TEST(TraceEventListener, Contains) {
@@ -129,8 +144,8 @@ TEST(TraceEventListener, InvokeAllEvents) {
 }
 
 TEST(TraceEventListener, StatusCodeMethodsInvokeLegacyMethodsByDefault) {
-  StrictMock<MockTraceEventListener> mock;
-  // MockTraceEventListener only mocks the legacy overloads, so we invoke the
+  StrictMock<LegacyTraceEventListener> mock;
+  // LegacyTraceEventListener only mocks the legacy overloads, so we invoke the
   // status code overloads through the base class to reach the defaults.
   TraceEventListener& listener = mock;
 
