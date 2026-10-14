@@ -40,10 +40,12 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <ostream>
 #include <string>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/base/optimization.h"
 #include "absl/log/check.h"
 #include "absl/numeric/bits.h"
@@ -67,6 +69,11 @@ class InlinedBitVector {
   // Construct a new bit vector that is "num_bits" bits in size.  All
   // bits are initially set to 0.
   explicit InlinedBitVector(size_t num_bits);
+
+  // Constructs a bit vector with "num_bits" bits initialized from "bytes".
+  // "bytes.size()" must equal "(num_bits + 7) / 8". Any trailing bits in the
+  // last byte beyond "num_bits" are ignored.
+  InlinedBitVector(size_t num_bits, absl::Span<const uint8_t> bytes);
 
   ~InlinedBitVector();
 
@@ -149,6 +156,11 @@ class InlinedBitVector {
   inline bool IsIntersectionNonEmpty(
       const InlinedBitVector<OtherN>& other) const;
 
+  // Returns true if "this" is a subset of "other" (i.e. every bit set in "this"
+  // is also set in "other").
+  template <size_t OtherN>
+  inline bool IsSubsetOf(const InlinedBitVector<OtherN>& other) const;
+
   // Sets "this" to be the difference of "this" and "other". If "other" is
   // smaller than "this", all the missing bits in "other" are assumed to be
   // zero.  The size of this is never changed by this operation (higher order
@@ -177,6 +189,18 @@ class InlinedBitVector {
   // REQUIRES: `limit <= size()`.
   bool FindNextSetBitBeforeLimit(size_t* index, size_t limit) const;
 
+  // If *index < size() and *index >= 0, finds the highest offset <= "*index"
+  // that has its bit set. If found, sets "*index" to this offset and returns
+  // true. Otherwise, does not modify "*index" and returns false.
+  //
+  // To iterate backwards over set bits, avoid the unsigned size_t:
+  //   for (int64_t index = static_cast<int64_t>(bv.size()) - 1;
+  //        bv.FindPreviousSetBit(&index);
+  //        --index) {
+  //     DoSomething(index);
+  //   }
+  bool FindPreviousSetBit(int64_t* index) const;
+
   // Finds the first offset >= "*index" that does NOT have its bit set. If
   // found, sets "*index" to this offset and returns true. Otherwise, does not
   // modify "*index" and returns false.
@@ -190,21 +214,17 @@ class InlinedBitVector {
   std::string ToString() const;
 
   // For clients that want access to the underlying array of words
-  // (e.g. for processing the bits 32 at a time).  The values are
-  // arranged so that bits 0..31 are in word 0, bits 32..63 are in
-  // word 1, etc., with the bits oriented so that bit 0 in each word
-  // holds the lowest index in that word and bit 31 holding the
-  // highest index in the word.  If "size()" is not a multiple of 32,
-  // then the last word is only partially filled, holding "size() %
-  // 32" meaningful bits, the remaining ones will be set to 0.
-  //
-  // Example:
-  //   const uint32_t* bits = bv.underlying_array();
-  //   const size_t nwords = (bv.size() + 31) / 32;
-  //   for (size_t w = 0; w < nwords; w++) {
-  //     fprintf(stderr, "Word %d: %u\n", (int)w, bits[w]);
-  //   }
+  // (e.g. for processing the bits 32 at a time).
+  ABSL_DEPRECATED("Use bytes() instead.")
   const uint32_t* underlying_array() const { return words(); }
+
+  // Returns a Span over the underlying bytes containing the bits.
+  // The number of bytes is (size() + 7) / 8. Trailing bits in the last byte
+  // beyond size() are guaranteed to be zero.
+  absl::Span<const uint8_t> bytes() const {
+    return absl::Span<const uint8_t>(reinterpret_cast<const uint8_t*>(words()),
+                                     (size() + 7) / 8);
+  }
 
   template <typename H>
   friend H AbslHashValue(H h, const InlinedBitVector& vec) {
@@ -387,6 +407,23 @@ InlinedBitVector<NBITS>::InlinedBitVector(size_t num_bits) {
 }
 
 template <size_t NBITS>
+InlinedBitVector<NBITS>::InlinedBitVector(size_t num_bits,
+                                          absl::Span<const uint8_t> bytes)
+    : InlinedBitVector(num_bits) {
+  DCHECK_EQ(bytes.size(), (num_bits + 7) / 8);
+  if (!bytes.empty()) {
+    std::memcpy(reinterpret_cast<char*>(mutable_words()), bytes.data(),
+                bytes.size());
+    const size_t num_trailing_bits = num_bits % 8;
+    if (num_trailing_bits > 0) {
+      const uint8_t mask = (1u << num_trailing_bits) - 1;
+      reinterpret_cast<uint8_t*>(mutable_words())[bytes.size() - 1] &= mask;
+    }
+  }
+  DCHECK(Invariants());
+}
+
+template <size_t NBITS>
 inline size_t InlinedBitVector<NBITS>::count() const {
   size_t r = 0;
   for (uint32_t w : word_span()) r += absl::popcount(w);
@@ -559,6 +596,17 @@ bool InlinedBitVector<NBITS>::FindNextSetBitBeforeLimit(size_t* index,
 }
 
 template <size_t NBITS>
+bool InlinedBitVector<NBITS>::FindPreviousSetBit(int64_t* index) const {
+  if (*index < 0 || static_cast<size_t>(*index) >= size()) return false;
+  size_t idx = static_cast<size_t>(*index);
+  if (ConstBitmap32(words(), size()).FindPreviousSetBit(&idx)) {
+    *index = static_cast<int64_t>(idx);
+    return true;
+  }
+  return false;
+}
+
+template <size_t NBITS>
 bool InlinedBitVector<NBITS>::FindNextUnsetBit(size_t* index) const {
   return Bitmap32::FindNextUnsetBitInVector(words(), index, size());
 }
@@ -626,6 +674,26 @@ bool InlinedBitVector<NBITS>::IsIntersectionNonEmpty(
     }
   }
   return false;
+}
+
+template <size_t NBITS>
+template <size_t OtherN>
+bool InlinedBitVector<NBITS>::IsSubsetOf(
+    const InlinedBitVector<OtherN>& other) const {
+  const uint32_t* my_words = words();
+  const uint32_t* other_words = other.words();
+  const size_t common_words = std::min(num_words(), other.num_words());
+  for (size_t i = 0; i < common_words; ++i) {
+    if ((my_words[i] & ~other_words[i]) != 0) {
+      return false;
+    }
+  }
+  for (size_t i = common_words; i < num_words(); ++i) {
+    if (my_words[i] != 0) {
+      return false;
+    }
+  }
+  return true;
 }
 
 template <size_t NBITS>

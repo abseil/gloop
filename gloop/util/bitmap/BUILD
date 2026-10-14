@@ -94,6 +94,7 @@ cc_test(
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/hash:hash_testing",
         "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
