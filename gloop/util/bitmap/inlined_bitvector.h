@@ -394,6 +394,10 @@ inline size_t InlinedBitVector<NBITS>::count() const {
 
 template <size_t NBITS>
 inline void InlinedBitVector<NBITS>::resize(size_t num_bits) {
+  if (num_bits == size()) {
+    return;
+  }
+
   if (num_bits < size()) {
     set_size(num_bits);  // Shrink in place.
     ClearUnusedBits();   // Fix up any partial word at end of num_bits
