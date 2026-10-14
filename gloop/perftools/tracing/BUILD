@@ -238,6 +238,7 @@ cc_library(
         ":trace_source_location",
         ":tracing_base",
         "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/status",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest_for_library",
     ],
