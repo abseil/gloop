@@ -22,7 +22,9 @@
 
 #include <cstddef>
 #include <initializer_list>
+#include <ostream>
 #include <random>
+#include <sstream>
 #include <utility>
 #include <vector>
 
@@ -96,6 +98,18 @@ TYPED_TEST(BitVecTest, ToStringStability) {
   bv.clear_bit(2);
   bv.set_bit(9);
   EXPECT_EQ(bv.ToString(), "{0,1,3,4,9}");
+}
+
+TYPED_TEST(BitVecTest, PrintToOstream) {
+  TypeParam bv(10);
+  bv.set_bit(1);
+  bv.set_bit(4);
+  bv.set_bit(9);
+
+  std::ostringstream string_stream;
+  std::ostream& out = string_stream;
+  out << bv;
+  EXPECT_EQ(string_stream.str(), "{1,4,9}");
 }
 
 TYPED_TEST(BitVecTest, SimpleOps) {

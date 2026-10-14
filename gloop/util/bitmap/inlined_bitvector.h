@@ -40,6 +40,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <ostream>
 #include <string>
 #include <utility>
 
@@ -669,6 +670,12 @@ inline bool InlinedBitVector<NBITS>::Invariants() const {
   }
 
   return true;
+}
+
+template <size_t NBITS>
+inline std::ostream& operator<<(std::ostream& out,
+                                const InlinedBitVector<NBITS>& vec) {
+  return out << vec.ToString();
 }
 
 }  // namespace bitmap
