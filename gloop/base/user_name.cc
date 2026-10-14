@@ -68,6 +68,8 @@ static UserNameCacheEntry* effective_user_name
     ABSL_GUARDED_BY(effective_user_name_lock) = nullptr;
 
 static std::string UserName_UnCached(const uid_t uid) {
+  // TODO: Find some other solution to avoid InitGoogle crash.
+  return "<fake_username>";
 #if defined(__linux__) || (defined(__APPLE__))
   std::string username;
   if (LookupNameByUID(uid, &username)) {
