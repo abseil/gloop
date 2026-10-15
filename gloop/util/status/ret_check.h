@@ -57,19 +57,18 @@
 
 #include <cstddef>
 #include <ostream>
-#include <sstream>
 #include <string>
 
 #include "absl/base/attributes.h"
 #include "absl/base/optimization.h"
 #include "absl/flags/declare.h"
 #include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/has_absl_stringify.h"
 #include "absl/strings/has_ostream_operator.h"
 #include "absl/types/source_location.h"
 #include "gloop/util/status/status_builder.h"
-#include "gloop/util/status/status_macros.h"
 
 ABSL_DECLARE_FLAG(bool, ret_check_abort_on_failure);
 
@@ -115,7 +114,7 @@ class CheckOpMessageBuilder {
   std::string* NewString();
 
  private:
-  std::ostringstream* stream_;
+  std::ostream* stream_;
 };
 
 // Formats a value for a failing `RET_CHECK_XX` statement.  Excepting a few

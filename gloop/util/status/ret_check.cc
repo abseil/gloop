@@ -79,7 +79,9 @@ CheckOpMessageBuilder::CheckOpMessageBuilder(const char* exprtext)
   *stream_ << exprtext << " (";
 }
 
-CheckOpMessageBuilder::~CheckOpMessageBuilder() { delete stream_; }
+CheckOpMessageBuilder::~CheckOpMessageBuilder() {
+  delete static_cast<std::ostringstream*>(stream_);
+}
 
 std::ostream* CheckOpMessageBuilder::ForVar2() {
   *stream_ << " vs. ";
@@ -88,7 +90,7 @@ std::ostream* CheckOpMessageBuilder::ForVar2() {
 
 std::string* CheckOpMessageBuilder::NewString() {
   *stream_ << ")";
-  return new std::string(stream_->str());
+  return new std::string(static_cast<std::ostringstream*>(stream_)->str());
 }
 
 void MakeCheckOpValueString(std::ostream* os, char v) {

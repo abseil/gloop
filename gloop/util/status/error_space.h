@@ -89,7 +89,6 @@
 #include <string>
 #include <type_traits>
 
-#include "absl/meta/type_traits.h"
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 
