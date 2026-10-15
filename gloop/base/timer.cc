@@ -23,12 +23,19 @@
 
 #include "gloop/base/timer.h"
 
+#include <cstdint>
+
 #include "absl/base/call_once.h"
 #include "absl/base/internal/cycleclock.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/time/clock.h"
+#include "absl/time/time.h"
 #include "gloop/base/walltime.h"
+
+#ifdef _WIN32
+#include <winsock2.h>
+#endif
 
 // Pre-initialized values:
 double CycleTimerRoot::cycles_per_second_ = 0.0;
@@ -64,6 +71,58 @@ ScopedWallTime::~ScopedWallTime() {
   *aggregate_time_ += base::ToWallTime(absl::Now()) - start_time_;
 }
 
+template <int mode>
+absl::Duration RUsageTimer<mode>::ReadProcessDuration() {
+#if !defined(GOOGLE3_HAS_PROCESS_DURATION)
+  LOG(FATAL) << "RUsageTimer::ReadProcessDuration not implemented on this OS";
+  return absl::ZeroDuration();
+#elif defined(_WIN32)
+  HANDLE process = GetCurrentProcess();
+  // GetProcessTimes() uses 100-nanosecond time units.
+  FILETIME creation_time, exit_time, kernel_time, user_time;
+  GetProcessTimes(process, &creation_time, &exit_time, &kernel_time,
+                  &user_time);
+  ULARGE_INTEGER kernel;
+  kernel.HighPart = kernel_time.dwHighDateTime;
+  kernel.LowPart = kernel_time.dwLowDateTime;
+  ULARGE_INTEGER user;
+  user.HighPart = user_time.dwHighDateTime;
+  user.LowPart = user_time.dwLowDateTime;
+  if (mode == USER) {
+    return absl::Nanoseconds(user.QuadPart * 100);
+  }
+  if (mode == SYSTEM) {
+    return absl::Nanoseconds(kernel.QuadPart * 100);
+  }
+  if (mode == BOTH) {
+    return absl::Nanoseconds(user.QuadPart * 100) +
+           absl::Nanoseconds(kernel.QuadPart * 100);
+  }
+#else
+  struct rusage r;
+  getrusage(RUSAGE_SELF, &r);
+  if (mode == USER) {
+    return absl::DurationFromTimeval(r.ru_utime);
+  }
+  if (mode == SYSTEM) {
+    return absl::DurationFromTimeval(r.ru_stime);
+  }
+  if (mode == BOTH) {
+    return absl::DurationFromTimeval(r.ru_utime) +
+           absl::DurationFromTimeval(r.ru_stime);
+  }
+#endif  // GOOGLE3_HAS_PROCESS_DURATION
+  LOG(FATAL) << "Invalid mode value in class RUsageTimer: " << mode;
+  return absl::ZeroDuration();
+}
+
+template absl::Duration
+RUsageTimer<RUsageTimer<0>::USER>::ReadProcessDuration();
+template absl::Duration
+RUsageTimer<RUsageTimer<0>::SYSTEM>::ReadProcessDuration();
+template absl::Duration
+RUsageTimer<RUsageTimer<0>::BOTH>::ReadProcessDuration();
+
 ElapsedTimer::~ElapsedTimer() {
   if (ct_.IsRunning()) {
     double elapsed = ct_.Get();
@@ -71,4 +130,8 @@ ElapsedTimer::~ElapsedTimer() {
       LOG(INFO) << prefix_ << ": " << (elapsed * 1000.0) << " ms (elapsed)";
     }
   }
+}
+
+int64_t TimevalData::TimevalToUsec(const timeval& tv) {
+  return static_cast<int64_t>(1000000) * tv.tv_sec + tv.tv_usec;
 }

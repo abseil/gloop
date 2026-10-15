@@ -62,10 +62,12 @@
 #include <sys/sysctl.h>  // how os x figures things out
 #include <sys/time.h>    // for fbsd to get clockinfo
 #elif defined(_WIN32)
-
+// clang-format off
+#include <windows.h>  // Must come before TlHelp32.h
+#include <TlHelp32.h>  // for CreateToolhelp32Snapshot
+// clang-format on
 #include <processthreadsapi.h>
 #include <stringapiset.h>
-#include <winbase.h>
 
 #elif defined(__linux__)
 #include <dirent.h>  // for opendir() and readdir()
