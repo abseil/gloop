@@ -220,11 +220,14 @@
 #endif
 
 // GOOGLE_ENABLE_SYSLOG is defined on systems which desire to use syslog(3).
-// TODO: See about enabling syslog on macOS.
 #ifdef GOOGLE_ENABLE_SYSLOG
 #error GOOGLE_ENABLE_SYSLOG cannot be directly set
 #elif defined(__linux__) && !defined(__ANDROID__)
 #define GOOGLE_ENABLE_SYSLOG 1
+#elif defined(__APPLE__)
+#if TARGET_OS_OSX
+#define GOOGLE_ENABLE_SYSLOG 1
+#endif
 #endif
 
 // GOOGLE_HAVE_SIGINFO_T is defined when the implementation provides the
