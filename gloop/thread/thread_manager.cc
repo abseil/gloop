@@ -119,7 +119,7 @@ ABSL_FLAG(int32_t, threadmanager_overseer_watchdog_s,
 ABSL_FLAG(int32_t, threadmanager_default_manager_pools, 0,
           "number of thread pools in the default threadmanager, 0 = auto");
 
-ABSL_FLAG(bool, threadmanager_default_queue_executor, true,
+ABSL_FLAG(bool, threadmanager_default_queue_executor, false,
           "If true, thread::DefaultQueue() returns a queue implemented using "
           "thread::Executor::DefaultExecutor(); if false it returns a queue "
           "implemented using thread::DefaultManager(). "
