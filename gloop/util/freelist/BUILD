@@ -42,8 +42,8 @@ cc_library(
 )
 
 cc_test(
-    name = "fixed_size_object_pool_unittest",
-    srcs = ["fixed_size_object_pool_unittest.cc"],
+    name = "fixed_size_object_pool_test",
+    srcs = ["fixed_size_object_pool_test.cc"],
     deps = [
         ":fixed_size_object_pool",
         "//gloop:gloop_test_main",
@@ -145,7 +145,6 @@ cc_library(
 
 cc_library(
     name = "threadlocal_freelist",
-    srcs = ["threadlocal_freelist.cc"],
     hdrs = ["threadlocal_freelist.h"],
     deps = [
         ":freelist",
