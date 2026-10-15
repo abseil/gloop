@@ -37,12 +37,7 @@
 #include <stdio.h>  // for FILE*
 #include <time.h>
 
-#if defined _WIN32
-// clang-format off
-#include <windows.h>  // Must come before TlHelp32.h
-#include <TlHelp32.h>  // for CreateToolhelp32Snapshot
-// clang-format on
-#else
+#ifndef _WIN32
 #include <sys/types.h>
 #endif
 

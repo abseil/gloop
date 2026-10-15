@@ -49,11 +49,6 @@
 #include <intrin.h>
 #include <process.h>  // _getpid()
 
-// clang-format off
-#include <winsock2.h>  // Must come before <windows.h>
-#include <windows.h>
-// clang-format on
-
 #undef ERROR
 #undef DELETE
 #undef DIFFERENCE
@@ -447,7 +442,7 @@ typedef void (*sig_t)(int);
 // PATH_MAX
 // You say tomato, I say atotom
 #ifdef _MSC_VER
-#define PATH_MAX MAX_PATH
+#define PATH_MAX _MAX_PATH
 #endif
 
 // -----------------------------------------------------------------------------

@@ -45,9 +45,7 @@
 
 #if !defined(GOOGLE3_HAS_PROCESS_DURATION)
 #include <unistd.h>
-#elif defined(_WIN32)
-#include <windows.h>
-#else
+#elif !defined(_WIN32)
 #include <sys/resource.h>
 #include <sys/time.h>
 #endif  // GOOGLE3_HAS_PROCESS_DURATION
@@ -624,49 +622,7 @@ class RUsageTimer {
   }
 
  private:
-  static absl::Duration ReadProcessDuration() {
-#if !defined(GOOGLE3_HAS_PROCESS_DURATION)
-    LOG(FATAL) << "RUsageTimer::ReadProcessDuration not implemented on this OS";
-    return absl::ZeroDuration();
-#elif defined(_WIN32)
-    HANDLE process = GetCurrentProcess();
-    // GetProcessTimes() uses 100-nanosecond time units.
-    FILETIME creation_time, exit_time, kernel_time, user_time;
-    GetProcessTimes(process, &creation_time, &exit_time, &kernel_time,
-                    &user_time);
-    ULARGE_INTEGER kernel;
-    kernel.HighPart = kernel_time.dwHighDateTime;
-    kernel.LowPart = kernel_time.dwLowDateTime;
-    ULARGE_INTEGER user;
-    user.HighPart = user_time.dwHighDateTime;
-    user.LowPart = user_time.dwLowDateTime;
-    if (mode == USER) {
-      return absl::Nanoseconds(user.QuadPart * 100);
-    }
-    if (mode == SYSTEM) {
-      return absl::Nanoseconds(kernel.QuadPart * 100);
-    }
-    if (mode == BOTH) {
-      return absl::Nanoseconds(user.QuadPart * 100) +
-             absl::Nanoseconds(kernel.QuadPart * 100);
-    }
-#else
-    struct rusage r;
-    getrusage(RUSAGE_SELF, &r);
-    if (mode == USER) {
-      return absl::DurationFromTimeval(r.ru_utime);
-    }
-    if (mode == SYSTEM) {
-      return absl::DurationFromTimeval(r.ru_stime);
-    }
-    if (mode == BOTH) {
-      return absl::DurationFromTimeval(r.ru_utime) +
-             absl::DurationFromTimeval(r.ru_stime);
-    }
-#endif  // GOOGLE3_HAS_PROCESS_DURATION
-    LOG(FATAL) << "Invalid mode value in class RUsageTimer: " << mode;
-    return absl::ZeroDuration();
-  }
+  static absl::Duration ReadProcessDuration();
 
   // Returns the elapsed duration since the timer was started, or
   // ZeroDuration() if the timer is not running.
@@ -685,6 +641,13 @@ class RUsageTimer {
   // timer is running.
   absl::Duration accumulated_duration_;
 };
+
+extern template absl::Duration
+RUsageTimer<RUsageTimer<0>::USER>::ReadProcessDuration();
+extern template absl::Duration
+RUsageTimer<RUsageTimer<0>::SYSTEM>::ReadProcessDuration();
+extern template absl::Duration
+RUsageTimer<RUsageTimer<0>::BOTH>::ReadProcessDuration();
 
 // UserTimer measures time spent in userspace in the current process
 typedef RUsageTimer<RUsageTimer<0>::USER> UserTimer;
@@ -958,9 +921,7 @@ class ABSL_DEPRECATED("Use absl::Time or absl::Duration instead") TimevalData {
   inline absl::Duration GetDuration() const;
 
  private:
-  static inline int64_t TimevalToUsec(const timeval& tv) {
-    return static_cast<int64_t>(1000000) * tv.tv_sec + tv.tv_usec;
-  }
+  static int64_t TimevalToUsec(const timeval& tv);
   int64_t start_usec_;  // start time in microseconds.
   int64_t sum_usec_;    // sum of time diffs in microseconds.
 };

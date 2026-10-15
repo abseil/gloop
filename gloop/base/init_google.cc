@@ -129,6 +129,10 @@ inline void GoogleInitMainStackLimits() {}
 #include "gloop/base/nsscache.h"
 #endif  // !_WIN32 && !__myriad2__
 
+#ifdef _WIN32
+#include <winsock2.h>
+#endif
+
 // Controls the default of the --uid flag.
 #ifdef BASE_CONFIG_DEFAULT_UID_FLAG
 #error BASE_CONFIG_DEFAULT_UID_FLAG cannot be directly set
