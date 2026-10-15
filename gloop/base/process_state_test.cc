@@ -20,6 +20,7 @@
 
 #include "gloop/base/process_state.h"
 
+#include <alloca.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <pthread.h>
