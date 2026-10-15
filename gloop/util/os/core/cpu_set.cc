@@ -170,8 +170,8 @@ int CpuSetCompare(const cpu_set_t* lhs, const cpu_set_t* rhs) {
     return 0;
   }
   for (int cpu_id = CPU_SETSIZE - 1; cpu_id >= 0; --cpu_id) {
-    bool lhs_bit = CPU_ISSET(cpu_id, lhs) ? 1 : 0;
-    bool rhs_bit = CPU_ISSET(cpu_id, rhs) ? 1 : 0;
+    bool lhs_bit = CPU_ISSET(cpu_id, lhs) ? true : false;
+    bool rhs_bit = CPU_ISSET(cpu_id, rhs) ? true : false;
     if (!lhs_bit && rhs_bit) {
       return -1;
     }
