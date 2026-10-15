@@ -20,18 +20,19 @@
 
 #include "gloop/util/freelist/freelist.h"
 
-#include <stdio.h>
-
 #include <memory>
 #include <string>
 
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
 #include "gloop/util/freelist/freelist_param_testlib.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace freelist {
 namespace {
+
+using ::testing::NotNull;
 
 // Test FreeList and ThreadSafeFreeList
 
@@ -80,14 +81,14 @@ TEST_F(FreelistDisabledTest, ThreadSafeFreeList) {
       ThreadSafeFreeList<FreeListConformanceTest::EnsureDeleted>>(kSize);
 
   // Free list fl is initially empty
-  CHECK(fl->CheckRep());
-  CHECK_EQ(fl->size(), 0);
+  EXPECT_TRUE(fl->CheckRep());
+  EXPECT_EQ(fl->size(), 0);
   EnsureDeleted* const ed = fl->New();
-  CHECK(ed != nullptr);
-  CHECK_EQ(fl->size(), 0);
-  CHECK(fl->CheckRep());
+  ASSERT_THAT(ed, NotNull());
+  EXPECT_EQ(fl->size(), 0);
+  EXPECT_TRUE(fl->CheckRep());
   fl->Delete(ed);
-  CHECK_EQ(fl->size(), 0);  // freelist should be empty
+  EXPECT_EQ(fl->size(), 0);  // freelist should be empty
 }
 
 // Test FastAllocator
@@ -250,62 +251,62 @@ TEST_F(FastAllocatorTest, FastAllocator) { Object::TestFastAllocator(); }
 using AbstractFreeListTest = FreeListBaseTest;
 TEST_F(AbstractFreeListTest, NewUniquePtr) {
   FreeList<std::string> freelist(5);
-  EXPECT_EQ(5, freelist.max_length());
+  EXPECT_EQ(freelist.max_length(), 5);
   {
     auto ptr = freelist.NewUniquePtr();
-    EXPECT_EQ("", *ptr);
+    EXPECT_EQ(*ptr, "");
     ptr->push_back('H');
-    EXPECT_EQ("H", *ptr);
-    EXPECT_EQ(0, freelist.size());  // No spare instance
+    EXPECT_EQ(*ptr, "H");
+    EXPECT_EQ(freelist.size(), 0);  // No spare instance
   }
-  EXPECT_EQ(1, freelist.size());  // Instance returned to list
+  EXPECT_EQ(freelist.size(), 1);  // Instance returned to list
 }
 
 TEST_F(AbstractFreeListTest, NewUniquePtrNullable) {
   FreeList<std::string> freelist(5);
-  EXPECT_EQ(5, freelist.max_length());
+  EXPECT_EQ(freelist.max_length(), 5);
   {
     auto ptr = freelist.NewUniquePtr();
-    EXPECT_EQ("", *ptr);
+    EXPECT_EQ(*ptr, "");
     ptr->push_back('H');
-    EXPECT_EQ("H", *ptr);
-    EXPECT_EQ(0, freelist.size());  // No spare instance
+    EXPECT_EQ(*ptr, "H");
+    EXPECT_EQ(freelist.size(), 0);  // No spare instance
     ptr = nullptr;
-    EXPECT_EQ(1, freelist.size());  // Instance Returned.
+    EXPECT_EQ(freelist.size(), 1);  // Instance Returned.
   }
-  EXPECT_EQ(1, freelist.size());  // Instance returned to list
+  EXPECT_EQ(freelist.size(), 1);  // Instance returned to list
 }
 
 TEST_F(AbstractFreeListTest, NewUniquePtrMovableDeleter) {
   FreeList<std::string> freelist(5);
   FreeList<std::string> freelist2(5);
-  EXPECT_EQ(5, freelist.max_length());
+  EXPECT_EQ(freelist.max_length(), 5);
   {
     auto ptr = freelist.NewUniquePtr();
-    EXPECT_EQ("", *ptr);
+    EXPECT_EQ(*ptr, "");
     ptr->push_back('H');
-    EXPECT_EQ("H", *ptr);
-    EXPECT_EQ(0, freelist.size());
-    EXPECT_EQ(0, freelist2.size());
+    EXPECT_EQ(*ptr, "H");
+    EXPECT_EQ(freelist.size(), 0);
+    EXPECT_EQ(freelist2.size(), 0);
     ptr = freelist2.NewUniquePtr();
-    EXPECT_EQ(1, freelist.size());  // First Instance Returned.
+    EXPECT_EQ(freelist.size(), 1);  // First Instance Returned.
   }
-  EXPECT_EQ(1, freelist2.size());  // Second Instance Returned.
-  EXPECT_EQ(1, freelist.size());   // Nothing else returned to first list.
+  EXPECT_EQ(freelist2.size(), 1);  // Second Instance Returned.
+  EXPECT_EQ(freelist.size(), 1);   // Nothing else returned to first list.
 }
 
 using ScopedFreeListPointerTest = FreeListBaseTest;
 TEST_F(ScopedFreeListPointerTest, BasicCase) {
   FreeList<std::string> free_list(5);
-  EXPECT_EQ(5, free_list.max_length());
+  EXPECT_EQ(free_list.max_length(), 5);
   {
     ScopedFreeListPointer<std::string> ptr(&free_list);
-    EXPECT_EQ("", *ptr);
+    EXPECT_EQ(*ptr, "");
     ptr->push_back('H');
-    EXPECT_EQ("H", *ptr);
-    EXPECT_EQ(0, free_list.size());  // No spare instance
+    EXPECT_EQ(*ptr, "H");
+    EXPECT_EQ(free_list.size(), 0);  // No spare instance
   }
-  EXPECT_EQ(1, free_list.size());  // Instance returned to list
+  EXPECT_EQ(free_list.size(), 1);  // Instance returned to list
 }
 
 }  // namespace
