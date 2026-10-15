@@ -594,7 +594,7 @@ void DumpAddressMap(DebugWriter* writer, void* writer_arg) {
     alloced_out_buffer.reset(new char[kOutBufSize]);
     maps_buffer = nullptr;
     out_buffer = alloced_out_buffer.get();
-    alloced_dir_buffer.reset(new char[kOutBufSize]());
+    alloced_dir_buffer = std::make_unique<char[]>(kOutBufSize);
     dir = alloced_dir_buffer.get();
   }
   ProcMapsIterator it(0, maps_buffer);
