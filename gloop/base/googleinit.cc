@@ -117,6 +117,8 @@
 
 #ifndef _WIN32
 #include <pthread.h>
+#else
+#include <windows.h>
 #endif  // _WIN32
 
 #include <map>

@@ -41,12 +41,17 @@
 #endif
 
 #ifdef _WIN32
+// clang-format off
+#include <windows.h>  // NOLINT: Must come before TlHelp32.h
+#include <TlHelp32.h>
+// clang-format on
 #include <stringapiset.h>
 #endif
 
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 #include <string>
 
 #include "absl/algorithm/container.h"
@@ -172,6 +177,20 @@ static bool NextExtMachHelper(const mach_header* hdr, int current_image,
 }
 #endif
 
+#if defined(_WIN32)
+struct ProcMapsIterator::Win32State {
+  HANDLE snapshot_;        // filehandle on dll info
+  MODULEENTRY32W module_;  // info about current dll (and dll iterator)
+  // MODULEENTRY32W's `szExePath` contains up to MAX_PATH (260) code units of
+  // UTF-16, including a U+0000 terminator.
+  //
+  // Each UTF-16 code unit is encoded in 1 to 3 bytes of UTF-8 (UTF-16 surrogate
+  // pairs map 2 UTF-16 code units to 4 bytes of UTF-8, so 2 bytes of UTF-8 for
+  // each surrogate code unit), so multiply by 3 for the worst case.
+  char module_filename_utf8_[std::extent_v<decltype(module_.szExePath)> * 3];
+};
+#endif
+
 ProcMapsIterator::ProcMapsIterator(pid_t pid) { Init(pid, nullptr); }
 
 ProcMapsIterator::ProcMapsIterator(pid_t pid, Buffer* buffer) {
@@ -215,9 +234,10 @@ void ProcMapsIterator::Init(pid_t pid, Buffer* buffer) {
   current_load_cmd_ = -1;
   current_image_ = _dyld_image_count();  // count down from the top
 #elif defined(_WIN32)
-  snapshot_ = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32,
-                                       GetCurrentProcessId());
-  memset(&module_, 0, sizeof(module_));
+  win32_state_ = std::make_unique<Win32State>();
+  win32_state_->snapshot_ = CreateToolhelp32Snapshot(
+      TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, GetCurrentProcessId());
+  memset(&win32_state_->module_, 0, sizeof(win32_state_->module_));
 #else
   fd_ = -1;  // so Valid() is always false
 #endif
@@ -225,7 +245,9 @@ void ProcMapsIterator::Init(pid_t pid, Buffer* buffer) {
 
 ProcMapsIterator::~ProcMapsIterator() {
 #if defined _WIN32
-  if (snapshot_ != INVALID_HANDLE_VALUE) CloseHandle(snapshot_);
+  if (win32_state_->snapshot_ != INVALID_HANDLE_VALUE) {
+    CloseHandle(win32_state_->snapshot_);
+  }
 #elif defined(__APPLE__)
   // no cleanup necessary!
 #elif defined __linux__
@@ -242,7 +264,7 @@ ProcMapsIterator::~ProcMapsIterator() {
 
 bool ProcMapsIterator::Valid() const {
 #if defined _WIN32
-  return snapshot_ != INVALID_HANDLE_VALUE;
+  return win32_state_->snapshot_ != INVALID_HANDLE_VALUE;
 #elif defined(__APPLE__)
   return 1;
 #else
@@ -414,26 +436,27 @@ bool ProcMapsIterator::NextExt(uint64_t* start, uint64_t* end, char** flags,
 #elif defined _WIN32
   static char kDefaultPerms[5] = "r-xp";
   BOOL ok;
-  if (module_.dwSize == 0) {  // only possible before first call
-    module_.dwSize = sizeof(module_);
-    ok = Module32FirstW(snapshot_, &module_);
+  if (win32_state_->module_.dwSize == 0) {  // only possible before first call
+    win32_state_->module_.dwSize = sizeof(win32_state_->module_);
+    ok = Module32FirstW(win32_state_->snapshot_, &win32_state_->module_);
   } else {
-    ok = Module32NextW(snapshot_, &module_);
+    ok = Module32NextW(win32_state_->snapshot_, &win32_state_->module_);
   }
   if (ok) {
-    uint64_t base_addr = reinterpret_cast<DWORD_PTR>(module_.modBaseAddr);
+    uint64_t base_addr =
+        reinterpret_cast<DWORD_PTR>(win32_state_->module_.modBaseAddr);
     if (start) *start = base_addr;
-    if (end) *end = base_addr + module_.modBaseSize;
+    if (end) *end = base_addr + win32_state_->module_.modBaseSize;
     if (flags) *flags = kDefaultPerms;
     if (offset) *offset = 0;
     if (inode) *inode = 0;
     if (filename &&
-        WideCharToMultiByte(CP_UTF8, /*dwFlags=*/0, module_.szExePath,
-                            /*cchWideChar=*/-1, module_filename_utf8_,
-                            sizeof(module_filename_utf8_),
-                            /*lpDefaultChar=*/nullptr,
-                            /*lpUsedDefaultChar=*/nullptr)) {
-      *filename = module_filename_utf8_;
+        WideCharToMultiByte(
+            CP_UTF8, /*dwFlags=*/0, win32_state_->module_.szExePath,
+            /*cchWideChar=*/-1, win32_state_->module_filename_utf8_,
+            sizeof(win32_state_->module_filename_utf8_),
+            /*lpDefaultChar=*/nullptr, /*lpUsedDefaultChar=*/nullptr)) {
+      *filename = win32_state_->module_filename_utf8_;
     }
     if (dev) *dev = 0;
     return true;
