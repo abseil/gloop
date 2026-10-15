@@ -224,6 +224,7 @@ static_assert(!std::is_copy_constructible<SpinLockHolder>(),
 
 int main(int argc, char** argv) {
   InitGoogle(argv[0], &argc, &argv, true);
+  absl::SetFlag(&FLAGS_numthreads, 8);
   // Ensure that a ThreadIdentity is installed for all tests.
   CHECK(absl::synchronization_internal::GetOrCreateCurrentThreadIdentity() !=
         nullptr);
