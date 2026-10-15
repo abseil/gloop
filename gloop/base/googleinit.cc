@@ -115,7 +115,9 @@
 
 #include <stdint.h>
 
-#ifndef _WIN32
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <pthread.h>
 #endif  // _WIN32
 

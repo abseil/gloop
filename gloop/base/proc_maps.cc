@@ -41,12 +41,17 @@
 #endif
 
 #ifdef _WIN32
+// clang-format off
+#include <windows.h>  // NOLINT: Must come before TlHelp32.h
+#include <TlHelp32.h>
+// clang-format on
 #include <stringapiset.h>
 #endif
 
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 #include <string>
 
 #include "absl/algorithm/container.h"
@@ -98,6 +103,10 @@ ABSL_FLAG(std::string, procfs_prefix, "",
         }
       }
     });
+
+#ifdef _WIN32
+struct ProcMapsIterator::ModuleEntry32W : MODULEENTRY32W {};
+#endif
 
 #ifdef __linux__
 namespace proc_maps_internal {
@@ -217,7 +226,7 @@ void ProcMapsIterator::Init(pid_t pid, Buffer* buffer) {
 #elif defined(_WIN32)
   snapshot_ = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32,
                                        GetCurrentProcessId());
-  memset(&module_, 0, sizeof(module_));
+  module_ = std::make_unique<ModuleEntry32W>();
 #else
   fd_ = -1;  // so Valid() is always false
 #endif
@@ -414,21 +423,21 @@ bool ProcMapsIterator::NextExt(uint64_t* start, uint64_t* end, char** flags,
 #elif defined _WIN32
   static char kDefaultPerms[5] = "r-xp";
   BOOL ok;
-  if (module_.dwSize == 0) {  // only possible before first call
-    module_.dwSize = sizeof(module_);
-    ok = Module32FirstW(snapshot_, &module_);
+  if (module_->dwSize == 0) {  // only possible before first call
+    module_->dwSize = sizeof(*module_);
+    ok = Module32FirstW(snapshot_, module_.get());
   } else {
-    ok = Module32NextW(snapshot_, &module_);
+    ok = Module32NextW(snapshot_, module_.get());
   }
   if (ok) {
-    uint64_t base_addr = reinterpret_cast<DWORD_PTR>(module_.modBaseAddr);
+    uint64_t base_addr = reinterpret_cast<DWORD_PTR>(module_->modBaseAddr);
     if (start) *start = base_addr;
-    if (end) *end = base_addr + module_.modBaseSize;
+    if (end) *end = base_addr + module_->modBaseSize;
     if (flags) *flags = kDefaultPerms;
     if (offset) *offset = 0;
     if (inode) *inode = 0;
     if (filename &&
-        WideCharToMultiByte(CP_UTF8, /*dwFlags=*/0, module_.szExePath,
+        WideCharToMultiByte(CP_UTF8, /*dwFlags=*/0, module_->szExePath,
                             /*cchWideChar=*/-1, module_filename_utf8_,
                             sizeof(module_filename_utf8_),
                             /*lpDefaultChar=*/nullptr,

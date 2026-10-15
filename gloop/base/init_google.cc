@@ -125,7 +125,9 @@ inline void GoogleInitMainStackLimits() {}
 #if BASE_HAVE_CPU_PROFILER
 #endif  // BASE_HAVE_CPU_PROFILER
 
-#if !defined(_WIN32) && !defined(__myriad2__)
+#ifdef _WIN32
+#include <winsock2.h>
+#elif !defined(__myriad2__)
 #include "gloop/base/nsscache.h"
 #endif  // !_WIN32 && !__myriad2__
 

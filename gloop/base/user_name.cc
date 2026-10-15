@@ -131,7 +131,9 @@ std::string MyUserName() {
   return MyUserName_Cached(uid);
 }
 
-#else                                 // _WIN32
+#else  // _WIN32
+
+#include <windows.h>
 
 std::string MyUserName() {
 #pragma comment(lib, "advapi32.lib")  // Has GetUserName() implementation.

@@ -40,6 +40,12 @@
 #include "gloop/base/atomic_sequence_num.h"
 #include "gloop/base/port.h"
 
+#ifdef _WIN32
+#include <winsock2.h>  // for gethostname()
+#else
+#include <unistd.h>  // for gethostname()
+#endif
+
 namespace {
 ABSL_CONST_INIT base::SequenceNumber weak_seed_sequence;
 
