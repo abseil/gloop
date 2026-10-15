@@ -250,12 +250,12 @@ inline void TraceObserved(const void* object, StringRef label) {
 
 inline void TraceSend(StringRef label, MsgOrigin origin, MsgId id,
                       absl::StatusCode status_code) {
-  core::TraceSend(label, origin, id);
+  core::TraceSend(label, origin, id, status_code);
 }
 
 inline void TraceReceive(StringRef label, MsgOrigin origin, MsgId id,
                          absl::StatusCode status_code) {
-  core::TraceReceive(label, origin, id);
+  core::TraceReceive(label, origin, id, status_code);
 }
 
 inline void TraceSessionStart(StringRef label, MsgId id, EndPoint end_point) {
@@ -264,18 +264,18 @@ inline void TraceSessionStart(StringRef label, MsgId id, EndPoint end_point) {
 
 inline void TraceSessionEnd(StringRef label, MsgId id, EndPoint end_point,
                             absl::StatusCode status_code) {
-  core::TraceSessionEnd(label, id, end_point);
+  core::TraceSessionEnd(label, id, end_point, status_code);
 }
 
 inline void TraceStreamingSend(MsgOrigin origin, MsgId id, MsgSequence sequence,
                                MsgFlags flags, absl::StatusCode status_code) {
-  core::TraceStreamingSend(origin, id, sequence, flags);
+  core::TraceStreamingSend(origin, id, sequence, flags, status_code);
 }
 
 inline void TraceStreamingReceive(MsgOrigin origin, MsgId id,
                                   MsgSequence sequence, MsgFlags flags,
                                   absl::StatusCode status_code) {
-  core::TraceStreamingReceive(origin, id, sequence, flags);
+  core::TraceStreamingReceive(origin, id, sequence, flags, status_code);
 }
 
 inline ScopedDisableTraceEvents::ScopedDisableTraceEvents() noexcept

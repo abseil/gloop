@@ -24,6 +24,7 @@
 #include "absl/base/config.h"
 #include "absl/base/internal/tracing.h"
 #include "absl/log/check.h"
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/blocking_counter.h"
 #include "absl/synchronization/notification.h"
@@ -78,18 +79,20 @@ TEST(TracingCore, ApiWithoutActiveSync) {
   TraceContinue(BarrierId{123});
   TraceObserved(BarrierId{123}, "Peekaboo");
   TraceSignal(BarrierId{123}, "Ping");
-  TraceSend("Send it", MsgOrigin::kClient, MsgId{3232});
-  TraceReceive("praise", MsgOrigin::kServer, MsgId{3232});
+  TraceSend("Send it", MsgOrigin::kClient, MsgId{3232}, absl::StatusCode::kOk);
+  TraceReceive("praise", MsgOrigin::kServer, MsgId{3232},
+               absl::StatusCode::kOk);
   TraceSessionStart("Start", MsgId{842}, EndPoint::kStreamingClient);
-  TraceSessionEnd("End", MsgId{842}, EndPoint::kStreamingServer);
+  TraceSessionEnd("End", MsgId{842}, EndPoint::kStreamingServer,
+                  absl::StatusCode::kOk);
   TraceStreamingSend(MsgOrigin::kClient, MsgId{842}, MsgSequence{0},
-                     MsgFlags::kDefault);
+                     MsgFlags::kDefault, absl::StatusCode::kOk);
   TraceStreamingSend(MsgOrigin::kServer, MsgId{842}, MsgSequence{17},
-                     MsgFlags::kHalfClose);
+                     MsgFlags::kHalfClose, absl::StatusCode::kOk);
   TraceStreamingReceive(MsgOrigin::kClient, MsgId{842}, MsgSequence{0},
-                        MsgFlags::kDefault);
+                        MsgFlags::kDefault, absl::StatusCode::kOk);
   TraceStreamingReceive(MsgOrigin::kServer, MsgId{842}, MsgSequence{13},
-                        MsgFlags::kHalfClose);
+                        MsgFlags::kHalfClose, absl::StatusCode::kOk);
   TraceMark("Not Marc", TraceSourceLocation::current());
   TraceBeginRegion("Here", TraceSourceLocation::current());
   TraceEndRegion();
@@ -108,27 +111,29 @@ TEST(TracingCore, ApiWithActiveSync) {
   EXPECT_CALL(mock, OnTraceObserved(BarrierId{123}, Eq("Peekaboo")));
   EXPECT_CALL(mock, OnTraceSignal(BarrierId{123}, Eq("Ping")));
 
-  EXPECT_CALL(mock,
-              OnTraceSend(Eq("Send it"), MsgOrigin::kClient, MsgId{3232}));
-  EXPECT_CALL(mock,
-              OnTraceReceive(Eq("praise"), MsgOrigin::kServer, MsgId{3232}));
+  EXPECT_CALL(mock, OnTraceSend(Eq("Send it"), MsgOrigin::kClient, MsgId{3232},
+                                absl::StatusCode::kOk));
+  EXPECT_CALL(mock, OnTraceReceive(Eq("praise"), MsgOrigin::kServer,
+                                   MsgId{3232}, absl::StatusCode::kOk));
 
   EXPECT_CALL(mock, OnTraceSessionStart(Eq("Start"), MsgId{842},
                                         EndPoint::kStreamingClient));
-  EXPECT_CALL(mock, OnTraceSessionEnd(Eq("End"), MsgId{842},
-                                      EndPoint::kStreamingServer));
+  EXPECT_CALL(
+      mock, OnTraceSessionEnd(Eq("End"), MsgId{842}, EndPoint::kStreamingServer,
+                              absl::StatusCode::kOk));
 
-  EXPECT_CALL(mock, OnTraceStreamingSend(MsgOrigin::kClient, MsgId{842},
-                                         MsgSequence{0}, MsgFlags::kDefault));
-  EXPECT_CALL(mock,
-              OnTraceStreamingSend(MsgOrigin::kServer, MsgId{842},
-                                   MsgSequence{17}, MsgFlags::kHalfClose));
-  EXPECT_CALL(mock,
-              OnTraceStreamingReceive(MsgOrigin::kClient, MsgId{842},
-                                      MsgSequence{0}, MsgFlags::kDefault));
-  EXPECT_CALL(mock,
-              OnTraceStreamingReceive(MsgOrigin::kServer, MsgId{842},
-                                      MsgSequence{13}, MsgFlags::kHalfClose));
+  EXPECT_CALL(
+      mock, OnTraceStreamingSend(MsgOrigin::kClient, MsgId{842}, MsgSequence{0},
+                                 MsgFlags::kDefault, absl::StatusCode::kOk));
+  EXPECT_CALL(mock, OnTraceStreamingSend(MsgOrigin::kServer, MsgId{842},
+                                         MsgSequence{17}, MsgFlags::kHalfClose,
+                                         absl::StatusCode::kOk));
+  EXPECT_CALL(mock, OnTraceStreamingReceive(MsgOrigin::kClient, MsgId{842},
+                                            MsgSequence{0}, MsgFlags::kDefault,
+                                            absl::StatusCode::kOk));
+  EXPECT_CALL(mock, OnTraceStreamingReceive(
+                        MsgOrigin::kServer, MsgId{842}, MsgSequence{13},
+                        MsgFlags::kHalfClose, absl::StatusCode::kOk));
 
   EXPECT_CALL(mock,
               OnTraceMark(Eq("Not Marc"), EqSourceLocation("Foo.cc", 11)));
@@ -145,26 +150,60 @@ TEST(TracingCore, ApiWithActiveSync) {
   TraceObserved(BarrierId{123}, "Peekaboo");
   TraceSignal(BarrierId{123}, "Ping");
 
-  TraceSend("Send it", MsgOrigin::kClient, MsgId{3232});
-  TraceReceive("praise", MsgOrigin::kServer, MsgId{3232});
+  TraceSend("Send it", MsgOrigin::kClient, MsgId{3232}, absl::StatusCode::kOk);
+  TraceReceive("praise", MsgOrigin::kServer, MsgId{3232},
+               absl::StatusCode::kOk);
 
   TraceSessionStart("Start", MsgId{842}, EndPoint::kStreamingClient);
-  TraceSessionEnd("End", MsgId{842}, EndPoint::kStreamingServer);
+  TraceSessionEnd("End", MsgId{842}, EndPoint::kStreamingServer,
+                  absl::StatusCode::kOk);
 
   TraceStreamingSend(MsgOrigin::kClient, MsgId{842}, MsgSequence{0},
-                     MsgFlags::kDefault);
+                     MsgFlags::kDefault, absl::StatusCode::kOk);
   TraceStreamingSend(MsgOrigin::kServer, MsgId{842}, MsgSequence{17},
-                     MsgFlags::kHalfClose);
+                     MsgFlags::kHalfClose, absl::StatusCode::kOk);
   TraceStreamingReceive(MsgOrigin::kClient, MsgId{842}, MsgSequence{0},
-                        MsgFlags::kDefault);
+                        MsgFlags::kDefault, absl::StatusCode::kOk);
   TraceStreamingReceive(MsgOrigin::kServer, MsgId{842}, MsgSequence{13},
-                        MsgFlags::kHalfClose);
+                        MsgFlags::kHalfClose, absl::StatusCode::kOk);
 
   TraceMark("Not Marc", SourceLocation("Foo.cc", 11));
   TraceBeginRegion("Here", SourceLocation("Foo.cc", 12));
   TraceEndRegion();
   TraceControlFlow("Flow", ControlFlowType::kSchedule, ControlFlowId{635412},
                    ControlFlowSequence{1});
+}
+
+TEST(TracingCore, ApiWithStatusCodeWithActiveSync) {
+  InSequence in_sequence;
+  StrictMock<MockTraceEventListener> mock;
+  WithMock with(mock);
+
+  EXPECT_CALL(mock, OnTraceSend(Eq("Send it"), MsgOrigin::kClient, MsgId{3232},
+                                absl::StatusCode::kCancelled));
+  EXPECT_CALL(mock,
+              OnTraceReceive(Eq("praise"), MsgOrigin::kServer, MsgId{3232},
+                             absl::StatusCode::kDeadlineExceeded));
+  EXPECT_CALL(
+      mock, OnTraceSessionEnd(Eq("End"), MsgId{842}, EndPoint::kStreamingServer,
+                              absl::StatusCode::kAborted));
+  EXPECT_CALL(mock, OnTraceStreamingSend(MsgOrigin::kServer, MsgId{842},
+                                         MsgSequence{17}, MsgFlags::kHalfClose,
+                                         absl::StatusCode::kUnavailable));
+  EXPECT_CALL(mock, OnTraceStreamingReceive(MsgOrigin::kClient, MsgId{842},
+                                            MsgSequence{0}, MsgFlags::kDefault,
+                                            absl::StatusCode::kInternal));
+
+  TraceSend("Send it", MsgOrigin::kClient, MsgId{3232},
+            absl::StatusCode::kCancelled);
+  TraceReceive("praise", MsgOrigin::kServer, MsgId{3232},
+               absl::StatusCode::kDeadlineExceeded);
+  TraceSessionEnd("End", MsgId{842}, EndPoint::kStreamingServer,
+                  absl::StatusCode::kAborted);
+  TraceStreamingSend(MsgOrigin::kServer, MsgId{842}, MsgSequence{17},
+                     MsgFlags::kHalfClose, absl::StatusCode::kUnavailable);
+  TraceStreamingReceive(MsgOrigin::kClient, MsgId{842}, MsgSequence{0},
+                        MsgFlags::kDefault, absl::StatusCode::kInternal);
 }
 
 #if ABSL_HAVE_ATTRIBUTE_WEAK
