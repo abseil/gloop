@@ -131,7 +131,7 @@ inline absl::uint128 FirstNBits(int n) {
 // in reversed bit order with an implict coefficient of 1 for x^n.  Result
 // is a degree n-1 polynomial with all terms represented explicitly in
 // reversed bit order.
-absl::uint128 PowerOf2Mod(uint32_t k, const absl::uint128& p, uint32_t n) {
+absl::uint128 PowerOf2Mod(uint32_t k, const absl::uint128 p, uint32_t n) {
   CHECK_GE(128, n);
   const absl::uint128 kOne = 1;
   if (k < n) {
@@ -155,7 +155,7 @@ absl::uint128 PowerOf2Mod(uint32_t k, const absl::uint128& p, uint32_t n) {
 // coefficient for x^(n-1) is at bit 0.  If k < n, return 0.  Otherwise result
 // is a degree k-n polynomial with all terms represented explicitly in with
 // highest term starting at bit 0.
-absl::uint128 PowerOf2Div(uint32_t k, const absl::uint128& p, uint32_t n) {
+absl::uint128 PowerOf2Div(uint32_t k, const absl::uint128 p, uint32_t n) {
   if (k < n) {
     return 0;
   }
