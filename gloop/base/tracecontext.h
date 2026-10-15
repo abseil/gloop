@@ -215,7 +215,6 @@ class TraceContext {
 class CurrentTraceContext {
  public:
   CurrentTraceContext() {}
-  void Swap(TraceContext*) {}
 };
 
 namespace base {
@@ -1162,21 +1161,6 @@ class [[deprecated(
   void set_census_handle(const CensusHandle& h) {
     CheckCallingThread();
     current_->set_census_handle(h);
-  }
-
-  // Warning: This is a low-level mutator for optimized code.  The use of
-  // base::WithTraceContext is *strongly* preferred.  Using this incorrectly
-  // can break Dapper and cause memory leaks in your process.
-  [[deprecated(
-      "Swap will be removed. Replace its use with "
-      "base::WithTraceContext. If not "
-      "possible, use base::SwapCurrentTraceContext.")]]
-  void Swap(TraceContext* context) {
-    using std::swap;
-    CheckCallingThread();
-    current_->BeforeSwapCurrent(base::ContextAccess(), *context);
-    swap(*current_, *context);
-    current_->AfterSwapCurrent(base::ContextAccess());
   }
 
  private:
