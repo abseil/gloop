@@ -127,7 +127,7 @@ def _cc_skylark_embed_data_impl(ctx):
         ctx = ctx,
         cc_toolchain = cc_toolchain,
         requested_features = ctx.features,
-        unsupported_features = ctx.disabled_features,
+        unsupported_features = ctx.disabled_features + ["per_object_debug_info"],
     )
     cc_file_artifact = None
     h_file_artifact = None
