@@ -86,7 +86,9 @@ cc_library(
     name = "atomic_sequence_num",
     hdrs = ["atomic_sequence_num.h"],
     visibility = ["//visibility:public"],
-    deps = ["//gloop:enforce_gloop_support"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+    ],
 )
 
 cc_test(

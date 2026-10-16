@@ -71,7 +71,7 @@ class SequenceNumber {
   // Please do not add such a call.
 
  private:
-  std::atomic<Value> word_;
+  mutable std::atomic<Value> word_;
 };
 
 }  // namespace base
