@@ -67,10 +67,10 @@ Windows and Apple operating systems are unsupported and blocked by policy.
 
 Component        | Supported Version  | Last Changed | Next Change
 :--------------- | :----------------- | :----------- | :----------
-**Clang**        | >= 21              | 2026-02-03   | 2026-08-24
+**Clang**        | >= 22              | 2026-10-15   | 2027-02-25
 **Bazel**        | >= 8 (Bzlmod only) | 2026-02-03   | 2027-01-20
 **C++ Standard** | >= 20              | 2026-02-03   | TBD
-**libc++**       | >= 21              | 2026-04-16   | 2026-08-24
+**libc++**       | >= 22              | 2026-10-15   | 2027-02-25
 **glibc**        | >= 2.39            | 2026-04-16   | TBD
 
 We maintain a trailing support window for our build dependencies. The timer

@@ -61,7 +61,7 @@ void PrintBuf(char* buf, int bit_len) {
   }
 }
 
-static uint32_t global_value = 0;
+static uint32_t global_value [[maybe_unused]] = 0;
 
 static const int N = 16384;  // Number of random values for BitsRequired.*
                              // Must be power of 2

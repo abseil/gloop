@@ -69,7 +69,6 @@ namespace {
 
 absl::once_flag init_domain_once;
 static base::scheduling::Domain* default_domain = nullptr;
-static base::scheduling::Scheduler* root_scheduler = nullptr;
 
 #ifdef ABSL_HAVE_THREAD_SANITIZER
 int DefaultTsanConcurrency() {
@@ -138,7 +137,7 @@ void InitDefaultDomain() {
   }
 
   default_domain = CreateCustomDomain({}).release();
-  root_scheduler = NewRootFIFOScheduler(default_domain);
+  NewRootFIFOScheduler(default_domain);
 }
 
 }  // namespace

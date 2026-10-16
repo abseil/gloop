@@ -429,7 +429,7 @@ class InstanceCounter : public T {
  public:
   InstanceCounter<T>() : T() { ++instance_count; }
   ~InstanceCounter<T>() { --instance_count; }
-  static int instance_count;
+  static int instance_count [[maybe_unused]];
 };
 template <typename T>
 int InstanceCounter<T>::instance_count = 0;

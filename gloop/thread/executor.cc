@@ -188,7 +188,6 @@ namespace thread {
 
 static absl::once_flag module_init;
 ABSL_CONST_INIT static absl::Mutex set_lock(absl::kConstInit);
-static Executor* original_executor = nullptr;
 static std::atomic<Executor*> default_executor = nullptr;
 
 static void InitModule() {
@@ -202,7 +201,6 @@ static void InitModule() {
   }
 
   default_executor = thread_internal::ChooseDefaultExecutor();
-  original_executor = default_executor;
 }
 
 Executor::~Executor() {}

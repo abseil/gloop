@@ -32,8 +32,8 @@
 #error "Gloop requires Clang."
 #endif
 
-#if !defined(__clang_major__) || __clang_major__ < 21
-#error "Gloop requires Clang 21 or later."
+#if !defined(__clang_major__) || __clang_major__ < 22
+#error "Gloop requires Clang 22 or later."
 #endif
 
 #if !defined(__cplusplus) || __cplusplus < 202002L
@@ -83,8 +83,8 @@ static_assert(sizeof(void*) == 8, "Gloop only supports 64-bit platforms.");
 #endif
 
 #ifndef GLOOP_I_ACKNOWLEDGE_THAT_GLOOP_DOES_NOT_SUPPORT_LIBSTDCXX
-#if !defined(_LIBCPP_VERSION) || _LIBCPP_VERSION < 210000
-#error "Gloop requires libc++ 21 or later."
+#if !defined(_LIBCPP_VERSION) || _LIBCPP_VERSION < 220000
+#error "Gloop requires libc++ 22 or later."
 #endif
 #endif
 
