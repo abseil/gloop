@@ -156,6 +156,10 @@ class TraceContext {
   TraceContext& operator=(TraceContext&&) = default;
   explicit TraceContext(const TraceContext*) {}
   void CopyTo(TraceContext*) const {}
+  void BeforeSetThreadContext(base::ThreadContextAccess, const TraceContext&,
+                              perftools::tracing::StringRef) {}
+  void AfterSetThreadContext(base::ThreadContextAccess,
+                             perftools::tracing::StringRef) {}
   void BeforeSwapCurrent(base::ContextAccess, const TraceContext& to) {}
   void AfterSwapCurrent(
       base::ContextAccess,
@@ -321,6 +325,19 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
   // Copy from this context to *c
   ABSL_DEPRECATE_AND_INLINE()
   void CopyTo(TraceContext* c) const { *c = *this; }
+
+  // 'BeforeSetThreadContext()` and 'AfterSetThreadContext()` handle a 'forced'
+  // context change for the current thread. The active context is ended, and
+  // the new context is resumed. This contrasts with the existing `WithContext`
+  // and Swap/Restore methods where the expectation is that trace context
+  // changes can be nested for the same trace: in the case of nested trace spans
+  // we have nested TraceContexts being scoped in the thread local context with
+  // the only effective observable change being current span id and span name of
+  // the nested local trace spans.
+  void BeforeSetThreadContext(base::ThreadContextAccess, const TraceContext& to,
+                              perftools::tracing::StringRef label);
+  void AfterSetThreadContext(base::ThreadContextAccess,
+                             perftools::tracing::StringRef label);
 
   // `BeforeSwapCurrent()`,`AfterSwapCurrent()`, `BeforeRestoreCurrent()` and
   // `AfterRestoreCurrent()` are invoked right before and after the current
@@ -793,6 +810,8 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
   explicit constexpr TraceContext(DefaultInitType) : TraceContext() {}
 
  private:
+  using SyncContextAccess = perftools::tracing::core::SyncContext::Access;
+
   // Returns true iff the trace context is speculatively traced.
   // Speculatively traced contexts must have real tracers, so it implies
   // CanRecordAnnotations(). The trace data will be sent to Dapper but might not
@@ -1083,9 +1102,21 @@ inline TraceContext& TraceContext::operator=(TraceContext&& c) noexcept {
   return *this;
 }
 
+inline void TraceContext::BeforeSetThreadContext(
+    base::ThreadContextAccess, const TraceContext& to,
+    perftools::tracing::StringRef) {
+  sync_context_.EndContext(SyncContextAccess());
+  MaybeCopyKtraceRpcIdTo(to);
+}
+
+inline void TraceContext::AfterSetThreadContext(
+    base::ThreadContextAccess, perftools::tracing::StringRef label) {
+  sync_context_.ResumeContext(SyncContextAccess(), {}, label);
+  CAPTURE_TRACECONTEXT_CHANGE_ANNOTATION(this);
+}
+
 inline void TraceContext::BeforeSwapCurrent(base::ContextAccess,
                                             const TraceContext& to) {
-  using SyncContextAccess = perftools::tracing::core::SyncContext::Access;
   if (sync_context_.has_listeners()) {
     sync_context_.BeforeSwapCurrent(SyncContextAccess(), to.sync_context_);
   }
@@ -1094,7 +1125,6 @@ inline void TraceContext::BeforeSwapCurrent(base::ContextAccess,
 
 inline void TraceContext::AfterSwapCurrent(
     base::ContextAccess, perftools::tracing::StringRef label) {
-  using SyncContextAccess = perftools::tracing::core::SyncContext::Access;
   if (sync_context_.has_listeners()) {
     sync_context_.AfterSwapCurrent(SyncContextAccess(), rpc_id_, label);
   }
@@ -1103,7 +1133,6 @@ inline void TraceContext::AfterSwapCurrent(
 
 inline void TraceContext::BeforeRestoreCurrent(base::ContextAccess,
                                                const TraceContext& from) {
-  using SyncContextAccess = perftools::tracing::core::SyncContext::Access;
   if (sync_context_.has_listeners()) {
     sync_context_.BeforeRestoreCurrent(SyncContextAccess(), from.sync_context_);
   }
@@ -1112,7 +1141,6 @@ inline void TraceContext::BeforeRestoreCurrent(base::ContextAccess,
 
 inline void TraceContext::AfterRestoreCurrent(
     base::ContextAccess, perftools::tracing::StringRef label) {
-  using SyncContextAccess = perftools::tracing::core::SyncContext::Access;
   if (sync_context_.has_listeners()) {
     sync_context_.AfterRestoreCurrent(SyncContextAccess(), rpc_id_, label);
   }
