@@ -331,7 +331,7 @@ class AlignedMemBlock : public MemBlock {
   // Sample usage 2, read memblock data into Cord:
   //
   //   // Read from some block device requiring block aligned memory.
-  //   auto memblock = absl::make_unique<AlignedMemBlock>(
+  //   auto memblock = std::make_unique<AlignedMemBlock>(
   //                       data_size, block_device.block_size()));
   //   auto status = block_device.ReadBlockData(memblock->data(), data_size);
   //   if (status.ok()) {
