@@ -52,6 +52,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <ctime>
 #if !defined(__APPLE__)
 #include <sys/statfs.h>
 #endif

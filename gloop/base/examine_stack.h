@@ -28,6 +28,7 @@
 #ifndef THIRD_PARTY_GLOOP_BASE_EXAMINE_STACK_H_
 #define THIRD_PARTY_GLOOP_BASE_EXAMINE_STACK_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 

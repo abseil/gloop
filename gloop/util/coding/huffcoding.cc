@@ -30,6 +30,7 @@
 
 #include "absl/container/fixed_array.h"
 #include "absl/log/check.h"
+#include "absl/strings/string_view.h"
 #include "gloop/util/coding/bitcoding.h"
 #include "gloop/util/coding/coder.h"
 #include "gloop/util/coding/tablecoding.h"
