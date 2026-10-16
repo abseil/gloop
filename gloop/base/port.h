@@ -57,6 +57,53 @@
 #undef ERROR
 #undef DELETE
 #undef DIFFERENCE
+#undef REASON_OTHER
+#undef REASON_UNKNOWN
+
+// Windows headers define GetMessage as a macro (GetMessageW or GetMessageA),
+// which collides with protobuf's Reflection::GetMessage() and other C++ methods
+// after google/protobuf/os_macros_restore.inc pops the macro state.
+// Replace the macro with an inline forwarding function so both Win32 and C++
+// callers work.
+#ifdef GetMessage
+#if defined(UNICODE)
+#define GLOOP_INTERNAL_WIN32_GET_MESSAGE GetMessageW
+#else
+#define GLOOP_INTERNAL_WIN32_GET_MESSAGE GetMessageA
+#endif
+#undef GetMessage
+#ifdef __cplusplus
+inline BOOL GetMessage(LPMSG lpMsg, HWND hWnd, UINT wMsgFilterMin,
+                       UINT wMsgFilterMax) {
+  return GLOOP_INTERNAL_WIN32_GET_MESSAGE(lpMsg, hWnd, wMsgFilterMin,
+                                          wMsgFilterMax);
+}
+#endif  // __cplusplus
+#undef GLOOP_INTERNAL_WIN32_GET_MESSAGE
+#endif  // GetMessage
+
+// Replace Windows error/status macros that commonly collide with scoped C++
+// enums and protobuf identifiers with global constants in C++ mode so that
+// unqualified Win32 references (e.g., NO_ERROR, ERROR_NOT_FOUND, STILL_ACTIVE)
+// remain valid while scoped identifiers (e.g., Foo::NO_ERROR) are not
+// macro-expanded.
+#ifdef __cplusplus
+#ifdef NO_ERROR
+constexpr auto GLOOP_INTERNAL_WIN32_NO_ERROR = NO_ERROR;
+#undef NO_ERROR
+constexpr auto NO_ERROR = GLOOP_INTERNAL_WIN32_NO_ERROR;
+#endif
+#ifdef ERROR_NOT_FOUND
+constexpr auto GLOOP_INTERNAL_WIN32_ERROR_NOT_FOUND = ERROR_NOT_FOUND;
+#undef ERROR_NOT_FOUND
+constexpr auto ERROR_NOT_FOUND = GLOOP_INTERNAL_WIN32_ERROR_NOT_FOUND;
+#endif
+#ifdef STATUS_PENDING
+constexpr auto GLOOP_INTERNAL_WIN32_STATUS_PENDING = STATUS_PENDING;
+#undef STATUS_PENDING
+constexpr auto STATUS_PENDING = GLOOP_INTERNAL_WIN32_STATUS_PENDING;
+#endif
+#endif  // __cplusplus
 #define STDIN_FILENO 0
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
