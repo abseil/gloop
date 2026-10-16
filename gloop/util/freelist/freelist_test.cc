@@ -80,14 +80,14 @@ TEST_F(FreelistDisabledTest, ThreadSafeFreeList) {
       ThreadSafeFreeList<FreeListConformanceTest::EnsureDeleted>>(kSize);
 
   // Free list fl is initially empty
-  CHECK(fl->CheckRep());
-  CHECK_EQ(fl->size(), 0);
+  EXPECT_TRUE(fl->CheckRep());
+  EXPECT_EQ(fl->size(), 0);
   EnsureDeleted* const ed = fl->New();
-  CHECK(ed != nullptr);
-  CHECK_EQ(fl->size(), 0);
-  CHECK(fl->CheckRep());
+  ASSERT_NE(ed, nullptr);
+  EXPECT_EQ(fl->size(), 0);
+  EXPECT_TRUE(fl->CheckRep());
   fl->Delete(ed);
-  CHECK_EQ(fl->size(), 0);  // freelist should be empty
+  EXPECT_EQ(fl->size(), 0);  // freelist should be empty
 }
 
 // Test FastAllocator
@@ -114,11 +114,11 @@ class Object {
 
  private:
   void Initialize() {
-    CHECK_NE(state_, INITIALIZED);
+    EXPECT_NE(state_, INITIALIZED);
     state_ = INITIALIZED;
   }
   void Finalize() {
-    CHECK_NE(state_, FINALIZED);
+    EXPECT_NE(state_, FINALIZED);
     state_ = FINALIZED;
     finalized++;
   }
@@ -132,115 +132,115 @@ void Object::TestFastAllocator() {
 
   // Delete(NULL) is nop
   alloc = new FastAllocator<Object>(new FreeList<Object>(1), nullptr, nullptr);
-  CHECK_EQ(alloc->size(), 0);
+  EXPECT_EQ(alloc->size(), 0);
   alloc->Delete(nullptr);
-  CHECK_EQ(alloc->size(), 0);
+  EXPECT_EQ(alloc->size(), 0);
   x = alloc->New();
-  CHECK(x != nullptr);  // not the NULL we just "deleted"
+  ASSERT_NE(x, nullptr);  // not the NULL we just "deleted"
   alloc->Delete(x);
   delete alloc;
 
   // Case 1: No initializer and finalizer
   alloc = new FastAllocator<Object>(new FreeList<Object>(1), nullptr, nullptr);
   x = alloc->New();
-  CHECK(x != nullptr);
-  CHECK_EQ(x->state(), Object::CONSTRUCTED);  // no initialization
+  ASSERT_NE(x, nullptr);
+  EXPECT_EQ(x->state(), Object::CONSTRUCTED);  // no initialization
   x->Touch();
-  CHECK_EQ(x->state(), Object::TOUCHED);
+  EXPECT_EQ(x->state(), Object::TOUCHED);
   destroyed = finalized = 0;
   alloc->Delete(x);
-  CHECK_EQ(destroyed, 0);                 // x went on free list, not destroyed
-  CHECK_EQ(finalized, 0);                 // nor finalized
-  CHECK_EQ(x->state(), Object::TOUCHED);  // no finalization, x stays as it was
+  EXPECT_EQ(destroyed, 0);                 // x went on free list, not destroyed
+  EXPECT_EQ(finalized, 0);                 // nor finalized
+  EXPECT_EQ(x->state(), Object::TOUCHED);  // no finalization, x stays as it was
 
   y = alloc->New();  // reuse x
-  CHECK(x == y);
-  CHECK_EQ(x->state(), Object::TOUCHED);  // no initialization
+  EXPECT_EQ(x, y);
+  EXPECT_EQ(x->state(), Object::TOUCHED);  // no initialization
 
   alloc->Delete(alloc->New());  // fill the free list slot
   destroyed = finalized = 0;    // x to be destroyed
   x->Touch();
   alloc->Delete(x);
-  CHECK_EQ(destroyed, 1);  // destructor run
-  CHECK_EQ(finalized, 0);  // but no finalizer
+  EXPECT_EQ(destroyed, 1);  // destructor run
+  EXPECT_EQ(finalized, 0);  // but no finalizer
   delete alloc;
 
   // Case 2: Initializer but no finalizer
   alloc = new FastAllocator<Object>(new FreeList<Object>(1),
                                     &Object::Initialize, nullptr);
   x = alloc->New();
-  CHECK(x != nullptr);
-  CHECK_EQ(x->state(), Object::INITIALIZED);  // initialization
+  ASSERT_NE(x, nullptr);
+  EXPECT_EQ(x->state(), Object::INITIALIZED);  // initialization
   x->Touch();
-  CHECK_EQ(x->state(), Object::TOUCHED);
+  EXPECT_EQ(x->state(), Object::TOUCHED);
   destroyed = finalized = 0;
   alloc->Delete(x);
-  CHECK_EQ(destroyed, 0);                 // x went on free list, not destroyed
-  CHECK_EQ(finalized, 0);                 // nor finalized
-  CHECK_EQ(x->state(), Object::TOUCHED);  // no finalization, x stays as it was
+  EXPECT_EQ(destroyed, 0);                 // x went on free list, not destroyed
+  EXPECT_EQ(finalized, 0);                 // nor finalized
+  EXPECT_EQ(x->state(), Object::TOUCHED);  // no finalization, x stays as it was
 
   y = alloc->New();  // reuse x
-  CHECK(x == y);
-  CHECK_EQ(x->state(), Object::INITIALIZED);  // re-initialized
+  EXPECT_EQ(x, y);
+  EXPECT_EQ(x->state(), Object::INITIALIZED);  // re-initialized
 
   alloc->Delete(alloc->New());  // fill the free list slot
   destroyed = finalized = 0;    // x to be destroyed
   x->Touch();
   alloc->Delete(x);
-  CHECK_EQ(destroyed, 1);  // destructor run
-  CHECK_EQ(finalized, 0);  // but no finalizer
+  EXPECT_EQ(destroyed, 1);  // destructor run
+  EXPECT_EQ(finalized, 0);  // but no finalizer
   delete alloc;
 
   // Case 3: No initializer but has finalizer
   alloc = new FastAllocator<Object>(new FreeList<Object>(1), nullptr,
                                     &Object::Finalize);
   x = alloc->New();
-  CHECK(x != nullptr);
-  CHECK_EQ(x->state(), Object::CONSTRUCTED);  // no initialization
+  ASSERT_NE(x, nullptr);
+  EXPECT_EQ(x->state(), Object::CONSTRUCTED);  // no initialization
   x->Touch();
-  CHECK_EQ(x->state(), Object::TOUCHED);
+  EXPECT_EQ(x->state(), Object::TOUCHED);
   destroyed = finalized = 0;
   alloc->Delete(x);
-  CHECK_EQ(destroyed, 0);  // x went on free list, not destroyed
-  CHECK_EQ(finalized, 1);  // but finalized
-  CHECK_EQ(x->state(), Object::FINALIZED);  // finalized
+  EXPECT_EQ(destroyed, 0);  // x went on free list, not destroyed
+  EXPECT_EQ(finalized, 1);  // but finalized
+  EXPECT_EQ(x->state(), Object::FINALIZED);  // finalized
 
   y = alloc->New();  // reuse x
-  CHECK(x == y);
-  CHECK_EQ(x->state(), Object::FINALIZED);  // no re-initialization
+  EXPECT_EQ(x, y);
+  EXPECT_EQ(x->state(), Object::FINALIZED);  // no re-initialization
 
   alloc->Delete(alloc->New());  // fill the free list slot
   destroyed = finalized = 0;    // x to be destroyed
   x->Touch();
   alloc->Delete(x);
-  CHECK_EQ(destroyed, 1);  // destructor run
-  CHECK_EQ(finalized, 1);  // and so was finalizer
+  EXPECT_EQ(destroyed, 1);  // destructor run
+  EXPECT_EQ(finalized, 1);  // and so was finalizer
   delete alloc;
 
   // Case 4: Has both initializer and finalizer
   alloc = new FastAllocator<Object>(new FreeList<Object>(1),
                                     &Object::Initialize, &Object::Finalize);
   x = alloc->New();
-  CHECK(x != nullptr);
-  CHECK_EQ(x->state(), Object::INITIALIZED);  // initialized
+  ASSERT_NE(x, nullptr);
+  EXPECT_EQ(x->state(), Object::INITIALIZED);  // initialized
   x->Touch();
-  CHECK_EQ(x->state(), Object::TOUCHED);
+  EXPECT_EQ(x->state(), Object::TOUCHED);
   destroyed = finalized = 0;
   alloc->Delete(x);
-  CHECK_EQ(destroyed, 0);  // x went on free list, not destroyed
-  CHECK_EQ(finalized, 1);  // but finalized
-  CHECK_EQ(x->state(), Object::FINALIZED);  // finalized
+  EXPECT_EQ(destroyed, 0);  // x went on free list, not destroyed
+  EXPECT_EQ(finalized, 1);  // but finalized
+  EXPECT_EQ(x->state(), Object::FINALIZED);  // finalized
 
   y = alloc->New();  // reuse x
-  CHECK(x == y);
-  CHECK_EQ(x->state(), Object::INITIALIZED);  // re-initialized
+  EXPECT_EQ(x, y);
+  EXPECT_EQ(x->state(), Object::INITIALIZED);  // re-initialized
 
   alloc->Delete(alloc->New());  // fill the free list slot
   destroyed = finalized = 0;    // x to be destroyed
   x->Touch();
   alloc->Delete(x);
-  CHECK_EQ(destroyed, 1);  // destructor run
-  CHECK_EQ(finalized, 1);  // and so was finalizer
+  EXPECT_EQ(destroyed, 1);  // destructor run
+  EXPECT_EQ(finalized, 1);  // and so was finalizer
   delete alloc;
 }
 
@@ -250,62 +250,62 @@ TEST_F(FastAllocatorTest, FastAllocator) { Object::TestFastAllocator(); }
 using AbstractFreeListTest = FreeListBaseTest;
 TEST_F(AbstractFreeListTest, NewUniquePtr) {
   FreeList<std::string> freelist(5);
-  EXPECT_EQ(5, freelist.max_length());
+  EXPECT_EQ(freelist.max_length(), 5);
   {
     auto ptr = freelist.NewUniquePtr();
-    EXPECT_EQ("", *ptr);
+    EXPECT_EQ(*ptr, "");
     ptr->push_back('H');
-    EXPECT_EQ("H", *ptr);
-    EXPECT_EQ(0, freelist.size());  // No spare instance
+    EXPECT_EQ(*ptr, "H");
+    EXPECT_EQ(freelist.size(), 0);  // No spare instance
   }
-  EXPECT_EQ(1, freelist.size());  // Instance returned to list
+  EXPECT_EQ(freelist.size(), 1);  // Instance returned to list
 }
 
 TEST_F(AbstractFreeListTest, NewUniquePtrNullable) {
   FreeList<std::string> freelist(5);
-  EXPECT_EQ(5, freelist.max_length());
+  EXPECT_EQ(freelist.max_length(), 5);
   {
     auto ptr = freelist.NewUniquePtr();
-    EXPECT_EQ("", *ptr);
+    EXPECT_EQ(*ptr, "");
     ptr->push_back('H');
-    EXPECT_EQ("H", *ptr);
-    EXPECT_EQ(0, freelist.size());  // No spare instance
+    EXPECT_EQ(*ptr, "H");
+    EXPECT_EQ(freelist.size(), 0);  // No spare instance
     ptr = nullptr;
-    EXPECT_EQ(1, freelist.size());  // Instance Returned.
+    EXPECT_EQ(freelist.size(), 1);  // Instance Returned.
   }
-  EXPECT_EQ(1, freelist.size());  // Instance returned to list
+  EXPECT_EQ(freelist.size(), 1);  // Instance returned to list
 }
 
 TEST_F(AbstractFreeListTest, NewUniquePtrMovableDeleter) {
   FreeList<std::string> freelist(5);
   FreeList<std::string> freelist2(5);
-  EXPECT_EQ(5, freelist.max_length());
+  EXPECT_EQ(freelist.max_length(), 5);
   {
     auto ptr = freelist.NewUniquePtr();
-    EXPECT_EQ("", *ptr);
+    EXPECT_EQ(*ptr, "");
     ptr->push_back('H');
-    EXPECT_EQ("H", *ptr);
-    EXPECT_EQ(0, freelist.size());
-    EXPECT_EQ(0, freelist2.size());
+    EXPECT_EQ(*ptr, "H");
+    EXPECT_EQ(freelist.size(), 0);
+    EXPECT_EQ(freelist2.size(), 0);
     ptr = freelist2.NewUniquePtr();
-    EXPECT_EQ(1, freelist.size());  // First Instance Returned.
+    EXPECT_EQ(freelist.size(), 1);  // First Instance Returned.
   }
-  EXPECT_EQ(1, freelist2.size());  // Second Instance Returned.
-  EXPECT_EQ(1, freelist.size());   // Nothing else returned to first list.
+  EXPECT_EQ(freelist2.size(), 1);  // Second Instance Returned.
+  EXPECT_EQ(freelist.size(), 1);   // Nothing else returned to first list.
 }
 
 using ScopedFreeListPointerTest = FreeListBaseTest;
 TEST_F(ScopedFreeListPointerTest, BasicCase) {
   FreeList<std::string> free_list(5);
-  EXPECT_EQ(5, free_list.max_length());
+  EXPECT_EQ(free_list.max_length(), 5);
   {
     ScopedFreeListPointer<std::string> ptr(&free_list);
-    EXPECT_EQ("", *ptr);
+    EXPECT_EQ(*ptr, "");
     ptr->push_back('H');
-    EXPECT_EQ("H", *ptr);
-    EXPECT_EQ(0, free_list.size());  // No spare instance
+    EXPECT_EQ(*ptr, "H");
+    EXPECT_EQ(free_list.size(), 0);  // No spare instance
   }
-  EXPECT_EQ(1, free_list.size());  // Instance returned to list
+  EXPECT_EQ(free_list.size(), 1);  // Instance returned to list
 }
 
 }  // namespace
