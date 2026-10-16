@@ -85,6 +85,7 @@
 #include "absl/container/btree_set.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "gloop/util/gtl/container_logging.h"
 #include "gloop/util/gtl/heterogeneous_lookup.h"
@@ -93,6 +94,44 @@
 namespace gtl {
 namespace internal_interval_set {
 struct UtilMemoryAccess;
+
+// True if `U` is a pointer to a character type, e.g. `const char*`.
+template <typename U>
+inline constexpr bool kIsCharPointer =
+    std::is_pointer_v<U> &&
+    internal_interval::is_char_type_v<std::remove_pointer_t<U>>;
+
+// True if `U` is a specialization of `Interval`.
+template <typename U>
+inline constexpr bool kIsInterval = false;
+template <typename U>
+inline constexpr bool kIsInterval<Interval<U>> = true;
+
+// Compares two heterogeneous lookup keys (e.g. the endpoints of a range probe)
+// with each other. Narrow C strings (character arrays and pointers) are
+// compared by value as `absl::string_view` rather than by address, so that e.g.
+// `Contains("a", "c")` works as it does for `std::string` endpoints.
+struct HeterogeneousKeyLess {
+  template <typename K>
+  static constexpr bool kIsCString =
+      std::is_convertible_v<const K&, const char*> &&
+      !std::is_null_pointer_v<K>;
+
+  template <typename K>
+  static decltype(auto) Comparable(const K& k) {
+    if constexpr (kIsCString<K>) {
+      return absl::string_view(k);
+    } else {
+      return (k);
+    }
+  }
+
+  template <typename A, typename B>
+  bool operator()(const A& a, const B& b) const {
+    return Comparable(a) < Comparable(b);
+  }
+};
+
 }  // namespace internal_interval_set
 
 template <typename T, typename Allocator = std::allocator<Interval<T>>>
@@ -104,10 +143,41 @@ class IntervalSet {
   static_assert(std::is_copy_assignable_v<T>,
                 "IntervalSet requires a copy-assignable type");
 
+  using AllowHeterogeneousLookup =
+      internal_interval::AllowHeterogeneousLookup<T>;
+  static constexpr bool kIsTransparent =
+      gtl::IsTransparent<AllowHeterogeneousLookup>::value;
+
   template <class U>
-  using key_arg =
-      HeterogeneousLookupKeyArg<U, T,
-                                internal_interval::AllowHeterogeneousLookup<T>>;
+  using key_arg = HeterogeneousLookupKeyArg<U, T, AllowHeterogeneousLookup>;
+
+  // Rejects heterogeneous `Interval<U>` probes whose endpoints are character
+  // pointers, e.g. `gtl::Interval("a", "c")`, which deduces
+  // `Interval<const char*>`. Such an interval compares its own endpoints by
+  // address (e.g. in `empty()`), giving wrong results. Pass the endpoints
+  // separately (e.g. `Contains("a", "c")`) or use `Interval<absl::string_view>`
+  // instead. This only applies when `T` is transparent; e.g.
+  // `IntervalSet<const char*>` intentionally compares pointers.
+  template <typename U>
+  using EnableIfNotCharPointerProbe = std::enable_if_t<!(
+      kIsTransparent && internal_interval_set::kIsCharPointer<U>)>;
+
+  // For transparent `T`, keeps the point lookups (`Contains(value)`,
+  // `Find(value)`) from deducing an `Interval` as the point type, so that
+  // interval probes rejected above don't fall through to them.
+  template <typename U>
+  using EnableIfPointKey = std::enable_if_t<!(
+      kIsTransparent && internal_interval_set::kIsInterval<U>)>;
+
+  // Returns true if `a < b` for two lookup keys of possibly different types.
+  template <typename A, typename B>
+  static bool KeyLess(const A& a, const B& b) {
+    if constexpr (kIsTransparent) {
+      return internal_interval_set::HeterogeneousKeyLess()(a, b);
+    } else {
+      return a < b;
+    }
+  }
 
   struct IntervalLess {
     using is_transparent = void;
@@ -127,7 +197,8 @@ class IntervalSet {
                       typename std::allocator_traits<
                           Allocator>::template rebind_alloc<value_type>>;
 
-  // A pseudo-concept for a type that is convertible to a `T`.
+  // A type implicitly convertible to `T`. Implicit conversion is required for
+  // insertion methods (`Add`) that bind via copy-initialization.
   template <typename U,
             typename = std::enable_if_t<std::is_convertible_v<U, T>>>
   using ConvertibleToT = U;
@@ -157,7 +228,7 @@ class IntervalSet {
 
   // Instantiates an IntervalSet containing the half-open interval
   // [start, limit).
-  template <typename U1, typename U2>
+  template <typename U1 = T, typename U2 = T>
   IntervalSet(ConvertibleToT<U1>&& start, ConvertibleToT<U2>&& limit) {
     InitImpl(MaybeT(std::forward<U1>(start)), MaybeT(std::forward<U2>(limit)));
   }
@@ -181,7 +252,7 @@ class IntervalSet {
 
   // Adds the interval [start, limit) to this IntervalSet. Adding the empty
   // interval has no effect.
-  template <typename U1, typename U2>
+  template <typename U1 = T, typename U2 = T>
   void Add(ConvertibleToT<U1>&& start, ConvertibleToT<U2>&& limit) {
     AddImpl(MaybeT(std::forward<U1>(start)), MaybeT(std::forward<U2>(limit)));
   }
@@ -195,7 +266,9 @@ class IntervalSet {
 
   // Returns true if any interval in this IntervalSet contains the indicated
   // value.
-  bool Contains(const T& value) const;
+  template <int&... ExplicitParameterBarrier, typename U = T,
+            typename = EnableIfPointKey<U>>
+  bool Contains(const key_arg<U>& value) const;
 
   // Returns true if there is some interval in this IntervalSet that wholly
   // contains the given interval. An interval O "wholly contains" a non-empty
@@ -207,7 +280,9 @@ class IntervalSet {
   //   Assume an IntervalSet containing the entries { [10,20), [30,40) }.
   //   Contains(Interval(15, 16)) returns true, because [10,20) contains
   //   [15,16). However, Contains(Interval(15, 35)) returns false.
-  bool Contains(const Interval<T>& interval) const;
+  template <int&... ExplicitParameterBarrier, typename U = T,
+            typename = EnableIfNotCharPointerProbe<U>>
+  bool Contains(const Interval<key_arg<U>>& interval) const;
 
   // Returns true if for each interval in "other", there is some (possibly
   // different) interval in this IntervalSet which wholly contains it. See
@@ -221,8 +296,12 @@ class IntervalSet {
 
   // Returns true if there is some interval in this IntervalSet that wholly
   // contains the interval [start, limit). See Contains(const Interval<T>&).
-  bool Contains(const T& start, const T& limit) const {
-    return Contains(Interval<T>(start, limit));
+  // For transparent `T`, `start` and `limit` may be of different types (e.g. a
+  // string literal and an `absl::Cord`) and are compared directly against the
+  // stored intervals without constructing a probe interval.
+  template <int&... ExplicitParameterBarrier, typename U1 = T, typename U2 = T>
+  bool Contains(const key_arg<U1>& start, const key_arg<U2>& limit) const {
+    return Find(start, limit) != end();
   }
 
   // Returns true if for some interval in "other", there is some interval in
@@ -233,29 +312,38 @@ class IntervalSet {
   // Returns true if some interval in this IntervalSet intersects with the
   // interval [start, limit). See Interval<T>::Intersects() for the definition
   // of interval intersection.
-  bool IntersectsInterval(const Interval<T>& interval) const;
+  template <int&... ExplicitParameterBarrier, typename U = T,
+            typename = EnableIfNotCharPointerProbe<U>>
+  bool IntersectsInterval(const Interval<key_arg<U>>& interval) const;
 
   // Returns an iterator to the Interval<T> in the IntervalSet that contains the
   // given value. In other words, returns an iterator to the unique interval
   // [start, limit) in the IntervalSet that has the property start <= value <
   // limit. If there is no such interval, this method returns end().
-  const_iterator Find(const T& value) const;
+  template <int&... ExplicitParameterBarrier, typename U = T,
+            typename = EnableIfPointKey<U>>
+  const_iterator Find(const key_arg<U>& value) const;
 
   // Returns an iterator to the Interval<T> in the IntervalSet that wholly
   // contains the given interval. In other words, returns an iterator to the
   // unique interval outer in the IntervalSet that has the property that
   // outer.Contains(interval). If there is no such interval, or if interval is
   // empty, returns end().
-  const_iterator Find(const Interval<T>& interval) const;
+  template <int&... ExplicitParameterBarrier, typename U = T,
+            typename = EnableIfNotCharPointerProbe<U>>
+  const_iterator Find(const Interval<key_arg<U>>& probe) const {
+    return Find(probe.start(), probe.limit());
+  }
 
   // Returns an iterator to the Interval<T> in the IntervalSet that wholly
   // contains [start, limit). In other words, returns an iterator to the unique
   // interval outer in the IntervalSet that has the property that
   // outer.Contains(Interval<T>(start, limit)). If there is no such interval, or
-  // if interval is empty, returns end().
-  const_iterator Find(const T& start, const T& limit) const {
-    return Find(Interval<T>(start, limit));
-  }
+  // if interval is empty, returns end(). For transparent `T`, `start` and
+  // `limit` may be of different types and are compared directly against the
+  // stored intervals without constructing a probe interval.
+  template <int&... ExplicitParameterBarrier, typename U1 = T, typename U2 = T>
+  const_iterator Find(const key_arg<U1>& start, const key_arg<U2>& limit) const;
 
   // Returns an iterator pointing to the first Interval<T> which contains or
   // starts after the given value.
@@ -266,7 +354,8 @@ class IntervalSet {
   //   ^                    LowerBound(15)
   //             ^          LowerBound(20)
   //             ^          LowerBound(25)
-  const_iterator LowerBound(const T& value) const;
+  template <int&... ExplicitParameterBarrier, typename U = T>
+  const_iterator LowerBound(const key_arg<U>& value) const;
 
   // Returns an iterator pointing to the first Interval<T> which starts after
   // the given value.
@@ -277,13 +366,15 @@ class IntervalSet {
   //             ^          UpperBound(15)
   //             ^          UpperBound(20)
   //             ^          UpperBound(25)
-  const_iterator UpperBound(const T& value) const;
+  template <int&... ExplicitParameterBarrier, typename U = T>
+  const_iterator UpperBound(const key_arg<U>& value) const;
 
   // Returns true if every value within the passed interval is not Contained
   // within the IntervalSet. Equivalent to `!IntersectsInterval(interval)`.
   // Note that empty intervals are always considered disjoint from the
   // IntervalSet, consistent with `Interval::Contains`.
-  template <int&... ExplicitParameterBarrier, typename U = T>
+  template <int&... ExplicitParameterBarrier, typename U = T,
+            typename = EnableIfNotCharPointerProbe<U>>
   bool IsDisjoint(const Interval<key_arg<U>>& interval) const;
 
   // Merges all the values contained in "other" into this IntervalSet.
@@ -569,21 +660,20 @@ void IntervalSet<T, Allocator>::Add(const IntervalSet& other) {
 }
 
 template <typename T, typename Allocator>
-bool IntervalSet<T, Allocator>::Contains(const T& value) const {
+template <int&..., typename U, typename>
+bool IntervalSet<T, Allocator>::Contains(const key_arg<U>& value) const {
   // Find the first interval with start() > value, then move back one step
   auto it = intervals_.upper_bound(value);
   if (it == intervals_.begin()) return false;
   --it;
-  return it->Contains(value);
+  return it->contains(value);
 }
 
 template <typename T, typename Allocator>
-bool IntervalSet<T, Allocator>::Contains(const Interval<T>& interval) const {
-  // Find the first interval with start() > value, then move back one step.
-  const_iterator it = intervals_.upper_bound(interval);
-  if (it == intervals_.begin()) return false;
-  --it;
-  return it->Contains(interval);
+template <int&..., typename U, typename>
+bool IntervalSet<T, Allocator>::Contains(
+    const Interval<key_arg<U>>& interval) const {
+  return Find(interval) != end();
 }
 
 template <typename T, typename Allocator>
@@ -655,12 +745,13 @@ bool IntervalSet<T, Allocator>::Contains(
 // (if it does not). Getting to the proper interval is a simple matter of
 // decrementing the iterator.
 template <typename T, typename Allocator>
+template <int&..., typename U, typename>
 typename IntervalSet<T, Allocator>::const_iterator
-IntervalSet<T, Allocator>::Find(const T& value) const {
+IntervalSet<T, Allocator>::Find(const key_arg<U>& value) const {
   auto it = intervals_.upper_bound(value);
   if (it == intervals_.begin()) return intervals_.end();
   --it;
-  if (it->Contains(value))
+  if (it->contains(value))
     return it;
   else
     return intervals_.end();
@@ -711,20 +802,25 @@ IntervalSet<T, Allocator>::Find(const T& value) const {
 // (if it does not). Getting to the proper interval is a simple matter of
 // decrementing the iterator.
 template <typename T, typename Allocator>
+template <int&..., typename U1, typename U2>
 typename IntervalSet<T, Allocator>::const_iterator
-IntervalSet<T, Allocator>::Find(const Interval<T>& probe) const {
-  const_iterator it = intervals_.upper_bound(probe);
+IntervalSet<T, Allocator>::Find(const key_arg<U1>& start,
+                                const key_arg<U2>& limit) const {
+  // Empty probes are never contained, consistent with `Interval::contains`.
+  if (!KeyLess(start, limit)) return intervals_.end();
+  const_iterator it = intervals_.upper_bound(start);
   if (it == intervals_.begin()) return intervals_.end();
   --it;
-  if (it->Contains(probe))
-    return it;
-  else
-    return intervals_.end();
+  // `upper_bound` guarantees `it->start() <= start`, so the non-empty probe is
+  // contained iff it also ends no later than `*it`.
+  if (it->limit() < limit) return intervals_.end();
+  return it;
 }
 
 template <typename T, typename Allocator>
+template <int&..., typename U>
 typename IntervalSet<T, Allocator>::const_iterator
-IntervalSet<T, Allocator>::LowerBound(const T& value) const {
+IntervalSet<T, Allocator>::LowerBound(const key_arg<U>& value) const {
   const_iterator it = intervals_.lower_bound(value);
   if (it == intervals_.begin()) {
     return it;
@@ -734,7 +830,7 @@ IntervalSet<T, Allocator>::LowerBound(const T& value) const {
   // interval.start(), so we need to check whether the `value` is contained in
   // the previous interval.
   --it;
-  if (it->Contains(value)) {
+  if (it->contains(value)) {
     return it;
   } else {
     return ++it;
@@ -742,16 +838,17 @@ IntervalSet<T, Allocator>::LowerBound(const T& value) const {
 }
 
 template <typename T, typename Allocator>
+template <int&..., typename U>
 typename IntervalSet<T, Allocator>::const_iterator
-IntervalSet<T, Allocator>::UpperBound(const T& value) const {
+IntervalSet<T, Allocator>::UpperBound(const key_arg<U>& value) const {
   return intervals_.upper_bound(value);
 }
 
 template <typename T, typename Allocator>
-template <int&..., typename U>
+template <int&..., typename U, typename>
 bool IntervalSet<T, Allocator>::IsDisjoint(
     const Interval<key_arg<U>>& interval) const {
-  if (interval.Empty()) return true;
+  if (interval.empty()) return true;
   // Find the first interval with start() > interval.start()
   const_iterator it = intervals_.upper_bound(interval.start());
   if (it != intervals_.end() && interval.limit() > it->start()) return false;
@@ -890,8 +987,9 @@ bool IntervalSet<T, Allocator>::Intersects(const IntervalSet& other) const {
 }
 
 template <typename T, typename Allocator>
+template <int&..., typename U, typename>
 bool IntervalSet<T, Allocator>::IntersectsInterval(
-    const Interval<T>& interval) const {
+    const Interval<key_arg<U>>& interval) const {
   return !IsDisjoint(interval);
 }
 

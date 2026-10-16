@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <initializer_list>
 #include <iostream>
 #include <iterator>
@@ -35,6 +36,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -49,6 +51,7 @@
 #include "absl/types/span.h"
 #include "benchmark/benchmark.h"
 #include "gloop/util/gtl/interval.h"
+#include "gloop/util/intops/strong_int.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -1332,7 +1335,197 @@ TEST_F(IntervalSetTest, OutputReturnsOstreamRef) {
   return_type_is_a_ref(ss << v);
 }
 
-TEST_F(IntervalSetTest, HeterogeneousIntervals) {
+TEST_F(IntervalSetTest, HeterogeneousContainsPointAndRange) {
+  // Test IntervalSet<std::string>
+  {
+    IntervalSet<std::string> is;
+    is.Add("a", "c");
+    is.Add("e", "g");
+
+    absl::string_view a_sv = "a";
+    absl::string_view b_sv = "b";
+    absl::string_view c_sv = "c";
+    absl::string_view d_sv = "d";
+
+    std::string a_str = "a";
+    std::string b_str = "b";
+    std::string c_str = "c";
+
+    absl::Cord a_cord("a");
+    absl::Cord b_cord("b");
+
+    // Point Contains across string_view, std::string, absl::Cord, and literal
+    EXPECT_TRUE(is.Contains(a_sv));
+    EXPECT_TRUE(is.Contains(b_str));
+    EXPECT_TRUE(is.Contains(b_cord));
+    EXPECT_FALSE(is.Contains(c_sv));
+    EXPECT_TRUE(is.Contains("b"));
+
+    // Interval Contains across Interval<string_view>, Interval<std::string>,
+    // Interval<Cord>
+    EXPECT_TRUE(is.Contains(Interval<absl::string_view>("a", "b")));
+    EXPECT_TRUE(is.Contains(Interval<std::string>(a_str, c_str)));
+    EXPECT_TRUE(is.Contains(Interval<absl::Cord>(a_cord, b_cord)));
+    EXPECT_FALSE(is.Contains(Interval<absl::string_view>("a", "d")));
+
+    // 2-Argument Range Contains
+    EXPECT_TRUE(is.Contains(a_sv, b_sv));
+    EXPECT_TRUE(is.Contains("a", c_sv));
+    EXPECT_TRUE(is.Contains(a_str, b_str));
+    EXPECT_FALSE(is.Contains(a_sv, d_sv));
+  }
+
+  // Test IntervalSet<absl::Cord>
+  {
+    IntervalSet<absl::Cord> is_cord;
+    is_cord.Add(absl::Cord("a"), absl::Cord("c"));
+    is_cord.Add(absl::Cord("e"), absl::Cord("g"));
+
+    absl::string_view a_sv = "a";
+    absl::string_view b_sv = "b";
+    absl::string_view c_sv = "c";
+    absl::string_view d_sv = "d";
+
+    std::string b_str = "b";
+    absl::Cord a_cord("a");
+    absl::Cord b_cord("b");
+
+    // Point Contains across string_view, std::string, absl::Cord, and literal
+    EXPECT_TRUE(is_cord.Contains(b_sv));
+    EXPECT_TRUE(is_cord.Contains(b_str));
+    EXPECT_TRUE(is_cord.Contains(b_cord));
+    EXPECT_TRUE(is_cord.Contains("b"));
+    EXPECT_FALSE(is_cord.Contains(c_sv));
+
+    // Interval Contains across Interval<string_view>, Interval<std::string>,
+    // Interval<Cord>
+    EXPECT_TRUE(is_cord.Contains(Interval<absl::string_view>("a", "b")));
+    EXPECT_TRUE(is_cord.Contains(Interval<std::string>("a", "b")));
+    EXPECT_TRUE(is_cord.Contains(Interval<absl::Cord>(a_cord, b_cord)));
+    EXPECT_FALSE(is_cord.Contains(Interval<absl::string_view>("a", "d")));
+
+    // 2-Argument Range API for Cord works transparently
+    EXPECT_TRUE(is_cord.Contains("a", "b"));
+    EXPECT_TRUE(is_cord.Contains(a_sv, b_sv));
+    EXPECT_TRUE(is_cord.Contains(a_sv, b_str));
+    EXPECT_FALSE(is_cord.Contains(a_sv, d_sv));
+  }
+
+  // Test IntervalSet<absl::string_view>
+  {
+    IntervalSet<absl::string_view> is_sv;
+    absl::string_view a_sv = "a", c_sv = "c", e_sv = "e", g_sv = "g";
+    is_sv.Add(a_sv, c_sv);
+    is_sv.Add(e_sv, g_sv);
+
+    absl::Cord b_cord("b");
+    std::string b_str = "b";
+
+    EXPECT_TRUE(is_sv.Contains(b_cord));
+    EXPECT_TRUE(is_sv.Contains(b_str));
+    EXPECT_TRUE(is_sv.Contains("b"));
+
+    EXPECT_TRUE(
+        is_sv.Contains(Interval<absl::Cord>(absl::Cord("a"), absl::Cord("b"))));
+    EXPECT_TRUE(is_sv.Contains(Interval<std::string>("a", "b")));
+  }
+}
+
+TEST_F(IntervalSetTest, HeterogeneousFindPointAndRange) {
+  // Test IntervalSet<std::string>
+  {
+    IntervalSet<std::string> is;
+    is.Add("a", "c");
+
+    absl::string_view a = "a";
+    absl::string_view b = "b";
+    absl::string_view c = "c";
+
+    // Point Find
+    auto it_b = is.Find(b);
+    ASSERT_NE(it_b, is.end());
+    EXPECT_EQ(it_b->start(), "a");
+    EXPECT_EQ(it_b->limit(), "c");
+    EXPECT_EQ(is.Find(c), is.end());
+
+    // Interval Find
+    auto it_ab = is.Find(Interval<absl::string_view>("a", "b"));
+    ASSERT_NE(it_ab, is.end());
+    EXPECT_EQ(it_ab->start(), "a");
+    EXPECT_EQ(is.Find(Interval<absl::string_view>("c", "d")), is.end());
+
+    // 2-Argument Range Find
+    auto it_ab_args = is.Find(a, b);
+    ASSERT_NE(it_ab_args, is.end());
+    EXPECT_EQ(it_ab_args->start(), "a");
+  }
+
+  // Test IntervalSet<absl::Cord>
+  {
+    IntervalSet<absl::Cord> is_cord;
+    is_cord.Add(absl::Cord("a"), absl::Cord("c"));
+
+    absl::string_view b_sv = "b";
+    std::string b_str = "b";
+
+    // Find operations across string_view, std::string, and 2-arg range
+    auto it_b = is_cord.Find(b_sv);
+    ASSERT_NE(it_b, is_cord.end());
+    EXPECT_EQ(it_b->start(), absl::Cord("a"));
+
+    auto it_b_str = is_cord.Find(b_str);
+    ASSERT_NE(it_b_str, is_cord.end());
+
+    auto it_ab = is_cord.Find("a", "b");
+    ASSERT_NE(it_ab, is_cord.end());
+    EXPECT_EQ(it_ab->start(), absl::Cord("a"));
+  }
+}
+
+TEST_F(IntervalSetTest, HeterogeneousIntersectsInterval) {
+  IntervalSet<std::string> is;
+  is.Add("a", "c");
+
+  EXPECT_TRUE(is.IntersectsInterval(Interval<absl::string_view>("b", "d")));
+  EXPECT_FALSE(is.IntersectsInterval(Interval<absl::string_view>("c", "d")));
+}
+
+TEST_F(IntervalSetTest, HeterogeneousLowerAndUpperBound) {
+  IntervalSet<std::string> is;
+  is.Add("a", "c");
+  is.Add("e", "g");
+
+  absl::string_view b = "b";
+  absl::string_view d = "d";
+
+  // LowerBound
+  auto it_low_b = is.LowerBound(b);
+  ASSERT_NE(it_low_b, is.end());
+  EXPECT_EQ(it_low_b->start(), "a");
+  auto it_low_d = is.LowerBound(d);
+  ASSERT_NE(it_low_d, is.end());
+  EXPECT_EQ(it_low_d->start(), "e");
+
+  // UpperBound
+  auto it_up_b = is.UpperBound(b);
+  ASSERT_NE(it_up_b, is.end());
+  EXPECT_EQ(it_up_b->start(), "e");
+
+  // LowerBound/UpperBound with absl::Cord on IntervalSet<absl::Cord>
+  IntervalSet<absl::Cord> is_cord;
+  is_cord.Add(absl::Cord("a"), absl::Cord("c"));
+  is_cord.Add(absl::Cord("e"), absl::Cord("g"));
+
+  auto it_cord_low_b = is_cord.LowerBound(b);
+  ASSERT_NE(it_cord_low_b, is_cord.end());
+  EXPECT_EQ(it_cord_low_b->start(), absl::Cord("a"));
+
+  auto it_cord_up_b = is_cord.UpperBound(b);
+  ASSERT_NE(it_cord_up_b, is_cord.end());
+  EXPECT_EQ(it_cord_up_b->start(), absl::Cord("e"));
+}
+
+TEST_F(IntervalSetTest, HeterogeneousIsDisjoint) {
   IntervalSet<std::string> set;
   set.Add("a", "b");
   set.Add("g", "h");
@@ -1341,6 +1534,9 @@ TEST_F(IntervalSetTest, HeterogeneousIntervals) {
   EXPECT_FALSE(set.IsDisjoint(Interval<absl::string_view>("abc", "def")));
   EXPECT_FALSE(set.IsDisjoint(Interval<absl::string_view>("def", "ghi")));
 
+  // Empty heterogeneous interval is always disjoint
+  EXPECT_TRUE(set.IsDisjoint(Interval<absl::string_view>("c", "a")));
+
   EXPECT_TRUE(set.IsDisjoint(
       Interval<absl::Cord>(absl::Cord("bdc"), absl::Cord("def"))));
   EXPECT_FALSE(set.IsDisjoint(
@@ -1348,6 +1544,179 @@ TEST_F(IntervalSetTest, HeterogeneousIntervals) {
   EXPECT_FALSE(set.IsDisjoint(
       Interval<absl::Cord>(absl::Cord("def"), absl::Cord("ghi"))));
 }
+
+TEST_F(IntervalSetTest, ReferenceWrapperContainsAndFind) {
+  int a = 10, b = 20, d = 25;
+  IntervalSet<std::reference_wrapper<const int>> is;
+  is.Add(a, b);
+
+  // Verify that Contains and Find work when passing lvalue references to the
+  // underlying type, even though std::reference_wrapper deleted its rvalue
+  // constructor in C++20.
+  EXPECT_TRUE(is.Contains(a, b));
+  EXPECT_FALSE(is.Contains(a, d));
+  EXPECT_NE(is.Find(a, b), is.end());
+  EXPECT_EQ(is.Find(a, d), is.end());
+}
+
+TEST_F(IntervalSetTest, BracedInitListOperations) {
+  IntervalSet<std::pair<int, int>> is({1, 0}, {5, 0});
+  is.Add({10, 0}, {15, 0});
+
+  // 1-arg and 2-arg Contains
+  EXPECT_TRUE(is.Contains({2, 0}));
+  EXPECT_FALSE(is.Contains({6, 0}));
+  EXPECT_TRUE(is.Contains({1, 0}, {3, 0}));
+  EXPECT_FALSE(is.Contains({1, 0}, {6, 0}));
+
+  // 1-arg and 2-arg Find
+  EXPECT_NE(is.Find({2, 0}), is.end());
+  EXPECT_EQ(is.Find({6, 0}), is.end());
+  EXPECT_NE(is.Find({1, 0}, {3, 0}), is.end());
+  EXPECT_EQ(is.Find({1, 0}, {6, 0}), is.end());
+
+  // LowerBound and UpperBound
+  EXPECT_NE(is.LowerBound({2, 0}), is.end());
+  EXPECT_NE(is.UpperBound({2, 0}), is.end());
+}
+
+TEST_F(IntervalSetTest, HeterogeneousMixedEndpoints) {
+  // Endpoints of different types are compared directly against the stored
+  // intervals, without converting them to a common type.
+  IntervalSet<std::string> is;
+  is.Add("a", "c");
+  EXPECT_TRUE(is.Contains("a", absl::string_view("b")));
+  EXPECT_TRUE(is.Contains(absl::string_view("a"), absl::Cord("b")));
+  EXPECT_FALSE(is.Contains(absl::string_view("a"), absl::Cord("d")));
+  EXPECT_NE(is.Find(absl::Cord("a"), "c"), is.end());
+
+  IntervalSet<absl::Cord> is_cord;
+  is_cord.Add(absl::Cord("a"), absl::Cord("c"));
+  EXPECT_NE(is_cord.Find(std::string("a"), absl::string_view("b")),
+            is_cord.end());
+  EXPECT_NE(is_cord.Find("a", absl::Cord("b")), is_cord.end());
+  EXPECT_EQ(is_cord.Find("a", absl::Cord("d")), is_cord.end());
+}
+
+TEST_F(IntervalSetTest, HeterogeneousEmptyRangeProbe) {
+  IntervalSet<std::string> is;
+  is.Add("a", "z");
+  EXPECT_FALSE(is.Contains("c", "a"));
+  EXPECT_EQ(is.Find("c", "a"), is.end());
+  EXPECT_FALSE(is.Contains("c", "c"));
+  EXPECT_EQ(is.Find("c", "c"), is.end());
+  EXPECT_FALSE(is.Contains(absl::Cord("c"), absl::string_view("a")));
+  EXPECT_FALSE(is.Contains(Interval<absl::string_view>("c", "a")));
+  EXPECT_EQ(is.Find(Interval<absl::string_view>("c", "a")), is.end());
+}
+
+TEST_F(IntervalSetTest, CStringEndpointsCompareByValue) {
+  // Lay out "c" before "a" in memory, so that comparing the endpoints by
+  // address would give the opposite of their lexicographic order.
+  const char buf[] = "c\0a";
+  const char* c = buf;
+  const char* a = buf + 2;
+  ASSERT_LT(c, a);
+
+  IntervalSet<std::string> is;
+  is.Add("a", "c");
+  EXPECT_TRUE(is.Contains(a, c));
+  EXPECT_NE(is.Find(a, c), is.end());
+  EXPECT_FALSE(is.Contains(c, a));
+  EXPECT_EQ(is.Find(c, a), is.end());
+
+  IntervalSet<absl::Cord> is_cord;
+  is_cord.Add(absl::Cord("a"), absl::Cord("c"));
+  EXPECT_TRUE(is_cord.Contains(a, c));
+  EXPECT_FALSE(is_cord.Contains(c, a));
+}
+
+// Detection traits for compile-time checks of which lookups are callable.
+template <typename Set, typename A, typename B, typename = void>
+struct HasRangeContains : std::false_type {};
+template <typename Set, typename A, typename B>
+struct HasRangeContains<
+    Set, A, B,
+    std::void_t<decltype(std::declval<const Set&>().Contains(
+        std::declval<A>(), std::declval<B>()))>> : std::true_type {};
+
+template <typename Set, typename A, typename B, typename = void>
+struct HasRangeFind : std::false_type {};
+template <typename Set, typename A, typename B>
+struct HasRangeFind<Set, A, B,
+                    std::void_t<decltype(std::declval<const Set&>().Find(
+                        std::declval<A>(), std::declval<B>()))>>
+    : std::true_type {};
+
+template <typename Set, typename I, typename = void>
+struct HasIntervalContains : std::false_type {};
+template <typename Set, typename I>
+struct HasIntervalContains<
+    Set, I,
+    std::void_t<decltype(std::declval<const Set&>().Contains(
+        std::declval<const I&>()))>> : std::true_type {};
+
+template <typename Set, typename I, typename = void>
+struct HasIntervalFind : std::false_type {};
+template <typename Set, typename I>
+struct HasIntervalFind<Set, I,
+                       std::void_t<decltype(std::declval<const Set&>().Find(
+                           std::declval<const I&>()))>> : std::true_type {};
+
+template <typename Set, typename I, typename = void>
+struct HasIsDisjoint : std::false_type {};
+template <typename Set, typename I>
+struct HasIsDisjoint<Set, I,
+                     std::void_t<decltype(std::declval<const Set&>().IsDisjoint(
+                         std::declval<const I&>()))>> : std::true_type {};
+
+template <typename Set, typename I, typename = void>
+struct HasIntersectsInterval : std::false_type {};
+template <typename Set, typename I>
+struct HasIntersectsInterval<
+    Set, I,
+    std::void_t<decltype(std::declval<const Set&>().IntersectsInterval(
+        std::declval<const I&>()))>> : std::true_type {};
+
+DEFINE_STRONG_INT_TYPE(RangeLookupInt, int64_t);
+
+// The two-argument lookups must not bypass explicit constructors: for
+// non-transparent `T` the endpoints still have to be implicitly convertible.
+static_assert(!HasRangeContains<IntervalSet<RangeLookupInt>, int, int>::value);
+static_assert(!HasRangeFind<IntervalSet<RangeLookupInt>, int, int>::value);
+static_assert(HasRangeContains<IntervalSet<RangeLookupInt>, RangeLookupInt,
+                               RangeLookupInt>::value);
+static_assert(HasRangeFind<IntervalSet<RangeLookupInt>, RangeLookupInt,
+                           RangeLookupInt>::value);
+static_assert(HasRangeContains<IntervalSet<int64_t>, int, int>::value);
+
+// CTAD with string literals of different lengths (or with `const char*`
+// arguments) deduces `Interval<const char*>`, whose endpoints compare by
+// address. Such probes are rejected for transparent `T`. (Same-length literals
+// deduce `Interval<char[N]>`, which can't be constructed.)
+static_assert(
+    std::is_same_v<decltype(Interval("a", "cd")), Interval<const char*>>);
+using StringIntervalSet = IntervalSet<std::string>;
+static_assert(
+    !HasIntervalContains<StringIntervalSet, Interval<const char*>>::value);
+static_assert(
+    !HasIntervalFind<StringIntervalSet, Interval<const char*>>::value);
+static_assert(!HasIsDisjoint<StringIntervalSet, Interval<const char*>>::value);
+static_assert(
+    !HasIntersectsInterval<StringIntervalSet, Interval<const char*>>::value);
+static_assert(
+    HasIntervalContains<StringIntervalSet, Interval<absl::string_view>>::value);
+static_assert(
+    HasIntervalFind<StringIntervalSet, Interval<absl::string_view>>::value);
+static_assert(
+    HasIsDisjoint<StringIntervalSet, Interval<absl::string_view>>::value);
+static_assert(HasIntersectsInterval<StringIntervalSet,
+                                    Interval<absl::string_view>>::value);
+// For non-transparent `T`, comparing pointers is the intended semantics.
+static_assert(HasIntervalContains<IntervalSet<const char*>,
+                                  Interval<const char*>>::value);
+static_assert(
+    HasIsDisjoint<IntervalSet<const char*>, Interval<const char*>>::value);
 
 struct NotOstreamable {
   bool operator<(const NotOstreamable& other) const { return false; }
