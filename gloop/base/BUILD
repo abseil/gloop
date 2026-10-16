@@ -276,7 +276,6 @@ cc_test(
         "//gloop/util/refcount:reffed_ptr",
         "//gloop/util/status:status_macros",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/memory",
