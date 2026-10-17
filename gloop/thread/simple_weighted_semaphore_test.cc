@@ -160,8 +160,8 @@ void SemaphoreTest::Run() {
 
 void SemaphoreTest::StartTasks(int num) {
   if (random_pool.get() == nullptr)
-    random_pool.pointer()->reset(
-        new ACMRandom(ACMRandom::HostnamePidTimeSeed()));
+    *random_pool.pointer() =
+        std::make_unique<ACMRandom>(ACMRandom::HostnamePidTimeSeed());
   ACMRandom* pool = random_pool.get().get();
   for (int i = 0; i < num; ++i) {
     if (i % 1000 == 1) VLOG(1) << "Started " << i;
@@ -225,8 +225,8 @@ void SemaphoreTest::WriteDone(int task_num, uint64_t cost, uint64_t msec) {
 
   // Every so often, do a stop and start on the throttle
   if (random_pool.get() == nullptr) {
-    random_pool.pointer()->reset(
-        new ACMRandom(ACMRandom::HostnamePidTimeSeed() + task_num));
+    *random_pool.pointer() = std::make_unique<ACMRandom>(
+        ACMRandom::HostnamePidTimeSeed() + task_num);
   }
   if (absl::Bernoulli(*random_pool.get(), 1.0 / 1000)) {
     VLOG(2) << "Stopping";

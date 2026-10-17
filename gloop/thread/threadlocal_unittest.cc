@@ -136,7 +136,7 @@ TEST(ThreadLocalTest, UniquePtr) {
     ASSERT_EQ(constructions.load(std::memory_order_relaxed), 0);  // none yet
     Type* p = t.get().get();
     ASSERT_EQ(p, nullptr);
-    t.pointer()->reset(new Type(10));
+    *t.pointer() = std::make_unique<Type>(10);
     ASSERT_EQ(constructions.load(std::memory_order_relaxed),
               1);  // the one above
     p = t.get().get();
@@ -144,7 +144,7 @@ TEST(ThreadLocalTest, UniquePtr) {
     ASSERT_EQ(constructions.load(std::memory_order_relaxed),
               1);  // stil the same
     ASSERT_EQ(t.get()->value(), 10);
-    t.pointer()->reset(new Type(5));
+    *t.pointer() = std::make_unique<Type>(5);
     ASSERT_EQ(constructions.load(std::memory_order_relaxed),
               2);  // plus the above one
     ASSERT_EQ(destructions.load(std::memory_order_relaxed),
