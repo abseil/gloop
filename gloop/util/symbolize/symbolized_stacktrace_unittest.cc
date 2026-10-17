@@ -279,8 +279,7 @@ TEST(util, CurrentStackTraceWithUrlWorks) {
 ABSL_ATTRIBUTE_NOINLINE
 ABSL_ATTRIBUTE_NO_TAIL_CALL
 // See <internal thread>?e=48417069
-void CallFnFromDeeplyNested(int n_recur,
-                            absl::FunctionRef<std::string(void)> fn) {
+void CallFnFromDeeplyNested(int n_recur, absl::FunctionRef<std::string()> fn) {
   if (n_recur > 0) {
     CallFnFromDeeplyNested(n_recur - 1, fn);
   } else {
