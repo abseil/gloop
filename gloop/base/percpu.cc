@@ -379,12 +379,6 @@ ABSL_ATTRIBUTE_NOINLINE bool InitThreadCpuId() {
       // Perform process-wide initialization, setting per_cpu_state.
       InitRseqForProcess();
 
-      // If we're in slow mode, make sure that the slow mode locks are safe to
-      // use once this function returns.
-      if (per_cpu_state == kSlowMode) {
-        EnsureSlowModeInitialized();
-      }
-
       // Set `initialized` to true after all initialization has completed.
       // The below store orders with the load acquire further up, i.e., all
       // initialization and side effects thereof are visible to any thread
