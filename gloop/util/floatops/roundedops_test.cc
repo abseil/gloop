@@ -24,100 +24,96 @@
 #include <cstdint>
 #include <limits>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-using util::floatops::kDownward;
-using util::floatops::kToNearest;
-using util::floatops::kTowardZero;
-using util::floatops::kUpward;
-using util::floatops::RoundedAdd;
-using util::floatops::RoundedDivide;
-using util::floatops::RoundedMultiply;
-using util::floatops::RoundedSubtract;
-using util::floatops::RoundToNearestIntegerTiesToEven;
-using util::floatops::RoundToNearestTiesToEven;
-
+namespace util {
+namespace floatops {
 namespace {
+
+using ::testing::AnyOf;
+using ::testing::Eq;
 
 TEST(RoundedOpsTest, RoundedAddSubtractWorks) {
   // Epsilon is the smallest e > 0, such that 1 + e != 1. To test rounding,
   // add something just a little less than epsilon to 1.0. Floating point
   // values are twice as dense just below 1.0 as they are just above 1.0,
   // so use half that value there.
-  double EpsPoint75 = std::numeric_limits<double>::epsilon() * 0.75;
-  double EpsPoint375 = std::numeric_limits<double>::epsilon() * 0.375;
+  constexpr double kEpsPoint75 = std::numeric_limits<double>::epsilon() * 0.75;
+  constexpr double kEpsPoint375 =
+      std::numeric_limits<double>::epsilon() * 0.375;
 
-  EXPECT_LT(1.0, RoundedAdd<kUpward>(1.0, EpsPoint75));
-  EXPECT_EQ(1.0, RoundedAdd<kDownward>(1.0, EpsPoint75));
-  EXPECT_EQ(1.0, RoundedAdd<kTowardZero>(1.0, EpsPoint75));
-  EXPECT_LT(1.0, RoundedAdd<kToNearest>(1.0, EpsPoint75));
-  EXPECT_EQ(1.0, RoundedAdd<kToNearest>(1.0, EpsPoint375));
+  EXPECT_GT(RoundedAdd<kUpward>(1.0, kEpsPoint75), 1.0);
+  EXPECT_EQ(RoundedAdd<kDownward>(1.0, kEpsPoint75), 1.0);
+  EXPECT_EQ(RoundedAdd<kTowardZero>(1.0, kEpsPoint75), 1.0);
+  EXPECT_GT(RoundedAdd<kToNearest>(1.0, kEpsPoint75), 1.0);
+  EXPECT_EQ(RoundedAdd<kToNearest>(1.0, kEpsPoint375), 1.0);
 
-  EXPECT_EQ(1.0, RoundedSubtract<kUpward>(1.0, EpsPoint375));
-  EXPECT_GT(1.0, RoundedSubtract<kDownward>(1.0, EpsPoint375));
-  EXPECT_GT(1.0, RoundedSubtract<kTowardZero>(1.0, EpsPoint375));
-  EXPECT_GT(1.0, RoundedSubtract<kToNearest>(1.0, EpsPoint375));
+  EXPECT_EQ(RoundedSubtract<kUpward>(1.0, kEpsPoint375), 1.0);
+  EXPECT_LT(RoundedSubtract<kDownward>(1.0, kEpsPoint375), 1.0);
+  EXPECT_LT(RoundedSubtract<kTowardZero>(1.0, kEpsPoint375), 1.0);
+  EXPECT_LT(RoundedSubtract<kToNearest>(1.0, kEpsPoint375), 1.0);
 
-  EXPECT_LT(-1.0, RoundedAdd<kUpward>(-1.0, EpsPoint375));
-  EXPECT_EQ(-1.0, RoundedAdd<kDownward>(-1.0, EpsPoint375));
-  EXPECT_LT(-1.0, RoundedAdd<kTowardZero>(-1.0, EpsPoint375));
-  EXPECT_LT(-1.0, RoundedAdd<kToNearest>(-1.0, EpsPoint375));
+  EXPECT_GT(RoundedAdd<kUpward>(-1.0, kEpsPoint375), -1.0);
+  EXPECT_EQ(RoundedAdd<kDownward>(-1.0, kEpsPoint375), -1.0);
+  EXPECT_GT(RoundedAdd<kTowardZero>(-1.0, kEpsPoint375), -1.0);
+  EXPECT_GT(RoundedAdd<kToNearest>(-1.0, kEpsPoint375), -1.0);
 
-  EXPECT_EQ(-1.0, RoundedSubtract<kUpward>(-1.0, EpsPoint75));
-  EXPECT_GT(-1.0, RoundedSubtract<kDownward>(-1.0, EpsPoint75));
-  EXPECT_EQ(-1.0, RoundedSubtract<kTowardZero>(-1.0, EpsPoint75));
-  EXPECT_GT(-1.0, RoundedSubtract<kToNearest>(-1.0, EpsPoint75));
-  EXPECT_EQ(-1.0, RoundedSubtract<kToNearest>(-1.0, EpsPoint375));
+  EXPECT_EQ(RoundedSubtract<kUpward>(-1.0, kEpsPoint75), -1.0);
+  EXPECT_LT(RoundedSubtract<kDownward>(-1.0, kEpsPoint75), -1.0);
+  EXPECT_EQ(RoundedSubtract<kTowardZero>(-1.0, kEpsPoint75), -1.0);
+  EXPECT_LT(RoundedSubtract<kToNearest>(-1.0, kEpsPoint75), -1.0);
+  EXPECT_EQ(RoundedSubtract<kToNearest>(-1.0, kEpsPoint375), -1.0);
 }
 
 TEST(RoundedOpsTest, RoundedDivideDownUpWorks) {
-  float FloatOneThirdDown = RoundedDivide<kDownward>(1.0f, 3.0f);
-  float FloatOneThirdUp = RoundedDivide<kUpward>(1.0f, 3.0f);
+  const float float_one_third_down = RoundedDivide<kDownward>(1.0f, 3.0f);
+  const float float_one_third_up = RoundedDivide<kUpward>(1.0f, 3.0f);
 
-  double DoubleOneThirdDown = RoundedDivide<kDownward>(1.0, 3.0);
-  double DoubleOneThirdUp = RoundedDivide<kUpward>(1.0, 3.0);
+  const double double_one_third_down = RoundedDivide<kDownward>(1.0, 3.0);
+  const double double_one_third_up = RoundedDivide<kUpward>(1.0, 3.0);
 
-  EXPECT_LT(0.333333, FloatOneThirdDown);
-  EXPECT_LT(FloatOneThirdDown, DoubleOneThirdDown);
-  EXPECT_LT(DoubleOneThirdDown, DoubleOneThirdUp);
-  EXPECT_LT(DoubleOneThirdUp, FloatOneThirdUp);
-  EXPECT_LT(FloatOneThirdUp, 0.333334);
+  EXPECT_GT(float_one_third_down, 0.333333f);
+  EXPECT_LT(float_one_third_down, double_one_third_down);
+  EXPECT_LT(double_one_third_down, double_one_third_up);
+  EXPECT_LT(double_one_third_up, float_one_third_up);
+  EXPECT_LT(float_one_third_up, 0.333334f);
 }
 
 TEST(RoundedOpsTest, RoundedDivideTowardZeroWorks) {
-  EXPECT_EQ(RoundedDivide<kDownward>(1.0f, 3.0f),
-            RoundedDivide<kTowardZero>(1.0f, 3.0f));
-  EXPECT_EQ(RoundedDivide<kDownward>(1.0, 3.0),
-            RoundedDivide<kTowardZero>(1.0, 3.0));
+  EXPECT_EQ(RoundedDivide<kTowardZero>(1.0f, 3.0f),
+            RoundedDivide<kDownward>(1.0f, 3.0f));
+  EXPECT_EQ(RoundedDivide<kTowardZero>(1.0, 3.0),
+            RoundedDivide<kDownward>(1.0, 3.0));
 
-  EXPECT_EQ(RoundedDivide<kUpward>(-1.0f, 3.0f),
-            RoundedDivide<kTowardZero>(-1.0f, 3.0f));
-  EXPECT_EQ(RoundedDivide<kUpward>(-1.0, 3.0),
-            RoundedDivide<kTowardZero>(-1.0, 3.0));
+  EXPECT_EQ(RoundedDivide<kTowardZero>(-1.0f, 3.0f),
+            RoundedDivide<kUpward>(-1.0f, 3.0f));
+  EXPECT_EQ(RoundedDivide<kTowardZero>(-1.0, 3.0),
+            RoundedDivide<kUpward>(-1.0, 3.0));
 
-  EXPECT_EQ(RoundedDivide<kUpward>(1.0f, -3.0f),
-            RoundedDivide<kTowardZero>(1.0f, -3.0f));
-  EXPECT_EQ(RoundedDivide<kUpward>(1.0, -3.0),
-            RoundedDivide<kTowardZero>(1.0, -3.0));
+  EXPECT_EQ(RoundedDivide<kTowardZero>(1.0f, -3.0f),
+            RoundedDivide<kUpward>(1.0f, -3.0f));
+  EXPECT_EQ(RoundedDivide<kTowardZero>(1.0, -3.0),
+            RoundedDivide<kUpward>(1.0, -3.0));
 }
 
 TEST(RoundedOpsTest, RoundedDivideToNearestWorks) {
-  float FloatOneThirdToNearest = RoundedDivide<kToNearest>(1.0f, 3.0f);
-  EXPECT_TRUE(FloatOneThirdToNearest == RoundedDivide<kUpward>(1.0f, 3.0f) ||
-              FloatOneThirdToNearest == RoundedDivide<kDownward>(1.0f, 3.0f));
+  EXPECT_THAT(RoundedDivide<kToNearest>(1.0f, 3.0f),
+              AnyOf(Eq(RoundedDivide<kUpward>(1.0f, 3.0f)),
+                    Eq(RoundedDivide<kDownward>(1.0f, 3.0f))));
 
-  double DoubleOneThirdToNearest = RoundedDivide<kToNearest>(1.0f, 3.0f);
-  EXPECT_TRUE(DoubleOneThirdToNearest == RoundedDivide<kUpward>(1.0f, 3.0f) ||
-              DoubleOneThirdToNearest == RoundedDivide<kDownward>(1.0f, 3.f));
+  EXPECT_THAT(RoundedDivide<kToNearest>(1.0, 3.0),
+              AnyOf(Eq(RoundedDivide<kUpward>(1.0, 3.0)),
+                    Eq(RoundedDivide<kDownward>(1.0, 3.0))));
 }
 
 TEST(RoundedOpsTest, RoundedMultiplyWorks) {
-  float OneThirdDown = RoundedDivide<kUpward>(1.0f, 3.0f);
+  const float one_third_up = RoundedDivide<kUpward>(1.0f, 3.0f);
 
-  EXPECT_EQ(RoundedMultiply<kDownward>(OneThirdDown, 3.0f), 1.0);
-  EXPECT_GT(RoundedMultiply<kUpward>(OneThirdDown, 3.0f), 1.0);
-  EXPECT_EQ(RoundedMultiply<kToNearest>(OneThirdDown, 3.0f), 1.0);
-  EXPECT_EQ(RoundedMultiply<kTowardZero>(OneThirdDown, 3.0f), 1.0);
+  EXPECT_EQ(RoundedMultiply<kDownward>(one_third_up, 3.0f), 1.0f);
+  EXPECT_GT(RoundedMultiply<kUpward>(one_third_up, 3.0f), 1.0f);
+  EXPECT_EQ(RoundedMultiply<kToNearest>(one_third_up, 3.0f), 1.0f);
+  EXPECT_EQ(RoundedMultiply<kTowardZero>(one_third_up, 3.0f), 1.0f);
 }
 
 void RunRoundingTest(int64_t (*RoundingFuncFloat)(float val),
@@ -270,3 +266,5 @@ TEST(RoundedOpsTest, RoundToNearestTiesToEven) {
 }
 
 }  // namespace
+}  // namespace floatops
+}  // namespace util
