@@ -475,9 +475,6 @@ int RseqFunction_PerCpuTryLock(volatile kernel_rseq* rseq_abi,
 // Primitives
 }
 
-// Ensure that objects necessary for slow mode have been initialized.
-void EnsureSlowModeInitialized();
-
 // Performs both process-wide and per-thread RSEQ initialization.
 // Returns true if RSEQ is available.
 bool InitThreadCpuId();
@@ -551,9 +548,6 @@ inline bool IsFast() {
     return InitThreadCpuId();
   }
 #else   // !PERCPU_USE_RSEQ
-  // If we're not supposed to use fast mode, make sure that the
-  // slow mode is initialized and bail out here.
-  EnsureSlowModeInitialized();
   return false;
 #endif  // PERCPU_USE_RSEQ
 }
