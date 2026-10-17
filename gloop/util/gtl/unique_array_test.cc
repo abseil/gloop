@@ -435,6 +435,22 @@ TEST(UniqueArrayTest, CanReverseIterate) {
   EXPECT_THAT(buffer, ElementsAre(11, 10, 9));
 }
 
+TEST(UniqueArrayTest, CanMutateElementsOfConstUniqueArrayViaIterators) {
+  const gtl::UniqueArray<int> buffer = MakeUniqueArray<int>(3);
+  absl::c_fill(buffer, 6);
+  for (int& n : buffer) {
+    EXPECT_EQ(n, 6);
+    ++n;
+  }
+  EXPECT_THAT(buffer, ElementsAre(7, 7, 7));
+}
+
+TEST(UniqueArrayTest, CanMutateElementsOfConstUniqueArrayViaReverseIterators) {
+  const gtl::UniqueArray<int> buffer = MakeUniqueArray<int>(3);
+  std::iota(buffer.rbegin(), buffer.rend(), 9);
+  EXPECT_THAT(buffer, ElementsAre(11, 10, 9));
+}
+
 TEST(UniqueArrayTest, OperatorBool) {
   UniqueArray<int> buffer;
   EXPECT_FALSE(buffer);

@@ -280,19 +280,13 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI
   size_t size() const { return size_; }
 
   // Iterator access.
-  iterator begin() ABSL_ATTRIBUTE_LIFETIME_BOUND {  //
-    return data();
-  }
-  const_iterator begin() const ABSL_ATTRIBUTE_LIFETIME_BOUND {  //
+  iterator begin() const ABSL_ATTRIBUTE_LIFETIME_BOUND {  //
     return data();
   }
   const_iterator cbegin() const ABSL_ATTRIBUTE_LIFETIME_BOUND {  //
     return data();
   }
-  iterator end() ABSL_ATTRIBUTE_LIFETIME_BOUND {  //
-    return data() + size();
-  }
-  const_iterator end() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  iterator end() const ABSL_ATTRIBUTE_LIFETIME_BOUND {  //
     return data() + size();
   }
   const_iterator cend() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -300,20 +294,14 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI
   }
 
   // Reverse iterator access.
-  reverse_iterator rbegin() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  reverse_iterator rbegin() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return reverse_iterator(end());
-  }
-  const_reverse_iterator rbegin() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return const_reverse_iterator(end());
   }
   const_reverse_iterator crbegin() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return const_reverse_iterator(cend());
   }
-  reverse_iterator rend() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  reverse_iterator rend() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return reverse_iterator(begin());
-  }
-  const_reverse_iterator rend() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return const_reverse_iterator(begin());
   }
   const_reverse_iterator crend() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     return const_reverse_iterator(cbegin());
