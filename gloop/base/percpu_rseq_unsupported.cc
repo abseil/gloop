@@ -31,6 +31,7 @@
 #include "absl/base/call_once.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/sysinfo.h"
+#include "absl/base/optimization.h"
 #include "gloop/base/percpu.h"
 #include "gloop/base/percpu_types.h"
 #include "gloop/base/scoped_sigmask.h"
@@ -55,11 +56,18 @@ PerCpuSpinLock* cas_lock_ =
 // Initialization
 // ----------------------------------------------------------------------------
 
-ABSL_ATTRIBUTE_NOINLINE void EnsureSlowModeInitialized() {
+static void EnsureSlowModeInitialized() {
+  ABSL_CONST_INIT static std::atomic<bool> initialized(false);
+  if (ABSL_PREDICT_TRUE(initialized.load(std::memory_order_acquire))) {
+    return;
+  }
+
   ScopedSigmask mask;
-  static absl::once_flag once;
-  absl::base_internal::LowLevelCallOnce(
-      &once, [] { new (&cas_lock_storage_) PerCpuSpinLock; });
+  ABSL_CONST_INIT static absl::once_flag once;
+  absl::base_internal::LowLevelCallOnce(&once, [] {
+    new (&cas_lock_storage_) PerCpuSpinLock;
+    initialized.store(true, std::memory_order_release);
+  });
 }
 
 // ----------------------------------------------------------------------------
@@ -68,6 +76,7 @@ ABSL_ATTRIBUTE_NOINLINE void EnsureSlowModeInitialized() {
 
 FetchAddResult AtomicFetchAddSlow(Handle percpu_data, int64_t delta) {
   ScopedSigmask mask;
+  EnsureSlowModeInitialized();
   FetchAddResult r;
   r.cpu = cas_lock_->Lock();
   r.previous =
@@ -84,6 +93,7 @@ int CompareAndSwapCheckSlow(int target_cpu, std::atomic<int64_t>* p,
                             std::atomic<int64_t>* check_ptr,
                             int64_t check_val) {
   ScopedSigmask mask;
+  EnsureSlowModeInitialized();
   int ret, cpu;
 
   cpu = cas_lock_->Lock();
@@ -112,6 +122,7 @@ static void FenceTakeSpinlocks(int cpu) {
       !IsFast(),
       "should never call this in Fast mode, we can't do cross cpu locks "
       "with RSEQ");
+  EnsureSlowModeInitialized();
   cas_lock_->LockOn(cpu);
   cas_lock_->UnlockOn(cpu);
 }
