@@ -30,11 +30,14 @@
 #include "benchmark/benchmark.h"
 #include "gloop/base/callback.h"
 #include "gloop/util/functional/to_callback.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace util {
 namespace functional {
 namespace {
+
+using ::testing::HasSubstr;
 
 void Sink(std::unique_ptr<int> p) { EXPECT_EQ(*p, 42); }
 
@@ -78,7 +81,7 @@ TEST(CallAtMostOnceDeathTest, CannotBeCalledTwice) {
   std::unique_ptr<int> p = std::make_unique<int>(42);
   auto f = CallAtMostOnce(absl::bind_front(Sink, std::move(p)));
   f();
-  EXPECT_DEATH_IF_SUPPORTED(f(), "already called");
+  EXPECT_DEATH_IF_SUPPORTED(f(), HasSubstr("already called"));
 }
 
 TEST(CallAtMostOnceTest, FromMovable) {
@@ -147,7 +150,7 @@ TEST(CallAtMostOnceDeathTest, CanBeCopiedButItIsShared) {
   auto f = CallAtMostOnce(absl::bind_front(Sink, std::move(p)));
   auto f2 = f;
   f();
-  EXPECT_DEATH_IF_SUPPORTED(f2(), "already called");
+  EXPECT_DEATH_IF_SUPPORTED(f2(), HasSubstr("already called"));
 }
 
 TEST(CallAtMostOnceTest, ConstNoConst) {
@@ -169,7 +172,7 @@ TEST(CallExactlyOnceDeathTest, CannotBeCalledTwice) {
   std::unique_ptr<int> p = std::make_unique<int>(42);
   auto f = CallExactlyOnce(Sink, std::move(p));
   f();
-  EXPECT_DEATH_IF_SUPPORTED(f(), "already called");
+  EXPECT_DEATH_IF_SUPPORTED(f(), HasSubstr("already called"));
 }
 
 void NeverCalled() {
@@ -178,7 +181,7 @@ void NeverCalled() {
 }
 
 TEST(CallExactlyOnceDeathTest, NeverCalled) {
-  EXPECT_DEATH_IF_SUPPORTED(NeverCalled(), "never called");
+  EXPECT_DEATH_IF_SUPPORTED(NeverCalled(), HasSubstr("never called"));
 }
 
 TEST(CallExactlyOnceTest, FromMovable) {
@@ -246,7 +249,7 @@ TEST(CallExactlyOnceDeathTest, CanBeCopiedButItIsShared) {
   auto f = CallExactlyOnce(Sink, std::move(p));
   auto f2 = f;
   f();
-  EXPECT_DEATH_IF_SUPPORTED(f2(), "already called");
+  EXPECT_DEATH_IF_SUPPORTED(f2(), HasSubstr("already called"));
 }
 
 TEST(CallExactlyOnceTest, CanBeCopiedButItIsSharedSoOnlyOneCall) {
