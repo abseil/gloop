@@ -103,9 +103,9 @@ static size_t AppendWithFragments(const std::string& s, RandomEngine* rng,
     std::bernoulli_distribution coin_flip(0.5);
     if (coin_flip(*rng)) {
       // Grow by adding an external-memory.
-      AddExternalMemory(absl::string_view(s.data() + j, N), cord);
+      AddExternalMemory(absl::string_view(s).substr(j, N), cord);
     } else {
-      cord->Append(absl::string_view(s.data() + j, N));
+      cord->Append(absl::string_view(s).substr(j, N));
     }
     j += N;
   }
@@ -119,8 +119,8 @@ static absl::Cord MakeHuge(absl::string_view prefix) {
     // In 64-bit binaries, test 64-bit Cord support.
     const size_t size =
         static_cast<size_t>(std::numeric_limits<uint32_t>::max()) + 314;
-    cord.Append(absl::MakeCordFromExternal(
-        absl::string_view(prefix.data(), size), [](absl::string_view) {}));
+    cord.Append(absl::MakeCordFromExternal(prefix.substr(0, size),
+                                           [](absl::string_view) {}));
   } else {
     // Cords are limited to 32-bit lengths in 32-bit binaries.  The following
     // tests check for use of "signed int" to represent Cord length/offset.
@@ -131,7 +131,7 @@ static absl::Cord MakeHuge(absl::string_view prefix) {
     // node. The threshold is currently set to 511, so `s2` needs to be bigger
     // to not trigger the copy.
     const size_t s2 = 600;
-    cord.Append(absl::MakeCordFromExternal(absl::string_view(prefix.data(), s1),
+    cord.Append(absl::MakeCordFromExternal(prefix.substr(0, s1),
                                            [](absl::string_view) {}));
     cord.Append(absl::MakeCordFromExternal(absl::string_view("", s2),
                                            [](absl::string_view) {}));
@@ -252,7 +252,7 @@ static void TestReader(RandomEngine* rng, int iters) {
         VLOG(1) << "Read: " << N;
         absl::FixedArray<char> data(N);
         r.ReadN(N, data.data());
-        ASSERT_EQ(absl::string_view(s.data() + expected_offset, N),
+        ASSERT_EQ(absl::string_view(s).substr(expected_offset, N),
                   absl::string_view(data.data(), N));
         expected_offset += N;
       } else if (op <= 60) {
@@ -260,7 +260,7 @@ static void TestReader(RandomEngine* rng, int iters) {
         size_t N = absl::Uniform<size_t>(*rng, 0, r.Available());
         absl::Cord dest = r.ReadCord(N);
         VLOG(1) << "ReadCord: " << N;
-        ASSERT_EQ(absl::Cord(absl::string_view(s.data() + expected_offset, N)),
+        ASSERT_EQ(absl::Cord(absl::string_view(s).substr(expected_offset, N)),
                   dest);
         expected_offset += N;
       } else if (op <= 70) {
@@ -270,7 +270,7 @@ static void TestReader(RandomEngine* rng, int iters) {
         strings::CordByteSink sink(&dest);
         r.CopyTo(&sink, N);
         VLOG(1) << "CopyTo: " << N;
-        ASSERT_EQ(absl::Cord(absl::string_view(s.data() + expected_offset, N)),
+        ASSERT_EQ(absl::Cord(absl::string_view(s).substr(expected_offset, N)),
                   dest);
         expected_offset += N;
       } else if (op <= 80) {
@@ -278,18 +278,16 @@ static void TestReader(RandomEngine* rng, int iters) {
         absl::string_view fragment;
         ASSERT_TRUE(r.ReadFragment(&fragment));
         VLOG(1) << "ReadFragment: " << fragment.size();
-        ASSERT_EQ(
-            absl::string_view(s.data() + expected_offset, fragment.size()),
-            fragment);
+        ASSERT_EQ(absl::string_view(s).substr(expected_offset, fragment.size()),
+                  fragment);
         expected_offset += fragment.size();
       } else if (op <= 95) {
         // Peek at the next fragment
         absl::string_view fragment;
         ASSERT_TRUE(r.PeekFragment(&fragment));
         VLOG(1) << "PeekFragment: " << fragment.size();
-        ASSERT_EQ(
-            absl::string_view(s.data() + expected_offset, fragment.size()),
-            fragment);
+        ASSERT_EQ(absl::string_view(s).substr(expected_offset, fragment.size()),
+                  fragment);
         ASSERT_EQ(r.Peek(), fragment);
       } else {
         // Randomly skip
@@ -606,8 +604,7 @@ TEST(CordByteStream, CopyCordToCordRandom) {
       absl::Cord dst;
       strings::CordByteSink sink(&dst);
       reader.CopyTo(&sink, m);
-      ASSERT_EQ(dst,
-                absl::Cord(absl::string_view(expected.data() + offset, m)));
+      ASSERT_EQ(dst, absl::Cord(absl::string_view(expected).substr(offset, m)));
       --remaining;
       offset += m;
     }

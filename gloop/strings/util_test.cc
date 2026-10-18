@@ -209,7 +209,7 @@ TEST(ScanForFirstWord, EmptyInput) {
   EXPECT_TRUE(strings::ScanForFirstWord(sp).empty());
   sp = absl::string_view("");
   EXPECT_TRUE(strings::ScanForFirstWord(sp).empty());
-  sp = absl::string_view(sp.data() + 1000, 0);
+  sp = sp.substr(1000, 0);
   EXPECT_TRUE(strings::ScanForFirstWord(sp).empty());
 }
 
