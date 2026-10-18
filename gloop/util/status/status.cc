@@ -486,8 +486,10 @@ void ErrorSpacePayload::Set(const ErrorSpace* space, int code,
   cur = Varint::Encode32(cur, space_name.size());
   memcpy(cur, space_name.data(), space_name.size());
 
-  status->SetPayload(kErrorSpaceUrl,
-                     absl::Cord(absl::string_view(buf.data(), buffer_size)));
+  status->SetPayload(
+      kErrorSpaceUrl,
+      absl::Cord(
+          absl::string_view(buf.data(), buf.size()).substr(0, buffer_size)));
 }
 
 static std::optional<uint32_t> ParseVarint32(absl::string_view& str) {
