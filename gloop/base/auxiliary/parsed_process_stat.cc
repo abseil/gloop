@@ -159,7 +159,7 @@ absl::Status ParsedProcessStat::EnsureFieldsParsed(size_t count) {
     if (needs_field_0) {
       // Locate field 0.
       fields_.push_back(absl::StripAsciiWhitespace(
-          absl::string_view(stat_line_.data(), comm_range->open)));
+          absl::string_view(stat_line_).substr(0, comm_range->open)));
       ++current_size;
     }
     if (needs_field_1) {
