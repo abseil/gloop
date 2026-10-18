@@ -31,6 +31,8 @@
 
 namespace {
 
+using ::testing::ElementsAre;
+
 struct CanBeTuple : public gtl::Extend<CanBeTuple>::With<gtl::TupleExtension> {
   int x = 0;
   int y = 0;
@@ -47,18 +49,18 @@ TEST(TupleExtensionTest, CanMakeTuple) {
   static_assert(
       std::is_const_v<
           std::remove_reference_t<decltype(std::get<0>(can_be.AsTuple()))>>);
-  EXPECT_THAT(std::get<0>(tup), 1);
-  EXPECT_THAT(&std::get<0>(tup), &can_be.x);
+  EXPECT_EQ(std::get<0>(tup), 1);
+  EXPECT_EQ(&std::get<0>(tup), &can_be.x);
   static_assert(
       std::is_const_v<
           std::remove_reference_t<decltype(std::get<0>(can_be.AsTuple()))>>);
-  EXPECT_THAT(std::get<1>(tup), 2);
-  EXPECT_THAT(&std::get<1>(tup), &can_be.y);
+  EXPECT_EQ(std::get<1>(tup), 2);
+  EXPECT_EQ(&std::get<1>(tup), &can_be.y);
   static_assert(
       std::is_const_v<
           std::remove_reference_t<decltype(std::get<0>(can_be.AsTuple()))>>);
-  EXPECT_THAT(std::get<2>(tup), 2.71);
-  EXPECT_THAT(&std::get<2>(tup), &can_be.d);
+  EXPECT_EQ(std::get<2>(tup), 2.71f);
+  EXPECT_EQ(&std::get<2>(tup), &can_be.d);
 }
 
 TEST(TupleExtensionTest, TupleTypes) {
@@ -90,9 +92,6 @@ static_assert(std::is_same_v<gtl::AsMutableTupleType<CanMutateTuple>,
               "Incorrect mutable tuple type deduced.");
 
 TEST(TupleExtensionTest, CanMutateTuple) {
-  using testing::ElementsAre;
-  using testing::Pair;
-
   CanMutateTuple can_mutate{};
   // Check the dependency is pulled in.
   static_assert(std::is_const_v<std::remove_reference_t<decltype(std::get<0>(
@@ -102,14 +101,11 @@ TEST(TupleExtensionTest, CanMutateTuple) {
   std::tuple<int&, std::vector<int>&> tup = can_mutate.AsMutableTuple();
   std::get<0>(tup) += 1;
   std::get<1>(tup).push_back(2);
-  EXPECT_THAT(can_mutate.num2, 1);
+  EXPECT_EQ(can_mutate.num2, 1);
   EXPECT_THAT(can_mutate.vals, ElementsAre(2));
 }
 
 TEST(TupleExtensionTest, CanAssignFromTuple) {
-  using testing::ElementsAre;
-  using testing::Pair;
-
   CanMutateTuple can_mutate;
   can_mutate.AssignTupleToFields(std::make_tuple(1, std::vector<int>{2}));
   EXPECT_EQ(can_mutate.num2, 1);
