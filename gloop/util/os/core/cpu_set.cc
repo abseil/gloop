@@ -95,7 +95,7 @@ std::string CpuSetToHexString(const cpu_set_t* cpu_set, bool add_prefix) {
   // Strip leading '0' if it exists, to make the result more consistent with
   // standard hex formatting.
   if (result[0] == '0') {
-    result = result.substr(1, result.length() - 1);
+    result = result.substr(1);
   }
   return add_prefix ? "0x" + result : result;
 }
