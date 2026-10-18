@@ -146,8 +146,8 @@ extern "C" {
 //     { kCpuIdUnsupported, kCpuIdUninitialized }
 //   Initialized, available:
 //     [0, NumCpus())    (Always updated at context-switch)
-ABSL_CONST_INIT ABSL_ATTRIBUTE_WEAK thread_local volatile kernel_rseq
-    __rseq_abi = {
+ABSL_CONST_INIT ABSL_ATTRIBUTE_WEAK
+    ABSL_ATTRIBUTE_INITIAL_EXEC thread_local volatile kernel_rseq __rseq_abi = {
         0, static_cast<unsigned>(kCpuIdUninitialized),   0, 0, 0,
         0, {{kCpuIdUninitialized, kCpuIdUninitialized}},
     };
