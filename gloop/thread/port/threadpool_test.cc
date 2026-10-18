@@ -113,13 +113,14 @@ TEST(ThreadPoolTest, ThreadedIntegerIncrement) {
 }
 
 TEST(ThreadPoolTest, DestroyWithoutStart) {
-  std::unique_ptr<ThreadPool> thread_pool(new ThreadPool(100));
+  std::unique_ptr<ThreadPool> thread_pool = std::make_unique<ThreadPool>(100);
   thread_pool.reset(nullptr);
 }
 
 TEST(ThreadPoolTest, ScheduleIfReadyToRunTest) {
   constexpr int kNumThreads = 4;
-  std::unique_ptr<ThreadPool> thread_pool(new ThreadPool(kNumThreads));
+  std::unique_ptr<ThreadPool> thread_pool =
+      std::make_unique<ThreadPool>(kNumThreads);
   // Force spawning all threads.
   absl::Barrier barrier(kNumThreads + 1);
   for (int i = 0; i < kNumThreads; ++i) {
