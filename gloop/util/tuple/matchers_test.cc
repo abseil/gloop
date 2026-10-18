@@ -109,11 +109,11 @@ class ExplainingEqPair : public ::testing::MatcherInterface<TupleT> {
 class ExEqPair {
  public:
   template <typename T1, typename T2>
-  operator Matcher<tuple<T1, T2>>() const {
+  explicit operator Matcher<tuple<T1, T2>>() const {
     return MakeMatcher(new ExplainingEqPair<tuple<T1, T2>>);
   }
   template <typename T1, typename T2>
-  operator Matcher<const tuple<T1, T2>&>() const {
+  explicit operator Matcher<const tuple<T1, T2>&>() const {
     return MakeMatcher(new ExplainingEqPair<const tuple<T1, T2>&>);
   }
 };
