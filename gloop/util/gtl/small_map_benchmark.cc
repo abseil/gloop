@@ -50,14 +50,14 @@ static void BM_Map(benchmark::State& state) {
 BENCHMARK(BM_Map)->Range(1, 256 * 1024);
 
 static void BM_HashMap(benchmark::State& state) {
-  gtl::small_map<__gnu_cxx::hash_map<int32_t, const char*>, 4> src;
+  gtl::small_map<absl::flat_hash_map<int32_t, const char*>, 4> src;
   const int size = state.range(0);
   for (int i = 0; i < size; i++) {
     src[i] = "test";
   }
 
   for (auto _ : state) {
-    gtl::small_map<__gnu_cxx::hash_map<int32_t, const char*>, 4> dest;
+    gtl::small_map<absl::flat_hash_map<int32_t, const char*>, 4> dest;
     dest.insert(src.begin(), src.end());
   }
 }
