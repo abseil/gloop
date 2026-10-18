@@ -48,11 +48,11 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+namespace thread {
 namespace {
 
-using testing::InSequence;
-using testing::MockFunction;
-using thread::AddAfterHelper;
+using ::testing::InSequence;
+using ::testing::MockFunction;
 
 #if !PORTABLE_BASE  // We lack callback matchers because callbacks are limited
                     // in portable base (Ironically due to lack of ::Thread).
@@ -78,7 +78,7 @@ class CheckPoint {
   MOCK_METHOD(void, Check, (const std::string& id));
 };
 
-class MockExecutor : public thread::MockExecutor {
+class MockExecutor : public ::thread::MockExecutor {
  public:
   explicit MockExecutor(absl::Clock& clock) : clock_(clock) {}
 
@@ -110,7 +110,7 @@ class AddAfterHelperTest : public testing::Test {
  protected:
   AddAfterHelperTest()
       : mock_executor_(test_clock_),
-        helper_(new AddAfterHelper(
+        helper_(std::make_unique<AddAfterHelper>(
             &mock_executor_,
             std::bind_front(&AddAfterHelperTest::CompleteAddAfter, this))),
         dummy_task_(util::functional::ToPermanentCallback([] {})) {}
@@ -143,7 +143,7 @@ TEST_F(AddAfterHelperTest, AddAfterForwardsToUnderlyingExecutorAddAfter) {
   helper_->ScheduleAddAfter(absl::Milliseconds(15), task);
   check_.Check("1");
 
-  EXPECT_EQ(1, mock_executor_.num_add_afters());
+  EXPECT_EQ(mock_executor_.num_add_afters(), 1);
   // The MockExecutor doesn't run anything on its own, so we do it
   // explicitly here.  This will call the CancellableClosure that the
   // AddAfterHelper passed to the underlying Executor's AddAfter()
@@ -164,7 +164,7 @@ TEST_F(AddAfterHelperTest, ScheduleAtForwardsToUnderlyingExecutorScheduleAt) {
   helper_->ScheduleAddAfterAt(now, std::move(task));
   check_.Check("1");
 
-  EXPECT_EQ(1, mock_executor_.num_add_afters());
+  EXPECT_EQ(mock_executor_.num_add_afters(), 1);
   // The MockExecutor doesn't run anything on its own, so we do it
   // explicitly here.  This will call the CancellableClosure that the
   // AddAfterHelper passed to the underlying Executor's AddAfter()
@@ -216,7 +216,7 @@ TEST_F(AddAfterHelperTest, ShutdownExecutesUnrunClosures) {
   // (allowing them to delete themselves), but since they were
   // cancelled in the Shutdown...() call, they won't call
   // complete_add_after_->Run(anything).
-  EXPECT_EQ(2, mock_executor_.num_add_afters());
+  EXPECT_EQ(mock_executor_.num_add_afters(), 2);
   mock_executor_.RunPendingAddAfters();
 }
 
@@ -251,7 +251,7 @@ TEST_F(AddAfterHelperTest, DeletionExecutesUnrunClosures) {
   // (allowing them to delete themselves), but since they were
   // cancelled in the destructor call, they won't call
   // complete_add_after_->Run(anything).
-  EXPECT_EQ(2, mock_executor_.num_add_afters());
+  EXPECT_EQ(mock_executor_.num_add_afters(), 2);
   mock_executor_.RunPendingAddAfters();
 }
 
@@ -267,7 +267,7 @@ TEST_F(AddAfterHelperTest, PropagatesContextToDelayedTask) {
     helper_->ScheduleAddAfterAt(now, std::move(task));
   }
 
-  ASSERT_EQ(1, mock_executor_.num_add_afters());
+  ASSERT_EQ(mock_executor_.num_add_afters(), 1);
   // The MockExecutor doesn't run anything on its own, so we do it
   // explicitly here.  This will call the CancellableClosure that the
   // AddAfterHelper passed to the underlying Executor's AddAfter()
@@ -287,7 +287,7 @@ TEST_F(AddAfterHelperTest, PropagatesContextToCompleteAddAfter) {
     helper_->ScheduleAddAfterAt(now, [] {});
   }
 
-  ASSERT_EQ(1, mock_executor_.num_add_afters());
+  ASSERT_EQ(mock_executor_.num_add_afters(), 1);
   // The MockExecutor doesn't run anything on its own, so we do it
   // explicitly here.
   mock_executor_.RunPendingAddAfters();
@@ -336,3 +336,4 @@ void BM_AddAfterOverhead(benchmark::State& state) {
 BENCHMARK(BM_AddAfterOverhead);
 
 }  // namespace
+}  // namespace thread
