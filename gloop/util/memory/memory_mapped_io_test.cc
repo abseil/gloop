@@ -137,7 +137,7 @@ TEST_F(MemoryMappedIOTest, RandomMap) {
         kMinAddress_ + offset, size, PROT_READ, MAP_SHARED, &scoped_mmap);
     CHECK(mem);
     ASSERT_TRUE(scoped_mmap.IsMapped());
-    ASSERT_EQ(0, memcmp(mem, test_data_.random_data() + offset, size));
+    EXPECT_EQ(memcmp(mem, test_data_.random_data() + offset, size), 0);
     scoped_mmap.Unmap();
     ASSERT_FALSE(scoped_mmap.IsMapped());
   }
@@ -153,8 +153,9 @@ TEST_F(MemoryMappedIOTest, WriteBufferConstant) {
   ASSERT_TRUE(memory_mapped_io.Write(MemoryMappedIO::WRITE_MODE_SHARED,
                                      kMinAddress_, kTestDataSize_,
                                      test_data_.write_data()));
-  ASSERT_EQ(0, memcmp(test_data_.write_data(), test_data_.random_data(),
-                      kTestDataSize_));
+  EXPECT_EQ(
+      memcmp(test_data_.write_data(), test_data_.random_data(), kTestDataSize_),
+      0);
 }
 
 // Perform a simple read / write test to make sure data written to memory is
@@ -168,8 +169,9 @@ TEST_F(MemoryMappedIOTest, ReadWrite) {
                                      test_data_.write_data()));
   ASSERT_TRUE(memory_mapped_io.Read(kMinAddress_, kTestDataSize_,
                                     test_data_.read_data()));
-  ASSERT_TRUE(memcmp(test_data_.read_data(), test_data_.write_data(),
-                     kTestDataSize_) == 0);
+  EXPECT_EQ(
+      memcmp(test_data_.read_data(), test_data_.write_data(), kTestDataSize_),
+      0);
 }
 
 // Read from random physical addresses ensuring the test data is read
@@ -188,7 +190,7 @@ TEST_F(MemoryMappedIOTest, RandomRead) {
     const uint8_t* const random_data = test_data_.random_data() + offset;
     uint8_t* const read_data = test_data_.read_data() + offset;
     ASSERT_TRUE(memory_mapped_io.Read(kMinAddress_ + offset, size, read_data));
-    ASSERT_EQ(0, memcmp(read_data, random_data, size));
+    EXPECT_EQ(memcmp(read_data, random_data, size), 0);
   }
 }
 
@@ -211,7 +213,7 @@ TEST_F(MemoryMappedIOTest, RandomReadWrite) {
                                        kMinAddress_ + offset, size,
                                        write_data));
     ASSERT_TRUE(memory_mapped_io.Read(kMinAddress_ + offset, size, read_data));
-    ASSERT_EQ(0, memcmp(read_data, write_data, size));
+    EXPECT_EQ(memcmp(read_data, write_data, size), 0);
   }
 }
 
@@ -249,7 +251,7 @@ TEST_F(MemoryMappedIOTest, MapFail) {
   } else {
     int child_process_return_value = -1;
     waitpid(process_id, &child_process_return_value, 0);
-    ASSERT_EQ(1, WEXITSTATUS(child_process_return_value));
+    EXPECT_EQ(WEXITSTATUS(child_process_return_value), 1);
   }
 }
 #endif  // ABSL_HAVE_ADDRESS_SANITIZER
