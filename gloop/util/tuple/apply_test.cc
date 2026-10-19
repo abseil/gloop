@@ -114,7 +114,7 @@ TEST(Apply, MemberFunction) {
   EXPECT_EQ(5, util::tuple::apply(&F::Plus, &f, ::std::forward_as_tuple(3)));
   EXPECT_EQ(5, util::tuple::apply(&F::Plus, &f, 3, ::std::forward_as_tuple()));
 
-  ::std::unique_ptr<F> p(new F{2});
+  ::std::unique_ptr<F> p = std::make_unique<F>(2);
   EXPECT_EQ(5, util::tuple::apply(::std::forward_as_tuple(&F::Plus, p, 3)));
   EXPECT_EQ(5, util::tuple::apply(&F::Plus, ::std::forward_as_tuple(p, 3)));
   EXPECT_EQ(5, util::tuple::apply(&F::Plus, p, ::std::forward_as_tuple(3)));
