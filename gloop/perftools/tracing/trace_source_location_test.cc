@@ -126,5 +126,43 @@ TEST(TraceSourceLocation, ToOstream) {
   EXPECT_THAT(ss.str(), Eq("potato.cc:123"));
 }
 
+TEST(TraceSourceLocation, HasValue) {
+  EXPECT_FALSE(TraceSourceLocation().has_value());
+  EXPECT_FALSE(TraceSourceLocation(access, "", 0).has_value());
+  EXPECT_FALSE(TraceSourceLocation(access, nullptr, 0).has_value());
+  EXPECT_TRUE(TraceSourceLocation(access, "foo.cc", 0).has_value());
+  EXPECT_TRUE(TraceSourceLocation(access, "", 123).has_value());
+  EXPECT_TRUE(TraceSourceLocation(access, nullptr, 123).has_value());
+  EXPECT_TRUE(TraceSourceLocation(access, "foo.cc", 123).has_value());
+  EXPECT_TRUE(TraceSourceLocation::current().has_value());
+}
+
+TEST(TraceSourceLocation, Equality) {
+  EXPECT_THAT(TraceSourceLocation(), Eq(TraceSourceLocation()));
+  EXPECT_THAT(TraceSourceLocation(access, "", 0), Eq(TraceSourceLocation()));
+  EXPECT_THAT(TraceSourceLocation(access, nullptr, 0),
+              Eq(TraceSourceLocation()));
+  EXPECT_THAT(TraceSourceLocation(access, nullptr, 0),
+              Eq(TraceSourceLocation(access, "", 0)));
+
+  EXPECT_THAT(TraceSourceLocation(access, "foo.cc", 123),
+              Eq(TraceSourceLocation(access, "foo.cc", 123)));
+
+  // Distinct char buffers with identical contents
+  char buf1[] = "bar.cc";
+  char buf2[] = "bar.cc";
+  EXPECT_NE(static_cast<const void*>(buf1), static_cast<const void*>(buf2));
+  EXPECT_THAT(TraceSourceLocation(access, buf1, 42),
+              Eq(TraceSourceLocation(access, buf2, 42)));
+
+  // Differing lines or files
+  EXPECT_THAT(TraceSourceLocation(access, "foo.cc", 123),
+              Ne(TraceSourceLocation(access, "foo.cc", 124)));
+  EXPECT_THAT(TraceSourceLocation(access, "foo.cc", 123),
+              Ne(TraceSourceLocation(access, "bar.cc", 123)));
+  EXPECT_THAT(TraceSourceLocation(access, "foo.cc", 123),
+              Ne(TraceSourceLocation()));
+}
+
 }  // namespace
 }  // namespace perftools::tracing
