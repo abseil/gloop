@@ -51,13 +51,13 @@ class MemoryMappedIOTest : public testing::Test {
                                 kMinAddress_));
   }
 
-  ~MemoryMappedIOTest() { test_data_file_.Delete(); }
+  ~MemoryMappedIOTest() override { test_data_file_.Delete(); }
 
-  virtual void SetUp() {
+  void SetUp() override {
     // Called before *each* test.
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     // Called after *each* test.
   }
 
