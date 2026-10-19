@@ -67,6 +67,7 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:source_location",
     ],
 )

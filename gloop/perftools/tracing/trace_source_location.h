@@ -26,6 +26,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/strings/str_format.h"
+#include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
 
 namespace perftools::tracing {
@@ -86,6 +87,11 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceSourceLocation {
   constexpr TraceSourceLocation(Access, const char* file_name,
                                 std::uint_least32_t line) noexcept;
 
+  // Returns true if the object holds a source location.
+  constexpr bool has_value() const noexcept {
+    return (file_name_ != nullptr && *file_name_ != '\0') || line_ != 0;
+  }
+
   // Returns the file name of this source location.
   constexpr const char* file_name() const noexcept { return file_name_; }
 
@@ -96,11 +102,21 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceSourceLocation {
   constexpr std::uint_least32_t column() const noexcept { return 0; }
   constexpr const char* function_name() const noexcept { return ""; }
 
+  friend constexpr bool operator==(const TraceSourceLocation& lhs,
+                                   const TraceSourceLocation& rhs) noexcept {
+    return lhs.line_ == rhs.line_ &&
+           (lhs.file_name_ == rhs.file_name_ ||
+            absl::NullSafeStringView(lhs.file_name_) ==
+                absl::NullSafeStringView(rhs.file_name_));
+  }
+
   // Formats `location` as "<file>:<line>" or an empty string if empty.
   template <typename Sink>
   friend void AbslStringify(Sink& sink, const TraceSourceLocation& location) {
-    if (*location.file_name() != '\0') {
-      absl::Format(&sink, "%s:%d", location.file_name(), location.line());
+    if (location.has_value()) {
+      absl::Format(&sink, "%s:%d",
+                   absl::NullSafeStringView(location.file_name()),
+                   location.line());
     }
   }
 
@@ -139,7 +155,7 @@ class TraceSourceLocation::Access {
 
 inline constexpr TraceSourceLocation::TraceSourceLocation(
     const char* file_name, std::uint_least32_t line) noexcept
-    : file_name_(file_name), line_(line) {}
+    : file_name_(file_name != nullptr ? file_name : ""), line_(line) {}
 
 inline constexpr TraceSourceLocation::TraceSourceLocation(
     Access, const char* file_name, std::uint_least32_t line) noexcept
