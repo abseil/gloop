@@ -1654,7 +1654,8 @@ class TraceConsumer {
   // annotations to tracer objects.
   class TraceView {
    public:
-    explicit TraceView(base::Tracer& tracer) : tracer_(tracer) {}
+    explicit TraceView(const base::Tracer& tracer ABSL_ATTRIBUTE_LIFETIME_BOUND)
+        : tracer_(tracer) {}
 
     std::string name() const { return tracer_.name(); }
 
@@ -1685,7 +1686,7 @@ class TraceConsumer {
 
    private:
     friend class TraceConsumer;
-    base::Tracer& tracer_;
+    const base::Tracer& tracer_;
   };
 
   virtual ~TraceConsumer();
