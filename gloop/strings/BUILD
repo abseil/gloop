@@ -631,8 +631,6 @@ cc_test(
         ":serialize",
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/container:flat_hash_map",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
