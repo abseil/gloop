@@ -121,54 +121,42 @@ std::vector<std::pair<const int, std::unique_ptr<int>>> UniquePtrs(
   return res;
 }
 
-// Test expectation methods.
+// Test expectation helpers.
 template <typename It>
-void ExpectElements(
-    It begin, It end, const std::vector<std::pair<int, int>>& expected,
-    absl::SourceLocation loc = absl::SourceLocation::current()) {
+auto ToIntPairs(It begin, It end) {
   std::vector<std::pair<int, int>> actual;
   for (; begin != end; ++begin) {
     actual.push_back({ToInt(begin->first), ToInt(begin->second)});
   }
-
-  EXPECT_THAT(actual, ElementsAreArray(expected))
-      << absl::StrFormat("At %s:%d", loc.file_name(), loc.line());
+  return actual;
 }
 
 template <typename Map>
-void ExpectElements(
-    const Map& map, const std::vector<std::pair<int, int>>& expected,
-    absl::SourceLocation loc = absl::SourceLocation::current()) {
-  ExpectElements(map.begin(), map.end(), expected, loc);
+auto ToIntPairs(const Map& map) {
+  return ToIntPairs(map.begin(), map.end());
 }
 
 template <typename It>
-void ExpectStringElements(
-    It begin, It end, const std::vector<std::pair<int, std::string>>& expected,
-    absl::SourceLocation loc = absl::SourceLocation::current()) {
+auto ToIntStringPairs(It begin, It end) {
   std::vector<std::pair<int, std::string>> actual;
   for (; begin != end; ++begin) {
     actual.push_back({ToInt(begin->first), begin->second});
   }
-
-  EXPECT_THAT(actual, ElementsAreArray(expected))
-      << absl::StrFormat("At %s:%d", loc.file_name(), loc.line());
+  return actual;
 }
 
 template <typename Map>
-void ExpectStringElements(
-    const Map& map, const std::vector<std::pair<int, std::string>>& expected,
-    absl::SourceLocation loc = absl::SourceLocation::current()) {
-  ExpectStringElements(map.begin(), map.end(), expected, loc);
+auto ToIntStringPairs(const Map& map) {
+  return ToIntStringPairs(map.begin(), map.end());
 }
 
 TEST(FlatMapTest, DefaultIsValid) {
   flat_map<OnlyLT, int> m;
-  EXPECT_TRUE(m.empty());
-  EXPECT_EQ(0, m.size());
-  EXPECT_EQ(m.end(), m.find(OnlyLT()));
-  EXPECT_EQ(m.end(), m.lower_bound(OnlyLT()));
-  EXPECT_EQ(m.end(), m.upper_bound(OnlyLT()));
+  EXPECT_THAT(m, IsEmpty());
+  EXPECT_THAT(m, IsEmpty());
+  EXPECT_EQ(m.find(OnlyLT()), m.end());
+  EXPECT_EQ(m.lower_bound(OnlyLT()), m.end());
+  EXPECT_EQ(m.upper_bound(OnlyLT()), m.end());
 }
 
 TEST(FlatMapTest, MovableNoExcept) {
@@ -197,20 +185,22 @@ TEST(FlatMapTest, RangeAndListConstruction) {
       {OnlyLT(4), 4}, {OnlyLT(9), 9}, {OnlyLT(1), 1}};
   std::vector<std::pair<int, int>> expected = {{1, 1}, {4, 4}, {9, 9}};
 
-  ExpectElements(flat_map<OnlyLT, int>(v.begin(), v.end()), expected);
-  ExpectElements(flat_map<OnlyLT, int>(v.rbegin(), v.rend()), expected);
-  ExpectElements(
-      flat_map<OnlyLT, int>({{OnlyLT(4), 4}, {OnlyLT(9), 9}, {OnlyLT(1), 1}}),
-      expected);
+  EXPECT_THAT(ToIntPairs(flat_map<OnlyLT, int>(v.begin(), v.end())),
+              ElementsAreArray(expected));
+  EXPECT_THAT(ToIntPairs(flat_map<OnlyLT, int>(v.rbegin(), v.rend())),
+              ElementsAreArray(expected));
+  EXPECT_THAT(ToIntPairs(flat_map<OnlyLT, int>(
+                  {{OnlyLT(4), 4}, {OnlyLT(9), 9}, {OnlyLT(1), 1}})),
+              ElementsAreArray(expected));
 }
 
 TEST(FlatMapTest, ContainerMoveConstruction) {
   std::vector<std::pair<int, int>> v = {{4, 4}, {9, 9}, {4, 1}, {1, 1}};
   std::vector<std::pair<int, int>> expected = {{1, 1}, {4, 4}, {9, 9}};
 
-  ExpectElements(
-      flat_map<int, std::unique_ptr<int>, TransparentCmp>(UniquePtrs(v)),
-      expected);
+  EXPECT_THAT(ToIntPairs(flat_map<int, std::unique_ptr<int>, TransparentCmp>(
+                  UniquePtrs(v))),
+              ElementsAreArray(expected));
 }
 
 TEST(FlatMapTest, MoveRep) {
@@ -223,21 +213,28 @@ TEST(FlatMapTest, MoveRep) {
 TEST(FlatMapTest, ExplicitComparator) {
   flat_map<OnlyLT, int, ReverseCmp> m = {
       {OnlyLT(4), 4}, {OnlyLT(9), 9}, {OnlyLT(1), 1}};
-  ExpectElements(m, {{9, 9}, {4, 4}, {1, 1}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(9, 9), Pair(4, 4), Pair(1, 1)));
   m.insert({OnlyLT(5), 5});
-  ExpectElements(m, {{9, 9}, {5, 5}, {4, 4}, {1, 1}});
+  EXPECT_THAT(ToIntPairs(m),
+              ElementsAre(Pair(9, 9), Pair(5, 5), Pair(4, 4), Pair(1, 1)));
 }
 
 TEST(FlatMapTest, Iterators) {
   flat_map<OnlyLT, int> m = {{OnlyLT(4), 4}, {OnlyLT(9), 9}, {OnlyLT(1), 1}};
-  ExpectElements(m.begin(), m.end(), {{1, 1}, {4, 4}, {9, 9}});
-  ExpectElements(m.cbegin(), m.cend(), {{1, 1}, {4, 4}, {9, 9}});
-  ExpectElements(m.rbegin(), m.rend(), {{9, 9}, {4, 4}, {1, 1}});
-  ExpectElements(m.crbegin(), m.crend(), {{9, 9}, {4, 4}, {1, 1}});
+  EXPECT_THAT(ToIntPairs(m.begin(), m.end()),
+              ElementsAre(Pair(1, 1), Pair(4, 4), Pair(9, 9)));
+  EXPECT_THAT(ToIntPairs(m.cbegin(), m.cend()),
+              ElementsAre(Pair(1, 1), Pair(4, 4), Pair(9, 9)));
+  EXPECT_THAT(ToIntPairs(m.rbegin(), m.rend()),
+              ElementsAre(Pair(9, 9), Pair(4, 4), Pair(1, 1)));
+  EXPECT_THAT(ToIntPairs(m.crbegin(), m.crend()),
+              ElementsAre(Pair(9, 9), Pair(4, 4), Pair(1, 1)));
 
   const flat_map<OnlyLT, int>& c = m;
-  ExpectElements(c.begin(), c.end(), {{1, 1}, {4, 4}, {9, 9}});
-  ExpectElements(c.rbegin(), c.rend(), {{9, 9}, {4, 4}, {1, 1}});
+  EXPECT_THAT(ToIntPairs(c.begin(), c.end()),
+              ElementsAre(Pair(1, 1), Pair(4, 4), Pair(9, 9)));
+  EXPECT_THAT(ToIntPairs(c.rbegin(), c.rend()),
+              ElementsAre(Pair(9, 9), Pair(4, 4), Pair(1, 1)));
 }
 
 TEST(FlatMapTest, InsertHandlesDuplicatesCorrectly) {
@@ -250,7 +247,7 @@ TEST(FlatMapTest, InsertHandlesDuplicatesCorrectly) {
   EXPECT_THAT(p, Pair(m.begin(), true));
   p = m.insert({OnlyLT(5), 1});
   EXPECT_THAT(p, Pair(m.begin(), false));
-  ExpectElements(m, {{5, 10}, {10, 10}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(5, 10), Pair(10, 10)));
 }
 
 TEST(FlatMapTest, InsertMaintainsSortedOrder) {
@@ -260,49 +257,50 @@ TEST(FlatMapTest, InsertMaintainsSortedOrder) {
   // Test both lvalue & rvalue insert.
   m.insert({OnlyLT(10), 10});
   m.insert(lt5);
-  EXPECT_EQ(2, m.size());
-  EXPECT_EQ(2, m.end() - m.begin());
+  EXPECT_EQ(m.size(), 2);
+  EXPECT_EQ(m.end() - m.begin(), 2);
   EXPECT_TRUE(std::is_sorted(m.begin(), m.end()));
 
   OnlyLT lt100{100};
   m.insert({lt100, 100});
   m.insert({OnlyLT(1), 1});
-  EXPECT_EQ(4, m.size());
+  EXPECT_EQ(m.size(), 4);
   EXPECT_TRUE(std::is_sorted(m.begin(), m.end()));
 }
 
 TEST(FlatMapTest, InsertInitializerList) {
   flat_map<OnlyLT, int> m;
   m.insert({{OnlyLT(7), 3}, {OnlyLT(3), 7}});
-  ExpectElements(m, {{3, 7}, {7, 3}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(3, 7), Pair(7, 3)));
   m.insert({{OnlyLT(4), 4}, {OnlyLT(2), 2}, {OnlyLT(6), 6}});
-  ExpectElements(m, {{2, 2}, {3, 7}, {4, 4}, {6, 6}, {7, 3}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(2, 2), Pair(3, 7), Pair(4, 4),
+                                         Pair(6, 6), Pair(7, 3)));
 }
 
 TEST(FlatMapTest, InsertWithHintWorks) {
   flat_map<OnlyLT, int> m;
   // Empty, insert with begin hint:
   m.insert(m.begin(), {OnlyLT(1), 1});
-  EXPECT_EQ(1, m.size());
+  EXPECT_EQ(m.size(), 1);
   m.clear();
   // Empty, insert with end hint:
   std::pair<OnlyLT, int> lt1 = {OnlyLT(1), 1};
   m.insert(m.end(), lt1);
-  EXPECT_EQ(1, m.size());
+  EXPECT_EQ(m.size(), 1);
   // Insert with correct hint:
   m.insert(m.end(), {OnlyLT(2), 2});
-  EXPECT_EQ(2, m.size());
+  EXPECT_EQ(m.size(), 2);
   // Insert value already present, ensure no duplicate added:
   auto it = m.insert(m.end(), {OnlyLT(2), 2});
-  EXPECT_EQ(2, m.size());
+  EXPECT_EQ(m.size(), 2);
   // Verify that the iterator returned is accurate.
   EXPECT_TRUE(m.find(OnlyLT(2)) == it);
   m.erase(OnlyLT(2));
-  EXPECT_EQ(1, m.size());
+  EXPECT_EQ(m.size(), 1);
   // Insertion in the middle of two other elements.
   it = m.insert({OnlyLT(3), 3}).first;
   m.insert(it, {OnlyLT(2), 2});
-  EXPECT_EQ(3, m.size());
+  EXPECT_EQ(m.size(), 3);
   EXPECT_TRUE(std::is_sorted(m.begin(), m.end()));
 }
 
@@ -311,11 +309,12 @@ TEST(FlatMapTest, InsertWithBadHint) {
   // Bad hint (too small), should still insert:
   auto it = m.insert(m.begin(), {OnlyLT(2), 2});
   EXPECT_EQ(it, m.begin() + 1);
-  ExpectElements(m, {{1, 1}, {2, 2}, {9, 9}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(1, 1), Pair(2, 2), Pair(9, 9)));
   // Bad hint, too large this time:
   it = m.insert(m.begin() + 2, {OnlyLT(0), 0});
   EXPECT_EQ(it, m.begin());
-  ExpectElements(m, {{0, 0}, {1, 1}, {2, 2}, {9, 9}});
+  EXPECT_THAT(ToIntPairs(m),
+              ElementsAre(Pair(0, 0), Pair(1, 1), Pair(2, 2), Pair(9, 9)));
 }
 
 TEST(FlatMapTest, IteratorInsertWorks) {
@@ -323,7 +322,7 @@ TEST(FlatMapTest, IteratorInsertWorks) {
   std::vector<std::pair<OnlyLT, int>> v = {
       {OnlyLT(1), 1}, {OnlyLT(3), 3}, {OnlyLT(2), 1}, {OnlyLT(2), 0}};
   m.insert(v.begin(), v.end());
-  ExpectElements(m, {{1, 1}, {2, 1}, {3, 3}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(1, 1), Pair(2, 1), Pair(3, 3)));
 }
 
 TEST(FlatMapTest, InsertRangeWorks) {
@@ -340,9 +339,9 @@ TEST(FlatMapTest, InsertRangeWorks) {
   absl::BitGen bitgen;
   std::shuffle(to_insert.begin(), to_insert.end(), bitgen);
   m.insert(to_insert.begin(), to_insert.end());
-  EXPECT_EQ(7, m.size());
+  EXPECT_EQ(m.size(), 7);
   for (int i = 0; i <= 6; ++i) {
-    EXPECT_EQ(1, m.count(OnlyLT(i))) << "Missing " << i;
+    EXPECT_EQ(m.count(OnlyLT(i)), 1) << "Missing " << i;
   }
 }
 
@@ -372,7 +371,7 @@ TEST(FlatMapTest, InsertOrAssignHandlesDuplicatesCorrectly) {
   EXPECT_THAT(p, Pair(m.begin(), true));
   p = m.insert_or_assign(OnlyLT(5), 1);
   EXPECT_THAT(p, Pair(m.begin(), false));
-  ExpectElements(m, {{5, 1}, {10, 9}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(5, 1), Pair(10, 9)));
 }
 
 TEST(FlatMapTest, InsertOrAssignWithTypeConversion) {
@@ -389,14 +388,14 @@ TEST(FlatMapTest, InsertOrAssignMaintainsSortedOrder) {
   // Test both lvalue & rvalue insert.
   m.insert_or_assign(OnlyLT(10), 10);
   m.insert_or_assign(lt5.first, lt5.second);
-  EXPECT_EQ(2, m.size());
-  EXPECT_EQ(2, m.end() - m.begin());
+  EXPECT_EQ(m.size(), 2);
+  EXPECT_EQ(m.end() - m.begin(), 2);
   EXPECT_TRUE(std::is_sorted(m.begin(), m.end()));
 
   OnlyLT lt100{100};
   m.insert_or_assign(lt100, 100);
   m.insert_or_assign(OnlyLT(1), 1);
-  EXPECT_EQ(4, m.size());
+  EXPECT_EQ(m.size(), 4);
   EXPECT_TRUE(std::is_sorted(m.begin(), m.end()));
 }
 
@@ -405,7 +404,7 @@ TEST(FlatMapTest, TryEmplaceBasicTest) {
 
   // Should construct a string from the literal.
   m.try_emplace(OnlyLT(1), "one");
-  EXPECT_EQ(1, m.size());
+  EXPECT_EQ(m.size(), 1);
 
   // Try other string constructors and const lvalue key.
   const OnlyLT key(42);
@@ -413,7 +412,8 @@ TEST(FlatMapTest, TryEmplaceBasicTest) {
   m.try_emplace(OnlyLT(2), std::string("two"));
 
   EXPECT_TRUE(std::is_sorted(m.begin(), m.end()));
-  ExpectStringElements(m, {{1, "one"}, {2, "two"}, {42, "aaa"}});
+  EXPECT_THAT(ToIntStringPairs(m),
+              ElementsAre(Pair(1, "one"), Pair(2, "two"), Pair(42, "aaa")));
 }
 
 TEST(FlatMapTest, TryEmplaceWithHintWorks) {
@@ -438,7 +438,7 @@ TEST(FlatMapTest, TryEmplaceWithHintWorks) {
   // Try with begin hint:
   calls = 0;
   auto it = m.try_emplace(m.begin(), OnlyLT(-1), -1);
-  EXPECT_EQ(129, m.size());
+  EXPECT_EQ(m.size(), 129);
   EXPECT_EQ(it, m.begin());
   EXPECT_LE(calls, 2);
 
@@ -446,38 +446,38 @@ TEST(FlatMapTest, TryEmplaceWithHintWorks) {
   calls = 0;
   std::pair<OnlyLT, int> lt1 = {OnlyLT(1024), 1024};
   it = m.try_emplace(m.end(), lt1.first, lt1.second);
-  EXPECT_EQ(130, m.size());
+  EXPECT_EQ(m.size(), 130);
   EXPECT_EQ(it, m.end() - 1);
   EXPECT_LE(calls, 2);
 
   // Try value already present, bad hint; ensure no duplicate added:
   calls = 0;
   it = m.try_emplace(m.end(), OnlyLT(16), 17);
-  EXPECT_EQ(130, m.size());
+  EXPECT_EQ(m.size(), 130);
   EXPECT_GT(calls, 5);
   EXPECT_EQ(it, m.find(OnlyLT(16)));
 
   // Try value already present, hint points directly to it:
   calls = 0;
   it = m.try_emplace(it, OnlyLT(16), 17);
-  EXPECT_EQ(130, m.size());
+  EXPECT_EQ(m.size(), 130);
   EXPECT_LE(calls, 2);
   EXPECT_EQ(it, m.find(OnlyLT(16)));
 
   // Try value already present, hint points right above it:
   calls = 0;
   it = m.try_emplace(it + 1, OnlyLT(16), 17);
-  EXPECT_EQ(130, m.size());
+  EXPECT_EQ(m.size(), 130);
   EXPECT_LE(calls, 3);
   EXPECT_EQ(it, m.find(OnlyLT(16)));
 
   m.erase(OnlyLT(2));
-  EXPECT_EQ(129, m.size());
+  EXPECT_EQ(m.size(), 129);
   auto hint = m.find(OnlyLT(3));
   // Try emplace in the middle of two other elements.
   calls = 0;
   m.try_emplace(hint, OnlyLT(2), 2);
-  EXPECT_EQ(130, m.size());
+  EXPECT_EQ(m.size(), 130);
   EXPECT_LE(calls, 2);
 
   EXPECT_TRUE(std::is_sorted(m.begin(), m.end()));
@@ -489,12 +489,13 @@ TEST(FlatMapTest, TryEmplaceWithBadHint) {
   // Bad hint (too small), should still emplace:
   auto it = m.try_emplace(m.begin(), OnlyLT(2), 2);
   EXPECT_EQ(it, m.begin() + 1);
-  ExpectElements(m, {{1, 1}, {2, 2}, {9, 9}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(1, 1), Pair(2, 2), Pair(9, 9)));
 
   // Bad hint, too large this time:
   it = m.try_emplace(m.begin() + 2, OnlyLT(0), 0);
   EXPECT_EQ(it, m.begin());
-  ExpectElements(m, {{0, 0}, {1, 1}, {2, 2}, {9, 9}});
+  EXPECT_THAT(ToIntPairs(m),
+              ElementsAre(Pair(0, 0), Pair(1, 1), Pair(2, 2), Pair(9, 9)));
 }
 
 TEST(FlatMapTest, TryEmplaceMaintainsSortedOrder) {
@@ -504,21 +505,21 @@ TEST(FlatMapTest, TryEmplaceMaintainsSortedOrder) {
   // Test both lvalue & rvalue emplace.
   m.try_emplace(OnlyLT(10), "ten");
   m.try_emplace(lt5.first, lt5.second);
-  EXPECT_EQ(2, m.size());
-  EXPECT_EQ(2, m.end() - m.begin());
+  EXPECT_EQ(m.size(), 2);
+  EXPECT_EQ(m.end() - m.begin(), 2);
   EXPECT_TRUE(std::is_sorted(m.begin(), m.end()));
 
   OnlyLT lt100{100};
   m.try_emplace(lt100, "hundred");
   m.try_emplace(OnlyLT(1), "one");
-  EXPECT_EQ(4, m.size());
+  EXPECT_EQ(m.size(), 4);
   EXPECT_TRUE(std::is_sorted(m.begin(), m.end()));
 }
 
 TEST(FlatMapTest, TryEmplaceWithHintAndNoValueArgsWorks) {
   flat_map<int, int> m;
   m.try_emplace(m.end(), 1);
-  EXPECT_EQ(0, m[1]);
+  EXPECT_EQ(m[1], 0);
 }
 
 TEST(FlatMapTest, TryEmplaceWithHintAndMultipleValueArgsWorks) {
@@ -531,26 +532,26 @@ TEST(FlatMapTest, InsertOrAssignWithHintWorks) {
   flat_map<OnlyLT, int> m;
   // Empty, insert with begin hint:
   m.insert_or_assign(m.begin(), OnlyLT(1), 1);
-  EXPECT_EQ(1, m.size());
+  EXPECT_EQ(m.size(), 1);
   m.clear();
   // Empty, insert with end hint:
   std::pair<OnlyLT, int> lt1 = {OnlyLT(1), 1};
   m.insert_or_assign(m.end(), lt1.first, lt1.second);
-  EXPECT_EQ(1, m.size());
+  EXPECT_EQ(m.size(), 1);
   // Insert with correct hint:
   m.insert_or_assign(m.end(), OnlyLT(2), 2);
-  EXPECT_EQ(2, m.size());
+  EXPECT_EQ(m.size(), 2);
   // Insert value already present, ensure no duplicate added:
   auto it = m.insert_or_assign(m.end(), OnlyLT(2), 2);
-  EXPECT_EQ(2, m.size());
+  EXPECT_EQ(m.size(), 2);
   // Verify that the iterator returned is accurate.
   EXPECT_TRUE(m.find(OnlyLT(2)) == it);
   m.erase(OnlyLT(2));
-  EXPECT_EQ(1, m.size());
+  EXPECT_EQ(m.size(), 1);
   // Insertion in the middle of two other elements.
   it = m.insert_or_assign(OnlyLT(3), 3).first;
   m.insert_or_assign(it, OnlyLT(2), 2);
-  EXPECT_EQ(3, m.size());
+  EXPECT_EQ(m.size(), 3);
   EXPECT_TRUE(std::is_sorted(m.begin(), m.end()));
 }
 
@@ -559,11 +560,12 @@ TEST(FlatMapTest, InsertOrAssignWithBadHint) {
   // Bad hint (too small), should still insert:
   auto it = m.insert_or_assign(m.begin(), OnlyLT(2), 2);
   EXPECT_EQ(it, m.begin() + 1);
-  ExpectElements(m, {{1, 1}, {2, 2}, {9, 9}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(1, 1), Pair(2, 2), Pair(9, 9)));
   // Bad hint, too large this time:
   it = m.insert_or_assign(m.begin() + 2, OnlyLT(0), 0);
   EXPECT_EQ(it, m.begin());
-  ExpectElements(m, {{0, 0}, {1, 1}, {2, 2}, {9, 9}});
+  EXPECT_THAT(ToIntPairs(m),
+              ElementsAre(Pair(0, 0), Pair(1, 1), Pair(2, 2), Pair(9, 9)));
 }
 
 TEST(FlatMapTest, Emplace) {
@@ -574,42 +576,45 @@ TEST(FlatMapTest, Emplace) {
   result = m.emplace(OnlyLT(9), 9);
   EXPECT_EQ(result.first, m.begin() + 1);
   EXPECT_TRUE(result.second);
-  ExpectElements(m, {{1, 1}, {9, 9}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(1, 1), Pair(9, 9)));
 
   result = m.emplace(OnlyLT(9), 7);
   EXPECT_EQ(result.first, m.begin() + 1);
   EXPECT_FALSE(result.second);
-  ExpectElements(m, {{1, 1}, {9, 9}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(1, 1), Pair(9, 9)));
 
   // Basic test of emplace_hint; the more extensive test for insert with hint
   // (which emplace_hint calls) exists above.
   auto it = m.emplace_hint(m.end(), OnlyLT(10), 10);
   EXPECT_EQ(it, m.begin() + 2);
-  ExpectElements(m, {{1, 1}, {9, 9}, {10, 10}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(1, 1), Pair(9, 9), Pair(10, 10)));
   // Bad hint, still inserts.
   it = m.emplace_hint(m.end(), OnlyLT(0), 0);
   EXPECT_EQ(it, m.begin());
-  ExpectElements(m, {{0, 0}, {1, 1}, {9, 9}, {10, 10}});
+  EXPECT_THAT(ToIntPairs(m),
+              ElementsAre(Pair(0, 0), Pair(1, 1), Pair(9, 9), Pair(10, 10)));
   // Correct hint in the middle:
   it = m.emplace_hint(m.begin() + 2, OnlyLT(7), 7);
   EXPECT_EQ(it, m.begin() + 2);
-  ExpectElements(m, {{0, 0}, {1, 1}, {7, 7}, {9, 9}, {10, 10}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(0, 0), Pair(1, 1), Pair(7, 7),
+                                         Pair(9, 9), Pair(10, 10)));
   // Element exists.
   it = m.emplace_hint(m.begin() + 3, OnlyLT(7), 7);
   EXPECT_EQ(it, m.begin() + 2);
-  ExpectElements(m, {{0, 0}, {1, 1}, {7, 7}, {9, 9}, {10, 10}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(0, 0), Pair(1, 1), Pair(7, 7),
+                                         Pair(9, 9), Pair(10, 10)));
 }
 
 TEST(FlatMapTest, EraseWorks) {
   flat_map<OnlyLT, int> m = {
       {OnlyLT(4), 4}, {OnlyLT(9), 9}, {OnlyLT(1), 1}, {OnlyLT(17), 17}};
-  EXPECT_EQ(0, m.erase(OnlyLT(0)));
-  EXPECT_EQ(1, m.erase(OnlyLT(4)));
-  ExpectElements(m, {{1, 1}, {9, 9}, {17, 17}});
+  EXPECT_EQ(m.erase(OnlyLT(0)), 0);
+  EXPECT_EQ(m.erase(OnlyLT(4)), 1);
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(1, 1), Pair(9, 9), Pair(17, 17)));
 
   auto it = m.erase(m.begin() + 1);
   EXPECT_EQ(it, m.begin() + 1);
-  ExpectElements(m, {{1, 1}, {17, 17}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(1, 1), Pair(17, 17)));
 }
 
 TEST(FlatMapTest, RangeEraseWorks) {
@@ -617,11 +622,11 @@ TEST(FlatMapTest, RangeEraseWorks) {
       {OnlyLT(4), 4}, {OnlyLT(9), 9}, {OnlyLT(1), 1}, {OnlyLT(17), 17}};
   auto it = m.erase(m.begin() + 1, m.begin() + 3);
   EXPECT_EQ(it, m.begin() + 1);
-  ExpectElements(m, {{1, 1}, {17, 17}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(1, 1), Pair(17, 17)));
   // Empty range.
   it = m.erase(m.begin() + 1, m.begin() + 1);
   EXPECT_EQ(it, m.begin() + 1);
-  ExpectElements(m, {{1, 1}, {17, 17}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(1, 1), Pair(17, 17)));
 }
 
 TEST(FlatMapTest, RangeEraseWorksNonTrivialValue) {
@@ -641,7 +646,7 @@ TEST(FlatMapTest, RemoveIfWorks) {
   size_t n_removed =
       s.remove_if([](std::pair<OnlyLT, int> x) { return x.second % 2 == 0; });
   EXPECT_EQ(n_removed, 2);
-  ExpectElements(s, {{9, 9}, {17, 17}});
+  EXPECT_THAT(ToIntPairs(s), ElementsAre(Pair(9, 9), Pair(17, 17)));
 }
 
 TEST(FlatMapTest, RemoveIfIsLinear) {
@@ -702,34 +707,34 @@ TEST(FlatMapTest, FindWorks) {
   OnlyLT bad = OnlyLT(13);
   flat_map<OnlyLT, int> m = {{good, 42}};
   const auto& c = m;
-  EXPECT_EQ(m.begin(), m.find(good));
-  EXPECT_EQ(m.end(), m.find(bad));
-  EXPECT_EQ(c.cbegin(), c.find(good));
-  EXPECT_EQ(c.cend(), c.find(bad));
+  EXPECT_EQ(m.find(good), m.begin());
+  EXPECT_EQ(m.find(bad), m.end());
+  EXPECT_EQ(c.find(good), c.cbegin());
+  EXPECT_EQ(c.find(bad), c.cend());
 }
 
 TEST(FlatMapTest, IndexOperatorWorks) {
   flat_map<OnlyLT, int> m;
   OnlyLT k1 = OnlyLT(1);
   OnlyLT k10 = OnlyLT(10);
-  EXPECT_EQ(0, m[k10]);
-  EXPECT_EQ(1, m.size());
-  EXPECT_EQ(1, ++m[k10]);
-  EXPECT_EQ(1, m.size());
+  EXPECT_EQ(m[k10], 0);
+  EXPECT_EQ(m.size(), 1);
+  EXPECT_EQ(++m[k10], 1);
+  EXPECT_EQ(m.size(), 1);
 
-  EXPECT_EQ(0, m[k1]);
-  EXPECT_EQ(1, ++m[k1]);
-  EXPECT_EQ(2, ++m[k1]);
-  EXPECT_EQ(2, m.size());
+  EXPECT_EQ(m[k1], 0);
+  EXPECT_EQ(++m[k1], 1);
+  EXPECT_EQ(++m[k1], 2);
+  EXPECT_EQ(m.size(), 2);
 
-  ExpectElements(m, {{1, 2}, {10, 1}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(1, 2), Pair(10, 1)));
 }
 
 // Helper method to cover const / non-const map.
 template <typename Map>
 void TestAt() {
   Map m = {{OnlyLT(1), 1}};
-  EXPECT_EQ(1, m.at(OnlyLT(1)));
+  EXPECT_EQ(m.at(OnlyLT(1)), 1);
 #ifdef ABSL_HAVE_EXCEPTIONS
   try {
     m.at(OnlyLT(2));
@@ -768,26 +773,26 @@ TEST(FlatMapTest, BinarySearchesWork) {
 TEST(FlatMapTest, CopyAndAssignmentWork) {
   flat_map<OnlyLT, int> m;
   m.insert({OnlyLT(1), 1});
-  ExpectElements(m, {{1, 1}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(1, 1)));
   flat_map<OnlyLT, int> s2(m);
-  ExpectElements(s2, {{1, 1}});
+  EXPECT_THAT(ToIntPairs(s2), ElementsAre(Pair(1, 1)));
   flat_map<OnlyLT, int> s3;
   s3 = m;
-  EXPECT_EQ(1, s3.size());
+  EXPECT_EQ(s3.size(), 1);
 
   // Assignment from initializer list.
   m = {{OnlyLT(7), 7}};
-  ExpectElements(m, {{7, 7}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(7, 7)));
 }
 
 TEST(FlatMapTest, CountWorks) {
   flat_map<OnlyLT, int> m;
   OnlyLT v(1);
-  EXPECT_EQ(0, m.count(v));
+  EXPECT_EQ(m.count(v), 0);
   m.insert({v, 1});
-  EXPECT_EQ(1, m.count(v));
+  EXPECT_EQ(m.count(v), 1);
   m.insert({v, 9});
-  EXPECT_EQ(1, m.count(v));
+  EXPECT_EQ(m.count(v), 1);
 }
 
 TEST(FlatMapTest, ContainsWorks) {
@@ -805,7 +810,7 @@ TEST(FlatMapTest, InstantiatesWithInlinedVector) {
            absl::InlinedVector<std::pair<OnlyLT, int>, 7>>
       m;
   m.insert({OnlyLT(1), 1});
-  EXPECT_EQ(1, m.size());
+  EXPECT_EQ(m.size(), 1);
 }
 
 TEST(FlatMapTest, OperatorsWorkWithInlinedVector) {
@@ -880,17 +885,17 @@ TEST(FlatMapTest, SwapWorks) {
   flat_map<OnlyLT, int> s1 = {{OnlyLT(1), 1}};
   flat_map<OnlyLT, int> s2 = {{OnlyLT(2), 2}};
   s1.swap(s2);
-  ExpectElements(s1, {{2, 2}});
-  ExpectElements(s2, {{1, 1}});
+  EXPECT_THAT(ToIntPairs(s1), ElementsAre(Pair(2, 2)));
+  EXPECT_THAT(ToIntPairs(s2), ElementsAre(Pair(1, 1)));
   using std::swap;
   swap(s1, s2);
-  ExpectElements(s1, {{1, 1}});
-  ExpectElements(s2, {{2, 2}});
+  EXPECT_THAT(ToIntPairs(s1), ElementsAre(Pair(1, 1)));
+  EXPECT_THAT(ToIntPairs(s2), ElementsAre(Pair(2, 2)));
 }
 
 TEST(FlatMapTest, VectorExtensions) {
   flat_map<OnlyLT, int> m;
-  EXPECT_EQ(0, m.capacity());
+  EXPECT_EQ(m.capacity(), 0);
   for (int i : {1, 2, 3, 4, 5}) {
     m.insert({OnlyLT(i), i});
   }
@@ -919,12 +924,12 @@ TEST(FlatMapTest, VectorExtensions) {
 template <typename Map>
 void TestHeterogeneousLookup() {
   Map m = {{OnlyLT(3), 3}, {OnlyLT(1), 1}, {OnlyLT(5), 5}};
-  EXPECT_EQ(m.begin() + 1, m.find(3));
-  EXPECT_EQ(m.begin() + 1, m.find(3.14));
-  EXPECT_EQ(m.end(), m.find(4));
+  EXPECT_EQ(m.find(3), m.begin() + 1);
+  EXPECT_EQ(m.find(3.14), m.begin() + 1);
+  EXPECT_EQ(m.find(4), m.end());
 
-  EXPECT_EQ(1, m.count(3));
-  EXPECT_EQ(0, m.count(4));
+  EXPECT_EQ(m.count(3), 1);
+  EXPECT_EQ(m.count(4), 0);
   EXPECT_TRUE(m.contains(3));
   EXPECT_FALSE(m.contains(4));
 
@@ -1001,9 +1006,9 @@ TEST(FlatMapTest, InsertOrAssignForwardsCorrectly) {
 
 TEST(FlatMapTest, NoHeterogeneousLookupWithoutTypedef) {
   flat_map<std::string, int, NonTransparent> m = {{"hello", 3}, {"world", 4}};
-  EXPECT_EQ(m.end(), m.find("blah"));
-  EXPECT_EQ(m.begin(), m.lower_bound("hello"));
-  EXPECT_EQ(1, m.count("world"));
+  EXPECT_EQ(m.find("blah"), m.end());
+  EXPECT_EQ(m.lower_bound("hello"), m.begin());
+  EXPECT_EQ(m.count("world"), 1);
   EXPECT_TRUE(m.contains("world"));
 }
 
@@ -1012,7 +1017,7 @@ TEST(FlatMapTest, NoHeterogeneousLookupWithoutTypedef) {
 TEST(FlatMapTest, NoncopyableCreation) {
   // Using transparent comparator just for testing convenience.
   flat_map<int, std::unique_ptr<int>, TransparentCmp> m;
-  EXPECT_TRUE(m.empty());
+  EXPECT_THAT(m, IsEmpty());
 }
 
 TEST(FlatMapTest, NoncopyableFromRange) {
@@ -1020,13 +1025,14 @@ TEST(FlatMapTest, NoncopyableFromRange) {
   auto v = UniquePtrs({42, 7, 7});
   flat_map<int, std::unique_ptr<int>, TransparentCmp> m(
       std::make_move_iterator(v.begin()), std::make_move_iterator(v.end()));
-  ExpectElements(m, {{7, 7}, {42, 42}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(7, 7), Pair(42, 42)));
 
   // insert range
   v = UniquePtrs({10, 10, 100});
   m.insert(std::make_move_iterator(v.begin()),
            std::make_move_iterator(v.end()));
-  ExpectElements(m, {{7, 7}, {10, 10}, {42, 42}, {100, 100}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(7, 7), Pair(10, 10), Pair(42, 42),
+                                         Pair(100, 100)));
 }
 
 TEST(FlatMapTest, NonCopyableMovesAndAssignments) {
@@ -1035,22 +1041,23 @@ TEST(FlatMapTest, NonCopyableMovesAndAssignments) {
   s1.insert({3, std::make_unique<int>(0)});
 
   flat_map<int, std::unique_ptr<int>, TransparentCmp> s2 = std::move(s1);
-  ExpectElements(s1, {});  // NOLINT misc-use-after-move
-  ExpectElements(s2, {{1, 2}, {3, 0}});
+  EXPECT_THAT(ToIntPairs(s1), IsEmpty());  // NOLINT(bugprone-use-after-move)
+  EXPECT_THAT(ToIntPairs(s2), ElementsAre(Pair(1, 2), Pair(3, 0)));
   s1 = std::move(s2);
-  ExpectElements(s1, {{1, 2}, {3, 0}});
-  ExpectElements(s2, {});  // NOLINT misc-use-after-move
+  EXPECT_THAT(ToIntPairs(s1), ElementsAre(Pair(1, 2), Pair(3, 0)));
+  EXPECT_THAT(ToIntPairs(s2), IsEmpty());  // NOLINT(bugprone-use-after-move)
   // Swaps.
   s1.swap(s2);
-  ExpectElements(s1, {});
-  ExpectElements(s2, {{1, 2}, {3, 0}});
+  EXPECT_THAT(ToIntPairs(s1), IsEmpty());
+  EXPECT_THAT(ToIntPairs(s2), ElementsAre(Pair(1, 2), Pair(3, 0)));
   using std::swap;
   swap(s1, s2);
-  ExpectElements(s1, {{1, 2}, {3, 0}});
-  ExpectElements(s2, {});
+  EXPECT_THAT(ToIntPairs(s1), ElementsAre(Pair(1, 2), Pair(3, 0)));
+  EXPECT_THAT(ToIntPairs(s2), IsEmpty());
 }
 
 TEST(FlatMapTest, NoncopyableInsertAndEmplace) {
+  using IntPair = std::pair<int, int>;
   flat_map<int, std::unique_ptr<int>, TransparentCmp> m;
   m.insert({0, std::make_unique<int>(0)});
   m.insert({5, std::make_unique<int>(5)});
@@ -1061,7 +1068,8 @@ TEST(FlatMapTest, NoncopyableInsertAndEmplace) {
   // generally guaranteed by std::set/map).
   m.emplace(std::piecewise_construct, std::make_tuple(3),
             std::make_tuple(new int(42)));
-  ExpectElements(m, {{0, 0}, {3, 3}, {5, 5}, {7, 7}});
+  EXPECT_THAT(ToIntPairs(m),
+              ElementsAre(Pair(0, 0), Pair(3, 3), Pair(5, 5), Pair(7, 7)));
 
   // Insert with hint:
   m.insert(m.begin() + 1, {2, std::make_unique<int>(2)});
@@ -1069,43 +1077,47 @@ TEST(FlatMapTest, NoncopyableInsertAndEmplace) {
   m.insert(m.begin() + 2, {2, std::make_unique<int>(2)});
   // incorrect hint
   m.insert(m.begin(), {8, std::make_unique<int>(8)});
-  ExpectElements(m, {{0, 0}, {2, 2}, {3, 3}, {5, 5}, {7, 7}, {8, 8}});
+  EXPECT_THAT(ToIntPairs(m),
+              ElementsAreArray<IntPair>(
+                  {{0, 0}, {2, 2}, {3, 3}, {5, 5}, {7, 7}, {8, 8}}));
   // emplace_hint
   m.emplace_hint(m.begin() + 1, 1, std::make_unique<int>(1));
   // already exists
   m.emplace_hint(m.begin() + 2, 1, std::make_unique<int>(-1));
   // incorrect hint
   m.emplace_hint(m.begin(), 9, std::make_unique<int>(9));
-  ExpectElements(
-      m, {{0, 0}, {1, 1}, {2, 2}, {3, 3}, {5, 5}, {7, 7}, {8, 8}, {9, 9}});
+  EXPECT_THAT(
+      ToIntPairs(m),
+      ElementsAreArray<IntPair>(
+          {{0, 0}, {1, 1}, {2, 2}, {3, 3}, {5, 5}, {7, 7}, {8, 8}, {9, 9}}));
 }
 
 TEST(FlatMapTest, NoncopyableInsertOrAssign) {
   flat_map<int, std::unique_ptr<int>, TransparentCmp> m;
   m.insert_or_assign(0, std::make_unique<int>(0));
-  ExpectElements(m, {{0, 0}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(0, 0)));
   m.insert_or_assign(0, std::make_unique<int>(1));
-  ExpectElements(m, {{0, 1}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(0, 1)));
   m.insert_or_assign(m.begin(), 0, std::make_unique<int>(2));
-  ExpectElements(m, {{0, 2}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(0, 2)));
 }
 
 TEST(FlatMapTest, NoncopyableTryEmplace) {
   flat_map<int, std::unique_ptr<int>, TransparentCmp> m;
   auto result1 = m.try_emplace(0, std::make_unique<int>(0));
-  ExpectElements(m, {{0, 0}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(0, 0)));
   EXPECT_THAT(result1, Pair(m.begin(), true));
 
   auto new_value = std::make_unique<int>(1);
   auto result2 = m.try_emplace(0, std::move(new_value));
-  ExpectElements(m, {{0, 0}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(0, 0)));
   EXPECT_THAT(result2, Pair(m.begin(), false));
 
   // The value must not be moved-from if try_emplace didn't emplace.
   EXPECT_THAT(new_value, Not(Eq(nullptr)));
 
   auto result3 = m.try_emplace(m.end(), 1, std::make_unique<int>(0));
-  ExpectElements(m, {{0, 0}, {1, 0}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(0, 0), Pair(1, 0)));
   EXPECT_EQ(result3, m.begin() + 1);
 }
 
@@ -1132,7 +1144,7 @@ TEST(FlatMapTest, StatefulComparator) {
     m->emplace(1, 2);
     EXPECT_GT(calls, 0);
     calls = 0;
-    EXPECT_EQ(1, m->erase(0));
+    EXPECT_EQ(m->erase(0), 1);
     EXPECT_GT(calls, 0);
     calls = 0;
   }
@@ -1154,7 +1166,7 @@ TEST(FlatMapTest, MoveCopyAssignStatefulComparator) {
   for (auto* m :
        {&m1, &m2, &m3, &m4, &m5, &m6}) {  // NOLINT misc-use-after-move
     m->insert({{2, 2}, {3, 3}});
-    ExpectElements(*m, {{3, 3}, {2, 2}});
+    EXPECT_THAT(ToIntPairs(*m), ElementsAre(Pair(3, 3), Pair(2, 2)));
     EXPECT_TRUE(m->key_comp()(3, 2));
     EXPECT_TRUE(m->value_comp()(std::make_pair(3, 2), std::make_pair(2, 3)));
   }
@@ -1167,8 +1179,8 @@ TEST(FlatMapTest, SortedUniqueContainerConstructor) {
       sorted_unique_container, UniquePtrs({1, 2, 3}));
   flat_map<int, std::unique_ptr<int>, TransparentCmp> m2(
       sorted_unique_container, TransparentCmp(), UniquePtrs({1, 2, 3}));
-  ExpectElements(m1, {{1, 1}, {2, 2}, {3, 3}});
-  ExpectElements(m2, {{1, 1}, {2, 2}, {3, 3}});
+  EXPECT_THAT(ToIntPairs(m1), ElementsAre(Pair(1, 1), Pair(2, 2), Pair(3, 3)));
+  EXPECT_THAT(ToIntPairs(m2), ElementsAre(Pair(1, 1), Pair(2, 2), Pair(3, 3)));
 
   // Try a more complex vector constructor.
   std::vector<std::pair<int, int>> v = {{3, 2}, {1, 0}};
@@ -1177,8 +1189,8 @@ TEST(FlatMapTest, SortedUniqueContainerConstructor) {
   flat_map<int, int, std::greater<int>> m4(sorted_unique_container,
                                            std::greater<int>(), v.begin(),
                                            v.end(), std::allocator<int>());
-  ExpectElements(m3, {{3, 2}, {1, 0}});
-  ExpectElements(m4, {{3, 2}, {1, 0}});
+  EXPECT_THAT(ToIntPairs(m3), ElementsAre(Pair(3, 2), Pair(1, 0)));
+  EXPECT_THAT(ToIntPairs(m4), ElementsAre(Pair(3, 2), Pair(1, 0)));
 }
 
 #if GTEST_HAS_DEATH_TEST
@@ -1212,14 +1224,14 @@ TEST(FlatMapTest, SortedUniqueStdFunctionComparator) {
   flat_map<int, std::unique_ptr<int>,
            std::function<bool(const int&, const int&)>>
       m(sorted_unique_container, TransparentCmp(), UniquePtrs({1, 2}));
-  ExpectElements(m, {{1, 1}, {2, 2}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(1, 1), Pair(2, 2)));
 }
 
 TEST(FlatMapTest, SortedUniqueContainerSpan) {
   std::pair<int, int> array[] = {{1, 1}, {2, 2}};
   flat_map<int, int, std::less<int>, absl::Span<std::pair<int, int>>> m(
       sorted_unique_container, array, 2);
-  ExpectElements(m, {{1, 1}, {2, 2}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(1, 1), Pair(2, 2)));
   EXPECT_EQ(&*m.begin(), array);
 }
 
@@ -1248,16 +1260,18 @@ TEST(FlatMapTest, StdArrayRep) {
   flat_map<int, int, TransparentCmp, array_type> m(sorted_unique_container,
                                                    std::move(array));
 
-  ExpectElements(m, {{1, 1}, {2, 2}});
+  EXPECT_THAT(ToIntPairs(m), ElementsAre(Pair(1, 1), Pair(2, 2)));
 
   // For std::array, we copy the Rep instead of moving it. See
   // internal_flat::Impl for rationale.
   auto m1(std::move(m));
-  ExpectElements(m, {{1, 1}, {2, 2}});  // NOLINT misc-use-after-move
-  ExpectElements(m1, {{1, 1}, {2, 2}});
+  EXPECT_THAT(ToIntPairs(m),  // NOLINT(bugprone-use-after-move)
+              ElementsAre(Pair(1, 1), Pair(2, 2)));
+  EXPECT_THAT(ToIntPairs(m1), ElementsAre(Pair(1, 1), Pair(2, 2)));
   m1 = std::move(m);
-  ExpectElements(m, {{1, 1}, {2, 2}});  // NOLINT misc-use-after-move
-  ExpectElements(m1, {{1, 1}, {2, 2}});
+  EXPECT_THAT(ToIntPairs(m),  // NOLINT(bugprone-use-after-move)
+              ElementsAre(Pair(1, 1), Pair(2, 2)));
+  EXPECT_THAT(ToIntPairs(m1), ElementsAre(Pair(1, 1), Pair(2, 2)));
   EXPECT_EQ(*m.begin(), *m1.begin());
 }
 
