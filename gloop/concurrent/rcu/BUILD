@@ -81,6 +81,7 @@ cc_library(
     name = "internal",
     srcs = ["internal.cc"],
     hdrs = ["internal.h"],
+    implementation_deps = ["@abseil-cpp//absl/base:core_headers"],
     visibility = [
         "//gloop/concurrent/rcu:__subpackages__",
     ],
@@ -135,19 +136,22 @@ cc_library(
     name = "pile",
     srcs = ["pile.cc"],
     hdrs = ["pile.h"],
-    visibility = [
-        "//gloop/concurrent/rcu:__subpackages__",
-    ],
-    deps = [
-        "//gloop:enforce_gloop_support",
+    implementation_deps = [
         "//gloop/base:percpu",
         "//gloop/base:scoped_sigmask",
         "//gloop/base:signal_util_subtle",
         "//gloop/util/atomic_danger",
         "@abseil-cpp//absl/base:malloc_internal",
         "@abseil-cpp//absl/base:no_destructor",
-        "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/debugging:leak_check",
+    ],
+    visibility = [
+        "//gloop/concurrent/rcu:__subpackages__",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "//gloop/base:percpu",
+        "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/numeric:bits",
         "@tcmalloc//tcmalloc/internal:sysinfo",
     ],
@@ -162,6 +166,15 @@ cc_library(
     hdrs = [
         "rcu.h",
     ],
+    implementation_deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/debugging:leak_check",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/time",
+        "@tcmalloc//tcmalloc:malloc_extension",
+        "@tcmalloc//tcmalloc/internal:sysinfo",
+    ],
     visibility = [
         "//gloop/base:__pkg__",
         "//gloop/concurrent/rcu:__subpackages__",
@@ -175,12 +188,6 @@ cc_library(
         "//gloop/base/scheduling:scheduling_mode",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:raw_logging_internal",
-        "@abseil-cpp//absl/debugging:leak_check",
-        "@abseil-cpp//absl/strings:string_view",
-        "@abseil-cpp//absl/time",
-        "@tcmalloc//tcmalloc:malloc_extension",
-        "@tcmalloc//tcmalloc/internal:sysinfo",
     ],
 )
 

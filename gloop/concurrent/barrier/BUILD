@@ -62,13 +62,15 @@ cc_library(
     name = "incremental_barrier",
     srcs = ["incremental_barrier.cc"],
     hdrs = ["incremental_barrier.h"],
+    implementation_deps = [
+        "//gloop/perftools/tracing",
+        "//gloop/util/atomic_danger:refcount",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//gloop:enforce_gloop_support",
-        "//gloop/perftools/tracing",
         "//gloop/perftools/tracing:trace_source_location",
         "//gloop/perftools/tracing:tracing_base",
-        "//gloop/util/atomic_danger:refcount",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/functional:any_invocable",
     ],

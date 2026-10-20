@@ -91,8 +91,7 @@ cc_library(
     name = "global_id",
     srcs = ["global_id.cc"],
     hdrs = ["global_id.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
+    implementation_deps = [
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/log",
@@ -100,6 +99,7 @@ cc_library(
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
     ],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -205,16 +205,19 @@ cc_library(
     testonly = 1,
     srcs = ["random_base_testutils.cc"],
     hdrs = ["random_base_testutils.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/random:distributions",
+        "@abseil-cpp//absl/strings:str_format",
+    ],
     deps = [
         ":random_base",
         "//gloop:enforce_gloop_support",
         "//gloop/util/functional:from_callback",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/random:distributions",
-        "@abseil-cpp//absl/strings:str_format",
     ],
 )
 

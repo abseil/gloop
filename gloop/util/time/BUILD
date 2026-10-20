@@ -35,14 +35,16 @@ cc_library(
     name = "backoff",
     srcs = ["backoff.cc"],
     hdrs = ["backoff.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
+    implementation_deps = [
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/time",
     ],
 )
@@ -69,13 +71,15 @@ cc_library(
         "monotonic_clock.h",
         "monotonic_clock-internal.h",
     ],
-    deps = [
-        "//gloop:enforce_gloop_support",
+    implementation_deps = [
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/functional:any_invocable",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/time:clock_interface",
@@ -86,12 +90,12 @@ cc_library(
     name = "protoutil",
     srcs = ["protoutil.cc"],
     hdrs = ["protoutil.h"],
+    implementation_deps = ["@abseil-cpp//absl/strings"],
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
-        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/time",
         "@protobuf//:duration_cc_proto",
         "@protobuf//:timestamp_cc_proto",
