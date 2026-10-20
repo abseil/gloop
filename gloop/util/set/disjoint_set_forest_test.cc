@@ -22,7 +22,9 @@
 
 #include <cstddef>
 #include <limits>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/base/nullability.h"
@@ -169,6 +171,69 @@ TEST(DisjointSetForestTest, BasicTest) {
   for (int i = 50; i < 100; i++) EXPECT_TRUE(forest.IsSingleton(i));
 }
 
+TEST(DisjointSetForestTest, CopyConstructorRemapsParentPointers) {
+  auto original = std::make_unique<TestForest>(-1);
+  // Build a multi-level tree (rank > 1) and singletons before copying.
+  original->Union(0, 1);
+  original->Union(2, 3);
+  original->Union(0, 2);  // Creates a depth-2 path before path compression.
+  original->MakeSet(10);  // Singleton.
+  original->MakeSet(20);  // Singleton.
+
+  // Copy-construct before path compression has flattened the tree.
+  TestForest copy(*original);
+
+  // Mutating `original` while both forests are alive must not affect `copy`.
+  original->Union(10, 0);
+  EXPECT_FALSE(original->IsSingleton(10));
+  EXPECT_TRUE(copy.IsSingleton(10));
+  EXPECT_NE(copy.FindSet(0), copy.FindSet(10));
+
+  // Mutating `copy` while `original` is alive must not affect `original`.
+  EXPECT_TRUE(copy.Union(20, 0));
+  EXPECT_FALSE(copy.IsSingleton(20));
+  EXPECT_TRUE(original->IsSingleton(20));
+  EXPECT_NE(original->FindSet(0), original->FindSet(20));
+
+  // Destroy `original` and verify `copy` has no dangling pointers into
+  // `original->objects_`.
+  original->clear();
+  original.reset();
+
+  EXPECT_EQ(2, copy.num_disjoint_sets());
+  EXPECT_EQ(6, copy.num_objects());
+  EXPECT_EQ(copy.FindSet(0), copy.FindSet(3));
+  EXPECT_EQ(copy.FindSet(1), copy.FindSet(2));
+  EXPECT_EQ(copy.FindSet(0), copy.FindSet(20));
+  EXPECT_TRUE(copy.IsSingleton(10));
+  EXPECT_NE(copy.FindSet(0), copy.FindSet(10));
+
+  // Verify further mutations on the copy work properly.
+  EXPECT_TRUE(copy.Union(3, 10));
+  EXPECT_EQ(1, copy.num_disjoint_sets());
+  EXPECT_EQ(copy.FindSet(0), copy.FindSet(10));
+}
+
+TEST(DisjointSetForestTest, MoveConstructorPreservesParentPointers) {
+  TestForest original(-1);
+  original.Union(0, 1);
+  original.Union(2, 3);
+  original.Union(0, 2);
+  original.MakeSet(10);
+
+  TestForest moved(std::move(original));
+  EXPECT_EQ(2, moved.num_disjoint_sets());
+  EXPECT_EQ(5, moved.num_objects());
+  EXPECT_EQ(moved.FindSet(0), moved.FindSet(3));
+  EXPECT_EQ(moved.FindSet(1), moved.FindSet(2));
+  EXPECT_TRUE(moved.IsSingleton(10));
+  EXPECT_NE(moved.FindSet(0), moved.FindSet(10));
+
+  EXPECT_TRUE(moved.Union(3, 10));
+  EXPECT_EQ(1, moved.num_disjoint_sets());
+  EXPECT_EQ(moved.FindSet(0), moved.FindSet(10));
+}
+
 struct NoComparisonOperators {
   int value = (std::numeric_limits<int>::min)();
 
@@ -189,6 +254,23 @@ struct NoComparisonOperators {
   };
 };
 
+TEST(DisjointSetForestTest, CopyConstructorUsesEqualKey) {
+  using CustomForest =
+      DisjointSetForest<NoComparisonOperators, NoComparisonOperators::Hash,
+                        NoComparisonOperators::Equal>;
+  CustomForest original({-1});
+  NoComparisonOperators a = {1};
+  NoComparisonOperators b = {2};
+  NoComparisonOperators c = {3};
+  EXPECT_TRUE(original.Union(a, b));
+  EXPECT_TRUE(original.MakeSet(c));
+
+  CustomForest copy(original);
+  EXPECT_EQ(copy.num_disjoint_sets(), 2);
+  EXPECT_EQ(copy.FindSet(a).value, copy.FindSet(b).value);
+  EXPECT_TRUE(copy.IsSingleton(c));
+}
+
 TEST(UnionManyIterator, UsesEqualKey) {
   DisjointSetForest<NoComparisonOperators, NoComparisonOperators::Hash,
                     NoComparisonOperators::Equal>
@@ -205,9 +287,9 @@ TEST(UnionManyIterator, UsesEqualKey) {
   EXPECT_TRUE(forest.Union(c, d));
   EXPECT_EQ(forest.num_disjoint_sets(), 2);
 
-  // Passing {a, b, c} exercises both:
-  // - b already has the same parent as a (EqualKey returns true -> no union)
-  // - c has a different parent from a (EqualKey returns false -> union occurs)
+  // Passing {a, b, c} exercises map lookups via EqualKey as well as:
+  // - b already has the same parent pointer as a (no union)
+  // - c has a different parent pointer from a (union occurs)
   std::vector<NoComparisonOperators> elements = {a, b, c};
   forest.UnionManyIterator(elements.begin(), elements.end());
   EXPECT_EQ(forest.num_disjoint_sets(), 1);
