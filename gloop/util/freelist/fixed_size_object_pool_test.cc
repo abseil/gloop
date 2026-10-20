@@ -41,6 +41,7 @@ using ::testing::ContainerEq;
 using ::testing::Ge;
 using ::testing::IsNull;
 using ::testing::Le;
+using ::testing::NotNull;
 using ::testing::Pointee;
 
 // Implements an object class whose instance count is tracked.
@@ -132,7 +133,7 @@ int* IncIntFactory(int* next) { return new int((*next)++); }
 template <class T>
 void DiscardObject(FixedSizeObjectPool<T>* pool) {
   T* object = pool->TryGet();
-  ASSERT_TRUE(object != nullptr);
+  ASSERT_THAT(object, NotNull());
   delete object;
 }
 
@@ -140,27 +141,27 @@ TEST(FixedSizeObjectPoolTest, ConstructorUsingDefaultFactory) {
   // Test the constructor that constructs objects using their default
   // constructor.
   auto int_pool = std::make_unique<FixedSizeObjectPool<int>>(5, 5);
-  EXPECT_EQ(5, int_pool->MaximumSize());
-  EXPECT_EQ(5, int_pool->NumAvailable());
+  EXPECT_EQ(int_pool->MaximumSize(), 5);
+  EXPECT_EQ(int_pool->NumAvailable(), 5);
   int_pool = std::make_unique<FixedSizeObjectPool<int>>(5, 2);
-  EXPECT_EQ(5, int_pool->MaximumSize());
-  EXPECT_EQ(5, int_pool->NumAvailable());
+  EXPECT_EQ(int_pool->MaximumSize(), 5);
+  EXPECT_EQ(int_pool->NumAvailable(), 5);
 
   // Make sure the objects are getting deleted when the pool is deleted.
   auto tracked_object_pool =
       std::make_unique<FixedSizeObjectPool<TrackedObject>>(6, 6);
-  EXPECT_EQ(6, TrackedObject::live_count_);
-  EXPECT_EQ(6, tracked_object_pool->MaximumSize());
-  EXPECT_EQ(6, tracked_object_pool->NumAvailable());
+  EXPECT_EQ(TrackedObject::live_count_, 6);
+  EXPECT_EQ(tracked_object_pool->MaximumSize(), 6);
+  EXPECT_EQ(tracked_object_pool->NumAvailable(), 6);
   TrackedObject* to = tracked_object_pool->TryGet();
-  EXPECT_TRUE(to != nullptr);
+  EXPECT_THAT(to, NotNull());
   delete to;
   to = tracked_object_pool->TryGet();
-  EXPECT_TRUE(to != nullptr);
+  EXPECT_THAT(to, NotNull());
   delete to;
-  EXPECT_EQ(4, tracked_object_pool->NumAvailable());
+  EXPECT_EQ(tracked_object_pool->NumAvailable(), 4);
   tracked_object_pool.reset();
-  EXPECT_EQ(0, TrackedObject::live_count_);
+  EXPECT_EQ(TrackedObject::live_count_, 0);
 }
 
 TEST(FixedSizeObjectPoolTest, ConstructorUsingCallbackFactory) {
@@ -168,18 +169,18 @@ TEST(FixedSizeObjectPoolTest, ConstructorUsingCallbackFactory) {
   int next = 0;
   auto int_pool = std::make_unique<FixedSizeObjectPool<int>>(
       5, 3, [&next] { return absl::WrapUnique(IncIntFactory(&next)); });
-  ASSERT_EQ(5, int_pool->NumAvailable());
-  EXPECT_EQ(3, next);
+  ASSERT_EQ(int_pool->NumAvailable(), 5);
+  EXPECT_EQ(next, 3);
   absl::btree_set<int> expected_ints;
   absl::btree_set<int> actual_ints;
   for (int i = 0; i < 5; ++i) {
     expected_ints.insert(i);
     int* obj = int_pool->TryGet();
-    ASSERT_TRUE(obj != nullptr);
+    ASSERT_THAT(obj, NotNull());
     actual_ints.insert(*obj);
     delete obj;
   }
-  EXPECT_EQ(5, next);
+  EXPECT_EQ(next, 5);
   EXPECT_THAT(actual_ints, ContainerEq(expected_ints));
 }
 
@@ -187,39 +188,39 @@ TEST(FixedSizeObjectPoolTest, ConstructorUsingUniquePtrFunction) {
   int next = 0;
   auto int_pool = std::make_unique<FixedSizeObjectPool<int>>(
       5, 3, [&next] { return std::make_unique<int>(next++); });
-  ASSERT_EQ(5, int_pool->NumAvailable());
-  EXPECT_EQ(3, next);
+  ASSERT_EQ(int_pool->NumAvailable(), 5);
+  EXPECT_EQ(next, 3);
   absl::btree_set<int> expected_ints;
   absl::btree_set<int> actual_ints;
   for (int i = 0; i < 5; ++i) {
     expected_ints.insert(i);
     int* obj = int_pool->TryGet();
-    ASSERT_TRUE(obj != nullptr);
+    ASSERT_THAT(obj, NotNull());
     actual_ints.insert(*obj);
     delete obj;
   }
-  EXPECT_EQ(5, next);
+  EXPECT_EQ(next, 5);
   EXPECT_THAT(actual_ints, ContainerEq(expected_ints));
 }
 
 TEST(FixedSizeObjectPoolTest, Sizes) {
   auto int_pool = std::make_unique<FixedSizeObjectPool<int>>(5, 3);
-  EXPECT_EQ(5, int_pool->MaximumSize());
-  EXPECT_EQ(5, int_pool->NumAvailable());
-  EXPECT_EQ(0, int_pool->NumGrabbed());
+  EXPECT_EQ(int_pool->MaximumSize(), 5);
+  EXPECT_EQ(int_pool->NumAvailable(), 5);
+  EXPECT_EQ(int_pool->NumGrabbed(), 0);
 
   int* objects[5];
   for (int i = 0; i < 5; ++i) {
     objects[i] = int_pool->Get();
-    EXPECT_EQ(5, int_pool->MaximumSize());
-    EXPECT_EQ(4 - i, int_pool->NumAvailable());
-    EXPECT_EQ(i + 1, int_pool->NumGrabbed());
+    EXPECT_EQ(int_pool->MaximumSize(), 5);
+    EXPECT_EQ(int_pool->NumAvailable(), 4 - i);
+    EXPECT_EQ(int_pool->NumGrabbed(), i + 1);
   }
   for (int i = 0; i < 5; ++i) {
     int_pool->Release(objects[i]);
-    EXPECT_EQ(5, int_pool->MaximumSize());
-    EXPECT_EQ(1 + i, int_pool->NumAvailable());
-    EXPECT_EQ(4 - i, int_pool->NumGrabbed());
+    EXPECT_EQ(int_pool->MaximumSize(), 5);
+    EXPECT_EQ(int_pool->NumAvailable(), 1 + i);
+    EXPECT_EQ(int_pool->NumGrabbed(), 4 - i);
   }
 }
 
@@ -228,12 +229,12 @@ TEST(FixedSizeObjectPoolTest, Retire) {
   auto int_pool = std::make_unique<FixedSizeObjectPool<int>>(
       1, 0, [&next] { return absl::WrapUnique(IncIntFactory(&next)); });
   int* n = int_pool->Get();
-  EXPECT_EQ(1, *n);
-  EXPECT_EQ(0, int_pool->NumAvailable());
+  EXPECT_EQ(*n, 1);
+  EXPECT_EQ(int_pool->NumAvailable(), 0);
   int_pool->Retire(n);
-  EXPECT_EQ(1, int_pool->NumAvailable());
+  EXPECT_EQ(int_pool->NumAvailable(), 1);
   n = int_pool->Get();
-  EXPECT_EQ(2, *n);
+  EXPECT_EQ(*n, 2);
   int_pool->Retire(n);
 }
 
@@ -270,9 +271,9 @@ TEST(FixedSizeObjectPoolTest, GetRAII) {
   auto int_pool = std::make_unique<FixedSizeObjectPool<int>>(1, 0);
   {
     FixedSizeObjectPool<int>::UniquePtr my_int = int_pool->GetRAII();
-    EXPECT_EQ(0, *my_int);
+    EXPECT_EQ(*my_int, 0);
   }
-  EXPECT_EQ(0, int_pool->NumGrabbed());
+  EXPECT_EQ(int_pool->NumGrabbed(), 0);
 }
 
 TEST(FixedSizeObjectPoolTest, WaitForNumAvailable) {
@@ -323,12 +324,12 @@ void TestGetWithDuration() {
   // Get the element, returning right away
   int* succeed =
       int_pool->GetWithTimeout(MillisecondsForType<DurationType>(20));
-  EXPECT_TRUE(succeed != nullptr);
+  EXPECT_THAT(succeed, NotNull());
   EXPECT_GE(10, absl::ToInt64Milliseconds(timer.GetDuration()));
 
   timer.Restart();
   int* fail = int_pool->GetWithTimeout(MillisecondsForType<DurationType>(20));
-  EXPECT_TRUE(fail == nullptr);
+  EXPECT_THAT(fail, IsNull());
   EXPECT_LE(20, absl::ToInt64Milliseconds(timer.GetDuration()));
 
   // put the element back
@@ -337,7 +338,7 @@ void TestGetWithDuration() {
   // and get it again
   timer.Restart();
   succeed = int_pool->GetWithTimeout(MillisecondsForType<DurationType>(20));
-  EXPECT_TRUE(succeed != nullptr);
+  EXPECT_THAT(succeed, NotNull());
   EXPECT_GE(10, absl::ToInt64Milliseconds(timer.GetDuration()));  // right away
   int_pool->Release(succeed);                                     // put it back
 }
@@ -379,7 +380,7 @@ TEST(FixedSizeObjectPoolTest, GetRAIIWithTimeout) {
   {
     // Get the element, returning right away.
     auto succeed = int_pool.GetRAIIWithTimeout(wait_duration);
-    EXPECT_TRUE(succeed != nullptr);
+    EXPECT_THAT(succeed, NotNull());
     EXPECT_THAT(succeed, Pointee(0));
     EXPECT_THAT(timer.GetDuration(), Le(wait_duration / 2));  // Right away.
 
