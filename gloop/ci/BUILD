@@ -35,6 +35,20 @@ platform(
 )
 
 platform(
+    name = "rbe-floor",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    exec_properties = {
+        "OSArch": "amd64",
+        "cache-silo-key": "n2-highmem-8-2026-05-02",
+        "container-image": "docker://gcr.io/google.com/absl-177019/gloop-linux-floor@sha256:84c27f0ce5c4897bf88d88bf02d2344be882422d28c730a488f5a37fdf48d758",
+        "dockerRunAsRoot": "true",
+    },
+)
+
+platform(
     name = "rbe-arm",
     constraint_values = [
         "@platforms//os:linux",

@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-24.04${{ matrix.config.arch-suffix }}
     name: Linux (${{ matrix.config.name || format('{0}{1}', matrix.config.value, matrix.config.arch-suffix) }})
     container:
-      image: gcr.io/google.com/absl-177019/oss-linux-toolchain-latest@sha256:8dfd8bff496cce2b3aaa5d2f1b63ebb6790f2bc78a02cdc0ca9898372fbc38f3
+      image: ${{ matrix.config.image || 'gcr.io/google.com/absl-177019/oss-linux-toolchain-latest@sha256:8dfd8bff496cce2b3aaa5d2f1b63ebb6790f2bc78a02cdc0ca9898372fbc38f3' }}
       # Our images happen to be public today, but use our service account's credentials anyway in
       # case we decide to lock down access.
       credentials:
@@ -67,6 +67,10 @@ jobs:
           - name: Bazel 8
             value: asan
             bazel-version: 8.x
+          - name: Clang 22
+            value: asan
+            remote-suffix: -floor
+            image: gcr.io/google.com/absl-177019/gloop-linux-toolchain-floor@sha256:ae619bf8c9bd8e413cd43ba5572c8b72ed6c0ebf6b672f192b7bb2aba246d35c
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -95,7 +99,7 @@ jobs:
           google-credentials: ${{ secrets.GAR_SERVICE_ACCOUNT }}
           bazelrc: >
             common
-            --config=remote${{ matrix.config.arch-suffix }}
+            --config=remote${{ matrix.config.remote-suffix || matrix.config.arch-suffix }}
             ${{env.EXTRA_BAZEL_ARGS}}
 
       - name: Fetch all external dependencies
