@@ -200,8 +200,8 @@ INSTANTIATE_TEST_SUITE_P(
 
 void AlgorithmsAreConsistent(const std::vector<double>& input) {
   const int size = input.size() / 2;
-  const absl::Span<const double> x = absl::MakeSpan(input.data(), size);
-  const absl::Span<const double> y = absl::MakeSpan(input.data() + size, size);
+  const absl::Span<const double> x = absl::MakeSpan(input).first(size);
+  const absl::Span<const double> y = absl::MakeSpan(input).subspan(size, size);
   const auto brute_force_result =
       KendallsTau::Make(x, y, KendallsTau::Algorithm::kBruteForce);
   const auto knight_result =
@@ -216,8 +216,8 @@ FUZZ_TEST(KendallsTauFuzzTest, AlgorithmsAreConsistent)
 
 void DropIsConsistent(const std::vector<double>& input) {
   const int size = input.size() / 2;
-  const absl::Span<const double> x = absl::MakeSpan(input.data(), size);
-  const absl::Span<const double> y = absl::MakeSpan(input.data() + size, size);
+  const absl::Span<const double> x = absl::MakeSpan(input).first(size);
+  const absl::Span<const double> y = absl::MakeSpan(input).subspan(size, size);
 
   for (int k = 1; k < size - 1; ++k) {
     // `DropFront()`.
@@ -279,8 +279,8 @@ void BM_Make(benchmark::State& state) {
   auto [x, y] = BenchmarkVectors(input_ordering);
 
   for (auto _ : state) {
-    KendallsTau tau(KendallsTau::Make(absl::MakeSpan(x.data(), size),
-                                      absl::MakeSpan(y.data(), size), algorithm,
+    KendallsTau tau(KendallsTau::Make(absl::MakeSpan(x).first(size),
+                                      absl::MakeSpan(y).first(size), algorithm,
                                       input_ordering));
     benchmark::DoNotOptimize(tau);
   }
@@ -300,8 +300,8 @@ template <KendallsTau::InputOrdering input_ordering>
 void BM_DropFront(benchmark::State& state) {
   const int size = state.range(0);
   auto [x, y] = BenchmarkVectors(input_ordering);
-  const auto xspan = absl::MakeSpan(x.data(), size);
-  const auto yspan = absl::MakeSpan(y.data(), size);
+  const auto xspan = absl::MakeSpan(x).first(size);
+  const auto yspan = absl::MakeSpan(y).first(size);
   KendallsTau full =
       KendallsTau::Make(xspan, yspan, KendallsTau::Algorithm::kKnight);
 
@@ -317,8 +317,8 @@ template <KendallsTau::InputOrdering input_ordering>
 void BM_DropBack(benchmark::State& state) {
   const int size = state.range(0);
   auto [x, y] = BenchmarkVectors(input_ordering);
-  const auto xspan = absl::MakeSpan(x.data(), size);
-  const auto yspan = absl::MakeSpan(y.data(), size);
+  const auto xspan = absl::MakeSpan(x).first(size);
+  const auto yspan = absl::MakeSpan(y).first(size);
   KendallsTau full =
       KendallsTau::Make(xspan, yspan, KendallsTau::Algorithm::kKnight);
 
