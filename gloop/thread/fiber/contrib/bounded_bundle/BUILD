@@ -24,13 +24,13 @@ cc_library(
     name = "bounded_bundle",
     srcs = ["bounded_bundle.cc"],
     hdrs = ["bounded_bundle.h"],
+    implementation_deps = ["@abseil-cpp//absl/cleanup"],
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/thread/fiber",
         "//gloop/thread/fiber:fiber-options",
         "//gloop/thread/fiber:select",
         "//gloop/thread/fiber/semaphore:fifo_semaphore",
-        "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/functional:any_invocable",
     ],
 )

@@ -89,12 +89,10 @@ cc_library(
 
 cc_library(
     name = "internal_accumulate",
+    implementation_deps = [":intrinsics"],
     textual_hdrs = ["internal_accumulate.h"],
     visibility = ["//visibility:private"],
-    deps = [
-        ":intrinsics",
-        "//gloop:enforce_gloop_support",
-    ],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_library(
