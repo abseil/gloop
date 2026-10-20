@@ -694,7 +694,7 @@ bool ChiSquaredStatisticsTest(const char* name, RandomBase* gen) {
 
   LOG(INFO) << "Rand8 distribution";
 
-  ChiSquareUint8Data uint8data(new ChiSquareUint8(gen));
+  ChiSquareUint8Data uint8data = std::make_unique<ChiSquareUint8>(gen);
   status &=
       DoStatistics(uint8data.get(), start_index, tbl, tbl_size, increment);
   uint8data.reset();
@@ -703,7 +703,7 @@ bool ChiSquaredStatisticsTest(const char* name, RandomBase* gen) {
 
   LOG(INFO) << "Rand16 distribution";
 
-  ChiSquareUint16Data uint16data(new ChiSquareUint16(gen));
+  ChiSquareUint16Data uint16data = std::make_unique<ChiSquareUint16>(gen);
   status &=
       DoStatistics(uint16data.get(), start_index, tbl, tbl_size, increment);
   uint16data.reset();
@@ -712,7 +712,7 @@ bool ChiSquaredStatisticsTest(const char* name, RandomBase* gen) {
 
   LOG(INFO) << "Rand32 distribution";
 
-  ChiSquareUint32Data uint32data(new ChiSquareUint32(gen));
+  ChiSquareUint32Data uint32data = std::make_unique<ChiSquareUint32>(gen);
   status &=
       DoStatistics(uint32data.get(), start_index, tbl, tbl_size, increment);
   uint32data.reset();
@@ -721,7 +721,7 @@ bool ChiSquaredStatisticsTest(const char* name, RandomBase* gen) {
 
   LOG(INFO) << "Rand64 distribution";
 
-  ChiSquareUint64Data uint64data(new ChiSquareUint64(gen));
+  ChiSquareUint64Data uint64data = std::make_unique<ChiSquareUint64>(gen);
   status &=
       DoStatistics(uint64data.get(), start_index, tbl, tbl_size, increment);
   uint64data.reset();
@@ -730,7 +730,7 @@ bool ChiSquaredStatisticsTest(const char* name, RandomBase* gen) {
 
   LOG(INFO) << "RandFloat distribution";
 
-  ChiSquareFloatData fdata(new ChiSquareFloat(gen));
+  ChiSquareFloatData fdata = std::make_unique<ChiSquareFloat>(gen);
   status &= DoStatistics(fdata.get(), start_index, tbl, tbl_size, increment);
   fdata.reset();
 
@@ -738,7 +738,7 @@ bool ChiSquaredStatisticsTest(const char* name, RandomBase* gen) {
 
   LOG(INFO) << "RandDouble distribution";
 
-  ChiSquareDoubleData ddata(new ChiSquareDouble(gen));
+  ChiSquareDoubleData ddata = std::make_unique<ChiSquareDouble>(gen);
   status &= DoStatistics(ddata.get(), start_index, tbl, tbl_size, increment);
   ddata.reset();
 
