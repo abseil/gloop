@@ -153,14 +153,16 @@ cc_library(
     name = "legacy_hash_cord",
     srcs = ["legacy_hash_cord.cc"],
     hdrs = ["legacy_hash_cord.h"],
-    visibility = ["//visibility:public"],
-    deps = [
+    implementation_deps = [
         ":hash",
         ":jenkins",
         ":seeds",
+        "@abseil-cpp//absl/strings:string_view",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings:cord",
-        "@abseil-cpp//absl/strings:string_view",
     ],
 )
 
@@ -353,13 +355,15 @@ cc_library(
     name = "murmur",
     srcs = ["murmur.cc"],
     hdrs = ["murmur.h"],
+    implementation_deps = [
+        "//gloop/util/endian",
+        "@abseil-cpp//absl/log:check",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//gloop:enforce_gloop_support",
-        "//gloop/util/endian",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
@@ -415,9 +419,7 @@ cc_library(
         "crc_x86_arm_combined.cc",
     ],
     hdrs = ["crc.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//gloop:enforce_gloop_support",
+    implementation_deps = [
         "//gloop/util/endian",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
@@ -431,6 +433,8 @@ cc_library(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
     ],
+    visibility = ["//visibility:public"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(

@@ -62,9 +62,9 @@ cc_library(
     name = "freelist",
     srcs = ["freelist.cc"],
     hdrs = ["freelist.h"],
+    implementation_deps = ["@abseil-cpp//absl/base:config"],
     deps = [
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/flags:flag",
@@ -107,10 +107,8 @@ cc_library(
         "freelist_param_testlib.cc",
         "freelist_param_testlib.h",
     ],
-    visibility = ["//visibility:private"],
-    deps = [
+    implementation_deps = [
         ":freelist",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/flags:flag",
@@ -119,6 +117,12 @@ cc_library(
         "@google_benchmark//:benchmark",
         "@googletest//:gtest_for_library",
         "@re2",
+    ],
+    visibility = ["//visibility:private"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest_for_library",
     ],
     alwayslink = True,
 )

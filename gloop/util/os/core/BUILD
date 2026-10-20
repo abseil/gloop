@@ -27,6 +27,7 @@ cc_library(
     name = "syscalls",
     srcs = ["syscalls.cc"],
     hdrs = ["syscalls.h"],
+    implementation_deps = ["//gloop/base/scheduling"],
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base/scheduling",

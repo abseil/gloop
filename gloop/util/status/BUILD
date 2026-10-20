@@ -71,15 +71,17 @@ cc_library(
     name = "errno_mapping",
     srcs = ["errno_mapping.cc"],
     hdrs = ["errno_mapping.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/status:status_builder",
+        "@gloop//gloop/util/status:codes_cc_proto",
+    ],
     deps = [
         ":status",
         ":status_builder",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:status_builder",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:source_location",
-        "@gloop//gloop/util/status:codes_cc_proto",
         "@protobuf//src/google/protobuf/bridge:message_set_cc_proto",
     ],
 )
@@ -103,11 +105,13 @@ cc_library(
     name = "posixerrorspace",
     srcs = ["posixerrorspace.cc"],
     hdrs = ["posixerrorspace.h"],
-    deps = [
+    implementation_deps = [
         ":errno_mapping",
+        "//gloop/base:strerror",
+    ],
+    deps = [
         ":status",
         "//gloop:enforce_gloop_support",
-        "//gloop/base:strerror",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:source_location",
@@ -134,18 +138,21 @@ cc_library(
     name = "ret_check",
     srcs = ["ret_check.cc"],
     hdrs = ["ret_check.h"],
-    deps = [
+    implementation_deps = [
         ":status",
-        ":status_builder",
-        ":status_macros",
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:die_if_null",
-        "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_builder",
+    ],
+    deps = [
+        ":status_builder",
+        ":status_macros",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:has_ostream_operator",

@@ -152,14 +152,14 @@ cc_test(
 
 cc_library(
     name = "internal_iterate",
-    textual_hdrs = ["internal_iterate.h"],
-    deps = [
+    implementation_deps = [
         ":array",
         ":intrinsics",
         ":pair",
         ":std_tuple",
-        "//gloop:enforce_gloop_support",
     ],
+    textual_hdrs = ["internal_iterate.h"],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_library(
