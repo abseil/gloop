@@ -365,7 +365,7 @@ class ABSL_LOCKABLE CountingMutex {
   std::atomic<std::atomic<uint32_t>*> percpu_data_{handle_.ptr};
 
   std::atomic<uint32_t> pending_{0};
-  bool reader_locks_ ABSL_GUARDED_BY(this) = false;
+  std::atomic<bool> reader_locks_{false};
   absl::Mutex mu_;
 
   // global handle used for repointing disabled percpu_data_ values.
@@ -459,7 +459,7 @@ bool CountingMutex::RefFast() {
       : [ptr] "=&r"(ptr), [value] "=&r"(value), [percpu_data] "=&r"(percpu_data)
       : PERCPU_RSEQ_INPUTS, [shift] "n"(kRegionShift),
         [delta] "n"(delta), [percpu_data_] "r"(&percpu_data_)
-      : PERCPU_RSEQ_CLOBBERS
+      : PERCPU_RSEQ_CLOBBERS, "memory"
       : slow_path);
   return true;
 slow_path:
@@ -485,7 +485,7 @@ slow_path:
       : PERCPU_RSEQ_INPUTS, [self] "r"(this),
         [percpu_data_] "n"(offsetof(CountingMutex, percpu_data_)),
         [kRegionShift] "n"(kRegionShift), [delta] "r"(delta)
-      : PERCPU_RSEQ_CLOBBERS
+      : PERCPU_RSEQ_CLOBBERS, "memory"
       : slow_path);
   return true;
 slow_path:
@@ -564,6 +564,7 @@ inline void CountingMutex::unlock_shared() ABSL_UNLOCK_FUNCTION() {
 
 inline bool CountingMutex::try_lock_shared()
     ABSL_SHARED_TRYLOCK_FUNCTION(true) {
+  AssertNotHeld();
   // See 'lock_shared()` on adding the shared lock optimistically.
   add_shared_lock();
 
@@ -583,9 +584,9 @@ inline void CountingMutex::lock() ABSL_EXCLUSIVE_LOCK_FUNCTION() {
   AssertNotHeld();
   mu_.lock();
   ABSL_TSAN_MUTEX_PRE_LOCK(this, 0);
-  if (reader_locks_) {
+  if (reader_locks_.load(std::memory_order_acquire)) {
     WaitReaderLocks();
-    reader_locks_ = false;
+    reader_locks_.store(false, std::memory_order_relaxed);
   }
   own_locked_context(true);
   ABSL_TSAN_MUTEX_POST_LOCK(this, 0, 0);
@@ -594,7 +595,7 @@ inline void CountingMutex::lock() ABSL_EXCLUSIVE_LOCK_FUNCTION() {
 inline void CountingMutex::unlock() ABSL_UNLOCK_FUNCTION() {
   ABSL_TSAN_MUTEX_PRE_UNLOCK(this, 0);
   // Allow readers to obtain shared slots from here on
-  DCHECK(!reader_locks_);
+  DCHECK(!reader_locks_.load(std::memory_order_relaxed));
   percpu_data_.store(handle_.ptr, std::memory_order_release);
 
   // Unlocking the mutex may execute a waiting condition, which gets executed
