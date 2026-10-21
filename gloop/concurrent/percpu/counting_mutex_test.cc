@@ -20,6 +20,10 @@
 
 #include "gloop/concurrent/percpu/counting_mutex.h"
 
+#ifdef __linux__
+#include <sched.h>
+#endif
+
 #include <array>
 #include <atomic>
 #include <cstdint>
@@ -260,7 +264,7 @@ TEST(CountingMutexTest, ConcurrentlyAllocFreeManyMutexes) {
   for (int i = 0; i < 256; ++i) {
     threads.emplace_back([] {
       std::deque<CountingMutex> mutexes;
-      // Typical entries per region is 128 / 4 = 32, aim substantially higher.
+      // Typical entries per region is 128 / 2 = 64, aim substantially higher.
       for (int i = 0; i < 1024; ++i) {
         mutexes.emplace_back();
       }
@@ -271,6 +275,153 @@ TEST(CountingMutexTest, ConcurrentlyAllocFreeManyMutexes) {
     thread.Join();
   }
 }
+
+TEST(CountingMutexTest, AllocRecycleAndLockManyMutexes) {
+  constexpr int kNumMutexes = 256;
+  std::vector<std::unique_ptr<CountingMutex>> mutexes(kNumMutexes);
+  std::vector<int> values(kNumMutexes, 0);
+  for (int i = 0; i < kNumMutexes; ++i) {
+    mutexes[i] = std::make_unique<CountingMutex>();
+  }
+
+  auto verify_locking = [&] {
+    constexpr int kNumThreads = 8;
+    constexpr int kIterations = 50;
+    std::vector<TestThread> threads;
+    for (int t = 0; t < kNumThreads; ++t) {
+      threads.emplace_back([&, t] {
+        for (int iter = 0; iter < kIterations; ++iter) {
+          for (int m = 0; m < kNumMutexes; ++m) {
+            if (((iter + t + m) & 7) == 0) {
+              CountingMutexWriterLock lock(*mutexes[m]);
+              ++values[m];
+            } else {
+              CountingMutexReaderLock lock(*mutexes[m]);
+              EXPECT_GE(values[m], 0);
+            }
+          }
+        }
+      });
+    }
+    for (auto& thread : threads) {
+      thread.Join();
+    }
+  };
+
+  verify_locking();
+
+  // Recycle half of the handles through the freelist while keeping adjacent
+  // uint16_t slots in the same 128-byte regions live, then reallocate and
+  // verify locking again.
+  for (int i = 0; i < kNumMutexes; i += 2) {
+    mutexes[i].reset();
+  }
+  for (int i = 0; i < kNumMutexes; i += 2) {
+    mutexes[i] = std::make_unique<CountingMutex>();
+  }
+
+  verify_locking();
+}
+
+#ifdef __linux__
+TEST(CountingMutexTest, CrossCpuMigrationAndSlotSaturation) {
+  CountingMutex mutex;
+  std::thread worker([&] {
+    cpu_set_t available;
+    CPU_ZERO(&available);
+    if (sched_getaffinity(0, sizeof(available), &available) != 0) {
+      return;
+    }
+    int cpu_a = -1;
+    int cpu_b = -1;
+    for (int cpu = 0; cpu < CPU_SETSIZE; ++cpu) {
+      if (CPU_ISSET(cpu, &available)) {
+        if (cpu_a == -1) {
+          cpu_a = cpu;
+        } else {
+          cpu_b = cpu;
+          break;
+        }
+      }
+    }
+    if (cpu_b == -1) {
+      return;
+    }
+
+    cpu_set_t set_a;
+    cpu_set_t set_b;
+    CPU_ZERO(&set_a);
+    CPU_ZERO(&set_b);
+    CPU_SET(cpu_a, &set_a);
+    CPU_SET(cpu_b, &set_b);
+
+    // Activate cpu_b's slot and leave it at value 1 (active, 0 local readers)
+    // so subsequent unlocks on cpu_b exercise the value == 1 underflow path.
+    if (sched_setaffinity(0, sizeof(set_b), &set_b) != 0) return;
+    mutex.lock_shared();
+    mutex.unlock_shared();
+
+    // Queue two readers on cpu_a behind an exclusive lock so both enter
+    // ReaderLockInit on the same CPU: the first transitions cpu_a's slot from
+    // 0 -> 3, and the second exercises the active non-saturated (val + 2) path
+    // in ReaderLockInit.
+    mutex.lock();
+    absl::Notification r1_ready;
+    absl::Notification r2_ready;
+    absl::Notification r1_locked;
+    absl::Notification r2_locked;
+    absl::Notification release_readers;
+    std::thread r1([&] {
+      EXPECT_EQ(sched_setaffinity(0, sizeof(set_a), &set_a), 0);
+      r1_ready.Notify();
+      mutex.lock_shared();
+      r1_locked.Notify();
+      release_readers.WaitForNotification();
+      mutex.unlock_shared();
+    });
+    std::thread r2([&] {
+      EXPECT_EQ(sched_setaffinity(0, sizeof(set_a), &set_a), 0);
+      r2_ready.Notify();
+      mutex.lock_shared();
+      r2_locked.Notify();
+      release_readers.WaitForNotification();
+      mutex.unlock_shared();
+    });
+    r1_ready.WaitForNotification();
+    r2_ready.WaitForNotification();
+    absl::SleepFor(absl::Milliseconds(10));
+    mutex.unlock();
+    r1_locked.WaitForNotification();
+    r2_locked.WaitForNotification();
+    release_readers.Notify();
+    r1.join();
+    r2.join();
+
+    // Perform >65,536 lock_shared on cpu_a / unlock_shared on cpu_b cycles to
+    // drive cpu_a's uint16_t slot past 0xFFFF (exercising saturation flush to
+    // pending_ twice) while exercising active-slot underflow on cpu_b.
+    constexpr int kCycles = 70000;
+    for (int i = 0; i < kCycles; ++i) {
+      EXPECT_EQ(sched_setaffinity(0, sizeof(set_a), &set_a), 0);
+      CountingMutexReaderLock lock(mutex);
+      EXPECT_EQ(sched_setaffinity(0, sizeof(set_b), &set_b), 0);
+    }
+  });
+  worker.join();
+
+  // Verify that all migrated and flushed counts cancel out in WaitReaderLocks()
+  // when acquiring an exclusive lock.
+  mutex.lock();
+  mutex.AssertHeld();
+  mutex.unlock();
+
+  // Verify subsequent shared and exclusive locking still works normally.
+  mutex.lock_shared();
+  mutex.unlock_shared();
+  mutex.lock();
+  mutex.unlock();
+}
+#endif  // __linux__
 
 TEST(CountingMutexTest, ReaderLockUnlock) {
   CountingMutex mutex;
