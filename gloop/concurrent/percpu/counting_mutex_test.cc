@@ -1182,6 +1182,10 @@ TEST(CountingMutexTest, LockWhenAlreadyLockedAsserts) {
 #if defined(GTEST_HAS_DEATH_TEST) && !defined(__APPLE__)
     EXPECT_DEBUG_DEATH(CountingMutexReaderLock l(mutex),
                        "should not hold a lock");
+    EXPECT_DEBUG_DEATH(
+        [&]()
+            ABSL_NO_THREAD_SAFETY_ANALYSIS { (void)mutex.try_lock_shared(); }(),
+        "should not hold a lock");
 #endif
   };
   std::function<void()> writer_dies = [&] {
@@ -1203,6 +1207,39 @@ TEST(CountingMutexTest, LockWhenAlreadyLockedAsserts) {
   writer_dies();
 
   mutex.unlock_shared();
+}
+
+TEST(CountingMutexTest, ConcurrentReaderAwaitAfterWriterUnlock) {
+  CountingMutex mutex;
+  std::atomic<bool> ready{false};
+  constexpr int kIterations = 200;
+  constexpr int kReaders = 4;
+
+  for (int iter = 0; iter < kIterations; ++iter) {
+    ready.store(false, std::memory_order_relaxed);
+    mutex.lock();
+
+    std::vector<TestThread> readers;
+    readers.reserve(kReaders);
+    for (int i = 0; i < kReaders; ++i) {
+      readers.emplace_back([&] {
+        mutex.lock_shared();
+        auto is_ready = +[](std::atomic<bool>* flag) {
+          return flag->load(std::memory_order_relaxed);
+        };
+        mutex.Await(absl::Condition(is_ready, &ready));
+        mutex.AssertReaderHeld();
+        mutex.unlock_shared();
+      });
+    }
+
+    ready.store(true, std::memory_order_relaxed);
+    mutex.unlock();
+
+    for (auto& reader : readers) {
+      reader.Join();
+    }
+  }
 }
 
 TEST(CountingMutexTest, AssertHeldMultiThreaded) {

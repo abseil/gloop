@@ -290,7 +290,7 @@ bool CountingMutex::ThreadContext::HasReader(const CountingMutex* p) const {
 // exclusive locks has performance parity with `absl::Mutex`.
 
 CountingMutex::Handle CountingMutex::InitHandle(std::atomic<uint32_t>* ptr) {
-  const int num_cpus = absl::base_internal::NumCPUs();
+  const int num_cpus = base::subtle::percpu::NumCPUs();
   for (int i = 0; i < num_cpus + 2; ++i) {
     ptr[i * kPerRegion].store(0, std::memory_order_relaxed);
   }
@@ -313,7 +313,7 @@ CountingMutex::Handle CountingMutex::AllocHandle() {
   // Allocate space for NumCPUs + 2. The 2 extra entries are to allow for
   // directly addressing rseq -1 and -2 values for `uninitialized` and
   // 'not registered' indexes. This allows a single branch fast path.
-  const int num_cpus = absl::base_internal::NumCPUs();
+  const int num_cpus = base::subtle::percpu::NumCPUs();
   const size_t n = kPerRegion * num_cpus + 2 * kPerRegion;
   auto* ptr = new std::atomic<uint32_t>[n];
   auto* const ptr_end = ptr + kPerRegion;
@@ -341,7 +341,7 @@ void CountingMutex::WaitReaderLocks() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mu_) {
   std::atomic<uint32_t>* ptr = handle_.ptr;
   percpu_data_.store(null_handle_.ptr, std::memory_order_release);
   if (ABSL_PREDICT_TRUE(IsFast())) {
-    for (int cpu = 0, n = absl::base_internal::NumCPUs(); cpu < n; ++cpu) {
+    for (int cpu = 0, n = base::subtle::percpu::NumCPUs(); cpu < n; ++cpu) {
       if ((ptr->load(std::memory_order_acquire) & 1) != 0) {
         // Make sure pending reader lock RSEQs are completed or restarted.
         // TODO: ideally upstream fences will at some point support
@@ -357,7 +357,7 @@ void CountingMutex::WaitReaderLocks() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mu_) {
       ptr += kPerRegion;
     }
   } else {
-    for (int cpu = 0, n = absl::base_internal::NumCPUs(); cpu < n; ++cpu) {
+    for (int cpu = 0, n = base::subtle::percpu::NumCPUs(); cpu < n; ++cpu) {
       if ((ptr->load(std::memory_order_acquire) & 1) != 0) {
         // Increase `pending`, removing the (always on) last bit.
         // Note that we must use exchange(), as ReaderUnlock() calls can execute
@@ -409,13 +409,15 @@ bool CountingMutex::MutexLockForReadLock(bool try_lock) {
 
 bool CountingMutex::ReaderLockInitSlow(bool try_lock) {
   if (!MutexLockForReadLock(try_lock)) return false;
-  std::atomic<uint32_t>* ptr = GetPtr(base::subtle::percpu::GetCurrentCpu());
+  reader_locks_.store(true, std::memory_order_release);
+  int cpu = base::subtle::percpu::GetCurrentCpu();
+  if (cpu < 0) cpu = 0;
+  std::atomic<uint32_t>* ptr = GetPtr(cpu);
   if (ptr->load(std::memory_order_acquire) & 1) {
     ptr->fetch_add(2, std::memory_order_acq_rel);
   } else {
     ptr->store(3, std::memory_order_release);
   }
-  reader_locks_ = true;
   MutexUnlockForReadLock(try_lock);
   return true;
 }
@@ -423,6 +425,7 @@ bool CountingMutex::ReaderLockInitSlow(bool try_lock) {
 bool CountingMutex::ReaderLockInitFast(bool try_lock) {
 #if COUNTING_MUTEX_USE_RSEQ
   if (!MutexLockForReadLock(try_lock)) return false;
+  reader_locks_.store(true, std::memory_order_release);
 #if defined(__x86_64__)
   uint32_t value;
   std::atomic<uint64_t>* ptr;
@@ -451,12 +454,12 @@ bool CountingMutex::ReaderLockInitFast(bool try_lock) {
       : PERCPU_RSEQ_INPUTS,
         [shift] "n"(kRegionShift),
         [handle_] "r"(handle_)
-      : PERCPU_RSEQ_CLOBBERS);
+      : PERCPU_RSEQ_CLOBBERS, "memory");
 #elif defined(__aarch64__)
   uint32_t value;
   int64_t ptr, percpu_data;
   asm volatile(
-      PERCPU_RSEQ_PROLOGUE(CountingMutex_RefFast, ptr)
+      PERCPU_RSEQ_PROLOGUE(CountingMutex_InitFast, ptr)
 
       "4:\n"
       PERCPU_RSEQ_LOAD_CPU_ID(ptr)
@@ -471,11 +474,10 @@ bool CountingMutex::ReaderLockInitFast(bool try_lock) {
       : PERCPU_RSEQ_INPUTS, [self] "r"(this),
         [handle_] "n"(offsetof(CountingMutex, handle_)),
         [kRegionShift] "n"(kRegionShift)
-      : PERCPU_RSEQ_CLOBBERS);
+      : PERCPU_RSEQ_CLOBBERS, "memory");
 #else  // defined(__aarch64__)
   static_assert(false, "Invalid platform inside ReaderLockInitFast()");
 #endif
-  reader_locks_ = true;
   MutexUnlockForReadLock(try_lock);
 #endif  // COUNTING_MUTEX_USE_RSEQ
   return true;
@@ -522,7 +524,7 @@ bool CountingMutex::AwaitCommonSlow(const absl::Condition& cond,
   // `reader_locks_ = true` indicates ~some thread~ is holding a reader lock.
   // As we require 'some' lock to be held, the absence of a a reader lock
   // definitively tells us we are holding a writer lock.
-  bool writer_lock = !reader_locks_;
+  bool writer_lock = !reader_locks_.load(std::memory_order_acquire);
 
   // Use naive logic. We could optimize this somewhat, but the condition
   // should be expected to be true most times, and reader evictions are
