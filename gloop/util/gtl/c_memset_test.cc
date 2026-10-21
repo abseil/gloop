@@ -33,10 +33,22 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+namespace gtl {
 namespace {
 
 using ::gtl::internal::IsHardened;
 using ::testing::ElementsAre;
+using ::testing::Field;
+
+// This is a separate function because the C++ Inliner (<link>)
+// rewrites direct calls to the deprecated overload into absl::c_fill(),
+// which would silently drop its coverage. It skips type-dependent calls,
+// so the tests reach that overload through this template. Direct
+// c_memset() calls below take the memset path.
+template <typename C, typename Ch>
+void CMemsetViaCFill(C&& c, Ch ch) {
+  c_memset(std::forward<C>(c), ch);
+}
 
 TEST(CMemsetTest, WorksForContainersOfMultiByteType) {
   std::vector<int> v = {1, 2, 3, 4, 5};
@@ -55,7 +67,7 @@ TEST(CMemsetTest, WorksForRvalueSpans) {
   EXPECT_THAT(v, ElementsAre(1, 0, 0, 0, 5));
 
   std::string s = "abcde";
-  absl::c_fill(absl::MakeSpan(s).subspan(1, 3), 'x');
+  CMemsetViaCFill(absl::MakeSpan(s).subspan(1, 3), 'x');
   EXPECT_EQ(s, "axxxe");
 }
 
@@ -85,7 +97,7 @@ TEST(CMemsetTest, WorksForCustomTrivialType) {
 
 TEST(CMemsetTest, WorksForContainersOfSingleByteType) {
   std::array<char, 4> a = {'1', '2', '3', '4'};
-  absl::c_fill(a, '9');
+  CMemsetViaCFill(a, '9');
   EXPECT_THAT(a, ElementsAre('9', '9', '9', '9'));
 }
 
@@ -209,9 +221,9 @@ TEST(CMemsetTest, WorksForNonCopyAssignableTrivialByteType) {
   static_assert(!std::is_trivially_copy_assignable_v<TrivialConstByte>);
   std::array<TrivialConstByte, 3> a = {{{'a'}, {'b'}, {'c'}}};
   gtl::c_memset(a, 'z');
-  EXPECT_EQ(a[0].value, 'z');
-  EXPECT_EQ(a[1].value, 'z');
-  EXPECT_EQ(a[2].value, 'z');
+  EXPECT_THAT(a, ElementsAre(Field(&TrivialConstByte::value, 'z'),
+                             Field(&TrivialConstByte::value, 'z'),
+                             Field(&TrivialConstByte::value, 'z')));
 }
 
 TEST(CMemsetTest, RejectsMultidimensionalArrays) {
@@ -247,3 +259,4 @@ TEST(CMemsetTest, RejectsConstAndNonTrivialAndRvalueDestinations) {
 }
 
 }  // namespace
+}  // namespace gtl
