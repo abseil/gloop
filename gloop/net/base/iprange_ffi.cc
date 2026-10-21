@@ -20,10 +20,6 @@
 
 #include <compare>
 
-#include "absl/status/status.h"
-#include "absl/status/statusor.h"
-#include "absl/strings/str_cat.h"
-#include "absl/strings/string_view.h"
 #include "gloop/net/base/ipaddress.h"
 
 namespace net_base::ipaddress_internal {
@@ -36,39 +32,6 @@ namespace net_base::ipaddress_internal {
 int CompareIPRangeForRust(const IPRange& a, const IPRange& b) {
   const std::weak_ordering cmp = a <=> b;
   return cmp < 0 ? -1 : (cmp > 0 ? 1 : 0);
-}
-
-// TODO: Replace with a StatusOr-returning C++ overload of
-// StringToIPRange in ipaddress.h (similar to cl/995171107).
-absl::StatusOr<IPRange> StringToIPRangeForRust(absl::string_view str) {
-  IPRange out;
-  if (StringToIPRange(str, &out)) {
-    return out;
-  }
-  return absl::InvalidArgumentError(
-      absl::StrCat("Invalid IP range: '", str, "'"));
-}
-
-// TODO: Replace with a StatusOr-returning C++ overload of
-// StringToIPRangeAndTruncate in ipaddress.h (similar to cl/995171107).
-absl::StatusOr<IPRange> StringToIPRangeAndTruncateForRust(
-    absl::string_view str) {
-  IPRange out;
-  if (StringToIPRangeAndTruncate(str, &out)) {
-    return out;
-  }
-  return absl::InvalidArgumentError(
-      absl::StrCat("Invalid IP range: '", str, "'"));
-}
-
-// TODO: Replace with a StatusOr-returning C++ overload of
-// PackedStringToIPRange in ipaddress.h (similar to cl/994557396).
-absl::StatusOr<IPRange> PackedStringToIPRangeForRust(absl::string_view str) {
-  IPRange out;
-  if (PackedStringToIPRange(str, &out)) {
-    return out;
-  }
-  return absl::InvalidArgumentError("Invalid packed IP range");
 }
 
 }  // namespace net_base::ipaddress_internal
