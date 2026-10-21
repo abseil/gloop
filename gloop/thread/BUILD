@@ -260,6 +260,7 @@ cc_library(
         ":python_stack_size",
         ":sync_queue",
         ":thread-internal",
+        ":thread_name",
         ":thread_options",
         ":threadlocal",
         ":wait_queue",
@@ -619,6 +620,29 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "thread_name",
+    srcs = ["thread_name.cc"],
+    hdrs = ["thread_name.h"],
+    visibility = ["//gloop/thread:__subpackages__"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:dynamic_annotations",
+        "@abseil-cpp//absl/log",
+    ],
+)
+
+cc_test(
+    name = "thread_name_test",
+    srcs = ["thread_name_test.cc"],
+    deps = [
+        ":thread_name",
+        "//gloop:gloop_test_main",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
