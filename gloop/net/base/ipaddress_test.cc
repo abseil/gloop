@@ -3137,6 +3137,38 @@ TEST(IPRangeTest, FromAddressString6) {
   EXPECT_EQ(128, subnet.length());
 }
 
+TEST(IPRangeTest, StringToIPRange) {
+  ABSL_ASSERT_OK_AND_ASSIGN(IPRange range,
+                            StringToIPRange("2001:700:300:1800::/64"));
+  EXPECT_EQ(range.ToString(), "2001:700:300:1800::/64");
+
+  EXPECT_THAT(
+      StringToIPRange("192.168.0.0/8"),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("192.168.0.0/8")));
+  EXPECT_THAT(StringToIPRange("guava"),
+              StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("guava")));
+}
+
+TEST(IPRangeTest, StringToIPRangeAndTruncate) {
+  ABSL_ASSERT_OK_AND_ASSIGN(IPRange range,
+                            StringToIPRangeAndTruncate("192.168.0.0/8"));
+  EXPECT_EQ(range.ToString(), "192.0.0.0/8");
+
+  EXPECT_THAT(StringToIPRangeAndTruncate("guava"),
+              StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("guava")));
+}
+
+TEST(IPRangeTest, PackedStringToIPRange) {
+  IPRange range;
+  ASSERT_TRUE(StringToIPRange("2001:700:300:1800::/64", &range));
+
+  EXPECT_THAT(PackedStringToIPRange(range.ToPackedString()),
+              IsOkAndHolds(range));
+  EXPECT_THAT(PackedStringToIPRange("something very bad"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("something very bad")));
+}
+
 TEST(IPRangeTest, Joining) {
   std::vector<IPRange> v = {StringToIPRangeAndTruncateOrDie("192.0.2.0/24"),
                             StringToIPRangeAndTruncateOrDie("2001:db8::/32"),

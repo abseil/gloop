@@ -1480,6 +1480,10 @@ inline bool IsInitializedSocketAddress(const SocketAddress& addr) {
 //
 ABSL_MUST_USE_RESULT bool StringToIPRange(absl::string_view str, IPRange* out);
 
+// Converts the given IPv4 or IPv6 subnet mask in textual form into an IPRange
+// if possible. Otherwise returns an error.
+absl::StatusOr<IPRange> StringToIPRange(absl::string_view str);
+
 // StringToIPRange conversion methods that CHECK()-fail on invalid input.
 // Not a good idea to use on user-provided input.
 inline IPRange StringToIPRangeOrDie(absl::string_view str) {
@@ -1495,6 +1499,12 @@ inline IPRange StringToIPRangeOrDie(absl::string_view str) {
 //
 ABSL_MUST_USE_RESULT bool StringToIPRangeAndTruncate(absl::string_view str,
                                                      IPRange* out);
+
+// Converts the given IPv4 or IPv6 subnet mask in textual form into an IPRange,
+// truncating any non-zero host bits beyond the prefix length. Otherwise returns
+// an error.
+absl::StatusOr<IPRange> StringToIPRangeAndTruncate(absl::string_view str);
+
 inline IPRange StringToIPRangeAndTruncateOrDie(absl::string_view str) {
   IPRange ipr;
   CHECK(StringToIPRangeAndTruncate(str, &ipr)) << "Invalid IP range " << str;
@@ -1520,6 +1530,10 @@ inline IPRange TruncatedAddressToIPRange(const IPAddress& host, int length) {
 // then it will return false. See IPRange::ToPackedString for more information.
 ABSL_MUST_USE_RESULT bool PackedStringToIPRange(absl::string_view str,
                                                 IPRange* out);
+
+// Parses a binary or packed string containing a truncated IPRange of IPv4 or
+// IPv6 addresses into an IPRange.
+absl::StatusOr<IPRange> PackedStringToIPRange(absl::string_view str);
 
 // Binary packed string conversion method that CHECK()-fails on invalid input.
 inline IPRange PackedStringToIPRangeOrDie(absl::string_view str) {

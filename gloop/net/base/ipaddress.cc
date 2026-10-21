@@ -1861,6 +1861,16 @@ bool StringToIPRange(absl::string_view str, IPRange* out) {
   return true;
 }
 
+absl::StatusOr<IPRange> StringToIPRange(absl::string_view str) {
+  IPRange r;
+
+  if (StringToIPRange(str, &r)) {
+    return r;
+  }
+  return util::InvalidArgumentErrorBuilder()
+         << "failed to convert string into IPRange: '" << str << "'";
+}
+
 bool StringToIPRangeAndTruncate(absl::string_view str, IPRange* out) {
   std::pair<IPAddress, int> parsed;
   if (!InternalStringToIPRange(str, &parsed)) {
@@ -1870,6 +1880,16 @@ bool StringToIPRangeAndTruncate(absl::string_view str, IPRange* out) {
     *out = IPRange(parsed.first, parsed.second);
   }
   return true;
+}
+
+absl::StatusOr<IPRange> StringToIPRangeAndTruncate(absl::string_view str) {
+  IPRange r;
+
+  if (StringToIPRangeAndTruncate(str, &r)) {
+    return r;
+  }
+  return util::InvalidArgumentErrorBuilder()
+         << "failed to convert string into IPRange: '" << str << "'";
 }
 
 namespace ipaddress_internal {
@@ -1998,6 +2018,16 @@ bool PackedStringToIPRange(absl::string_view str, IPRange* out) {
     *out = truncated;
   }
   return true;
+}
+
+absl::StatusOr<IPRange> PackedStringToIPRange(absl::string_view str) {
+  IPRange r;
+
+  if (PackedStringToIPRange(str, &r)) {
+    return r;
+  }
+  return util::InvalidArgumentErrorBuilder()
+         << "failed to parse packed string into IPRange: '" << str << "'";
 }
 
 bool IPAddressIntervalToSubnets(const IPAddress& first_addr,
