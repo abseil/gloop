@@ -25,6 +25,7 @@
 
 #include <array>
 #include <cstddef>
+#include <ostream>
 #include <utility>
 
 #include "absl/base/no_destructor.h"
@@ -36,8 +37,8 @@
 namespace gtl {
 // Forward declaration.
 namespace internal_extend {
-template <typename Write, typename WriteGeneric, typename T>
-void DebugPrintValue(Write&&, WriteGeneric&&, const T&);
+template <typename T>
+void DebugPrintValue(std::ostream&, const T&);
 }  // namespace internal_extend
 
 // An extension which tries to produce a `FieldNameInfo` with the names of T's
@@ -52,9 +53,8 @@ struct ReflectionExtension : Extension<ReflectionExtension, T> {
   using Extension<ReflectionExtension, T>::Unpack;
 
   // Allow-listed extensions.
-  template <typename Write, typename WriteGeneric, typename U>
-  friend void internal_extend::DebugPrintValue(Write&&, WriteGeneric&&,
-                                               const U&);
+  template <typename U>
+  friend void internal_extend::DebugPrintValue(std::ostream&, const U&);
   friend struct ::gtl::internal_extend::ReflectionTestingExtension<T>;
 };
 

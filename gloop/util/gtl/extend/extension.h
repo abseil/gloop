@@ -22,11 +22,6 @@
 #define THIRD_PARTY_GLOOP_UTIL_GTL_EXTEND_EXTENSION_H_
 
 namespace gtl {
-// Forward declaration.
-namespace internal_extend {
-template <typename Write, typename WriteGeneric, typename T>
-void DebugPrintValue(Write&&, WriteGeneric&&, const T&);
-}  // namespace internal_extend
 
 // A base class for extensions that add methods to the extended class that
 // allows accessing the type it's extending as a tuple.
@@ -49,9 +44,6 @@ class Extension {
   constexpr static auto Unpack(T& t) { return t.Unpack(); }
 
   friend Ext<T>;
-  template <typename Write, typename WriteGeneric, typename U>
-  friend void internal_extend::DebugPrintValue(Write&&, WriteGeneric&&,
-                                               const U&);
 };
 
 }  // namespace gtl

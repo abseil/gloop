@@ -146,7 +146,6 @@ cc_library(
         ":extension",
         ":reflection_extension",
         "//gloop:enforce_gloop_support",
-        "//gloop/util/gtl:generic_printer",
         "//gloop/util/gtl/extend/internal:debug_print_value",
     ],
 )
@@ -158,7 +157,6 @@ cc_library(
         ":extension",
         ":reflection_extension",
         "//gloop:enforce_gloop_support",
-        "//gloop/util/gtl:generic_printer",
         "//gloop/util/gtl/extend/internal:debug_print_value",
     ],
 )

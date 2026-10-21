@@ -27,7 +27,6 @@
 #include "gloop/util/gtl/extend/extension.h"
 #include "gloop/util/gtl/extend/internal/debug_print_value.h"
 #include "gloop/util/gtl/extend/reflection_extension.h"
-#include "gloop/util/gtl/generic_printer.h"
 
 namespace gtl {
 
@@ -60,9 +59,7 @@ struct StreamPrintingExtension : Extension<StreamPrintingExtension, T> {
   using deps = void(ReflectionExtension<T>);
 
   friend std::ostream& operator<<(std::ostream& os, const T& value) {
-    internal_extend::DebugPrintValue(
-        [&](const auto& v) { os << v; },
-        [&](const auto& v) { os << gtl::GenericPrint(v); }, value);
+    internal_extend::DebugPrintValue(os, value);
     return os;
   }
 };

@@ -21,12 +21,9 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_GTL_EXTEND_STRINGIFY_H_
 #define THIRD_PARTY_GLOOP_UTIL_GTL_EXTEND_STRINGIFY_H_
 
-#include <sstream>
-
 #include "gloop/util/gtl/extend/extension.h"
 #include "gloop/util/gtl/extend/internal/debug_print_value.h"
 #include "gloop/util/gtl/extend/reflection_extension.h"
-#include "gloop/util/gtl/generic_printer.h"
 
 namespace gtl {
 
@@ -59,14 +56,7 @@ struct StringifyExtension : Extension<StringifyExtension, T> {
   using deps = void(ReflectionExtension<T>);
   template <typename Sink>
   friend void AbslStringify(Sink& sink, const T& value) {
-    internal_extend::DebugPrintValue(
-        [&](const auto& v) { sink.Append(v); },
-        [&, ss = std::stringstream()](const auto& v) mutable {
-          ss.str("");
-          ss << gtl::GenericPrint(v);
-          sink.Append(ss.str());
-        },
-        value);
+    sink.Append(internal_extend::DebugPrintToString(value));
   }
 };
 
