@@ -296,7 +296,7 @@ enum class RseqVcpuMode {
   kMM,         // Upstream (v6.6) provided flat
 };
 
-RseqVcpuMode GetRseqVcpuMode();
+inline RseqVcpuMode GetRseqVcpuMode();
 
 inline Handle NullHandle() { return Handle(); }
 
@@ -551,6 +551,19 @@ inline bool IsFast() {
   return false;
 #endif  // PERCPU_USE_RSEQ
 }
+
+#if PERCPU_USE_RSEQ
+namespace percpu_internal {
+// The active vCPU mode. This is kNone until RSEQ has been initialized, and is
+// written once during process-wide initialization. Use GetRseqVcpuMode().
+extern RseqVcpuMode using_rseq_vcpu_mode;
+}  // namespace percpu_internal
+
+inline RseqVcpuMode GetRseqVcpuMode() {
+  IsFast();  // Make sure the thread is initialized.
+  return percpu_internal::using_rseq_vcpu_mode;
+}
+#endif  // PERCPU_USE_RSEQ
 
 // Slow-path implementations for when RSEQ is not available.  It is *never* safe
 // to mix these with the accelerated variants.
