@@ -22,20 +22,36 @@
 
 #include <cstdint>
 #include <limits>
+#include <ostream>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace util_intops {
+
+template <typename T>
+void PrintTo(const Saturated<T>& s, std::ostream* os) {
+  *os << "{value: " << +s.Value() << ", overflow: " << s.DidOverflow()
+      << ", underflow: " << s.DidUnderflow()
+      << ", indeterminate: " << s.DidBecomeIndeterminate() << "}";
+}
+
 namespace {
 
 template <typename T>
-void TestMinMax() {
-  EXPECT_EQ(Saturated<T>::Min(), std::numeric_limits<T>::min());
-  EXPECT_EQ(Saturated<T>::Max(), std::numeric_limits<T>::max());
+class SaturatedTest : public ::testing::Test {};
+
+using SaturatedTypes = ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t,
+                                        int8_t, int16_t, int32_t, int64_t>;
+TYPED_TEST_SUITE(SaturatedTest, SaturatedTypes);
+
+TYPED_TEST(SaturatedTest, MinMax) {
+  EXPECT_EQ(Saturated<TypeParam>::Min(), std::numeric_limits<TypeParam>::min());
+  EXPECT_EQ(Saturated<TypeParam>::Max(), std::numeric_limits<TypeParam>::max());
 }
 
-template <typename T>
-void TestConstruction() {
+TYPED_TEST(SaturatedTest, Construction) {
+  using T = TypeParam;
   Saturated<T> t0;
   EXPECT_EQ(t0.Value(), T());
   EXPECT_FALSE(t0.DidOverflow());
@@ -68,8 +84,8 @@ void TestConstruction() {
   EXPECT_FALSE(t4.DidBecomeIndeterminate());
 }
 
-template <typename T>
-void TestAddition() {
+TYPED_TEST(SaturatedTest, Addition) {
+  using T = TypeParam;
   Saturated<T> t(0);
   t.Add(t.Max() - 1);
   t.Add(1);
@@ -100,8 +116,8 @@ void TestAddition() {
   }
 }
 
-template <typename T>
-void TestSubtraction() {
+TYPED_TEST(SaturatedTest, Subtraction) {
+  using T = TypeParam;
   Saturated<T> t(0);
   t.Sub(0);
   EXPECT_EQ(t.Value(), 0);
@@ -131,8 +147,8 @@ void TestSubtraction() {
   }
 }
 
-template <typename T>
-void TestMultiplication() {
+TYPED_TEST(SaturatedTest, Multiplication) {
+  using T = TypeParam;
   Saturated<T> t;
 
   // Zero result.
@@ -232,8 +248,8 @@ void TestMultiplication() {
   }
 }
 
-template <typename T>
-void TestDivisionRemainder() {
+TYPED_TEST(SaturatedTest, DivisionRemainder) {
+  using T = TypeParam;
   Saturated<T> t;
 
   // Division / remainder by zero.
@@ -350,8 +366,8 @@ void TestDivisionRemainder() {
   }
 }
 
-template <typename T>
-void TestStatus() {
+TYPED_TEST(SaturatedTest, Status) {
+  using T = TypeParam;
   // These tests are chained to test status stickiness.
   Saturated<T> t(0);
   EXPECT_EQ(t.Value(), 0);
@@ -421,8 +437,8 @@ void TestStatus() {
   EXPECT_TRUE(t.IsValid());
 }
 
-template <typename T>
-void TestChaining() {
+TYPED_TEST(SaturatedTest, Chaining) {
+  using T = TypeParam;
   EXPECT_EQ(Saturated<T>(1).Add(9).Value(), 10);
   EXPECT_EQ(Saturated<T>(1).Add(9).Mul(7).Value(), 70);
   EXPECT_EQ(Saturated<T>(1).Add(9).Mul(7).Div(2).Value(), 35);
@@ -449,58 +465,63 @@ void TestChaining() {
   EXPECT_FALSE(t.IsValid());
 }
 
-template <typename T>
-void TestBasicOperations() {
-  TestMinMax<T>();
-  TestConstruction<T>();
-  TestAddition<T>();
-  TestSubtraction<T>();
-  TestMultiplication<T>();
-  TestDivisionRemainder<T>();
-  TestStatus<T>();
-  TestChaining<T>();
-}
-
-TEST(Saturated, BasicOperations) {
-  TestBasicOperations<uint8_t>();
-  TestBasicOperations<uint16_t>();
-  TestBasicOperations<uint32_t>();
-  TestBasicOperations<uint64_t>();
-  TestBasicOperations<int8_t>();
-  TestBasicOperations<int16_t>();
-  TestBasicOperations<int32_t>();
-  TestBasicOperations<int64_t>();
-}
-
 // Test ALL the values!
 // OP(T,T) must fit in a TBIG.
 
-template <typename T, typename TBIG>
-void MyValidate(Saturated<T> v1, TBIG tb_expect, TBIG tb_min, TBIG tb_max) {
+MATCHER_P3(MatchesSaturated, tb_expect, tb_min, tb_max, "") {
   if (tb_expect < tb_min) {
-    EXPECT_EQ(v1.Value(), v1.Min());
-    EXPECT_TRUE(v1.DidUnderflow());
-    EXPECT_FALSE(v1.DidOverflow());
-    EXPECT_FALSE(v1.DidBecomeIndeterminate());
-  } else if (tb_expect > tb_max) {
-    EXPECT_EQ(v1.Value(), v1.Max());
-    EXPECT_FALSE(v1.DidUnderflow());
-    EXPECT_TRUE(v1.DidOverflow());
-    EXPECT_FALSE(v1.DidBecomeIndeterminate());
-  } else {
-    EXPECT_EQ(v1.Value(), tb_expect);
-    EXPECT_FALSE(v1.DidUnderflow());
-    EXPECT_FALSE(v1.DidOverflow());
-    EXPECT_FALSE(v1.DidBecomeIndeterminate());
+    if (arg.Value() != arg.Min() || !arg.DidUnderflow() || arg.DidOverflow() ||
+        arg.DidBecomeIndeterminate()) {
+      *result_listener << "expected underflow with value " << +arg.Min()
+                       << ", but got value " << +arg.Value()
+                       << " (overflow=" << arg.DidOverflow()
+                       << ", underflow=" << arg.DidUnderflow()
+                       << ", indeterminate=" << arg.DidBecomeIndeterminate()
+                       << ")";
+      return false;
+    }
+    return true;
   }
+  if (tb_expect > tb_max) {
+    if (arg.Value() != arg.Max() || arg.DidUnderflow() || !arg.DidOverflow() ||
+        arg.DidBecomeIndeterminate()) {
+      *result_listener << "expected overflow with value " << +arg.Max()
+                       << ", but got value " << +arg.Value()
+                       << " (overflow=" << arg.DidOverflow()
+                       << ", underflow=" << arg.DidUnderflow()
+                       << ", indeterminate=" << arg.DidBecomeIndeterminate()
+                       << ")";
+      return false;
+    }
+    return true;
+  }
+  if (arg.Value() != tb_expect || arg.DidUnderflow() || arg.DidOverflow() ||
+      arg.DidBecomeIndeterminate()) {
+    *result_listener << "expected value " << +tb_expect
+                     << " without overflow/underflow, but got value "
+                     << +arg.Value() << " (overflow=" << arg.DidOverflow()
+                     << ", underflow=" << arg.DidUnderflow()
+                     << ", indeterminate=" << arg.DidBecomeIndeterminate()
+                     << ")";
+    return false;
+  }
+  return true;
 }
 
-template <typename T, typename TBIG>
-void TestTotal() {
+template <typename T>
+class SaturatedTotalTest : public ::testing::Test {};
+
+using SaturatedTotalTypes = ::testing::Types<uint8_t, int8_t>;
+TYPED_TEST_SUITE(SaturatedTotalTest, SaturatedTotalTypes);
+
+TYPED_TEST(SaturatedTotalTest, ExhaustiveOperations) {
+  using T = TypeParam;
+  using TBIG = int32_t;
   const TBIG tb_min = std::numeric_limits<T>::min();
   const TBIG tb_max = std::numeric_limits<T>::max();
   for (TBIG tb1 = tb_min; tb1 <= tb_max; ++tb1) {
     for (TBIG tb2 = tb_min; tb2 <= tb_max; ++tb2) {
+      SCOPED_TRACE(::testing::Message() << "tb1=" << tb1 << ", tb2=" << tb2);
       T t1 = static_cast<T>(tb1);
       T t2 = static_cast<T>(tb2);
       Saturated<T> v1;
@@ -508,17 +529,17 @@ void TestTotal() {
       // Addition.
       v1 = Saturated<T>(t1);
       v1.Add(t2);
-      MyValidate(v1, tb1 + tb2, tb_min, tb_max);
+      EXPECT_THAT(v1, MatchesSaturated(tb1 + tb2, tb_min, tb_max));
 
       // Subtraction.
       v1 = Saturated<T>(t1);
       v1.Sub(t2);
-      MyValidate(v1, tb1 - tb2, tb_min, tb_max);
+      EXPECT_THAT(v1, MatchesSaturated(tb1 - tb2, tb_min, tb_max));
 
       // Multiplication.
       v1 = Saturated<T>(t1);
       v1.Mul(t2);
-      MyValidate(v1, tb1 * tb2, tb_min, tb_max);
+      EXPECT_THAT(v1, MatchesSaturated(tb1 * tb2, tb_min, tb_max));
 
       // Division.
       v1 = Saturated<T>(t1);
@@ -529,7 +550,7 @@ void TestTotal() {
         EXPECT_EQ(v1.DidOverflow(), tb1 > 0);
         EXPECT_EQ(v1.DidBecomeIndeterminate(), tb1 == 0);
       } else {
-        MyValidate(v1, tb1 / tb2, tb_min, tb_max);
+        EXPECT_THAT(v1, MatchesSaturated(tb1 / tb2, tb_min, tb_max));
       }
       // For Remainder.
       const bool division_failed =
@@ -544,15 +565,10 @@ void TestTotal() {
         EXPECT_FALSE(v1.DidOverflow());
         EXPECT_TRUE(v1.DidBecomeIndeterminate());
       } else {
-        MyValidate(v1, tb1 % tb2, tb_min, tb_max);
+        EXPECT_THAT(v1, MatchesSaturated(tb1 % tb2, tb_min, tb_max));
       }
     }
   }
-}
-
-TEST(Saturated, Total) {
-  TestTotal<uint8_t, int32_t>();
-  TestTotal<int8_t, int32_t>();
 }
 
 }  // anonymous namespace
