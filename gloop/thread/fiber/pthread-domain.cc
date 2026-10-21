@@ -24,6 +24,8 @@
 #include <cerrno>
 #include <cstdint>
 #include <ctime>
+#include <string>
+#include <utility>
 
 #include "absl/base/internal/low_level_scheduling.h"
 #include "absl/base/internal/raw_logging.h"
@@ -35,10 +37,13 @@
 #include "gloop/base/scheduling/domain.h"
 #include "gloop/base/scheduling/downcalls.h"
 #include "gloop/base/scheduling/scheduler.h"
+#include "gloop/thread/fiber/fiber-internal.h"
+#include "gloop/thread/fiber/fiber-options.h"
 #include "gloop/thread/fiber/fiber.h"
 #include "gloop/thread/fiber/internal/fiber-thread-pool.h"
 #include "gloop/thread/os_semaphore.h"
 #include "gloop/thread/thread.h"
+#include "gloop/thread/thread_name.h"
 #include "gloop/thread/thread_options.h"
 
 #if !PORTABLE_BASE
@@ -50,6 +55,14 @@ using base::scheduling::Schedulable;
 
 namespace thread {
 namespace {
+
+// Returns the name of the fiber of `schedulable`, or an empty string if it has
+// none.
+absl::string_view FiberName(const Schedulable* schedulable) {
+  const Fiber* fiber =
+      internal::FiberHelpers::FiberFromSchedulable(schedulable);
+  return fiber != nullptr ? fiber->options().name() : absl::string_view();
+}
 
 class PthreadDomain : public base::scheduling::Domain {
  public:
@@ -128,8 +141,9 @@ class PthreadDomainThread : public Thread {
   // REQUIRES: first_schedulable != nullptr
   PthreadDomainThread(PthreadDomain* domain, const Options& options,
                       Schedulable* first_schedulable)
-      : Thread(options, absl::StrCat(domain->name(), "-PDomainT")),
+      : Thread(options, ThreadName(domain, first_schedulable)),
         domain_(domain),
+        name_(ThreadName(domain, first_schedulable)),
         current_schedulable_(first_schedulable),
         work_(nullptr, nullptr) {
     internal::OsSemaphoreInit(&sem_);
@@ -138,6 +152,27 @@ class PthreadDomainThread : public Thread {
  private:
   // PthreadDomainThreads are self-deleting.
   ~PthreadDomainThread() override { internal::OsSemaphoreDestroy(&sem_); }
+
+  // Returns the name of the fiber of `schedulable` or the default name.
+  static std::string ThreadName(PthreadDomain* domain,
+                                const Schedulable* schedulable) {
+    absl::string_view fiber_name = FiberName(schedulable);
+    return fiber_name.empty() ? absl::StrCat(domain->name(), "-PDomainT")
+                              : std::string(fiber_name);
+  }
+
+  // Renames the current thread after the fiber of `schedulable` unless it
+  // already has that name.
+  void UpdateCurrentThreadNameIfChanged(const Schedulable* schedulable) {
+    std::string name = ThreadName(domain_, schedulable);
+    // Renaming only when the name has changed optimizes for the common case
+    // where a thread is recycled in a fiber pool.
+    if (name == name_) {
+      return;
+    }
+    name_ = std::move(name);
+    internal::SetCurrentThreadName(name_.c_str());
+  }
 
   // Bind "schedulable" to this thread.  May only be called by *this.
   void BindSchedulable(Schedulable* schedulable) {
@@ -176,6 +211,7 @@ class PthreadDomainThread : public Thread {
         if (!PthreadDomain::IsBoundToThread(next)) {
           // This is the only time we ever recycle in a pthread domain.
           BindSchedulable(next);
+          UpdateCurrentThreadNameIfChanged(next);
         } else {
           domain_->ResumeAdditionalSchedulable(next);  // Maintain concurrency.
         }
@@ -186,6 +222,9 @@ class PthreadDomainThread : public Thread {
   }
 
   PthreadDomain* const domain_;
+  // The name that this thread currently has. Used to skip renaming a recycled
+  // thread whose new fiber has the same name.
+  std::string name_;
   Schedulable* current_schedulable_;
   base::scheduling::DomainFunctor work_;
   internal::OsSemaphore sem_;
