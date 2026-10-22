@@ -47,6 +47,8 @@
 #include "gloop/base/tracecontext.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/string_label.h"
+#include "gloop/perftools/tracing/test_only_access.h"
+#include "gloop/perftools/tracing/tracing_base.h"
 #include "gloop/thread/threadpool.h"
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
@@ -55,14 +57,19 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+using perftools::tracing::kMainSyncId;
+using perftools::tracing::kNoSyncId;
 using perftools::tracing::MockTraceEventListener;
 using perftools::tracing::StringRef;
+using perftools::tracing::SyncId;
+using perftools::tracing::testing::TestOnlyAccess;
 using ::testing::_;
 using ::testing::Eq;
 using ::testing::IsNull;
 using ::testing::NiceMock;
 using ::testing::NotNull;
 using ::testing::Return;
+using ::testing::StrictMock;
 
 ABSL_DECLARE_FLAG(bool, harden_with_context);
 
