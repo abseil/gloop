@@ -232,9 +232,16 @@ TrivialFactory<T>& GetDefaultTrivialFactoryInstance() {
 template <class T>
 class FreeList : public AbstractFreeList<T> {
  private:
-  T** list_;        // List of free objects
-  int max_length_;  // Maximum number of free objects to keep
-  int size_;        // Number of free objects
+  // List of free objects. Null iff `max_length_ == 0` (when constructed with
+  // `max_length <= 0` or `!absl::GetFlag(FLAGS_use_freelists)`).
+  T** absl_nullable const list_;
+  // Maximum number of free objects to keep. Always 0 when freelists are
+  // disabled (`!absl::GetFlag(FLAGS_use_freelists)` at construction) or when
+  // constructed with `max_length <= 0`.
+  const int max_length_;
+  // Number of free objects. Always in `[0, max_length_]`, so both `size_` and
+  // `max_length_` remain 0 when `list_` is null.
+  int size_;
 
  protected:
   ObjectFactory<T>* factory_;  // Factory class for new objects
@@ -274,8 +281,10 @@ class FreeList : public AbstractFreeList<T> {
 
   void Clear() override;
   T* New() override;
+  void NewMany(T** ptr, int N) override;
 
   void Delete(T* x) override;
+  void DeleteMany(T** ptr, int N) override;
 
   // Returns the number of elements currently in the freelist
   int size() const override { return size_; }
@@ -330,9 +339,16 @@ class ThreadSafeFreeList : public AbstractFreeList<T> {
 
  private:
   mutable absl::Mutex lock_;
-  T** list_;              // List of free objects
-  const int max_length_;  // Maximum number of free objects to keep
-  int size_;              // Number of free objects
+  // List of free objects. Null iff `max_length_ == 0` (when constructed with
+  // `max_length <= 0` or `!absl::GetFlag(FLAGS_use_freelists)`).
+  T** absl_nullable const list_;
+  // Maximum number of free objects to keep. Always 0 when freelists are
+  // disabled (`!absl::GetFlag(FLAGS_use_freelists)` at construction) or when
+  // constructed with `max_length <= 0`.
+  const int max_length_;
+  // Number of free objects. Always in `[0, max_length_]`, so both `size_` and
+  // `max_length_` remain 0 when `list_` is null.
+  int size_;
 
   bool CanDeleteLocked(T* x) const;
 
@@ -371,30 +387,39 @@ void AbstractFreeList<T>::DeleteMany(T** ptr, int n) {
 // Implementation - FreeList
 template <class T>
 FreeList<T>::FreeList(int max_length, ObjectFactory<T>* factory)
-    : list_(std::allocator<T*>().allocate(max_length)),
-      max_length_(max_length),
+    : list_((max_length > 0 && absl::GetFlag(FLAGS_use_freelists))
+                ? std::allocator<T*>().allocate(max_length)
+                : nullptr),
+      max_length_(list_ != nullptr ? max_length : 0),
       size_(0),
       factory_(factory) {}
 
 template <class T>
 FreeList<T>::FreeList(int max_length)
-    : list_(std::allocator<T*>().allocate(max_length)),
-      max_length_(max_length),
+    : list_((max_length > 0 && absl::GetFlag(FLAGS_use_freelists))
+                ? std::allocator<T*>().allocate(max_length)
+                : nullptr),
+      max_length_(list_ != nullptr ? max_length : 0),
       size_(0),
       factory_(&freelist_internal::GetDefaultTrivialFactoryInstance<T>()) {}
 
 template <class T>
 FreeList<T>::~FreeList() {
+  if (list_ == nullptr) {
+    return;
+  }
   Clear();
   std::allocator<T*>().deallocate(list_, max_length_);
 }
 
 template <class T>
 void FreeList<T>::Clear() {
-  for (int i = 0; i < size_; i++) {
-    factory_->Delete(list_[i]);
-  }
+  T** const list = list_;
+  const int n = size_;
   size_ = 0;
+  for (int i = 0; i < n; ++i) {
+    factory_->Delete(list[i]);
+  }
 }
 
 template <class T>
@@ -408,12 +433,51 @@ inline T* FreeList<T>::New() {
 }
 
 template <class T>
+void FreeList<T>::NewMany(T** ptr, int N) {
+  if (N > 0 && list_ != nullptr) {
+    const int num_to_grab = std::min(N, size_);
+    memcpy(ptr, list_ + (size_ - num_to_grab), sizeof(T*) * num_to_grab);
+    N -= num_to_grab;
+    size_ -= num_to_grab;
+    ptr += num_to_grab;
+  }
+
+  for (; N > 0; --N) {
+    *ptr++ = factory_->New();
+  }
+}
+
+template <class T>
 inline void FreeList<T>::Delete(T* x) {
   if (x == nullptr) return;
-  if ((size_ < max_length_) && absl::GetFlag(FLAGS_use_freelists)) {
+  if (size_ < max_length_) {
     list_[size_++] = x;
   } else {
     factory_->Delete(x);
+  }
+}
+
+template <class T>
+void FreeList<T>::DeleteMany(T** ptr, int N) {
+  DCHECK_GE(N, 0);
+  T** const list = list_;
+  if (list != nullptr) {
+    int sz = size_;
+    const int max_len = max_length_;
+    for (; N > 0 && sz < max_len; --N) {
+      T* d = *ptr++;
+      if (d != nullptr) {
+        list[sz++] = d;
+      }
+    }
+    size_ = sz;
+  }
+
+  for (; N > 0; --N) {
+    T* d = *ptr++;
+    if (d != nullptr) {
+      factory_->Delete(d);
+    }
   }
 }
 
@@ -439,21 +503,28 @@ std::string FreeList<T>::DebugString() const {
 template <class T>
 ThreadSafeFreeList<T>::ThreadSafeFreeList(int max_length,
                                           ObjectFactory<T>* factory)
-    : list_(std::allocator<T*>().allocate(max_length)),
-      max_length_(max_length),
+    : list_((max_length > 0 && absl::GetFlag(FLAGS_use_freelists))
+                ? std::allocator<T*>().allocate(max_length)
+                : nullptr),
+      max_length_(list_ != nullptr ? max_length : 0),
       size_(0),
       factory_(factory) {}
 
 template <class T>
 ThreadSafeFreeList<T>::ThreadSafeFreeList(int max_length)
-    : list_(std::allocator<T*>().allocate(max_length)),
-      max_length_(max_length),
+    : list_((max_length > 0 && absl::GetFlag(FLAGS_use_freelists))
+                ? std::allocator<T*>().allocate(max_length)
+                : nullptr),
+      max_length_(list_ != nullptr ? max_length : 0),
       size_(0),
       factory_(&freelist_internal::GetDefaultTrivialFactoryInstance<T>()) {}
 
 template <class T>
 ThreadSafeFreeList<T>::~ThreadSafeFreeList() {
   // No lock. If you're racing with the destructor, it's your own lookout.
+  if (list_ == nullptr) {
+    return;
+  }
   for (int i = 0; i < size_; i++) {
     factory_->Delete(list_[i]);
   }
@@ -462,16 +533,21 @@ ThreadSafeFreeList<T>::~ThreadSafeFreeList() {
 
 template <class T>
 void ThreadSafeFreeList<T>::Clear() {
-  absl::MutexLock l(lock_);
-  for (int i = 0; i < size_; i++) {
-    factory_->Delete(list_[i]);
+  if (list_ == nullptr) {
+    return;
   }
+  absl::MutexLock l(lock_);
+  T** const list = list_;
+  const int n = size_;
   size_ = 0;
+  for (int i = 0; i < n; ++i) {
+    factory_->Delete(list[i]);
+  }
 }
 
 template <class T>
 inline T* ThreadSafeFreeList<T>::New() {
-  {
+  if (list_ != nullptr) {
     absl::MutexLock l(lock_);
     if (size_ > 0) {
       T* retval = list_[--size_];
@@ -484,10 +560,10 @@ inline T* ThreadSafeFreeList<T>::New() {
 
 template <class T>
 void ThreadSafeFreeList<T>::NewMany(T** ptr, int N) {
-  {
+  if (N > 0 && list_ != nullptr) {
     absl::MutexLock l(lock_);
     const int num_to_grab = std::min(N, size_);
-    memcpy(ptr, list_ + size_ - num_to_grab, sizeof(T*) * num_to_grab);
+    memcpy(ptr, list_ + (size_ - num_to_grab), sizeof(T*) * num_to_grab);
     N -= num_to_grab;
     size_ -= num_to_grab;
     ptr += num_to_grab;
@@ -502,7 +578,7 @@ void ThreadSafeFreeList<T>::NewMany(T** ptr, int N) {
 template <class T>
 inline void ThreadSafeFreeList<T>::Delete(T* x) {
   if (x == nullptr) return;
-  if (absl::GetFlag(FLAGS_use_freelists)) {
+  if (list_ != nullptr) {
     absl::MutexLock l(lock_);
     if (size_ < max_length_) {
       list_[size_++] = x;
@@ -515,16 +591,26 @@ inline void ThreadSafeFreeList<T>::Delete(T* x) {
 
 template <class T>
 void ThreadSafeFreeList<T>::DeleteMany(T** ptr, int N) {
-  if (absl::GetFlag(FLAGS_use_freelists)) {
+  DCHECK_GE(N, 0);
+  T** const list = list_;
+  if (list != nullptr) {
     absl::MutexLock l(lock_);
-    for (; N > 0 && size_ < max_length_; --N) {
+    int sz = size_;
+    const int max_len = max_length_;
+    for (; N > 0 && sz < max_len; --N) {
       T* d = *ptr++;
-      if (d != nullptr) list_[size_++] = d;
+      if (d != nullptr) {
+        list[sz++] = d;
+      }
     }
+    size_ = sz;
   }
 
   for (; N > 0; --N) {
-    factory_->Delete(*ptr++);
+    T* d = *ptr++;
+    if (d != nullptr) {
+      factory_->Delete(d);
+    }
   }
 }
 
@@ -565,8 +651,10 @@ class UnboundedFreeList final : public AbstractFreeList<T> {
   ~UnboundedFreeList() override { Clear(); }
 
   void Clear() override {
-    for (int i = 0; i < size(); i++) {
-      factory_->Delete(list_[i]);
+    const int n = list_.size();
+    T* const* const data = list_.data();
+    for (int i = 0; i < n; ++i) {
+      factory_->Delete(data[i]);
     }
     list_.clear();
   }
@@ -579,15 +667,24 @@ class UnboundedFreeList final : public AbstractFreeList<T> {
   }
 
   void NewMany(T** ptr, int N) override {
-    for (int i = 0; i < N; i++) {
-      *ptr++ = New();
+    if (N > 0 && !list_.empty()) {
+      const int avail = list_.size();
+      const int num_to_grab = std::min(N, avail);
+      memcpy(ptr, list_.data() + (avail - num_to_grab),
+             sizeof(T*) * num_to_grab);
+      list_.resize(avail - num_to_grab);
+      N -= num_to_grab;
+      ptr += num_to_grab;
+    }
+    for (; N > 0; --N) {
+      *ptr++ = factory_->New();
     }
   }
 
   // Return x to free list.  Delete(nullptr) is a nop.
   void Delete(T* x) override {
     if (x == nullptr) return;
-    if (absl::GetFlag(FLAGS_use_freelists)) {
+    if (use_freelists_) {
       list_.push_back(x);
     } else {
       factory_->Delete(x);
@@ -603,8 +700,10 @@ class UnboundedFreeList final : public AbstractFreeList<T> {
   // NB this routine is expensive. (Linear in the (unbounded!) freelist
   // size)
   bool CanDelete(T* x) const override {
-    for (int i = 0; i < size(); ++i) {
-      if (list_[i] == x) return false;  // x already deleted
+    for (T* const item : list_) {
+      if (item == x) {
+        return false;  // x already deleted
+      }
     }
     return true;
   }
@@ -617,6 +716,7 @@ class UnboundedFreeList final : public AbstractFreeList<T> {
  private:
   std::vector<T*> list_;
   ObjectFactory<T>* factory_;
+  const bool use_freelists_ = absl::GetFlag(FLAGS_use_freelists);
 
   UnboundedFreeList(const UnboundedFreeList&) = delete;
   UnboundedFreeList& operator=(const UnboundedFreeList&) = delete;
