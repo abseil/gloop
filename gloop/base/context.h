@@ -558,6 +558,46 @@ void SetThreadContext(ThreadContextAccess, Context context,
                       perftools::tracing::StringRef label =
                           perftools::tracing::TraceSourceLocation::current());
 
+// Installs the supplied context, indicating that work associated with the
+// current thread local context is being suspended, and that the current
+// thread will proceed to process work associated with the supplied context.
+//
+// Returns the previous thread local context which can be restored by a
+// subsequent call to `SetThreadContext()`.
+//
+// This function is logically equivalent to `std::exchange()`: i.e; a naive
+// implementation would look as follows:
+//
+//   Context ExchangeThreadContext(Context context) {
+//     return std::exchange(*tls_context_pointer(), std::move(context));
+//   }
+//
+// Obviously, the implementation is more complex as it requires async signal
+// safety on census handles and possible trace events to be emitted.
+//
+// The main use cases are functions that must preserve and restore a context
+// unconditionally. For example, an immediate use case for this method is
+// the `c9::SchedulingContext` class where we have co-routine code scoped by
+// this scheduling class potentially clobbering the thread local context.
+// The scheduling class explicit installs a sacrificial copy of the current
+// context (which is subsequently allowed to be clobbered), preserving the
+// previous context. In the destructor, the class uses `SetThreadContext()`
+// to unconditionally restore the context to the previous context.
+//
+// Tracing specific details:
+// ----------------------------------------------------------------------
+// This method will cause a 'Wait` processing event to be emitted on the tracer
+// for the active thread local context directly before it is being updated, and
+// a `Begin` or `Continue` event to be emitted on the tracer of the new context
+// directly after it has been set as the new thread local context.
+// There is no default causal assumption between the two events.
+//
+// REQUIRES: caller has access, enforced through `ThreadContextAccess`
+Context ExchangeThreadContext(
+    ThreadContextAccess, Context context,
+    perftools::tracing::StringRef label =
+        perftools::tracing::TraceSourceLocation::current());
+
 // NOTE: Callers are strongly advised to use WithContext, LocalTraceSpan, or
 // other scoped APIs instead. Misuse of the APIs below could lead to
 // memory leaks and lost credentials.
