@@ -33,7 +33,7 @@ namespace {
 struct Swappable {
   int value = 0;
 
-  Swappable() {}
+  Swappable() = default;
   Swappable(const Swappable&) = delete;
   Swappable& operator=(const Swappable&) = delete;
 
