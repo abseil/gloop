@@ -22,6 +22,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
@@ -74,21 +75,81 @@ INSTANTIATE_TEST_SUITE_P(
     GetTestName);
 
 using FreelistDisabledTest = FreeListBaseTest;
+
+// Verifies that when FLAGS_use_freelists is false, FreeList sets max_length to
+// 0 and directly allocates and deletes objects without retaining them in the
+// freelist across single and batched operations.
+TEST_F(FreelistDisabledTest, FreeList) {
+  absl::SetFlag(&FLAGS_use_freelists, false);
+
+  auto fl =
+      std::make_unique<FreeList<FreeListConformanceTest::EnsureDeleted>>(kSize);
+
+  // Free list fl is initially empty and has max_length 0 when disabled.
+  EXPECT_TRUE(fl->CheckRep());
+  EXPECT_EQ(fl->size(), 0);
+  EXPECT_EQ(fl->max_length(), 0);
+  EnsureDeleted* const ed = fl->New();
+  ASSERT_THAT(ed, NotNull());
+  EXPECT_TRUE(fl->CanDelete(ed));
+  EXPECT_EQ(fl->size(), 0);
+  EXPECT_TRUE(fl->CheckRep());
+  fl->Delete(ed);
+  EXPECT_EQ(fl->size(), 0);  // freelist should be empty
+  EXPECT_EQ(EnsureDeleted::live(), 0);
+
+  fl->NewMany(nullptr, 0);
+  fl->DeleteMany(nullptr, 0);
+  EXPECT_EQ(fl->size(), 0);
+  EXPECT_EQ(EnsureDeleted::live(), 0);
+
+  std::vector<EnsureDeleted*> items(4, nullptr);
+  fl->NewMany(items.data(), items.size());
+  EXPECT_EQ(fl->size(), 0);
+  EXPECT_EQ(EnsureDeleted::live(), 4);
+  fl->DeleteMany(items.data(), items.size());
+  EXPECT_EQ(fl->size(), 0);
+  EXPECT_EQ(EnsureDeleted::live(), 0);
+  fl->Clear();
+  EXPECT_EQ(fl->size(), 0);
+}
+
+// Verifies that when FLAGS_use_freelists is false, ThreadSafeFreeList sets
+// max_length to 0 and directly allocates and deletes objects without retaining
+// them in the freelist across single and batched operations.
 TEST_F(FreelistDisabledTest, ThreadSafeFreeList) {
   absl::SetFlag(&FLAGS_use_freelists, false);
 
   auto fl = std::make_unique<
       ThreadSafeFreeList<FreeListConformanceTest::EnsureDeleted>>(kSize);
 
-  // Free list fl is initially empty
+  // Free list fl is initially empty and has max_length 0 when disabled.
   EXPECT_TRUE(fl->CheckRep());
   EXPECT_EQ(fl->size(), 0);
+  EXPECT_EQ(fl->max_length(), 0);
   EnsureDeleted* const ed = fl->New();
   ASSERT_THAT(ed, NotNull());
+  EXPECT_TRUE(fl->CanDelete(ed));
   EXPECT_EQ(fl->size(), 0);
   EXPECT_TRUE(fl->CheckRep());
   fl->Delete(ed);
   EXPECT_EQ(fl->size(), 0);  // freelist should be empty
+  EXPECT_EQ(EnsureDeleted::live(), 0);
+
+  fl->NewMany(nullptr, 0);
+  fl->DeleteMany(nullptr, 0);
+  EXPECT_EQ(fl->size(), 0);
+  EXPECT_EQ(EnsureDeleted::live(), 0);
+
+  std::vector<EnsureDeleted*> items(4, nullptr);
+  fl->NewMany(items.data(), items.size());
+  EXPECT_EQ(fl->size(), 0);
+  EXPECT_EQ(EnsureDeleted::live(), 4);
+  fl->DeleteMany(items.data(), items.size());
+  EXPECT_EQ(fl->size(), 0);
+  EXPECT_EQ(EnsureDeleted::live(), 0);
+  fl->Clear();
+  EXPECT_EQ(fl->size(), 0);
 }
 
 // Test FastAllocator
