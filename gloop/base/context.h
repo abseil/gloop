@@ -39,6 +39,7 @@
 #include "absl/base/nullability.h"
 #include "absl/time/time.h"
 #include "gloop/base/censushandle.h"
+#include "gloop/base/config.h"
 #include "gloop/base/context_access.h"
 #include "gloop/base/tracecontext.h"
 #include "gloop/perftools/tracing/string_label.h"
