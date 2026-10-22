@@ -124,7 +124,10 @@ static bool ThreadRegistered() { return RseqCpuId() >= kCpuIdInitialized; }
 
 // using_rseq_vcpus contains the active vcpu mode. This value will be kNone
 // until rseq has been initialized, and vcpu is available and not disabled.
-static RseqVcpuMode using_rseq_vcpu_mode = RseqVcpuMode::kNone;
+namespace percpu_internal {
+ABSL_CONST_INIT RseqVcpuMode using_rseq_vcpu_mode = RseqVcpuMode::kNone;
+}  // namespace percpu_internal
+using percpu_internal::using_rseq_vcpu_mode;
 
 // Define struct rseq_cs to have the same contents and alignment as the kernel
 // assumes.
@@ -156,11 +159,6 @@ ABSL_CONST_INIT __attribute__((used)) std::atomic<size_t>
     __rseq_virtual_flat_cpu_id_offset = offsetof(kernel_rseq, cpu_id);
 
 }  // extern "C"
-
-RseqVcpuMode GetRseqVcpuMode() {
-  IsFast();  // Make sure the thread is initialized.
-  return using_rseq_vcpu_mode;
-}
 
 // Flags to pass to sys_rseq when registering a thread.
 static uint32_t rseq_register_flags = 0;
