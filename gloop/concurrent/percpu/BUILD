@@ -173,6 +173,67 @@ cc_test(
     ],
 )
 
+cc_library(
+    name = "per_vcpu_spin_lock",
+    hdrs = ["per_vcpu_spin_lock.h"],
+    visibility = [
+        "//gloop/concurrent/percpu:__subpackages__",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "//gloop/base:percpu",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/time",
+    ],
+)
+
+cc_test(
+    name = "per_vcpu_spin_lock_test",
+    size = "small",
+    srcs = ["per_vcpu_spin_lock_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":per_vcpu_spin_lock",
+        "//gloop:gloop_test_main",
+        "//gloop/base:percpu",
+        "//gloop/base:sysinfo",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "per_vcpu_spin_lock_no_rseq_test",
+    size = "small",
+    srcs = ["per_vcpu_spin_lock_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":per_vcpu_spin_lock",
+        "//gloop:gloop_test_main",
+        "//gloop/base:percpu",
+        "//gloop/base:percpu_disable_rseq",
+        "//gloop/base:sysinfo",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "per_vcpu_spin_lock_no_vcpu_test",
+    size = "small",
+    srcs = ["per_vcpu_spin_lock_test.cc"],
+    env = {"PERCPU_VCPU_MODE": "none"},
+    linkstatic = 1,
+    deps = [
+        ":per_vcpu_spin_lock",
+        "//gloop:gloop_test_main",
+        "//gloop/base:percpu",
+        "//gloop/base:sysinfo",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
 cc_test(
     name = "rseq_clobber_test",
     srcs = ["rseq_clobber_test.cc"],
@@ -184,6 +245,214 @@ cc_test(
         ":rseq_clobber_test.lds",
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "vcpu_counter",
+    hdrs = ["vcpu_counter.h"],
+    textual_hdrs = [
+        "vcpu_counter_emulated.inc",
+        "vcpu_counter_native.inc",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "//gloop/base:percpu",
+        "//gloop/base:sysinfo",
+        "@abseil-cpp//absl/base:core_headers",
+    ],
+)
+
+cc_test(
+    name = "vcpu_counter_test",
+    size = "small",
+    srcs = ["vcpu_counter_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":counter",
+        ":vcpu_counter",
+        "//gloop:gloop_test_main",
+        "//gloop/base:percpu",
+        "//gloop/base:sysinfo",
+        "//gloop/thread",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "vcpu_counter_flat_test",
+    size = "small",
+    srcs = ["vcpu_counter_test.cc"],
+    env = {
+        "BORG_EXPERIMENTS": "",
+        "PERCPU_VCPU_MODE": "flat",
+    },
+    linkstatic = 1,
+    deps = [
+        ":counter",
+        ":vcpu_counter",
+        "//gloop:gloop_test_main",
+        "//gloop/base:percpu",
+        "//gloop/base:sysinfo",
+        "//gloop/thread",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "vcpu_counter_mm_test",
+    size = "small",
+    srcs = ["vcpu_counter_test.cc"],
+    env = {"PERCPU_VCPU_MODE": "mm"},
+    linkstatic = 1,
+    deps = [
+        ":counter",
+        ":vcpu_counter",
+        "//gloop:gloop_test_main",
+        "//gloop/base:percpu",
+        "//gloop/base:sysinfo",
+        "//gloop/thread",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "vcpu_counter_no_rseq_test",
+    size = "small",
+    srcs = ["vcpu_counter_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":counter",
+        ":vcpu_counter",
+        "//gloop:gloop_test_main",
+        "//gloop/base:percpu",
+        "//gloop/base:percpu_disable_rseq",
+        "//gloop/base:sysinfo",
+        "//gloop/thread",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "vcpu_counter_no_vcpu_test",
+    size = "small",
+    srcs = ["vcpu_counter_test.cc"],
+    env = {"PERCPU_VCPU_MODE": "none"},
+    linkstatic = 1,
+    deps = [
+        ":counter",
+        ":vcpu_counter",
+        "//gloop:gloop_test_main",
+        "//gloop/base:percpu",
+        "//gloop/base:sysinfo",
+        "//gloop/thread",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "vcpu_striped_object",
+    hdrs = ["vcpu_striped_object.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":per_vcpu_spin_lock",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/synchronization",
+        "@tcmalloc//tcmalloc:malloc_extension",
+    ],
+)
+
+cc_test(
+    name = "vcpu_striped_object_test",
+    size = "medium",
+    srcs = ["vcpu_striped_object_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":vcpu_striped_object",
+        "//gloop:gloop_test_main",
+        "//gloop/base:percpu",
+        "//gloop/thread",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "vcpu_striped_object_init_test",
+    size = "small",
+    srcs = ["vcpu_striped_object_init_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":vcpu_striped_object",
+        "//gloop:gloop_test_main",
+        "//gloop/thread",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "vcpu_striped_object_no_rseq_test",
+    size = "medium",
+    srcs = ["vcpu_striped_object_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":vcpu_striped_object",
+        "//gloop:gloop_test_main",
+        "//gloop/base:percpu",
+        "//gloop/base:percpu_disable_rseq",
+        "//gloop/thread",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "vcpu_striped_object_no_vcpu_test",
+    size = "medium",
+    srcs = ["vcpu_striped_object_test.cc"],
+    env = {"PERCPU_VCPU_MODE": "none"},
+    linkstatic = 1,
+    deps = [
+        ":vcpu_striped_object",
+        "//gloop:gloop_test_main",
+        "//gloop/base:percpu",
+        "//gloop/thread",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/synchronization",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
