@@ -44,8 +44,7 @@ template <typename C>
 inline constexpr bool kIsTrivialDestRange =
     !std::is_const_v<element_type_t<C>> &&
     std::is_trivial_v<element_type_t<C>> &&
-    absl::container_algorithm_internal::IsPermissibleDestinationRange<
-        C>::value &&
+    absl::container_algorithm_internal::IsBorrowedRange<C>::value &&
     !absl::container_algorithm_internal::IsMultidimensionalArray<
         std::remove_reference_t<C>>::value;
 

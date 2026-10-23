@@ -47,10 +47,9 @@ namespace gtl {
 //
 // As with memmove(), this function requires the element type of the destination
 // container to be trivial.
-template <
-    typename D, typename S,
-    typename = std::enable_if_t<absl::container_algorithm_internal::
-                                    IsPermissibleDestinationRange<D>::value>>
+template <typename D, typename S,
+          typename = std::enable_if_t<
+              absl::container_algorithm_internal::IsBorrowedRange<D>::value>>
 void c_memmove(D&& dest, const S& src, size_t num_bytes) {
   c_mem_internal::CheckCopyPreconditions(dest, src, num_bytes);
   std::memmove(std::data(dest), std::data(src), num_bytes);
@@ -65,10 +64,9 @@ void c_memmove(D&& dest, const S& src, size_t num_bytes) {
 //
 // As with memmove(), this function requires the element type of the destination
 // container to be trivial.
-template <
-    typename D, typename S,
-    typename = std::enable_if_t<absl::container_algorithm_internal::
-                                    IsPermissibleDestinationRange<D>::value>>
+template <typename D, typename S,
+          typename = std::enable_if_t<
+              absl::container_algorithm_internal::IsBorrowedRange<D>::value>>
 void c_memmove(D&& dest, const S& src) {
   c_memmove(std::forward<D>(dest), src, c_mem_internal::byte_size(src));
 }

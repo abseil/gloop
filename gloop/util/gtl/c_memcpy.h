@@ -49,8 +49,7 @@ namespace gtl {
 // container to be trivial. In debug builds, it also checks that num_bytes is a
 // multiple of the destination element size.
 template <int&... ExplicitArgumentBarrier, typename D, typename S>
-  requires(absl::container_algorithm_internal::IsPermissibleDestinationRange<
-               D>::value &&
+  requires(absl::container_algorithm_internal::IsBorrowedRange<D>::value &&
            !c_mem_internal::kCanUseCCopyN<D, S>)
 void c_memcpy(D&& dest, const S& src, size_t num_bytes) {
   c_mem_internal::CheckCopyPreconditions(dest, src, num_bytes);
@@ -79,8 +78,7 @@ ABSL_REFACTOR_INLINE void c_memcpy(D&& dest, const S& src, size_t num_bytes) {
 // container to be trivial. In debug builds, it also checks that the byte size
 // of src is a multiple of the destination element size.
 template <int&... ExplicitArgumentBarrier, typename D, typename S>
-  requires(absl::container_algorithm_internal::IsPermissibleDestinationRange<
-               D>::value &&
+  requires(absl::container_algorithm_internal::IsBorrowedRange<D>::value &&
            !c_mem_internal::kCanUseCCopy<D, S>)
 void c_memcpy(D&& dest, const S& src) {
   c_memcpy(std::forward<D>(dest), src, c_mem_internal::byte_size(src));
