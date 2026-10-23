@@ -65,6 +65,7 @@ cc_library(
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/flags:flag",
@@ -83,6 +84,23 @@ cc_test(
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log:check",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+# Microbenchmarks for freelist implementations.
+cc_test(
+    name = "freelist_benchmark",
+    srcs = ["freelist_benchmark.cc"],
+    # Align benchmark and instantiated template functions to 64-byte cache
+    # line boundaries so small code changes do not shift hot loops or
+    # out-of-line virtual methods across 32B DSB / 64B I-cache boundaries.
+    copts = ["-falign-functions=64"],
+    deps = [
+        ":freelist",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/flags:flag",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
