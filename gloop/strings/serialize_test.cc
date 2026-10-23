@@ -699,5 +699,42 @@ TEST(SerializeDeathTest, KeyToUintUndersized) {
       "Check failed: key.size\\(\\) (==|>=) sizeof\\(v0\\) \\+ sizeof\\(v1\\)");
 }
 
+TEST(Serialize, KeyFromReusedShortAndHeapBuffers) {
+  for (bool reserve_heap : {false, true}) {
+    std::string buf;
+    if (reserve_heap) {
+      buf.assign(64, 'x');
+    }
+    KeyFromUint32(0x12345678U, &buf);
+    EXPECT_EQ(buf, Uint32ToKey(0x12345678U));
+    KeyFromUint32(0x9ABCDEF0U, &buf);
+    EXPECT_EQ(buf, Uint32ToKey(0x9ABCDEF0U));
+
+    KeyFromUint64(0x0123456789ABCDEFULL, &buf);
+    EXPECT_EQ(buf, Uint64ToKey(0x0123456789ABCDEFULL));
+    KeyFromUint64(0xFEDCBA9876543210ULL, &buf);
+    EXPECT_EQ(buf, Uint64ToKey(0xFEDCBA9876543210ULL));
+
+    const absl::uint128 u1 =
+        absl::MakeUint128(0x1122334455667788ULL, 0x99AABBCCDDEEFF00ULL);
+    const absl::uint128 u2 =
+        absl::MakeUint128(0xFFEEDDCCBBAA9988ULL, 0x7766554433221100ULL);
+    KeyFromUint128(u1, &buf);
+    EXPECT_EQ(buf, Uint128ToKey(u1));
+    KeyFromUint128(u2, &buf);
+    EXPECT_EQ(buf, Uint128ToKey(u2));
+
+    KeyFromDouble(-42.5, &buf);
+    EXPECT_EQ(buf, DoubleToKey(-42.5));
+    KeyFromDouble(42.5, &buf);
+    EXPECT_EQ(buf, DoubleToKey(42.5));
+
+    KeyFromFloat(-3.25f, &buf);
+    EXPECT_EQ(buf, FloatToKey(-3.25f));
+    KeyFromFloat(3.25f, &buf);
+    EXPECT_EQ(buf, FloatToKey(3.25f));
+  }
+}
+
 }  // namespace
 }  // namespace strings
