@@ -129,23 +129,14 @@
 #include "absl/log/check.h"
 #include "absl/types/span.h"
 
-template <class T>
-struct ObjectData {
-  T parent;
-  int rank;
-
-  ObjectData() = default;
-
-  template <typename X>
-  explicit ObjectData(const X& x) : parent(x), rank(0) {}
-};
-
-template <
-    typename T,
-    typename HashFcn = typename absl::node_hash_map<T, ObjectData<T>>::hasher,
-    typename EqualKey =
-        typename absl::node_hash_map<T, ObjectData<T>, HashFcn>::key_equal,
-    typename Alloc = std::allocator<T>>
+// `void*` is a placeholder mapped type used to obtain `absl::node_hash_map`'s
+// default hasher and key_equal for `T` (`ObjectData` is a private nested type
+// and is not in scope here).
+template <typename T,
+          typename HashFcn = typename absl::node_hash_map<T, void*>::hasher,
+          typename EqualKey =
+              typename absl::node_hash_map<T, void*, HashFcn>::key_equal,
+          typename Alloc = std::allocator<T>>
 class DisjointSetForest {
  public:
   // 'notfound_value' is the value that will be returned by FindSet when the
@@ -153,6 +144,14 @@ class DisjointSetForest {
   // be a value which is outside the population of the data to be inserted into
   // the set. It is an error to pass 'notfound_value' to MakeSet() or Union().
   explicit DisjointSetForest(T notfound_value);
+
+  // Copy construction is O(n) and remaps internal parent pointers to the new
+  // map's nodes. Move construction is O(1). Copy and move assignment are not
+  // supported.
+  DisjointSetForest(const DisjointSetForest& other);
+  DisjointSetForest& operator=(const DisjointSetForest&) = delete;
+  DisjointSetForest(DisjointSetForest&&) = default;
+  DisjointSetForest& operator=(DisjointSetForest&&) = delete;
 
   // Provides a size hint to the underlying element storage container,
   // indicating that it should be prepared to store at least 'hint' number of
@@ -220,36 +219,49 @@ class DisjointSetForest {
   }
 
  private:
+  struct ObjectData;
   using ObjectMap =
-      absl::node_hash_map<T, ObjectData<T>, HashFcn, EqualKey, Alloc>;
-  // Locates the ObjectData<T> corresponding to element 'x' in the underlying
-  // container and returns a reference to it. This method must only be called
-  // on elements known to already be in the forest.
-  ObjectData<T>& FindData(const T& x);
+      absl::node_hash_map<T, ObjectData, HashFcn, EqualKey, Alloc>;
+  // absl::node_hash_map guarantees stability of its nodes. We take advantage
+  // of this by using ObjectMap::value_type as the Node type of our forest.
+  // A Node's 'parent' field (see ObjectData, below) points to its parent Node;
+  // a root Node points to itself.
+  using Node = typename ObjectMap::value_type;
 
-  // A helper method for Union, used when it is known that 'x' is already in the
-  // forest.
+  struct ObjectData {
+    Node* absl_nullable parent = nullptr;
+    int rank = 0;
+  };
+
+  // Internal helper for MakeSet. If the node for 'x' exists, does nothing and
+  // returns (node, false). Otherwise, creates a node for 'x', initializing the
+  // node's parent pointer to itself, and returns (node, true).
+  template <typename X>
+  std::pair<Node* absl_nonnull, bool> MakeSetHelper(const X& x);
+
+  // A helper method for Union, used when it is known that 'x_node' is already
+  // in the forest.
   template <typename Y>
-  bool UnionHelper(const T& x, ObjectData<T>* absl_nonnull x_data_ptr,
-                   const Y& y);
+  bool UnionHelper(Node* absl_nonnull x_node, const Y& y);
 
-  // Returns a pointer to the ObjectData of the representative of the subset
-  // containing 'x'. Additionally, while searching for the representative,
-  // rewires each element on the search path so that it points directly to the
+  // A helper method for Union, used when it is known that both 'x_node' and
+  // 'y_node' are already in the forest.
+  bool UnionNodes(Node* absl_nonnull x_node, Node* absl_nonnull y_node);
+
+  // Returns the representative Node corresponding to the subset that 'x_node'
+  // belongs to. Additionally, while searching for the representative, rewires
+  // each element on the search path so that it points directly to the
   // representative. This rewiring tends to make subsequent searches faster and
   // is required in order for this data structure to meet its performance
-  // guarantees. This method must only be called on elements known to already be
-  // in the forest. 'x_data_ptr' is required to point to the ObjectData<T>
-  // corresponding to element 'x' in the underlying container (such as returned
-  // by FindData(x)).
-  ObjectData<T>* absl_nonnull InternalFindSet(
-      const T& x, ObjectData<T>* absl_nonnull x_data_ptr);
+  // guarantees. This rewiring is called "path compression" in Cormen,
+  // Leiserson, Rivest, Stein. This method must only be called on elements known
+  // to already be in the forest.
+  Node* absl_nonnull InternalFindSet(Node* absl_nonnull x_node);
 
   // Combines two disjoint subsets into a larger subset. This is a helper method
-  // for Union. 'x_repr_data_ptr' and 'y_repr_data_ptr' must be pointers to the
-  // ObjectData of representatives (not just elements) of two distinct subsets.
-  void Link(ObjectData<T>* absl_nonnull x_repr_data_ptr,
-            ObjectData<T>* absl_nonnull y_repr_data_ptr);
+  // for Union. 'x' and 'y' must be pointers to the representative Nodes (not
+  // just elements) of two distinct subsets in the forest.
+  void Link(Node* absl_nonnull x, Node* absl_nonnull y);
 
   // The old version of UnionMany. This method will be kept around for a while
   // (but made private) just for the purposes of running the benchmarks.
@@ -275,6 +287,23 @@ DisjointSetForest<T, HashFcn, EqualKey, Alloc>::DisjointSetForest(
     : num_disjoint_sets_(0), notfound_value_(std::move(notfound_value)) {}
 
 template <typename T, typename HashFcn, typename EqualKey, typename Alloc>
+DisjointSetForest<T, HashFcn, EqualKey, Alloc>::DisjointSetForest(
+    const DisjointSetForest& other)
+    : objects_(other.objects_),
+      num_disjoint_sets_(other.num_disjoint_sets_),
+      notfound_value_(other.notfound_value_) {
+  // Copy-constructing `objects_` copies each `ObjectData` verbatim, leaving
+  // `node.second.parent` pointing to the node in `other.objects_`. Remap each
+  // parent pointer to the corresponding node in `this->objects_`.
+  for (Node& node : objects_) {
+    CHECK(node.second.parent != nullptr);
+    auto iter = objects_.find(node.second.parent->first);
+    CHECK(iter != objects_.end());
+    node.second.parent = &*iter;
+  }
+}
+
+template <typename T, typename HashFcn, typename EqualKey, typename Alloc>
 void DisjointSetForest<T, HashFcn, EqualKey, Alloc>::clear() {
   objects_.clear();
   num_disjoint_sets_ = 0;
@@ -287,7 +316,7 @@ T DisjointSetForest<T, HashFcn, EqualKey, Alloc>::FindSet(const X& x) {
   if (iter == objects_.end()) {
     return notfound_value_;
   }
-  return InternalFindSet(iter->first, &(iter->second))->parent;
+  return InternalFindSet(&*iter)->first;
 }
 
 template <typename T, typename HashFcn, typename EqualKey, typename Alloc>
@@ -297,48 +326,56 @@ bool DisjointSetForest<T, HashFcn, EqualKey, Alloc>::IsSingleton(const X& x) {
   if (iter == objects_.end()) {
     return true;
   }
-  return EqualKey()(iter->first, iter->second.parent) && iter->second.rank == 0;
+  return iter->second.parent == &*iter && iter->second.rank == 0;
 }
 
 template <typename T, typename HashFcn, typename EqualKey, typename Alloc>
 template <typename X>
 bool DisjointSetForest<T, HashFcn, EqualKey, Alloc>::MakeSet(const X& x) {
-  if (objects_.try_emplace(x, x).second) {
+  return MakeSetHelper(x).second;
+}
+
+template <typename T, typename HashFcn, typename EqualKey, typename Alloc>
+template <typename X>
+auto DisjointSetForest<T, HashFcn, EqualKey, Alloc>::MakeSetHelper(const X& x)
+    -> std::pair<Node* absl_nonnull, bool> {
+  auto result = objects_.try_emplace(x);
+  Node& x_node = *result.first;
+  if (result.second) {
+    x_node.second.parent = &x_node;
     ++num_disjoint_sets_;
-    return true;
-  } else {
-    return false;
   }
+  return {&x_node, result.second};
 }
 
 template <typename T, typename HashFcn, typename EqualKey, typename Alloc>
 bool DisjointSetForest<T, HashFcn, EqualKey, Alloc>::Union(const T& x,
                                                            const T& y) {
-  auto [iter, inserted] = objects_.try_emplace(x, x);
-  if (inserted) ++num_disjoint_sets_;
-  return UnionHelper(x, &iter->second, y);
+  return UnionHelper(MakeSetHelper(x).first, y);
 }
 
 template <typename T, typename HashFcn, typename EqualKey, typename Alloc>
 template <typename X, typename Y>
 bool DisjointSetForest<T, HashFcn, EqualKey, Alloc>::Union(const X& x,
                                                            const Y& y) {
-  auto [iter, inserted] = objects_.try_emplace(x, x);
-  if (inserted) ++num_disjoint_sets_;
-  return UnionHelper(iter->first, &iter->second, y);
+  return UnionHelper(MakeSetHelper(x).first, y);
 }
 
 template <typename T, typename HashFcn, typename EqualKey, typename Alloc>
 template <typename Y>
 bool DisjointSetForest<T, HashFcn, EqualKey, Alloc>::UnionHelper(
-    const T& x, ObjectData<T>* absl_nonnull x_data_ptr, const Y& y) {
-  auto [iter, inserted] = objects_.try_emplace(y, y);
-  if (inserted) ++num_disjoint_sets_;
+    Node* absl_nonnull x_node, const Y& y) {
+  Node* absl_nonnull y_node = MakeSetHelper(y).first;
+  return UnionNodes(x_node, y_node);
+}
 
-  ObjectData<T>* x_repr_data_ptr = InternalFindSet(x, x_data_ptr);
-  ObjectData<T>* y_repr_data_ptr = InternalFindSet(iter->first, &iter->second);
-  if (!EqualKey()(x_repr_data_ptr->parent, y_repr_data_ptr->parent)) {
-    Link(x_repr_data_ptr, y_repr_data_ptr);
+template <typename T, typename HashFcn, typename EqualKey, typename Alloc>
+bool DisjointSetForest<T, HashFcn, EqualKey, Alloc>::UnionNodes(
+    Node* absl_nonnull x_node, Node* absl_nonnull y_node) {
+  Node* absl_nonnull x_repr = InternalFindSet(x_node);
+  Node* absl_nonnull y_repr = InternalFindSet(y_node);
+  if (x_repr != y_repr) {
+    Link(x_repr, y_repr);
     --num_disjoint_sets_;
     return true;
   } else {
@@ -353,8 +390,7 @@ void DisjointSetForest<T, HashFcn, EqualKey, Alloc>::UnionManyIterator(
   if (begin == end) {
     return;
   }
-  MakeSet(*begin);
-  ObjectData<T>* begin_data_ptr = &objects_[*begin];
+  Node* absl_nonnull begin_node = MakeSetHelper(*begin).first;
 
   auto next = begin;
   ++next;
@@ -362,12 +398,12 @@ void DisjointSetForest<T, HashFcn, EqualKey, Alloc>::UnionManyIterator(
     auto ip = objects_.find(*next);
     if (ip == objects_.end()) {
       // *next is new, so there is definitely a need to perform the Union.
-      UnionHelper(*begin, begin_data_ptr, *next);
+      UnionHelper(begin_node, *next);
     } else {
       // *next is in the forest already. If the parent pointers already match,
       // then there is no need to perform the Union operation.
-      if (!EqualKey()(begin_data_ptr->parent, ip->second.parent)) {
-        UnionHelper(*begin, begin_data_ptr, *next);
+      if (begin_node->second.parent != ip->second.parent) {
+        UnionNodes(begin_node, &*ip);
       }
     }
     ++next;
@@ -377,21 +413,17 @@ void DisjointSetForest<T, HashFcn, EqualKey, Alloc>::UnionManyIterator(
 template <typename T, typename HashFcn, typename EqualKey, typename Alloc>
 void DisjointSetForest<T, HashFcn, EqualKey, Alloc>::UnionManyOld(
     absl::Span<const T> elements) {
-  std::vector<ObjectData<T>* absl_nonnull> object_cache;
+  std::vector<ObjectData* absl_nonnull> object_cache;
 
   // Insert all vertices into objects_, or verify that they are
   // already there. At the same time, cache the pointers to the
   // ObjectData structs for all vertices in object_cache.
   for (size_t i = 0; i < elements.size(); ++i) {
     if (objects_.count(elements[i]) == 0) {
-      // This code mimics MakeSet, but holds on to the iterator for
+      // This code mimics MakeSet, but holds on to the node pointer for
       // the new object, saving us a lookup.  We then cache a
       // pointer to the ObjectData itself in object_cache.
-      typename ObjectMap::iterator new_val =
-          ((objects_.insert(
-                std::make_pair(elements[i], ObjectData<T>(elements[i]))))
-               .first);
-      ++num_disjoint_sets_;
+      Node* absl_nonnull new_val = MakeSetHelper(elements[i]).first;
       object_cache.push_back(&(new_val->second));
     } else {
       object_cache.push_back(&(objects_[elements[i]]));
@@ -402,46 +434,35 @@ void DisjointSetForest<T, HashFcn, EqualKey, Alloc>::UnionManyOld(
   // vertex. Only Union if the parent pointers of the vertices do
   // not match.
   for (size_t i = 1; i < object_cache.size(); ++i) {
-    if (!EqualKey()(object_cache[i]->parent, object_cache[0]->parent)) {
+    if (object_cache[i]->parent != object_cache[0]->parent) {
       Union(elements[i], elements[0]);
     }
   }
 }
 
 template <typename T, typename HashFcn, typename EqualKey, typename Alloc>
-ObjectData<T>& DisjointSetForest<T, HashFcn, EqualKey, Alloc>::FindData(
-    const T& x) {
-  typename ObjectMap::iterator x_iter = objects_.find(x);
-  CHECK(x_iter != objects_.end());
-  return (*x_iter).second;
-}
-
-template <typename T, typename HashFcn, typename EqualKey, typename Alloc>
-ObjectData<T>* absl_nonnull
-DisjointSetForest<T, HashFcn, EqualKey, Alloc>::InternalFindSet(
-    const T& x, ObjectData<T>* absl_nonnull x_data_ptr) {
-  if (!EqualKey()(x, x_data_ptr->parent)) {
-    ObjectData<T>& parent_data = FindData(x_data_ptr->parent);
-    ObjectData<T>* repr_data_ptr =
-        InternalFindSet(x_data_ptr->parent, &parent_data);
-    x_data_ptr->parent = repr_data_ptr->parent;
-    return repr_data_ptr;
-  } else {
-    return x_data_ptr;
+auto DisjointSetForest<T, HashFcn, EqualKey, Alloc>::InternalFindSet(
+    Node* absl_nonnull x_node) -> Node* absl_nonnull {
+  auto& parent = x_node->second.parent;
+  if (x_node != parent) {
+    // Note the path compression.
+    parent = InternalFindSet(parent);
   }
+  return parent;
 }
 
 template <typename T, typename HashFcn, typename EqualKey, typename Alloc>
 void DisjointSetForest<T, HashFcn, EqualKey, Alloc>::Link(
-    ObjectData<T>* absl_nonnull x_repr_data_ptr,
-    ObjectData<T>* absl_nonnull y_repr_data_ptr) {
-  if (x_repr_data_ptr->rank < y_repr_data_ptr->rank) {
-    x_repr_data_ptr->parent = y_repr_data_ptr->parent;
+    Node* absl_nonnull x, Node* absl_nonnull y) {
+  ObjectData& x_data = x->second;
+  ObjectData& y_data = y->second;
+  if (x_data.rank < y_data.rank) {
+    x_data.parent = y;
   } else {
-    y_repr_data_ptr->parent = x_repr_data_ptr->parent;
+    y_data.parent = x;
 
-    if (x_repr_data_ptr->rank == y_repr_data_ptr->rank) {
-      ++x_repr_data_ptr->rank;
+    if (x_data.rank == y_data.rank) {
+      ++x_data.rank;
     }
   }
 }
