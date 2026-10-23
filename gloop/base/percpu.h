@@ -268,7 +268,8 @@ extern "C" ABSL_CONST_INIT std::atomic<size_t>
     __rseq_virtual_flat_cpu_id_offset;
 
 #if PERCPU_USE_RSEQ
-extern "C" ABSL_CONST_INIT thread_local volatile kernel_rseq __rseq_abi;
+extern "C" ABSL_CONST_INIT
+    ABSL_ATTRIBUTE_INITIAL_EXEC thread_local volatile kernel_rseq __rseq_abi;
 
 inline int RseqCpuId() { return __rseq_abi.cpu_id; }
 ABSL_DEPRECATED("Prefer RseqVirtualFlatCpuId")

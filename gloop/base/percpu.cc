@@ -149,8 +149,8 @@ extern "C" {
 //     { kCpuIdUnsupported, kCpuIdUninitialized }
 //   Initialized, available:
 //     [0, NumCpus())    (Always updated at context-switch)
-ABSL_CONST_INIT ABSL_ATTRIBUTE_WEAK thread_local volatile kernel_rseq
-    __rseq_abi = {
+ABSL_CONST_INIT ABSL_ATTRIBUTE_WEAK
+    ABSL_ATTRIBUTE_INITIAL_EXEC thread_local volatile kernel_rseq __rseq_abi = {
         0, static_cast<unsigned>(kCpuIdUninitialized),   0, 0, 0,
         0, {{kCpuIdUninitialized, kCpuIdUninitialized}},
     };
@@ -182,8 +182,12 @@ static uint32_t RseqVcpuModeToFlags(RseqVcpuMode mode) {
 #endif
 
 static int RegisterRseq(const uint32_t flags) {
-  if (syscall(__NR_rseq, &__rseq_abi, sizeof(__rseq_abi), flags,
-              PERCPU_RSEQ_SIGNATURE)) {
+  int rc;
+  do {
+    rc = syscall(__NR_rseq, &__rseq_abi, sizeof(__rseq_abi), flags,
+                 PERCPU_RSEQ_SIGNATURE);
+  } while (rc != 0 && errno == EINTR);
+  if (rc != 0) {
     return errno;
   }
 
@@ -195,8 +199,12 @@ static int RegisterRseq(const uint32_t flags) {
 
 static int UnregisterRseq() {
   constexpr uint32_t kRSEQ_FLAG_UNREGISTER = (1 << 0);
-  if (syscall(__NR_rseq, &__rseq_abi, sizeof(__rseq_abi), kRSEQ_FLAG_UNREGISTER,
-              PERCPU_RSEQ_SIGNATURE)) {
+  int rc;
+  do {
+    rc = syscall(__NR_rseq, &__rseq_abi, sizeof(__rseq_abi),
+                 kRSEQ_FLAG_UNREGISTER, PERCPU_RSEQ_SIGNATURE);
+  } while (rc != 0 && errno == EINTR);
+  if (rc != 0) {
     return errno;
   }
 
@@ -442,14 +450,21 @@ bool UsingUpstreamRseqFenceCpu() { return per_cpu_state == kFastModeWithFence; }
 void UpstreamRseqFenceCpu(int cpu) {
   ABSL_RAW_CHECK(per_cpu_state == kFastModeWithFence,
                  "upstream fence unavailable.");
+  ABSL_RAW_CHECK(cpu >= -1, "invalid cpu");
   constexpr int kMEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ = (1 << 7);
   constexpr int kMEMBARRIER_CMD_FLAG_CPU = (1 << 0);
 
-  int64_t res = syscall(__NR_membarrier, kMEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ,
-                        kMEMBARRIER_CMD_FLAG_CPU, cpu);
+  const int flags = cpu >= 0 ? kMEMBARRIER_CMD_FLAG_CPU : 0;
+  const int cpu_id = cpu >= 0 ? cpu : 0;
+  int64_t res;
+  do {
+    res = syscall(__NR_membarrier, kMEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ,
+                  flags, cpu_id);
+  } while (res == -1 && (errno == EINTR || errno == EAGAIN));
 
-  if (ABSL_PREDICT_FALSE(res != 0 && res != -ENXIO /* missing CPU */)) {
-    ABSL_RAW_LOG(FATAL, "Upstream fence failed: %ld", res);
+  if (ABSL_PREDICT_FALSE(res != 0 &&
+                         !(res == -1 && errno == ENXIO) /* missing CPU */)) {
+    ABSL_RAW_LOG(FATAL, "Upstream fence failed: %ld (errno=%d)", res, errno);
   }
 }
 

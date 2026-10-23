@@ -21,12 +21,15 @@
 #include "gloop/base/percpu.h"
 
 #include <errno.h>
+#include <linux/filter.h>
+#include <linux/seccomp.h>
 #include <numa.h>
 #include <signal.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/prctl.h>
 #include <syscall.h>
 #include <time.h>
 #include <unistd.h>
@@ -808,9 +811,14 @@ static void UpstreamFenceCpu(int cpu) {
   constexpr int kMEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ = (1 << 7);
   constexpr int kMEMBARRIER_CMD_FLAG_CPU = (1 << 0);
 
-  int64_t res = syscall(__NR_membarrier, kMEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ,
-                        kMEMBARRIER_CMD_FLAG_CPU, cpu);
-  ABSL_RAW_CHECK(res == 0 || res == -ENXIO /* missing CPU */,
+  const int flags = cpu >= 0 ? kMEMBARRIER_CMD_FLAG_CPU : 0;
+  const int cpu_id = cpu >= 0 ? cpu : 0;
+  int64_t res;
+  do {
+    res = syscall(__NR_membarrier, kMEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ,
+                  flags, cpu_id);
+  } while (res == -1 && (errno == EINTR || errno == EAGAIN));
+  ABSL_RAW_CHECK(res == 0 || (res == -1 && errno == ENXIO) /* missing CPU */,
                  "Upstream fence failed.");
 }
 
@@ -1405,6 +1413,76 @@ TEST(RestartableSequences, CorruptedRseqStateDeathTest) {
         }
       },
       "Thread registration failed with errno 16");
+}
+
+// Installs a seccomp filter that enforces upstream Linux's sys_membarrier
+// contract for MEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ (1 << 7) with
+// MEMBARRIER_CMD_FLAG_CPU (1 << 0):
+//   - cpu_id < 0 -> -EINVAL
+//   - cpu_id >= num_cpus -> -ENXIO
+void InstallUpstreamMembarrierFilter(uint32_t num_cpus) {
+  constexpr uint32_t kCmdPrivateExpeditedRseq = 1u << 7;
+  constexpr uint32_t kFlagCpu = 1u << 0;
+  struct sock_filter filter[] = {
+      BPF_STMT(BPF_LD | BPF_W | BPF_ABS, offsetof(struct seccomp_data, nr)),
+      BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_membarrier, 0, 8),
+      BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
+               offsetof(struct seccomp_data, args[0])),
+      BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, kCmdPrivateExpeditedRseq, 0, 6),
+      BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
+               offsetof(struct seccomp_data, args[1])),
+      BPF_JUMP(BPF_JMP | BPF_JSET | BPF_K, kFlagCpu, 0, 4),
+      BPF_STMT(BPF_LD | BPF_W | BPF_ABS,
+               offsetof(struct seccomp_data, args[2])),
+      BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, 0x80000000u, 0, 1),
+      BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ERRNO | EINVAL),
+      BPF_JUMP(BPF_JMP | BPF_JGE | BPF_K, num_cpus, 1, 0),
+      BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
+      BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ERRNO | ENXIO),
+  };
+  struct sock_fprog prog = {
+      .len = static_cast<unsigned short>(ABSL_ARRAYSIZE(filter)),
+      .filter = filter,
+  };
+  CHECK_EQ(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0), 0);
+  CHECK_EQ(prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog, 0, 0), 0);
+}
+
+TEST(RestartableSequences, UpstreamFenceAllCpus) {
+  if (!IsFast() ||
+      !base::subtle::percpu::percpu_internal::UsingUpstreamRseqFenceCpu()) {
+    GTEST_SKIP() << "Require fast per-CPU with upstream fence";
+  }
+
+  const uint32_t num_cpus = NumCPUs();
+  EXPECT_EXIT(
+      {
+        CHECK(IsFast());
+        InstallUpstreamMembarrierFilter(num_cpus);
+        Fence();
+        UpstreamFenceCpu(-1);
+        _exit(0);
+      },
+      ::testing::ExitedWithCode(0), "");
+}
+
+TEST(RestartableSequences, UpstreamFenceMissingCpu) {
+  if (!IsFast() ||
+      !base::subtle::percpu::percpu_internal::UsingUpstreamRseqFenceCpu()) {
+    GTEST_SKIP() << "Require fast per-CPU with upstream fence";
+  }
+
+  const int num_cpus = NumCPUs();
+  EXPECT_EXIT(
+      {
+        CHECK(IsFast());
+        InstallUpstreamMembarrierFilter(static_cast<uint32_t>(num_cpus));
+        // Fencing a missing/offline CPU ID (ENXIO) must not crash.
+        FenceCpu(num_cpus);
+        UpstreamFenceCpu(num_cpus);
+        _exit(0);
+      },
+      ::testing::ExitedWithCode(0), "");
 }
 
 TEST(RestartableSequences, CriticalSectionMetadata) {
