@@ -343,10 +343,10 @@ static sem_t domain_work;
 void Domain::Enqueue() {
   if (queued_for_run_.load(std::memory_order_relaxed) ||
       queued_for_run_.exchange(true, std::memory_order_acquire)) {
-    // already queued
+    // already queued; release the ref acquired in CallRaw.
+    num_queues_.fetch_sub(1, std::memory_order_seq_cst);
     return;
   }
-  num_queues_.fetch_add(1, std::memory_order_relaxed);
   if (to_run.Push(this)) {
     sem_post(&domain_work);
   }
@@ -356,6 +356,7 @@ void Domain::CallRaw(void (*func)(void*), void* data) {
   ABSL_RAW_CHECK(internal::CleanupEnabled(),
                  "did not call Domain::EnableCleanup");
   CallData cd = {func, data};
+  num_queues_.fetch_add(1, std::memory_order_relaxed);
   QueueCallback(cd);
   Enqueue();
 }
