@@ -226,9 +226,9 @@ class ABSL_LOCKABLE Domain : public ::base::LListEntry<Domain> {
         reader_counts_{::base::subtle::percpu::Handle{}},
         cleanup_phase_(0),
         current_phase_(0),
+        num_queues_(0),
         callbacks_(),
         queued_for_run_(false),
-        num_queues_(0),
         in_cleanup_list_(false),
         destruct_(false) {}
 
@@ -325,9 +325,9 @@ class ABSL_LOCKABLE Domain : public ::base::LListEntry<Domain> {
     void* data;
   };
 
+  std::atomic<int32_t> num_queues_;
   Pile<CallData> callbacks_[kNumPhases];
   std::atomic<bool> queued_for_run_;
-  std::atomic<int32_t> num_queues_;
 
   // Set to true when the domain is enqueued in run_domain_callbacks_thread's
   // local work list (domains), and reset to false when callbacks complete.
