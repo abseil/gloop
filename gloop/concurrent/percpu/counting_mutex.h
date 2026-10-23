@@ -564,6 +564,7 @@ inline void CountingMutex::unlock_shared() ABSL_UNLOCK_FUNCTION() {
 
 inline bool CountingMutex::try_lock_shared()
     ABSL_SHARED_TRYLOCK_FUNCTION(true) {
+  AssertNotHeld();
   // See 'lock_shared()` on adding the shared lock optimistically.
   add_shared_lock();
 

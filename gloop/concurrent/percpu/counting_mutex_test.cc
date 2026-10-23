@@ -1182,6 +1182,10 @@ TEST(CountingMutexTest, LockWhenAlreadyLockedAsserts) {
 #if defined(GTEST_HAS_DEATH_TEST) && !defined(__APPLE__)
     EXPECT_DEBUG_DEATH(CountingMutexReaderLock l(mutex),
                        "should not hold a lock");
+    EXPECT_DEBUG_DEATH(
+        [&]()
+            ABSL_NO_THREAD_SAFETY_ANALYSIS { (void)mutex.try_lock_shared(); }(),
+        "should not hold a lock");
 #endif
   };
   std::function<void()> writer_dies = [&] {
