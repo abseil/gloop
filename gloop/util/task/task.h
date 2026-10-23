@@ -687,9 +687,7 @@ class Task {
 class TaskReturn {
  public:
   explicit TaskReturn(Task* t) : task_(t) {}
-  void operator()(absl::Status status) const {
-    task_->Return(std::move(status));
-  }
+  void operator()(absl::Status status) const;
 
  private:
   Task* task_;
@@ -701,16 +699,11 @@ class TaskReturn {
 // Moveable but not copyable.
 class ABSL_MUST_USE_RESULT TaskHold {
  public:
-  inline explicit TaskHold(Task* t) : task_(t) { t->AddHold(); }
+  explicit TaskHold(Task* t);
   TaskHold(const TaskHold&) = delete;
   TaskHold& operator=(const TaskHold&) = delete;
-  TaskHold(TaskHold&& t) noexcept : task_(std::exchange(t.task_, nullptr)) {}
-  TaskHold& operator=(TaskHold&& t) noexcept {
-    if (this == &t) return *this;
-    if (task_ != nullptr) task_->RemoveHold();
-    task_ = std::exchange(t.task_, nullptr);
-    return *this;
-  }
+  TaskHold(TaskHold&& t) noexcept;
+  TaskHold& operator=(TaskHold&& t) noexcept;
   ~TaskHold() {
     if (task_ != nullptr) task_->RemoveHold();
   }

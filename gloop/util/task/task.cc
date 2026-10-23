@@ -632,3 +632,27 @@ std::string Task::DebugStringLocked() const {
 }
 
 }  // namespace util
+
+namespace util {
+void TaskReturn::operator()(absl::Status status) const {
+  task_->Return(std::move(status));
+}
+}  // namespace util
+
+namespace util {
+TaskHold::TaskHold(Task* t) : task_(t) { t->AddHold(); }
+}  // namespace util
+
+namespace util {
+TaskHold::TaskHold(TaskHold&& t) noexcept
+    : task_(std::exchange(t.task_, nullptr)) {}
+}  // namespace util
+
+namespace util {
+TaskHold& TaskHold::operator=(TaskHold&& t) noexcept {
+  if (this == &t) return *this;
+  if (task_ != nullptr) task_->RemoveHold();
+  task_ = std::exchange(t.task_, nullptr);
+  return *this;
+}
+}  // namespace util
