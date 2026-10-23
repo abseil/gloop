@@ -332,6 +332,7 @@ cc_library(
     deps = [
         ":status_builder",
         "//gloop:enforce_gloop_support",
+        "//gloop/base:logger",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_macros",

@@ -29,6 +29,7 @@
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/types/source_location.h"  // IWYU pragma: keep
+#include "gloop/base/log_severity.h"     // IWYU pragma: export
 #include "gloop/util/status/status_builder.h"
 
 // The LOG_IF_ERROR macro logs but otherwise ignores the returned status.
