@@ -272,7 +272,7 @@ inline void Pile<T>::Iterate(void (*f)(T t)) {
       continue;
     }
     if (n != 0) {
-      size_t page_end = n / kItemsPerPage + 1;
+      size_t page_end = (n + kItemsPerPage - 1) / kItemsPerPage;
       size_t remaining = n;
       for (size_t page = 0; page < page_end; ++page) {
         T* p = static_cast<T*>(arr_.GetPage(page, cpu));
@@ -291,14 +291,15 @@ inline void Pile<T>::Iterate(void (*f)(T t)) {
     // Slices past n and highwater haven't been used for 2
     // iterations. Get rid of them.
     // A highwater_ value of 0 means no slices >= 1 are allocated.
-    size_t unused = arr_.PageToSlice(n) + 1;
+    size_t unused =
+        (n == 0) ? 1 : arr_.PageToSlice((n - 1) / kItemsPerPage) + 1;
     if (high != 0) {
       for (int i = std::max(unused, high); i < PercpuGrowingArray::kNumSlices;
            ++i) {
         arr_.FreeSlice(i, cpu);
       }
     }
-    size_t next_high = (n == 0 && high == 1) ? 0 : unused;
+    size_t next_high = (unused == 1 && high <= 1) ? 0 : unused;
     GetPointerAtomic(highwater_, cpu)
         ->store(next_high, std::memory_order_relaxed);
   }

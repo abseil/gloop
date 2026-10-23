@@ -21,6 +21,7 @@
 #include "gloop/concurrent/rcu/rcu.h"
 
 #include <errno.h>
+#include <sched.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
