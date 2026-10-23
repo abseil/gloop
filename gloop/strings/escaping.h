@@ -222,11 +222,7 @@ absl::string_view::size_type BackslashUnescapedFind(
     absl::string_view src, const absl::CharSet& delims);
 
 // Convenience overloads of BackslashEscape() that return a string value.
-inline std::string BackslashEscape(absl::string_view src, unsigned char delim) {
-  std::string s;
-  BackslashEscape(src, delim, &s);
-  return s;
-}
+std::string BackslashEscape(absl::string_view src, unsigned char delim);
 inline std::string BackslashEscape(absl::string_view src,
                                    const absl::CharSet& delims) {
   std::string s;

@@ -770,3 +770,11 @@ void CleanStringLineEndings(std::string* str, bool auto_end_last_line) {
 }
 
 }  // namespace strings
+
+namespace strings {
+std::string BackslashEscape(absl::string_view src, unsigned char delim) {
+  std::string s;
+  BackslashEscape(src, delim, &s);
+  return s;
+}
+}  // namespace strings
