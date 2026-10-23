@@ -26,6 +26,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 
@@ -111,9 +112,9 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline int PrintfHijack(
     const char* /*arg2*/ = nullptr) {
   if (state.index < 0) return 0;
 
-  if (fmt.ends_with("{\n")) {
+  if (absl::EndsWith(fmt, "{\n")) {
     ++state.brace_count;
-  } else if (fmt.ends_with('}') || fmt.ends_with("}\n")) {
+  } else if (absl::EndsWith(fmt, "}") || absl::EndsWith(fmt, "}\n")) {
     --state.brace_count;
   } else if (state.brace_count == 1 && fmt != "%s%s") {
     state.index = -1;
@@ -127,7 +128,7 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline int PrintfHijack(
     absl::string_view fmt, const char* /*indent*/, const char* /*type*/,
     const char* field_name, const Unused&...) {
   if (state.index >= 0 && state.brace_count == 1) {
-    if (fmt.starts_with("%s%s %s =") &&
+    if (absl::StartsWith(fmt, "%s%s %s =") &&
         static_cast<size_t>(state.index) < fields.size()) {
       fields[static_cast<size_t>(state.index)] = field_name;
       ++state.index;
