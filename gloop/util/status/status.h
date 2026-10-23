@@ -25,8 +25,6 @@
 // In new code, write `absl::Status` and include
 // "absl/status/status.h".
 
-#include <assert.h>
-
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -36,18 +34,13 @@
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/flags/declare.h"
-#include "absl/log/check.h"
-#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/cord.h"
-#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/source_location.h"
-#include "gloop/util/status/codes.pb.h"     // IWYU pragma: export
-#include "gloop/util/status/error_space.h"  // IWYU pragma: export
-#include "gloop/util/status/non_message_set_payload.pb.h"
-#include "google/protobuf/any.pb.h"
+#include "gloop/util/status/codes.pb.h"
+#include "gloop/util/status/error_space.h"
 #include "google/protobuf/bridge/message_set.pb.h"
 #include "google/rpc/status.pb.h"
 
@@ -68,6 +61,8 @@ extern RegisterStatusPayloadPrinter g_status_payload_printer_register;
 class ErrorSpace;
 
 namespace status_internal {
+
+void CheckPayloadPresent(bool has_value);
 
 struct ErrorSpaceAndCode {
   const ErrorSpace* absl_nonnull GetErrorSpace() const;
@@ -550,9 +545,7 @@ inline MessageSetExtension GetPayload(const absl::Status& s,
 
   auto message_set_payload = s.GetPayload(status_internal::kMessageSetUrl);
 
-  ABSL_INTERNAL_CHECK(
-      message_set_payload.has_value(),
-      "Call to GetPayload should be guarded by the HasPayloadWithType check");
+  status_internal::CheckPayloadPresent(message_set_payload.has_value());
 
   google::protobuf::bridge::MessageSet message_set_obj;
   (void)message_set_obj.ParsePartialFromString(*message_set_payload);

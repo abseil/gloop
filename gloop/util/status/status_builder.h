@@ -22,27 +22,18 @@
 #define THIRD_PARTY_GLOOP_UTIL_STATUS_STATUS_BUILDER_H_
 
 #include <memory>
-#include <optional>
-#include <ostream>
 #include <string>
 #include <type_traits>
 #include <utility>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/log_severity.h"
 #include "absl/base/macros.h"
-#include "absl/base/optimization.h"
-#include "absl/log/log_sink.h"
 #include "absl/status/status.h"
 #include "absl/status/status_builder.h"
-#include "absl/strings/cord.h"
-#include "absl/strings/internal/ostringstream.h"
-#include "absl/strings/internal/stringify_stream.h"
 #include "absl/strings/string_view.h"
-#include "absl/time/time.h"
 #include "absl/types/source_location.h"
-#include "gloop/base/log_severity.h"
+#include "gloop/util/status/error_space.h"
 #include "gloop/util/status/status.h"
 
 namespace absl {
@@ -363,9 +354,7 @@ inline MessageSetExtension GetPayload(const util::StatusBuilder& builder,
                                       const ExtensionIdentifier& id) {
   auto* rep =
       absl::status_internal::StatusBuilderPrivateAccessor::GetRep(builder);
-  ABSL_INTERNAL_CHECK(
-      rep != nullptr,
-      "Call to GetPayload should be guarded by the HasPayloadWithType check");
+  util::status_internal::CheckPayloadPresent(rep != nullptr);
 
   return util::GetPayload<MessageSetExtension>(rep->status, id);
 }

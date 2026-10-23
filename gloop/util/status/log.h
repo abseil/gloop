@@ -25,7 +25,6 @@
 
 #include <utility>
 
-#include "absl/base/log_severity.h"  // IWYU pragma: export
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/types/source_location.h"  // IWYU pragma: keep
