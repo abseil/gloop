@@ -450,12 +450,12 @@ bool CountingMutex::ReaderLockInitFast(bool try_lock) {
       : PERCPU_RSEQ_INPUTS,
         [shift] "n"(kRegionShift),
         [handle_] "r"(handle_)
-      : PERCPU_RSEQ_CLOBBERS);
+      : PERCPU_RSEQ_CLOBBERS, "memory");
 #elif defined(__aarch64__)
   uint32_t value;
   int64_t ptr, percpu_data;
   asm volatile(
-      PERCPU_RSEQ_PROLOGUE(CountingMutex_RefFast, ptr)
+      PERCPU_RSEQ_PROLOGUE(CountingMutex_InitFast, ptr)
 
       "4:\n"
       PERCPU_RSEQ_LOAD_CPU_ID(ptr)
@@ -470,7 +470,7 @@ bool CountingMutex::ReaderLockInitFast(bool try_lock) {
       : PERCPU_RSEQ_INPUTS, [self] "r"(this),
         [handle_] "n"(offsetof(CountingMutex, handle_)),
         [kRegionShift] "n"(kRegionShift)
-      : PERCPU_RSEQ_CLOBBERS);
+      : PERCPU_RSEQ_CLOBBERS, "memory");
 #else  // defined(__aarch64__)
   static_assert(false, "Invalid platform inside ReaderLockInitFast()");
 #endif

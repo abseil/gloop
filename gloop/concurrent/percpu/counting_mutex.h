@@ -430,6 +430,10 @@ inline std::atomic<uint32_t>* CountingMutex::GetPtr(int cpu) {
 template <int32_t delta>
 bool CountingMutex::RefFast() {
 #if COUNTING_MUTEX_USE_RSEQ
+  // The `"memory"` clobber acts as a compiler fence (and accounts for the
+  // dereferences of `percpu_data_` and `*ptr`), preventing the compiler from
+  // reordering or caching loads and stores of mutex-protected state across
+  // `lock_shared()` and `unlock_shared()` when `RefFast()` is inlined.
 #if defined(__x86_64__)
   uint32_t value;
   std::atomic<uint32_t>*ptr, *percpu_data;
@@ -459,7 +463,7 @@ bool CountingMutex::RefFast() {
       : [ptr] "=&r"(ptr), [value] "=&r"(value), [percpu_data] "=&r"(percpu_data)
       : PERCPU_RSEQ_INPUTS, [shift] "n"(kRegionShift),
         [delta] "n"(delta), [percpu_data_] "r"(&percpu_data_)
-      : PERCPU_RSEQ_CLOBBERS
+      : PERCPU_RSEQ_CLOBBERS, "memory"
       : slow_path);
   return true;
 slow_path:
@@ -485,7 +489,7 @@ slow_path:
       : PERCPU_RSEQ_INPUTS, [self] "r"(this),
         [percpu_data_] "n"(offsetof(CountingMutex, percpu_data_)),
         [kRegionShift] "n"(kRegionShift), [delta] "r"(delta)
-      : PERCPU_RSEQ_CLOBBERS
+      : PERCPU_RSEQ_CLOBBERS, "memory"
       : slow_path);
   return true;
 slow_path:
