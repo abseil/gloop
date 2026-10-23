@@ -21,7 +21,6 @@
 #ifndef THIRD_PARTY_GLOOP_BASE_CONTEXT_FFI_H_
 #define THIRD_PARTY_GLOOP_BASE_CONTEXT_FFI_H_
 
-#include "base/with_lifetime_bound_context.h"
 #include "gloop/base/context.h"
 
 namespace base::internal::context_rs {

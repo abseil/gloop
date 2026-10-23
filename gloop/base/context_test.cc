@@ -26,6 +26,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <thread>  // NOLINT
 #include <type_traits>
 #include <utility>
 
@@ -33,6 +34,7 @@
 #include "absl/flags/declare.h"
 #include "absl/flags/flag.h"
 #include "absl/functional/bind_front.h"
+#include "absl/log/check.h"
 #include "absl/memory/memory.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -845,4 +847,5 @@ TEST_F(ContextTest, WithContextHardeningDisableThroughFlag) {
 ////////////////////////////////////////////////////////////////////////
 
 }  // anonymous namespace
+
 }  // namespace base
