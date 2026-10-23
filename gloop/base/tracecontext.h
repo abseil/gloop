@@ -160,6 +160,11 @@ class TraceContext {
                               perftools::tracing::StringRef) {}
   void AfterSetThreadContext(base::ThreadContextAccess,
                              perftools::tracing::StringRef) {}
+  void BeforeExchangeThreadContext(base::ThreadContextAccess,
+                                   const TraceContext&,
+                                   perftools::tracing::StringRef) {}
+  void AfterExchangeThreadContext(base::ThreadContextAccess,
+                                  perftools::tracing::StringRef) {}
   void BeforeSwapCurrent(base::ContextAccess, const TraceContext& to) {}
   void AfterSwapCurrent(
       base::ContextAccess,
@@ -338,6 +343,17 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
                               perftools::tracing::StringRef label);
   void AfterSetThreadContext(base::ThreadContextAccess,
                              perftools::tracing::StringRef label);
+
+  // `BeforeExchangeThreadContext()` and `AfterExchangeThreadContext()` handle a
+  // 'forced' context exchange for the current thread. These methods are
+  // Identical to
+  // `[Before/After]SetThreadContext()` except that the active context is
+  // suspended instead of ended.
+  void BeforeExchangeThreadContext(base::ThreadContextAccess,
+                                   const TraceContext& to,
+                                   perftools::tracing::StringRef label);
+  void AfterExchangeThreadContext(base::ThreadContextAccess,
+                                  perftools::tracing::StringRef label);
 
   // `BeforeSwapCurrent()`,`AfterSwapCurrent()`, `BeforeRestoreCurrent()` and
   // `AfterRestoreCurrent()` are invoked right before and after the current
@@ -1110,6 +1126,19 @@ inline void TraceContext::BeforeSetThreadContext(
 }
 
 inline void TraceContext::AfterSetThreadContext(
+    base::ThreadContextAccess, perftools::tracing::StringRef label) {
+  sync_context_.ResumeContext(SyncContextAccess(), {}, label);
+  CAPTURE_TRACECONTEXT_CHANGE_ANNOTATION(this);
+}
+
+inline void TraceContext::BeforeExchangeThreadContext(
+    base::ThreadContextAccess, const TraceContext& to,
+    perftools::tracing::StringRef label) {
+  sync_context_.SuspendContext(SyncContextAccess(), label);
+  MaybeCopyKtraceRpcIdTo(to);
+}
+
+inline void TraceContext::AfterExchangeThreadContext(
     base::ThreadContextAccess, perftools::tracing::StringRef label) {
   sync_context_.ResumeContext(SyncContextAccess(), {}, label);
   CAPTURE_TRACECONTEXT_CHANGE_ANNOTATION(this);
