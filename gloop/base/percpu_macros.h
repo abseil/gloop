@@ -180,11 +180,11 @@ namespace percpu {
 #define PERCPU_RSEQ_CLOBBERS "x16", "x17", "cc"
 
 #define PERCPU_RSEQ_PREPARE(fn, var)                                    \
-  "adrp %[" PERCPU_RSEQ_STRINGIZE(var) "], __rseq_cs_"                  \
+  "adrp %[" PERCPU_RSEQ_STRINGIZE(var) "], :got:__rseq_cs_"             \
   PERCPU_RSEQ_STRINGIZE(fn) "_%=\n"                                     \
-  "add  %[" PERCPU_RSEQ_STRINGIZE(var) "], %["                          \
-  PERCPU_RSEQ_STRINGIZE(var) "], :lo12:__rseq_cs_"                      \
-  PERCPU_RSEQ_STRINGIZE(fn) "_%=\n"                                     \
+  "ldr  %[" PERCPU_RSEQ_STRINGIZE(var) "], [%["                         \
+  PERCPU_RSEQ_STRINGIZE(var) "], :got_lo12:__rseq_cs_"                  \
+  PERCPU_RSEQ_STRINGIZE(fn) "_%=]\n"                                    \
   "str %[" PERCPU_RSEQ_STRINGIZE(var) "]"                               \
   ", [%[percpu_rseq_abi], %c[percpu_rseq_cs]]\n"
 
