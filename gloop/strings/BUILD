@@ -647,7 +647,6 @@ cc_library(
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/util/math:mathutil",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
