@@ -29,6 +29,7 @@
 #include <string>
 #include <system_error>  // NOLINT(build/c++11)  // b/283050693
 #include <utility>
+#include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/match.h"
@@ -45,21 +46,39 @@ class SymbolizedStackWriterImpl : public ThreadStackWriter {
       std::optional<absl::AnyInvocable<void(absl::string_view)>>&&
           per_thread_cb)
       : symbol_map_(symbol_map),
+        symbolize_stack_(true),
         symbolize_creator_thread_(false),
+        redact_addresses_(false),
+        checked_stripped_(false),
         output_(output),
         prev_thread_start_(0),
-        per_thread_cb_(std::move(per_thread_cb)) {
-    if (symbol_map_.binary_is_stripped()) {
-      output_->append("Stripped binary. No symbols available.\n");
-    }
-  }
+        per_thread_cb_(std::move(per_thread_cb)) {}
 
   SymbolizedStackWriterImpl(const SymbolizedStackWriterImpl&) = delete;
   SymbolizedStackWriterImpl& operator=(const SymbolizedStackWriterImpl&) =
       delete;
 
+  void set_symbolize_stack(bool symbolize_stack) {
+    symbolize_stack_ = symbolize_stack;
+  }
+
   void set_symbolize_creator_thread(bool symbolize_creator_thread) {
     symbolize_creator_thread_ = symbolize_creator_thread;
+  }
+
+  void set_redact_addresses(bool redact_addresses) {
+    redact_addresses_ = redact_addresses;
+  }
+
+  bool RedactAddresses() const override { return redact_addresses_; }
+
+  void AddAddressRelocation(uint64_t begin, uint64_t end,
+                            uint64_t relocated_begin) override {
+    address_relocations_.push_back(AddressRelocation{
+        .begin = begin,
+        .end = end,
+        .relocated_begin = relocated_begin,
+    });
   }
 
   void Write(const char* buf, int len) override {
@@ -69,7 +88,13 @@ class SymbolizedStackWriterImpl : public ThreadStackWriter {
   void Write(const char* buf, int len,
              const ThreadStackWriterOptions& options) override {
     static constexpr absl::string_view kCreator = "creator:";
-    bool symbolize_addresses = options.symbolize;
+    bool symbolize_addresses = symbolize_stack_ && options.symbolize;
+    if (symbolize_addresses && !checked_stripped_) {
+      checked_stripped_ = true;
+      if (symbol_map_.binary_is_stripped()) {
+        output_->append("Stripped binary. No symbols available.\n");
+      }
+    }
     size_t cur_thread_start = 0;
 
     // Initializing this isn't necessary with the intended invocations of this
@@ -93,7 +118,8 @@ class SymbolizedStackWriterImpl : public ThreadStackWriter {
         if (result.ec == std::errc()) {  // Conversion is done successfully.
           const std::string name =
               symbol_map_.GetDemangledSymbolAtPosition(pos);
-          absl::StrAppendFormat(output_, "  0x%08x: %s\n", pos,
+          absl::StrAppendFormat(output_, "  0x%08x: %s\n",
+                                redact_addresses_ ? RelocateAddress(pos) : pos,
                                 name.empty() ? absl::string_view("(unknown)")
                                              : absl::string_view(name));
           cur = result.ptr;  // Skip the address.
@@ -116,6 +142,17 @@ class SymbolizedStackWriterImpl : public ThreadStackWriter {
         }
         symbolize_addresses = false;
       }
+      if (!symbolize_addresses && redact_addresses_ &&
+          absl::StartsWith(absl::string_view(cur, end - cur), "0x")) {
+        uint64_t pos;
+        const std::from_chars_result result =
+            std::from_chars(cur + 2, end, pos, 16);
+        if (result.ec == std::errc()) {
+          absl::StrAppendFormat(output_, "0x%x", RelocateAddress(pos));
+          cur = result.ptr;
+          continue;
+        }
+      }
       // 4) Append a single character if it hasn't reached the end.
       if (cur < end) {
         if (absl::StartsWith(absl::string_view(cur, end - cur), "---\n")) {
@@ -126,7 +163,7 @@ class SymbolizedStackWriterImpl : public ThreadStackWriter {
       }
     }
 
-    if (cur_thread_start > 0) {
+    if (symbolize_stack_ && cur_thread_start > 0) {
       const absl::string_view cur_thread_bt =
           absl::string_view(*output_).substr(cur_thread_start);
       bool same_as_last_thread = false;
@@ -165,6 +202,21 @@ class SymbolizedStackWriterImpl : public ThreadStackWriter {
   }
 
  private:
+  struct AddressRelocation {
+    uint64_t begin;
+    uint64_t end;
+    uint64_t relocated_begin;
+  };
+
+  uint64_t RelocateAddress(uint64_t pos) const {
+    for (const AddressRelocation& reloc : address_relocations_) {
+      if (pos >= reloc.begin && pos < reloc.end) {
+        return reloc.relocated_begin + (pos - reloc.begin);
+      }
+    }
+    return 0;
+  }
+
   static void UpdateThreadTypeLabel(absl::string_view& label,
                                     absl::string_view header) {
     if (absl::StartsWith(header, "--- Thread ")) {
@@ -176,11 +228,15 @@ class SymbolizedStackWriterImpl : public ThreadStackWriter {
   }
 
   const SymbolMap& symbol_map_;
+  bool symbolize_stack_;
   bool symbolize_creator_thread_;
+  bool redact_addresses_;
+  bool checked_stripped_;
   std::string* output_;
   size_t prev_thread_start_;
   std::optional<absl::AnyInvocable<void(absl::string_view)>> per_thread_cb_;
   std::string last_stack_bt_;
+  std::vector<AddressRelocation> address_relocations_;
 };
 
 SymbolizedStackWriter::SymbolizedStackWriter(std::string* output)
@@ -214,8 +270,25 @@ void SymbolizedStackWriter::Write(const char* buf, int len,
   impl_->Write(buf, len, options);
 }
 
+void SymbolizedStackWriter::set_symbolize_stack(bool symbolize_stack) {
+  impl_->set_symbolize_stack(symbolize_stack);
+}
+
 void SymbolizedStackWriter::set_symbolize_creator_thread(
     bool symbolize_creator_thread) {
   impl_->set_symbolize_creator_thread(symbolize_creator_thread);
+}
+
+void SymbolizedStackWriter::set_redact_addresses(bool redact_addresses) {
+  impl_->set_redact_addresses(redact_addresses);
+}
+
+bool SymbolizedStackWriter::RedactAddresses() const {
+  return impl_->RedactAddresses();
+}
+
+void SymbolizedStackWriter::AddAddressRelocation(uint64_t begin, uint64_t end,
+                                                 uint64_t relocated_begin) {
+  impl_->AddAddressRelocation(begin, end, relocated_begin);
 }
 }  // namespace util

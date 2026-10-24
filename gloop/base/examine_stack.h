@@ -39,6 +39,7 @@
 #include "absl/functional/function_ref.h"
 #include "absl/log/log_streamer.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 
 // Include all mappings from /proc/self/maps in a failure dump
 ABSL_DECLARE_FLAG(bool, dump_all_maps_on_failure);
@@ -138,6 +139,22 @@ uintptr_t GetSP(void* const vuc);
 
 // Dump current address map.
 void DumpAddressMap(DebugWriter* writer, void* writer_arg);
+
+struct AddressMapEntry {
+  uint64_t begin;
+  uint64_t end;
+  uint64_t offset;
+  absl::string_view file;
+};
+
+// Invoke `fn` for each entry in the current address map.
+void DumpAddressMap(absl::FunctionRef<void(const AddressMapEntry&)> fn);
+
+// Format and write an address map entry to `writer`, collapsing build
+// directory prefixes using `dir` (a buffer initialized to NUL before the
+// first entry).
+void WriteAddressMapEntry(const AddressMapEntry& entry, absl::Span<char> dir,
+                          DebugWriter* writer, void* writer_arg);
 
 // Dump the register context as directed by writer.
 void DumpRegisterContext(void* const uc, DebugWriter* writer, void* writer_arg);

@@ -40,7 +40,9 @@
 
 using ::testing::_;
 using ::testing::AnyNumber;
+using ::testing::ContainsRegex;
 using ::testing::HasSubstr;
+using ::testing::Not;
 
 using util::SymbolizedStackWriter;
 using util::SymbolMap;
@@ -187,6 +189,69 @@ TEST_P(SymbolizedStackWriterTest, SymbolizeCreatorThread) {
   writer2.Write(symbolizing_creator_thread.input,
                 strlen(symbolizing_creator_thread.input));
   ASSERT_EQ(output2, symbolizing_creator_thread.output);
+}
+
+TEST_P(SymbolizedStackWriterTest, RedactAddresses) {
+  std::unique_ptr<SymbolMap> symbol_map(
+      SymbolMap::GetEmpty(/*compression_level=*/GetParam()));
+  symbol_map->AddSymbol("foo", 0x40, 0x40);
+  symbol_map->AddSymbol("thread_starter", 0x80, 0x20);
+  symbol_map->AddSymbol("bar", 0xe0, 0x20);
+  symbol_map->AddSymbol("main", 0x1234, 0x50);
+
+  static constexpr absl::string_view kInput = "0x40  creator: 0x80 0xe0\n";
+
+  std::string output1;
+  SymbolizedStackWriter writer1(*symbol_map, &output1);
+  writer1.set_redact_addresses(true);
+  writer1.Write(kInput.data(), kInput.size());
+  EXPECT_EQ(output1,
+            "  0x00000000: foo\n"
+            "  creator: 0x0 0x0\n");
+
+  std::string output2;
+  SymbolizedStackWriter writer2(*symbol_map, &output2);
+  writer2.set_redact_addresses(true);
+  writer2.set_symbolize_creator_thread(true);
+  writer2.Write(kInput.data(), kInput.size());
+  EXPECT_EQ(output2,
+            "  0x00000000: foo\n"
+            "  creator:\n"
+            "  0x00000000: thread_starter\n"
+            "  0x00000000: bar\n");
+
+  std::string output3;
+  SymbolizedStackWriter writer3(*symbol_map, &output3);
+  writer3.set_redact_addresses(true);
+  writer3.set_symbolize_stack(false);
+  writer3.Write(kInput.data(), kInput.size());
+  EXPECT_EQ(output3, "0x0  creator: 0x0 0x0\n");
+
+  std::string output4;
+  SymbolizedStackWriter writer4(*symbol_map, &output4);
+  writer4.set_redact_addresses(true);
+  writer4.AddAddressRelocation(0x40, 0xd0, 0x200000);
+  writer4.Write(kInput.data(), kInput.size());
+  EXPECT_EQ(output4,
+            "  0x00200000: foo\n"
+            "  creator: 0x200040 0x0\n");
+}
+
+TEST_P(SymbolizedStackWriterTest, ExtractStackRedacted) {
+  auto symbol_map = SymbolMap::Create(/*copy_symbol_names=*/true,
+                                      /*compression_level=*/GetParam());
+  if (symbol_map->binary_is_stripped()) {
+    GTEST_SKIP() << "Stripped binary.";
+    return;
+  }
+  std::string output;
+  SymbolizedStackWriter writer(*symbol_map, &output);
+  writer.set_redact_addresses(true);
+  Thread_ExtractStacks(&writer);
+  EXPECT_THAT(output, HasSubstr(": main"));
+  EXPECT_THAT(output, Not(ContainsRegex("  0x00000000: main")));
+  EXPECT_THAT(output, HasSubstr("--- Memory map: ---\n"));
+  EXPECT_THAT(output, ContainsRegex("  00200000-[0-9a-f]+: \\S+"));
 }
 
 // Test that symbolizing a real stacktrace works. This test does
