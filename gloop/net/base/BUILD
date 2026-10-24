@@ -32,8 +32,6 @@ cc_library(
     linkopts = select({
         "//conditions:default": [],
     }),
-    local_defines = [
-    ],
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base:port",
