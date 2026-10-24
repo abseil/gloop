@@ -187,7 +187,6 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "//gloop/util/gtl/extend/internal:reflection",
         "@abseil-cpp//absl/base:no_destructor",
-        "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
     ],
 )

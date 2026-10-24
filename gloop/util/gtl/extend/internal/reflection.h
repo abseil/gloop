@@ -25,6 +25,7 @@
 #include <cstddef>
 
 #include "absl/base/config.h"
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 
@@ -48,13 +49,100 @@ struct ParsingState {
   int brace_count = 0;
 };
 
-// Called by` __builtin_dump_struct` for each line of the struct representation.
+// Called by `__builtin_dump_struct` for each line of the struct representation.
 // Rather than printing the struct representation, we parse `fmt` to extract the
 // lines containing struct field names and store them in `T::kFieldNames`.
 // Note: `__builtin_dump_struct` provides no guarantees whatsoever on its
 // output, so our parsing is entirely best-effort.
-int PrintfHijack(ParsingState& state, absl::Span<absl::string_view> fields,
-                 const char* fmt, ...);
+//
+// `PrintfHijack` is called repeatedly with each `fmt` line and corresponding
+// arguments via `__builtin_dump_struct`. While there is no guarantee about
+// the `fmt` strings provided, it is typical that lines come in 5 flavors:
+// 1. A string containing only "%s", accepting the name of the struct itself.
+// 2. A string containing only "%s%s", accepting the name of a base class.
+// 3. A string containing only whitespace and an open brace "{" indicating that
+//    we are entering a new struct.
+// 4. A string with "=" where the value passed into the format specifier which
+//    immediately precedes "=" is the name of a struct field.
+// 5. A string ending with a "}" indicating the conclusion of a struct.
+//
+// For example, for a struct
+// ```
+// struct Bacon {
+//   int repeatability;
+//   double flavor;
+//   double fattiness;
+//   struct Metadata {
+//     bool is_pork;
+//     bool is_expired;
+//   } metadata;
+// };
+// ```
+// we would expect the following values for `fmt` to be passed to
+// `PrintfHijack`, along with the following trailing arguments:
+//     `fmt`           |    trailing arguments
+// --------------------|----------------------------------------------
+//   "%s"              | {"Bacon"}
+//   " {\n"            | {}
+//   "%s%s %s = %d\n"  | {"  ", "int", "repeatability", ???}
+//   "%s%s %s = %f\n"  | {"  ", "double", "flavor", ???}
+//   "%s%s %s = %f\n"  | {"  ", "double", "fattiness", ???}
+//   "%s%s %s ="       | {"  ", "Metadata", "metadata"}
+//   " {\n"            | {}
+//   "%s%s %s = %d\n"  | {"  ", "_Bool", "is_pork", ???}
+//   "%s%s %s = %d\n"  | {"  ", "_Bool", "is_expired", ???}
+//   "%s}\n"           | {"  "}
+//   "}\n"             | {}
+//
+// `PrintfHijack` inspects each format string and argument set, extracting field
+// names for the given struct and writes them to `fields`. If an unexpected
+// format string is encountered, `state.index` will be set to -1 indicating a
+// failure. Parsing succeeds if after every call to `PrintfHijack`,
+// `state.index == fields.size()`.
+//
+// Defining `PrintfHijack` as inline overloads (rather than an out-of-line C
+// variadic function) allows the compiler to constant-fold the literal `fmt`
+// strings emitted by `__builtin_dump_struct` and dead-code-eliminate unused
+// field-value reads and nested struct/base-class traversal.
+inline int PrintfHijack(ParsingState& state,
+                        absl::Span<absl::string_view> fields,
+                        absl::string_view fmt) {
+  if (state.index < 0) return 0;
+
+  if (absl::EndsWith(fmt, "{\n")) {
+    ++state.brace_count;
+  } else if (absl::EndsWith(fmt, "}") || absl::EndsWith(fmt, "}\n")) {
+    --state.brace_count;
+  } else if (state.brace_count == 1 && fmt != "%s%s") {
+    state.index = -1;
+  }
+  return 0;
+}
+
+template <typename... Unused>
+  requires(sizeof...(Unused) == 1 || sizeof...(Unused) == 2)
+inline int PrintfHijack(ParsingState& state,
+                        absl::Span<absl::string_view> fields,
+                        absl::string_view fmt, const Unused&...) {
+  return PrintfHijack(state, fields, fmt);
+}
+
+template <typename... Unused>
+inline int PrintfHijack(ParsingState& state,
+                        absl::Span<absl::string_view> fields,
+                        absl::string_view fmt, const char* /*indent*/,
+                        const char* /*type*/, const char* field_name,
+                        const Unused&...) {
+  if (state.index >= 0 && state.brace_count == 1) {
+    if (absl::StartsWith(fmt, "%s%s %s =")) {
+      fields[static_cast<size_t>(state.index)] = field_name;
+      ++state.index;
+    } else {
+      state.index = -1;
+    }
+  }
+  return 0;
+}
 
 // Forward declaration of test helper.
 template <typename T>

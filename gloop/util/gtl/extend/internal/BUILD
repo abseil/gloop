@@ -62,7 +62,6 @@ cc_library(
 
 cc_library(
     name = "reflection",
-    srcs = ["reflection.cc"],
     hdrs = ["reflection.h"],
     visibility = [
         "//gloop/util/gtl/extend:__subpackages__",
