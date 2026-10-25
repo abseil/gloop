@@ -235,6 +235,106 @@ TEST(SimpleTopologyDefaultPackageAndNode, Basic) {
   EXPECT_EQ(topology->NumPackages(), 1);
 }
 
+TEST(SparseCpuLessNodesTest, CompactsSparseCpuLessNodesWithoutCrash) {
+  SysTopology::TopologyInfo ti;
+  ti.levels = {
+      {SysTopology::LevelInfo::CPUID, "cpu", {}},
+      {SysTopology::LevelInfo::PARENTMAP, "core", {}},
+      {SysTopology::LevelInfo::PARENTMAP, "package", {}},
+  };
+  for (int cpu = 0; cpu < 4; ++cpu) {
+    SysTopology::CPUInfo ci;
+    ci.id = cpu;
+    ci.parent["core"] = cpu;
+    ci.parent["package"] = cpu / 2;
+    ti.cpus.push_back(ci);
+  }
+
+  SysTopology::LevelInfo node_level;
+  node_level.name = "node";
+  node_level.mode = SysTopology::LevelInfo::CHILDMAP;
+  node_level.children[0] = HexStringToCpuSet("00000003");
+  node_level.children[1] = HexStringToCpuSet("0000000c");
+  // Sparse CPU-less NUMA nodes (e.g. GPU memory nodes after hot-unplugging
+  // intermediate node IDs such as 2 and 10).
+  for (SysTopology::Id node_id : {3, 9, 11, 35}) {
+    node_level.children[node_id] = CpuSetMakeEmpty();
+  }
+  ti.levels.push_back(node_level);
+
+  for (const auto& [node_id, unused_cpus] : node_level.children) {
+    SysTopology::MemInfo mi(node_id, node_id);
+    mi.size_kb = (node_id <= 1) ? 1024 : 512;
+    ti.mems.push_back(mi);
+    for (const auto& [dst_id, unused_dst_cpus] : node_level.children) {
+      ti.maxphysnode_distances[node_id][dst_id] =
+          (node_id == dst_id) ? 10 : (20 + node_id + dst_id);
+    }
+  }
+  // Include stale entries for an offline physical node ID (2) in mems and both
+  // source and destination distance maps to verify unmapped IDs are ignored.
+  SysTopology::MemInfo offline_mi(2, 2);
+  offline_mi.size_kb = 256;
+  ti.mems.push_back(offline_mi);
+  ti.maxphysnode_distances[2][0] = 99;
+  ti.maxphysnode_distances[0][2] = 99;
+
+  SysTopology topology(ti);
+  EXPECT_EQ(topology.NumNodes(), 6);
+  EXPECT_EQ(topology.NumNodesWithCpus(), 2);
+  EXPECT_THAT(topology.NodeIdsWithCpus(), UnorderedElementsAre(0, 1));
+  EXPECT_EQ(topology.NodeCPUs(0), HexStringToCpuSet("00000003"));
+  EXPECT_EQ(topology.NodeCPUs(1), HexStringToCpuSet("0000000c"));
+  EXPECT_EQ(topology.NodeMemSize(0), 1024);
+  EXPECT_EQ(topology.NodeMemSize(1), 1024);
+  const std::vector<SysTopology::Id> phys_ids = {0, 1, 3, 9, 11, 35};
+  for (SysTopology::Id node_id = 0; node_id < topology.NumNodes(); ++node_id) {
+    if (node_id >= 2) {
+      EXPECT_EQ(topology.NodeCPUs(node_id), CpuSetMakeEmpty());
+      EXPECT_EQ(topology.NodeMemSize(node_id), 512);
+    }
+    EXPECT_EQ(topology.NodePairMemDistance(node_id, node_id), 10);
+    EXPECT_EQ(topology.NodePairMemDistance(0, node_id),
+              (node_id == 0) ? 10 : (20 + phys_ids[node_id]));
+  }
+}
+
+TEST(SparseCpuLessNodesTest, CpuLessNodeZeroDoesNotOverwriteCpuNode) {
+  SysTopology::TopologyInfo ti;
+  ti.levels = {
+      {SysTopology::LevelInfo::CPUID, "cpu", {}},
+      {SysTopology::LevelInfo::PARENTMAP, "core", {}},
+      {SysTopology::LevelInfo::PARENTMAP, "package", {}},
+  };
+  for (int cpu = 0; cpu < 4; ++cpu) {
+    SysTopology::CPUInfo ci;
+    ci.id = cpu;
+    ci.parent["core"] = cpu;
+    ci.parent["package"] = 0;
+    ti.cpus.push_back(ci);
+  }
+
+  SysTopology::LevelInfo node_level;
+  node_level.name = "node";
+  node_level.mode = SysTopology::LevelInfo::CHILDMAP;
+  node_level.children[0] = CpuSetMakeEmpty();
+  node_level.children[1] = HexStringToCpuSet("0000000f");
+  ti.levels.push_back(node_level);
+  ti.maxphysnode_distances[0] = {{0, 12}, {1, 30}};
+  ti.maxphysnode_distances[1] = {{0, 30}, {1, 10}};
+
+  SysTopology topology(ti);
+  EXPECT_EQ(topology.NumNodes(), 2);
+  EXPECT_EQ(topology.NumNodesWithCpus(), 1);
+  EXPECT_THAT(topology.NodeIdsWithCpus(), UnorderedElementsAre(0));
+  EXPECT_EQ(topology.NodeCPUs(0), HexStringToCpuSet("0000000f"));
+  EXPECT_EQ(topology.NodeCPUs(1), CpuSetMakeEmpty());
+  EXPECT_EQ(topology.NodePairMemDistance(0, 0), 10);
+  EXPECT_EQ(topology.NodePairMemDistance(1, 1), 12);
+  EXPECT_EQ(topology.NodePairMemDistance(0, 1), 30);
+  EXPECT_EQ(topology.NodePairMemDistance(1, 0), 30);
+}
+
 TEST(CPUSetLocal, Basic) {
   cpu_set_t old_cpu_set;
   SysTopologyHelper::GetCPUSet(&old_cpu_set);
