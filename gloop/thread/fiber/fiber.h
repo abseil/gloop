@@ -93,6 +93,18 @@
 // allow most code that uses fibers to automatically be cancellation aware
 // without requiring any custom cancellation handling code.
 //
+// Completion
+// ----------
+// A fiber's body runs under a base::Context. That context is torn down when
+// the body returns, before the fiber (or an ancestor that is waiting for it)
+// becomes joinable. Code that runs as part of this teardown, such as trace
+// event listener callbacks and destructors of objects owned by the context,
+// may be invoked with internal fiber locks held. Such code must not call
+// Cancel() on, detach, or create children of that fiber or any of its
+// ancestors, must not wait for any of them to become joinable, and should not
+// block. A Bundle counts as an ancestor of the fibers added to it: such code
+// must not call Add(), CancelAll() or OnJoinable() on such a Bundle either.
+//
 // Parallelism
 // -----------
 // The parallelism of the fiber's tree determines the parallelism of the
@@ -116,10 +128,12 @@
 #include <concepts>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <type_traits>
 #include <utility>
 
 #include "absl/base/attributes.h"
+#include "absl/base/nullability.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/flags/flag.h"
 #include "absl/functional/any_invocable.h"
@@ -128,6 +142,8 @@
 #include "gloop/base/context.h"
 #include "gloop/base/scheduling/domain.h"
 #include "gloop/base/scheduling/scheduler.h"
+#include "gloop/perftools/tracing/string_label.h"
+#include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/thread/fiber/fiber-internal.h"  // IWYU pragma: export
 #include "gloop/thread/fiber/fiber-options.h"
 #include "gloop/thread/fiber/fiber.pb.h"
@@ -240,6 +256,9 @@ class Fiber : private gtl::intrusive_link<Fiber, CancellationList::Tag> {
   // be called before it may be destructed. Second and further calls to Join()
   // are no-ops.
   //
+  // "Finished running" includes the teardown of the base::Context that each of
+  // those fibers ran under (see "Completion" above).
+  //
   // REQUIRES: Must be called by the parent, unless this is a root fiber.
   void Join();
 
@@ -279,6 +298,8 @@ class Fiber : private gtl::intrusive_link<Fiber, CancellationList::Tag> {
   // When called on a fiber f, returns a token that may be used to Select()
   // against the completion of f and its descendant children.  It is guaranteed
   // at the time of return that f, and all descendants, are no longer running.
+  // For a fiber that has not been detached this includes, as for Join(), the
+  // teardown of the base::Context that each of them ran under.
   //
   // Will always complete immediately when called against a finished fiber.
   // Does not count as a Join() against the referenced fiber.
@@ -313,20 +334,51 @@ class Fiber : private gtl::intrusive_link<Fiber, CancellationList::Tag> {
 
   void Start();
   void Body();
-  void MarkJoined();
+
+  // Records that the Join() requirement has been satisfied and removes *this
+  // from its parent's active children if applicable.
+  //
+  // If `with_context` is non-null, destroys `*with_context` before the removal
+  // can make the parent joinable: either while holding `parent_->mu_`, or, if
+  // *this is the last child of a finished parent, after emitting the
+  // `parent_->joinable_` trace signal and before marking `parent_->joinable_`
+  // notified. For root fibers, destroys it before releasing the tree
+  // scheduler. No-op if *this was already joined (only reachable from external
+  // Join() calls where `with_context` is null).
+  void MarkJoined(
+      std::optional<base::WithContext>* absl_nullable with_context = nullptr);
   void HandleDeadlineExpiry();
-  void InternalJoin();
+  // Waits for `joinable_` to be notified and then calls
+  // `MarkJoined(with_context)`.
+  void InternalJoin(
+      std::optional<base::WithContext>* absl_nullable with_context = nullptr);
 
   // Changes the state of this fiber to FINISHED.
   //
   // If the current fiber is not a detached fiber and all children have
-  // finished, then the this function will invoke `joinable_.Notify()` to
-  // signal that the fiber has become joinable.
+  // finished, then this function will signal `joinable_` to indicate that the
+  // fiber has become joinable.
+  //
+  // If `with_context` is non-null and this fiber is not detached, destroys
+  // `*with_context` before this fiber can become joinable: after emitting the
+  // `joinable_` trace signal and before marking `joinable_` notified if all
+  // children have finished, and while holding `mu_` otherwise. For detached
+  // fibers, `*with_context` is left active for the subsequent `MarkJoined()`
+  // or `InternalJoin()` call.
   //
   // Returns [cleanup_fn, joinable], which allows the caller to directly
   // observe if both the finished fiber was detached (clean_up != nullptr) and
   // if the fiber is joinable, in which case it can self-join immediately.
-  std::pair<CleanupFn*, bool> MarkFinished();
+  std::pair<CleanupFn*, bool> MarkFinished(
+      std::optional<base::WithContext>* absl_nullable with_context = nullptr);
+
+  // Emits `event`'s `TraceSignal(label)`, destroys `*with_context` and then
+  // marks `event` notified.
+  static void ResetWithContextAndNotify(
+      std::optional<base::WithContext>* absl_nonnull with_context,
+      PermanentEvent* absl_nonnull event,
+      perftools::tracing::StringRef label =
+          perftools::tracing::TraceSourceLocation::current());
 
   static void InvokeFiberBody(void* fiber_ptr);
 

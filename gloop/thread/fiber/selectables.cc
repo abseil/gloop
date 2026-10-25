@@ -65,9 +65,19 @@ void PermanentEvent::Unregister(internal::CaseState* c) {
 }
 
 void PermanentEvent::Notify(perftools::tracing::StringRef label) {
+  TraceSignalForNotify(label);
+  NotifyWithoutTraceSignal();
+}
+
+void PermanentEvent::TraceSignalForNotify(perftools::tracing::StringRef label) {
+  DCHECK(!notified_.load(std::memory_order_relaxed))
+      << "Notify() method called more than once for "
+      << "PermanentEvent object " << static_cast<void*>(this);
   // If traced, record the causality of the event being notified (signaled).
   perftools::tracing::TraceSignal(this, label);
+}
 
+void PermanentEvent::NotifyWithoutTraceSignal() {
   SpinLockHolder l(lock_);
 
   DCHECK(!notified_.load(std::memory_order_relaxed))
