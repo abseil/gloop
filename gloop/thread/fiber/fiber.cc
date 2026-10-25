@@ -199,7 +199,7 @@ Scheduler* FiberHelpers::GetScheduler(const Fiber* fiber) {
 }
 
 // static
-std::unique_ptr<Fiber> FiberHelpers::CreateChildFiber(
+void FiberHelpers::CreateDetachedChildFiber(
     Fiber* parent, absl::AnyInvocable<void() &&> invocable) {
   Fiber* const fiber = new Fiber{
       Fiber::Unstarted{},
@@ -208,8 +208,8 @@ std::unique_ptr<Fiber> FiberHelpers::CreateChildFiber(
       parent,
   };
 
+  Detach(absl::WrapUnique(fiber));
   fiber->Start();
-  return absl::WrapUnique(fiber);
 }
 
 absl::AnyInvocable<void() &&> InternalChildFiberScoped(
@@ -222,8 +222,8 @@ absl::AnyInvocable<void() &&> InternalChildFiberScoped(
   };
 
   return [fiber]() {
-    fiber->Start();
     Detach(absl::WrapUnique(fiber));
+    fiber->Start();
   };
 }
 
@@ -417,13 +417,12 @@ void Fiber::Body() {
   // This also alleviates lifetime concerns for the name itself.
   thread::InternalSetCurrentFiberName("");
 
-  if (auto [clean_up, joinable] = MarkFinished(); clean_up != nullptr) {
-    // This is a self-joining fiber, but we may need to wait for children.
-    if (joinable) {
-      MarkJoined();
-    } else {
-      InternalJoin();
-    }
+  if (auto [clean_up, joinable] = MarkFinished();
+      clean_up != nullptr && joinable) {
+    // This is a self-joining fiber with no active children. If there are still
+    // active children, the last child to finish will join and clean up this
+    // fiber in MarkJoined().
+    MarkJoined();
     clean_up(this);
   }
 }
@@ -488,26 +487,49 @@ void Fiber::MarkJoined() {
   DCHECK(internal::FiberHelpers::IsFiberDetached(this) ||
          joinable_.HasBeenNotified());
 
-  bool has_parent;
-  {
-    absl::MutexLock l(mu_);
-    DCHECK(children_.empty());
-    if (state_ == JOINED) return;  // Already joined.
-    DCHECK_EQ(state_, FINISHED);
-    DVLOG(2) << "F " << this << " joined";
-    state_ = JOINED;
-    has_parent = parent_ != nullptr;
-  }
-  if (has_parent) {
-    absl::MutexLock l(parent_->mu_);
-    parent_->children_.erase(this);
-    if (parent_->children_.empty() && parent_->state_ == FINISHED) {
-      parent_->joinable_.Notify();
+  Fiber* current = this;
+  CleanupFn* current_cleanup = nullptr;
+  while (true) {
+    Fiber* parent;
+    {
+      absl::MutexLock l(current->mu_);
+      DCHECK(current->children_.empty());
+      if (current->state_ == JOINED) return;  // Already joined.
+      DCHECK_EQ(current->state_, FINISHED);
+      DVLOG(2) << "F " << current << " joined";
+      current->state_ = JOINED;
+      parent = current->parent_;
     }
-  } else {
-    // We were joined and have no parent. All of our children must already be
-    // joined. Release our ref on the scheduler.
-    tree_scheduler_.Unref();
+    if (parent == nullptr) {
+      // We were joined and have no parent. All of our children must already be
+      // joined. Release our ref on the scheduler.
+      current->tree_scheduler_.Unref();
+      if (current_cleanup != nullptr) {
+        current_cleanup(current);
+      }
+      return;
+    }
+
+    CleanupFn* parent_cleanup = nullptr;
+    {
+      absl::MutexLock l(parent->mu_);
+      parent->children_.erase(current);
+      if (parent->children_.empty() && parent->state_ == FINISHED) {
+        parent_cleanup =
+            parent->detached_cleanup_.load(std::memory_order_relaxed);
+        if (parent_cleanup == nullptr) {
+          parent->joinable_.Notify();
+        }
+      }
+    }
+    if (current_cleanup != nullptr) {
+      current_cleanup(current);
+    }
+    if (parent_cleanup == nullptr) {
+      return;
+    }
+    current = parent;
+    current_cleanup = parent_cleanup;
   }
 }
 
@@ -623,21 +645,23 @@ void subtle::Detach(Fiber& fiber, Fiber::CleanupFn& clean_up) {
   DCHECK_EQ(fiber.detached_cleanup_.load(std::memory_order_relaxed), nullptr)
       << "fiber already detached";
 
-  // Special case: if the fiber has already finished then we need to join it and
-  // clean it up here, because MarkFinished has already run and won't do the
-  // cleanup logic for us.
-  if (ABSL_PREDICT_FALSE(fiber.state_ == Fiber::FINISHED)) {
+  fiber.detached_cleanup_.store(&clean_up, std::memory_order_relaxed);
+
+  // Special case: if the fiber and all of its children have already finished
+  // then we need to join it and clean it up here, because MarkFinished and
+  // child MarkJoined calls have already run and won't do the cleanup logic for
+  // us. If the fiber has finished its body but still has active children, the
+  // last child to finish will join and clean up `fiber` in MarkJoined().
+  if (ABSL_PREDICT_FALSE(fiber.state_ == Fiber::FINISHED &&
+                         fiber.children_.empty())) {
     fiber.mu_.unlock();
 
-    // Call InternalJoin to bypass the check that the current fiber is a parent.
-    // It may be a non-parent ancestor in the case of bundle fibers.
-    fiber.InternalJoin();
+    fiber.MarkJoined();
 
     // It's our job to clean up the fiber.
     return clean_up(&fiber);
   }
 
-  fiber.detached_cleanup_.store(&clean_up, std::memory_order_relaxed);
   fiber.mu_.unlock();
 }
 
