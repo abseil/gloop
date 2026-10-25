@@ -295,6 +295,18 @@ TEST(BundleTest, BundleProxyCancel) {
   EXPECT_EQ(counter.load(), async_children + 1);
 }
 
+TEST(BundleTest, DetachChildInsideBundleAdd) {
+  for (int i = 0; i < 20; ++i) {
+    Bundle bundle;
+    absl::Notification go;
+    bundle.Add([&go] {
+      Detach(std::make_unique<Fiber>([&go] { go.WaitForNotification(); }));
+    });
+    go.Notify();
+    bundle.JoinAll();
+  }
+}
+
 static void BM_BundleRunNop(benchmark::State& state) {
   const int num_fibers = state.range(0);
   while (state.KeepRunningBatch(num_fibers)) {

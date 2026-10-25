@@ -696,6 +696,45 @@ TEST_F(FiberTest, DetachedRootFiberWorks) {
   // Heap-checker will validate the fiber we created above is freed.
 }
 
+TEST_F(FiberTest, DetachedRootFiberOutlivedByDetachedChild) {
+  static absl::Notification* root_cleaned_up = nullptr;
+  absl::Notification cleaned_up;
+  root_cleaned_up = &cleaned_up;
+
+  absl::Notification child_started;
+  absl::Notification allow_child_to_finish;
+  std::unique_ptr<Fiber> root =
+      NewTree(std::move(TreeOptions().set_max_cpu_slots(1)), [&] {
+        Detach(std::make_unique<Fiber>([&] {
+          child_started.Notify();
+          allow_child_to_finish.WaitForNotification();
+        }));
+      });
+  child_started.WaitForNotification();
+  subtle::Detach(
+      *root.release(), *+[](Fiber* const fiber) {
+        delete fiber;
+        root_cleaned_up->Notify();
+      });
+  allow_child_to_finish.Notify();
+  cleaned_up.WaitForNotification();
+}
+
+TEST_F(FiberTest, DetachAlreadyFinishedFiber) {
+  static absl::Notification* fiber_cleaned_up = nullptr;
+  absl::Notification cleaned_up;
+  fiber_cleaned_up = &cleaned_up;
+
+  auto fiber = std::make_unique<Fiber>(DoNothing);
+  Select({fiber->OnJoinable()});
+  subtle::Detach(
+      *fiber.release(), *+[](Fiber* const f) {
+        delete f;
+        fiber_cleaned_up->Notify();
+      });
+  cleaned_up.WaitForNotification();
+}
+
 static void CheckDeadlineAndWaitForCancel(absl::Time deadline) {
   ASSERT_EQ(base::CurrentContext().deadline(), deadline);
   WaitForCancel();  // Deadline will cancel us.

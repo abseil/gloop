@@ -27,7 +27,6 @@
 
 #include <array>
 #include <cstdint>
-#include <memory>
 #include <utility>
 
 #include "absl/flags/declare.h"
@@ -89,9 +88,9 @@ class FiberHelpers {
   // Returns the current scheduler for a given fiber.
   static base::scheduling::Scheduler* GetScheduler(const Fiber* fiber);
 
-  // Create a new child fiber in the tree of `parent`.
-  static std::unique_ptr<Fiber> CreateChildFiber(
-      Fiber* parent, absl::AnyInvocable<void() &&> invocable);
+  // Create and start a new detached child fiber in the tree of `parent`.
+  static void CreateDetachedChildFiber(Fiber* parent,
+                                       absl::AnyInvocable<void() &&> invocable);
 };
 
 // An alarm which, once created, will fire at a specified time. When destroyed,
