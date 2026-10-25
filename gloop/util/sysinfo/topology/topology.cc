@@ -505,8 +505,12 @@ void SysTopologyGenerator::ReadNumaCPUMap(SysTopology::TopologyInfo* ti) const {
         int num_nodes = 0;
         double sum = 0;
         std::map<int, int> node_distances;
+        const bool map_by_online_node_ids =
+            (distance_vec.size() == node_ids.size());
         for (const auto& distance : distance_vec) {
-          node_distances[num_nodes] = distance;
+          const int target_node =
+              map_by_online_node_ids ? node_ids[num_nodes] : num_nodes;
+          node_distances[target_node] = distance;
           sum += distance;
           num_nodes++;
         }
@@ -1261,8 +1265,9 @@ SysTopology::SysTopology(TopologyInfo ti) : topology_info_(ti) {
                      << li.name << ".  Fake NUMA "
                      << "detected."
                      << "";
-        newmap[child.first] = child.second;
-        ++max_id[li.name];
+        const Id new_id = ++max_id[li.name];
+        rm[child.first] = new_id;
+        newmap[new_id] = child.second;
       } else {
         newmap[rm[child.first]] = child.second;
       }
@@ -1271,13 +1276,35 @@ SysTopology::SysTopology(TopologyInfo ti) : topology_info_(ti) {
 
     if (li.name == "node") {
       VLOG(4) << "Remapping mems";
+      std::vector<MemInfo> remapped_mems;
+      remapped_mems.reserve(ti.mems.size());
       for (auto& mi : ti.mems) {
-        if (rm.count(mi.node) == 0) {
+        auto it = rm.find(mi.node);
+        if (it == rm.end()) {
           LOG(WARNING) << ": no entry for node id " << mi.node;
           continue;
         }
-        mi.node = rm[mi.node];
+        mi.node = it->second;
+        remapped_mems.push_back(mi);
       }
+      ti.mems = std::move(remapped_mems);
+
+      std::map<int, std::map<int, int>> remapped_distances;
+      for (const auto& [src_node, dst_map] : ti.maxphysnode_distances) {
+        auto src_it = rm.find(src_node);
+        if (src_it == rm.end()) {
+          continue;
+        }
+        std::map<int, int>& remapped_row = remapped_distances[src_it->second];
+        for (const auto& [dst_node, dist] : dst_map) {
+          auto dst_it = rm.find(dst_node);
+          if (dst_it == rm.end()) {
+            continue;
+          }
+          remapped_row[dst_it->second] = dist;
+        }
+      }
+      ti.maxphysnode_distances = std::move(remapped_distances);
     }
   }
 
