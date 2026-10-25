@@ -116,10 +116,12 @@
 #include <concepts>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <type_traits>
 #include <utility>
 
 #include "absl/base/attributes.h"
+#include "absl/base/nullability.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/flags/flag.h"
 #include "absl/functional/any_invocable.h"
@@ -128,6 +130,8 @@
 #include "gloop/base/context.h"
 #include "gloop/base/scheduling/domain.h"
 #include "gloop/base/scheduling/scheduler.h"
+#include "gloop/perftools/tracing/string_label.h"
+#include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/thread/fiber/fiber-internal.h"  // IWYU pragma: export
 #include "gloop/thread/fiber/fiber-options.h"
 #include "gloop/thread/fiber/fiber.pb.h"
@@ -313,20 +317,49 @@ class Fiber : private gtl::intrusive_link<Fiber, CancellationList::Tag> {
 
   void Start();
   void Body();
-  void MarkJoined();
+
+  // Records that the Join() requirement has been satisfied and removes *this
+  // from its parent's active children if applicable.
+  //
+  // If `with_context` is non-null, destroys `*with_context` while holding
+  // `parent_->mu_` (after emitting any `parent_->joinable_` trace signal and
+  // before notifying `parent_->joinable_`), or before releasing the tree
+  // scheduler for root fibers. No-op if *this was already joined (only
+  // reachable from external Join() calls where `with_context` is null).
+  void MarkJoined(
+      std::optional<base::WithContext>* absl_nullable with_context = nullptr);
   void HandleDeadlineExpiry();
-  void InternalJoin();
+  // Waits for `joinable_` to be notified and then calls
+  // `MarkJoined(with_context)`.
+  void InternalJoin(
+      std::optional<base::WithContext>* absl_nullable with_context = nullptr);
 
   // Changes the state of this fiber to FINISHED.
   //
   // If the current fiber is not a detached fiber and all children have
-  // finished, then the this function will invoke `joinable_.Notify()` to
-  // signal that the fiber has become joinable.
+  // finished, then this function will signal `joinable_` to indicate that the
+  // fiber has become joinable.
+  //
+  // If `with_context` is non-null and this fiber is not detached, destroys
+  // `*with_context` while holding `mu_`, after emitting any `joinable_` trace
+  // signal and before marking `joinable_` notified or releasing `mu_`. For
+  // detached fibers, `*with_context` is left active for the subsequent
+  // `MarkJoined()` or `InternalJoin()` call.
   //
   // Returns [cleanup_fn, joinable], which allows the caller to directly
   // observe if both the finished fiber was detached (clean_up != nullptr) and
   // if the fiber is joinable, in which case it can self-join immediately.
-  std::pair<CleanupFn*, bool> MarkFinished();
+  std::pair<CleanupFn*, bool> MarkFinished(
+      std::optional<base::WithContext>* absl_nullable with_context = nullptr);
+
+  // Destroys `*with_context` if `with_context` is non-null. If `event` is
+  // non-null, emits its `TraceSignal(label)` before destroying `*with_context`
+  // and marks `event` notified afterward. No-op if both are null.
+  static void ResetWithContextAndMaybeNotify(
+      std::optional<base::WithContext>* absl_nullable with_context,
+      PermanentEvent* absl_nullable event = nullptr,
+      perftools::tracing::StringRef label =
+          perftools::tracing::TraceSourceLocation::current());
 
   static void InvokeFiberBody(void* fiber_ptr);
 

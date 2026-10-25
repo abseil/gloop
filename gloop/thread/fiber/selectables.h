@@ -126,6 +126,22 @@ class PermanentEvent : public internal::Selectable {
     return notified_.load(std::memory_order_acquire);
   }
 
+  // Two-phase Notify() for Fiber, which must tear down its base::WithContext
+  // after emitting the TraceSignal() causality annotation and before waking
+  // joiners. Calling `TraceSignalForNotify(label)` followed by
+  // `NotifyWithoutTraceSignal()` is equivalent to `Notify(label)`.
+  //
+  // REQUIRES: Notify() is never called on this event, and
+  // TraceSignalForNotify() is called at most once and always followed by
+  // NotifyWithoutTraceSignal().
+
+  // Emits the TraceSignal() annotation without marking the event notified.
+  void TraceSignalForNotify(
+      perftools::tracing::StringRef label =
+          perftools::tracing::TraceSourceLocation::current());
+  // Marks the event notified and wakes waiters without emitting TraceSignal().
+  void NotifyWithoutTraceSignal();
+
   SpinLock lock_;  // Synchronizes notification with Selector (un)registration
   std::atomic<bool> notified_{false};
 

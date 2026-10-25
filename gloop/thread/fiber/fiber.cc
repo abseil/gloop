@@ -26,6 +26,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "absl/base/internal/thread_identity.h"
@@ -48,6 +49,8 @@
 #include "gloop/base/scheduling/downcalls.h"
 #include "gloop/base/scheduling/scheduler.h"
 #include "gloop/base/static_threadlocal.h"
+#include "gloop/perftools/tracing/string_label.h"
+#include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/thread/fiber/fiber-internal.h"
 #include "gloop/thread/fiber/fiber-options.h"
 #include "gloop/thread/fiber/fiber.pb.h"
@@ -76,8 +79,19 @@ ABSL_FLAG(
 // Implementation notes:
 //
 // Locking:
-//   There is currently no nesting of mu_(s) in parent/child interactions.
-// Should this arise, parent should be ordered before child.
+//   Cancel() nests mu_(s) parent-before-child; any other nesting must follow
+// the same order.
+//   MarkFinished() and MarkJoined() destroy the fiber's `base::WithContext`
+// (trace listener callbacks and `base::Context` teardown) while holding `mu_`
+// (attached fibers) or `parent_->mu_` (detached children; detached roots hold
+// no lock), so teardown completes before joiners are woken or can observe
+// `FINISHED` / `children_.empty()`. Consequently, listener callbacks and
+// context teardown must not acquire `mu_` of this fiber or its ancestors (e.g.
+// `Cancel()` on this fiber or any ancestor, `Detach()`, creating a child of the
+// parent, or `Bundle` operations on the parent's bundle), must not wait for
+// this fiber or any ancestor to become joinable, and should not block.
+// Non-blocking queries such as `TrySelect({OnJoinable()})` are safe because
+// they do not acquire a fiber's `mu_`.
 //
 // State transitions:
 //   RUNNING               : Initial state.
@@ -394,7 +408,11 @@ void Fiber::Body() {
       base::internal::CancellationColor::kFibers);
 #endif
 
-  base::WithContext with_context(std::move(context_));
+  // Pass the trace source location explicitly: a defaulted `label` would
+  // capture a source location inside <optional> instead of this line.
+  std::optional<base::WithContext> with_context(
+      std::in_place, std::move(context_),
+      perftools::tracing::TraceSourceLocation::current());
   std::move(work_)();
   // Immediately free the storage.  This matches the behavior of NewCallback
   // and allows ref-counting arguments to be scoped to the fiber's body (e.g.
@@ -417,20 +435,36 @@ void Fiber::Body() {
   // This also alleviates lifetime concerns for the name itself.
   thread::InternalSetCurrentFiberName("");
 
-  if (auto [clean_up, joinable] = MarkFinished(); clean_up != nullptr) {
+  if (auto [clean_up, joinable] = MarkFinished(&with_context);
+      clean_up != nullptr) {
     // This is a self-joining fiber, but we may need to wait for children.
     if (joinable) {
-      MarkJoined();
+      MarkJoined(&with_context);
     } else {
-      InternalJoin();
+      InternalJoin(&with_context);
     }
     clean_up(this);
   }
 }
 
-void Fiber::InternalJoin() {
+void Fiber::ResetWithContextAndMaybeNotify(
+    std::optional<base::WithContext>* absl_nullable with_context,
+    PermanentEvent* absl_nullable event, perftools::tracing::StringRef label) {
+  if (event != nullptr) {
+    event->TraceSignalForNotify(label);
+  }
+  if (with_context != nullptr) {
+    with_context->reset();
+  }
+  if (event != nullptr) {
+    event->NotifyWithoutTraceSignal();
+  }
+}
+
+void Fiber::InternalJoin(
+    std::optional<base::WithContext>* absl_nullable with_context) {
   Select({joinable_.OnEvent()});
-  MarkJoined();
+  MarkJoined(with_context);
 }
 
 void Fiber::Join() {
@@ -454,7 +488,8 @@ void Fiber::Join() {
 // should be called with `this`.
 //
 // REQUIRES: *this has not already been marked finished.
-std::pair<Fiber::CleanupFn*, bool> Fiber::MarkFinished() {
+std::pair<Fiber::CleanupFn*, bool> Fiber::MarkFinished(
+    std::optional<base::WithContext>* absl_nullable with_context) {
   absl::MutexLock l(mu_);
   DCHECK_EQ(state_, RUNNING);
   {
@@ -464,17 +499,19 @@ std::pair<Fiber::CleanupFn*, bool> Fiber::MarkFinished() {
   }
 
   state_ = FINISHED;
-  Fiber::CleanupFn* cleanup = detached_cleanup_.load(std::memory_order_relaxed);
-
-  if (children_.empty()) {
-    // This fiber has become joinable as it, and all children, are finished.
-    // We only signal attached fibers as detached fibers are self-joining.
-    if (cleanup == nullptr) {
-      joinable_.Notify();
-    }
-    return {cleanup, true};
+  Fiber::CleanupFn* const cleanup =
+      detached_cleanup_.load(std::memory_order_relaxed);
+  const bool joinable = children_.empty();
+  // We only signal attached fibers as detached fibers are self-joining. For
+  // detached fibers, `*with_context` is left active for `MarkJoined()`
+  // (possibly via `InternalJoin()`). This relies on only the detached fiber
+  // itself waiting on its `joinable_` when `!joinable` (woken by its last
+  // child's `MarkJoined()`).
+  if (cleanup == nullptr) {
+    ResetWithContextAndMaybeNotify(with_context,
+                                   joinable ? &joinable_ : nullptr);
   }
-  return {cleanup, false};
+  return {cleanup, joinable};
 }
 
 // Record that the Join() requirement has been satisfied.  In the case of a
@@ -484,7 +521,8 @@ std::pair<Fiber::CleanupFn*, bool> Fiber::MarkFinished() {
 // children.
 //
 // No-op if *this has already been Join()-ed.
-void Fiber::MarkJoined() {
+void Fiber::MarkJoined(
+    std::optional<base::WithContext>* absl_nullable with_context) {
   DCHECK(internal::FiberHelpers::IsFiberDetached(this) ||
          joinable_.HasBeenNotified());
 
@@ -492,7 +530,10 @@ void Fiber::MarkJoined() {
   {
     absl::MutexLock l(mu_);
     DCHECK(children_.empty());
-    if (state_ == JOINED) return;  // Already joined.
+    if (state_ == JOINED) {
+      DCHECK_EQ(with_context, nullptr);
+      return;  // Already joined.
+    }
     DCHECK_EQ(state_, FINISHED);
     DVLOG(2) << "F " << this << " joined";
     state_ = JOINED;
@@ -501,10 +542,12 @@ void Fiber::MarkJoined() {
   if (has_parent) {
     absl::MutexLock l(parent_->mu_);
     parent_->children_.erase(this);
-    if (parent_->children_.empty() && parent_->state_ == FINISHED) {
-      parent_->joinable_.Notify();
-    }
+    const bool notify_parent =
+        parent_->children_.empty() && parent_->state_ == FINISHED;
+    ResetWithContextAndMaybeNotify(
+        with_context, notify_parent ? &parent_->joinable_ : nullptr);
   } else {
+    ResetWithContextAndMaybeNotify(with_context);
     // We were joined and have no parent. All of our children must already be
     // joined. Release our ref on the scheduler.
     tree_scheduler_.Unref();
