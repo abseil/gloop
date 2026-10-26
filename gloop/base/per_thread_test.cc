@@ -177,6 +177,32 @@ TEST(PerThread, KeyRefsInDestructor) {
   t.join();
 }
 
+TEST(PerThread, ConcurrentThreadExit) {
+  static ABSL_CONST_INIT PerThread::Key concurrent_key{PerThread::kInvalid};
+  static std::atomic<int> dtor_calls{0};
+  PerThread::Allocate(&concurrent_key, [](void* v) {
+    CHECK(v != nullptr);
+    dtor_calls.fetch_add(1, std::memory_order_relaxed);
+  });
+
+  constexpr int kIterations = 10;
+  constexpr int kThreads = 8;
+  for (int iter = 0; iter < kIterations; ++iter) {
+    std::thread threads[kThreads];
+    for (int i = 0; i < kThreads; ++i) {
+      threads[i] = std::thread([i]() {
+        void** slot = PerThread::Data(concurrent_key);
+        *slot = reinterpret_cast<void*>(static_cast<uintptr_t>(i + 1));
+        CHECK_EQ(PerThread::GetData(concurrent_key), *slot);
+      });
+    }
+    for (std::thread& thread : threads) {
+      thread.join();
+    }
+  }
+  EXPECT_EQ(dtor_calls.load(std::memory_order_relaxed), kIterations * kThreads);
+}
+
 #if GTEST_GOOGLE3_MODE_
 ABSL_CONST_INIT PerThread::Key benchmark_key{PerThread::kInvalid};
 

@@ -159,21 +159,22 @@ void PerThread::KeyDest(void** data) {
     if (!BASE_INTERNAL_PER_THREAD_TLS) {
       // remove this thread's entries from the cache
       for (int i = 0; i != kTotalCacheEntries; i++) {
-        if (per_thread_cache[i].data == data) {
+        if (per_thread_cache[i].data.load(std::memory_order_relaxed) == data) {
           // first prevent matching; then scrub data; then deallocate slot
           std::atomic_thread_fence(std::memory_order_acquire);
           per_thread_cache[i].sp.store(1, std::memory_order_relaxed);
-          per_thread_cache[i].data = nullptr;
+          per_thread_cache[i].data.store(nullptr, std::memory_order_relaxed);
           per_thread_cache[i].sp.store(0, std::memory_order_release);
         }
       }
       LowLevelAlloc::Free(data);
+    } else {
+      // Set per_thread_data[0] to zero so that if PerThread should be used
+      // again by this dying thread (perhaps in another thread-specific-data
+      // destructor), it will take the slow path and perform full
+      // reinitialization, thus causing it to call this destructor again.
+      PerThread::per_thread_data[0] = nullptr;
     }
-    // Set per_thread_data[0] to zero so that if PerThread should be used again
-    // by this dying thread (perhaps in another thread-specific-data
-    // destructor), it will take the slow path and perform full
-    // reinitialization, thus causing it to call this destructor again.
-    PerThread::per_thread_data[0] = nullptr;
   }
 }
 
@@ -186,8 +187,7 @@ void PerThread::AllocateInternal(PerThread::Key* key,
     destructor[next_free_key] = destr;
     // we multiply the key by the array stride so no multiplication
     // is needed on the fast path.
-    key->store(next_free_key * sizeof(per_thread_cache[0].data[0]),
-               std::memory_order_relaxed);
+    key->store(next_free_key * sizeof(void*), std::memory_order_relaxed);
     next_free_key++;
   }
   mu.unlock();
@@ -252,8 +252,8 @@ void** PerThread::DataSlowPathNonTLS(bool allocate, int examined, intptr_t sp,
                                      CacheEntry* e) {
   // finish the search that the inlined fast-path started.
   for (int i = examined; i < (1 << PerThread::kLog2CacheAssoc); i++) {
-    if (e[i].sp.load(std::memory_order_relaxed) == sp) {
-      return e[i].data;
+    if (e[i].sp.load(std::memory_order_acquire) == sp) {
+      return e[i].data.load(std::memory_order_relaxed);
     }
   }
   PerThread::ModuleInit::Init();  // Initialize per_thread_key if necessary.
@@ -283,7 +283,7 @@ void** PerThread::DataSlowPathNonTLS(bool allocate, int examined, intptr_t sp,
   if (data != nullptr && empty < (1 << PerThread::kLog2CacheAssoc) &&
       atomic_danger::CompareAndSwap(&e[empty].sp, 0, 1,
                                     std::memory_order_acquire) == 0) {
-    e[empty].data = data;  // we succeeded
+    e[empty].data.store(data, std::memory_order_relaxed);  // we succeeded
     e[empty].sp.store(sp, std::memory_order_release);
   }
   return data;  // return pointer to the first location, or 0 if there's no data
