@@ -1582,6 +1582,15 @@ namespace base {
 //   pointers to data that is only valid for a certain duration).
 //
 // TraceEntrySource implementations must be thread-safe.
+//
+// Emit() and Clone() may be called while the hosting Tracer holds internal
+// locks. They must not call into the hosting Tracer (e.g., annotate it, read or
+// modify its status, Attach()/Detach(), or acquire or release references to it
+// such as by copying or destroying a TraceContext that refers to it), with the
+// exception of lock-free accessors of state that is set once during Tracer
+// initialization, such as get_start_time(). The same applies to the destructor
+// of any object returned by Clone(), since the hosting Tracer may destroy it
+// while holding internal locks.
 class TraceEntrySource {
  public:
   virtual ~TraceEntrySource();
