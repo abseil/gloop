@@ -63,9 +63,15 @@ namespace {
 using ErrorSpaceTable = absl::flat_hash_map<std::string, const ErrorSpace*>;
 using ErrorSpaceFactoryList = std::vector<const ErrorSpace* (*)()>;
 
-ABSL_CONST_INIT ABSL_CACHELINE_ALIGNED std::atomic<const ErrorSpaceTable*>
-    static_spaces = nullptr;
-ABSL_CONST_INIT ABSL_CACHELINE_ALIGNED absl::Mutex space_lock(absl::kConstInit);
+// We hoist this into a struct so that the ordering of ABSL_CONST_INIT and
+// ABSL_CACHELINE_ALIGNED remains the same regardless of whether they are
+// implemented as attributes or keywords.
+ABSL_CONST_INIT struct {
+  ABSL_CACHELINE_ALIGNED absl::Mutex lock{absl::kConstInit};
+  ABSL_CACHELINE_ALIGNED std::atomic<const ErrorSpaceTable*> spaces = nullptr;
+} g_error_space_data;  // NOLINT(google3-runtime-global-variables)
+auto& [space_lock, static_spaces] = g_error_space_data;
+
 ABSL_CONST_INIT ErrorSpaceFactoryList* pending_static_spaces
     ABSL_GUARDED_BY(space_lock) = nullptr;
 ABSL_CONST_INIT std::atomic<ErrorSpaceTable*> dynamic_spaces
