@@ -30,6 +30,7 @@
 #include "absl/strings/string_view.h"
 #include "gtest/gtest.h"
 
+namespace strings {
 namespace {
 
 // We use this class instead of ArrayByteSource to simulate a
@@ -56,7 +57,7 @@ TEST(ByteSourceTest, CopyTo) {
   strings::StringByteSink sink(&str);
 
   source.CopyTo(&sink, data.size());
-  EXPECT_EQ(data, str);
+  EXPECT_EQ(str, data);
 }
 
 TEST(ByteSourceTest, CopySubstringTo) {
@@ -67,33 +68,33 @@ TEST(ByteSourceTest, CopySubstringTo) {
   strings::StringByteSink sink(&str);
 
   source.CopyTo(&sink, data.size() - 2);
-  EXPECT_EQ(data.substr(1, data.size() - 2), str);
-  EXPECT_EQ("!", source.Peek());
+  EXPECT_EQ(str, data.substr(1, data.size() - 2));
+  EXPECT_EQ(source.Peek(), "!");
 }
 
 TEST(ByteSourceTest, LimitByteSource) {
   absl::string_view data("Hello world!");
   MockByteSource source(data, 3);
   strings::LimitByteSource limit_source(&source, 6);
-  EXPECT_EQ(6, limit_source.Available());
+  EXPECT_EQ(limit_source.Available(), 6);
   limit_source.Skip(1);
-  EXPECT_EQ(5, limit_source.Available());
+  EXPECT_EQ(limit_source.Available(), 5);
 
   {
     std::string str;
     strings::StringByteSink sink(&str);
     limit_source.CopyTo(&sink, limit_source.Available());
-    EXPECT_EQ("ello ", str);
-    EXPECT_EQ(0, limit_source.Available());
-    EXPECT_EQ(6, source.Available());
+    EXPECT_EQ(str, "ello ");
+    EXPECT_EQ(limit_source.Available(), 0);
+    EXPECT_EQ(source.Available(), 6);
   }
 
   {
     std::string str;
     strings::StringByteSink sink(&str);
     source.CopyTo(&sink, source.Available());
-    EXPECT_EQ("world!", str);
-    EXPECT_EQ(0, source.Available());
+    EXPECT_EQ(str, "world!");
+    EXPECT_EQ(source.Available(), 0);
   }
 }
 
@@ -105,10 +106,10 @@ TEST(ByteSinkTest, AppendExternalMemory) {
     strings::StringByteSink sink(&str);
     sink.AppendExternalMemory(data, &released, [](void* arg) {
       bool* rel = static_cast<bool*>(arg);
-      ASSERT_TRUE(!*rel);
+      ASSERT_FALSE(*rel);
       *rel = true;
     });
-    EXPECT_EQ(data, str);
+    EXPECT_EQ(str, data);
   }
   EXPECT_TRUE(released);
 }
@@ -118,15 +119,15 @@ TEST(ByteSinkTest, GetAppendBuffer) {
   std::string str;
   strings::StringByteSink sink(&str);
   sink.Append("a", 1);
-  EXPECT_EQ(1, str.length());
+  EXPECT_EQ(str.length(), 1);
 
   size_t capacity = 0;
   char* p = sink.GetAppendBuffer(3, 99, scratch, sizeof(scratch), &capacity);
   EXPECT_GE(capacity, 3);
   snprintf(p, capacity, "bc");
   sink.Append(p, 2);  // Do not include the NUL.
-  EXPECT_EQ(3, str.length());
-  EXPECT_STREQ("abc", str.c_str());
+  EXPECT_EQ(str.length(), 3);
+  EXPECT_STREQ(str.c_str(), "abc");
 }
 
 TEST(StringByteSinkTest, GetAppendBuffer) {
@@ -134,41 +135,41 @@ TEST(StringByteSinkTest, GetAppendBuffer) {
   std::string str;
   strings::StringByteSink sink(&str);
   sink.Append("a", 1);
-  EXPECT_EQ(1, str.length());
+  EXPECT_EQ(str.length(), 1);
 
   size_t capacity = 0;
   char* p = sink.GetAppendBuffer(3, 99, scratch, sizeof(scratch), &capacity);
   if (absl::strings_internal::STLStringSupportsNontrashingResize(&str)) {
     EXPECT_GE(capacity, 99);
-    EXPECT_EQ(&str[0] + 1, p);
+    EXPECT_EQ(p, &str[0] + 1);
   }
   EXPECT_GE(capacity, 3);
   snprintf(p, capacity, "bc");
   sink.Append(p, 2);
-  EXPECT_EQ(3, str.length());
-  EXPECT_STREQ("abc", str.c_str());
+  EXPECT_EQ(str.length(), 3);
+  EXPECT_STREQ(str.c_str(), "abc");
 
   p = sink.GetAppendBuffer(3, 99, scratch, sizeof(scratch), &capacity);
   if (absl::strings_internal::STLStringSupportsNontrashingResize(&str)) {
     EXPECT_GE(capacity, 99);
-    EXPECT_EQ(&str[0] + 3, p);
+    EXPECT_EQ(p, &str[0] + 3);
   }
   EXPECT_GE(capacity, 3);
   snprintf(p, capacity, "de");
   sink.Append(p, 2);
-  EXPECT_EQ(5, str.length());
-  EXPECT_STREQ("abcde", str.c_str());
+  EXPECT_EQ(str.length(), 5);
+  EXPECT_STREQ(str.c_str(), "abcde");
 
   p = sink.GetAppendBuffer(3, 99, scratch, sizeof(scratch), &capacity);
   if (absl::strings_internal::STLStringSupportsNontrashingResize(&str)) {
     EXPECT_GE(capacity, 99);
-    EXPECT_EQ(&str[0] + 5, p);
+    EXPECT_EQ(p, &str[0] + 5);
   }
   EXPECT_GE(capacity, 3);
   p[0] = 'f';
   sink.Append(p, 1);
-  EXPECT_EQ(6, str.length());
-  EXPECT_STREQ("abcdef", str.c_str());
+  EXPECT_EQ(str.length(), 6);
+  EXPECT_STREQ(str.c_str(), "abcdef");
 
   std::string str2("abc");
   strings::StringByteSink sink2(&str2);
@@ -177,13 +178,13 @@ TEST(StringByteSinkTest, GetAppendBuffer) {
   p = sink2.GetAppendBuffer(3, 99, scratch, sizeof(scratch), &capacity);
   if (absl::strings_internal::STLStringSupportsNontrashingResize(&str2)) {
     EXPECT_GE(capacity, 99);
-    EXPECT_EQ(&str2[0] + 4, p);
+    EXPECT_EQ(p, &str2[0] + 4);
   }
   EXPECT_GE(capacity, 3);
   snprintf(p, capacity, "ef");
   sink2.Append(p, 2);
-  EXPECT_EQ(6, str2.length());
-  EXPECT_STREQ("abcdef", str2.c_str());
+  EXPECT_EQ(str2.length(), 6);
+  EXPECT_STREQ(str2.c_str(), "abcdef");
 }
 
 TEST(StringByteSinkTest, GetAppendBufferGrowthRate) {
@@ -216,7 +217,7 @@ TEST(ByteSourceTest, CopyToStringByteSink) {
   std::string str;
   strings::StringByteSink sink(&str);
   source.CopyTo(&sink, data.size());
-  EXPECT_EQ(data, str);
+  EXPECT_EQ(str, data);
 }
 
 TEST(UncheckedArrayByteSinkTest, GetAppendBuffer) {
@@ -226,12 +227,12 @@ TEST(UncheckedArrayByteSinkTest, GetAppendBuffer) {
   sink.Append("a", 1);
   size_t capacity = 0;
   char* p = sink.GetAppendBuffer(3, 99, scratch, sizeof(scratch), &capacity);
-  EXPECT_EQ(99, capacity);  // This sink gives us whatever we ask for.
-  EXPECT_EQ(fixed_array + 1, p);
+  EXPECT_EQ(capacity, 99);  // This sink gives us whatever we ask for.
+  EXPECT_EQ(p, fixed_array + 1);
   snprintf(p, capacity, "bc");
   sink.Append(p, 3);  // Include the NUL.
-  EXPECT_EQ(fixed_array + 4, sink.CurrentDestination());
-  EXPECT_STREQ("abc", fixed_array);
+  EXPECT_EQ(sink.CurrentDestination(), fixed_array + 4);
+  EXPECT_STREQ(fixed_array, "abc");
 }
 
 TEST(CheckedArrayByteSinkTest, GetAppendBuffer) {
@@ -241,20 +242,20 @@ TEST(CheckedArrayByteSinkTest, GetAppendBuffer) {
   sink.Append("a", 1);
   size_t capacity = 0;
   char* p = sink.GetAppendBuffer(3, 99, scratch, sizeof(scratch), &capacity);
-  EXPECT_EQ(3, capacity);  // This sink gives us its remaining buffer.
-  EXPECT_EQ(fixed_array + 1, p);
+  EXPECT_EQ(capacity, 3);  // This sink gives us its remaining buffer.
+  EXPECT_EQ(p, fixed_array + 1);
   snprintf(p, capacity, "bc");
   sink.Append(p, 3);  // Include the NUL.
-  EXPECT_EQ(4, sink.NumberOfBytesWritten());
-  EXPECT_STREQ("abc", fixed_array);
+  EXPECT_EQ(sink.NumberOfBytesWritten(), 4);
+  EXPECT_STREQ(fixed_array, "abc");
   EXPECT_FALSE(sink.Overflowed());
   p = sink.GetAppendBuffer(3, 99, scratch, sizeof(scratch), &capacity);
-  EXPECT_EQ(sizeof(scratch), capacity);  // The array is full.
-  EXPECT_EQ(scratch, p);
+  EXPECT_EQ(capacity, sizeof(scratch));  // The array is full.
+  EXPECT_EQ(p, scratch);
   snprintf(p, capacity, "de");
   sink.Append(p, 2);                          // Anything >0.
-  EXPECT_EQ(4, sink.NumberOfBytesWritten());  // No change except Overflowed().
-  EXPECT_STREQ("abc", fixed_array);
+  EXPECT_EQ(sink.NumberOfBytesWritten(), 4);  // No change except Overflowed().
+  EXPECT_STREQ(fixed_array, "abc");
   EXPECT_TRUE(sink.Overflowed());
 }
 
@@ -265,22 +266,22 @@ TEST(GrowingArrayByteSinkTest, GetAppendBuffer) {
   size_t capacity = 0;
   char* p = sink.GetAppendBuffer(3, 99, scratch, sizeof(scratch), &capacity);
   EXPECT_GE(capacity, 3);  // This sink allocated 4 or more bytes.
-  EXPECT_NE(scratch, p);
+  EXPECT_NE(p, scratch);
   memcpy(p, "bcd", 3);  // Do not write the NUL.
   sink.Append(p, 3);
   p = sink.GetAppendBuffer(20, 30, scratch, sizeof(scratch), &capacity);
   EXPECT_GE(capacity, 30);  // Should have triggered expansion (reallocation).
-  EXPECT_NE(scratch, p);
+  EXPECT_NE(p, scratch);
   snprintf(p, capacity, "efghijklmnopqrstuvw");
   sink.Append(p, 20);  // Include the NUL.
   size_t length;
   std::unique_ptr<char[]> owned(sink.GetBuffer(&length));
-  EXPECT_EQ(24, length);
-  EXPECT_STREQ("abcdefghijklmnopqrstuvw", owned.get());
+  EXPECT_EQ(length, 24);
+  EXPECT_STREQ(owned.get(), "abcdefghijklmnopqrstuvw");
 
   owned = sink.GetBuffer(&length);
-  EXPECT_EQ(0, length);
-  EXPECT_TRUE(owned == nullptr);
+  EXPECT_EQ(length, 0);
+  EXPECT_EQ(owned, nullptr);
 }
 
 // Trivial test for a trivial class
@@ -298,9 +299,10 @@ TEST(ByteSinkTest, NullByteSink) {
   char scratch[8];
   size_t capacity = 0;
   char* p = sink.GetAppendBuffer(3, 99, scratch, sizeof(scratch), &capacity);
-  EXPECT_EQ(scratch, p);
+  EXPECT_EQ(p, scratch);
   size_t len = snprintf(p, capacity, "bc");
   sink.Append(p, len);
 }
 
 }  // namespace
+}  // namespace strings
