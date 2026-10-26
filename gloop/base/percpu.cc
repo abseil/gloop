@@ -359,6 +359,7 @@ void UnregisterThread() {
 #ifndef NDEBUG
     ABSL_RAW_LOG(FATAL, "Failed to unregister. errno: %d", err);
 #endif
+    return;
   }
 }
 
