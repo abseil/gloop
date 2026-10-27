@@ -113,7 +113,7 @@ class Bundle {
   Case OnCancel() const;
 
   // Returns a token that may be used to Select() against the completion of all
-  // fibers belonging to this Bundle.
+  // fibers belonging to this Bundle. May be called concurrently.
   // It is illegal to Add() children after calling OnJoinable().
   // Note: Callers must still ensure JoinAll() is called.
   Case OnJoinable();
