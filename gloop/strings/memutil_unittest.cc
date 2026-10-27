@@ -27,22 +27,19 @@
 #include <algorithm>
 #include <cstdint>
 
-#include "absl/flags/flag.h"
 #include "absl/log/check.h"
-#include "absl/log/log.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
-#include "gloop/base/init_google.h"
-#include "gloop/base/log_file_flags.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace strings {
+namespace {
 
-using testing::AllOf;
-using testing::Ge;
-using testing::Le;
+using ::testing::AllOf;
+using ::testing::Ge;
+using ::testing::Le;
 
 // We fill the haystack with aaaaaaaaaaaaaaaaaa...aaaab.
 // That gives us:
@@ -100,7 +97,12 @@ using testing::Le;
 
 static const int kHaystackSize = 10000;
 static const int64_t kHaystackSize64 = kHaystackSize;
-static char* haystack;
+static char* const haystack = []() {
+  auto* h = new char[kHaystackSize];
+  for (int i = 0; i < kHaystackSize - 1; ++i) h[i] = 'a';
+  h[kHaystackSize - 1] = 'b';
+  return h;
+}();
 
 static void BM_Memmem(benchmark::State& state) {
   for (auto _ : state) {
@@ -326,15 +328,18 @@ TEST(MemUtilTest, StringViewOverloads) {
   absl::string_view a = "hello there";
 
   char* p = memdup(a);
+  ASSERT_NE(p, nullptr);
   EXPECT_EQ(absl::string_view(p, a.size()), a);
   free(p);
 
   free(memdup(absl::string_view()));
 
   const char* p2 = memrchr(a, 'e');
-  EXPECT_TRUE(p2 && p2[-1] == 'r');
+  ASSERT_NE(p2, nullptr);
+  EXPECT_EQ(p2[-1], 'r');
   p2 = memrchr(a.substr(0, a.size() - 1), 'e');
-  EXPECT_TRUE(p2 && p2[-1] == 'h');
+  ASSERT_NE(p2, nullptr);
+  EXPECT_EQ(p2[-1], 'h');
   p2 = memrchr(a, 'u');
   EXPECT_EQ(p2, nullptr);
   EXPECT_EQ(memrchr(absl::string_view(), 'a'), nullptr);
@@ -352,7 +357,9 @@ TEST(MemUtilTest, StringViewOverloads) {
   EXPECT_EQ(memcspn(absl::string_view(), "a"), 0);
 
   p2 = mempbrk(a, "leho");
-  EXPECT_TRUE(p2 && p2[1] == 'e' && p2[2] == 'l');
+  ASSERT_NE(p2, nullptr);
+  EXPECT_EQ(p2[1], 'e');
+  EXPECT_EQ(p2[2], 'l');
   EXPECT_EQ(mempbrk(a, "nu"), nullptr);
   EXPECT_EQ(mempbrk(absl::string_view(), "a"), nullptr);
 
@@ -370,147 +377,177 @@ TEST(MemUtilTest, StringViewOverloads) {
   EXPECT_EQ(memmatch(a, ""), a.data());
 }
 
-TEST(MemUtilTest, AllTests) {
-  // check memutil functions
+TEST(MemUtilTest, MemCaseCmp) {
   const char a[1000] = "hello there";
 
-  CHECK_EQ(memcasecmp(a, "h", 1), 0);                         // 'h' == 'h'
+  EXPECT_EQ(memcasecmp(a, "h", 1), 0);                        // 'h' == 'h'
   EXPECT_THAT(memcasecmp(a, "g", 1), AllOf(Ge(1), Le(2)));    // 'h' > 'g'
   EXPECT_THAT(memcasecmp(a, "i", 1), AllOf(Ge(-2), Le(-1)));  // 'h' < 'i'
-  CHECK_EQ(memcasecmp(a, "heLLO there", sizeof("hello there") - 1), 0);
+  EXPECT_EQ(memcasecmp(a, "heLLO there", sizeof("hello there") - 1), 0);
   EXPECT_THAT(memcasecmp(a, "heLLO therf", sizeof("hello there") - 1),
               AllOf(Ge(-12), Le(-11)));
   EXPECT_THAT(memcasecmp(a, "heLLO therd", sizeof("hello there") - 1),
               AllOf(Ge(11), Le(12)));
-  CHECK_EQ(memcasecmp(a, "heLLO therf", sizeof("hello there") - 2), 0);
-  CHECK_EQ(memcasecmp(a, "whatever", 0), 0);
+  EXPECT_EQ(memcasecmp(a, "heLLO therf", sizeof("hello there") - 2), 0);
+  EXPECT_EQ(memcasecmp(a, "whatever", 0), 0);
+}
 
+TEST(MemUtilTest, MemDup) {
   char* p = memdup("hello", 5);
+  ASSERT_NE(p, nullptr);
+  EXPECT_EQ(absl::string_view(p, 5), "hello");
   free(p);
+}
 
-  p = memrchr("hello there", 'e', sizeof("hello there") - 1);
-  CHECK(p && p[-1] == 'r');
+TEST(MemUtilTest, MemRChr) {
+  const char* p = memrchr("hello there", 'e', sizeof("hello there") - 1);
+  ASSERT_NE(p, nullptr);
+  EXPECT_EQ(p[-1], 'r');
   p = memrchr("hello there", 'e', sizeof("hello there") - 2);
-  CHECK(p && p[-1] == 'h');
+  ASSERT_NE(p, nullptr);
+  EXPECT_EQ(p[-1], 'h');
   p = memrchr("hello there", 'u', sizeof("hello there") - 1);
-  CHECK(p == nullptr);
+  EXPECT_EQ(p, nullptr);
+}
 
+TEST(MemUtilTest, MemSpn) {
   size_t len = memspn("hello there", sizeof("hello there") - 1, "hole");
-  CHECK_EQ(len, sizeof("hello") - 1);
+  EXPECT_EQ(len, sizeof("hello") - 1);
   len = memspn("hello there", sizeof("hello there") - 1, "u");
-  CHECK_EQ(len, 0);
+  EXPECT_EQ(len, 0);
   len = memspn("hello there", sizeof("hello there") - 1, "");
-  CHECK_EQ(len, 0);
+  EXPECT_EQ(len, 0);
   len = memspn("hello there", sizeof("hello there") - 1, "trole h");
-  CHECK_EQ(len, sizeof("hello there") - 1);
+  EXPECT_EQ(len, sizeof("hello there") - 1);
   len = memspn("hello there!", sizeof("hello there!") - 1, "trole h");
-  CHECK_EQ(len, sizeof("hello there") - 1);
+  EXPECT_EQ(len, sizeof("hello there") - 1);
   len = memspn("hello there!", sizeof("hello there!") - 2, "trole h!");
-  CHECK_EQ(len, sizeof("hello there!") - 2);
+  EXPECT_EQ(len, sizeof("hello there!") - 2);
   const char ch = 'h';
   len = memspn(&ch, 1, "h");
-  CHECK_EQ(len, 1);
+  EXPECT_EQ(len, 1);
   len = memspn(nullptr, 0, "h");
-  CHECK_EQ(len, 0);
+  EXPECT_EQ(len, 0);
+}
 
-  len = memcspn("hello there", sizeof("hello there") - 1, "leho");
-  CHECK_EQ(len, 0);
+TEST(MemUtilTest, MemCSpn) {
+  size_t len = memcspn("hello there", sizeof("hello there") - 1, "leho");
+  EXPECT_EQ(len, 0);
   len = memcspn("hello there", sizeof("hello there") - 1, "u");
-  CHECK_EQ(len, sizeof("hello there") - 1);
+  EXPECT_EQ(len, sizeof("hello there") - 1);
   len = memcspn("hello there", sizeof("hello there") - 1, "");
-  CHECK_EQ(len, sizeof("hello there") - 1);
+  EXPECT_EQ(len, sizeof("hello there") - 1);
   len = memcspn("hello there", sizeof("hello there") - 1, " ");
-  CHECK_EQ(len, 5);
+  EXPECT_EQ(len, 5);
+}
 
-  p = mempbrk("hello there", sizeof("hello there") - 1, "leho");
-  CHECK(p && p[1] == 'e' && p[2] == 'l');
+TEST(MemUtilTest, MemPBrk) {
+  const char* p = mempbrk("hello there", sizeof("hello there") - 1, "leho");
+  ASSERT_NE(p, nullptr);
+  EXPECT_EQ(p[1], 'e');
+  EXPECT_EQ(p[2], 'l');
   p = mempbrk("hello there", sizeof("hello there") - 1, "nu");
-  CHECK(p == nullptr);
+  EXPECT_EQ(p, nullptr);
   p = mempbrk("hello there!", sizeof("hello there!") - 2, "!");
-  CHECK(p == nullptr);
+  EXPECT_EQ(p, nullptr);
   p = mempbrk("hello there", sizeof("hello there") - 1, " t ");
-  CHECK(p && p[-1] == 'o' && p[1] == 't');
-
-  CHECK(memprefix("hello there", sizeof("hello there") - 1, "hello"));
-  CHECK(memprefix("hello there", sizeof("hello there") - 1, "hello there"));
-  CHECK(!memprefix("hello there", sizeof("hello there") - 1, "hllo there"));
-  CHECK(!memprefix("hello there", sizeof("hello there") - 1, "hello there!"));
-  CHECK(!memprefix("hello there!", sizeof("hello there!") - 2, "hello there!"));
-  CHECK(memcaseprefix("hello there", sizeof("hello there") - 1, "heLlo"));
-  CHECK(memcaseprefix("hello there", sizeof("hello there") - 1, "heLLO there"));
-
-  CHECK(memsuffix("hello there", sizeof("hello there") - 1, "there"));
-  CHECK(memsuffix("hello there", sizeof("hello there") - 1, "hello there"));
-  CHECK(!memsuffix("hello there", sizeof("hello there") - 1, "hello thee"));
-  CHECK(!memsuffix("hello there", sizeof("hello there") - 1, "*hello there"));
-  CHECK(!memsuffix("hello there!", sizeof("hello there!") - 2, "hello there!"));
-
-  CHECK(memcasesuffix("hello there", sizeof("hello there") - 1, "there"));
-  CHECK(memcasesuffix("hello there", sizeof("hello there") - 1, "hello there"));
-  CHECK(!memcasesuffix("hello there", sizeof("hello there") - 1, "hello thee"));
-  CHECK(
-      !memcasesuffix("hello there", sizeof("hello there") - 1, "*hello there"));
-  CHECK(!memcasesuffix("hello there!", sizeof("hello there!") - 2,
-                       "hello there!"));
-
-  CHECK(memcasesuffix("hello there", sizeof("hello there") - 1, "thEre"));
-  CHECK(memcasesuffix("hello there", sizeof("hello there") - 1, "heLLO there"));
-
-  CHECK(memis("hello there", sizeof("hello there") - 1, "hello there"));
-  CHECK(!memis("hello there", sizeof("hello there") - 1, "Hello There"));
-  CHECK(memcaseis("hello there", sizeof("hello there") - 1, "Hello There"));
-  CHECK(!memis("hello ther", sizeof("hello ther") - 1, "hello there"));
-  CHECK(!memis("hello there!", sizeof("hello there!") - 1, "hello there"));
-  CHECK(!memis("hello there", sizeof("hello there"), "hello there"));
-
-  {
-    const char kHaystack[] = "0123456789";
-    CHECK_EQ(memmem(kHaystack, 0, "", 0), kHaystack);
-    CHECK_EQ(memmem(kHaystack, 10, "012", 3), kHaystack);
-    CHECK_EQ(memmem(kHaystack, 10, "0xx", 1), kHaystack);
-    CHECK_EQ(memmem(kHaystack, 10, "789", 3), kHaystack + 7);
-    CHECK_EQ(memmem(kHaystack, 10, "9xx", 1), kHaystack + 9);
-    CHECK(memmem(kHaystack, 10, "9xx", 3) == nullptr);
-    CHECK(memmem(kHaystack, 10, "xxx", 1) == nullptr);
-  }
-  {
-    const char kHaystack[] = "aBcDeFgHiJ";
-    CHECK_EQ(memcasemem(kHaystack, 0, "", 0), kHaystack);
-    CHECK_EQ(memcasemem(kHaystack, 10, "Abc", 3), kHaystack);
-    CHECK_EQ(memcasemem(kHaystack, 10, "Axx", 1), kHaystack);
-    CHECK_EQ(memcasemem(kHaystack, 10, "hIj", 3), kHaystack + 7);
-    CHECK_EQ(memcasemem(kHaystack, 10, "jxx", 1), kHaystack + 9);
-    CHECK(memcasemem(kHaystack, 10, "jxx", 3) == nullptr);
-    CHECK(memcasemem(kHaystack, 10, "xxx", 1) == nullptr);
-  }
-  {
-    const char kHaystack[] = "0123456789";
-    CHECK_EQ(memmatch(kHaystack, 0, "", 0), kHaystack);
-    CHECK_EQ(memmatch(kHaystack, 10, "012", 3), kHaystack);
-    CHECK_EQ(memmatch(kHaystack, 10, "0xx", 1), kHaystack);
-    CHECK_EQ(memmatch(kHaystack, 10, "789", 3), kHaystack + 7);
-    CHECK_EQ(memmatch(kHaystack, 10, "9xx", 1), kHaystack + 9);
-    CHECK(memmatch(kHaystack, 10, "9xx", 3) == nullptr);
-    CHECK(memmatch(kHaystack, 10, "xxx", 1) == nullptr);
-  }
+  ASSERT_NE(p, nullptr);
+  EXPECT_EQ(p[-1], 'o');
+  EXPECT_EQ(p[1], 't');
 }
 
+TEST(MemUtilTest, MemPrefix) {
+  EXPECT_TRUE(memprefix("hello there", sizeof("hello there") - 1, "hello"));
+  EXPECT_TRUE(
+      memprefix("hello there", sizeof("hello there") - 1, "hello there"));
+  EXPECT_FALSE(
+      memprefix("hello there", sizeof("hello there") - 1, "hllo there"));
+  EXPECT_FALSE(
+      memprefix("hello there", sizeof("hello there") - 1, "hello there!"));
+  EXPECT_FALSE(
+      memprefix("hello there!", sizeof("hello there!") - 2, "hello there!"));
+}
+
+TEST(MemUtilTest, MemCasePrefix) {
+  EXPECT_TRUE(memcaseprefix("hello there", sizeof("hello there") - 1, "heLlo"));
+  EXPECT_TRUE(
+      memcaseprefix("hello there", sizeof("hello there") - 1, "heLLO there"));
+}
+
+TEST(MemUtilTest, MemSuffix) {
+  EXPECT_TRUE(memsuffix("hello there", sizeof("hello there") - 1, "there"));
+  EXPECT_TRUE(
+      memsuffix("hello there", sizeof("hello there") - 1, "hello there"));
+  EXPECT_FALSE(
+      memsuffix("hello there", sizeof("hello there") - 1, "hello thee"));
+  EXPECT_FALSE(
+      memsuffix("hello there", sizeof("hello there") - 1, "*hello there"));
+  EXPECT_FALSE(
+      memsuffix("hello there!", sizeof("hello there!") - 2, "hello there!"));
+}
+
+TEST(MemUtilTest, MemCaseSuffix) {
+  EXPECT_TRUE(memcasesuffix("hello there", sizeof("hello there") - 1, "there"));
+  EXPECT_TRUE(
+      memcasesuffix("hello there", sizeof("hello there") - 1, "hello there"));
+  EXPECT_FALSE(
+      memcasesuffix("hello there", sizeof("hello there") - 1, "hello thee"));
+  EXPECT_FALSE(
+      memcasesuffix("hello there", sizeof("hello there") - 1, "*hello there"));
+  EXPECT_FALSE(memcasesuffix("hello there!", sizeof("hello there!") - 2,
+                             "hello there!"));
+
+  EXPECT_TRUE(memcasesuffix("hello there", sizeof("hello there") - 1, "thEre"));
+  EXPECT_TRUE(
+      memcasesuffix("hello there", sizeof("hello there") - 1, "heLLO there"));
+}
+
+TEST(MemUtilTest, MemIs) {
+  EXPECT_TRUE(memis("hello there", sizeof("hello there") - 1, "hello there"));
+  EXPECT_FALSE(memis("hello there", sizeof("hello there") - 1, "Hello There"));
+  EXPECT_FALSE(memis("hello ther", sizeof("hello ther") - 1, "hello there"));
+  EXPECT_FALSE(
+      memis("hello there!", sizeof("hello there!") - 1, "hello there"));
+  EXPECT_FALSE(memis("hello there", sizeof("hello there"), "hello there"));
+}
+
+TEST(MemUtilTest, MemCaseIs) {
+  EXPECT_TRUE(
+      memcaseis("hello there", sizeof("hello there") - 1, "Hello There"));
+}
+
+TEST(MemUtilTest, MemMem) {
+  const char kHaystack[] = "0123456789";
+  EXPECT_EQ(memmem(kHaystack, 0, "", 0), kHaystack);
+  EXPECT_EQ(memmem(kHaystack, 10, "012", 3), kHaystack);
+  EXPECT_EQ(memmem(kHaystack, 10, "0xx", 1), kHaystack);
+  EXPECT_EQ(memmem(kHaystack, 10, "789", 3), kHaystack + 7);
+  EXPECT_EQ(memmem(kHaystack, 10, "9xx", 1), kHaystack + 9);
+  EXPECT_EQ(memmem(kHaystack, 10, "9xx", 3), nullptr);
+  EXPECT_EQ(memmem(kHaystack, 10, "xxx", 1), nullptr);
+}
+
+TEST(MemUtilTest, MemCaseMem) {
+  const char kHaystack[] = "aBcDeFgHiJ";
+  EXPECT_EQ(memcasemem(kHaystack, 0, "", 0), kHaystack);
+  EXPECT_EQ(memcasemem(kHaystack, 10, "Abc", 3), kHaystack);
+  EXPECT_EQ(memcasemem(kHaystack, 10, "Axx", 1), kHaystack);
+  EXPECT_EQ(memcasemem(kHaystack, 10, "hIj", 3), kHaystack + 7);
+  EXPECT_EQ(memcasemem(kHaystack, 10, "jxx", 1), kHaystack + 9);
+  EXPECT_EQ(memcasemem(kHaystack, 10, "jxx", 3), nullptr);
+  EXPECT_EQ(memcasemem(kHaystack, 10, "xxx", 1), nullptr);
+}
+
+TEST(MemUtilTest, MemMatch) {
+  const char kHaystack[] = "0123456789";
+  EXPECT_EQ(memmatch(kHaystack, 0, "", 0), kHaystack);
+  EXPECT_EQ(memmatch(kHaystack, 10, "012", 3), kHaystack);
+  EXPECT_EQ(memmatch(kHaystack, 10, "0xx", 1), kHaystack);
+  EXPECT_EQ(memmatch(kHaystack, 10, "789", 3), kHaystack + 7);
+  EXPECT_EQ(memmatch(kHaystack, 10, "9xx", 1), kHaystack + 9);
+  EXPECT_EQ(memmatch(kHaystack, 10, "9xx", 3), nullptr);
+  EXPECT_EQ(memmatch(kHaystack, 10, "xxx", 1), nullptr);
+}
+
+}  // namespace
 }  // namespace strings
-
-int main(int argc, char** argv) {
-  absl::SetFlag(&FLAGS_logtostderr, true);
-  InitGoogle(argv[0], &argc, &argv, true);
-
-  using strings::haystack;
-  using strings::kHaystackSize;
-  haystack = new char[kHaystackSize];
-  for (int i = 0; i < kHaystackSize - 1; ++i) haystack[i] = 'a';
-  haystack[kHaystackSize - 1] = 'b';
-
-  if (!benchmark::GetBenchmarkFilter().empty()) {
-    benchmark::RunSpecifiedBenchmarks();
-    exit(0);
-  }
-
-  return RUN_ALL_TESTS();
-}
