@@ -138,14 +138,8 @@ cc_library(
     testonly = 1,
     srcs = ["domain-test.cc"],
     hdrs = ["domain-test.h"],
-    visibility = [
-        "//gloop/thread/fiber:__subpackages__",
-    ],
-    deps = [
+    implementation_deps = [
         ":low-level-support",
-        ":scheduling",
-        "//gloop:enforce_gloop_support",
-        "//gloop/base:callback",
         "//gloop/base:sysinfo",
         "//gloop/thread/fiber",
         "//gloop/thread/fiber:fiber-options",
@@ -156,9 +150,17 @@ cc_library(
         "@abseil-cpp//absl/functional:bind_front",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/memory",
-        "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
         "@abseil-cpp//absl/time",
+    ],
+    visibility = [
+        "//gloop/thread/fiber:__subpackages__",
+    ],
+    deps = [
+        ":scheduling",
+        "//gloop:enforce_gloop_support",
+        "//gloop/base:callback",
+        "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest_for_library",

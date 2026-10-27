@@ -36,6 +36,7 @@ cc_library(
     srcs = ["blocking_refcount.cc"],
     hdrs = ["blocking_refcount.h"],
     hdrs_check = "strict",
+    implementation_deps = ["@abseil-cpp//absl/time"],
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
@@ -134,13 +135,15 @@ cc_library(
     name = "reference_counted",
     srcs = ["reference_counted.cc"],
     hdrs = ["reference_counted.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings:str_format",
+    ],
     deps = [
         ":reftracker",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:dynamic_annotations",
         "@abseil-cpp//absl/base:nullability",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/strings:str_format",
     ],
 )
 
@@ -148,12 +151,14 @@ cc_library(
     name = "reftracker",
     srcs = ["reftracker.cc"],
     hdrs = ["reftracker.h"],
-    deps = [
-        "//gloop:enforce_gloop_support",
+    implementation_deps = [
         "//gloop/base:examine_stack",
         "@abseil-cpp//absl/debugging:stacktrace",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/synchronization",
     ],
 )

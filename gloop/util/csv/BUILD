@@ -31,6 +31,7 @@ cc_library(
         "parser.h",
         "writer.h",
     ],
+    implementation_deps = ["@abseil-cpp//absl/strings"],
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/strings:bytestream",

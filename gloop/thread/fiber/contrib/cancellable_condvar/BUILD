@@ -24,10 +24,10 @@ cc_library(
     name = "cancellable_condvar",
     srcs = ["cancellable_condvar.cc"],
     hdrs = ["cancellable_condvar.h"],
+    implementation_deps = ["//gloop/thread/fiber"],
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base:spinlock",
-        "//gloop/thread/fiber",
         "//gloop/thread/fiber:select",
         "//gloop/thread/fiber:selectables",
         "//gloop/util/gtl:intrusive_list",

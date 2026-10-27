@@ -157,16 +157,18 @@ cc_library(
     name = "cancellation_coloring",
     srcs = ["cancellation_coloring.cc"],
     hdrs = ["cancellation_coloring.h"],
+    implementation_deps = [
+        ":sysinfo",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/strings",
+    ],
     visibility = [
         "//gloop/base:__subpackages__",
         "//gloop/thread/fiber:__subpackages__",
     ],
     deps = [
-        ":sysinfo",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/strings",
     ],
 )
 
@@ -325,10 +327,13 @@ cc_library(
     name = "coredump_flags",
     srcs = ["coredump_flags.cc"],
     hdrs = ["coredump_flags.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/strings:string_view",
+    ],
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/strings:string_view",
     ],
 )
 
@@ -336,6 +341,7 @@ cc_library(
     name = "crash",
     srcs = ["crash.cc"],
     hdrs = ["crash.h"],
+    implementation_deps = ["@abseil-cpp//absl/base:core_headers"],
     visibility = [
         ":base_implementation",
         "//gloop/thread:__pkg__",
@@ -343,7 +349,6 @@ cc_library(
     deps = [
         ":config",
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/strings",
     ],
 )
@@ -405,11 +410,9 @@ cc_library(
     name = "global_symbol_compliance",
     srcs = ["global_symbol_compliance.cc"],
     hdrs = ["global_symbol_compliance.h"],
+    implementation_deps = ["@abseil-cpp//absl/base:core_headers"],
     visibility = ["//visibility:public"],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:core_headers",
-    ],
+    deps = ["//gloop:enforce_gloop_support"],
 )
 
 cc_test(
@@ -428,11 +431,11 @@ cc_library(
     name = "hostname",
     srcs = ["hostname.cc"],
     hdrs = ["hostname.h"],
+    implementation_deps = ["@abseil-cpp//absl/base:raw_logging_internal"],
     visibility = ["//visibility:public"],
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/strings",
     ],
 )
@@ -455,11 +458,14 @@ cc_library(
     name = "init_google_flags",
     srcs = ["init_google_flags.cc"],
     hdrs = ["init_google_flags.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/strings:string_view",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/strings:string_view",
     ],
     alwayslink = 1,
 )
@@ -533,10 +539,13 @@ cc_test(
 cc_library(
     name = "mutex_yield",
     srcs = ["mutex_yield.cc"],
+    implementation_deps = [
+        "//gloop/base/scheduling",
+        "@abseil-cpp//absl/base:config",
+    ],
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base/scheduling",
-        "@abseil-cpp//absl/base:config",
     ],
     alwayslink = 1,
 )
@@ -552,20 +561,17 @@ cc_library(
         ":config",
         ":context",
         ":crash",
-        ":examine_stack",
         ":signal-handler",
         ":tracecontext",
         ":tracer",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:dynamic_annotations",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/debugging:stacktrace",
         "@abseil-cpp//absl/log:log_entry",
         "@abseil-cpp//absl/log/internal:globals",
         "@abseil-cpp//absl/strings:string_view",
-        "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:span",
     ],
     alwayslink = True,
@@ -875,11 +881,8 @@ cc_library(
     name = "proc_maps",
     srcs = ["proc_maps.cc"],
     hdrs = ["proc_maps.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        ":port",
+    implementation_deps = [
         ":spinlock",
-        "//gloop:enforce_gloop_support",
         "//gloop/base/scheduling:scheduling_mode",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base:core_headers",
@@ -887,6 +890,13 @@ cc_library(
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":port",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/strings:string_view",
     ],
 )
@@ -1008,16 +1018,19 @@ cc_library(
     name = "signal-handler",
     srcs = ["signal-handler.cc"],
     hdrs = ["signal-handler.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        ":config",
-        ":port",
+    implementation_deps = [
         ":sysinfo",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/strings",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":config",
+        ":port",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/strings:string_view",
     ],
 )
@@ -1025,12 +1038,16 @@ cc_library(
 cc_library(
     name = "sleep",
     srcs = ["sleep.cc"],
+    implementation_deps = [
+        ":per-thread-sem",
+        "//gloop/base/scheduling",
+        "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/time",
+    ],
     deps = [
         ":per-thread-sem",
         "//gloop:enforce_gloop_support",
         "//gloop/base/scheduling",
-        "@abseil-cpp//absl/base:config",
-        "@abseil-cpp//absl/time",
     ],
     alwayslink = 1,
 )
@@ -1104,14 +1121,10 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "//gloop/base/scheduling",
         "//gloop/base/scheduling:scheduling_mode",
-        "@abseil-cpp//absl/base:base_internal",
         "@abseil-cpp//absl/base:config",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/base:spinlock_wait",
         "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/numeric:bits",
-        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/time",
     ],
     alwayslink = 1,
@@ -1187,25 +1200,30 @@ cc_library(
     name = "sysinfo",
     srcs = ["sysinfo.cc"],
     hdrs = ["sysinfo.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        ":port",
+    implementation_deps = [
         ":proc_maps",
         ":strerror",
-        "//gloop:enforce_gloop_support",
-        "//gloop/base/auxiliary:parsed_process_stat",
-        "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/cleanup",
-        "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/log:vlog_is_on",
         "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:resize_and_overwrite",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":port",
+        "//gloop:enforce_gloop_support",
+        "//gloop/base/auxiliary:parsed_process_stat",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/time",
     ],
 )
@@ -1287,10 +1305,13 @@ cc_library(
     name = "timer",
     srcs = ["timer.cc"],
     hdrs = ["timer.h"],
+    implementation_deps = [
+        ":walltime",
+        "@abseil-cpp//absl/base",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         ":port",
-        ":walltime",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
@@ -1324,12 +1345,15 @@ cc_library(
     name = "time_support",
     srcs = ["time_support.cc"],
     hdrs = ["time_support.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//gloop:enforce_gloop_support",
+    implementation_deps = [
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/time",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/time",
     ],
 )
@@ -1391,10 +1415,13 @@ cc_library(
     name = "walltime",
     srcs = ["walltime.cc"],
     hdrs = ["walltime.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/time",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/time",
     ],
 )
@@ -1440,6 +1467,7 @@ cc_library(
     name = "static_threadlocal",
     srcs = ["static_threadlocal.cc"],
     hdrs = ["static_threadlocal.h"],
+    implementation_deps = ["@abseil-cpp//absl/base:core_headers"],
     visibility = ["//visibility:public"],
     deps = [
         ":per_thread",
@@ -1497,14 +1525,16 @@ cc_library(
     name = "per_thread",
     srcs = ["per_thread.cc"],
     hdrs = ["per_thread.h"],
-    visibility = ["//visibility:public"],
-    deps = [
+    implementation_deps = [
         ":spinlock",
-        "//gloop:enforce_gloop_support",
         "//gloop/base/scheduling:scheduling_mode",
         "//gloop/util/atomic_danger",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:malloc_internal",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:raw_logging_internal",
     ],
 )
@@ -1513,6 +1543,7 @@ cc_library(
     name = "signal_util_subtle",
     srcs = ["signal_util_subtle.cc"],
     hdrs = ["signal_util_subtle.h"],
+    implementation_deps = ["@abseil-cpp//absl/time"],
     visibility = [
         "//gloop/base:__subpackages__",
         "//gloop/concurrent/rcu:__subpackages__",
@@ -1599,6 +1630,7 @@ cc_library(
     name = "futex",
     srcs = ["futex.cc"],
     hdrs = ["futex.h"],
+    implementation_deps = ["@abseil-cpp//absl/base:core_headers"],
     visibility = [
         "//gloop/base:__subpackages__",
         "//gloop/concurrent/percpu:__pkg__",
@@ -1607,7 +1639,6 @@ cc_library(
     deps = [
         ":inlined_syscall",
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
     ],
@@ -1688,9 +1719,6 @@ cc_library(
         ":signal-handler",
         ":sysinfo",
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/algorithm:container",
-        "@abseil-cpp//absl/base:base_internal",
-        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:dynamic_annotations",
         "@abseil-cpp//absl/base:log_severity",
@@ -1707,7 +1735,6 @@ cc_library(
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
-        "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:source_location",
         "@tcmalloc//tcmalloc:malloc_extension",
     ],
@@ -1766,15 +1793,17 @@ cc_library(
     name = "arena",
     srcs = ["arena.cc"],
     hdrs = ["arena.h"],
+    implementation_deps = [
+        ":config",
+        "@abseil-cpp//absl/log:check",
+        "@tcmalloc//tcmalloc:malloc_extension",
+    ],
     visibility = ["//visibility:public"],
     deps = [
-        ":config",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
-        "@tcmalloc//tcmalloc:malloc_extension",
     ],
 )
 
@@ -1851,11 +1880,9 @@ cc_library(
     name = "googleinit",
     srcs = ["googleinit.cc"],
     hdrs = ["googleinit.h"],
-    visibility = ["//visibility:public"],
-    deps = [
+    implementation_deps = [
         ":init_google_flags",
         ":port",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/flags:flag",
@@ -1865,6 +1892,12 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":init_google_flags",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
     ],
 )
 
@@ -1961,15 +1994,17 @@ cc_library(
     name = "nsscache",
     srcs = ["nsscache.cc"],
     hdrs = ["nsscache.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//gloop:enforce_gloop_support",
+    implementation_deps = [
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/debugging:leak_check",
-        "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/flags:flag",
     ],
 )
 
@@ -2014,18 +2049,15 @@ cc_library(
         ":config",
         ":logger",
         ":logging_extensions",
-        ":sysinfo",
         "//gloop:enforce_gloop_support",
         "//gloop/base/internal:logging",
         "//gloop/base/internal:logging_directories",
         "//gloop/base/internal:logging_globals",
-        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/base:strerror",
         "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:die_if_null",
@@ -2033,18 +2065,9 @@ cc_library(
         "@abseil-cpp//absl/log:globals",
         "@abseil-cpp//absl/log:initialize",
         "@abseil-cpp//absl/log:log_sink_registry",
-        "@abseil-cpp//absl/log/internal:conditions",
-        "@abseil-cpp//absl/log/internal:config",
         "@abseil-cpp//absl/log/internal:flags",
-        "@abseil-cpp//absl/log/internal:globals",
-        "@abseil-cpp//absl/memory",
-        "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/strings:internal",
         "@abseil-cpp//absl/strings:str_format",
-        "@abseil-cpp//absl/synchronization",
-        "@abseil-cpp//absl/time",
-        "@abseil-cpp//absl/types:source_location",
     ],
 )
 
@@ -2115,7 +2138,6 @@ cc_library(
         "@abseil-cpp//absl/log:log_entry",
         "@abseil-cpp//absl/log:log_sink",
         "@abseil-cpp//absl/log:log_sink_registry",
-        "@abseil-cpp//absl/log/internal:config",
         "@abseil-cpp//absl/log/internal:log_message",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
@@ -2214,10 +2236,7 @@ cc_library(
     name = "log_file_flags",
     srcs = ["log_file_flags.cc"],
     hdrs = ["log_file_flags.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        ":config",
-        "//gloop:enforce_gloop_support",
+    implementation_deps = [
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/base:raw_logging_internal",
@@ -2225,6 +2244,12 @@ cc_library(
         "@abseil-cpp//absl/flags:marshalling",
         "@abseil-cpp//absl/log:globals",
         "@abseil-cpp//absl/strings",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":config",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/flags:flag",
     ],
 )
 

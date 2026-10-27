@@ -42,6 +42,7 @@ cc_library(
     name = "io-priority_stub",
     srcs = ["io-priority_stub.cc"],
     hdrs = ["io-priority.h"],
+    implementation_deps = ["@abseil-cpp//absl/flags:flag"],
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/base:port",
