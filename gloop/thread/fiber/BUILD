@@ -294,6 +294,7 @@ cc_test(
         ":fiber",
         ":fiber-internal",
         ":fiber-options",
+        ":fiber_cc_proto",
         ":fifolifo-schedulers",
         ":select",
         ":selectables",
@@ -318,6 +319,7 @@ cc_test(
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/debugging:leak_check",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/functional:bind_front",
@@ -342,6 +344,7 @@ cc_test(
     visibility = ["//waymo/os/bfc:__subpackages__"],
     deps = [
         ":fiber",
+        ":fiber-options",
         ":select",
         "//gloop:gloop_test_main",
         "//gloop/base:context",

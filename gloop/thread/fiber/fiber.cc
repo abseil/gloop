@@ -70,21 +70,70 @@ ABSL_FLAG(int32_t, fiber_scheduler_default_slots, 1,
 // TODO: Remove after soaking.
 ABSL_FLAG(
     bool, fiber_cancel_dynamic_on_thread_exit, true,
-    "If true, cancel the dynamic fiber if it exists on thread exit if it is "
-    "not already joinable. This flag is intended for rollback only-");
+    "If true, cancel the dynamic fiber, if it exists, on thread exit if it "
+    "still has children (children that were detached while running and are "
+    "only tearing down do not count). This flag is intended for rollback "
+    "only-");
 
 // Implementation notes:
 //
 // Locking:
-//   There is currently no nesting of mu_(s) in parent/child interactions.
-// Should this arise, parent should be ordered before child.
+//   Lock acquisition order:
+//     ancestor `mu_` -> descendant `mu_` -> `PermanentEvent::lock_`
+//                    -> `Selector::mu` (or `OnTraceSignal` listener leaf locks)
+//   Child Fiber construction (when inheriting cancellation) and Cancel() nest
+// `parent->mu_` before `child->mu_`. Helpers that update both a child and its
+// parent (MarkJoinedBeforeTeardown(), LeaveParent()) release `mu_` before
+// acquiring `parent_->mu_`; `child->mu_ -> parent_->mu_` is never nested. No
+// fiber `mu_` is held across base::Context teardown, Select(), or `clean_up`.
 //
 // State transitions:
 //   RUNNING               : Initial state.
-//   RUNNING  -> FINISHED  : Set by MarkFinished()
-//   FINISHED -> JOINED    : Set by MarkJoined()
+//   RUNNING  -> FINISHED  : Set by MarkFinished() or FinishBeforeTeardown().
+//   FINISHED -> JOINED    : Set by MarkJoined() or, for detached fibers, by
+//                           MarkJoinedBeforeTeardown() or
+//                           JoinDetachedAndCleanUp().
 //
 // All fibers will undergo all of these transitions.
+//
+// Context teardown:
+//   Destroying the base::Context of a fiber (the base::WithContext in Body())
+// runs trace listener callbacks, and may drop the last reference to a tracer,
+// which then notifies its trace consumers. These may use state that is
+// destroyed by whoever waits for the fiber to become joinable (Join(),
+// OnJoinable(), Bundle::JoinAll(), a parent waiting for its detached
+// children), so the teardown must complete before any such waiter is woken.
+// It may also block, or acquire arbitrary locks, so it runs without holding
+// any fiber's `mu_`.
+//
+//   To this end, `pending_teardowns_` counts the in-progress teardowns tracked
+// on the fiber in addition to `children_`: those of detached children, which
+// leave `children_` in MarkJoinedBeforeTeardown() before their teardown, and
+// the fiber's own teardown if it is attached and still has children or pending
+// teardowns when its body completes (if neither remains, AfterTeardown::
+// kMakeJoinable destroys the fiber's own context first without incrementing
+// `pending_teardowns_`). Once the fiber is FINISHED with no children nor
+// pending teardowns left, MakeJoinableLocked() notifies `joinable_` under
+// `mu_`.
+//
+//   The corresponding TraceSignal() causality annotation is emitted earlier,
+// as soon as `state_ == FINISHED && children_.empty()` holds (by
+// FinishBeforeTeardown(), MarkFinished(), MarkJoinedBeforeTeardown(), or
+// LeaveParent(); a detached fiber waiting only on `pending_teardowns_` also
+// emits its own `joinable_` TraceSignal() before waiting). This runs while the
+// context of the fiber making the event due (or of the caller of Detach() or
+// MarkFinished()) is still active, except when JoinDetachedAndCleanUp(), run
+// once a teardown has completed, joins a fiber that was detached after
+// finishing, and LeaveParent() thereby leaves its finished parent without
+// children (whether or not that parent then becomes joinable or was itself
+// detached).
+//
+//   Detach() does not wait for descendants or teardown either: a fiber that is
+// detached after finishing as an attached fiber, but before becoming joinable,
+// sets `cleanup_when_joinable_`. Whoever later makes it joinable notifies
+// `joinable_` in MakeJoinableLocked() and, after releasing `mu_`, joins and
+// cleans up the fiber (and any finished late-detached ancestors it makes
+// joinable) via JoinDetachedAndCleanUp().
 namespace thread {
 
 extern void InternalSetCurrentFiberName(absl::string_view fiber_name);
@@ -96,9 +145,9 @@ struct CurrentFiber {
     // This destructor is called while destroying thread-local storage. If it is
     // null, there is no dynamic fiber for this thread.
     if (f == nullptr) return;
-    f->MarkFinished();
-    if (absl::GetFlag(FLAGS_fiber_cancel_dynamic_on_thread_exit) &&
-        !f->joinable_.HasBeenNotified()) [[unlikely]] {
+    const bool children_finished = f->MarkFinished();
+    if (!children_finished &&
+        absl::GetFlag(FLAGS_fiber_cancel_dynamic_on_thread_exit)) [[unlikely]] {
       TryCancelAndWait();
     }
     f->InternalJoin();
@@ -162,7 +211,8 @@ static Scheduler* absl_nonnull InitTreeScheduler(
   // ordering -- allowing LIFO to be more cache efficient.
   scheduler = NewChildLIFOScheduler(parent, num_slots);
   scheduler->Ref();
-  // We immediately orphan, MarkFinished() will release the reference above.
+  // We immediately orphan; LeaveParent() or FinishAfterTeardown() will release
+  // the reference above.
   scheduler->Orphan();
   return scheduler;
 }
@@ -199,7 +249,7 @@ Scheduler* FiberHelpers::GetScheduler(const Fiber* fiber) {
 }
 
 // static
-std::unique_ptr<Fiber> FiberHelpers::CreateChildFiber(
+void FiberHelpers::StartDetachedChildFiber(
     Fiber* parent, absl::AnyInvocable<void() &&> invocable) {
   Fiber* const fiber = new Fiber{
       Fiber::Unstarted{},
@@ -208,8 +258,21 @@ std::unique_ptr<Fiber> FiberHelpers::CreateChildFiber(
       parent,
   };
 
+  Detach(absl::WrapUnique(fiber));
   fiber->Start();
-  return absl::WrapUnique(fiber);
+}
+
+// static
+void FiberHelpers::StartDetachedTree(TreeOptions tree_options,
+                                     absl::AnyInvocable<void() &&> invocable) {
+  Fiber* const fiber = new Fiber{
+      Fiber::Unstarted{},
+      std::move(invocable),
+      std::move(tree_options),
+  };
+
+  Detach(absl::WrapUnique(fiber));
+  fiber->Start();
 }
 
 absl::AnyInvocable<void() &&> InternalChildFiberScoped(
@@ -222,8 +285,9 @@ absl::AnyInvocable<void() &&> InternalChildFiberScoped(
   };
 
   return [fiber]() {
-    fiber->Start();
+    // Detach before starting: see FiberHelpers::StartDetachedChildFiber().
     Detach(absl::WrapUnique(fiber));
+    fiber->Start();
   };
 }
 
@@ -318,6 +382,7 @@ Fiber::~Fiber() {
                            << "unjoined Fiber.  (Did you forget to Join() "
                            << "on a child?)";
   DCHECK(children_.empty());
+  DCHECK_EQ(pending_teardowns_, 0);
 
   DVLOG(2) << "F " << this << " destroyed";
 }
@@ -394,38 +459,209 @@ void Fiber::Body() {
       base::internal::CancellationColor::kFibers);
 #endif
 
-  base::WithContext with_context(std::move(context_));
-  std::move(work_)();
-  // Immediately free the storage.  This matches the behavior of NewCallback
-  // and allows ref-counting arguments to be scoped to the fiber's body (e.g.
-  // auto-closing channels).
-  work_ = nullptr;
+  FinishResult finish_result;
+  {
+    // The fiber's context remains active until the end of this scope, so that
+    // the trace events of FinishBeforeTeardown() are attributed to it.
+    base::WithContext with_context(std::move(context_));
+    std::move(work_)();
+    // Immediately free the storage.  This matches the behavior of NewCallback
+    // and allows ref-counting arguments to be scoped to the fiber's body (e.g.
+    // auto-closing channels).
+    work_ = nullptr;
 
-  DCHECK(*ptr == this);
-  *ptr = old;
-  DVLOG(2) << "F " << this << " finished";
+    DCHECK(*ptr == this);
+    *ptr = old;
+    DVLOG(2) << "F " << this << " finished";
 
-  PerDomainCounters().num_active_fibers.fetch_sub(1, std::memory_order_relaxed);
+    PerDomainCounters().num_active_fibers.fetch_sub(1,
+                                                    std::memory_order_relaxed);
 
-  // A call to fiber_stats::Get() pulls fibers out of schedulables; but
-  // after this call the fiber can be destroyed, so we "detach" this fiber
-  // from its schedulable (attached in Fiber::Start()).
-  base::scheduling::InternalDetachFiber(this);
+    // A call to fiber_stats::Get() pulls fibers out of schedulables; but
+    // after this call the fiber can be destroyed, so we "detach" this fiber
+    // from its schedulable (attached in Fiber::Start()).
+    base::scheduling::InternalDetachFiber(this);
 
-  // Reset current fiber name as this thread may be recycled, and we don't want
-  // misattribution until someone else sets an explicit name for this thread.
-  // This also alleviates lifetime concerns for the name itself.
-  thread::InternalSetCurrentFiberName("");
+    // Reset current fiber name as this thread may be recycled, and we don't
+    // want misattribution until someone else sets an explicit name for this
+    // thread. This also alleviates lifetime concerns for the name itself.
+    thread::InternalSetCurrentFiberName("");
 
-  if (auto [clean_up, joinable] = MarkFinished(); clean_up != nullptr) {
-    // This is a self-joining fiber, but we may need to wait for children.
-    if (joinable) {
-      MarkJoined();
-    } else {
-      InternalJoin();
+    finish_result = FinishBeforeTeardown();
+  }  // Destroys the fiber's context: see "Context teardown" above.
+  FinishAfterTeardown(finish_result);
+}
+
+// Marks *this FINISHED, with its context still active, emitting the
+// TraceSignal() of any joinable event that this makes due. A detached fiber
+// then also waits for its children (including their context teardown), and
+// leaves its parent. Returns what is left to do once the fiber's context has
+// been destroyed.
+Fiber::FinishResult Fiber::FinishBeforeTeardown() {
+  CleanupFn* clean_up;
+  bool wait_for_children;
+  {
+    absl::MutexLock l(mu_);
+    MarkFinishedLocked();
+    clean_up = detached_cleanup_.load(std::memory_order_relaxed);
+    if (clean_up == nullptr) {
+      if (children_.empty()) {
+        joinable_.TraceSignalForNotify();
+        if (pending_teardowns_ == 0) {
+          // No child can make us joinable anymore (and none can be added), so
+          // we will, once our context has been destroyed.
+          return {AfterTeardown::kMakeJoinable, nullptr};
+        }
+      }
+      // A child may finish last: make it wait for our own teardown.
+      ++pending_teardowns_;
+      return {AfterTeardown::kEndOwnPendingTeardown, nullptr};
     }
-    clean_up(this);
+    // This is a self-joining fiber, but we may need to wait for children.
+    wait_for_children = !children_.empty() || pending_teardowns_ != 0;
+    if (wait_for_children && children_.empty()) {
+      joinable_.TraceSignalForNotify();
+    }
   }
+  if (wait_for_children) Select({joinable_.OnEvent()});
+  const AfterTeardown after_teardown =
+      MarkJoinedBeforeTeardown() ? AfterTeardown::kEndPendingTeardownInParent
+                                 : AfterTeardown::kReleaseTree;
+  return {after_teardown, clean_up};
+}
+
+// Marks *this, a finished detached fiber with no children nor pending
+// teardowns left, JOINED. If it has a parent, moves it from the parent's
+// children to the parent's pending teardowns, emitting the TraceSignal() of
+// the parent's joinable event if this makes it due. Returns whether *this has
+// a parent.
+bool Fiber::MarkJoinedBeforeTeardown() {
+  {
+    absl::MutexLock l(mu_);
+    DCHECK(children_.empty());
+    DCHECK_EQ(pending_teardowns_, 0);
+    DCHECK_EQ(state_, FINISHED);
+    DVLOG(2) << "F " << this << " joined";
+    state_ = JOINED;
+  }
+  if (parent_ == nullptr) return false;
+  absl::MutexLock l(parent_->mu_);
+  parent_->children_.erase(this);
+  ++parent_->pending_teardowns_;
+  if (parent_->children_.empty() && parent_->state_ == FINISHED) {
+    parent_->joinable_.TraceSignalForNotify();
+  }
+  return true;
+}
+
+// Completes Body() once the fiber's context has been destroyed, without
+// holding any fiber's `mu_`. This may wake a joiner which then destroys *this,
+// so attached fibers must not be accessed afterwards.
+void Fiber::FinishAfterTeardown(const FinishResult result) {
+  switch (result.after_teardown) {
+    case AfterTeardown::kMakeJoinable: {
+      {
+        absl::MutexLock l(mu_);
+        if (!MakeJoinableLocked()) return;
+      }
+      JoinDetachedAndCleanUp();
+      return;
+    }
+    case AfterTeardown::kEndOwnPendingTeardown:
+      EndPendingTeardown();
+      return;
+    case AfterTeardown::kEndPendingTeardownInParent:
+      parent_->EndPendingTeardown();
+      result.clean_up(this);
+      return;
+    case AfterTeardown::kReleaseTree:
+      // All of our descendants have finished, including their teardown.
+      // Release our ref on the scheduler.
+      tree_scheduler_.Unref();
+      result.clean_up(this);
+      return;
+  }
+  ABSL_UNREACHABLE();
+}
+
+// Ends one of the teardowns counted by `pending_teardowns_`, making *this
+// joinable if it is now due. Its TraceSignal() has already been emitted when
+// *this became FINISHED without children.
+void Fiber::EndPendingTeardown() {
+  {
+    absl::MutexLock l(mu_);
+    DCHECK_GT(pending_teardowns_, 0);
+    if (--pending_teardowns_ != 0 || state_ != FINISHED || !children_.empty()) {
+      return;
+    }
+    if (!MakeJoinableLocked()) return;
+  }
+  JoinDetachedAndCleanUp();
+}
+
+// Makes *this, a FINISHED fiber with no children nor pending teardowns left,
+// joinable by notifying `joinable_`. Returns `cleanup_when_joinable_`; if true,
+// the caller must call JoinDetachedAndCleanUp() once it has released `mu_`.
+bool Fiber::MakeJoinableLocked() {
+  DCHECK_EQ(state_, FINISHED);
+  DCHECK(children_.empty());
+  DCHECK_EQ(pending_teardowns_, 0);
+  DCHECK(!joinable_.HasBeenNotified(
+      PermanentEvent::SuppressCancellationColorCheckTag{}));
+  joinable_.NotifyWithoutTraceSignal();
+  return cleanup_when_joinable_;
+}
+
+// Joins and cleans up *this, which was detached after finishing as an attached
+// fiber and has now had `joinable_` notified, and likewise for each finished
+// late-detached ancestor that leaving its parent makes joinable.
+void Fiber::JoinDetachedAndCleanUp() {
+  Fiber* fiber = this;
+  do {
+    CleanupFn* clean_up;
+    {
+      absl::MutexLock l(fiber->mu_);
+      DCHECK(fiber->cleanup_when_joinable_);
+      DCHECK(fiber->children_.empty());
+      DCHECK_EQ(fiber->pending_teardowns_, 0);
+      DCHECK_EQ(fiber->state_, FINISHED);
+      DVLOG(2) << "F " << fiber << " joined";
+      fiber->state_ = JOINED;
+      clean_up = fiber->detached_cleanup_.load(std::memory_order_relaxed);
+    }
+    Fiber* const parent = fiber->LeaveParent();
+    clean_up(fiber);
+    fiber = parent;
+  } while (fiber != nullptr);
+}
+
+// Removes *this, which has just been joined, from its parent's children, or
+// releases the scheduler if *this is a root fiber. If this leaves a FINISHED
+// parent with no children, emits `parent_->joinable_`'s TraceSignal() (note:
+// when called from JoinDetachedAndCleanUp(), the descendant's context has
+// already been destroyed) and, if no teardowns are pending on the parent,
+// makes it joinable. Returns the parent if it now needs
+// JoinDetachedAndCleanUp(), or nullptr otherwise.
+Fiber* Fiber::LeaveParent() {
+  if (parent_ == nullptr) {
+    // All of our descendants have been joined and torn down. Release our ref
+    // on the scheduler.
+    tree_scheduler_.Unref();
+    return nullptr;
+  }
+  absl::MutexLock l(parent_->mu_);
+  parent_->children_.erase(this);
+  if (!parent_->children_.empty() || parent_->state_ != FINISHED) {
+    return nullptr;
+  }
+  // Our own context teardown completed before we became joinable, so the
+  // parent does not need to wait for it (though other detached siblings'
+  // teardowns may still be pending in `parent_->pending_teardowns_`).
+  parent_->joinable_.TraceSignalForNotify();
+  if (parent_->pending_teardowns_ != 0 || !parent_->MakeJoinableLocked()) {
+    return nullptr;
+  }
+  return parent_;
 }
 
 void Fiber::InternalJoin() {
@@ -449,13 +685,31 @@ void Fiber::Join() {
   InternalJoin();
 }
 
-// Update *this to a FINISHED state, preparing it to be Join()-ed (and notifying
-// any waiters) when applicable. If we've been detached, returns a function that
-// should be called with `this`.
+// Update *this, a dynamic fiber, to a FINISHED state, notifying any waiters if
+// it has become joinable. Returns whether `children_` is empty.
 //
-// REQUIRES: *this has not already been marked finished.
-std::pair<Fiber::CleanupFn*, bool> Fiber::MarkFinished() {
+// State transition is a no-op if *this has already been marked finished, e.g.
+// by a concurrent DynamicFiber::Finish().
+bool Fiber::MarkFinished() {
   absl::MutexLock l(mu_);
+  DCHECK_EQ(type_, fiber::FIBER_TYPE_DYNAMIC);
+  DCHECK_EQ(detached_cleanup_.load(std::memory_order_relaxed), nullptr);
+  if (state_ != RUNNING) return children_.empty();
+  MarkFinishedLocked();
+
+  if (children_.empty()) {
+    // All children have finished; `joinable_` is notified now unless detached
+    // children are still tearing down.
+    joinable_.TraceSignalForNotify();
+    if (pending_teardowns_ == 0) {
+      joinable_.NotifyWithoutTraceSignal();
+    }
+    return true;
+  }
+  return false;
+}
+
+void Fiber::MarkFinishedLocked() {
   DCHECK_EQ(state_, RUNNING);
   {
     internal::PerDomainCounters& counters = PerDomainCounters();
@@ -464,50 +718,31 @@ std::pair<Fiber::CleanupFn*, bool> Fiber::MarkFinished() {
   }
 
   state_ = FINISHED;
-  Fiber::CleanupFn* cleanup = detached_cleanup_.load(std::memory_order_relaxed);
-
-  if (children_.empty()) {
-    // This fiber has become joinable as it, and all children, are finished.
-    // We only signal attached fibers as detached fibers are self-joining.
-    if (cleanup == nullptr) {
-      joinable_.Notify();
-    }
-    return {cleanup, true};
-  }
-  return {cleanup, false};
 }
 
-// Record that the Join() requirement has been satisfied.  In the case of a
-// detached fiber this may have been internally generated.
+// Record that the Join() requirement has been satisfied, by Join() or by
+// detaching a fiber that had already become joinable. (Detached fibers
+// otherwise join themselves with MarkJoinedBeforeTeardown(), or are joined by
+// JoinDetachedAndCleanUp().)
 //
 // If *this was a child fiber it will be removed from its parent's active
 // children.
 //
 // No-op if *this has already been Join()-ed.
 void Fiber::MarkJoined() {
-  DCHECK(internal::FiberHelpers::IsFiberDetached(this) ||
-         joinable_.HasBeenNotified());
+  DCHECK(joinable_.HasBeenNotified());
 
-  bool has_parent;
   {
     absl::MutexLock l(mu_);
     DCHECK(children_.empty());
+    DCHECK_EQ(pending_teardowns_, 0);
     if (state_ == JOINED) return;  // Already joined.
     DCHECK_EQ(state_, FINISHED);
     DVLOG(2) << "F " << this << " joined";
     state_ = JOINED;
-    has_parent = parent_ != nullptr;
   }
-  if (has_parent) {
-    absl::MutexLock l(parent_->mu_);
-    parent_->children_.erase(this);
-    if (parent_->children_.empty() && parent_->state_ == FINISHED) {
-      parent_->joinable_.Notify();
-    }
-  } else {
-    // We were joined and have no parent. All of our children must already be
-    // joined. Release our ref on the scheduler.
-    tree_scheduler_.Unref();
+  if (Fiber* const parent = LeaveParent(); parent != nullptr) {
+    parent->JoinDetachedAndCleanUp();
   }
 }
 
@@ -615,30 +850,33 @@ void Detach(std::unique_ptr<Fiber> fiber) {
 }
 
 void subtle::Detach(Fiber& fiber, Fiber::CleanupFn& clean_up) {
-  fiber.mu_.lock();
+  {
+    absl::MutexLock l(fiber.mu_);
 
-  // Check our requirement that the fiber not already be detached. It doesn't
-  // make sense to do it twice, because we'd have two functions that want to
-  // clean it up afterward.
-  DCHECK_EQ(fiber.detached_cleanup_.load(std::memory_order_relaxed), nullptr)
-      << "fiber already detached";
+    // Check our requirement that the fiber not already be detached. It doesn't
+    // make sense to do it twice, because we'd have two functions that want to
+    // clean it up afterward.
+    DCHECK_EQ(fiber.detached_cleanup_.load(std::memory_order_relaxed), nullptr)
+        << "fiber already detached";
+    fiber.detached_cleanup_.store(&clean_up, std::memory_order_relaxed);
+    if (ABSL_PREDICT_TRUE(fiber.state_ == Fiber::RUNNING)) return;
 
-  // Special case: if the fiber has already finished then we need to join it and
-  // clean it up here, because MarkFinished has already run and won't do the
-  // cleanup logic for us.
-  if (ABSL_PREDICT_FALSE(fiber.state_ == Fiber::FINISHED)) {
-    fiber.mu_.unlock();
-
-    // Call InternalJoin to bypass the check that the current fiber is a parent.
-    // It may be a non-parent ancestor in the case of bundle fibers.
-    fiber.InternalJoin();
-
-    // It's our job to clean up the fiber.
-    return clean_up(&fiber);
+    // Special case: the fiber has already finished, as an attached fiber, so it
+    // won't join and clean itself up. If it is not joinable yet, whoever makes
+    // it joinable will do it instead (see MakeJoinableLocked()), so that we
+    // never wait for its descendants and its context teardown.
+    DCHECK_EQ(fiber.state_, Fiber::FINISHED) << "fiber already joined";
+    if (!fiber.joinable_.HasBeenNotified()) {
+      fiber.cleanup_when_joinable_ = true;
+      return;
+    }
   }
 
-  fiber.detached_cleanup_.store(&clean_up, std::memory_order_relaxed);
-  fiber.mu_.unlock();
+  // Otherwise, it's our job to join and clean up the fiber. This does not wait,
+  // as the fiber is joinable. Call InternalJoin to bypass the check that the
+  // current fiber is the parent: any fiber may detach it.
+  fiber.InternalJoin();
+  clean_up(&fiber);
 }
 
 Case OnCancel() { return Fiber::Current()->OnCancel(); }
@@ -662,12 +900,9 @@ DynamicFiber::DynamicFiber(TreeOptions options)
 DynamicFiber::DynamicFiber(const FiberOptions& options, class Fiber* parent)
     : fiber_(Fiber::Unstarted{}, options, /*invocable=*/nullptr, parent) {}
 
-void DynamicFiber::Finish() {
-  if (!finished_) {
-    finished_ = true;
-    fiber_.MarkFinished();
-  }
-}
+// May be called concurrently, e.g. by Bundle::OnJoinable() in several fibers:
+// MarkFinished() only finishes the fiber once.
+void DynamicFiber::Finish() { fiber_.MarkFinished(); }
 
 }  // namespace internal
 
