@@ -2054,6 +2054,7 @@ cc_test(
     timeout = "long",  # needed by android_arm
     srcs = ["logging_unittest.cc"],
     data = ["//gloop/base/testdata:logging_test_golden_files"],
+    malloc = "//gloop:malloc",
     deps = [
         ":config",
         ":init_google",
@@ -2068,9 +2069,9 @@ cc_test(
         "//gloop/base/internal:munge_output",
         "//gloop/thread:config",
         "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
-        "@abseil-cpp//absl/base:malloc_internal",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/flags:flag",
@@ -2089,6 +2090,7 @@ cc_test(
         "@abseil-cpp//absl/types:source_location",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@tcmalloc//tcmalloc:malloc_hook",
     ] + [
         "//gloop/thread/fiber",
     ],

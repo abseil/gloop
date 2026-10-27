@@ -35,6 +35,7 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/sysinfo.h"
 #include "absl/base/log_severity.h"
@@ -68,6 +69,7 @@
 #include "gloop/thread/config.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "tcmalloc/malloc_hook.h"
 
 #if defined(_POSIX_VERSION) && !defined(__ANDROID__)
 #include <glob.h>
@@ -259,6 +261,27 @@ TEST_F(AutomaticGoldenStderrTest, Logging) { TestLogging(); }
   }
 }
 
+void NoAllocNewHook(const tcmalloc::MallocHook::NewInfo& info) {
+  CHECK(tcmalloc::MallocHook::RemoveNewHook(&NoAllocNewHook));
+  LOG(FATAL) << "unexpected new";
+}
+
+#if !PORTABLE_BASE && GTEST_HAS_DEATH_TEST
+TEST(DeathNoAllocNewHook, logging) {
+#if defined(ABSL_HAVE_ADDRESS_SANITIZER) || \
+    defined(ABSL_HAVE_MEMORY_SANITIZER) || defined(ABSL_HAVE_THREAD_SANITIZER)
+  GTEST_SKIP() << "Sanitizers do not invoke tcmalloc::MallocHook.";
+#endif
+  // tests that MallocHook::AddNewHook(NoAllocNewHook) used below works
+  ASSERT_DEATH(
+      {
+        CHECK(tcmalloc::MallocHook::AddNewHook(&NoAllocNewHook));
+        ABSL_RAW_LOG(INFO, "Allocated new int at address: %p", new int);
+      },
+      "unexpected new");
+}
+#endif
+
 TEST_F(AutomaticGoldenStderrTest, RawLogging) {
 #if !GOOGLE_BASE_HAS_INITGOOGLE
   //
@@ -280,6 +303,7 @@ TEST_F(AutomaticGoldenStderrTest, RawLogging) {
   absl::FlagSaver saver;
 
   // Check that RAW logging does not use mallocs.
+  CHECK(tcmalloc::MallocHook::AddNewHook(&NoAllocNewHook));
 
   ABSL_RAW_LOG(INFO, "%s%s%d%c%f", foo->c_str(), "bar ", 10, ' ', 3.4);
   char s[] = "array";
@@ -313,6 +337,7 @@ TEST_F(AutomaticGoldenStderrTest, RawLogging) {
 
   ABSL_RAW_LOG(LEVEL(true ? INFO : WARNING), "variable-severity raw");
 
+  CHECK(tcmalloc::MallocHook::RemoveNewHook(&NoAllocNewHook));
   delete foo;
 }
 

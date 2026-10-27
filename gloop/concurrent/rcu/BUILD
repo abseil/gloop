@@ -189,6 +189,7 @@ cc_test(
     size = "medium",
     srcs = ["rcu_test.cc"],
     linkstatic = 1,
+    malloc = "//gloop:malloc",
     shard_count = 2,
     deps = [
         ":pile",
@@ -214,6 +215,7 @@ cc_test(
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@tcmalloc//tcmalloc:malloc_hook",
     ],
 )
 
@@ -223,6 +225,7 @@ cc_test(
     timeout = "long",
     srcs = ["rcu_test.cc"],
     linkstatic = 1,
+    malloc = "//gloop:malloc",
     shard_count = 2,
     deps = [
         ":pile",
@@ -249,5 +252,6 @@ cc_test(
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@tcmalloc//tcmalloc:malloc_hook",
     ],
 )

@@ -52,7 +52,7 @@ git_override(
 # Older tcmalloc is not compatible with the newer Abseil.
 git_override(
     module_name = "tcmalloc",
-    commit = "d2d40a163c32a1667a125cac232c187febc31ba5",
+    commit = "3b5165b61695559103dea0bdc89b5eeb68f5ef81",
     remote = "https://github.com/google/tcmalloc",
 )
 

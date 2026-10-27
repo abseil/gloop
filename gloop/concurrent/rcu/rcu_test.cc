@@ -64,6 +64,7 @@
 #include "gloop/util/random/mt_random.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "tcmalloc/malloc_hook.h"
 
 #ifdef ABSL_HAVE_LEAK_SANITIZER
 #include <sanitizer/lsan_interface.h>
@@ -338,6 +339,55 @@ TEST_F(RcuTest, Leaks) {
   EXPECT_EQ(0, __lsan_do_recoverable_leak_check());
 }
 #endif
+
+// Counts mallocs and frees made by the creating thread.
+class CountMallocFrees {
+ public:
+  CountMallocFrees() {
+    mallocs = 0;
+    frees = 0;
+    tid = GetTID();
+    CHECK(tcmalloc::MallocHook::AddNewHook(&CountMallocFrees::NewHook));
+    CHECK(tcmalloc::MallocHook::AddDeleteHook(&CountMallocFrees::DeleteHook));
+  }
+  ~CountMallocFrees() {
+    CHECK(tcmalloc::MallocHook::RemoveNewHook(&CountMallocFrees::NewHook));
+    CHECK(
+        tcmalloc::MallocHook::RemoveDeleteHook(&CountMallocFrees::DeleteHook));
+  }
+  static int64_t mallocs;
+  static int64_t frees;
+  static pid_t tid;
+
+ private:
+  static void NewHook(const tcmalloc::MallocHook::NewInfo&) {
+    if (GetTID() == tid) mallocs++;
+  }
+  static void DeleteHook(const tcmalloc::MallocHook::DeleteInfo&) {
+    if (GetTID() == tid) frees++;
+  }
+};
+
+int64_t CountMallocFrees::mallocs;
+int64_t CountMallocFrees::frees;
+pid_t CountMallocFrees::tid;
+
+TEST_F(RcuTest, DeleteAsyncSafe) {
+  // Actually just test that it doesn't malloc or free, but that's
+  // the important case.
+  v.Replace(new int, &d);
+  {
+    int* f = new int[10];
+    int* f2 = new int;
+    CountMallocFrees c;
+    d.Free(v.ReplaceUnsynchronized(f));
+    d.FreeArray(v.ReplaceUnsynchronized(f2));
+  }
+  delete v.Replace(nullptr, &d);
+  LOG(INFO) << CountMallocFrees::mallocs << " " << CountMallocFrees::frees;
+  EXPECT_EQ(0, CountMallocFrees::mallocs);
+  EXPECT_EQ(0, CountMallocFrees::frees);
+}
 
 // These are mostly tests that various patterns work OK with the annotalysis.
 TEST_F(RcuTest, DomainHolder) {

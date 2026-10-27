@@ -48,6 +48,7 @@
 #include "gloop/thread/thread_options.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "tcmalloc/malloc_hook.h"
 
 namespace concurrent {
 namespace percpu {
@@ -212,6 +213,21 @@ TEST(VcpuStripedObjectTest, PointerMoveSemantics) {
   EXPECT_EQ(total, 95);
 }
 
+class ScopedDisallowAllocations {
+ public:
+  ScopedDisallowAllocations() {
+    CHECK(tcmalloc::MallocHook::AddNewHook(&Hook));
+  }
+  ~ScopedDisallowAllocations() {
+    CHECK(tcmalloc::MallocHook::RemoveNewHook(&Hook));
+  }
+
+ private:
+  static void Hook(const tcmalloc::MallocHook::NewInfo&) {
+    QCHECK(false) << "Unexpected allocation when can_alloc=false";
+  }
+};
+
 TEST(VcpuStripedObjectTest, TryGet) {
   VcpuStripedObject<int64_t> obj;
   EXPECT_TRUE(obj.empty());
@@ -219,6 +235,7 @@ TEST(VcpuStripedObjectTest, TryGet) {
   // With `can_alloc=false`, try_get() must return nullptr without allocating
   // or promoting when the object has no table yet.
   {
+    ScopedDisallowAllocations no_alloc;
     EXPECT_EQ(obj.try_get(/*can_alloc=*/false), nullptr);
   }
   EXPECT_TRUE(obj.empty());
@@ -250,6 +267,7 @@ TEST(VcpuStripedObjectTest, TryGet) {
   held.reset();
   VcpuStripedObjectTestPeer::Promote(obj, ::base::subtle::percpu::NumCPUs());
   {
+    ScopedDisallowAllocations no_alloc;
     VcpuStripedObject<int64_t>::pointer again;
     for (int i = 0; i < 10 && again == nullptr; ++i) {
       again = obj.try_get(/*can_alloc=*/false);

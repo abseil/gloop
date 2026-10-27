@@ -32,6 +32,7 @@
 #include <vector>
 
 #include "absl/base/call_once.h"
+#include "absl/base/config.h"
 #include "absl/base/no_destructor.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/percpu.h"
@@ -39,6 +40,7 @@
 #include "gloop/concurrent/percpu/counter.h"
 #include "gloop/thread/threadpool.h"
 #include "gtest/gtest.h"
+#include "tcmalloc/malloc_hook.h"
 
 using concurrent::percpu::VcpuCounter;
 
@@ -328,6 +330,37 @@ TEST(VcpuCounterTest, ConcurrentAddAndValueReads) {
   for (int cpu = 0; cpu < NumCPUs(); ++cpu) {
     EXPECT_EQ(counter.subtle_value_for_cpu(cpu), 0);
   }
+}
+
+absl::once_flag malloc_count_init;
+VcpuCounter* malloc_count = nullptr;
+void MallocNewHook(const tcmalloc::MallocHook::NewInfo&) {
+  malloc_count->Add(1);
+}
+
+TEST(VcpuCounterTest, WorksFromMallocHook) {
+#if defined(ABSL_HAVE_ADDRESS_SANITIZER) || \
+    defined(ABSL_HAVE_MEMORY_SANITIZER) || defined(ABSL_HAVE_THREAD_SANITIZER)
+  GTEST_SKIP() << "Sanitizers do not invoke tcmalloc::MallocHook.";
+#endif
+  absl::call_once(malloc_count_init,
+                  []() { malloc_count = new VcpuCounter(); });
+  malloc_count->Clear();
+  ASSERT_TRUE(tcmalloc::MallocHook::AddNewHook(MallocNewHook));
+  {
+    ThreadPool pool(20);
+
+    for (int i = 0; i < pool.num_threads(); ++i) {
+      pool.Schedule([]() {
+        std::vector<std::unique_ptr<int>> all;  // Prevents loop optimizations.
+        for (int i = 0; i < 5000; ++i) {
+          all.push_back(std::make_unique<int>(i));
+        }
+      });
+    }
+  }
+  EXPECT_TRUE(tcmalloc::MallocHook::RemoveNewHook(MallocNewHook));
+  EXPECT_GE(malloc_count->value(), 100000);
 }
 
 absl::NoDestructor<VcpuCounter> c;

@@ -49,15 +49,18 @@ cc_test(
     size = "small",
     srcs = ["counter_test.cc"],
     linkstatic = 1,
+    malloc = "//gloop:malloc",
     deps = [
         ":counter",
         "//gloop:gloop_test_main",
         "//gloop/base:sysinfo",
         "//gloop/thread",
         "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:no_destructor",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@tcmalloc//tcmalloc:malloc_hook",
     ],
 )
 
@@ -271,6 +274,7 @@ cc_test(
     size = "small",
     srcs = ["vcpu_counter_test.cc"],
     linkstatic = 1,
+    malloc = "//gloop:malloc",
     deps = [
         ":counter",
         ":vcpu_counter",
@@ -279,9 +283,11 @@ cc_test(
         "//gloop/base:sysinfo",
         "//gloop/thread",
         "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:no_destructor",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@tcmalloc//tcmalloc:malloc_hook",
     ],
 )
 
@@ -294,6 +300,7 @@ cc_test(
         "PERCPU_VCPU_MODE": "flat",
     },
     linkstatic = 1,
+    malloc = "//gloop:malloc",
     deps = [
         ":counter",
         ":vcpu_counter",
@@ -302,9 +309,11 @@ cc_test(
         "//gloop/base:sysinfo",
         "//gloop/thread",
         "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:no_destructor",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@tcmalloc//tcmalloc:malloc_hook",
     ],
 )
 
@@ -314,6 +323,7 @@ cc_test(
     srcs = ["vcpu_counter_test.cc"],
     env = {"PERCPU_VCPU_MODE": "mm"},
     linkstatic = 1,
+    malloc = "//gloop:malloc",
     deps = [
         ":counter",
         ":vcpu_counter",
@@ -322,9 +332,11 @@ cc_test(
         "//gloop/base:sysinfo",
         "//gloop/thread",
         "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:no_destructor",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@tcmalloc//tcmalloc:malloc_hook",
     ],
 )
 
@@ -333,6 +345,7 @@ cc_test(
     size = "small",
     srcs = ["vcpu_counter_test.cc"],
     linkstatic = 1,
+    malloc = "//gloop:malloc",
     deps = [
         ":counter",
         ":vcpu_counter",
@@ -342,9 +355,11 @@ cc_test(
         "//gloop/base:sysinfo",
         "//gloop/thread",
         "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:no_destructor",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@tcmalloc//tcmalloc:malloc_hook",
     ],
 )
 
@@ -354,6 +369,7 @@ cc_test(
     srcs = ["vcpu_counter_test.cc"],
     env = {"PERCPU_VCPU_MODE": "none"},
     linkstatic = 1,
+    malloc = "//gloop:malloc",
     deps = [
         ":counter",
         ":vcpu_counter",
@@ -362,9 +378,11 @@ cc_test(
         "//gloop/base:sysinfo",
         "//gloop/thread",
         "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:no_destructor",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@tcmalloc//tcmalloc:malloc_hook",
     ],
 )
 
@@ -388,6 +406,7 @@ cc_test(
     size = "medium",
     srcs = ["vcpu_striped_object_test.cc"],
     linkstatic = 1,
+    malloc = "//gloop:malloc",
     deps = [
         ":vcpu_striped_object",
         "//gloop:gloop_test_main",
@@ -399,6 +418,7 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@tcmalloc//tcmalloc:malloc_hook",
     ],
 )
 
@@ -423,6 +443,7 @@ cc_test(
     size = "medium",
     srcs = ["vcpu_striped_object_test.cc"],
     linkstatic = 1,
+    malloc = "//gloop:malloc",
     deps = [
         ":vcpu_striped_object",
         "//gloop:gloop_test_main",
@@ -435,6 +456,7 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@tcmalloc//tcmalloc:malloc_hook",
     ],
 )
 
@@ -444,6 +466,7 @@ cc_test(
     srcs = ["vcpu_striped_object_test.cc"],
     env = {"PERCPU_VCPU_MODE": "none"},
     linkstatic = 1,
+    malloc = "//gloop:malloc",
     deps = [
         ":vcpu_striped_object",
         "//gloop:gloop_test_main",
@@ -455,5 +478,6 @@ cc_test(
         "@abseil-cpp//absl/synchronization",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
+        "@tcmalloc//tcmalloc:malloc_hook",
     ],
 )
