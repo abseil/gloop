@@ -120,29 +120,68 @@ std::string ChildMapToString(const ChildMap& m) {
 
 // Helper for extracting cache information from /sys
 void SysTopologyGenerator::ReadCacheInfo(SysTopology::TopologyInfo* ti) const {
+  if (ti->cpus.empty()) {
+    return;
+  }
+
+  cpu_set_t online_cpus = CpuSetMakeEmpty();
+  for (const auto& ci : ti->cpus) {
+    CpuSetInsert(ci.id, &online_cpus);
+  }
+
+  int max_level_seen = 0;
   for (int index = 0;; index++) {
-    std::string cpu0path = absl::Substitute(
-        "$0/sys/devices/system/cpu/cpu0/cache/index$1", path_prefix_, index);
+    int probe_cpu = ti->cpus[0].id;
+    std::string cpupath =
+        absl::Substitute("$0/sys/devices/system/cpu/cpu$1/cache/index$2",
+                         path_prefix_, probe_cpu, index);
     char type[64];
 
-    // See if this cache index exists. Assume that indices are
-    // contiguous from 0
-    if (access(cpu0path.c_str(), F_OK) ||
-        !ReadProcField((cpu0path + "/type").c_str(), -1, 0, "%s", type))
+    // See if this cache index exists on the first online CPU. If not, check
+    // cpu0 (for synthetic test trees) or other online CPUs on hybrid systems
+    // where some cores have fewer cache levels than others.
+    bool found_index =
+        access(cpupath.c_str(), F_OK) == 0 &&
+        ReadProcField((cpupath + "/type").c_str(), -1, 0, "%s", type);
+    if (!found_index && probe_cpu != 0) {
+      std::string cpu0path = absl::Substitute(
+          "$0/sys/devices/system/cpu/cpu0/cache/index$1", path_prefix_, index);
+      if (access(cpu0path.c_str(), F_OK) == 0 &&
+          ReadProcField((cpu0path + "/type").c_str(), -1, 0, "%s", type)) {
+        cpupath = std::move(cpu0path);
+        found_index = true;
+      }
+    }
+    if (!found_index && max_level_seen < 3) {
+      for (size_t k = 1; k < ti->cpus.size(); ++k) {
+        std::string alt_path =
+            absl::Substitute("$0/sys/devices/system/cpu/cpu$1/cache/index$2",
+                             path_prefix_, ti->cpus[k].id, index);
+        if (access(alt_path.c_str(), F_OK) == 0 &&
+            ReadProcField((alt_path + "/type").c_str(), -1, 0, "%s", type)) {
+          cpupath = std::move(alt_path);
+          found_index = true;
+          break;
+        }
+      }
+    }
+    if (!found_index) {
       break;
+    }
 
     int level;
-    if (!ReadProcField((cpu0path + "/level").c_str(), -1, 0, "%d", &level))
+    if (!ReadProcField((cpupath + "/level").c_str(), -1, 0, "%d", &level))
       continue;
+    max_level_seen = std::max(max_level_seen, level);
 
     int size = -1;
     // assume unit is 'K'
     char unit;
-    if (!ReadProcField((cpu0path + "/size").c_str(), -1, 0, "%d%c", &size,
+    if (!ReadProcField((cpupath + "/size").c_str(), -1, 0, "%d%c", &size,
                        &unit))
       continue;
     if (unit != 'K') {
-      LOG(ERROR) << "Error reading cache size file " << cpu0path << "/size"
+      LOG(ERROR) << "Error reading cache size file " << cpupath << "/size"
                  << "; Size unit is not in K";
       size = -1;
     }
@@ -159,14 +198,16 @@ void SysTopologyGenerator::ReadCacheInfo(SysTopology::TopologyInfo* ti) const {
     if (strcmp(type, "Unified") && strcmp(type, "Data")) continue;
 
     std::string levelname = absl::Substitute("l$0cache", level);
-
-    // Read the sharing cpu_set_t for each group of CPU siblings.
-    cpu_set_t cpus_to_read = CpuSetMakeEmpty();
-    for (const auto& ci : ti->cpus) {
-      CpuSetInsert(ci.id, &cpus_to_read);
+    if (absl::c_any_of(ti->levels, [&](const SysTopology::LevelInfo& li) {
+          return li.name == levelname;
+        })) {
+      continue;
     }
 
-    std::vector<cpu_set_t> cpu_sets(ti->cpus.size());
+    // Read the sharing cpu_set_t for each group of CPU siblings.
+    cpu_set_t cpus_to_read = online_cpus;
+
+    std::vector<cpu_set_t> cpu_sets(ti->cpus.size(), CpuSetMakeEmpty());
     int sibling_count = 0;
     for (int i = 0; i < ti->cpus.size(); ++i) {
       const int cpu_id = ti->cpus[i].id;
@@ -177,9 +218,58 @@ void SysTopologyGenerator::ReadCacheInfo(SysTopology::TopologyInfo* ti) const {
       std::string path = absl::Substitute(
           "$0/sys/devices/system/cpu/cpu$1/cache/index$2/shared_cpu_map",
           path_prefix_, cpu_id, index);
-      if (!ReadCPUSet(path.c_str(), &cpu_set)) {
-        break;
+      int matched_level = level;
+      char matched_type[64];
+      bool index_matches = true;
+      if (ReadProcField(
+              absl::Substitute(
+                  "$0/sys/devices/system/cpu/cpu$1/cache/index$2/level",
+                  path_prefix_, cpu_id, index)
+                  .c_str(),
+              -1, 0, "%d", &matched_level) &&
+          matched_level != level) {
+        index_matches = false;
       }
+      if (index_matches &&
+          ReadProcField(
+              absl::Substitute(
+                  "$0/sys/devices/system/cpu/cpu$1/cache/index$2/type",
+                  path_prefix_, cpu_id, index)
+                  .c_str(),
+              -1, 0, "%s", matched_type) &&
+          strcmp(matched_type, "Unified") != 0 &&
+          strcmp(matched_type, "Data") != 0) {
+        index_matches = false;
+      }
+      bool read_ok = index_matches && ReadCPUSet(path.c_str(), &cpu_set);
+      if (!read_ok) {
+        // On hybrid systems, check if another cache index on this CPU provides
+        // this cache level.
+        for (int alt_index = 0; alt_index < 6; ++alt_index) {
+          if (alt_index == index) continue;
+          std::string alt_dir =
+              absl::Substitute("$0/sys/devices/system/cpu/cpu$1/cache/index$2",
+                               path_prefix_, cpu_id, alt_index);
+          if (access(alt_dir.c_str(), F_OK) != 0 ||
+              !ReadProcField((alt_dir + "/type").c_str(), -1, 0, "%s",
+                             matched_type)) {
+            break;
+          }
+          if ((strcmp(matched_type, "Unified") == 0 ||
+               strcmp(matched_type, "Data") == 0) &&
+              ReadProcField((alt_dir + "/level").c_str(), -1, 0, "%d",
+                            &matched_level) &&
+              matched_level == level &&
+              ReadCPUSet((alt_dir + "/shared_cpu_map").c_str(), &cpu_set)) {
+            read_ok = true;
+            break;
+          }
+        }
+      }
+      if (!read_ok) {
+        continue;
+      }
+      CpuSetAnd(&cpu_set, &cpu_set, &online_cpus);
       // shared_cpu_map is identical for all CPUs listed in it.
       // Copy this cpu_set to each sibling in the map.
       for (int j = 0; j < ti->cpus.size(); ++j) {
@@ -190,10 +280,35 @@ void SysTopologyGenerator::ReadCacheInfo(SysTopology::TopologyInfo* ti) const {
       }
       CpuSetClearSubset(&cpus_to_read, &cpu_set, &cpus_to_read);
     }
-    if (sibling_count < ti->cpus.size()) {
+    if (sibling_count == 0) {
       LOG(WARNING) << "Partial sibling information for " << levelname << ":"
                    << gtl::LogContainer(cpu_sets);
       continue;
+    }
+    if (sibling_count < ti->cpus.size()) {
+      LOG(WARNING) << "Partial sibling information for " << levelname << ":"
+                   << gtl::LogContainer(cpu_sets);
+      // On hybrid architectures (e.g. Intel Meteor Lake LP E-cores without L3
+      // cache), some CPUs do not have this cache level. Fall back to their
+      // sibling set from the highest lower cache level so the topology level
+      // still forms a valid partition across all online CPUs.
+      for (int j = 0; j < ti->cpus.size(); ++j) {
+        const int cpu_id = ti->cpus[j].id;
+        if (!CpuSetContains(cpu_id, &cpus_to_read)) {
+          continue;
+        }
+        cpu_set_t fallback = CpuSetMakeEmpty();
+        for (int prev_level = level - 1; prev_level >= 1; --prev_level) {
+          auto it = ti->cpus[j].siblings.find(
+              absl::Substitute("l$0cache", prev_level));
+          if (it != ti->cpus[j].siblings.end()) {
+            CpuSetAnd(&fallback, &it->second, &cpus_to_read);
+            break;
+          }
+        }
+        CpuSetInsert(cpu_id, &fallback);
+        cpu_sets[j] = fallback;
+      }
     }
 
     ti->levels.push_back(SysTopology::LevelInfo());
@@ -963,20 +1078,9 @@ class SysTopology::TopologySorter {
   bool operator()(const LevelInfo& l1, const LevelInfo& l2) const {
     VLOG(4) << "Comparing levels " << l1.name << " and " << l2.name;
     bool lt = false, gt = false;
-    bool offline_cpu = false;
-    int last_cpu_id = -1;
+    int64_t count1 = 0, count2 = 0;
+    int first_diff_cmp = 0;
     for (const auto& ci : ti_.cpus) {
-      // (b/280062439): Check all cpu id are consecutive as topology
-      // sorter fails when a CPU is offline.
-      // Note that l3cache is missing when one cpu is offline.
-      if (last_cpu_id != -1) {  // We need at least one sample.
-        if ((ci.id - 1) != last_cpu_id) {
-          VLOG(4) << "CPU id: " << last_cpu_id << " is offline.";
-          offline_cpu = true;
-        }
-      }
-      last_cpu_id = ci.id;
-
       const CPUSiblingMap& siblings = ci.siblings;
       CPUSiblingMap::const_iterator it1 = siblings.find(l1.name);
       CHECK(it1 != siblings.end());
@@ -984,6 +1088,11 @@ class SysTopology::TopologySorter {
       CHECK(it2 != siblings.end());
       VLOG(4) << "Comparing cpu " << ci.id << ": " << it1->second << " vs "
               << it2->second;
+      count1 += CpuSetCountCpus(it1->second);
+      count2 += CpuSetCountCpus(it2->second);
+      if (first_diff_cmp == 0 && !CpuSetTestEqual(it1->second, it2->second)) {
+        first_diff_cmp = CpuSetLessThan()(it1->second, it2->second) ? -1 : 1;
+      }
       cpu_set_t cpu_set_tmp;
       CpuSetClearSubset(&it1->second, &it2->second, &cpu_set_tmp);
       VLOG(4) << "Got First tmp = " << cpu_set_tmp;
@@ -995,14 +1104,18 @@ class SysTopology::TopologySorter {
         lt = true;
       VLOG(4) << "Got gt: " << gt << " and lt: " << lt;
     }
-    // Is the last cpu offline.
-    if (last_cpu_id < ti_.cpus.size()) {
-      offline_cpu = true;
-    }
-    // Topology ordering does not match when it has cpus offline.
-    if (!offline_cpu) {
-      CHECK(!(lt && gt)) << "Impossible topology ordering: level " << l1.name
-                         << " vs " << l2.name;
+    if (lt && gt) {
+      // On hybrid architectures (e.g. P-cores vs E-cores) or systems with
+      // offline CPUs, two levels may not be strictly comparable by subset on
+      // all CPUs. Fall back to a deterministic strict weak ordering based on
+      // total sibling cardinality and lexicographical sibling set comparison.
+      VLOG(1) << "Incomparable topology ordering for level " << l1.name
+              << " vs " << l2.name
+              << " (hybrid architecture or offline CPUs); using tie-breaker.";
+      if (count1 != count2) {
+        return count1 < count2;
+      }
+      return first_diff_cmp < 0;
     }
     return lt;
   }
@@ -1096,7 +1209,7 @@ SysTopology::SysTopology(TopologyInfo ti) : topology_info_(ti) {
 
   // Propagate information from the level info child maps
   // to the cpuinfo parent maps
-  for (const auto& li : ti.levels) {
+  for (auto& li : ti.levels) {
     // Prep the max_id map
     max_id[li.name] = -1;
 
@@ -1105,6 +1218,10 @@ SysTopology::SysTopology(TopologyInfo ti) : topology_info_(ti) {
       continue;
     }
     CHECK(!li.children.empty());
+
+    for (auto& child : li.children) {
+      CpuSetAnd(&child.second, &child.second, &all_cpus_);
+    }
 
     VLOG(4) << "Processing childmap information for level " << li.name;
     VLOG(4) << ChildMapToString(li.children);
@@ -1154,6 +1271,7 @@ SysTopology::SysTopology(TopologyInfo ti) : topology_info_(ti) {
       for (auto& ci : ti.cpus) {
         CHECK(!ci.parent.count(li.name));
         CHECK(ci.siblings.count(li.name));
+        CpuSetAnd(&ci.siblings[li.name], &ci.siblings[li.name], &all_cpus_);
         CpuSetInsert(ci.id, &ci.siblings[li.name]);  // CPU is its own sibling
       }
 
@@ -1462,12 +1580,10 @@ int SysTopology::LevelCount(int level) const {
 int SysTopology::CountCores(const cpu_set_t* cpu_set) const {
   cpu_set_t core_cpu_set = CpuSetMakeEmpty();
   if (NumCPUs() == NumCores()) {
-    // TODO: This leaves open the possibility that we'll return more
-    // cores than we actually have.  Either mask off extra bits, or just always
-    // use the loop below.
-    core_cpu_set = *cpu_set;
+    CpuSetAnd(&core_cpu_set, cpu_set, &all_cpus_);
   } else {
-    for (int i = 0; i < NumCPUs(); i++) {
+    const int num_cpu_entries = levels_[core_level_].parent.size();
+    for (int i = 0; i < num_cpu_entries; i++) {
       if (CpuSetContains(i, cpu_set)) {
         // CoreOf(i) returns negative when core is offline, so
         // avoid CpuSetInsert.
@@ -1556,10 +1672,12 @@ std::string SysTopology::ToString() const {
   if (FindLevel("l2cache") != -1 && NumCPUs() <= 64) {
     buf << std::endl;
     buf << "CPUPairCacheLocalityScore:" << std::endl;
-    for (int i = 0; i < NumCPUs(); i++) {
-      for (int j = 0; j < NumCPUs(); j++) {
-        buf << "" << CPUPairCacheLocalityScore(i, j);
-        if (j != NumCPUs() - 1) buf << " ";
+    for (size_t i = 0; i < topology_info_.cpus.size(); i++) {
+      for (size_t j = 0; j < topology_info_.cpus.size(); j++) {
+        buf << ""
+            << CPUPairCacheLocalityScore(topology_info_.cpus[i].id,
+                                         topology_info_.cpus[j].id);
+        if (j + 1 != topology_info_.cpus.size()) buf << " ";
       }
       buf << std::endl;
     }
