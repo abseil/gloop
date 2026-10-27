@@ -460,10 +460,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":memutil",
-        "//gloop/base:init_google",
-        "//gloop/base:log_file_flags",
-        "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/log",
+        "//gloop:gloop_test_main",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@google_benchmark//:benchmark",
