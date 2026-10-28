@@ -274,6 +274,12 @@ TEST(GoogleInitTest, LexicographicalInitialization) {
   // clang-format on
 
   EXPECT_THAT(*lex_init_order, ElementsAreArray(golden_lex_order));
+
+  // Verify that re-requiring or re-running initializers after the registration
+  // table has been cleared is a safe no-op.
+  REQUIRE_GOOGLE_INITIALIZED(lex_order, A);
+  RUN_GOOGLE_INITIALIZERS(lex_order);
+  EXPECT_THAT(*lex_init_order, ElementsAreArray(golden_lex_order));
 }
 
 TEST(GoogleInitTest, RunNonExistentType) {

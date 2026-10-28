@@ -227,6 +227,10 @@ class GoogleInitializer::TypeData {
     for (auto& p : initializer_by_name_) {
       RunIfNecessary(p.second.initializer_obj);
     }
+    // Reclaim heap memory occupied by the registration table and dependency
+    // sets once all initializers of this type have finished executing
+    // (typically hundreds of KiB in large binaries).
+    initializer_by_name_.clear();
     EndRun();
   }
 
@@ -427,58 +431,63 @@ void GoogleInitializer::TypeData::RunIfNecessary(GoogleInitializer* init) {
   DCHECK(IsRunning());  // this thread must be running initializers
   CHECK(!init->is_active_) << ": Cycle involving initializer '" << name
                            << "'of type " << type;
+  if (init->done_) {
+    return;
+  }
+  // Look up `initializer_by_name_` only when `!init->done_` so that
+  // `Require()` calls after `RunAll()` has cleared `initializer_by_name_`
+  // remain a safe no-op, and to avoid redundant map lookups during
+  // dependency traversal.
   NameMap::const_iterator it = initializer_by_name_.find(name);
   CHECK(it != initializer_by_name_.end() &&
         it->second.initializer_obj_constructed)  // sanity
       << ": Wow! We've managed to attempt to run initializer '" << name
       << "' of type " << type << " before it has been registered via "
       << "its global GoogleInitializer object constructor execution.";
-  if (!init->done_) {  // need to run it
-    VLOG(4) << "Initializing  " << type << ":" << name;
-    init->is_active_ = true;
-    absl::Time start = absl::Now();
-    {
-      GoogleInitializer* last_active_initializer = active_initializer_;
-      have_run_initializers_ = true;  // are running this one now
-      active_initializer_ = init;
-      // Execute dependency_names first
-      // (normally in lexicographic order of names):
-      for (absl::string_view dep : it->second.dependency_names) {
-        VLOG(4) << "Dependency on " << type << ":" << dep << " from " << type
-                << ":" << name;
-        NameMap::const_iterator dep_init = initializer_by_name_.find(dep);
-        CHECK(dep_init != initializer_by_name_.end());  // sanity
-        RunIfNecessary(dep_init->second.initializer_obj);
-      }
-      if (type == "module") {
-        SetModuleRunning(name);
-      }
-
-      // Unlock during initializer body execution to let it use
-      // Require() via REQUIRE_*_INITIALIZED.  Due to
-      // type_data->IsRunning() being true, unlocking is safe: no
-      // other thread can jump-in until we fully unwind the
-      // initializer running recursion.
-      table_lock.unlock();
-      (*init->function_)();
-      table_lock.lock();
-
-      if (type == "module") {
-        ForgetModuleRunning(name);
-      }
-      active_initializer_ = last_active_initializer;
+  VLOG(4) << "Initializing  " << type << ":" << name;
+  init->is_active_ = true;
+  absl::Time start = absl::Now();
+  {
+    GoogleInitializer* last_active_initializer = active_initializer_;
+    have_run_initializers_ = true;  // are running this one now
+    active_initializer_ = init;
+    // Execute dependency_names first
+    // (normally in lexicographic order of names):
+    for (absl::string_view dep : it->second.dependency_names) {
+      VLOG(4) << "Dependency on " << type << ":" << dep << " from " << type
+              << ":" << name;
+      NameMap::const_iterator dep_init = initializer_by_name_.find(dep);
+      CHECK(dep_init != initializer_by_name_.end());  // sanity
+      RunIfNecessary(dep_init->second.initializer_obj);
     }
-    init->is_active_ = false;
-    init->done_ = true;
-    const int64_t time_in_ms = absl::ToInt64Milliseconds(absl::Now() - start);
-    // VLOG at default visibility any initializer that takes over 100 ms.
-    VLOG(time_in_ms > 100 && absl::log_internal::IsInitialized() &&
-                 !absl::GetFlag(FLAGS_silent_init)
-             ? 0
-             : 4)
-        << "Finished      " << type << ":" << name << " in " << time_in_ms
-        << " ms";
+    if (type == "module") {
+      SetModuleRunning(name);
+    }
+
+    // Unlock during initializer body execution to let it use
+    // Require() via REQUIRE_*_INITIALIZED.  Due to
+    // type_data->IsRunning() being true, unlocking is safe: no
+    // other thread can jump-in until we fully unwind the
+    // initializer running recursion.
+    table_lock.unlock();
+    (*init->function_)();
+    table_lock.lock();
+
+    if (type == "module") {
+      ForgetModuleRunning(name);
+    }
+    active_initializer_ = last_active_initializer;
   }
+  init->is_active_ = false;
+  init->done_ = true;
+  const int64_t time_in_ms = absl::ToInt64Milliseconds(absl::Now() - start);
+  // VLOG at default visibility any initializer that takes over 100 ms.
+  VLOG(time_in_ms > 100 && absl::log_internal::IsInitialized() &&
+               !absl::GetFlag(FLAGS_silent_init)
+           ? 0
+           : 4)
+      << "Finished      " << type << ":" << name << " in " << time_in_ms
+      << " ms";
 }
 
 static_assert(std::is_trivially_destructible<GoogleInitializer>::value,
