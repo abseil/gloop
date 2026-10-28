@@ -1851,20 +1851,23 @@ cc_library(
     name = "googleinit",
     srcs = ["googleinit.cc"],
     hdrs = ["googleinit.h"],
-    visibility = ["//visibility:public"],
-    deps = [
+    implementation_deps = [
         ":init_google_flags",
         ":port",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log/internal:globals",
-        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
     ],
 )
 
@@ -1892,19 +1895,16 @@ cc_library(
     name = "init_google",
     srcs = ["init_google.cc"],
     hdrs = ["init_google.h"],
-    visibility = ["//visibility:public"],
-    deps = [
+    implementation_deps = [
         ":commandlineflags",
         ":config",
         ":examine_stack",
-        ":googleinit",
         ":init_google_flags",
         ":logging",
         ":raw_logging",
         ":spinlock",
         ":sysinfo",
         ":user_name",
-        "//gloop:enforce_gloop_support",
         "//gloop/base/internal:init_google",
         "//gloop/base/internal:logging_globals",
         "//gloop/concurrent/rcu",
@@ -1914,7 +1914,6 @@ cc_library(
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/base:no_destructor",
-        "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/debugging:demangle_internal",
         "@abseil-cpp//absl/debugging:symbolize",
         "@abseil-cpp//absl/flags:flag",
@@ -1928,7 +1927,6 @@ cc_library(
         "@abseil-cpp//absl/log/internal:globals",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
-        "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@tcmalloc//tcmalloc:malloc_extension",
@@ -1936,6 +1934,14 @@ cc_library(
         "@platforms//os:linux": POSIX_DEPS,
         "//conditions:default": [],
     }),
+    visibility = ["//visibility:public"],
+    deps = [
+        ":googleinit",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/strings:string_view",
+    ],
 )
 
 cc_test(
