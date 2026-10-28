@@ -810,7 +810,7 @@ static void UpstreamFenceCpu(int cpu) {
 
   int64_t res = syscall(__NR_membarrier, kMEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ,
                         kMEMBARRIER_CMD_FLAG_CPU, cpu);
-  ABSL_RAW_CHECK(res == 0 || res == -ENXIO /* missing CPU */,
+  ABSL_RAW_CHECK(res == 0 || (res == -1 && errno == ENXIO) /* missing CPU */,
                  "Upstream fence failed.");
 }
 
@@ -1405,6 +1405,27 @@ TEST(RestartableSequences, CorruptedRseqStateDeathTest) {
         }
       },
       "Thread registration failed with errno 16");
+}
+
+TEST(RestartableSequences, UpstreamFenceAllCpus) {
+  if (!IsFast() ||
+      !base::subtle::percpu::percpu_internal::UsingUpstreamRseqFenceCpu()) {
+    GTEST_SKIP() << "Require fast per-CPU with upstream fence";
+  }
+
+  Fence();
+  UpstreamFenceCpu(-1);
+}
+
+TEST(RestartableSequences, UpstreamFenceMissingCpu) {
+  if (!IsFast() ||
+      !base::subtle::percpu::percpu_internal::UsingUpstreamRseqFenceCpu()) {
+    GTEST_SKIP() << "Require fast per-CPU with upstream fence";
+  }
+
+  const int num_cpus = NumCPUs();
+  FenceCpu(num_cpus);
+  UpstreamFenceCpu(num_cpus);
 }
 
 TEST(RestartableSequences, CriticalSectionMetadata) {

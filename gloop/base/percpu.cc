@@ -442,14 +442,16 @@ bool UsingUpstreamRseqFenceCpu() { return per_cpu_state == kFastModeWithFence; }
 void UpstreamRseqFenceCpu(int cpu) {
   ABSL_RAW_CHECK(per_cpu_state == kFastModeWithFence,
                  "upstream fence unavailable.");
+  ABSL_RAW_CHECK(cpu >= -1, "invalid cpu");
   constexpr int kMEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ = (1 << 7);
   constexpr int kMEMBARRIER_CMD_FLAG_CPU = (1 << 0);
 
   int64_t res = syscall(__NR_membarrier, kMEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ,
                         kMEMBARRIER_CMD_FLAG_CPU, cpu);
 
-  if (ABSL_PREDICT_FALSE(res != 0 && res != -ENXIO /* missing CPU */)) {
-    ABSL_RAW_LOG(FATAL, "Upstream fence failed: %ld", res);
+  if (ABSL_PREDICT_FALSE(res != 0 &&
+                         !(res == -1 && errno == ENXIO) /* missing CPU */)) {
+    ABSL_RAW_LOG(FATAL, "Upstream fence failed: %ld (errno=%d)", res, errno);
   }
 }
 
