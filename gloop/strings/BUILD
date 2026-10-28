@@ -49,9 +49,8 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":arena-string",
+        "//gloop:gloop_test_main",
         "//gloop/base:arena",
-        "//gloop/base:init_google",
-        "//gloop/base:log_file_flags",
         "//gloop/util/random:distributions",
         "//gloop/util/random:mt_random",
         "//gloop/util/random:random_base",

@@ -37,8 +37,6 @@
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/arena.h"
-#include "gloop/base/init_google.h"
-#include "gloop/base/log_file_flags.h"
 #include "gloop/util/random/distributions.h"
 #include "gloop/util/random/mt_random.h"
 #include "gloop/util/random/random_base.h"
@@ -97,17 +95,17 @@ void TestAssign(A a) {
   for (int i = 0; i < absl::GetFlag(FLAGS_test_size); i++) {
     SCOPED_TRACE(i);
 
-    EXPECT_EQ(data[i].size(), arena_str[i].size());
-    EXPECT_EQ(data[i].empty(), arena_str[i].empty());
-    EXPECT_EQ(0, memcmp(data[i].data(), arena_str[i].data(), data[i].size()));
+    EXPECT_EQ(arena_str[i].size(), data[i].size());
+    EXPECT_EQ(arena_str[i].empty(), data[i].empty());
+    EXPECT_EQ(memcmp(arena_str[i].data(), data[i].data(), data[i].size()), 0);
 
     absl::string_view str(data[i]);
-    EXPECT_EQ(str, arena_str[i].str());
+    EXPECT_EQ(arena_str[i].str(), str);
 
     arena_str[i].clear();
     EXPECT_TRUE(arena_str[i].str().empty());
     EXPECT_TRUE(arena_str[i].empty());
-    EXPECT_EQ(0, arena_str[i].size());
+    EXPECT_EQ(arena_str[i].size(), 0);
   }
 }
 
@@ -148,19 +146,19 @@ TEST(ArenaStringTest, EncodeDecode) {
     // encode the string; it should return data.
     char* enc = ArenaString::Encode(str, buf.data());
     if (raw.size() < 128) {
-      EXPECT_EQ(&buf[1], enc);
+      EXPECT_EQ(enc, &buf[1]);
     } else {
-      EXPECT_EQ(&buf[4], enc);
+      EXPECT_EQ(enc, &buf[4]);
     }
 
     // ensure we didn't write past the end of the encoding
     for (int j = ArenaString::EncSize(str.size()); j < buf_extra; j++) {
-      EXPECT_EQ(0, buf[j]) << "size=" << str.size() << " j=" << j;
+      EXPECT_EQ(buf[j], 0) << "size=" << str.size() << " j=" << j;
     }
 
     // decode and verify the string.
     absl::string_view dec = ArenaString::Decode(enc);
-    EXPECT_EQ(str, dec);
+    EXPECT_EQ(dec, str);
 
     // clear buf
     memset(buf.data(), 0, ArenaString::EncSize(str.size()));
@@ -389,16 +387,3 @@ static void BM_arenastring_data(benchmark::State& state) {
 BENCHMARK(BM_arenastring_data)->Range(0, 1 << 16);
 
 }  // namespace strings
-
-int main(int argc, char** argv) {
-  absl::SetFlag(&FLAGS_logtostderr, true);
-  InitGoogle(argv[0], &argc, &argv, true);
-  if (!benchmark::GetBenchmarkFilter().empty()) {
-    benchmark::RunSpecifiedBenchmarks();
-    exit(0);
-  }
-
-  LOG(INFO) << "--test_random_seed=" << GTEST_FLAG_GET(random_seed);
-
-  return RUN_ALL_TESTS();
-}
