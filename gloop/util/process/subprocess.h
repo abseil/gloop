@@ -780,17 +780,23 @@ class SubProcess {
   virtual void SetCommand(const std::vector<std::string>& argv);
 
   // SetShellCommand()
-  //    Convenience method to run the given command, which will be
-  //    interpreted by /bin/sh.  It will be executed as:
+  //    DEPRECATED: Do NOT use this method in new code. Use SetCommand() or
+  //    SetArgv() instead, which pass arguments directly to the executable
+  //    without invoking a shell.
+  //
+  //    WARNING: Passing any untrusted or unescaped input to this method creates
+  //    a critical shell command injection vulnerability (arbitrary code
+  //    execution):
+  //    https://en.wikipedia.org/wiki/Code_injection#Shell_injection
+  //    Safely escaping arbitrary inputs for /bin/sh is error-prone and nearly
+  //    always unnecessary.
+  //
+  //    Runs the given command interpreted by /bin/sh, executed as:
   //       /bin/sh -c {command}
   //    It copies the given command to the internal buffer.
   //
-  //    Be wary of using this method as it is typically unnecessary, requires
-  //    proper escaping, and can introduce security vulnerabilities:
-  //    https://en.wikipedia.org/wiki/Code_injection#Shell_injection
-  //    Prefer SetCommand() if you do not need a shell.
-  //
   //    @param command A well-formed shell command.
+  [[deprecated("Use SetCommand() or SetArgv() instead.")]]
   virtual void SetShellCommand(absl::string_view command);
 
   // GetArgv()
