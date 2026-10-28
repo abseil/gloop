@@ -1209,6 +1209,44 @@ TEST(CountingMutexTest, LockWhenAlreadyLockedAsserts) {
   mutex.unlock_shared();
 }
 
+TEST(CountingMutexTest, ConcurrentReaderAwaitAfterWriterUnlock) {
+  CountingMutex mutex;
+  std::atomic<bool> stop{false};
+  bool cond_val = false;
+  absl::Condition false_cond(&cond_val);
+
+  std::vector<TestThread> threads;
+  threads.reserve(8);
+  for (int i = 0; i < 4; ++i) {
+    threads.emplace_back(ThreadMode::kThread, [&] {
+      while (!stop.load(std::memory_order_relaxed)) {
+        mutex.lock();
+        mutex.unlock();
+        mutex.lock_shared();
+        mutex.unlock_shared();
+      }
+    });
+    threads.emplace_back(ThreadMode::kThread, [&] {
+      while (!stop.load(std::memory_order_relaxed)) {
+        if (mutex.try_lock_shared()) {
+          mutex.AwaitWithDeadline(false_cond, absl::InfinitePast());
+          mutex.AssertReaderHeld();
+          mutex.unlock_shared();
+        }
+      }
+    });
+  }
+
+  // Run long enough for concurrent reader slot initializations and fast-path
+  // reader acquisitions to overlap with AwaitCommonSlow() reading
+  // `reader_locks_`.
+  absl::SleepFor(absl::Seconds(3));
+  stop.store(true, std::memory_order_release);
+  for (TestThread& thread : threads) {
+    thread.Join();
+  }
+}
+
 TEST(CountingMutexTest, AssertHeldMultiThreaded) {
   CountingMutex mutex;
 

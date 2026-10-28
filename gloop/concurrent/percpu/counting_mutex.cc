@@ -408,13 +408,13 @@ bool CountingMutex::MutexLockForReadLock(bool try_lock) {
 
 bool CountingMutex::ReaderLockInitSlow(bool try_lock) {
   if (!MutexLockForReadLock(try_lock)) return false;
+  if (!reader_locks_) reader_locks_ = true;
   std::atomic<uint32_t>* ptr = GetPtr(GetCurrentCpu());
   if (ptr->load(std::memory_order_acquire) & 1) {
     ptr->fetch_add(2, std::memory_order_acq_rel);
   } else {
     ptr->store(3, std::memory_order_release);
   }
-  reader_locks_ = true;
   MutexUnlockForReadLock(try_lock);
   return true;
 }
@@ -422,6 +422,18 @@ bool CountingMutex::ReaderLockInitSlow(bool try_lock) {
 bool CountingMutex::ReaderLockInitFast(bool try_lock) {
 #if COUNTING_MUTEX_USE_RSEQ
   if (!MutexLockForReadLock(try_lock)) return false;
+  // Set `reader_locks_ = true` before activating the per-CPU slot so any reader
+  // observing the active slot in `RefFast()` also observes `reader_locks_` as
+  // `true` in `AwaitCommonSlow()`. Only store when `!reader_locks_` (i.e. on
+  // the first reader after init or writer unlock, when no other reader holds a
+  // lock) so subsequent slot initializations do not write concurrently with
+  // `AwaitCommonSlow()` reads. The `"memory"` clobber on the RSEQ `asm` block
+  // below prevents sinking this store past the slot commit and pairs with the
+  // `"memory"` clobber in `RefFast()` (which prevents hoisting the load in
+  // `AwaitCommonSlow()` above the slot load); at the hardware level, another
+  // thread can only observe this physical CPU's slot after an OS context
+  // switch's memory barrier.
+  if (!reader_locks_) reader_locks_ = true;
 #if defined(__x86_64__)
   uint32_t value;
   std::atomic<uint64_t>* ptr;
@@ -474,7 +486,6 @@ bool CountingMutex::ReaderLockInitFast(bool try_lock) {
 #else  // defined(__aarch64__)
   static_assert(false, "Invalid platform inside ReaderLockInitFast()");
 #endif
-  reader_locks_ = true;
   MutexUnlockForReadLock(try_lock);
 #endif  // COUNTING_MUTEX_USE_RSEQ
   return true;
@@ -516,11 +527,27 @@ bool CountingMutex::AwaitSlow(const absl::Condition& cond, absl::Time deadline)
 }
 
 bool CountingMutex::AwaitCommonSlow(const absl::Condition& cond,
-                                    const absl::Time* deadline)
-    ABSL_NO_THREAD_SAFETY_ANALYSIS {
+                                    const absl::Time* deadline) {
+  // We require a pending Writer or Reader lock.
+  AssertReaderHeld();
+
   // `reader_locks_ = true` indicates ~some thread~ is holding a reader lock.
-  // As we require 'some' lock to be held, the absence of a a reader lock
+  // As we require 'some' lock to be held, the absence of a reader lock
   // definitively tells us we are holding a writer lock.
+  //
+  // Reading `reader_locks_` without `mu_` is race-free and ordered:
+  // - Writer lock: this thread holds `mu_` and set `reader_locks_ = false`.
+  // - Reader lock: the first reader in `ReaderLockInit*()` sets
+  //   `reader_locks_ = true` under `mu_` before activating any CPU slot, and
+  //   subsequent `ReaderLockInit*()` calls see `reader_locks_ == true` and do
+  //   not write to it while any reader holds a lock. If another thread `T1`
+  //   initialized this slot, in slow mode `T1`'s `store(release)` on the slot
+  //   synchronizes with our `fetch_add(acq_rel)` after `T1` set
+  //   `reader_locks_ = true`; in RSEQ fast mode, the `"memory"` clobbers in
+  //   `ReaderLockInitFast()` and `RefFast()` prevent compiler reordering, and
+  //   `T1` retired `reader_locks_ = true` on the same physical CPU before the
+  //   OS context switch to this thread (and any subsequent CPU migration),
+  //   which issues full hardware memory barriers.
   bool writer_lock = !reader_locks_;
 
   // Use naive logic. We could optimize this somewhat, but the condition
