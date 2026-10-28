@@ -23,13 +23,12 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_GTL_EXTEND_REFLECTION_EXTENSION_H_
 #define THIRD_PARTY_GLOOP_UTIL_GTL_EXTEND_REFLECTION_EXTENSION_H_
 
-#include <array>
-#include <cstddef>
+#include <memory>
 #include <ostream>
+#include <tuple>
 #include <utility>
 
 #include "absl/base/no_destructor.h"
-#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "gloop/util/gtl/extend/extend.h"
 #include "gloop/util/gtl/extend/internal/reflection.h"
@@ -63,8 +62,8 @@ struct ReflectionExtension : Extension<ReflectionExtension, T> {
 // static
 template <typename T>
 const auto& ReflectionExtension<T>::GetFieldNames(const T& value) {
-  using FieldNameInfo = internal_extend::FieldNameInfo<std::tuple_size<
-      decltype(ReflectionExtension<T>::Unpack(std::declval<T>()))>::value>;
+  using FieldNameInfo = internal_extend::FieldNameInfo<std::tuple_size_v<
+      decltype(ReflectionExtension<T>::Unpack(std::declval<T>()))>>;
 
   // The fact that it is marked `static` is important: Field names are
   // parsed as an effect of this initialization. Marking this variable as
@@ -80,14 +79,12 @@ const auto& ReflectionExtension<T>::GetFieldNames(const T& value) {
     // this usage into any other project. If you would like to use
     // `__builtin_dump_struct`, please contact the OWNERS of this project
     // for guidance.
-    std::array<absl::string_view, FieldNameInfo::kFieldCount> field_names;
     internal_extend::ParsingState state;
 
     __builtin_dump_struct(std::addressof(value), internal_extend::PrintfHijack,
-                          state, absl::MakeSpan(field_names));
+                          state, absl::MakeSpan(result.field_names));
     // If parsing succeeds, `state.index` will refer to one-passed-the-end
     // and therefore be equal to the field count.
-    result.field_names = field_names;
     result.success = (state.index == FieldNameInfo::kFieldCount);
 #else
     (void)value;  // Avoid unused-capture warning

@@ -20,6 +20,7 @@
 
 #include "gloop/util/gtl/extend/reflection_extension.h"
 
+#include <array>
 #include <string>
 
 #include "absl/strings/string_view.h"
@@ -149,6 +150,28 @@ TEST(ReflectFieldNames, Const) {
   auto fields = PublicReflection<Simple>::GetFieldNames(const_simple);
   EXPECT_THAT(fields, FieldNamesAre({"some_int", "some_double"}));
   static_assert(decltype(fields)::kFieldCount == 2);
+}
+
+TEST(ReflectFieldNames, ExtraFieldsFailGracefully) {
+  // Simulate `__builtin_dump_struct` output that emits more top-level field
+  // lines than `fields.size()` (e.g. an anonymous struct/union whose members
+  // are dumped at `brace_count == 1`).
+  std::array<absl::string_view, 1> fields = {"unchanged"};
+  internal_extend::ParsingState state;
+  internal_extend::PrintfHijack(state, absl::MakeSpan(fields), "%s",
+                                "AnonUnionHolder");
+  internal_extend::PrintfHijack(state, absl::MakeSpan(fields), " {\n");
+  internal_extend::PrintfHijack(state, absl::MakeSpan(fields), "%s%s %s = %d\n",
+                                "  ", "int", "first", 1);
+  EXPECT_EQ(state.index, 1);
+  EXPECT_THAT(fields, ::testing::ElementsAre("first"));
+
+  internal_extend::PrintfHijack(state, absl::MakeSpan(fields), "%s%s %s = %f\n",
+                                "  ", "double", "second", 2.0);
+  EXPECT_EQ(state.index, -1);
+  internal_extend::PrintfHijack(state, absl::MakeSpan(fields), "}\n");
+  EXPECT_EQ(state.index, -1);
+  EXPECT_THAT(fields, ::testing::ElementsAre("first"));
 }
 
 }  // namespace
