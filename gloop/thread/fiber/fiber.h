@@ -407,7 +407,7 @@ class DynamicFiber {
 
  private:
   Fiber fiber_;
-  bool finished_ = false;
+  std::atomic<bool> finished_{false};
 };
 
 }  // namespace internal

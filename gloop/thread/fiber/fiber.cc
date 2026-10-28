@@ -663,8 +663,8 @@ DynamicFiber::DynamicFiber(const FiberOptions& options, class Fiber* parent)
     : fiber_(Fiber::Unstarted{}, options, /*invocable=*/nullptr, parent) {}
 
 void DynamicFiber::Finish() {
-  if (!finished_) {
-    finished_ = true;
+  if (!finished_.load(std::memory_order_relaxed) &&
+      !finished_.exchange(true, std::memory_order_relaxed)) {
     fiber_.MarkFinished();
   }
 }
