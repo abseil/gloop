@@ -233,6 +233,26 @@ TEST(BundleTest, OnJoinable) {
   EXPECT_EQ(0, Select({test_bundle.OnJoinable()}));
 }
 
+// Several fibers may call OnJoinable() at the same time. ThreadSanitizer
+// reports any data race between these calls.
+TEST(BundleTest, ConcurrentOnJoinable) {
+  Bundle bundle;
+  absl::Notification start;
+  Bundle callers;
+  for (int i = 0; i < 8; ++i) {
+    callers.Add([&] {
+      start.WaitForNotification();
+      EXPECT_EQ(0, Select({bundle.OnJoinable()}));
+    });
+  }
+  // From here on, the callers and this thread call bundle.OnJoinable()
+  // concurrently.
+  start.Notify();
+  EXPECT_EQ(0, Select({bundle.OnJoinable()}));
+  callers.JoinAll();
+  bundle.JoinAll();
+}
+
 TEST(BundleTest, BundleProxy) {
   std::atomic<int> counter{0};
   constexpr int async_children = 10;

@@ -326,6 +326,9 @@ class Fiber : private gtl::intrusive_link<Fiber, CancellationList::Tag> {
   // Returns [cleanup_fn, joinable], which allows the caller to directly
   // observe if both the finished fiber was detached (clean_up != nullptr) and
   // if the fiber is joinable, in which case it can self-join immediately.
+  //
+  // A dynamic fiber may be marked finished several times: calls after the
+  // first one return [nullptr, false] without doing anything.
   std::pair<CleanupFn*, bool> MarkFinished();
 
   static void InvokeFiberBody(void* fiber_ptr);
@@ -399,7 +402,8 @@ class DynamicFiber {
   // REQUIRES: Finish() and Fiber()->Join() must have been called.
   ~DynamicFiber() = default;
 
-  // Finish the DynamicFiber lifetime if not yet finished.
+  // Finish the DynamicFiber lifetime if not yet finished. May be called
+  // several times, concurrently.
   void Finish();
 
   Fiber& GetFiber() { return fiber_; }
@@ -407,7 +411,6 @@ class DynamicFiber {
 
  private:
   Fiber fiber_;
-  bool finished_ = false;
 };
 
 }  // namespace internal

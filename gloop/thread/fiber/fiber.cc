@@ -453,10 +453,15 @@ void Fiber::Join() {
 // any waiters) when applicable. If we've been detached, returns a function that
 // should be called with `this`.
 //
-// REQUIRES: *this has not already been marked finished.
+// A dynamic fiber may be marked finished several times, concurrently (see
+// DynamicFiber::Finish()): calls after the first one return {nullptr, false}
+// without doing anything.
 std::pair<Fiber::CleanupFn*, bool> Fiber::MarkFinished() {
   absl::MutexLock l(mu_);
-  DCHECK_EQ(state_, RUNNING);
+  if (state_ != RUNNING) {
+    DCHECK_EQ(type_, fiber::FIBER_TYPE_DYNAMIC);
+    return {nullptr, false};
+  }
   {
     internal::PerDomainCounters& counters = PerDomainCounters();
     counters.fibers_finished.fetch_add(1, std::memory_order_relaxed);
@@ -662,12 +667,9 @@ DynamicFiber::DynamicFiber(TreeOptions options)
 DynamicFiber::DynamicFiber(const FiberOptions& options, class Fiber* parent)
     : fiber_(Fiber::Unstarted{}, options, /*invocable=*/nullptr, parent) {}
 
-void DynamicFiber::Finish() {
-  if (!finished_) {
-    finished_ = true;
-    fiber_.MarkFinished();
-  }
-}
+// May be called several times, concurrently, e.g. by Bundle::OnJoinable() in
+// several fibers: MarkFinished() only marks the fiber finished once.
+void DynamicFiber::Finish() { fiber_.MarkFinished(); }
 
 }  // namespace internal
 
