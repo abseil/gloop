@@ -113,6 +113,15 @@ namespace percpu_internal {
 // as weak so that tests that need to turn off restartable sequences can do so
 // effectively at compile time by defining this symbol.
 ABSL_ATTRIBUTE_WEAK bool disable_rseq() {
+  // Intel SDE (built on Intel Pin) executes translated copies of the
+  // application's code, so the kernel never sees a preempted thread's
+  // instruction pointer inside a registered restartable sequence, and never
+  // aborts it. Per-CPU operations then race with each other, e.g. corrupting
+  // TCMalloc's per-CPU caches. The SDE launcher sets SDE_COMMAND_LINE in the
+  // environment of the application it runs.
+  if (getenv("SDE_COMMAND_LINE") != nullptr) {
+    return true;
+  }
   // TODO Enable this rseq support in new glibc.
   return true;
 }
