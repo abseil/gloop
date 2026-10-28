@@ -409,12 +409,19 @@ class LittleEndian {
   // The caller needs to guarantee that 0 <= len <= 8.
   static uint64_t Load64VariableLength(const void* const p, size_t len) {
     ABSL_ASSUME(len <= 8);
-    uint64_t val = 0;
     const uint8_t* const src = static_cast<const uint8_t*>(p);
-    for (size_t i = 0; i < len; ++i) {
-      val |= static_cast<uint64_t>(src[i]) << (8 * i);
+    if (len >= 4) {
+      return static_cast<uint64_t>(Load32(src)) |
+             (static_cast<uint64_t>(Load32(src + len - 4)) << (8 * (len - 4)));
     }
-    return val;
+    if (len >= 2) {
+      return static_cast<uint64_t>(Load16(src)) |
+             (static_cast<uint64_t>(src[len - 1]) << (8 * (len - 1)));
+    }
+    if (len == 1) {
+      return src[0];
+    }
+    return 0;
   }
 
   // Store the least significant 1-8 bytes of a uint64_t.
