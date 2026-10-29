@@ -422,7 +422,6 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   // this instance is empty, or an error occurred suspending the instance, in
   // which case this instance is reset to an empty instance.
   bool SuspendContext(Access, const SyncContext& to, StringRef label);
-  [[deprecated]] bool SuspendContext(Access, StringRef label);
 
   // Ends this instance as the actively scoped instance for the current thread,
   // tracing the end of the current synchronous execution.
@@ -701,18 +700,6 @@ inline bool SyncContext::ResumeContext(Access, BarrierId barrier_id,
       return true;
     }
     impl_ = nullptr;
-    delete impl;
-  }
-  return false;
-}
-
-inline bool SyncContext::SuspendContext(Access, StringRef label) {
-  if (Impl* impl = impl_; impl != nullptr) {
-    impl_ = nullptr;
-    if (impl->SuspendContext(/*is_wait=*/true, label)) {
-      impl_ = impl;
-      return true;
-    }
     delete impl;
   }
   return false;
