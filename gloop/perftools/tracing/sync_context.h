@@ -186,6 +186,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   //                           |          |
   //                           ▼          |
   //                        Suspended ----
+  //                      (wait/suspend)
   //
   enum class State : uint8_t {
     // An empty instance. Operations on empty instances are no-ops,
@@ -198,8 +199,25 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
     // An instance that is the current active (TLS) instance for some thread.
     kActive,
 
-    // An instance that was suspended by an instance for a different trace.
-    // "Different trace" here includes "swapped out by an empty instance."
+    // An inactive instance which execution is suspended.
+    //
+    // Contexts can be 'swapped' out and become inactive. For example, some
+    // 'once init' function can temporarily scope a background context to
+    // perform some one time initialization that should not be included in
+    // any active trace for the running RPC.
+    //
+    // A suspended state is represented by either a `Suspend/Resume` event pair,
+    // or by a `Wait/Continue` event pair depending on the context. When the
+    // context is replaced with an unrelated or background context, we consider
+    // this an involuntary suspension, i.e., the wait is on code running under
+    // the new context, which is not related to the code running under the old
+    // context, and the suspension is recorded as a `Suspend/Resume` event pair.
+    // When the context is replaced with a context directly related to the
+    // current context, i.e.; `same_trace == 'true`, we record the suspension
+    // as a `Wait/Continue` event pair as the wait is on behalf of the current
+    // trace. The latter  also allows applications to annotate signal / continue
+    // barriers to explicitly record a causality for the corresponding continue.
+    kWait,
     kSuspended,
 
     // An instance that was swapped out by an instance for the same trace.
@@ -389,10 +407,13 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   // This method will do nothing if this instance is empty.
   //
   // Otherwise, this instance must be the current active instance for this
-  // thread. A `OnTraceWait()` event will be emitted with the provided `label`,
-  // and the thread's active sync_id will be reset to `kNoSyncId`. This
-  // instance's active sync_id is retained, allowing a subsequent call to
-  // `ResumeContext` to continue the suspended synchronous execution.
+  // thread. If 'to` is on behalf of the same trace, i.e; `same_trace(to) ==
+  // true`, an `OnTraceWait()` event will be emitted with the provided `label`.
+  // Otherwise, an `OnTraceSuspendSync() will be emitted.
+  // The thread's active sync_id will be reset to `kNoSyncId`. This instance's
+  // active sync_id is retained, allowing a subsequent call to `ResumeContext`
+  // to continue the suspended execution with a matching 'OnTraceContinue()`
+  // or `OnTraceResumeSync()` event.
   //
   // Ownership of the thread's trace event listener is transferred back to
   // this instance.
@@ -400,7 +421,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   // Returns true if this context was successfully suspended. Returns false if
   // this instance is empty, or an error occurred suspending the instance, in
   // which case this instance is reset to an empty instance.
-  bool SuspendContext(Access, StringRef label);
+  bool SuspendContext(Access, const SyncContext& to, StringRef label);
 
   // Ends this instance as the actively scoped instance for the current thread,
   // tracing the end of the current synchronous execution.
@@ -527,7 +548,7 @@ class SyncContext::Impl {
 
   // Implementations of ResumeContext, SuspendContext and EndContext.
   bool ResumeContext(BarrierId barrier_id, StringRef label);
-  bool SuspendContext(StringRef label);
+  bool SuspendContext(bool is_wait, StringRef label);
   bool EndContext();
 
   static Impl* CreateForTesting(TraceEventListener* listener, SyncId sync_id,
@@ -684,10 +705,12 @@ inline bool SyncContext::ResumeContext(Access, BarrierId barrier_id,
   return false;
 }
 
-inline bool SyncContext::SuspendContext(Access, StringRef label) {
+inline bool SyncContext::SuspendContext(Access, const SyncContext& to,
+                                        StringRef label) {
   if (Impl* impl = impl_; impl != nullptr) {
+    const bool is_wait = same_trace(to);
     impl_ = nullptr;
-    if (impl->SuspendContext(label)) {
+    if (impl->SuspendContext(is_wait, label)) {
       impl_ = impl;
       return true;
     }
