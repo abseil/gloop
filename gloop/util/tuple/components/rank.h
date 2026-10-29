@@ -19,8 +19,7 @@
 // clang-format on
 
 //
-// This library provides utilities for manually ordering function overloads and
-// class specializations.
+// This library provides utilities for manually ordering function overloads.
 //
 // rank<N> can be converted to rank<M> for any M >= N. The smaller the value of
 // M, the better is the conversion in terms of overload resolution. This
@@ -81,51 +80,13 @@
 //
 // Voilà! Totally useless but pretty cool generic function.
 //
-// In addition to function overloads, rank<> can be used for ordering class
-// specializations. This is made possible by the fact that rank<N, T> is a
-// specialization of rank<M, T> for any M >= N. Versatile!
-//
-// Example: Iterator of a container-like class.
-//
-// Let's write a metafunction that given a container-like type T will tell us
-// its iterator type.
-//
-//   1. If T::const_iterator is a type, Iterator<T>::type is a synonym of that.
-//   2. Else if T::iterator is a type, it's is a synonym of that.
-//   3. Else it's undefined.
-//
-// Our primary template needs two extra template arguments: one for the enabler
-// (this is where we can demand the existence of T::const_iterator) and another
-// one for ordering with rank<>.
-//
-//   template <class T, class E = void, class R = rank_selector_t>
-//   struct Iterator;
-//
-// Note the default values -- they are important. The two specializations are
-// straightforward:
-//
-//   template <class T, class R>
-//   struct Iterator<T, std::void_t<typename T::const_iterator>, rank<0, R>> {
-//     using type = typename T::const_iterator;
-//   };
-//
-//   template <class T, class R>
-//   struct Iterator<T, std::void_t<typename T::iterator>, rank<1, R>> {
-//     using type = typename T::iterator;
-//   };
-//
-// Finally, we can use Iterator<> just like any other metafunction.
-//
-//   typedef Iterator<MyType>::type Iter;
-//
 // When using rank<>, make sure you aren't inadvertently creating a conflicting
 // ordering via arguments other than rank<>. For example, if one function
 // overload accepts const T& while another accepts const vector<T>&, there is an
 // implicit ordering between the two. It's best to stick to arguments that are
-// literally the same in all overloads and specializations and rely on enablers
-// to express type constraints. We did this in the examples above: all overloads
-// of GenericClear() work on T*, and all Iterator<> specializations are
-// specialized on T.
+// literally the same in all overloads and rely on enablers to express type
+// constraints. We did this in the example above: all overloads of
+// GenericClear() work on T*.
 
 #ifndef THIRD_PARTY_GLOOP_UTIL_TUPLE_COMPONENTS_RANK_H_
 #define THIRD_PARTY_GLOOP_UTIL_TUPLE_COMPONENTS_RANK_H_
@@ -135,385 +96,35 @@
 namespace util {
 namespace tuple {
 
+inline constexpr size_t kMaxRank = 40;
+
 namespace internal_rank {
 
-// Base is either void or wrapper<T>.
-template <class Base>
-struct wrapper : Base {};
-
-template <>
-struct wrapper<void> {};
-
-// wrap<0>::type<T> is wrapper<T>, wrap<1>::type<T> is wrapper<wrapper<T>>,
-// and so on.
+// rank<N> derives from rank<N + 1>, so rank<N> converts to rank<M> for any
+// M >= N, and conversions to closer bases are better in overload resolution.
+//
+// The chain is flat (as opposed to nesting templates), so the mangled name of
+// rank<N> has a small constant size regardless of N. This keeps the symbol
+// names of functions taking rank<N> short.
+//
+// This lives in internal_rank so that rank<N> arguments don't bring
+// util::tuple into argument-dependent lookup.
 template <size_t N>
-struct wrap {
-  template <class Base>
-  using type = wrapper<typename wrap<N - 1>::template type<Base>>;
-};
-
-template <>
-struct wrap<0> {
-  template <class Base>
-  using type = wrapper<Base>;
-};
-
-template <>
-struct wrap<1> {
-  template <class Base>
-  using type = wrapper<wrapper<Base>>;
-};
-
-template <>
-struct wrap<2> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<Base>>>;
-};
-
-template <>
-struct wrap<3> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<Base>>>>;
-};
-
-template <>
-struct wrap<4> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<Base>>>>>;
-};
-
-template <>
-struct wrap<5> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<Base>>>>>>;
-};
-
-template <>
-struct wrap<6> {
-  template <class Base>
-  using type =
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<Base>>>>>>>;
-};
-
-template <>
-struct wrap<7> {
-  template <class Base>
-  using type = wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>;
-};
-
-template <>
-struct wrap<8> {
-  template <class Base>
-  using type = wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>;
-};
-
-template <>
-struct wrap<9> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>;
-};
-
-template <>
-struct wrap<10> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<11> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<12> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<13> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<14> {
-  template <class Base>
-  using type =
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<15> {
-  template <class Base>
-  using type = wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<16> {
-  template <class Base>
-  using type = wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<17> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<18> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<19> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<20> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<21> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<22> {
-  template <class Base>
-  using type = wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<23> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<24> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<25> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<26> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<27> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<28> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<29> {
-  template <class Base>
-  using type = wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-                  wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<30> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-                  wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<31> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-                  wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<32> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-                  wrapper<wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<33> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-                  wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<34> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-                  wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<35> {
-  template <class Base>
-  using type = wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-                  wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-                      wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<36> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-                  wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-                      wrapper<wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<37> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-                  wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-                      wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<38> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-                  wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-                      wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<39> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-                  wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-                      wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <>
-struct wrap<40> {
-  template <class Base>
-  using type = wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-      wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-          wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-              wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-                  wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<wrapper<
-                      wrapper<Base>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>;
-};
-
-template <size_t A, size_t B>
-constexpr size_t minus() {
+struct rank : rank<(N < kMaxRank ? N + 1 : kMaxRank)> {
   // If this assertion triggers because you legitimately need to instantiate
   // rank<N> with N > kMaxRank, talk to the owners of this library or ask them
   // to review a change that increases kMaxRank.
-  static_assert(A >= B, "N in rank<N, T> must not exceed kMaxRank");
-  return A - B;
-}
+  static_assert(N <= kMaxRank, "N in rank<N> must not exceed kMaxRank");
+};
+
+template <>
+struct rank<kMaxRank> {};
 
 }  // namespace internal_rank
 
-inline constexpr size_t kMaxRank = 40;
-
 // N must be <= kMaxRank.
-template <size_t N, class Base = void>
-using rank = typename internal_rank::wrap<
-    internal_rank::minus<kMaxRank, N>()>::template type<Base>;
+template <size_t N>
+using rank = internal_rank::rank<N>;
 
 using rank_selector_t = rank<0>;
 
