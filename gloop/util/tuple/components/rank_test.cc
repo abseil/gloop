@@ -20,6 +20,8 @@
 
 #include "gloop/util/tuple/components/rank.h"
 
+#include <type_traits>
+
 #include "gtest/gtest.h"
 
 namespace util {
@@ -48,63 +50,28 @@ TEST(RankTest, OverloadedFunction) {
 
 }  // namespace overloaded_function
 
-namespace specialized_class {
+namespace properties {
 
-template <class T = rank_selector_t>
-struct ZeroOne;
+static_assert(sizeof(rank_selector_t) == 1);
+static_assert(std::is_trivial_v<rank_selector_t>);
+static_assert(std::is_standard_layout_v<rank_selector_t>);
+static_assert(std::is_empty_v<rank_selector_t>);
+static_assert(std::is_same_v<rank_selector_t, rank<0>>);
+static_assert(std::is_convertible_v<rank<0>, rank<1>>);
+static_assert(std::is_convertible_v<rank<0>, rank<kMaxRank>>);
+static_assert(std::is_convertible_v<rank<1>, rank<kMaxRank>>);
+static_assert(!std::is_convertible_v<rank<1>, rank<0>>);
+static_assert(!std::is_convertible_v<rank<kMaxRank>, rank<0>>);
 
-template <class T>
-struct ZeroOne<rank<0, T>> {
-  int operator()() const { return 0; }
-};
-
-template <class T>
-struct ZeroOne<rank<1, T>> {
-  int operator()() const { return 1; }
-};
-
-template <class T = rank_selector_t>
-struct OneTwo;
-
-template <class T>
-struct OneTwo<rank<1, T>> {
-  int operator()() const { return 1; }
-};
-
-template <class T>
-struct OneTwo<rank<2, T>> {
-  int operator()() const { return 2; }
-};
-
-template <class T = rank_selector_t>
-struct TwoThree;
-
-template <class T>
-struct TwoThree<rank<2, T>> {
-  int operator()() const { return 2; }
-};
-
-template <class T>
-struct TwoThree<rank<3, T>> {
-  int operator()() const { return 3; }
-};
-
-template <class T = rank_selector_t>
-struct MaxRank;
-
-template <class T>
-struct MaxRank<rank<kMaxRank, T>> {
-  int operator()() const { return kMaxRank; }
-};
-
-TEST(RankTest, SpecializedClass) {
-  EXPECT_EQ(0, ZeroOne<>()());
-  EXPECT_EQ(1, OneTwo<>()());
-  EXPECT_EQ(2, TwoThree<>()());
-  EXPECT_EQ(kMaxRank, MaxRank<>()());
+TEST(RankTest, Properties) {
+  EXPECT_EQ(sizeof(rank_selector_t), 1);
+  EXPECT_TRUE(std::is_trivial_v<rank_selector_t>);
+  EXPECT_TRUE(std::is_standard_layout_v<rank_selector_t>);
+  EXPECT_TRUE((std::is_convertible_v<rank<0>, rank<kMaxRank>>));
+  EXPECT_FALSE((std::is_convertible_v<rank<1>, rank<0>>));
 }
 
-}  // namespace specialized_class
+}  // namespace properties
 
 }  // namespace
 }  // namespace tuple
