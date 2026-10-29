@@ -278,7 +278,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI StringBase {
 };
 
 template <>
-class ABSL_ATTRIBUTE_TRIVIAL_ABI StringBase::Data<false> : public Data<true> {
+class StringBase::Data<false> : public Data<true> {
  public:
   using Base = Data<true>;
 
