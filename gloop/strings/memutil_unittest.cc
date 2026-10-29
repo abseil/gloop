@@ -385,7 +385,7 @@ TEST(MemUtilTest, AllTests) {
   CHECK_EQ(memcasecmp(a, "heLLO therf", sizeof("hello there") - 2), 0);
   CHECK_EQ(memcasecmp(a, "whatever", 0), 0);
 
-  char* p = memdup("hello", 5);
+  char* p = memdup("hello");
   free(p);
 
   p = memrchr("hello there", 'e', sizeof("hello there") - 1);

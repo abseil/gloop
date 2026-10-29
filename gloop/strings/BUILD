@@ -71,13 +71,15 @@ cc_library(
     name = "bytestream",
     srcs = ["bytestream.cc"],
     hdrs = ["bytestream.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/memory",
+        "@abseil-cpp//absl/strings:internal",
+    ],
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
-        "@abseil-cpp//absl/base:raw_logging_internal",
-        "@abseil-cpp//absl/memory",
-        "@abseil-cpp//absl/strings:internal",
         "@abseil-cpp//absl/strings:string_view",
     ],
 )
@@ -147,13 +149,15 @@ cc_library(
     name = "cord_bytestream",
     srcs = ["cord_bytestream.cc"],
     hdrs = ["cord_bytestream.h"],
+    implementation_deps = [
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/log",
+    ],
     deps = [
         ":bytestream",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
-        "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/numeric:bits",
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:string_view",
