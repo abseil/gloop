@@ -122,10 +122,6 @@ class MurmurCat {
   // Append substring with byte length divisible by 8. Total byte length of
   // substrings appended so far must be divisible by 8.
   void AppendAligned(absl::Span<const uint64_t> span);
-  ABSL_DEPRECATE_AND_INLINE()
-  inline void AppendAligned(const uint64_t* buffer, size_t num_elements) {
-    AppendAligned(absl::Span<const uint64_t>(buffer, num_elements));
-  }
 
   // Append 8 byte substring. Total byte length of substrings appended so far
   // must be divisible by 8.
