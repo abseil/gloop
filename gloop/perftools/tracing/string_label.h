@@ -157,13 +157,13 @@
 namespace perftools::tracing {
 
 template <bool is_ref>
-class ABSL_ATTRIBUTE_TRIVIAL_ABI StringImpl;
+class StringImpl;
 
 using StringRef = StringImpl<true>;
 using StringLabel = StringImpl<false>;
 
 template <bool is_ref>
-class ABSL_ATTRIBUTE_TRIVIAL_ABI StringImpl : public StringBase {
+class StringImpl : public StringBase {
  public:
   // StringImpl is movable, copyable and assignable.
   StringImpl() = default;
