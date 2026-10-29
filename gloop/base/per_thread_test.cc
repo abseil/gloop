@@ -22,6 +22,10 @@
 
 #include "gloop/base/per_thread.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include <atomic>
 #include <cstdint>
 #include <cstdlib>
@@ -176,6 +180,47 @@ TEST(PerThread, KeyRefsInDestructor) {
   std::thread t(TestThread2);
   t.join();
 }
+
+#ifdef _WIN32
+extern "C" const PIMAGE_TLS_CALLBACK google_base_thread_exit_callback;
+
+ABSL_CONST_INIT PerThread::Key detach_test_key{PerThread::kInvalid};
+int detach_destructor_count = 0;
+
+void DetachTestDestructor(void* v) {
+  CHECK_NE(v, nullptr);
+  ++detach_destructor_count;
+}
+
+TEST(PerThread, WinDynamicDllDetachFreesTlsKey) {
+  PerThread::Allocate(&detach_test_key, DetachTestDestructor);
+  detach_destructor_count = 0;
+
+  // Initialize PerThread TLS for this thread and simulate an initial dynamic
+  // DLL_PROCESS_DETACH (reserved == nullptr) so per_thread_key is freed.
+  *PerThread::Data(detach_test_key) = reinterpret_cast<void*>(1);
+  google_base_thread_exit_callback(nullptr, DLL_PROCESS_DETACH, nullptr);
+  ASSERT_EQ(detach_destructor_count, 1);
+
+  const DWORD expected_tls_index = TlsAlloc();
+  ASSERT_NE(expected_tls_index, TLS_OUT_OF_INDEXES);
+  ASSERT_TRUE(TlsFree(expected_tls_index));
+
+  // Repeat > 1,088 times (the Windows per-process TlsAlloc slot limit) to
+  // verify that dynamic DLL_PROCESS_DETACH frees and resets per_thread_key on
+  // every cycle.
+  constexpr int kIterations = 2000;
+  for (int i = 0; i < kIterations; ++i) {
+    *PerThread::Data(detach_test_key) = reinterpret_cast<void*>(1);
+    google_base_thread_exit_callback(nullptr, DLL_PROCESS_DETACH, nullptr);
+    ASSERT_EQ(detach_destructor_count, i + 2);
+
+    const DWORD probe_index = TlsAlloc();
+    ASSERT_EQ(probe_index, expected_tls_index);
+    ASSERT_TRUE(TlsFree(probe_index));
+  }
+}
+#endif  // _WIN32
 
 #if GTEST_GOOGLE3_MODE_
 ABSL_CONST_INIT PerThread::Key benchmark_key{PerThread::kInvalid};

@@ -336,6 +336,13 @@ static void NTAPI OnThreadExit(PVOID module, DWORD reason, PVOID reserved) {
   if (DLL_THREAD_DETACH == reason || DLL_PROCESS_DETACH == reason) {
     base::per_thread_internal::WinThreadExit();
   }
+  if (DLL_PROCESS_DETACH == reason && reserved == nullptr) {
+    DWORD key =
+        per_thread_key.exchange(TLS_OUT_OF_INDEXES, std::memory_order_relaxed);
+    if (key != TLS_OUT_OF_INDEXES) {
+      TlsFree(key);
+    }
+  }
 }
 
 // .CRT$XLA to .CRT$XLZ is an array of PIMAGE_TLS_CALLBACK pointers that are
