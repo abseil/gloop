@@ -1469,7 +1469,7 @@ TEST_F(IteratorAdaptorTest, ProjectionViewInputIteratorWithArrow) {
   };
 
   std::vector<int> v = {1, 2};
-  auto view = projection_view(v, [](const int& val) { return IntView(&val); });
+  auto view = projection_view(v, [](const int val) { return IntView(&val); });
 
   auto it = view.begin();
   EXPECT_EQ(it->get(), 1);
