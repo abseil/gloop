@@ -77,6 +77,11 @@ void RestoreCurrentContext(Context* c) {}
 void SetThreadContext(ThreadContextAccess, Context,
                       perftools::tracing::StringRef) {}
 
+Context SetThreadContext(ThreadContextAccess, Context,
+                         perftools::tracing::StringRef) {
+  return Context{};
+}
+
 WithContext::WithContext(const Context&, perftools::tracing::StringRef) {}
 
 WithContext::~WithContext() {}
@@ -221,6 +226,19 @@ ABSL_XRAY_ALWAYS_INSTRUMENT void SetThreadContext(
   trace->BeforeSetThreadContext(access, context.trace_context(), label);
   *current = std::move(context);
   trace->AfterSetThreadContext(access, label);
+}
+
+ABSL_XRAY_ALWAYS_INSTRUMENT
+Context ExchangeThreadContext(ThreadContextAccess access, Context context,
+                              perftools::tracing::StringRef label) {
+  using std::swap;
+  Context* current = per_thread_context.pointer();
+  NotifyTraceContextChanging(current->trace(), context.trace());
+  TraceContext* trace = current->trace();
+  trace->BeforeExchangeThreadContext(access, context.trace_context(), label);
+  swap(*current, context);
+  trace->AfterExchangeThreadContext(access, label);
+  return context;
 }
 
 ContextBuilder& ContextBuilder::set_trace_context(TraceContext tc) {

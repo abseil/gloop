@@ -55,6 +55,8 @@ std::ostream& operator<<(std::ostream& s, SyncContext::State state) {
       return s << "Active";
     case SyncContext::State::kSuspended:
       return s << "Suspended";
+    case SyncContext::State::kWait:
+      return s << "Wait";
     case SyncContext::State::kZombie:
       return s << "Zombie";
   }
@@ -249,9 +251,13 @@ bool SyncContext::Impl::ResumeContext(BarrierId barrier_id, StringRef label) {
         listener_->OnTraceObserved(barrier_id, label);
       }
       break;
-    case State::kSuspended:
+    case State::kWait:
       internal::set_active_sync_id(active_sync_id_);
       listener_->OnTraceContinue(barrier_id);
+      break;
+    case State::kSuspended:
+      internal::set_active_sync_id(active_sync_id_);
+      listener_->OnTraceResumeSync(active_sync_id_);
       break;
     default:
       LOG_EVERY_N_SEC(ERROR, 60) << "ResumeContext() with state " << state_;
@@ -266,7 +272,7 @@ bool SyncContext::Impl::ResumeContext(BarrierId barrier_id, StringRef label) {
   return true;
 }
 
-bool SyncContext::Impl::SuspendContext(StringRef label) {
+bool SyncContext::Impl::SuspendContext(bool is_wait, StringRef label) {
   // Make sure we are indeed active
   if (state_ != State::kActive) {
     LOG_EVERY_N_SEC(ERROR, 60) << "SuspendContext() with state " << state_;
@@ -280,11 +286,15 @@ bool SyncContext::Impl::SuspendContext(StringRef label) {
     return false;
   }
 
-  // Emit wait
-  current->OnTraceWait(kNoBarrierId, label);
-
-  state_ = State::kSuspended;
+  // Emit wait or suspend depending on caller intent / context.
   active_sync_id_ = tls_active_sync_id();
+  if (is_wait) {
+    current->OnTraceWait(kNoBarrierId, label);
+    state_ = State::kWait;
+  } else {
+    current->OnTraceSuspendSync(active_sync_id_);
+    state_ = State::kSuspended;
+  }
 
   // Swap active listener back to this instance. The current instance may be
   // nested and still own an ignored nested listener instance.
