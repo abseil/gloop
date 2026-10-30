@@ -156,36 +156,15 @@ class Mux final : public TraceEventListener {
     RDispatch(&TraceEventListener::OnTraceEndRegion);
   }
 
-  void OnTraceSend(StringRef label, MsgOrigin origin, MsgId id) final {
-    // TODO: b/998670467 - remove explicit disambiguation
-    using Fn = void (TraceEventListener::*)(StringRef, MsgOrigin, MsgId);
-    Dispatch(static_cast<Fn>(&TraceEventListener::OnTraceSend), label, origin,
-             id);
-  }
-
-  void OnTraceReceive(StringRef label, MsgOrigin origin, MsgId id) final {
-    // TODO: b/998670467 - remove explicit disambiguation
-    using Fn = void (TraceEventListener::*)(StringRef, MsgOrigin, MsgId);
-    Dispatch(static_cast<Fn>(&TraceEventListener::OnTraceReceive), label,
-             origin, id);
-  }
-
   void OnTraceSend(StringRef label, MsgOrigin origin, MsgId id,
                    absl::StatusCode status_code) final {
-    // TODO: b/998670467 - remove explicit disambiguation
-    using Fn = void (TraceEventListener::*)(StringRef, MsgOrigin, MsgId,
-                                            absl::StatusCode);
-    Dispatch(static_cast<Fn>(&TraceEventListener::OnTraceSend), label, origin,
-             id, status_code);
+    Dispatch(&TraceEventListener::OnTraceSend, label, origin, id, status_code);
   }
 
   void OnTraceReceive(StringRef label, MsgOrigin origin, MsgId id,
                       absl::StatusCode status_code) final {
-    // TODO: b/998670467 - remove explicit disambiguation
-    using Fn = void (TraceEventListener::*)(StringRef, MsgOrigin, MsgId,
-                                            absl::StatusCode);
-    Dispatch(static_cast<Fn>(&TraceEventListener::OnTraceReceive), label,
-             origin, id, status_code);
+    Dispatch(&TraceEventListener::OnTraceReceive, label, origin, id,
+             status_code);
   }
 
   void OnTraceSessionStart(StringRef label, MsgId id,
@@ -193,58 +172,24 @@ class Mux final : public TraceEventListener {
     Dispatch(&TraceEventListener::OnTraceSessionStart, label, id, end_point);
   }
 
-  void OnTraceSessionEnd(StringRef label, MsgId id, EndPoint end_point) final {
-    // TODO: b/998670467 - remove explicit disambiguation
-    using Fn = void (TraceEventListener::*)(StringRef, MsgId, EndPoint);
-    RDispatch(static_cast<Fn>(&TraceEventListener::OnTraceSessionEnd), label,
-              id, end_point);
-  }
-
   void OnTraceSessionEnd(StringRef label, MsgId id, EndPoint end_point,
                          absl::StatusCode status_code) final {
-    // TODO: b/998670467 - remove explicit disambiguation
-    using Fn = void (TraceEventListener::*)(StringRef, MsgId, EndPoint,
-                                            absl::StatusCode);
-    RDispatch(static_cast<Fn>(&TraceEventListener::OnTraceSessionEnd), label,
-              id, end_point, status_code);
-  }
-
-  void OnTraceStreamingSend(MsgOrigin origin, MsgId id, MsgSequence sequence,
-                            MsgFlags flags) final {
-    // TODO: b/998670467 - remove explicit disambiguation
-    using Fn =
-        void (TraceEventListener::*)(MsgOrigin, MsgId, MsgSequence, MsgFlags);
-    Dispatch(static_cast<Fn>(&TraceEventListener::OnTraceStreamingSend), origin,
-             id, sequence, flags);
+    RDispatch(&TraceEventListener::OnTraceSessionEnd, label, id, end_point,
+              status_code);
   }
 
   void OnTraceStreamingSend(MsgOrigin origin, MsgId id, MsgSequence sequence,
                             MsgFlags flags,
                             absl::StatusCode status_code) final {
-    // TODO: b/998670467 - remove explicit disambiguation
-    using Fn = void (TraceEventListener::*)(MsgOrigin, MsgId, MsgSequence,
-                                            MsgFlags, absl::StatusCode);
-    Dispatch(static_cast<Fn>(&TraceEventListener::OnTraceStreamingSend), origin,
-             id, sequence, flags, status_code);
-  }
-
-  void OnTraceStreamingReceive(MsgOrigin origin, MsgId id, MsgSequence sequence,
-                               MsgFlags flags) final {
-    // TODO: b/998670467 - remove explicit disambiguation
-    using Fn =
-        void (TraceEventListener::*)(MsgOrigin, MsgId, MsgSequence, MsgFlags);
-    Dispatch(static_cast<Fn>(&TraceEventListener::OnTraceStreamingReceive),
-             origin, id, sequence, flags);
+    Dispatch(&TraceEventListener::OnTraceStreamingSend, origin, id, sequence,
+             flags, status_code);
   }
 
   void OnTraceStreamingReceive(MsgOrigin origin, MsgId id, MsgSequence sequence,
                                MsgFlags flags,
                                absl::StatusCode status_code) final {
-    // TODO: b/998670467 - remove explicit disambiguation
-    using Fn = void (TraceEventListener::*)(MsgOrigin, MsgId, MsgSequence,
-                                            MsgFlags, absl::StatusCode);
-    Dispatch(static_cast<Fn>(&TraceEventListener::OnTraceStreamingReceive),
-             origin, id, sequence, flags, status_code);
+    Dispatch(&TraceEventListener::OnTraceStreamingReceive, origin, id, sequence,
+             flags, status_code);
   }
 
   void OnTraceControlFlow(StringRef label, ControlFlowType type,
