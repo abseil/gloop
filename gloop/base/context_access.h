@@ -59,6 +59,9 @@ namespace c9::internal {
 class CoThread;
 class SchedulingContext;
 class SuspensionToken;
+namespace with_deadline {
+class WithDeadlineAwaitable;
+}  // namespace with_deadline
 }  // namespace c9::internal
 
 namespace base {
@@ -176,6 +179,7 @@ class ContextAccess {
   friend class ::c9::internal::CoThread;
   friend class ::c9::internal::SchedulingContext;
   friend class ::c9::internal::SuspensionToken;
+  friend class ::c9::internal::with_deadline::WithDeadlineAwaitable;
 
   template <typename T>
   friend class ::perftools::tracing::TraceSpan;
@@ -202,6 +206,7 @@ class ThreadContextAccess {
   friend class ::c9::internal::CoThread;
   friend class ::c9::internal::SchedulingContext;
   friend class ::c9::internal::SuspensionToken;
+  friend class ::c9::internal::with_deadline::WithDeadlineAwaitable;
 
   friend struct ::perftools::tracing::testing::TestOnlyAccess;
 };
