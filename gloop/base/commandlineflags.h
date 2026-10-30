@@ -121,22 +121,17 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
-#include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/flags/commandlineflag.h"
-#include "absl/flags/config.h"                    // IWYU pragma: keep
-#include "absl/flags/flag.h"                      // IWYU pragma: keep
-#include "absl/flags/internal/commandlineflag.h"  // IWYU pragma: export
-#include "absl/flags/internal/usage.h"            // IWYU pragma: export
-#include "absl/flags/marshalling.h"               // IWYU pragma: keep
-#include "absl/flags/parse.h"                     // IWYU pragma: keep
-#include "absl/flags/reflection.h"                // IWYU pragma: keep
-#include "absl/flags/usage.h"                     // IWYU pragma: keep
+#include "absl/flags/config.h"
+#include "absl/flags/flag.h"
+#include "absl/flags/internal/commandlineflag.h"
+#include "absl/flags/marshalling.h"
+#include "absl/flags/reflection.h"
 #include "absl/flags/usage_config.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/source_location.h"
-#include "gloop/base/commandlineflags_declare.h"  // IWYU pragma: keep
+#include "gloop/base/commandlineflags_declare.h"
 
 // Determine whether the full commandlineflags API
 // should be used based on platform if it has not

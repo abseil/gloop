@@ -40,6 +40,7 @@
 #include "absl/flags/config.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/internal/parse.h"
+#include "absl/flags/internal/usage.h"
 #include "absl/flags/marshalling.h"
 #include "absl/flags/reflection.h"
 #include "absl/log/check.h"

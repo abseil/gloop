@@ -1921,6 +1921,7 @@ cc_library(
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/flags:program_name",
         "@abseil-cpp//absl/flags:usage",
+        "@abseil-cpp//absl/flags:usage_internal",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:log_sink_registry",
@@ -2308,28 +2309,16 @@ cc_library(
     name = "commandlineflags",
     srcs = ["commandlineflags.cc"],
     hdrs = ["commandlineflags_declare.h"],
-    # Textual include configurable by defining STRIP_FLAG_HELP.
-    # Can't be in hdrs without breaking header_modules.
-    # TODO: Fix this.
-    textual_hdrs = ["commandlineflags.h"],
-    visibility = ["//visibility:public"],
-    deps = [
+    implementation_deps = [
         ":config",
         ":logging_extensions",
         ":strerror",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:dynamic_annotations",
         "@abseil-cpp//absl/base:no_destructor",
-        "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/container:flat_hash_set",
-        "@abseil-cpp//absl/flags:commandlineflag",
-        "@abseil-cpp//absl/flags:commandlineflag_internal",
-        "@abseil-cpp//absl/flags:config",
-        "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/flags:marshalling",
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/flags:path_util",
         "@abseil-cpp//absl/flags:private_handle_accessor",
@@ -2341,9 +2330,25 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
-        "@abseil-cpp//absl/types:optional",
-        "@abseil-cpp//absl/types:source_location",
         "@abseil-cpp//absl/types:span",
+    ],
+    # Textual include configurable by defining STRIP_FLAG_HELP.
+    # Can't be in hdrs without breaking header_modules.
+    # TODO: Fix this.
+    textual_hdrs = ["commandlineflags.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/flags:commandlineflag",
+        "@abseil-cpp//absl/flags:commandlineflag_internal",
+        "@abseil-cpp//absl/flags:config",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:marshalling",
+        "@abseil-cpp//absl/flags:reflection",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:source_location",
     ],
 )
 
@@ -2364,6 +2369,7 @@ cc_test(
         "@abseil-cpp//absl/flags:marshalling",
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/flags:reflection",
+        "@abseil-cpp//absl/flags:usage_internal",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:die_if_null",
