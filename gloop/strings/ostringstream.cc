@@ -23,8 +23,14 @@
 #include <assert.h>
 
 #include <ios>
+#include <ostream>
+#include <string>
 
 namespace strings {
+
+OStringStream::OStringStream(std::string* s) : std::ostream(this), s_(s) {}
+
+OStringStream::~OStringStream() = default;
 
 OStringStream::Buf::int_type OStringStream::overflow(int c) {
   assert(s_);

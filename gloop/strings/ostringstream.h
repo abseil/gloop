@@ -82,7 +82,10 @@ class OStringStream : private std::basic_streambuf<char>, public std::ostream {
   //
   // The destructor of OStringStream doesn't use the string. It's OK to destroy
   // the string before the stream.
-  explicit OStringStream(std::string* s) : std::ostream(this), s_(s) {}
+  //
+  // Intentionally defined out of line to reduce binary size.
+  explicit OStringStream(std::string* s);
+  ~OStringStream() override;
 
   std::string* str() { return s_; }
   const std::string* str() const { return s_; }
