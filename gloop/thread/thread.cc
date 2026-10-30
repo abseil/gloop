@@ -1391,8 +1391,10 @@ void* Thread::ThreadBody(void* arg) {
   }
 
   // Copy the stack trace of the creator
+  static_assert(std::extent_v<decltype(Thread::creator_stack_)> ==
+                kCreatorStackCount);
   thread_info->creator_stack_depth_ =
-      std::min(kStackCount, this_thread->creator_stack_depth_);
+      std::min(kCreatorStackCount, this_thread->creator_stack_depth_);
   for (int d = 0; d < thread_info->creator_stack_depth_; d++) {
     thread_info->creator_stack_[d] = this_thread->creator_stack_[d];
   }

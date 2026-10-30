@@ -46,6 +46,10 @@ class Note;
 
 // Max number of stack trace entries to extract
 inline constexpr int kStackCount = 128;
+// Max number of creator stack trace entries stored per LiveThread; matches
+// Thread::creator_stack_ in thread.h.
+inline constexpr int kCreatorStackCount = 32;
+static_assert(kCreatorStackCount <= kStackCount);
 
 // Information about each live thread
 class LiveThread : public gtl::intrusive_link<LiveThread> {
@@ -87,7 +91,7 @@ class LiveThread : public gtl::intrusive_link<LiveThread> {
   std::vector<thread::Note*> notes_ ABSL_GUARDED_BY(notes_lock_);
   // Put the creator stack at the end because it is not needed to create
   // or destruct the class and takes up 256 bytes.
-  void* creator_stack_[kStackCount];
+  void* creator_stack_[kCreatorStackCount];
 
   // Create a LiveThread structure for the current thread.  The new
   // thread's name is set to the given name_prefix with "/TID"
