@@ -32,6 +32,7 @@
 #include <vector>
 
 #include "absl/base/call_once.h"
+#include "absl/base/optimization.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/flags/declare.h"
 #include "absl/hash/hash.h"
@@ -155,6 +156,7 @@ class SymbolMap : public internal::SymbolMapSink {
 
  private:
   friend class SymbolMapIterator;
+  friend struct SymbolMapTestPeer;
 
   SymbolMap(bool copy_symbol_names, int symbol_map_compression_level);
 
@@ -275,9 +277,65 @@ class SymbolMap : public internal::SymbolMapSink {
   // form.
   int symbol_map_compression_level_;
 
+  // Compressed layout (levels 1-3): names stay global-bias encoded in
+  // name_shrunk_array_. Addresses are stored per block of kAddrBlockSize
+  // symbols as offsets from the block's first address (addr_block_bases_);
+  // offsets that do not fit the inlier cap are stored as tokens at or above
+  // addr_overflow_threshold_ that index addr_overflow_. Sizes are stored as
+  // ZigZag residuals from the gap to the next symbol when that gap is in
+  // (0, kMaxPredictedSizeSpan], and as plain sizes otherwise.
+  static constexpr size_t kAddrBlockSize = 32;
+  static constexpr uint64_t kMaxPredictedSizeSpan = 65536;
+
+  static constexpr uint64_t ZigZagEncode64(int64_t n) {
+    return (static_cast<uint64_t>(n) << 1) ^ static_cast<uint64_t>(n >> 63);
+  }
+
+  static constexpr uint64_t ZigZagDecode64(uint64_t n) {
+    return (n >> 1) ^ (~(n & 1ULL) + 1ULL);
+  }
+
+  uint64_t DecodeAddrFromRaw(size_t index, uint64_t raw_val) const {
+    if (ABSL_PREDICT_FALSE(raw_val >= addr_overflow_threshold_)) {
+      return addr_overflow_[raw_val - addr_overflow_threshold_];
+    }
+    return addr_block_bases_[index / kAddrBlockSize] + raw_val;
+  }
+
+  uint64_t GetAddr(size_t index) const {
+    return DecodeAddrFromRaw(index, addr_shrunk_array_.Get(index));
+  }
+
+  const char* GetName(size_t index) const {
+    return reinterpret_cast<const char*>(name_shrunk_array_.Get(index));
+  }
+
+  uint64_t DecodeSizeFromRawWithAddr(size_t index, uint64_t sym_addr,
+                                     uint64_t raw_val) const {
+    const size_t n = size_shrunk_array_.size();
+    if (index + 1 < n) {
+      const uint64_t span = GetAddr(index + 1) - sym_addr;
+      if (span > 0 && span <= kMaxPredictedSizeSpan) {
+        return span - ZigZagDecode64(raw_val);
+      }
+    }
+    return raw_val;
+  }
+
+  uint64_t GetSizeWithAddr(size_t index, uint64_t sym_addr) const {
+    return DecodeSizeFromRawWithAddr(index, sym_addr,
+                                     size_shrunk_array_.Get(index));
+  }
+
+  size_t UpperBoundAddr(uint64_t pos) const;
+  size_t LowerBoundAddr(uint64_t pos) const;
+
   CompressedUintArray name_shrunk_array_;
   CompressedUintArray addr_shrunk_array_;
   CompressedUintArray size_shrunk_array_;
+  std::vector<uint64_t> addr_block_bases_;
+  std::vector<uint64_t> addr_overflow_;
+  uint64_t addr_overflow_threshold_ = 0;
 };
 
 }  // namespace util

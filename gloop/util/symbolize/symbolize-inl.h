@@ -68,8 +68,10 @@ class SymbolMapIterator {
   uint64_t start() const {
     CHECK(!done());
     if (IsCompressed()) {
-      return addr_shrunk_array_reader_bias_ +
-             addr_shrunk_array_reader_->Get(compressed_index_);
+      return symbol_map_->DecodeAddrFromRaw(
+          compressed_index_,
+          addr_shrunk_array_reader_bias_ +
+              addr_shrunk_array_reader_->Get(compressed_index_));
     } else {
       return iter_->addr;
     }
@@ -78,8 +80,11 @@ class SymbolMapIterator {
   uint64_t size() const {
     CHECK(!done());
     if (IsCompressed()) {
-      return size_shrunk_array_reader_bias_ +
-             size_shrunk_array_reader_->Get(compressed_index_);
+      const uint64_t sym_addr = start();
+      return symbol_map_->DecodeSizeFromRawWithAddr(
+          compressed_index_, sym_addr,
+          size_shrunk_array_reader_bias_ +
+              size_shrunk_array_reader_->Get(compressed_index_));
     } else {
       return iter_->size;
     }
@@ -102,10 +107,11 @@ class SymbolMapIterator {
   // Start iterating on "map" from "start".
   SymbolMapIterator(std::vector<SymbolMap::Symbol>::const_iterator iter,
                     std::vector<SymbolMap::Symbol>::const_iterator end)
-      : iter_(iter), end_(end) {}
+      : iter_(iter), end_(end), symbol_map_(nullptr) {}
   // Constructor called when when compressed symbol maps are enabled.
   SymbolMapIterator(const SymbolMap* symbol_map, size_t begin, size_t end)
-      : compressed_index_(begin),
+      : symbol_map_(symbol_map),
+        compressed_index_(begin),
         compressed_end_(end),
         addr_shrunk_array_reader_(symbol_map->addr_shrunk_array_.Bind()),
         addr_shrunk_array_reader_bias_(
@@ -124,6 +130,7 @@ class SymbolMapIterator {
   std::vector<SymbolMap::Symbol>::const_iterator end_;
 
   // Variables used to read symbols when compression is enabled.
+  const SymbolMap* symbol_map_;
   size_t compressed_index_ = 0;
   size_t compressed_end_ = 0;
   // Use ShrunkArray::Reader::Get to optimize obtaining sequential values in the
