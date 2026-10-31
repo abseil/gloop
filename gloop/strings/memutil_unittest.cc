@@ -104,7 +104,8 @@ static char* haystack;
 
 static void BM_Memmem(benchmark::State& state) {
   for (auto _ : state) {
-    benchmark::DoNotOptimize(memmem(haystack, kHaystackSize, "b", 1));
+    benchmark::DoNotOptimize(memmem(absl::string_view(haystack, kHaystackSize),
+                                    absl::string_view("b", 1)));
   }
   state.SetBytesProcessed(kHaystackSize64 * state.iterations());
 }
@@ -112,7 +113,8 @@ BENCHMARK(BM_Memmem);
 
 static void BM_MemmemMedium(benchmark::State& state) {
   for (auto _ : state) {
-    benchmark::DoNotOptimize(memmem(haystack, kHaystackSize, "ab", 2));
+    benchmark::DoNotOptimize(memmem(absl::string_view(haystack, kHaystackSize),
+                                    absl::string_view("ab", 2)));
   }
   state.SetBytesProcessed(kHaystackSize64 * state.iterations());
 }
@@ -120,9 +122,10 @@ BENCHMARK(BM_MemmemMedium);
 
 static void BM_MemmemPathological(benchmark::State& state) {
   for (auto _ : state) {
-    benchmark::DoNotOptimize(memmem(haystack, kHaystackSize,
-                                    haystack + kHaystackSize / 2,
-                                    kHaystackSize - kHaystackSize / 2));
+    benchmark::DoNotOptimize(
+        memmem(absl::string_view(haystack, kHaystackSize),
+               absl::string_view(haystack + kHaystackSize / 2,
+                                 kHaystackSize - kHaystackSize / 2)));
   }
   state.SetBytesProcessed(kHaystackSize64 * state.iterations());
 }
@@ -130,7 +133,8 @@ BENCHMARK(BM_MemmemPathological);
 
 static void BM_Memcasemem(benchmark::State& state) {
   for (auto _ : state) {
-    benchmark::DoNotOptimize(memcasemem(haystack, kHaystackSize, "b", 1));
+    benchmark::DoNotOptimize(memcasemem(
+        absl::string_view(haystack, kHaystackSize), absl::string_view("b", 1)));
   }
   state.SetBytesProcessed(kHaystackSize64 * state.iterations());
 }
@@ -138,7 +142,9 @@ BENCHMARK(BM_Memcasemem);
 
 static void BM_MemcasememMedium(benchmark::State& state) {
   for (auto _ : state) {
-    benchmark::DoNotOptimize(memcasemem(haystack, kHaystackSize, "ab", 2));
+    benchmark::DoNotOptimize(
+        memcasemem(absl::string_view(haystack, kHaystackSize),
+                   absl::string_view("ab", 2)));
   }
   state.SetBytesProcessed(kHaystackSize64 * state.iterations());
 }
@@ -146,9 +152,10 @@ BENCHMARK(BM_MemcasememMedium);
 
 static void BM_MemcasememPathological(benchmark::State& state) {
   for (auto _ : state) {
-    benchmark::DoNotOptimize(memcasemem(haystack, kHaystackSize,
-                                        haystack + kHaystackSize / 2,
-                                        kHaystackSize - kHaystackSize / 2));
+    benchmark::DoNotOptimize(
+        memcasemem(absl::string_view(haystack, kHaystackSize),
+                   absl::string_view(haystack + kHaystackSize / 2,
+                                     kHaystackSize - kHaystackSize / 2)));
   }
   state.SetBytesProcessed(kHaystackSize64 * state.iterations());
 }
@@ -247,7 +254,8 @@ static const char* memcasematch(const char* phaystack, size_t haylen,
 
 void BM_Memmatch(benchmark::State& state) {
   for (auto _ : state) {
-    benchmark::DoNotOptimize(memmatch(haystack, kHaystackSize, "b", 1));
+    benchmark::DoNotOptimize(memmatch(
+        absl::string_view(haystack, kHaystackSize), absl::string_view("b", 1)));
   }
   state.SetBytesProcessed(kHaystackSize64 * state.iterations());
 }
@@ -255,7 +263,9 @@ BENCHMARK(BM_Memmatch);
 
 void BM_MemmatchMedium(benchmark::State& state) {
   for (auto _ : state) {
-    benchmark::DoNotOptimize(memmatch(haystack, kHaystackSize, "ab", 2));
+    benchmark::DoNotOptimize(
+        memmatch(absl::string_view(haystack, kHaystackSize),
+                 absl::string_view("ab", 2)));
   }
   state.SetBytesProcessed(kHaystackSize64 * state.iterations());
 }
@@ -263,9 +273,10 @@ BENCHMARK(BM_MemmatchMedium);
 
 void BM_MemmatchPathological(benchmark::State& state) {
   for (auto _ : state) {
-    benchmark::DoNotOptimize(memmatch(haystack, kHaystackSize,
-                                      haystack + kHaystackSize / 2,
-                                      kHaystackSize - kHaystackSize / 2));
+    benchmark::DoNotOptimize(
+        memmatch(absl::string_view(haystack, kHaystackSize),
+                 absl::string_view(haystack + kHaystackSize / 2,
+                                   kHaystackSize - kHaystackSize / 2)));
   }
   state.SetBytesProcessed(kHaystackSize64 * state.iterations());
 }
@@ -299,8 +310,9 @@ BENCHMARK(BM_MemcasematchPathological);
 
 void BM_MemmemStartup(benchmark::State& state) {
   for (auto _ : state) {
-    benchmark::DoNotOptimize(memmem(haystack + kHaystackSize - 10, 10,
-                                    haystack + kHaystackSize - 1, 1));
+    benchmark::DoNotOptimize(
+        memmem(absl::string_view(haystack + kHaystackSize - 10, 10),
+               absl::string_view(haystack + kHaystackSize - 1, 1)));
   }
 }
 BENCHMARK(BM_MemmemStartup);
@@ -316,8 +328,9 @@ BENCHMARK(BM_SearchStartup);
 
 void BM_MemmatchStartup(benchmark::State& state) {
   for (auto _ : state) {
-    benchmark::DoNotOptimize(memmatch(haystack + kHaystackSize - 10, 10,
-                                      haystack + kHaystackSize - 1, 1));
+    benchmark::DoNotOptimize(
+        memmatch(absl::string_view(haystack + kHaystackSize - 10, 10),
+                 absl::string_view(haystack + kHaystackSize - 1, 1)));
   }
 }
 BENCHMARK(BM_MemmatchStartup);
@@ -385,50 +398,66 @@ TEST(MemUtilTest, AllTests) {
   CHECK_EQ(memcasecmp(a, "heLLO therf", sizeof("hello there") - 2), 0);
   CHECK_EQ(memcasecmp(a, "whatever", 0), 0);
 
-  char* p = memdup("hello", 5);
+  char* p = memdup(absl::string_view("hello", 5));
   free(p);
 
-  p = memrchr("hello there", 'e', sizeof("hello there") - 1);
+  p = const_cast<char*>(memrchr(
+      absl::string_view("hello there", sizeof("hello there") - 1), 'e'));
   CHECK(p && p[-1] == 'r');
-  p = memrchr("hello there", 'e', sizeof("hello there") - 2);
+  p = const_cast<char*>(memrchr(
+      absl::string_view("hello there", sizeof("hello there") - 2), 'e'));
   CHECK(p && p[-1] == 'h');
-  p = memrchr("hello there", 'u', sizeof("hello there") - 1);
+  p = const_cast<char*>(memrchr(
+      absl::string_view("hello there", sizeof("hello there") - 1), 'u'));
   CHECK(p == nullptr);
 
-  size_t len = memspn("hello there", sizeof("hello there") - 1, "hole");
+  size_t len = memspn(
+      absl::string_view("hello there", sizeof("hello there") - 1), "hole");
   CHECK_EQ(len, sizeof("hello") - 1);
-  len = memspn("hello there", sizeof("hello there") - 1, "u");
+  len =
+      memspn(absl::string_view("hello there", sizeof("hello there") - 1), "u");
   CHECK_EQ(len, 0);
-  len = memspn("hello there", sizeof("hello there") - 1, "");
+  len = memspn(absl::string_view("hello there", sizeof("hello there") - 1), "");
   CHECK_EQ(len, 0);
-  len = memspn("hello there", sizeof("hello there") - 1, "trole h");
+  len = memspn(absl::string_view("hello there", sizeof("hello there") - 1),
+               "trole h");
   CHECK_EQ(len, sizeof("hello there") - 1);
-  len = memspn("hello there!", sizeof("hello there!") - 1, "trole h");
+  len = memspn(absl::string_view("hello there!", sizeof("hello there!") - 1),
+               "trole h");
   CHECK_EQ(len, sizeof("hello there") - 1);
-  len = memspn("hello there!", sizeof("hello there!") - 2, "trole h!");
+  len = memspn(absl::string_view("hello there!", sizeof("hello there!") - 2),
+               "trole h!");
   CHECK_EQ(len, sizeof("hello there!") - 2);
   const char ch = 'h';
-  len = memspn(&ch, 1, "h");
+  len = memspn(absl::string_view(&ch, 1), "h");
   CHECK_EQ(len, 1);
-  len = memspn(nullptr, 0, "h");
+  len = memspn(absl::string_view(nullptr, 0), "h");
   CHECK_EQ(len, 0);
 
-  len = memcspn("hello there", sizeof("hello there") - 1, "leho");
+  len = memcspn(absl::string_view("hello there", sizeof("hello there") - 1),
+                "leho");
   CHECK_EQ(len, 0);
-  len = memcspn("hello there", sizeof("hello there") - 1, "u");
+  len =
+      memcspn(absl::string_view("hello there", sizeof("hello there") - 1), "u");
   CHECK_EQ(len, sizeof("hello there") - 1);
-  len = memcspn("hello there", sizeof("hello there") - 1, "");
+  len =
+      memcspn(absl::string_view("hello there", sizeof("hello there") - 1), "");
   CHECK_EQ(len, sizeof("hello there") - 1);
-  len = memcspn("hello there", sizeof("hello there") - 1, " ");
+  len =
+      memcspn(absl::string_view("hello there", sizeof("hello there") - 1), " ");
   CHECK_EQ(len, 5);
 
-  p = mempbrk("hello there", sizeof("hello there") - 1, "leho");
+  p = const_cast<char*>(mempbrk(
+      absl::string_view("hello there", sizeof("hello there") - 1), "leho"));
   CHECK(p && p[1] == 'e' && p[2] == 'l');
-  p = mempbrk("hello there", sizeof("hello there") - 1, "nu");
+  p = const_cast<char*>(mempbrk(
+      absl::string_view("hello there", sizeof("hello there") - 1), "nu"));
   CHECK(p == nullptr);
-  p = mempbrk("hello there!", sizeof("hello there!") - 2, "!");
+  p = const_cast<char*>(mempbrk(
+      absl::string_view("hello there!", sizeof("hello there!") - 2), "!"));
   CHECK(p == nullptr);
-  p = mempbrk("hello there", sizeof("hello there") - 1, " t ");
+  p = const_cast<char*>(mempbrk(
+      absl::string_view("hello there", sizeof("hello there") - 1), " t "));
   CHECK(p && p[-1] == 'o' && p[1] == 't');
 
   CHECK(memprefix("hello there", sizeof("hello there") - 1, "hello"));
@@ -465,33 +494,68 @@ TEST(MemUtilTest, AllTests) {
 
   {
     const char kHaystack[] = "0123456789";
-    CHECK_EQ(memmem(kHaystack, 0, "", 0), kHaystack);
-    CHECK_EQ(memmem(kHaystack, 10, "012", 3), kHaystack);
-    CHECK_EQ(memmem(kHaystack, 10, "0xx", 1), kHaystack);
-    CHECK_EQ(memmem(kHaystack, 10, "789", 3), kHaystack + 7);
-    CHECK_EQ(memmem(kHaystack, 10, "9xx", 1), kHaystack + 9);
-    CHECK(memmem(kHaystack, 10, "9xx", 3) == nullptr);
-    CHECK(memmem(kHaystack, 10, "xxx", 1) == nullptr);
+    CHECK_EQ(memmem(absl::string_view(kHaystack, 0), absl::string_view("", 0)),
+             kHaystack);
+    CHECK_EQ(
+        memmem(absl::string_view(kHaystack, 10), absl::string_view("012", 3)),
+        kHaystack);
+    CHECK_EQ(
+        memmem(absl::string_view(kHaystack, 10), absl::string_view("0xx", 1)),
+        kHaystack);
+    CHECK_EQ(
+        memmem(absl::string_view(kHaystack, 10), absl::string_view("789", 3)),
+        kHaystack + 7);
+    CHECK_EQ(
+        memmem(absl::string_view(kHaystack, 10), absl::string_view("9xx", 1)),
+        kHaystack + 9);
+    CHECK(memmem(absl::string_view(kHaystack, 10),
+                 absl::string_view("9xx", 3)) == nullptr);
+    CHECK(memmem(absl::string_view(kHaystack, 10),
+                 absl::string_view("xxx", 1)) == nullptr);
   }
   {
     const char kHaystack[] = "aBcDeFgHiJ";
-    CHECK_EQ(memcasemem(kHaystack, 0, "", 0), kHaystack);
-    CHECK_EQ(memcasemem(kHaystack, 10, "Abc", 3), kHaystack);
-    CHECK_EQ(memcasemem(kHaystack, 10, "Axx", 1), kHaystack);
-    CHECK_EQ(memcasemem(kHaystack, 10, "hIj", 3), kHaystack + 7);
-    CHECK_EQ(memcasemem(kHaystack, 10, "jxx", 1), kHaystack + 9);
-    CHECK(memcasemem(kHaystack, 10, "jxx", 3) == nullptr);
-    CHECK(memcasemem(kHaystack, 10, "xxx", 1) == nullptr);
+    CHECK_EQ(
+        memcasemem(absl::string_view(kHaystack, 0), absl::string_view("", 0)),
+        kHaystack);
+    CHECK_EQ(memcasemem(absl::string_view(kHaystack, 10),
+                        absl::string_view("Abc", 3)),
+             kHaystack);
+    CHECK_EQ(memcasemem(absl::string_view(kHaystack, 10),
+                        absl::string_view("Axx", 1)),
+             kHaystack);
+    CHECK_EQ(memcasemem(absl::string_view(kHaystack, 10),
+                        absl::string_view("hIj", 3)),
+             kHaystack + 7);
+    CHECK_EQ(memcasemem(absl::string_view(kHaystack, 10),
+                        absl::string_view("jxx", 1)),
+             kHaystack + 9);
+    CHECK(memcasemem(absl::string_view(kHaystack, 10),
+                     absl::string_view("jxx", 3)) == nullptr);
+    CHECK(memcasemem(absl::string_view(kHaystack, 10),
+                     absl::string_view("xxx", 1)) == nullptr);
   }
   {
     const char kHaystack[] = "0123456789";
-    CHECK_EQ(memmatch(kHaystack, 0, "", 0), kHaystack);
-    CHECK_EQ(memmatch(kHaystack, 10, "012", 3), kHaystack);
-    CHECK_EQ(memmatch(kHaystack, 10, "0xx", 1), kHaystack);
-    CHECK_EQ(memmatch(kHaystack, 10, "789", 3), kHaystack + 7);
-    CHECK_EQ(memmatch(kHaystack, 10, "9xx", 1), kHaystack + 9);
-    CHECK(memmatch(kHaystack, 10, "9xx", 3) == nullptr);
-    CHECK(memmatch(kHaystack, 10, "xxx", 1) == nullptr);
+    CHECK_EQ(
+        memmatch(absl::string_view(kHaystack, 0), absl::string_view("", 0)),
+        kHaystack);
+    CHECK_EQ(
+        memmatch(absl::string_view(kHaystack, 10), absl::string_view("012", 3)),
+        kHaystack);
+    CHECK_EQ(
+        memmatch(absl::string_view(kHaystack, 10), absl::string_view("0xx", 1)),
+        kHaystack);
+    CHECK_EQ(
+        memmatch(absl::string_view(kHaystack, 10), absl::string_view("789", 3)),
+        kHaystack + 7);
+    CHECK_EQ(
+        memmatch(absl::string_view(kHaystack, 10), absl::string_view("9xx", 1)),
+        kHaystack + 9);
+    CHECK(memmatch(absl::string_view(kHaystack, 10),
+                   absl::string_view("9xx", 3)) == nullptr);
+    CHECK(memmatch(absl::string_view(kHaystack, 10),
+                   absl::string_view("xxx", 1)) == nullptr);
   }
 }
 
