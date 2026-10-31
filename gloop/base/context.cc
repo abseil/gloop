@@ -224,7 +224,7 @@ ABSL_XRAY_ALWAYS_INSTRUMENT void SetThreadContext(
 }
 
 ContextBuilder& ContextBuilder::set_trace_context(TraceContext tc) {
-  context_.tc_ = std::move(tc);
+  context_.set_trace_context(std::move(tc));
   return *this;
 }
 
@@ -240,7 +240,7 @@ ContextBuilder& ContextBuilder::set_census_handle(CensusHandle handle) {
 
 ContextBuilder& ContextBuilder::set_thread_status(
     const char* absl_nullable const thread_status) {
-  context_.thread_status_ = thread_status;
+  context_.set_thread_status(thread_status);
   return *this;
 }
 
