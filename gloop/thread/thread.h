@@ -787,6 +787,9 @@ class ThreadStackWriter {
   virtual void Write(const char* data, int data_length) = 0;
   virtual void Write(const char* data, int data_length,
                      const ThreadStackWriterOptions& options);
+  virtual bool RedactAddresses() const { return false; }
+  virtual void AddAddressRelocation(uint64_t begin, uint64_t end,
+                                    uint64_t relocated_begin) {}
 };
 
 // A subclass that writes to stderr

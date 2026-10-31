@@ -65,12 +65,25 @@ class SymbolizedStackWriter : public ThreadStackWriter {
 
   ~SymbolizedStackWriter() override;
 
+  // Set whether to symbolize stack frames (defaults to true).
+  // This must be called before `Write()` for it to take effect.
+  void set_symbolize_stack(bool symbolize_stack);
+
   // Set whether to symbolize threads after the "creator:" marker.
   // This must be called before `Write()` for it to take effect.
   // If `symbolize_creator_thread` is `true`, then the creator's thread frames
   // will be symbolized.  Otherwise, the creator thread's frames will not be
   // symbolized and will be printed on a single line.
   void set_symbolize_creator_thread(bool symbolize_creator_thread);
+
+  // Set whether to redact raw addresses in output (defaults to false).
+  // This must be called before `Write()` for it to take effect.
+  void set_redact_addresses(bool redact_addresses);
+
+  bool RedactAddresses() const override;
+
+  void AddAddressRelocation(uint64_t begin, uint64_t end,
+                            uint64_t relocated_begin) override;
 
   // This function symbolizes hexadecimal addresses in stack traces
   // with pretty formatting before writing them into `output`. Does
