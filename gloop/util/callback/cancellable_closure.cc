@@ -56,7 +56,7 @@ CancellableClosure::CancellableClosure(Closure* wrapped_cl)
       state_(STATE_NOT_YET_CALLED),
       wrapped_cl_(wrapped_cl) {}
 
-CancellableClosure::~CancellableClosure() {}
+CancellableClosure::~CancellableClosure() = default;
 
 /*static*/ CancellableClosure* CancellableClosure::New(Closure* wrapped_cl) {
   return new CancellableClosure(wrapped_cl);

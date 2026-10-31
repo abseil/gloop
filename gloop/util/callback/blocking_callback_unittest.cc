@@ -47,7 +47,7 @@ class Waiter : public Thread {
   // This type is neither copyable nor movable.
   Waiter(const Waiter&) = delete;
   Waiter& operator=(const Waiter&) = delete;
-  ~Waiter() override {}
+  ~Waiter() override = default;
 
   void Run() override { closure_->Wait(); }
 

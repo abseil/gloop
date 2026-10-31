@@ -670,12 +670,12 @@ static void InitArray(uint64_t* a, const int N, const int bit_len,
 
 class VarintBMHelper {
  public:
-  VarintBMHelper() {}
+  VarintBMHelper() = default;
 
   // This type is neither copyable nor movable.
   VarintBMHelper(const VarintBMHelper&) = delete;
   VarintBMHelper& operator=(const VarintBMHelper&) = delete;
-  virtual ~VarintBMHelper() {}
+  virtual ~VarintBMHelper() = default;
 
   // Helper routine to initialize a char buffer with varints of size
   // (0 to (count - 1)) << shift_bits

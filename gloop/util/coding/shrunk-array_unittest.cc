@@ -41,8 +41,8 @@ namespace {
 
 class GenericReader {
  public:
-  GenericReader() {}
-  virtual ~GenericReader() {}
+  GenericReader() = default;
+  virtual ~GenericReader() = default;
 
   virtual void Bind(const void* shrunk_array, const uint64_t decode_key[2]) = 0;
   // Unlike ShrunkArray::Reader::Bind1(), this Bind1() requires that
