@@ -29,6 +29,7 @@
 #include "absl/time/time.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/context.h"
+#include "gloop/thread/fiber/fiber-options.h"
 #include "gloop/thread/fiber/fiber.h"
 #include "gloop/thread/fiber/select.h"
 #include "gloop/thread/thread.h"
@@ -231,6 +232,34 @@ TEST(BundleTest, OnJoinable) {
 
   // Finally, should still be able to select against OnJoinable.
   EXPECT_EQ(0, Select({test_bundle.OnJoinable()}));
+}
+
+// Several fibers may call OnJoinable() at the same time, while the children
+// of the bundle finish. ThreadSanitizer reports any data race between these
+// calls.
+TEST(BundleTest, ConcurrentOnJoinable) {
+  NewTree(TreeOptions().set_max_cpu_slots(8), [] {
+    Bundle bundle;
+    absl::Notification start;
+    // These children finish, leave the bundle and tear down concurrently with
+    // the OnJoinable() calls below.
+    for (int i = 0; i < 8; ++i) {
+      bundle.Add([&] { start.WaitForNotification(); });
+    }
+    Bundle callers;
+    for (int i = 0; i < 8; ++i) {
+      callers.Add([&] {
+        start.WaitForNotification();
+        EXPECT_EQ(0, Select({bundle.OnJoinable()}));
+      });
+    }
+    // From here on, the callers and this fiber call bundle.OnJoinable()
+    // concurrently, while the children of `bundle` finish.
+    start.Notify();
+    EXPECT_EQ(0, Select({bundle.OnJoinable()}));
+    callers.JoinAll();
+    bundle.JoinAll();
+  })->Join();
 }
 
 TEST(BundleTest, BundleProxy) {

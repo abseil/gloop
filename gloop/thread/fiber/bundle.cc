@@ -42,8 +42,8 @@ Bundle::Bundle(const FiberOptions& options)
 
 void Bundle::AddImpl(Invocable f) {
   DCHECK(IsDescendantAdd());
-  Detach(internal::FiberHelpers::CreateChildFiber(&bundle_fiber_.GetFiber(),
-                                                  std::move(f)));
+  internal::FiberHelpers::StartDetachedChildFiber(&bundle_fiber_.GetFiber(),
+                                                  std::move(f));
 }
 
 // Used in dbg mode to ensure we do not allow cross-tree insertions.

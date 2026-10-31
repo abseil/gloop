@@ -29,7 +29,9 @@
 #include <cstdio>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <random>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -38,6 +40,7 @@
 #include "absl/base/const_init.h"
 #include "absl/base/internal/thread_identity.h"
 #include "absl/base/thread_annotations.h"
+#include "absl/cleanup/cleanup.h"
 #include "absl/debugging/leak_check.h"
 #include "absl/flags/declare.h"
 #include "absl/flags/flag.h"
@@ -64,6 +67,7 @@
 #include "gloop/thread/fiber/channel.h"
 #include "gloop/thread/fiber/fiber-internal.h"
 #include "gloop/thread/fiber/fiber-options.h"
+#include "gloop/thread/fiber/fiber.pb.h"
 #include "gloop/thread/fiber/fifolifo-schedulers.h"
 #include "gloop/thread/fiber/init-domain.h"
 #include "gloop/thread/fiber/internal/fiber-thread-options.h"
@@ -1200,6 +1204,139 @@ TEST_F(FiberTest, FunctionFiberFreesArgumentsBeforeJoin) {
   c.Join();
 }
 
+TEST_F(FiberTest, DetachAfterFinishWithLiveChild) {
+  // Bounce to a child fiber to get on the default domain, then use an isolated
+  // 1-slot custom domain so `fibers_finished` reflects only the test's fibers
+  // (including under preemptive domains such as UMCG).
+  Fiber{[] {
+    auto domain = thread::CreateCustomDomain(
+        {.name = "detach_after_finish_live_child", .max_concurrency = 1});
+    base::scheduling::Scheduler* scheduler =
+        thread::NewRootFIFOScheduler(domain.get());
+    const absl::Cleanup orphan_scheduler = [scheduler] {
+      NewTree(TreeOptions().set_scheduler(scheduler), [] {})->Join();
+      scheduler->Orphan();
+    };
+    const auto& counters = domain->Counters(fiber::FIBER_TYPE_NORMAL);
+    const auto wait_for_fibers_finished = [&](uint64_t expected) {
+      while (counters.fibers_finished.load(std::memory_order_relaxed) <
+             expected) {
+        SleepFor(absl::Milliseconds(1));
+      }
+    };
+
+    // Exercise Detach(std::unique_ptr<Fiber>) when the parent has already
+    // finished its body while a detached child is still running.
+    {
+      absl::Notification child_started;
+      absl::Notification release_child;
+      absl::Notification child_released;
+      std::unique_ptr<Fiber> parent;
+      const absl::Cleanup cleanup_part1 = [&] {
+        if (!release_child.HasBeenNotified()) release_child.Notify();
+        if (parent != nullptr) parent->Join();
+        child_released.WaitForNotification();
+        wait_for_fibers_finished(2);
+      };
+      parent = NewTree(TreeOptions().set_scheduler(scheduler), [&] {
+        ChildFiberScoped(
+            [&, guard = std::make_shared<ObservesDeletion>(&child_released)] {
+              child_started.Notify();
+              release_child.WaitForNotification();
+            })();
+      });
+      child_started.WaitForNotification();
+      wait_for_fibers_finished(1);
+      Detach(std::move(parent));
+      release_child.Notify();
+    }
+
+    // Exercise a two-level finished chain (`grandparent -> parent`) with a live
+    // detached grandchild and an `OnJoinable()` waiter when detached via
+    // `subtle::Detach`.
+    static std::atomic<int> cleaned_up_count;
+    static PermanentEvent* all_cleaned_up;
+    cleaned_up_count = 0;
+    PermanentEvent all_cleaned_up_event;
+    all_cleaned_up = &all_cleaned_up_event;
+
+    PermanentEvent parent_created;
+    absl::Notification child_started;
+    absl::Notification release_child;
+    std::unique_ptr<Fiber> parent;
+    std::unique_ptr<Fiber> grandparent;
+    Fiber* parent_ptr = nullptr;
+    Fiber* grandparent_ptr = nullptr;
+    const absl::Cleanup cleanup = [&] {
+      if (!release_child.HasBeenNotified()) release_child.Notify();
+      if (parent != nullptr) {
+        Detach(std::move(parent));
+      }
+      if (grandparent != nullptr) {
+        grandparent->Join();
+      } else if (grandparent_ptr != nullptr) {
+        Select({all_cleaned_up_event.OnEvent()});
+        delete parent_ptr;
+        delete grandparent_ptr;
+      }
+    };
+    grandparent = NewTree(TreeOptions().set_scheduler(scheduler), [&] {
+      parent = std::make_unique<Fiber>([&] {
+        ChildFiberScoped([&] {
+          child_started.Notify();
+          release_child.WaitForNotification();
+        })();
+      });
+      parent_created.Notify();
+    });
+    grandparent_ptr = grandparent.get();
+
+    // Wait until both `grandparent` and `parent` have entered
+    // `FinishBeforeTeardown()` (setting `state_ = FINISHED` under `mu_`) while
+    // the detached grandchild remains blocked on `release_child`.
+    Select({parent_created.OnEvent()});
+    parent_ptr = parent.get();
+    child_started.WaitForNotification();
+    wait_for_fibers_finished(4);
+
+    const auto record_without_delete = +[](Fiber*) {
+      if (cleaned_up_count.fetch_add(1, std::memory_order_acq_rel) == 1) {
+        all_cleaned_up->Notify();
+      }
+    };
+
+    NewTree(TreeOptions().set_max_cpu_slots(1), [&] {
+      PermanentEvent parent_waiter_started;
+      Fiber parent_waiter([&] {
+        parent_waiter_started.Notify();
+        EXPECT_EQ(Select({parent_ptr->OnJoinable()}), 0);
+      });
+      Select({parent_waiter_started.OnEvent()});
+
+      PermanentEvent grandparent_waiter_started;
+      Fiber grandparent_waiter([&] {
+        grandparent_waiter_started.Notify();
+        EXPECT_EQ(Select({grandparent_ptr->OnJoinable()}), 0);
+      });
+      Select({grandparent_waiter_started.OnEvent()});
+
+      EXPECT_EQ(TrySelect({parent_ptr->OnJoinable()}), -1);
+      EXPECT_EQ(TrySelect({grandparent_ptr->OnJoinable()}), -1);
+
+      subtle::Detach(*grandparent.release(), *record_without_delete);
+      subtle::Detach(*parent.release(), *record_without_delete);
+      EXPECT_EQ(cleaned_up_count.load(), 0);
+
+      release_child.Notify();
+      parent_waiter.Join();
+      grandparent_waiter.Join();
+    })->Join();
+
+    Select({all_cleaned_up_event.OnEvent()});
+    EXPECT_EQ(cleaned_up_count.load(), 2);
+  }}.Join();
+}
+
 #if ABSL_HAVE_THREAD_LOCAL
 // See b/35097229 and comments within Scheduler() [base/scheduling/scheduler.cc]
 struct TypeWithDtor {
@@ -1296,6 +1433,35 @@ TEST_F(FiberTest, DistinctFiberScopeInheritsScheduler) {
     custom_scheduler->Orphan();
     ASSERT_EQ(base::scheduling::Domain::CurrentDomain(),
               thread::DefaultDomain());
+  }}.Join();
+}
+
+// A fiber counts as active while it runs its body.
+TEST_F(FiberTest, NumActiveFibers) {
+  // Bounce to a child fiber to get on the default domain.
+  Fiber{[] {
+    // No other fiber runs in this domain.
+    auto domain = thread::CreateCustomDomain({.name = "num_active_fibers"});
+    base::scheduling::Scheduler* scheduler =
+        thread::NewRootFIFOScheduler(domain.get());
+    const auto& counters = domain->Counters(fiber::FIBER_TYPE_NORMAL);
+
+    absl::Notification running;
+    absl::Notification release;
+    Fiber fiber(Fiber::RootFiber{}, TreeOptions().set_scheduler(scheduler),
+                [&] {
+                  running.Notify();
+                  release.WaitForNotification();
+                });
+    running.WaitForNotification();
+    EXPECT_EQ(counters.num_active_fibers.load(std::memory_order_relaxed),
+              uint64_t{1});
+    release.Notify();
+    fiber.Join();
+    EXPECT_EQ(counters.num_active_fibers.load(std::memory_order_relaxed),
+              uint64_t{0});
+
+    scheduler->Orphan();
   }}.Join();
 }
 

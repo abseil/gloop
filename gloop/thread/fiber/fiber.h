@@ -240,6 +240,15 @@ class Fiber : private gtl::intrusive_link<Fiber, CancellationList::Tag> {
   // be called before it may be destructed. Second and further calls to Join()
   // are no-ops.
   //
+  // By the time Join() returns, the base::Context of *this and of each of its
+  // descendants has also been destroyed: trace listener callbacks for their
+  // execution have completed, and their references to tracers have been
+  // released.
+  //
+  // Note: avoid calling Fiber::Join() while holding a mutex that might be
+  // acquired during base::Context destruction (e.g., by trace listener
+  // callbacks or tracer destruction), as this could lead to a deadlock.
+  //
   // REQUIRES: Must be called by the parent, unless this is a root fiber.
   void Join();
 
@@ -278,15 +287,22 @@ class Fiber : private gtl::intrusive_link<Fiber, CancellationList::Tag> {
 
   // When called on a fiber f, returns a token that may be used to Select()
   // against the completion of f and its descendant children.  It is guaranteed
-  // at the time of return that f, and all descendants, are no longer running.
+  // at the time of return that f, and all descendants, are no longer running,
+  // and that their base::Context has been destroyed (as for Join()).
   //
-  // Will always complete immediately when called against a finished fiber.
+  // Will always complete immediately when called against a joinable fiber.
   // Does not count as a Join() against the referenced fiber.
+  //
+  // Not supported on fibers detached while running, which join themselves
+  // before their own base::Context is destroyed and may never notify
+  // OnJoinable().
   //
   // CAUTION:
   // There is no guarantee made that the fiber f was not immediately deleted
   // prior to Select() returning.  Unless callers are explicitly synchronized
-  // against the existence of f's storage, they may NOT reference it again.
+  // against the existence of f's storage, they may NOT reference it again, nor
+  // keep a multi-case Select() or expirable SelectUntil() wait active across a
+  // Detach() that deletes f.
   Case OnJoinable() const;
 
   // The set of options specified when this fiber was created.  Fibers which do
@@ -313,20 +329,50 @@ class Fiber : private gtl::intrusive_link<Fiber, CancellationList::Tag> {
 
   void Start();
   void Body();
-  void MarkJoined();
-  void HandleDeadlineExpiry();
-  void InternalJoin();
+  void MarkJoined() ABSL_LOCKS_EXCLUDED(mu_);
+  void HandleDeadlineExpiry() ABSL_LOCKS_EXCLUDED(mu_);
+  void InternalJoin() ABSL_LOCKS_EXCLUDED(mu_);
 
-  // Changes the state of this fiber to FINISHED.
-  //
-  // If the current fiber is not a detached fiber and all children have
-  // finished, then the this function will invoke `joinable_.Notify()` to
-  // signal that the fiber has become joinable.
-  //
-  // Returns [cleanup_fn, joinable], which allows the caller to directly
-  // observe if both the finished fiber was detached (clean_up != nullptr) and
-  // if the fiber is joinable, in which case it can self-join immediately.
-  std::pair<CleanupFn*, bool> MarkFinished();
+  // Changes the state of this fiber, which must be a dynamic fiber (i.e. one
+  // without a body), to FINISHED, unless it is already. If it has no children
+  // left, this signals that it has become joinable: `joinable_` is notified as
+  // soon as no teardown of a child is pending. Returns whether `children_` is
+  // empty.
+  bool MarkFinished() ABSL_LOCKS_EXCLUDED(mu_);
+
+  // Updates counters and changes the state of this fiber to FINISHED.
+  void MarkFinishedLocked() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mu_);
+
+  // What Body() has left to do once it has destroyed the fiber's base::Context.
+  enum class AfterTeardown : uint8_t {
+    // Make the fiber joinable (attached fiber with no children nor pending
+    // teardowns left).
+    kMakeJoinable,
+    // End the fiber's own pending teardown (other attached fibers).
+    kEndOwnPendingTeardown,
+    // End the fiber's pending teardown in its parent, then clean up (detached
+    // child fiber).
+    kEndPendingTeardownInParent,
+    // Release the tree scheduler, then clean up (detached root fiber).
+    kReleaseTree,
+  };
+  struct FinishResult {
+    AfterTeardown after_teardown;
+    // The cleanup function of a detached fiber, null for attached fibers.
+    CleanupFn* clean_up;
+  };
+
+  // The end of Body(), around the destruction of the fiber's base::Context. See
+  // "Context teardown" in fiber.cc.
+  FinishResult FinishBeforeTeardown() ABSL_LOCKS_EXCLUDED(mu_);
+  bool MarkJoinedBeforeTeardown() ABSL_LOCKS_EXCLUDED(mu_, parent_->mu_);
+  void FinishAfterTeardown(FinishResult result) ABSL_LOCKS_EXCLUDED(mu_);
+  void EndPendingTeardown() ABSL_LOCKS_EXCLUDED(mu_);
+
+  // See "Context teardown" in fiber.cc.
+  bool MakeJoinableLocked() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mu_);
+  void JoinDetachedAndCleanUp() ABSL_LOCKS_EXCLUDED(mu_);
+  Fiber* LeaveParent() ABSL_LOCKS_EXCLUDED(mu_, parent_->mu_);
 
   static void InvokeFiberBody(void* fiber_ptr);
 
@@ -337,8 +383,8 @@ class Fiber : private gtl::intrusive_link<Fiber, CancellationList::Tag> {
   // The type of this fiber for stats and debug logging only.
   const fiber::FiberType type_;
 
-  // If non-null, this fiber is self-joining and the supplied cleanup function
-  // will be called after it joins itself.
+  // If non-null, this fiber has been detached and the supplied cleanup
+  // function will be called after it is joined.
   //
   // This is always set under lock, but is an atomic to allow for reads during
   // stats collection, which cannot acquire mutexes.
@@ -346,21 +392,30 @@ class Fiber : private gtl::intrusive_link<Fiber, CancellationList::Tag> {
 
   enum State : uint8_t { RUNNING, FINISHED, JOINED };
   State state_ ABSL_GUARDED_BY(mu_) = RUNNING;
+  // Whether this fiber was detached after finishing as an attached fiber, but
+  // before becoming joinable: whoever makes it joinable then joins and cleans
+  // it up. See "Context teardown" in fiber.cc.
+  bool cleanup_when_joinable_ ABSL_GUARDED_BY(mu_) = false;
 
   Fiber* const parent_;
   // List of child fibers.
   gtl::intrusive_list<Fiber, CancellationList::Tag> children_
       ABSL_GUARDED_BY(mu_);
+  // Number of in-progress base::Context teardowns tracked on this fiber that
+  // must complete before `joinable_` may be notified (an attached fiber's own
+  // teardown on AfterTeardown::kMakeJoinable is not counted here). See
+  // "Context teardown" in fiber.cc.
+  int pending_teardowns_ ABSL_GUARDED_BY(mu_) = 0;
 
   PermanentEvent cancellation_{PermanentEvent::CancellationEventTag()};
   PermanentEvent joinable_;
 
   Invocable work_;
 
-  // The scheduler is Ref'd by the root fiber and is held until the root fiber
-  // is joined. All children (including detached children) must finish before
-  // the root fiber can be joined, so they implicitly know that a reference must
-  // exist for their lifetime.
+  // The scheduler is Ref'd by the root fiber and is released in LeaveParent()
+  // or FinishAfterTeardown() once the root fiber and all of its descendants
+  // (including detached descendants) have completed their execution and
+  // base::Context teardown, so a reference exists for their entire lifetime.
   Scheduler& tree_scheduler_;
   base::Context context_;       // See comments in Body().
   const FiberOptions options_;  // Initialized at creation.
@@ -399,7 +454,8 @@ class DynamicFiber {
   // REQUIRES: Finish() and Fiber()->Join() must have been called.
   ~DynamicFiber() = default;
 
-  // Finish the DynamicFiber lifetime if not yet finished.
+  // Finish the DynamicFiber lifetime if not yet finished. May be called more
+  // than once, and concurrently.
   void Finish();
 
   Fiber& GetFiber() { return fiber_; }
@@ -407,7 +463,6 @@ class DynamicFiber {
 
  private:
   Fiber fiber_;
-  bool finished_ = false;
 };
 
 }  // namespace internal
@@ -426,7 +481,10 @@ ABSL_MUST_USE_RESULT std::unique_ptr<Fiber> NewTree(TreeOptions tree_options,
 // resources will automatically be released once execution is finished.
 template <typename F>
 void Detach(TreeOptions tree_options, F&& f) {
-  Detach(NewTree(std::move(tree_options), std::forward<F>(f)));
+  static_assert(std::is_void_v<std::invoke_result_t<std::decay_t<F>>>,
+                "Fiber functions must return void.");
+  internal::FiberHelpers::StartDetachedTree(std::move(tree_options),
+                                            std::forward<F>(f));
 }
 
 // Detach a fiber which is already running. This allows for access to a Fiber*
@@ -438,8 +496,14 @@ void Detach(TreeOptions tree_options, F&& f) {
 // fiber itself. The fiber can either be created with NewTree or heap allocated
 // with new or std::make_unique.
 //
-// REQUIRES: The fiber is not currently detached (if it is, it is not possible
-// to construct a unique_ptr to it without double free).
+// Detach() never waits for the fiber. If the fiber has already finished
+// running, it is joined (see Join()) and released as soon as it becomes
+// joinable, possibly before Detach() returns. To wait for the fiber and its
+// descendants before detaching, Select() on OnJoinable() first.
+//
+// REQUIRES: The fiber has not already been Join()-ed or detached (if it was
+// detached, it is not possible to construct a unique_ptr to it without double
+// free).
 void Detach(std::unique_ptr<Fiber> fiber);
 
 // Returns true if the current thread or fiber has been cancelled.
@@ -550,14 +614,20 @@ Invocable MakeInvocable(F&& f) {
 namespace subtle {
 
 // The most generic overload of Detach. Accepts the fiber to detach, and a
-// cleanup function to be called after it joins itself.
+// cleanup function to be called after it is joined. Like the overload above,
+// never waits for the fiber.
 //
-// The cleanup function runs under an unspecified context. It shouldn't do
-// anything but destroy the fiber object and any associated state. For example
-// it must not wait for anything (how would fiber cancellation work?), or rely
-// on a particular base::Context being active.
+// The cleanup function runs on an unspecified thread, under an unspecified
+// context. For a fiber detached after finishing, `clean_up` (or that of an
+// ancestor also detached after finishing) may run synchronously within Detach()
+// of that fiber or of one of its descendants, or on the thread of that fiber or
+// a descendant as it completes. It shouldn't do anything but destroy the fiber
+// object and any associated state. For example it must not wait for anything
+// (how would fiber cancellation work?), acquire locks that might be held by
+// callers of Join() or Detach(), or rely on a particular base::Context being
+// active.
 //
-// REQUIRES: the fiber hasn't already been detached.
+// REQUIRES: The fiber hasn't already been Join()-ed or detached.
 void Detach(Fiber& fiber, void (&clean_up)(Fiber*));
 
 }  // namespace subtle
