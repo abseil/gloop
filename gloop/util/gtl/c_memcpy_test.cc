@@ -197,7 +197,7 @@ TEST(CMemcpy, WorksForStringToStringWithNullTerminator) {
   std::string dest = "12";
   c_memcpy(dest, src, src.size() + 1);
   EXPECT_EQ(dest, "ab");
-  EXPECT_EQ(dest.c_str()[2], '\0');
+  EXPECT_EQ(dest[2], '\0');
 }
 
 TEST(CMemcpy, WorksForContainersOfDifferentElementTypes) {

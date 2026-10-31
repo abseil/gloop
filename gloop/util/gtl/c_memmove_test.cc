@@ -80,7 +80,7 @@ TEST(CMemmoveTest, WorksForStringSourceWithNullTerminator) {
   std::string dest_str = "12";
   gtl::c_memmove(dest_str, src, src.size() + 1);
   EXPECT_EQ(dest_str, "ab");
-  EXPECT_EQ(dest_str.c_str()[2], '\0');
+  EXPECT_EQ(dest_str[2], '\0');
 }
 
 TEST(CMemmoveTest, WorksForContainersOfDifferentElementTypes) {
