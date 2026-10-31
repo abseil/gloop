@@ -113,10 +113,10 @@ struct RoundingLookupEntry {
                              // rounded away.
 };
 
-struct RoundingLookupEntry
-    uint64_lookup_table[kMaxDigitsUint64] ABSL_CACHELINE_ALIGNED;
-struct RoundingLookupEntry
-    int64_lookup_table[kMaxDigitsInt64] ABSL_CACHELINE_ALIGNED;
+ABSL_CACHELINE_ALIGNED struct RoundingLookupEntry
+    uint64_lookup_table[kMaxDigitsUint64];
+ABSL_CACHELINE_ALIGNED struct RoundingLookupEntry
+    int64_lookup_table[kMaxDigitsInt64];
 
 void InitDecimalRoundingTables() {
   uint64_t val = 1;
