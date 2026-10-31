@@ -37,6 +37,7 @@
 #include "absl/base/macros.h"
 #include "absl/base/no_destructor.h"
 #include "absl/base/nullability.h"
+#include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "gloop/base/censushandle.h"
 #include "gloop/base/config.h"
@@ -139,6 +140,15 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
 
   void set_census_handle(CensusHandle&& handle) {
     tc_.set_census_handle(std::move(handle));
+  }
+
+  // Returns a the "status string" associated with the context. This is the null
+  // string view if there is no status set.
+  //
+  // TODO: get rid of the deprecated accessor and then rename this
+  // one to thread_status.
+  absl::string_view thread_status_string_view() const {
+    return absl::NullSafeStringView(thread_status());
   }
 
   // Returns a pointer to the "status string" associated with the context, or

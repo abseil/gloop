@@ -267,7 +267,7 @@ TEST_F(ContextTest, TestInitialState) {
   EXPECT_EQ(default_context.deadline(), absl::InfiniteFuture());
 
   // DEFAULT: Thread status is null.
-  EXPECT_THAT(default_context.thread_status(), IsNull());
+  EXPECT_THAT(default_context.thread_status_string_view().data(), IsNull());
 
   // The background context is specified to be Context::kDefault constructed.
   EXPECT_THAT(default_context, EqualsContext(BackgroundContext()));
@@ -368,8 +368,8 @@ TEST_F(ContextTest, AssignWithThreadStatus) {
   c1 = c2;
   c3 = std::move(c4);
 
-  EXPECT_STREQ(c1.thread_status(), "status 2");
-  EXPECT_STREQ(c3.thread_status(), "status 4");
+  EXPECT_EQ(c1.thread_status_string_view(), "status 2");
+  EXPECT_EQ(c3.thread_status_string_view(), "status 4");
 }
 
 TEST_F(ContextTest, AccessorsAndMutators) {
@@ -386,7 +386,7 @@ TEST_F(ContextTest, AccessorsAndMutators) {
     EXPECT_TRUE(
         stats_census::CensusHandlesEqual(h, CurrentContext().census_handle()));
 #endif  // BASE_CONTEXT_HAVE_SECURITYCONTEXT
-    EXPECT_EQ("my status", CurrentContext().thread_status());
+    EXPECT_EQ("my status", CurrentContext().thread_status_string_view());
   }
 }
 
