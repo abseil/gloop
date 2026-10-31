@@ -425,6 +425,24 @@ TEST(WithContextTest, ConstOperatorConstRefRef) {
   EXPECT_EQ(9, std::move(wrapped_sum)(4, 5));
 }
 
+TEST(WithContextTest, EmptyFunctorSizeOptimization) {
+  auto wrapped = WithCurrentContext([] {});
+  EXPECT_EQ(sizeof(wrapped), sizeof(base::Context));
+}
+
+TEST(WithContextTest, DirectMoveOnlyFunctorInvocation) {
+  const base::WithContext with_existing_context(CreateContext(kExistingRpcId));
+  auto ptr = std::make_unique<int>(kMagicReturnValue);
+  auto wrapped = [&] {
+    const base::WithContext with_new_context(CreateContext(kNewRpcId));
+    return WithCurrentContext([p = std::move(ptr)]() -> int {
+      EXPECT_EQ(base::CurrentContext().trace_context().rpc_id(), kNewRpcId);
+      return *p;
+    });
+  }();
+  EXPECT_EQ(std::move(wrapped)(), kMagicReturnValue);
+}
+
 }  // namespace
 
 }  // namespace functional

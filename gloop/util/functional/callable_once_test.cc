@@ -23,7 +23,10 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <thread>  // NOLINT
+#include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
@@ -301,6 +304,67 @@ TEST(CallExactlyOnceTest, ArgsDestroyAfterMove) {
     fn = nullptr;  // Ensure fn's moved-from state is empty.
     (void)inner;
   }
+  EXPECT_TRUE(dtor_called);
+}
+
+TEST(CallAtMostOnceTest, PointerSizedAndNothrowCopyMove) {
+  auto f = CallAtMostOnce([] {});
+  using Wrapper = decltype(f);
+  static_assert(sizeof(Wrapper) == sizeof(void*));
+  static_assert(std::is_nothrow_copy_constructible_v<Wrapper>);
+  static_assert(std::is_nothrow_move_constructible_v<Wrapper>);
+  static_assert(std::is_nothrow_copy_assignable_v<Wrapper>);
+  static_assert(std::is_nothrow_move_assignable_v<Wrapper>);
+
+  auto exact = CallExactlyOnce([] {});
+  static_assert(sizeof(decltype(exact)) == sizeof(void*));
+  exact();
+}
+
+TEST(CallAtMostOnceTest, CopyAssignAndSelfAssignLifecycle) {
+  bool dtor_a = false;
+  bool dtor_b = false;
+  auto f1 = CallAtMostOnce(absl::bind_front(
+      CallMeMaybe, std::make_unique<DestructorTattletale>(&dtor_a)));
+  auto f2 = CallAtMostOnce(absl::bind_front(
+      CallMeMaybe, std::make_unique<DestructorTattletale>(&dtor_b)));
+
+  // Self copy-assignment and self move-assignment must preserve ownership.
+  const auto& f1_alias = f1;
+  f1 = f1_alias;
+  auto& f1_mut_alias = f1;
+  f1 = std::move(f1_mut_alias);
+  EXPECT_FALSE(dtor_a);
+
+  // Overwriting f1 drops the sole reference to dtor_a's state immediately.
+  f1 = f2;
+  EXPECT_TRUE(dtor_a);
+  EXPECT_FALSE(dtor_b);
+  f1();
+}
+
+TEST(CallExactlyOnceTest, ConcurrentCopiesAndDestructionRemainThreadSafe) {
+  int invocations = 0;
+  bool dtor_called = false;
+  {
+    auto f = CallExactlyOnce(
+        [&invocations, guard = std::make_unique<DestructorTattletale>(
+                           &dtor_called)] { ++invocations; });
+    std::vector<std::thread> threads;
+    threads.reserve(8);
+    for (int i = 0; i < 8; ++i) {
+      threads.emplace_back([copy = f, invoke = (i == 3)]() mutable {
+        auto nested_copy = copy;
+        if (invoke) {
+          nested_copy();
+        }
+      });
+    }
+    for (std::thread& t : threads) {
+      t.join();
+    }
+  }
+  EXPECT_EQ(invocations, 1);
   EXPECT_TRUE(dtor_called);
 }
 
