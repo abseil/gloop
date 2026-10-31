@@ -31,8 +31,8 @@ namespace thread {
 // Constructors for default options.
 // Base policy constructor/destructor.
 
-ThreadManagerPolicy::ThreadManagerPolicy() {}
+ThreadManagerPolicy::ThreadManagerPolicy() = default;
 
-ThreadManagerPolicy::~ThreadManagerPolicy() {}
+ThreadManagerPolicy::~ThreadManagerPolicy() = default;
 
 }  // namespace thread

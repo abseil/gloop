@@ -203,7 +203,7 @@ static void InitModule() {
   default_executor = thread_internal::ChooseDefaultExecutor();
 }
 
-Executor::~Executor() {}
+Executor::~Executor() = default;
 
 // Default (and unoptimized) implementation of ScheduleMany()
 // for backward compatibility.

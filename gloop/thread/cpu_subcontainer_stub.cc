@@ -27,7 +27,7 @@
 thread::CpuSubContainer::CpuSubContainer(const std::string& path)
     : path_(path) {}
 
-thread::CpuSubContainer::~CpuSubContainer() {}
+thread::CpuSubContainer::~CpuSubContainer() = default;
 
 bool thread::CpuSubContainer::RegisterThread() { return true; }
 

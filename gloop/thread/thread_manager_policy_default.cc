@@ -88,7 +88,7 @@ ThreadManagerPolicy* DefaultThreadManagerPolicy(int (*num_cpus)()) {
 ThreadManagerPolicyDefault::ThreadManagerPolicyDefault(int (*num_cpus)())
     : num_cpus_(num_cpus) {}
 
-ThreadManagerPolicyDefault::~ThreadManagerPolicyDefault() {}
+ThreadManagerPolicyDefault::~ThreadManagerPolicyDefault() = default;
 
 // Return a debug string containing various fields from state, with the rate
 // and message msg[].
