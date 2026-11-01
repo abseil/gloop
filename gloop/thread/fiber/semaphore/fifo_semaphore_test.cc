@@ -535,7 +535,7 @@ TEST_F(FifoSemaphoreTest, WaitsUntilAllResourcesReleased) {
 typedef FifoSemaphoreTest FifoSemaphoreDeathTest;
 
 TEST_F(FifoSemaphoreDeathTest, DestructionWithWaiters) {
-  std::unique_ptr<FifoSemaphore> s(new FifoSemaphore(10));
+  std::unique_ptr<FifoSemaphore> s = std::make_unique<FifoSemaphore>(10);
   s->Acquire(5);
 
   // Add a fiber that's blocked due to insufficient resources.
