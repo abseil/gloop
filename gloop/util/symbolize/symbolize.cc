@@ -20,16 +20,15 @@
 
 #include "gloop/util/symbolize/symbolize.h"
 
-#include <utility>
-
-#include "absl/base/attributes.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
-#include "absl/strings/string_view.h"
 
 #if __ELF__
 #include <elf.h>
 #include <link.h>
+#ifdef __linux__
+#include <sys/auxv.h>
+#endif
 #endif
 
 #include <algorithm>
@@ -42,21 +41,18 @@
 #include <limits>
 #include <memory>
 #include <string>
-#include <tuple>
 #include <vector>
 
 #include "absl/base/call_once.h"
-#include "absl/debugging/internal/symbolize.h"
 #include "absl/debugging/internal/vdso_support.h"
 #include "absl/flags/flag.h"
 #include "absl/memory/memory.h"
-#include "absl/status/statusor.h"
 #include "absl/types/span.h"
 #include "gloop/base/arena.h"
-#include "gloop/base/proc_maps.h"
 #include "gloop/util/coding/shrunk-array.h"
 #include "gloop/util/symbolize/demangle.h"
 #if __ELF__
+#include "absl/strings/string_view.h"
 #include "gloop/util/symbolize/elf_reader.h"
 #endif
 #include "gloop/util/symbolize/symbolize-inl.h"
@@ -101,14 +97,6 @@ int GetCompressionLevel() {
 ABSL_FLAG(int, symbol_map_compression_level, GetCompressionLevel(),
           "Compression level of SymbolMap information; 0 = off, 1..3 "
           "inclusive are increasing levels of compression.");
-
-// Declared extern and weak so will be null if dlopen_with_offset isn't linked
-// into the binary. This avoids carrying a build-time dependency on
-// dlopen_with_offset.
-namespace dlopen_with_offset {
-extern absl::StatusOr<std::string> ABSL_ATTRIBUTE_WEAK
-    GetDlFdPath(absl::string_view);
-}
 
 namespace util {
 static std::atomic<SymbolMap*> g_cached_symbol_map = nullptr;
@@ -432,138 +420,141 @@ void SymbolMap::Finalize() {
   finalized_ = true;
 }
 
-#if __ELF__
-
-// Callback for dl_iterate_phdr. Used to identify the main binary, by
-// exploiting the fact that dl_iterate_phdr calls the callback for the main
-// program first, and then each dynamic library in turn (except not here, we
-// return 1 to abort iteration on the first call).
-static int GetMainExecutableBaseAddressCB(struct dl_phdr_info* info,
-                                          size_t size, void* data) {
-  uint64_t* out = static_cast<uint64_t*>(data);
-  for (int i = 0; i < info->dlpi_phnum; ++i) {
-    if (info->dlpi_phdr[i].p_type == PT_LOAD) {
-      *out = info->dlpi_addr + info->dlpi_phdr[i].p_vaddr;
-      return 1;
-    }
-  }
-  // Failed to find a load address -- shouldn't happen, but we still don't
-  // want keep iterating through dynamic libraries, so we still return 1.
-  return 1;
-}
-
-// Returns the base address of the main program.
-static uint64_t GetMainExecutableBaseAddress() {
-  uint64_t ret = 0;
-#if !defined(__ANDROID_API__) || !defined(__arm__) || __ANDROID_API__ >= 21
-  // <path> only
-  // declares dl_iterate_phdr for __arm__ when __ANDROID_API__ is >= 21.
-  dl_iterate_phdr(GetMainExecutableBaseAddressCB, &ret);
-#endif
-  return ret;
-}
-
-#endif  // __ELF__
-
 void SymbolMap::PopulateSymbols(SymbolMap& symbols) {
   // For non-ELF platforms, we currently have no mechanism to enumerate our own
   // symbols. In this case we just leave the map empty, and all operations will
   // fail to resolve anything useful.
 #if __ELF__
+  // <path> only
+  // declares dl_iterate_phdr for __arm__ when __ANDROID_API__ is >= 21.
+#if !defined(__ANDROID_API__) || !defined(__arm__) || __ANDROID_API__ >= 21
   struct Info {
     std::string file_name;
-    uint64_t file_offset;
-    uint64_t mem_offset;
-    uint64_t length;
+    uint64_t elf_offset;   // Offset of ELF header within file_name.
+    uint64_t mem_offset;   // Runtime address of executable PT_LOAD segment.
+    uint64_t file_offset;  // File offset of segment (elf_offset + p_offset).
+    uint64_t length;       // p_filesz of the segment.
+    uint64_t vaddr;        // p_vaddr of the segment.
+    bool is_main;
+    // True if another executable PT_LOAD segment has a different
+    // p_vaddr - p_offset. ElfReader::AddSymbols applies a single address
+    // adjustment to all symbols, so functions in such a segment get misplaced.
+    bool inconsistent_exec_segments;
   };
-  auto info_lt = [](const Info& a, const Info& b) {
-    return std::tie(a.file_name, a.file_offset, a.mem_offset, a.length) <
-           std::tie(b.file_name, b.file_offset, b.mem_offset, b.length);
-  };
+  struct CallbackData {
+    int count = 0;
+    const ElfW(Phdr) * vdso_phdr = nullptr;
+    std::vector<Info> images;
+  } cb_data;
 
-  ProcMapsIterator it(0);  // 0 -> current process.
+#if defined(__linux__) && defined(AT_SYSINFO_EHDR)
+  if (const auto* vdso_ehdr =
+          reinterpret_cast<const ElfW(Ehdr)*>(getauxval(AT_SYSINFO_EHDR));
+      vdso_ehdr != nullptr) {
+    cb_data.vdso_phdr = reinterpret_cast<const ElfW(Phdr)*>(
+        reinterpret_cast<const char*>(vdso_ehdr) + vdso_ehdr->e_phoff);
+  }
+#endif
 
-  // When copy_symbol_names_ == true,  ElfReader will create new /proc/.../maps
-  // mappings. We don't want these mappings to interfere with ProcMapsIterator,
-  // so we first accumulate iteration results into image_info, and then process
-  // all images without any further ProcMapsIterator involvement.
-  std::vector<Info> image_info;
-  if (it.Valid()) {
-    Info info;
-    uint64_t end;
-    char *file_name, *flags;
-    std::string memfd_name;
-    while (it.Next(&info.mem_offset, &end, &flags, &info.file_offset, nullptr,
-                   &file_name)) {
-      VLOG(10) << "[" << std::hex << info.mem_offset << ", " << std::hex << end
-               << "] file offset: " << std::hex << info.file_offset
-               << " flags: " << flags << " name: '" << file_name << "'";
-      // We only collect "r-xp" maps (i.e. readonly and executable).
-      // We don't collect writable maps.  They are most likely for data.
-      if (flags[0] == 'r' && flags[1] == '-' && flags[2] == 'x') {
-        static const char memfd_tag[] = "/memfd:google_dlopen_";
-        if (&dlopen_with_offset::GetDlFdPath != nullptr &&
-            strncmp(file_name, memfd_tag, sizeof(memfd_tag) - 1) == 0) {
-          auto fd_path = dlopen_with_offset::GetDlFdPath(file_name);
-          if (fd_path.ok()) {
-            memfd_name = *std::move(fd_path);
-            file_name = memfd_name.data();
-          }
-        }
-        auto is_tagged_anon = [](const char* file_name) -> bool {
-          // This is an anonymous VMA that has been tagged using
-          // prctl(PR_SET_VMA).
-          static const char anon_tag[] = "[anon:";
-          return strncmp(file_name, anon_tag, sizeof(anon_tag) - 1) == 0;
-        };
-        if (info.file_offset == 0 &&
-            (file_name == nullptr || file_name[0] == '\0' ||
-             is_tagged_anon(file_name) ||
-             strstr(file_name, " (deleted)") != nullptr)) {
-          // Special case: file text may have been remapped to hugepages.
-          // b/28220908. Only do that when iterating over our own map.
-          absl::debugging_internal::GetFileMappingHint(
-              reinterpret_cast<const void**>(&info.mem_offset),
-              reinterpret_cast<const void**>(&end), &info.file_offset,
-              const_cast<const char**>(&file_name));
-        }
-        if (file_name == nullptr || file_name[0] == '\0' ||
-            is_tagged_anon(file_name)) {
-          continue;
-        }
-        info.length = end - info.mem_offset;
-        info.file_name = file_name;
-        image_info.push_back(info);
+  // Collect loaded object metadata first so we don't perform file I/O, mmap,
+  // decompression, or logging while holding dl_iterate_phdr's loader lock.
+  auto callback =
+      +[](struct dl_phdr_info* info, size_t /*size*/, void* data) -> int {
+    auto* cb = static_cast<CallbackData*>(data);
+    const bool is_main = (cb->count++ == 0);
+    if (info->dlpi_phdr == nullptr || info->dlpi_phnum == 0) {
+      return 0;
+    }
+    if (cb->vdso_phdr != nullptr && info->dlpi_phdr == cb->vdso_phdr) {
+      // VDSO doesn't exist as a file on disk; handled via VDSOSupport below.
+      return 0;
+    }
+
+    uint64_t elf_offset = 0;
+    absl::string_view name =
+        info->dlpi_name != nullptr ? info->dlpi_name : absl::string_view();
+    if (name.empty()) {
+      if (!is_main) {
+        return 0;
+      }
+      name = "/proc/self/exe";
+    }
+
+    // ElfReader::AddSymbols walks the entire symbol table on each call
+    // (ignoring `length`), so record each ELF image at most once, using its
+    // first executable segment.
+    const ElfW(Phdr)* exec_phdr = nullptr;
+    bool inconsistent_exec_segments = false;
+    for (int j = 0; j < info->dlpi_phnum; ++j) {
+      const ElfW(Phdr) & phdr = info->dlpi_phdr[j];
+      if (phdr.p_type != PT_LOAD || (phdr.p_flags & PF_X) == 0) continue;
+      if (exec_phdr == nullptr) {
+        exec_phdr = &phdr;
+      } else if (phdr.p_vaddr - phdr.p_offset !=
+                 exec_phdr->p_vaddr - exec_phdr->p_offset) {
+        inconsistent_exec_segments = true;
       }
     }
-    // With --mlock_style=all, we may have duplicates in the image_info.
-    // b/196670643. Filter them out.
-    std::sort(image_info.begin(), image_info.end(), info_lt);
-    const Info* prev = nullptr;
+    if (exec_phdr != nullptr) {
+      cb->images.push_back(Info{
+          .file_name = std::string(name),
+          .elf_offset = elf_offset,
+          .mem_offset = info->dlpi_addr + exec_phdr->p_vaddr,
+          .file_offset = elf_offset + exec_phdr->p_offset,
+          .length = exec_phdr->p_filesz,
+          .vaddr = exec_phdr->p_vaddr,
+          .is_main = is_main,
+          .inconsistent_exec_segments = inconsistent_exec_segments,
+      });
+    }
+    return 0;
+  };
+  dl_iterate_phdr(callback, &cb_data);
 
-    uint64_t main_base = GetMainExecutableBaseAddress();
-    for (const auto& info : image_info) {
-      if (prev != nullptr && !info_lt(info, *prev) && !info_lt(*prev, info)) {
-        VLOG(5) << "Discarding duplicate entry for " << info.file_name;
-        continue;
-      }
-      prev = &info;
-
-      uint64_t file_offset = 0;
-      ElfReader reader(info.file_name, file_offset,
-                       !symbols.copy_symbol_names_);
-      if (reader.IsElf32File() || reader.IsElf64File()) {
-        // TODO: ask the ELF reader in advance how many symbols there
-        // will be, so we can avoid the need for repeated reallocations.
-        reader.AddSymbols(&symbols, info.mem_offset, info.file_offset,
-                          info.length);
-        // If this is the main binary, check if is stripped.
-        if (info.mem_offset == main_base) {
-          symbols.stripped_ = !reader.HasSymbolNames();
-        }
-      }
+  for (const Info& info : cb_data.images) {
+    VLOG(5) << "Trying " << info.file_name << " at elf_offset 0x" << std::hex
+            << info.elf_offset << " file_offset 0x" << info.file_offset
+            << " mem_offset 0x" << info.mem_offset;
+    ElfReader reader(info.file_name, info.elf_offset,
+                     !symbols.copy_symbol_names_);
+    if (!reader.IsElf32File() && !reader.IsElf64File()) {
+      continue;
+    }
+    // The file is opened by the name it was loaded from, possibly long after
+    // it was loaded. Make sure that it still contains the loaded image: it may
+    // have been replaced on disk, or a relative name may now resolve to a
+    // different file.
+    const std::vector<ElfReader::SegmentInfo> segments =
+        reader.GetSegmentInfo();
+    if (std::none_of(segments.begin(), segments.end(),
+                     [&info](const ElfReader::SegmentInfo& segment) {
+                       return segment.type == PT_LOAD &&
+                              (segment.flags & PF_X) != 0 &&
+                              segment.vaddr == info.vaddr &&
+                              info.elf_offset + segment.offset ==
+                                  info.file_offset &&
+                              segment.filesz == info.length;
+                     })) {
+      LOG(WARNING) << "Not using symbols from " << info.file_name
+                   << ": its executable segment does not match the loaded "
+                      "image";
+      continue;
+    }
+    if (info.inconsistent_exec_segments) {
+      LOG_FIRST_N(WARNING, 1)
+          << info.file_name
+          << " has executable segments with different address-to-offset "
+             "deltas; symbols outside the first one will be misplaced";
+    }
+    // TODO: ask the ELF reader in advance how many symbols there
+    // will be, so we can avoid the need for repeated reallocations.
+    reader.AddSymbols(&symbols, info.mem_offset, info.file_offset, info.length);
+    if (info.is_main) {
+      symbols.stripped_ = !reader.HasSymbolNames();
     }
   }
+#endif  // !__ANDROID_API__ || !__arm__ || __ANDROID_API__ >= 21
+
   if (g_genlibs != nullptr) {
     for (const auto& lib : *g_genlibs) {
       ElfReader reader(lib.elf_name, 0, !symbols.copy_symbol_names_);
