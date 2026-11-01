@@ -47,7 +47,6 @@
 #include "absl/types/source_location.h"
 #include "gloop/util/coding/varint.h"
 #include "gloop/util/status/error_space.h"
-#include "gloop/util/status/status.pb.h"  // TO BE DELETED
 #include "gloop/util/status/status_internal.h"
 #include "google/protobuf/any.pb.h"
 #include "google/protobuf/bridge/message_set.pb.h"  // TO BE DELETED
@@ -649,6 +648,11 @@ namespace status_internal {
 
 ABSL_CONST_INIT absl::string_view kMessageSetUrl =
     "type.googleapis.com/util.MessageSetPayload";
+
+void CheckPayloadPresent(bool has_value) {
+  CHECK(has_value)
+      << "Call to GetPayload should be guarded by the HasPayloadWithType check";
+}
 
 }  // namespace status_internal
 
