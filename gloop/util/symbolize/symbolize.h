@@ -38,14 +38,13 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "gloop/base/arena.h"
-#include "gloop/base/proc_maps.h"
+// Not used here, but some users of ProcMapsIterator rely on this include.
+#include "gloop/base/proc_maps.h"  // IWYU pragma: keep
 #include "gloop/strings/util.h"
 #include "gloop/util/coding/shrunk-array.h"
 #include "gloop/util/symbolize/symbol_map_sink.h"
 
 extern absl::Flag<int> FLAGS_symbol_map_compression_level;
-
-class ProcMapsIterator;
 
 namespace util {
 class SymbolMapIterator;
