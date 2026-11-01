@@ -160,10 +160,12 @@ class ThreadPool : public AbstractThreadPool {
                    Options{.name_prefix = std::string(name_prefix),
                            .thread_options = std::move(thread_options)}) {}
 
-#if defined(__ANDROID__) || defined(__APPLE__)
+#if defined(__ANDROID__) || defined(__APPLE__) || defined(__aarch64__)
   // Historically, in spite of the 64k constant, threads in the portable thread
   // pool were given os-default stack sizes, and now some code relies on the
   // larger stack size. This matches the default in Thread if you pass 0.
+  // On Arm (aarch64), stack frames are larger due to 31 64-bit general-purpose
+  // registers and 16-byte alignment, which can overflow 64KB in debug mode.
   enum { kDefaultStackBytes = 1952 * 1024 };
 #else
   enum { kDefaultStackBytes = 64 * 1024 };
