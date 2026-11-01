@@ -1134,7 +1134,7 @@ inline void TraceContext::AfterSetThreadContext(
 inline void TraceContext::BeforeExchangeThreadContext(
     base::ThreadContextAccess, const TraceContext& to,
     perftools::tracing::StringRef label) {
-  sync_context_.SuspendContext(SyncContextAccess(), label);
+  sync_context_.SuspendContext(SyncContextAccess(), to.sync_context_, label);
   MaybeCopyKtraceRpcIdTo(to);
 }
 
