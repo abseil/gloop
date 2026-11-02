@@ -31,6 +31,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "absl/base/attributes.h"
@@ -142,13 +143,15 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
     tc_.set_census_handle(std::move(handle));
   }
 
-  // Returns a the "status string" associated with the context. This is the null
-  // string view if there is no status set.
+  // Returns the thread status string associated with the context, or nullopt if
+  // there is no thread status set.
   //
   // TODO: get rid of the deprecated accessor and then rename this
   // one to thread_status.
-  absl::string_view thread_status_string_view() const {
-    return absl::NullSafeStringView(thread_status());
+  std::optional<absl::string_view> thread_status_string_view() const {
+    const char* const p = thread_status();
+    return p == nullptr ? std::nullopt
+                        : std::make_optional(absl::string_view(p));
   }
 
   // Returns a pointer to the "status string" associated with the context, or
