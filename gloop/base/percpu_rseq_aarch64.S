@@ -132,8 +132,8 @@ label:                                                                \
    * bits. See https://stackoverflow.com/a/38608738 and               \
    * https://stackoverflow.com/a/54042899.                            \
    */                                                                 \
-  adrp x17, __rseq_cs_##label;                                        \
-  add x17, x17, :lo12:__rseq_cs_##label;                              \
+  adrp x17, :got:__rseq_cs_##label;                                   \
+  ldr x17, [x17, :got_lo12:__rseq_cs_##label];                        \
   str x17, [x0, 8];                                                   \
                                                                       \
   /* The critical section follows immediately. */                     \
