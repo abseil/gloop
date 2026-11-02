@@ -319,21 +319,23 @@ cc_library(
     name = "sync_context",
     srcs = ["sync_context.cc"],
     hdrs = ["sync_context.h"],
+    implementation_deps = [
+        ":multiplex_trace_event_listener",
+        ":noop_trace_event_listener",
+        ":perftools_verify",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+    ],
     visibility = [
         ":base_visibility",
         ":internal_visibility",
     ],
     deps = [
-        ":multiplex_trace_event_listener",
-        ":noop_trace_event_listener",
-        ":perftools_verify",
         ":trace_event_listener",
         ":trace_source_location",
         ":tracing_base",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
     ],
 )
 

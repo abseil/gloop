@@ -1114,22 +1114,6 @@ TEST_F(AutoCleanupSyncContextTest, ResumeFailsWithInvalidState) {
   }
 }
 
-TEST_F(AutoCleanupSyncContextTest, SuspendActiveContextAsDefaultWaiting) {
-  StrictMock<MockTraceEventListener> mock;
-  SyncContext context = NewSync(nullptr, State::kActive, SyncId(5));
-  SetupTLS(SyncId(5), &mock);
-
-  EXPECT_CALL(mock, OnTraceWait(Eq(kNoBarrierId), Eq("Wait")));
-  EXPECT_TRUE(context.SuspendContext(access(), "Wait"));
-
-  EXPECT_THAT(context.state(), Eq(State::kWait));
-  EXPECT_THAT(context.active_sync_id(), Eq(SyncId(5)));
-  EXPECT_THAT(context.listener(), Eq(&mock));
-
-  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
-  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
-}
-
 TEST_F(AutoCleanupSyncContextTest, SuspendActiveContextAsWaiting) {
   StrictMock<MockTraceEventListener> mock;
   SyncContext context = NewSync(nullptr, State::kActive, SyncId(5));
@@ -1170,11 +1154,11 @@ TEST_F(AutoCleanupSyncContextTest, SuspendContextReleasesNestedListener) {
   SyncContext context = NewSync(&nested, State::kActive, SyncId(5));
   SetupTLS(SyncId(5), &mock);
 
-  EXPECT_CALL(mock, OnTraceWait(Eq(kNoBarrierId), Eq("Wait")));
+  EXPECT_CALL(mock, OnTraceSuspendSync(_));
   EXPECT_CALL(nested, ReleaseEventListener());
-  EXPECT_TRUE(context.SuspendContext(access(), "Wait"));
+  EXPECT_TRUE(context.SuspendContext(access(), {}, ""));
 
-  EXPECT_THAT(context.state(), Eq(State::kWait));
+  EXPECT_THAT(context.state(), Eq(State::kSuspended));
   EXPECT_THAT(context.active_sync_id(), Eq(SyncId(5)));
   EXPECT_THAT(context.listener(), Eq(&mock));
 
@@ -1186,7 +1170,7 @@ TEST_F(AutoCleanupSyncContextTest, SuspendFailsWithoutActiveListener) {
   StrictMock<MockTraceEventListener> mock;
   SyncContext context = NewSync(nullptr, State::kActive);
 
-  EXPECT_FALSE(context.SuspendContext(access(), "Wait"));
+  EXPECT_FALSE(context.SuspendContext(access(), {}, ""));
   EXPECT_TRUE(context.empty());
 }
 
@@ -1201,7 +1185,7 @@ TEST_F(AutoCleanupSyncContextTest, SuspendFailsWithInvalidState) {
     SyncContext context = NewSync(nullptr, state, SyncId(5));
     SetupTLS(SyncId(5), &mock);
 
-    EXPECT_FALSE(context.SuspendContext(access(), "Suspend"));
+    EXPECT_FALSE(context.SuspendContext(access(), {}, ""));
     EXPECT_TRUE(context.empty());
   }
 }
