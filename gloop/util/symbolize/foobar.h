@@ -23,10 +23,12 @@
 
 #include <string>
 
+#include "absl/base/attributes.h"
+
 // The following functions alternately and recursively call each other as many
 // times as specified. The final call retrieves the stack trace and returns it
 // as a string.
-std::string Foo(int depth);
-std::string Bar(int depth);
+ABSL_ATTRIBUTE_NO_TAIL_CALL std::string Foo(int depth);
+ABSL_ATTRIBUTE_NO_TAIL_CALL std::string Bar(int depth);
 
 #endif  // THIRD_PARTY_GLOOP_UTIL_SYMBOLIZE_FOOBAR_H_
