@@ -164,12 +164,10 @@ class Context {
   // and resets any possibly leaked thread state.
   static void Cleanup() {
     EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
-    EXPECT_THAT(active_trace_span_id(), Eq(0));
     EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
     EXPECT_TRUE(thread_context_.empty());
 
     internal::set_active_sync_id(kNoSyncId);
-    internal::set_active_trace_span_id(0);
     internal::set_active_event_listener(nullptr);
     thread_context_ = Context{};
   }

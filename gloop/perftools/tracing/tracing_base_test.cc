@@ -41,28 +41,23 @@ TEST(TracingBase, PerThreadDefaults) {
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_FALSE(has_sync_trace());
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
-  EXPECT_THAT(active_trace_span_id(), Eq(0));
 }
 
 TEST(TracingBase, PerThreadValues) {
   MockTraceEventListener mock;
   internal::set_active_sync_id(kMainSyncId);
   internal::set_active_event_listener(&mock);
-  internal::set_active_trace_span_id(0x12345678);
   EXPECT_THAT(active_sync_id(), Eq(kMainSyncId));
   EXPECT_TRUE(has_sync_trace());
   EXPECT_THAT(internal::active_event_listener(), Eq(&mock));
-  EXPECT_THAT(active_trace_span_id(), Eq(0x12345678));
   std::thread thread([] {
     EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
     EXPECT_FALSE(has_sync_trace());
     EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
-    EXPECT_THAT(active_trace_span_id(), Eq(0));
   });
   thread.join();
   internal::set_active_sync_id(kNoSyncId);
   internal::set_active_event_listener(nullptr);
-  internal::set_active_trace_span_id(0);
 }
 
 TEST(TracingBase, ToBarrierId) {

@@ -181,11 +181,6 @@ bool has_sync_trace();
 // of the current thread, or kNoSyncId if no causality trace is active.
 SyncId active_sync_id();
 
-// Returns the active span id of the current 'synchronous execution, or 0 if if
-// no causality trace is active or no span is associated with the currently
-// traced execution.
-TraceSpanId active_trace_span_id();
-
 // Streaming support for debugging / logging purposes.
 std::ostream& operator<<(std::ostream&, MsgOrigin);
 std::ostream& operator<<(std::ostream&, ControlFlowType);
@@ -217,11 +212,6 @@ inline TraceEventListener* active_event_listener() {
   return per_thread.active_event_listener;
 }
 
-// Sets the 'trace_span id' for the current thread.
-inline void set_active_trace_span_id(TraceSpanId span_id) {
-  per_thread.active_span_id = span_id;
-}
-
 // Sets the active trace event listener for the current thread.
 inline void set_active_event_listener(TraceEventListener* listener) {
   per_thread.active_event_listener = listener;
@@ -240,10 +230,6 @@ inline BarrierId ToBarrierId(const void* object) {
 inline SyncId active_sync_id() { return internal::per_thread.active_sync_id; }
 inline bool has_sync_trace() {
   return internal::active_event_listener() != nullptr;
-}
-
-inline TraceSpanId active_trace_span_id() {
-  return internal::per_thread.active_span_id;
 }
 
 inline MsgFlags operator&(MsgFlags lhs, MsgFlags rhs) {
