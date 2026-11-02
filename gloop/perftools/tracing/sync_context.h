@@ -170,7 +170,7 @@ namespace perftools::tracing::core {
 // requirements or in-variants are broken.
 class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
  public:
-  // Access token for testing purposes
+  // Access tokens for testing purposes
   class Access;
 
   // State of this context. The default state of a context is `kEmpty`.
@@ -462,6 +462,12 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
 
   static SyncContext CreateForTesting(Access, TraceEventListener* listener,
                                       SyncId sync_id, SyncId active_sync_id);
+
+  // Resets any per-thread or global state for testing purposes. Unit tests can
+  // call this method to cleanup any lingering thread or global state, avoid the
+  // need to write "perfectly scoped" unit tests.
+  static void ResetThreadstate(
+      const ::perftools::tracing::testing::TestOnlyAccess&);
 
  private:
   friend class SyncContextTestPeer;

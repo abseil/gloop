@@ -498,4 +498,10 @@ void SyncContext::RemoveListenerFromCurrent(Access,
   }
 }
 
+void SyncContext::ResetThreadstate(
+    const ::perftools::tracing::testing::TestOnlyAccess&) {
+  internal::set_active_sync_id(kNoSyncId);
+  internal::set_active_event_listener(nullptr);
+}
+
 }  // namespace perftools::tracing::core
