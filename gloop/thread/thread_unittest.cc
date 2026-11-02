@@ -2264,6 +2264,42 @@ TEST(ThreadTest, RegisterExitHandlerTest) {
   EXPECT_TRUE(g_exit_handler_called.load());
 }
 
+TEST(ThreadTest, TryStartSuccess) {
+  std::atomic<bool> ran{false};
+  ClosureThread thread(thread::Options().set_joinable(true), "TryStartThread",
+                       [&ran]() { ran.store(true); });
+  ASSERT_TRUE(thread.TryStart());
+  thread.Join();
+  EXPECT_TRUE(ran.load());
+}
+
+#if defined(__linux__) && !defined(__ANDROID__) && defined(__LP64__)
+TEST(ThreadTest, TryStartFailureReturnsFalseWithoutRetryingOrCrashing) {
+  // Requesting a 2^60-byte guard region passes pthread_attr_setstacksize and
+  // pthread_attr_setguardsize, then fails mmap() inside pthread_create() with
+  // ENOMEM (translated to EAGAIN by glibc) because it exceeds user virtual
+  // address space. TryStart() must return false immediately without entering
+  // Start()'s 192-second EAGAIN retry loop or logging FATAL, and the unstarted
+  // joinable Thread must be safely destructible without calling Join().
+  std::atomic<bool> ran{false};
+  const absl::Time start = absl::Now();
+  testing::internal::CaptureStderr();
+  {
+    thread::Options options;
+    options.set_joinable(true);
+    options.set_guard_size(size_t{1} << 60);
+    ClosureThread thread(options, "TryStartFailThread",
+                         [&ran]() { ran.store(true); });
+    EXPECT_FALSE(thread.TryStart());
+    thread.SetNamePrefix("UnstartedThread");
+  }
+  EXPECT_FALSE(absl::StrContains(testing::internal::GetCapturedStderr(),
+                                 "Joinable thread was not joined"));
+  EXPECT_LT(absl::Now() - start, absl::Seconds(5));
+  EXPECT_FALSE(ran.load());
+}
+#endif
+
 TEST(ThreadDeathTest, DoubleStartCrashes) {
   ClosureThread t([] {});
   t.SetJoinable(true);

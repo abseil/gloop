@@ -20,6 +20,7 @@
 
 #include "gloop/thread/threadpool.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -262,3 +263,26 @@ TEST(ThreadPoolTest, OneThreadRunsClosuresFIFO) {
     });
   }
 }
+
+TEST(ThreadPoolTest, UseTryStart) {
+  absl::Notification done;
+  ThreadPool pool(1, ThreadPool::Options{.name_prefix = "TryStartPool",
+                                         .use_try_start = true});
+  ASSERT_TRUE(pool.TrySchedule([&] { done.Notify(); }));
+  done.WaitForNotification();
+}
+
+#if defined(__linux__) && !defined(__ANDROID__) && defined(__LP64__)
+TEST(ThreadPoolTest, UseTryStartFailureHasNoSideEffects) {
+  bool ran = false;
+  ThreadPool pool(1, ThreadPool::Options{
+                         .name_prefix = "TryStartFailPool",
+                         .thread_options =
+                             thread::Options().set_guard_size(size_t{1} << 60),
+                         .use_try_start = true,
+                     });
+  EXPECT_FALSE(pool.TrySchedule([&] { ran = true; }));
+  EXPECT_EQ(pool.queue_count(), 0);
+  EXPECT_FALSE(ran);
+}
+#endif
