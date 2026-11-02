@@ -36,6 +36,7 @@
 #include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
 #include "absl/memory/memory.h"
+#include "absl/random/random.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/notification.h"
@@ -160,6 +161,21 @@ class ContextTest : public ::testing::Test {
 
   const TraceContext* GetTestTraceContext() { return &test_tc_; }
 
+  TraceContext GetRandomTraceContext() {
+    return TraceContext(absl::Uniform<uint64_t>(bitgen_),
+                        absl::Uniform<uint64_t>(bitgen_),
+                        absl::Uniform<uint64_t>(bitgen_), 0);
+  }
+
+  Context GetRandomContext() {
+    static char status[] = "ABCDEFDGHIJKLMNOPQRSTUVWXYZ1234567890";
+    return ContextBuilder()
+        .set_trace_context(GetRandomTraceContext())
+        .set_deadline(absl::Now() + absl::Hours(1))
+        .set_thread_status(status + absl::Uniform(bitgen_, 0, 30))
+        .BuildValue();
+  }
+
   Context* GetTestContext() {
     return new Context(
         ContextBuilder(BackgroundContext())
@@ -184,6 +200,7 @@ class ContextTest : public ::testing::Test {
   }
 
  protected:
+  absl::BitGen bitgen_;
   TraceContext test_tc_;
   PeerOrFakePeer* dummy_peer_;
 
