@@ -40,6 +40,7 @@ POSIX_PORT_DEPS = [
     "//gloop/base:signal-handler",
     "//gloop/util/callback:cancellable_closure",
     "//gloop/util/gtl:intrusive_list",
+    "//gloop/util/gtl:unique_array",
     "@abseil-cpp//absl/algorithm",
     "@abseil-cpp//absl/types:source_location",
     "@abseil-cpp//absl/memory",

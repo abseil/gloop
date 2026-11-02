@@ -548,28 +548,31 @@ cc_library(
     name = "on_fatal_log_message",
     srcs = ["on_fatal_log_message.cc"],
     hdrs = ["on_fatal_log_message.h"],
-    visibility = [
-        "//gloop:__subpackages__",
-    ],
-    deps = [
+    implementation_deps = [
         ":config",
         ":context",
         ":crash",
-        ":examine_stack",
-        ":signal-handler",
         ":tracecontext",
         ":tracer",
-        "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:dynamic_annotations",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/debugging:stacktrace",
         "@abseil-cpp//absl/log:log_entry",
         "@abseil-cpp//absl/log/internal:globals",
         "@abseil-cpp//absl/strings:string_view",
-        "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:span",
+    ] + select({
+        "//conditions:default": [
+            ":signal-handler",
+        ],
+    }),
+    visibility = [
+        "//gloop:__subpackages__",
+    ],
+    deps = [
+        ":tracer",
+        "//gloop:enforce_gloop_support",
     ],
     alwayslink = True,
 )
@@ -1420,22 +1423,28 @@ cc_library(
     name = "examine_stack",
     srcs = ["examine_stack.cc"],
     hdrs = ["examine_stack.h"],
-    visibility = ["//visibility:public"],
-    deps = [
+    implementation_deps = [
         ":proc_maps",
-        "//gloop:enforce_gloop_support",
-        "//gloop/base:signal-handler",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
-        "@abseil-cpp//absl/debugging:examine_stack",
         "@abseil-cpp//absl/debugging:stacktrace",
         "@abseil-cpp//absl/debugging:symbolize",
         "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/functional:function_ref",
-        "@abseil-cpp//absl/log:log_streamer",
         "@abseil-cpp//absl/log/internal:globals",
         "@abseil-cpp//absl/strings:str_format",
+    ] + select({
+        "//conditions:default": [":signal-handler"],
+    }),
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/debugging:examine_stack",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/functional:function_ref",
+        "@abseil-cpp//absl/log:log_streamer",
         "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:span",
     ],
 )
 

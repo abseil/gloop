@@ -101,6 +101,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "absl/types/source_location.h"
+#include "absl/types/span.h"
 #include "gloop/base/config.h"
 #include "gloop/base/context.h"
 #include "gloop/base/examine_stack.h"
@@ -134,6 +135,7 @@
 #include "gloop/thread/watchdog.h"
 #include "gloop/util/functional/with_context.h"
 #include "gloop/util/gtl/intrusive_list.h"
+#include "gloop/util/gtl/unique_array.h"
 #include "gloop/util/priority/io-priority.h"
 #include "tcmalloc/malloc_extension.h"
 
@@ -1931,6 +1933,13 @@ struct PrintArgBuf {
 ABSL_CONST_INIT absl::Mutex shared_print_mu(absl::kConstInit);
 PrintArgBuf shared_print_buf ABSL_GUARDED_BY(shared_print_mu);
 
+struct RelocatedAddressMapEntry {
+  uint64_t begin;
+  uint64_t end;
+  uint64_t offset;
+  std::string file;
+};
+
 // Used to pass arguments to PrintStackTrace when invoking ProcessStackTraces,
 // i.e., this should be set as the 'process_trace_arg'.
 struct PrintArg {
@@ -1941,6 +1950,7 @@ struct PrintArg {
   // general).
   bool skip_waiting_threads;
   PrintArgBuf* buf;
+  const std::vector<RelocatedAddressMapEntry>* relocated_address_map = nullptr;
 
   int total_threads;
   int skipped_threads;
@@ -2016,9 +2026,14 @@ void PrintStackTrace(void* print_arg, const LiveThread* thread,
   }
 
   base::RawPrinter printer(buf->data, std::size(buf->data));
-  printer.Printf("--- Thread %x (name: %s) stack: ---\n",
-                 base::GetPthreadNumericId(thread->tid_),
-                 LiveThread_Name(thread));
+  if (writer->RedactAddresses()) {
+    printer.Printf("--- Thread %d (name: %s) stack: ---\n", arg->total_threads,
+                   LiveThread_Name(thread));
+  } else {
+    printer.Printf("--- Thread %x (name: %s) stack: ---\n",
+                   base::GetPthreadNumericId(thread->tid_),
+                   LiveThread_Name(thread));
+  }
   if (stack_size_kb != 0) {
     if (stack_used_kb != 0) {
       printer.Printf("stack used: %d KiB of %d KiB\n", stack_used_kb,
@@ -2312,8 +2327,32 @@ void PrintStackExtractionSummary(const PrintArg& print_arg, int dropped,
   }
 
   // Future work: make every version respect --skip_address_map.
-  if (!skip_address_map) {
-    DumpAddressMap(ThreadDebugWriter, writer);
+  if (skip_address_map) {
+    return;
+  }
+  if (print_arg.relocated_address_map == nullptr) {
+    if (!writer->RedactAddresses()) {
+      DumpAddressMap(ThreadDebugWriter, writer);
+    }
+    return;
+  }
+  if (print_arg.relocated_address_map->empty()) {
+    return;
+  }
+
+  ThreadDebugWriter("--- Memory map: ---\n", writer);
+  static constexpr size_t kDirBufSize = 4096 + 250;
+  auto dir = gtl::MakeUniqueArray<char>(kDirBufSize);
+  for (const RelocatedAddressMapEntry& entry :
+       *print_arg.relocated_address_map) {
+    base::WriteAddressMapEntry(
+        base::AddressMapEntry{
+            .begin = entry.begin,
+            .end = entry.end,
+            .offset = entry.offset,
+            .file = entry.file,
+        },
+        absl::MakeSpan(dir), ThreadDebugWriter, writer);
   }
 }
 
@@ -2324,6 +2363,26 @@ void Thread_ExtractStacks(ThreadStackWriter* writer) {
   PrintArg print_arg(writer,
                      /*raw=*/true, buf.get(),
                      absl::GetFlag(FLAGS_stacktrace_skip_waiting_threads));
+  std::vector<RelocatedAddressMapEntry> relocated_address_map;
+  if (writer->RedactAddresses()) {
+    const uint64_t page_size = getpagesize();
+    uint64_t next_relocated_begin = 0x200000;
+    base::DumpAddressMap([&](const base::AddressMapEntry& entry) {
+      if (entry.end <= entry.begin) return;
+      const uint64_t size = entry.end - entry.begin;
+      const uint64_t relocated_begin = next_relocated_begin;
+      const uint64_t relocated_end = relocated_begin + size;
+      next_relocated_begin = (relocated_end + page_size - 1) & ~(page_size - 1);
+      writer->AddAddressRelocation(entry.begin, entry.end, relocated_begin);
+      relocated_address_map.push_back(RelocatedAddressMapEntry{
+          .begin = relocated_begin,
+          .end = relocated_end,
+          .offset = entry.offset,
+          .file = std::string(entry.file),
+      });
+    });
+    print_arg.relocated_address_map = &relocated_address_map;
+  }
   Thread_ProcessStackTracesArg arg;
   arg.process_trace = &PrintStackTrace;
   arg.process_trace_arg = &print_arg;

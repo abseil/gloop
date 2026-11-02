@@ -55,6 +55,7 @@
 #include "absl/log/internal/globals.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "gloop/base/proc_maps.h"
 
 #ifdef __linux__
@@ -562,6 +563,75 @@ void CollapseBuildPrefix(char* filename, char* dir, size_t dir_size,
   }
 }
 #endif  // __linux__
+
+void DumpAddressMap(absl::FunctionRef<void(const AddressMapEntry&)> fn) {
+#ifdef __linux__
+  ProcMapsIterator::Buffer* maps_buffer = nullptr;
+  if (InFailureSignalHandler()) {
+    static ProcMapsIterator::Buffer static_proc_maps_buffer;
+    maps_buffer = &static_proc_maps_buffer;
+  }
+  ProcMapsIterator it(0, maps_buffer);
+  if (!it.Valid()) {
+    return;
+  }
+
+  uint64_t begin, end, pos;
+  char *filename, *flags;
+  const bool dump_all_maps_on_failure =
+      absl::GetFlag(FLAGS_dump_all_maps_on_failure);
+  while (it.Next(&begin, &end, &flags, &pos, nullptr, &filename)) {
+    if (filename != nullptr && filename[0] == '\0') {
+      const void* pbegin = reinterpret_cast<const void*>(begin);
+      const void* pend = reinterpret_cast<const void*>(end);
+      uint64_t position;
+      const char* cfilename;
+      if (absl::debugging_internal::GetFileMappingHint(&pbegin, &pend,
+                                                       &position, &cfilename)) {
+        begin = reinterpret_cast<uint64_t>(pbegin);
+        end = reinterpret_cast<uint64_t>(pend);
+        pos = position;
+        filename = const_cast<char*>(cfilename);
+      }
+    }
+
+    if (dump_all_maps_on_failure || (flags[2] == 'x' && filename[0] != '\0')) {
+      fn(AddressMapEntry{
+          .begin = begin,
+          .end = end,
+          .offset = pos,
+          .file = filename != nullptr ? absl::string_view(filename)
+                                      : absl::string_view(),
+      });
+    }
+  }
+#else
+  (void)fn;
+#endif  // __linux__
+}
+
+void WriteAddressMapEntry(const AddressMapEntry& entry, absl::Span<char> dir,
+                          DebugWriter* writer, void* writer_arg) {
+#ifdef __linux__
+  static constexpr size_t kOutBufSize = PATH_MAX + 250;
+  char filename_buf[kOutBufSize];
+  const size_t copy_len =
+      std::min<size_t>(entry.file.size(), sizeof(filename_buf) - 1);
+  memcpy(filename_buf, entry.file.data(), copy_len);
+  filename_buf[copy_len] = '\0';
+
+  char out_buffer[kOutBufSize];
+  CollapseBuildPrefix(filename_buf, dir.data(), dir.size(), out_buffer,
+                      sizeof(out_buffer), writer, writer_arg);
+  DumpAddressMapLine(writer, writer_arg, out_buffer, sizeof(out_buffer),
+                     entry.begin, entry.end, filename_buf, entry.offset);
+#else
+  (void)entry;
+  (void)dir;
+  (void)writer;
+  (void)writer_arg;
+#endif  // __linux__
+}
 
 // Dump a list of executable mappings (mostly shared libraries) to writer.
 // Currently Linux-only; grovels through /proc/self/maps.
