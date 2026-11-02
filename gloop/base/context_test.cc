@@ -267,7 +267,7 @@ TEST_F(ContextTest, TestInitialState) {
   EXPECT_EQ(default_context.deadline(), absl::InfiniteFuture());
 
   // DEFAULT: Thread status is null.
-  EXPECT_THAT(default_context.thread_status_string_view().data(), IsNull());
+  EXPECT_EQ(default_context.thread_status_string_view(), std::nullopt);
 
   // The background context is specified to be Context::kDefault constructed.
   EXPECT_THAT(default_context, EqualsContext(BackgroundContext()));
