@@ -32,6 +32,7 @@
 #include <vector>
 
 #include "absl/base/call_once.h"
+#include "absl/base/optimization.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/flags/declare.h"
 #include "absl/hash/hash.h"
@@ -155,6 +156,7 @@ class SymbolMap : public internal::SymbolMapSink {
 
  private:
   friend class SymbolMapIterator;
+  friend struct SymbolMapTestPeer;
 
   SymbolMap(bool copy_symbol_names, int symbol_map_compression_level);
 
@@ -202,20 +204,10 @@ class SymbolMap : public internal::SymbolMapSink {
     void Assign(absl::Span<uint32_t> value, int compression_level);
 
     // Returns the number of values in the shrunk array.
-    size_t size() const;
+    size_t size() const { return number_of_items_; }
 
     // Returns the number of bytes used to hold the shrunk array.
     size_t shrunk_array_byte_length() const;
-
-    // Returns the first index which has a greater value than `value`.
-    // For this to make sense, CompressedUintArray must have been assigned with
-    // strictly increasing values.
-    size_t UpperBound(uint64_t value) const;
-
-    // Returns the first index which has a value not less than `value`.
-    // For this to make sense, CompressedUintArray must have been assigned with
-    // strictly increasing values.
-    size_t LowerBound(uint64_t value) const;
 
     // Obtains value at the given index.
     // `index` must be < this->size().
@@ -242,7 +234,6 @@ class SymbolMap : public internal::SymbolMapSink {
     std::vector<uint64_t> shrunk_array_;
     uint64_t decode_key_[2] = {0, 0};
     uint64_t bias_ = 0;
-    bool is_sorted_ = true;
   };
 
   // Arena for symbol names. Only used if copy_symbol_names is true.
@@ -275,9 +266,74 @@ class SymbolMap : public internal::SymbolMapSink {
   // form.
   int symbol_map_compression_level_;
 
+  // Compressed layout (levels 1-3): names stay global-bias encoded in
+  // name_shrunk_array_. Addresses are stored per block of kAddrBlockSize
+  // symbols as offsets from the block's first address (addr_block_bases_);
+  // offsets that do not fit the inlier cap are stored as tokens at or above
+  // addr_overflow_threshold_ that index addr_overflow_. Sizes are stored as
+  // ZigZag residuals from the gap to the next symbol when that gap is in
+  // (0, kMaxPredictedSizeSpan], and as plain sizes otherwise.
+  static constexpr size_t kAddrBlockSize = 32;
+  static constexpr uint64_t kMaxPredictedSizeSpan = 65536;
+
+  static constexpr uint64_t ZigZagEncode64(int64_t n) {
+    return (static_cast<uint64_t>(n) << 1) ^ static_cast<uint64_t>(n >> 63);
+  }
+
+  static constexpr uint64_t ZigZagDecode64(uint64_t n) {
+    return (n >> 1) ^ (~(n & 1ULL) + 1ULL);
+  }
+
+  uint64_t DecodeAddrFromRaw(size_t index, uint64_t raw_val) const {
+    if (ABSL_PREDICT_FALSE(raw_val >= addr_overflow_threshold_)) {
+      return addr_overflow_[raw_val - addr_overflow_threshold_];
+    }
+    return addr_block_bases_[index / kAddrBlockSize] + raw_val;
+  }
+
+  uint64_t GetAddr(size_t index) const {
+    return DecodeAddrFromRaw(index, addr_shrunk_array_.Get(index));
+  }
+
+  const char* GetName(size_t index) const {
+    return reinterpret_cast<const char*>(name_shrunk_array_.Get(index));
+  }
+
+  // Decodes the size of the symbol at `index`, which starts at `sym_addr`,
+  // from its stored value `raw_val`. `next_addr()` returns the start address
+  // of the next symbol; it is called only if there is a next symbol.
+  template <typename NextAddr>
+  uint64_t DecodeSize(size_t index, uint64_t sym_addr, uint64_t raw_val,
+                      NextAddr next_addr) const {
+    if (index + 1 < size_shrunk_array_.size()) {
+      const uint64_t span = next_addr() - sym_addr;
+      if (span > 0 && span <= kMaxPredictedSizeSpan) {
+        return span - ZigZagDecode64(raw_val);
+      }
+    }
+    return raw_val;
+  }
+
+  uint64_t GetSizeWithAddr(size_t index, uint64_t sym_addr) const {
+    return DecodeSize(index, sym_addr, size_shrunk_array_.Get(index),
+                      [this, index] { return GetAddr(index + 1); });
+  }
+
+  // Returns the in-block address offset cap for compression level 1.
+  // `symbols` must be sorted by address.
+  static uint64_t Level1AddrInlierCap(absl::Span<const Symbol> symbols);
+
+  template <typename Pred>
+  size_t PartitionPointAddr(Pred pred) const;
+  size_t UpperBoundAddr(uint64_t pos) const;
+  size_t LowerBoundAddr(uint64_t pos) const;
+
   CompressedUintArray name_shrunk_array_;
   CompressedUintArray addr_shrunk_array_;
   CompressedUintArray size_shrunk_array_;
+  std::vector<uint64_t> addr_block_bases_;
+  std::vector<uint64_t> addr_overflow_;
+  uint64_t addr_overflow_threshold_ = 0;
 };
 
 }  // namespace util
