@@ -20,9 +20,12 @@
 
 #include "gloop/util/hash/fingerprint2011.h"
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <ios>
 #include <string>
+#include <utility>
 
 #include "absl/base/casts.h"
 #include "absl/log/log.h"
@@ -156,6 +159,55 @@ TEST_F(Fingerprint2011Test, Overloaded) {
     EXPECT_EQ(Fingerprint2011(absl::string_view(buf, len)),
               Fingerprint2011(absl::Cord(absl::string_view(buf, len))))
         << "Cord " << len;
+  }
+}
+
+TEST_F(Fingerprint2011Test, FragmentedCord) {
+  auto append_external = [](absl::Cord& cord, absl::string_view chunk) {
+    absl::Cord next = absl::MakeCordFromExternal(chunk, []() {});
+    next.Prepend(cord);
+    cord = std::move(next);
+  };
+  for (size_t len :
+       {size_t{0},   size_t{1},   size_t{2},   size_t{3},   size_t{4},
+        size_t{5},   size_t{7},   size_t{8},   size_t{9},   size_t{15},
+        size_t{16},  size_t{31},  size_t{32},  size_t{33},  size_t{63},
+        size_t{64},  size_t{65},  size_t{67},  size_t{71},  size_t{72},
+        size_t{73},  size_t{84},  size_t{105}, size_t{127}, size_t{128},
+        size_t{129}, size_t{132}, size_t{192}, size_t{208}, size_t{261},
+        size_t{327}, size_t{409}, size_t{512}, size_t{640}, size_t{800},
+        size_t{1000}}) {
+    const uint64_t expected = Fingerprint2011(absl::string_view(buf, len));
+    for (size_t chunk_size : {size_t{1}, size_t{3}, size_t{7}, size_t{31},
+                              size_t{64}, size_t{128}, size_t{193}}) {
+      absl::Cord fragmented;
+      for (size_t off = 0; off < len; off += chunk_size) {
+        append_external(
+            fragmented,
+            absl::string_view(buf + off, std::min(chunk_size, len - off)));
+      }
+      if (len > chunk_size) {
+        ASSERT_FALSE(fragmented.TryFlat().has_value());
+      }
+      EXPECT_EQ(expected, Fingerprint2011(fragmented))
+          << "len=" << len << " chunk_size=" << chunk_size;
+    }
+    if (len >= 96) {
+      // Exercise >=8-byte first chunk with fragmented tail and multi-64B middle
+      // chunk.
+      absl::Cord mixed;
+      append_external(mixed, absl::string_view(buf, 11));
+      append_external(mixed, absl::string_view(buf + 11, len - 30));
+      append_external(mixed, absl::string_view(buf + len - 19, 14));
+      append_external(mixed, absl::string_view(buf + len - 5, 5));
+      ASSERT_FALSE(mixed.TryFlat().has_value());
+      size_t num_chunks = 0;
+      for ([[maybe_unused]] absl::string_view c : mixed.Chunks()) {
+        ++num_chunks;
+      }
+      ASSERT_EQ(num_chunks, 4u);
+      EXPECT_EQ(expected, Fingerprint2011(mixed)) << "mixed len=" << len;
+    }
   }
 }
 
