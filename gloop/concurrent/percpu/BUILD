@@ -30,17 +30,12 @@ package(
 cc_library(
     name = "counter",
     hdrs = ["counter.h"],
-    textual_hdrs = [
-        "counter_emulated.inc",
-        "counter_native.inc",
-    ],
     visibility = [
         "//visibility:public",
     ],
     deps = [
+        ":vcpu_counter",
         "//gloop:enforce_gloop_support",
-        "//gloop/base:percpu",
-        "//gloop/base:sysinfo",
     ],
 )
 
@@ -276,7 +271,6 @@ cc_test(
     linkstatic = 1,
     malloc = "//gloop:malloc",
     deps = [
-        ":counter",
         ":vcpu_counter",
         "//gloop:gloop_test_main",
         "//gloop/base:percpu",
@@ -302,7 +296,6 @@ cc_test(
     linkstatic = 1,
     malloc = "//gloop:malloc",
     deps = [
-        ":counter",
         ":vcpu_counter",
         "//gloop:gloop_test_main",
         "//gloop/base:percpu",
@@ -325,7 +318,6 @@ cc_test(
     linkstatic = 1,
     malloc = "//gloop:malloc",
     deps = [
-        ":counter",
         ":vcpu_counter",
         "//gloop:gloop_test_main",
         "//gloop/base:percpu",
@@ -347,7 +339,6 @@ cc_test(
     linkstatic = 1,
     malloc = "//gloop:malloc",
     deps = [
-        ":counter",
         ":vcpu_counter",
         "//gloop:gloop_test_main",
         "//gloop/base:percpu",
@@ -371,7 +362,6 @@ cc_test(
     linkstatic = 1,
     malloc = "//gloop:malloc",
     deps = [
-        ":counter",
         ":vcpu_counter",
         "//gloop:gloop_test_main",
         "//gloop/base:percpu",

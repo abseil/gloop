@@ -21,12 +21,14 @@
 #ifndef THIRD_PARTY_GLOOP_CONCURRENT_PERCPU_COUNTER_H_
 #define THIRD_PARTY_GLOOP_CONCURRENT_PERCPU_COUNTER_H_
 
-#include "gloop/base/percpu.h"
+#include "gloop/concurrent/percpu/vcpu_counter.h"  // IWYU pragma: export
 
-#if PERCPU_USE_RSEQ
-#include "gloop/concurrent/percpu/counter_native.inc"  // IWYU pragma: export
-#else
-#include "gloop/concurrent/percpu/counter_emulated.inc"  // IWYU pragma: export
-#endif
+namespace concurrent {
+namespace percpu {
+
+using Counter = VcpuCounter;
+
+}  // namespace percpu
+}  // namespace concurrent
 
 #endif  // THIRD_PARTY_GLOOP_CONCURRENT_PERCPU_COUNTER_H_

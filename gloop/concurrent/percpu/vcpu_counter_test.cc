@@ -32,12 +32,11 @@
 #include <vector>
 
 #include "absl/base/call_once.h"
-#include "absl/base/config.h"
+#include "absl/base/config.h"  // IWYU pragma: keep
 #include "absl/base/no_destructor.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/percpu.h"
 #include "gloop/base/sysinfo.h"
-#include "gloop/concurrent/percpu/counter.h"
 #include "gloop/thread/threadpool.h"
 #include "gtest/gtest.h"
 #include "tcmalloc/malloc_hook.h"
@@ -190,7 +189,14 @@ TEST(VcpuCounterTest, SlotIndexingMatchesActivePerCpuMode) {
 #else
   const int num_cpus = NumCPUs();
   VcpuCounter vcpu_counter;
-  concurrent::percpu::Counter phys_counter;
+  struct ScopedHandle {
+    base::subtle::percpu::Handle h = base::subtle::percpu::AllocHandle();
+    ~ScopedHandle() { base::subtle::percpu::FreeHandle(h); }
+  } phys;
+  const auto phys_slot = [&](int cpu) -> int64_t {
+    return base::subtle::percpu::GetPointerAtomic(phys.h, cpu)
+        ->load(std::memory_order_relaxed);
+  };
   std::vector<int64_t> expected_vcpu_slots(num_cpus, 0);
   std::vector<int64_t> expected_phys_slots(num_cpus, 0);
 
@@ -208,7 +214,7 @@ TEST(VcpuCounterTest, SlotIndexingMatchesActivePerCpuMode) {
       ASSERT_EQ(getrusage(RUSAGE_THREAD, &ru_before), 0);
       const int vcpu_before = base::subtle::percpu::GetCurrentVirtualFlatCpu();
       vcpu_counter.Add(1);
-      phys_counter.Add(1);
+      base::subtle::percpu::AtomicFetchAdd(phys.h, 1);
       const int vcpu_after = base::subtle::percpu::GetCurrentVirtualFlatCpu();
       ASSERT_EQ(getrusage(RUSAGE_THREAD, &ru_after), 0);
 
@@ -220,8 +226,7 @@ TEST(VcpuCounterTest, SlotIndexingMatchesActivePerCpuMode) {
         expected_phys_slots[cpu] += 1;
         EXPECT_EQ(vcpu_counter.subtle_value_for_cpu(vcpu_before),
                   expected_vcpu_slots[vcpu_before]);
-        EXPECT_EQ(phys_counter.subtle_value_for_cpu(cpu),
-                  expected_phys_slots[cpu]);
+        EXPECT_EQ(phys_slot(cpu), expected_phys_slots[cpu]);
         if (!base::subtle::percpu::UsingRseqVirtualCpus()) {
           // When vCPUs are disabled in //gloop/base:percpu
           // (PERCPU_VCPU_MODE=none or RSEQ disabled), VcpuCounter must index
@@ -241,23 +246,23 @@ TEST(VcpuCounterTest, SlotIndexingMatchesActivePerCpuMode) {
       // resync expected slot baselines from the counters and retry on this CPU.
       for (int i = 0; i < num_cpus; ++i) {
         expected_vcpu_slots[i] = vcpu_counter.subtle_value_for_cpu(i);
-        expected_phys_slots[i] = phys_counter.subtle_value_for_cpu(i);
+        expected_phys_slots[i] = phys_slot(i);
       }
     }
   }
 
-  EXPECT_EQ(vcpu_counter.value(), phys_counter.value());
+  int64_t phys_total = 0;
   for (int i = 0; i < num_cpus; ++i) {
+    phys_total += phys_slot(i);
     EXPECT_EQ(vcpu_counter.subtle_value_for_cpu(i), expected_vcpu_slots[i])
         << "slot=" << i;
-    EXPECT_EQ(phys_counter.subtle_value_for_cpu(i), expected_phys_slots[i])
-        << "cpu=" << i;
+    EXPECT_EQ(phys_slot(i), expected_phys_slots[i]) << "cpu=" << i;
   }
+  EXPECT_EQ(vcpu_counter.value(), phys_total);
 
   if (!base::subtle::percpu::UsingRseqVirtualCpus()) {
     for (int i = 0; i < num_cpus; ++i) {
-      EXPECT_EQ(vcpu_counter.subtle_value_for_cpu(i),
-                phys_counter.subtle_value_for_cpu(i))
+      EXPECT_EQ(vcpu_counter.subtle_value_for_cpu(i), phys_slot(i))
           << "cpu=" << i;
     }
   } else if (allowed.size() > 1) {
