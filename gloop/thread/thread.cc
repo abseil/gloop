@@ -477,7 +477,7 @@ size_t MinValidStackSizeWithTlsAndSanitizers(size_t request_size,
 }
 }  // namespace thread::internal
 
-void Thread::CreatePthread(pthread_attr_t& attr) {
+bool Thread::CreatePthread(pthread_attr_t& attr, bool no_retry) {
   // Start it off
   int res = pthread_create(&tid_, &attr, ThreadBody, this);
   if (res != 0 && options_.scheduling_policy() == thread::SCHEDPOLICY_FIFO) {
@@ -494,6 +494,11 @@ void Thread::CreatePthread(pthread_attr_t& attr) {
   }
 
   if (res != 0) {
+    if (no_retry) {
+      created_ = false;
+      needs_join_ = false;
+      return false;
+    }
     // EAGAIN might mean that we unable to allocate resources (see man
     // pthread_create) OR that we are racing against the exec syscall (see
     // b/216182558). In the first case it is *probably* harmless to retry as we
@@ -541,9 +546,18 @@ void Thread::CreatePthread(pthread_attr_t& attr) {
   }
 
   thread::internal::OsSemaphorePost(&tid_set_sem_);
+  return true;
 }
 
 void Thread::Start(absl::SourceLocation loc) {
+  (void)StartImpl(loc, /*no_retry=*/false);
+}
+
+bool Thread::TryStart(absl::SourceLocation loc) {
+  return StartImpl(loc, /*no_retry=*/true);
+}
+
+bool Thread::StartImpl(absl::SourceLocation loc, bool no_retry) {
   CHECK(!created_) << "Thread is not restartable!"
                       " Do not call Start() more than once.";
   created_ = true;
@@ -640,13 +654,14 @@ void Thread::Start(absl::SourceLocation loc) {
   creator_stack_depth_ =
       absl::GetStackTrace(creator_stack_, std::size(creator_stack_), 0);
 
-  // Do not access 'this' below this point as
+  // Do not access 'this' below this point if CreatePthread succeeds as
   // it may be destroyed by a detached thread.
-  CreatePthread(attr);
+  const bool started = CreatePthread(attr, no_retry);
 
   // Kill the attribute structure
   ABSL_RAW_CHECK(pthread_attr_destroy(&attr) == 0,
                  "pthread_attr_destroy failed");
+  return started;
 }
 
 void Thread::Join() {
