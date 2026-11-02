@@ -60,6 +60,12 @@ class SymbolMapIterator {
     CHECK(!done());
     if (IsCompressed()) {
       ++compressed_index_;
+      // Each start address is decoded once, in order, with this iterator's
+      // own reader; size() needs the next one.
+      start_ = next_start_;
+      if (compressed_index_ + 1 < compressed_end_) {
+        next_start_ = DecodeStart(compressed_index_ + 1);
+      }
     } else {
       ++iter_;
     }
@@ -68,8 +74,7 @@ class SymbolMapIterator {
   uint64_t start() const {
     CHECK(!done());
     if (IsCompressed()) {
-      return addr_shrunk_array_reader_bias_ +
-             addr_shrunk_array_reader_->Get(compressed_index_);
+      return start_;
     } else {
       return iter_->addr;
     }
@@ -78,8 +83,11 @@ class SymbolMapIterator {
   uint64_t size() const {
     CHECK(!done());
     if (IsCompressed()) {
-      return size_shrunk_array_reader_bias_ +
-             size_shrunk_array_reader_->Get(compressed_index_);
+      return symbol_map_->DecodeSize(
+          compressed_index_, start_,
+          size_shrunk_array_reader_bias_ +
+              size_shrunk_array_reader_->Get(compressed_index_),
+          [this] { return next_start_; });
     } else {
       return iter_->size;
     }
@@ -102,10 +110,11 @@ class SymbolMapIterator {
   // Start iterating on "map" from "start".
   SymbolMapIterator(std::vector<SymbolMap::Symbol>::const_iterator iter,
                     std::vector<SymbolMap::Symbol>::const_iterator end)
-      : iter_(iter), end_(end) {}
+      : iter_(iter), end_(end), symbol_map_(nullptr) {}
   // Constructor called when when compressed symbol maps are enabled.
   SymbolMapIterator(const SymbolMap* symbol_map, size_t begin, size_t end)
-      : compressed_index_(begin),
+      : symbol_map_(symbol_map),
+        compressed_index_(begin),
         compressed_end_(end),
         addr_shrunk_array_reader_(symbol_map->addr_shrunk_array_.Bind()),
         addr_shrunk_array_reader_bias_(
@@ -115,15 +124,27 @@ class SymbolMapIterator {
             symbol_map->size_shrunk_array_.GetBias()),
         name_shrunk_array_reader_(symbol_map->name_shrunk_array_.Bind()),
         name_shrunk_array_reader_bias_(
-            symbol_map->name_shrunk_array_.GetBias()) {}
+            symbol_map->name_shrunk_array_.GetBias()) {
+    // DecodeSize() reads next_start_ whenever a next symbol exists.
+    DCHECK_EQ(end, symbol_map->size_shrunk_array_.size());
+    if (begin < end) start_ = DecodeStart(begin);
+    if (begin + 1 < end) next_start_ = DecodeStart(begin + 1);
+  }
 
   bool IsCompressed() const { return addr_shrunk_array_reader_ != nullptr; }
+
+  uint64_t DecodeStart(size_t index) {
+    return symbol_map_->DecodeAddrFromRaw(
+        index,
+        addr_shrunk_array_reader_bias_ + addr_shrunk_array_reader_->Get(index));
+  }
 
   // Variables used to read symbols when compression is disabled.
   std::vector<SymbolMap::Symbol>::const_iterator iter_;
   std::vector<SymbolMap::Symbol>::const_iterator end_;
 
   // Variables used to read symbols when compression is enabled.
+  const SymbolMap* symbol_map_;
   size_t compressed_index_ = 0;
   size_t compressed_end_ = 0;
   // Use ShrunkArray::Reader::Get to optimize obtaining sequential values in the
@@ -135,6 +156,9 @@ class SymbolMapIterator {
   uint64_t size_shrunk_array_reader_bias_ = 0;
   std::unique_ptr<ShrunkArray::Reader> name_shrunk_array_reader_;
   uint64_t name_shrunk_array_reader_bias_ = 0;
+  // Start addresses of the current symbol and of the next one (if any).
+  uint64_t start_ = 0;
+  uint64_t next_start_ = 0;
 };
 
 }  // namespace util

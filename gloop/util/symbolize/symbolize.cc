@@ -34,6 +34,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -46,6 +47,7 @@
 #include <vector>
 
 #include "absl/base/call_once.h"
+#include "absl/base/optimization.h"
 #include "absl/debugging/internal/symbolize.h"
 #include "absl/debugging/internal/vdso_support.h"
 #include "absl/flags/flag.h"
@@ -195,7 +197,9 @@ size_t SymbolMap::bytes_allocated() const {
   return names_size + symbols_.capacity() * sizeof(symbols_[0]) +
          name_shrunk_array_.shrunk_array_byte_length() +
          addr_shrunk_array_.shrunk_array_byte_length() +
-         size_shrunk_array_.shrunk_array_byte_length();
+         size_shrunk_array_.shrunk_array_byte_length() +
+         addr_block_bases_.capacity() * sizeof(addr_block_bases_[0]) +
+         addr_overflow_.capacity() * sizeof(addr_overflow_[0]);
 }
 
 bool SymbolMap::AddSymbol(const char* name, const char* section_end,
@@ -263,22 +267,11 @@ bool SymbolMap::GetSymbolInfoAtPosition(uint64_t pos, const char** name,
         std::upper_bound(symbols_.begin(), symbols_.end(), pos, SymbolCmp()) -
         symbols_.begin();
   } else {
-    index = addr_shrunk_array_.UpperBound(pos);
+    index = UpperBoundAddr(pos);
   }
   if (index == 0) return false;
   --index;
 
-  auto get_symbol = [&](size_t index) {
-    if (symbol_map_compression_level_ == 0) {
-      return symbols_[index];
-    } else {
-      Symbol s;
-      s.name = reinterpret_cast<const char*>(name_shrunk_array_.Get(index));
-      s.addr = addr_shrunk_array_.Get(index);
-      s.size = size_shrunk_array_.Get(index);
-      return s;
-    }
-  };
   // If the symbol has no size information, we assume that "pos" is
   // associated with the symbol. This happens with rare symbols such
   // as __restore in glibc.  Otherwise, check and see if the symbol is
@@ -291,27 +284,36 @@ bool SymbolMap::GetSymbolInfoAtPosition(uint64_t pos, const char** name,
   // might want to add sanity checks, such as not believing that a
   // procedure without size information is more than a few hundred
   // kilobytes in size.
-  const Symbol symbol = get_symbol(index);
-  if ((symbol.size == 0) ||
-      (pos >= symbol.addr && pos - symbol.addr < symbol.size)) {
-    if (start) *start = symbol.addr;
-    if (size) *size = symbol.size;
+  auto get_addr = [this](size_t i) {
+    return (symbol_map_compression_level_ == 0) ? symbols_[i].addr : GetAddr(i);
+  };
+  const uint64_t sym_addr = get_addr(index);
+  const uint64_t sym_size = (symbol_map_compression_level_ == 0)
+                                ? symbols_[index].size
+                                : GetSizeWithAddr(index, sym_addr);
+  if ((sym_size == 0) || (pos >= sym_addr && pos - sym_addr < sym_size)) {
+    if (start) *start = sym_addr;
+    if (size) *size = sym_size;
 
     // Multiple symbols may have the same address. We prefer the
     // lexicographically greatest name. (We assume all symbols with the same
     // start also have the same size, since otherwise would imply an ODR
     // violation.)
     if (name) {
-      *name = symbol.name;
+      auto get_name = [this](size_t i) {
+        return (symbol_map_compression_level_ == 0) ? symbols_[i].name
+                                                    : GetName(i);
+      };
+      *name = get_name(index);
       size_t eq_index = index;
       while (eq_index != 0) {
         --eq_index;
-        const Symbol prev_symbol = get_symbol(eq_index);
-        if (prev_symbol.addr != symbol.addr) {
+        if (get_addr(eq_index) != sym_addr) {
           break;
         }
-        if (strcmp(prev_symbol.name, *name) > 0) {
-          *name = prev_symbol.name;
+        const char* prev_name = get_name(eq_index);
+        if (strcmp(prev_name, *name) > 0) {
+          *name = prev_name;
         }
       }
     }
@@ -358,13 +360,52 @@ SymbolMap::Iterator* SymbolMap::GetIteratorFrom(uint64_t pos) const {
         std::lower_bound(symbols_.begin(), symbols_.end(), pos, SymbolCmp());
     return new Iterator(it, symbols_.end());
   } else {
-    const size_t index = addr_shrunk_array_.LowerBound(pos);
+    const size_t index = LowerBoundAddr(pos);
     return new Iterator(this, index, addr_shrunk_array_.size());
   }
 }
 
 void SymbolMap::EnsureFinalized() const {
   absl::call_once(once_, &SymbolMap::Finalize, const_cast<SymbolMap*>(this));
+}
+
+// At level 1, ShrunkArray::Write stores every value at the bit width of the
+// largest one (and builds no frequency table), so the address column costs
+// n * bit_width(largest token) bits, plus 64 bits per addr_overflow_ entry.
+// This picks the cheapest power-of-two cap from a histogram of the bit widths
+// of the in-block offsets. Tokens are 32-bit, so the cap is at most 2^31; if
+// every offset is below that, keeping them all inline is one of the choices.
+uint64_t SymbolMap::Level1AddrInlierCap(absl::Span<const Symbol> symbols) {
+  // count[w] and max_offset[w] describe the offsets of bit width w.
+  uint64_t count[65] = {};
+  uint64_t max_offset[65] = {};
+  for (size_t begin = 0; begin < symbols.size(); begin += kAddrBlockSize) {
+    const size_t end = std::min(begin + kAddrBlockSize, symbols.size());
+    for (size_t i = begin; i < end; ++i) {
+      const uint64_t offset = symbols[i].addr - symbols[begin].addr;
+      const int width = std::bit_width(offset);
+      ++count[width];
+      max_offset[width] = std::max(max_offset[width], offset);
+    }
+  }
+  // Cap 2^k keeps the offsets of bit width <= k inline. The overflow tokens
+  // follow the largest inline offset.
+  const uint64_t n = symbols.size();
+  uint64_t overflows = n;
+  uint64_t max_inlier = 0;
+  uint64_t best_cap = 1;
+  uint64_t best_bits = std::numeric_limits<uint64_t>::max();
+  for (int k = 0; k <= 31; ++k) {
+    overflows -= count[k];
+    max_inlier = std::max(max_inlier, max_offset[k]);
+    const uint64_t bits =
+        n * std::bit_width(max_inlier + overflows) + 64 * overflows;
+    if (bits < best_bits) {
+      best_bits = bits;
+      best_cap = 1ULL << k;
+    }
+  }
+  return best_cap;
 }
 
 void SymbolMap::Finalize() {
@@ -381,39 +422,113 @@ void SymbolMap::Finalize() {
     symbols_.shrink_to_fit();
   } else {
     VLOG(1) << "Symbol table compression started";
-    {
-      std::vector<uint64_t> buffer;
-      buffer.reserve(symbols_.size());
-
-      // TODO Single ELF images are smaller than 4 GiB; make use of
-      // this by using uint32.
-      for (const Symbol& symbol : symbols_) {
-        buffer.push_back(reinterpret_cast<uint64_t>(symbol.name));
+    const size_t n = symbols_.size();
+    // Address offsets at or above addr_inlier_cap go to addr_overflow_. At
+    // level 1 the cap is the cheapest one for this map (see
+    // Level1AddrInlierCap()). At levels 2-3 the cap is the largest power of
+    // two <= n, clamped to [2^16, 2^20]: ShrunkArray::Write may count value
+    // frequencies in a dense table of 8 bytes per possible value, and tying
+    // the cap to n keeps that table within a small multiple of the column
+    // buffers, so mid-sized tables do not get a higher build peak than the
+    // plain encoding.
+    uint64_t addr_inlier_cap = 1ULL << 16;
+    if (symbol_map_compression_level_ == 1) {
+      addr_inlier_cap = Level1AddrInlierCap(symbols_);
+    } else {
+      while (addr_inlier_cap < (1ULL << 20) && 2 * addr_inlier_cap <= n) {
+        addr_inlier_cap *= 2;
       }
-      name_shrunk_array_.Assign(absl::MakeSpan(buffer),
-                                symbol_map_compression_level_);
-
-      // We can re-use buffer which is of the correct length.
-      uint64_t* write_iterator = buffer.data();
-      for (const Symbol& symbol : symbols_) {
-        *write_iterator = symbol.addr;
-        ++write_iterator;
-      }
-      addr_shrunk_array_.Assign(absl::MakeSpan(buffer),
-                                symbol_map_compression_level_);
     }
 
-    {
-      std::vector<uint32_t> buffer;
-      buffer.reserve(symbols_.size());
+    // All three columns are encoded into temporary buffers first, and
+    // symbols_ is released before any ShrunkArray is built, so the
+    // ShrunkArray::Write temporaries never coexist with symbols_.
 
-      for (const Symbol& symbol : symbols_) {
-        DCHECK_LE(symbol.size, std::numeric_limits<uint32_t>::max());
-        buffer.push_back(symbol.size);
+    // 1. Encode symbol sizes as ZigZag residuals relative to the adjacent
+    // symbol address span (symbols_[i + 1].addr - symbols_[i].addr) when that
+    // span is in (0, kMaxPredictedSizeSpan].
+    auto encode_size = [&](size_t i) -> uint64_t {
+      if (i + 1 < n) {
+        const uint64_t span = symbols_[i + 1].addr - symbols_[i].addr;
+        if (span > 0 && span <= kMaxPredictedSizeSpan) {
+          return ZigZagEncode64(static_cast<int64_t>(span - symbols_[i].size));
+        }
       }
-      size_shrunk_array_.Assign(absl::MakeSpan(buffer),
-                                symbol_map_compression_level_);
+      return symbols_[i].size;
+    };
+    std::vector<uint32_t> size_buf(n);
+    std::vector<uint64_t> size_buf64;
+    for (size_t i = 0; i < n; ++i) {
+      const uint64_t enc_size = encode_size(i);
+      if (ABSL_PREDICT_FALSE(enc_size > std::numeric_limits<uint32_t>::max())) {
+        // Rare: store the whole column as 64-bit values instead.
+        std::vector<uint32_t>().swap(size_buf);
+        size_buf64.resize(n);
+        for (size_t j = 0; j < n; ++j) {
+          size_buf64[j] = encode_size(j);
+        }
+        break;
+      }
+      size_buf[i] = static_cast<uint32_t>(enc_size);
     }
+
+    // 2. Encode sorted symbol start addresses as offsets from the first
+    // address of their block of kAddrBlockSize symbols, placing overflow
+    // tokens right above the largest inlier offset.
+    std::vector<uint32_t> addr_buf(n);
+    std::vector<uint32_t> overflow_pos;
+    const size_t num_addr_blocks = (n + kAddrBlockSize - 1) / kAddrBlockSize;
+    addr_block_bases_.resize(num_addr_blocks);
+    uint32_t max_addr_inlier = 0;
+    for (size_t b = 0; b < num_addr_blocks; ++b) {
+      const size_t start_idx = b * kAddrBlockSize;
+      const size_t end_idx = std::min(start_idx + kAddrBlockSize, n);
+      const uint64_t base = symbols_[start_idx].addr;
+      addr_block_bases_[b] = base;
+      for (size_t i = start_idx; i < end_idx; ++i) {
+        const uint64_t offset = symbols_[i].addr - base;
+        if (ABSL_PREDICT_FALSE(offset >= addr_inlier_cap)) {
+          overflow_pos.push_back(static_cast<uint32_t>(i));
+          addr_overflow_.push_back(symbols_[i].addr);
+        } else {
+          const uint32_t off32 = static_cast<uint32_t>(offset);
+          addr_buf[i] = off32;
+          max_addr_inlier = std::max(max_addr_inlier, off32);
+        }
+      }
+    }
+    addr_overflow_threshold_ = static_cast<uint64_t>(max_addr_inlier) + 1;
+    uint32_t overflow_token = static_cast<uint32_t>(addr_overflow_threshold_);
+    for (uint32_t pos : overflow_pos) {
+      addr_buf[pos] = overflow_token++;
+    }
+    std::vector<uint32_t>().swap(overflow_pos);
+    addr_overflow_.shrink_to_fit();
+
+    // 3. Name pointers keep the global-bias encoding (CompressedUintArray
+    // subtracts the smallest pointer).
+    std::vector<uint64_t> name_buf(n);
+    for (size_t i = 0; i < n; ++i) {
+      name_buf[i] = reinterpret_cast<uint64_t>(symbols_[i].name);
+    }
+
+    // symbols_ is no longer needed: release it before building the shrunk
+    // arrays, and release each buffer as soon as its array is built.
+    std::vector<Symbol>().swap(symbols_);
+    if (ABSL_PREDICT_FALSE(!size_buf64.empty())) {
+      size_shrunk_array_.Assign(absl::MakeSpan(size_buf64),
+                                symbol_map_compression_level_);
+      std::vector<uint64_t>().swap(size_buf64);
+    } else {
+      size_shrunk_array_.Assign(absl::MakeSpan(size_buf),
+                                symbol_map_compression_level_);
+      std::vector<uint32_t>().swap(size_buf);
+    }
+    addr_shrunk_array_.Assign(absl::MakeSpan(addr_buf),
+                              symbol_map_compression_level_);
+    std::vector<uint32_t>().swap(addr_buf);
+    name_shrunk_array_.Assign(absl::MakeSpan(name_buf),
+                              symbol_map_compression_level_);
 
     VLOG(1) << "Symbol table compression finished. name_shrunk_array_ "
             << name_shrunk_array_.shrunk_array_byte_length()
@@ -423,10 +538,10 @@ void SymbolMap::Finalize() {
             << size_shrunk_array_.shrunk_array_byte_length() << ", total size "
             << name_shrunk_array_.shrunk_array_byte_length() +
                    addr_shrunk_array_.shrunk_array_byte_length() +
-                   size_shrunk_array_.shrunk_array_byte_length()
-            << " versus " << symbols_.size() * sizeof(Symbol);
-    // Clear out symbols_ as we no longer need them.
-    std::vector<Symbol>().swap(symbols_);
+                   size_shrunk_array_.shrunk_array_byte_length() +
+                   addr_block_bases_.capacity() * sizeof(addr_block_bases_[0]) +
+                   addr_overflow_.capacity() * sizeof(addr_overflow_[0])
+            << " versus " << n * sizeof(Symbol);
   }
 
   finalized_ = true;
@@ -633,9 +748,6 @@ void SymbolMap::CompressedUintArray::AssignImpl(absl::Span<IntegerType> value,
   for (IntegerType& v : value) {
     v -= minimum_value;
   }
-#ifndef NDEBUG
-  is_sorted_ = std::is_sorted(value.begin(), value.end());
-#endif
   ShrunkArray::Write(value.data(), number_of_items_, compression_level,
                      decode_key_, &shrunk_array_);
   shrunk_array_.shrink_to_fit();
@@ -653,24 +765,8 @@ void SymbolMap::CompressedUintArray::Assign(absl::Span<uint32_t> value,
   AssignImpl(value, compression_level);
 }
 
-size_t SymbolMap::CompressedUintArray::size() const { return number_of_items_; }
-
 size_t SymbolMap::CompressedUintArray::shrunk_array_byte_length() const {
   return shrunk_array_.capacity() * sizeof(uint64_t);
-}
-
-size_t SymbolMap::CompressedUintArray::UpperBound(uint64_t value) const {
-  DCHECK(is_sorted_);
-  return partition_point_n(0, number_of_items_, [value, this](size_t index) {
-    return value < Get(index);
-  });
-}
-
-size_t SymbolMap::CompressedUintArray::LowerBound(uint64_t value) const {
-  DCHECK(is_sorted_);
-  return partition_point_n(0, number_of_items_, [value, this](size_t index) {
-    return value <= Get(index);
-  });
 }
 
 uint64_t SymbolMap::CompressedUintArray::Get(size_t index) const {
@@ -683,6 +779,32 @@ std::unique_ptr<ShrunkArray::Reader> SymbolMap::CompressedUintArray::Bind()
   auto reader = absl::WrapUnique(ShrunkArray::Reader::New());
   reader->Bind(shrunk_array_.data(), decode_key_);
   return reader;
+}
+
+// Returns the first symbol index in [0, n) for which `pred(addr)` is true, or
+// `n` if none (`pred` must be false before true across sorted addresses).
+template <typename Pred>
+size_t SymbolMap::PartitionPointAddr(Pred pred) const {
+  const size_t block_idx = partition_point_n(
+      0, addr_block_bases_.size(),
+      [this, &pred](size_t b) { return pred(addr_block_bases_[b]); });
+  if (block_idx == 0) {
+    return 0;
+  }
+  const size_t begin = (block_idx - 1) * kAddrBlockSize + 1;
+  const size_t end =
+      std::min(block_idx * kAddrBlockSize, addr_shrunk_array_.size());
+  return partition_point_n(begin, end - begin, [this, &pred](size_t index) {
+    return pred(GetAddr(index));
+  });
+}
+
+size_t SymbolMap::UpperBoundAddr(uint64_t pos) const {
+  return PartitionPointAddr([pos](uint64_t addr) { return pos < addr; });
+}
+
+size_t SymbolMap::LowerBoundAddr(uint64_t pos) const {
+  return PartitionPointAddr([pos](uint64_t addr) { return pos <= addr; });
 }
 
 }  // namespace util
