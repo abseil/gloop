@@ -146,7 +146,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
   // Returns the thread status string associated with the context, or nullopt if
   // there is no thread status set.
   //
-  // TODO: get rid of the deprecated accessor and then rename this
+  // TODO: once the old thread_status method is gone, rename this
   // one to thread_status.
   std::optional<absl::string_view> thread_status_string_view() const {
     const char* const p = thread_status();
@@ -156,6 +156,10 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
 
   // Returns a pointer to the "status string" associated with the context, or
   // nullptr if there is no status set.
+  //
+  // TODO: move users to thread_status_string_view and then get rid
+  // of this.
+  ABSL_DEPRECATED("Use thread_status_string_view")
   const char* thread_status() const;
 
   // This function sets a "status string" associated with this context.  This is
