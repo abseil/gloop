@@ -40,14 +40,6 @@ class TraceEventListener;
 // `SyncId` values are generated using trivial atomic ops.
 using SyncId = uint32_t;
 
-// `TraceSpanId` identifies `trace spans`. A span typically adds hierarchy to
-// distributed executions. The tracing library is agnostic to exactly 'what' a
-// span is and only provides the API and state to manage the state for a
-// synchronous execution. The span associated with the current synchronous
-// execution can be be observed through the `active_span_id()` function. In
-// Dapper, the span id is the same as the `rpc_id` of the active trace context.
-using TraceSpanId = uint64_t;
-
 // `MsgId` is used to identify `messages`. Typically (but not necessarily) these
 // are the `rpc_id` values of RPC requests, responses and streaming messages.
 // `MsgId` values should be globally unique values.
@@ -193,7 +185,6 @@ namespace internal {
 struct TracePerThreadData {
   SyncId active_sync_id;
   TraceEventListener* active_event_listener;
-  TraceSpanId active_span_id;
 };
 
 ABSL_CONST_INIT extern thread_local TracePerThreadData per_thread;
