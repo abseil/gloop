@@ -20,6 +20,9 @@
 
 #include "gloop/util/tuple/components/rank.h"
 
+#include <string>
+#include <type_traits>
+
 #include "gtest/gtest.h"
 
 namespace util {
@@ -34,77 +37,84 @@ int ZeroOne(rank<0>) { return 0; }
 int OneTwo(rank<1>) { return 1; }
 [[maybe_unused]] int OneTwo(rank<2>) { return 2; }
 
-int TwoThree(rank<1>) { return 2; }
-[[maybe_unused]] int TwoThree(rank<2>) { return 3; }
+int MaxMinusOneMax(rank<kMaxRank - 1>) { return kMaxRank - 1; }
+[[maybe_unused]] int MaxMinusOneMax(rank<kMaxRank>) { return kMaxRank; }
 
 int MaxRank(rank<kMaxRank>) { return kMaxRank; }
 
 TEST(RankTest, OverloadedFunction) {
   EXPECT_EQ(0, ZeroOne(rank_selector));
   EXPECT_EQ(1, OneTwo(rank_selector));
-  EXPECT_EQ(2, TwoThree(rank_selector));
+  EXPECT_EQ(kMaxRank - 1, MaxMinusOneMax(rank_selector));
   EXPECT_EQ(kMaxRank, MaxRank(rank_selector));
+}
+
+// GenericClear returns a value just for the test.
+template <class T>
+  requires requires(T& t) {
+    { t.Clear() };
+  }
+std::string GenericClear(T& t, rank<0>) {
+  t.Clear();
+  return "Clear";
+}
+
+template <class T>
+  requires requires(T& t) {
+    { t.clear() };
+  }
+std::string GenericClear(T& t, rank<1>) {
+  t.clear();
+  return "clear";
+}
+
+template <class T>
+std::string GenericClear(T& p, rank<2>) {
+  p = T();
+  return "assignment";
+}
+
+struct None {};
+struct Both {
+  void Clear() {}
+  [[maybe_unused]] void clear() {}
+};
+struct Big {
+  void Clear() {}
+};
+struct Small {
+  void clear() {}
+};
+
+TEST(RankTest, GenericClear) {
+  None none;
+  Both both;
+  Big big;
+  Small small;
+  EXPECT_EQ("assignment", GenericClear(none, rank_selector));
+  EXPECT_EQ("Clear", GenericClear(both, rank_selector));
+  EXPECT_EQ("Clear", GenericClear(big, rank_selector));
+  EXPECT_EQ("clear", GenericClear(small, rank_selector));
 }
 
 }  // namespace overloaded_function
 
-namespace specialized_class {
+namespace properties {
 
-template <class T = rank_selector_t>
-struct ZeroOne;
+static_assert(sizeof(rank_selector_t) == 1);
+static_assert(std::is_trivial_v<rank_selector_t>);
+static_assert(std::is_standard_layout_v<rank_selector_t>);
+static_assert(std::is_empty_v<rank_selector_t>);
+static_assert(std::is_same_v<rank_selector_t, rank<0>>);
+static_assert(std::is_convertible_v<rank<0>, rank<1>>);
+static_assert(std::is_convertible_v<rank<0>, rank<kMaxRank>>);
+static_assert(std::is_convertible_v<rank<1>, rank<kMaxRank>>);
+static_assert(std::is_convertible_v<rank<kMaxRank - 1>, rank<kMaxRank>>);
+static_assert(!std::is_convertible_v<rank<1>, rank<0>>);
+static_assert(!std::is_convertible_v<rank<kMaxRank>, rank<0>>);
+static_assert(!std::is_convertible_v<rank<kMaxRank>, rank<kMaxRank - 1>>);
 
-template <class T>
-struct ZeroOne<rank<0, T>> {
-  int operator()() const { return 0; }
-};
-
-template <class T>
-struct ZeroOne<rank<1, T>> {
-  int operator()() const { return 1; }
-};
-
-template <class T = rank_selector_t>
-struct OneTwo;
-
-template <class T>
-struct OneTwo<rank<1, T>> {
-  int operator()() const { return 1; }
-};
-
-template <class T>
-struct OneTwo<rank<2, T>> {
-  int operator()() const { return 2; }
-};
-
-template <class T = rank_selector_t>
-struct TwoThree;
-
-template <class T>
-struct TwoThree<rank<2, T>> {
-  int operator()() const { return 2; }
-};
-
-template <class T>
-struct TwoThree<rank<3, T>> {
-  int operator()() const { return 3; }
-};
-
-template <class T = rank_selector_t>
-struct MaxRank;
-
-template <class T>
-struct MaxRank<rank<kMaxRank, T>> {
-  int operator()() const { return kMaxRank; }
-};
-
-TEST(RankTest, SpecializedClass) {
-  EXPECT_EQ(0, ZeroOne<>()());
-  EXPECT_EQ(1, OneTwo<>()());
-  EXPECT_EQ(2, TwoThree<>()());
-  EXPECT_EQ(kMaxRank, MaxRank<>()());
-}
-
-}  // namespace specialized_class
+}  // namespace properties
 
 }  // namespace
 }  // namespace tuple
