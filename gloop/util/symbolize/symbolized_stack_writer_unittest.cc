@@ -85,6 +85,7 @@ TEST_P(SymbolizedStackWriterTest, Write) {
   for (int i = 0; i < std::size(test_cases); ++i) {
     std::string output;
     SymbolizedStackWriter writer(*symbol_map, &output);
+    writer.set_redact_addresses(false);
     writer.Write(test_cases[i].input, strlen(test_cases[i].input));
     ASSERT_EQ(output, test_cases[i].output);
   }
@@ -95,6 +96,7 @@ TEST(SymbolizedStackWriterTest, WriteNoSymbolization) {
   symbol_map->AddSymbol("foo", 0x40, 0x40);
   std::string output;
   SymbolizedStackWriter writer(*symbol_map, &output);
+  writer.set_redact_addresses(false);
   writer.Write("0x40", strlen("0x40"),
                ThreadStackWriterOptions{.symbolize = false});
   ASSERT_EQ(output, "0x40");
@@ -104,6 +106,7 @@ TEST(SymbolizedStackWriterTest, WriteDuplicated) {
   std::unique_ptr<SymbolMap> symbol_map(SymbolMap::GetEmpty());
   std::string output;
   SymbolizedStackWriter writer(*symbol_map, &output);
+  writer.set_redact_addresses(false);
   static constexpr absl::string_view kInput1 =
       "--- Thread 5 (name: T5) stack: ---\n"
       "  0x40\n"
@@ -154,6 +157,7 @@ TEST_P(SymbolizedStackWriterTest, Write2) {
   for (int i = 0; i < std::size(test_cases); ++i) {
     std::string output;
     SymbolizedStackWriter writer(*symbol_map, &output);
+    writer.set_redact_addresses(false);
     writer.Write(test_cases[i].input, strlen(test_cases[i].input));
     ASSERT_EQ(output, test_cases[i].output);
   }
@@ -179,12 +183,14 @@ TEST_P(SymbolizedStackWriterTest, SymbolizeCreatorThread) {
 
   std::string output1;
   SymbolizedStackWriter writer1(*symbol_map, &output1);
+  writer1.set_redact_addresses(false);
   writer1.Write(not_symbolizing_creator_thread.input,
                 strlen(not_symbolizing_creator_thread.input));
   ASSERT_EQ(output1, not_symbolizing_creator_thread.output);
 
   std::string output2;
   SymbolizedStackWriter writer2(*symbol_map, &output2);
+  writer2.set_redact_addresses(false);
   writer2.set_symbolize_creator_thread(true);
   writer2.Write(symbolizing_creator_thread.input,
                 strlen(symbolizing_creator_thread.input));
@@ -203,7 +209,7 @@ TEST_P(SymbolizedStackWriterTest, RedactAddresses) {
 
   std::string output1;
   SymbolizedStackWriter writer1(*symbol_map, &output1);
-  writer1.set_redact_addresses(true);
+  EXPECT_TRUE(writer1.RedactAddresses());
   writer1.Write(kInput.data(), kInput.size());
   EXPECT_EQ(output1,
             "  0x00000000: foo\n"
@@ -211,7 +217,6 @@ TEST_P(SymbolizedStackWriterTest, RedactAddresses) {
 
   std::string output2;
   SymbolizedStackWriter writer2(*symbol_map, &output2);
-  writer2.set_redact_addresses(true);
   writer2.set_symbolize_creator_thread(true);
   writer2.Write(kInput.data(), kInput.size());
   EXPECT_EQ(output2,
@@ -222,14 +227,12 @@ TEST_P(SymbolizedStackWriterTest, RedactAddresses) {
 
   std::string output3;
   SymbolizedStackWriter writer3(*symbol_map, &output3);
-  writer3.set_redact_addresses(true);
   writer3.set_symbolize_stack(false);
   writer3.Write(kInput.data(), kInput.size());
   EXPECT_EQ(output3, "0x0  creator: 0x0 0x0\n");
 
   std::string output4;
   SymbolizedStackWriter writer4(*symbol_map, &output4);
-  writer4.set_redact_addresses(true);
   writer4.AddAddressRelocation(0x40, 0xd0, 0x200000);
   writer4.Write(kInput.data(), kInput.size());
   EXPECT_EQ(output4,
@@ -246,7 +249,6 @@ TEST_P(SymbolizedStackWriterTest, ExtractStackRedacted) {
   }
   std::string output;
   SymbolizedStackWriter writer(*symbol_map, &output);
-  writer.set_redact_addresses(true);
   Thread_ExtractStacks(&writer);
   EXPECT_THAT(output, HasSubstr(": main"));
   EXPECT_THAT(output, Not(ContainsRegex("  0x00000000: main")));

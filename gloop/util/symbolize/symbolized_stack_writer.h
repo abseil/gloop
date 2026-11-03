@@ -76,7 +76,7 @@ class SymbolizedStackWriter : public ThreadStackWriter {
   // symbolized and will be printed on a single line.
   void set_symbolize_creator_thread(bool symbolize_creator_thread);
 
-  // Set whether to redact raw addresses in output (defaults to false).
+  // Set whether to redact raw addresses in output (defaults to true).
   // This must be called before `Write()` for it to take effect.
   void set_redact_addresses(bool redact_addresses);
 

@@ -48,7 +48,7 @@ class SymbolizedStackWriterImpl : public ThreadStackWriter {
       : symbol_map_(symbol_map),
         symbolize_stack_(true),
         symbolize_creator_thread_(false),
-        redact_addresses_(false),
+        redact_addresses_(true),
         checked_stripped_(false),
         output_(output),
         prev_thread_start_(0),
