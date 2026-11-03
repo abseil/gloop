@@ -673,8 +673,7 @@ TEST_F(FiberTest, RootFiberTreeOptionsInvokesWeakHook) {
   TreeOptions options;
   std::unique_ptr<Fiber> r = NewTree(options, [] {
     // 'thread_status' should be set by our strong hook in this test.
-    ASSERT_NE(base::CurrentContext().thread_status(), nullptr);
-    ASSERT_STREQ(base::CurrentContext().thread_status(), "Adjusted");
+    ASSERT_EQ(base::CurrentContext().thread_status_string_view(), "Adjusted");
   });
   r->Join();
 }
@@ -683,8 +682,7 @@ TEST_F(FiberTest, RootFiberTreeOptionsByRValueInvokesWeakHook) {
   TreeOptions options;
   std::unique_ptr<Fiber> r = NewTree(options, [] {
     // 'thread_status' should be set by our strong hook in this test.
-    ASSERT_NE(base::CurrentContext().thread_status(), nullptr);
-    ASSERT_STREQ(base::CurrentContext().thread_status(), "Adjusted");
+    ASSERT_EQ(base::CurrentContext().thread_status_string_view(), "Adjusted");
   });
   r->Join();
 }

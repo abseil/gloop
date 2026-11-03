@@ -107,7 +107,10 @@ using ::testing::NotNull;
 int32_t Inc(int32_t val) { return val + 1; }
 int32_t One() { return 1; }
 
-std::string GetTraceStatus() { return base::CurrentContext().thread_status(); }
+std::string GetTraceStatus() {
+  return std::string(
+      base::CurrentContext().thread_status_string_view().value_or(""));
+}
 
 TEST(FunctorToCallback, Closure) {
   Closure* c = ToCallback([] {});
