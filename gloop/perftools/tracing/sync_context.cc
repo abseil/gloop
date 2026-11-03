@@ -455,8 +455,7 @@ void SyncContext::AddListener(TraceEventListener* listener) {
   }
 }
 
-void SyncContext::AddListenerToCurrent(Access, TraceSpanId,
-                                       TraceEventListener* listener,
+void SyncContext::AddListenerToCurrent(Access, TraceEventListener* listener,
                                        StringRef label) {
   if (listener != nullptr) {
     if (impl_) {

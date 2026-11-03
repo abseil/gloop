@@ -145,8 +145,7 @@ void TraceContext::AddTraceEventListener(
     base::ContextAccess, perftools::tracing::TraceEventListener* listener) {
   using SyncContextAccess = perftools::tracing::core::SyncContext::Access;
   auto* tc = base::internal::MutableCurrentContext::MutableCurrentTrace();
-  tc->sync_context_.AddListenerToCurrent(SyncContextAccess(), tc->rpc_id_,
-                                         listener);
+  tc->sync_context_.AddListenerToCurrent(SyncContextAccess(), listener);
 }
 
 void TraceContext::RemoveTraceEventListener(

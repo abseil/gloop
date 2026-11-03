@@ -291,8 +291,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   // `label` identifies the code beginning or resuming the execution of the
   // active instance and is typically either the source location of the calling
   // code, or an explicit label provided in the code originating the call.
-  void AddListenerToCurrent(Access, TraceSpanId span_id,
-                            TraceEventListener* listener,
+  void AddListenerToCurrent(Access, TraceEventListener* listener,
                             StringRef label = TraceSourceLocation::current());
 
   // Removes 'listener` from this instance where this instance is the (embedded)
@@ -452,11 +451,11 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   // tracing state used by the tracing event listener framework, and must be
   // invoked after this instance has been installed as the current thread's
   // context. For example, swapping in a scheduled context without a current
-  // active context sets the `active_sync_id` and `active_span_id` for the
-  // current thread and emits an `OnTraceBeginSync` event.
-  void AfterSwapCurrent(Access, TraceSpanId span_id,
+  // active context sets the `active_sync_id` for the current thread and
+  // emits an `OnTraceBeginSync` event.
+  void AfterSwapCurrent(Access,
                         StringRef label = TraceSourceLocation::current());
-  void AfterRestoreCurrent(Access, TraceSpanId span_id,
+  void AfterRestoreCurrent(Access,
                            StringRef label = TraceSourceLocation::current());
 
   static SyncContext CreateForTesting(Access, TraceEventListener* listener,
@@ -735,8 +734,7 @@ inline void SyncContext::BeforeSwapCurrent(Access, const SyncContext& to) {
   }
 }
 
-inline void SyncContext::AfterSwapCurrent(Access, TraceSpanId,
-                                          StringRef label) {
+inline void SyncContext::AfterSwapCurrent(Access, StringRef label) {
   if (Impl* impl = impl_; impl != nullptr) {
     impl_ = nullptr;
     if (impl->AfterSwapCurrent(label)) {
@@ -753,8 +751,7 @@ inline void SyncContext::BeforeRestoreCurrent(Access, const SyncContext& to) {
   }
 }
 
-inline void SyncContext::AfterRestoreCurrent(Access, TraceSpanId,
-                                             StringRef label) {
+inline void SyncContext::AfterRestoreCurrent(Access, StringRef label) {
   if (Impl* impl = impl_; impl != nullptr) {
     impl_ = nullptr;
     if (impl->AfterRestoreCurrent(label)) {

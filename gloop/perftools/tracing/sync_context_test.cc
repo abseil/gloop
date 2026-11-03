@@ -177,11 +177,11 @@ class Context {
   void RemoveListener(TraceEventListener* tel) { sync_.RemoveListener(tel); }
   static void AddListenerToCurrent(TraceEventListener* tel) {
     auto& tc = thread_context_;
-    tc.sync_.AddListenerToCurrent(access(), tc.span_id_, tel);
+    tc.sync_.AddListenerToCurrent(access(), tel);
   }
   static void AddListenerToCurrent(TraceEventListener* tel, StringLabel label) {
     auto& tc = thread_context_;
-    tc.sync_.AddListenerToCurrent(access(), tc.span_id_, tel, label);
+    tc.sync_.AddListenerToCurrent(access(), tel, label);
   }
   static void RemoveListenerFromCurrent(TraceEventListener* tel) {
     thread_context_.sync_.RemoveListenerFromCurrent(access(), tel);
@@ -196,18 +196,17 @@ class Context {
     sync_.BeforeSwapCurrent(access(), context.sync_);
     using std::swap;
     swap(*this, context);
-    sync_.AfterSwapCurrent(access(), span_id_, label);
+    sync_.AfterSwapCurrent(access(), label);
   }
 
   void RestoreFrom(Context& context) {
     sync_.BeforeRestoreCurrent(access(), context.sync_);
     using std::swap;
     swap(*this, context);
-    sync_.AfterRestoreCurrent(access(), span_id_);
+    sync_.AfterRestoreCurrent(access());
   }
 
   SyncContext sync_;
-  int span_id_ = 0;
   static thread_local Context thread_context_;
 };
 
@@ -268,9 +267,9 @@ TEST(SyncContextValueSemantics, OperationsOnDefaultInstanceAreNops) {
   EXPECT_TRUE(context.CreateThread("Thread").empty());
   EXPECT_TRUE(context.CreateNoop().empty());
   context.BeforeSwapCurrent(access(), other);
-  context.AfterSwapCurrent(access(), /*span_id=*/1, "Swap");
+  context.AfterSwapCurrent(access(), "Swap");
   context.BeforeRestoreCurrent(access(), other);
-  context.AfterRestoreCurrent(access(), /*span_id=*/1, "Restore");
+  context.AfterRestoreCurrent(access(), "Restore");
   context.AddListener(nullptr);
   EXPECT_FALSE(other.ContainsListener(nullptr));
   EXPECT_FALSE(other.ContainsListener(&mock));
@@ -490,10 +489,10 @@ TEST_F(SyncContextTest, AddListenersToCurrentNoCurrent) {
   // The internal code has no way to verify the state of
   // something that is 'empty' / a nullptr pimpl.
   EXPECT_CALL(mock1, OnTraceBeginSync(kMainSyncId, _));
-  root.AddListenerToCurrent(access(), /*span_id=*/0, &mock1);
+  root.AddListenerToCurrent(access(), &mock1);
 
   EXPECT_CALL(mock2, OnTraceBeginSync(kMainSyncId, _));
-  root.AddListenerToCurrent(access(), /*span_id=*/0, &mock2);
+  root.AddListenerToCurrent(access(), &mock2);
 
   EXPECT_CALL(mock2, ReleaseEventListener());
   EXPECT_CALL(mock1, ReleaseEventListener());

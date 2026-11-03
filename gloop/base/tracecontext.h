@@ -1155,7 +1155,7 @@ inline void TraceContext::BeforeSwapCurrent(base::ContextAccess,
 inline void TraceContext::AfterSwapCurrent(
     base::ContextAccess, perftools::tracing::StringRef label) {
   if (sync_context_.has_listeners()) {
-    sync_context_.AfterSwapCurrent(SyncContextAccess(), rpc_id_, label);
+    sync_context_.AfterSwapCurrent(SyncContextAccess(), label);
   }
   CAPTURE_TRACECONTEXT_CHANGE_ANNOTATION(this);
 }
@@ -1171,7 +1171,7 @@ inline void TraceContext::BeforeRestoreCurrent(base::ContextAccess,
 inline void TraceContext::AfterRestoreCurrent(
     base::ContextAccess, perftools::tracing::StringRef label) {
   if (sync_context_.has_listeners()) {
-    sync_context_.AfterRestoreCurrent(SyncContextAccess(), rpc_id_, label);
+    sync_context_.AfterRestoreCurrent(SyncContextAccess(), label);
   }
   CAPTURE_TRACECONTEXT_CHANGE_ANNOTATION(this);
 }
