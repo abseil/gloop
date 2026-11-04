@@ -61,6 +61,34 @@ cc_test(
 )
 
 cc_library(
+    name = "backoff_test_util",
+    testonly = 1,
+    srcs = ["backoff_test_util.cc"],
+    hdrs = ["backoff_test_util.h"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest_for_library",
+    ],
+)
+
+cc_test(
+    name = "backoff_test_util_test",
+    size = "small",
+    srcs = ["backoff_test_util_test.cc"],
+    deps = [
+        ":backoff",
+        ":backoff_test_util",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/time",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_library(
     name = "monotonic_clock",
     srcs = [
         "monotonic_clock.cc",
