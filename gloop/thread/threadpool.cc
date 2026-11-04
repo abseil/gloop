@@ -133,6 +133,16 @@ void ThreadPool::RunWorker() {
   }
 }
 
+thread::Options ThreadPool::DefaultThreadOptions() {
+#ifdef THREAD_POOL_UNOPTIMIZED_BUILD
+  constexpr size_t kDefaultStackSize =
+      std::max<size_t>(kDefaultStackBytes, 128 * 1024);
+#else
+  constexpr size_t kDefaultStackSize = kDefaultStackBytes;
+#endif
+  return thread::Options().set_stack_size(kDefaultStackSize);
+}
+
 ThreadPool::ThreadPool(int num_threads, Options options)
     : capacity_(options.queue_capacity),
       // It is a common error to call ThreadPool(workitems.size()), which

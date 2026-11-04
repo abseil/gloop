@@ -120,8 +120,7 @@ class ThreadPool : public AbstractThreadPool {
     // The name prefix to use for threads in this pool.
     std::string name_prefix;
     // The thread options to use for threads in this pool.
-    thread::Options thread_options =
-        thread::Options().set_stack_size(kDefaultStackBytes);
+    thread::Options thread_options = DefaultThreadOptions();
     // The capacity of the queue of unscheduled closures. Once this fills up,
     // calls to Schedule() will block and calls to TrySchedule() will return
     // false.
@@ -192,6 +191,8 @@ class ThreadPool : public AbstractThreadPool {
 #endif
 
  private:
+  static thread::Options DefaultThreadOptions();
+
   // Queue entry of the invocable to run and the captured base::Context.
   struct Entry {
     base::Context context;
@@ -299,6 +300,7 @@ class ThreadPool : public AbstractThreadPool {
   Thread* dead_thread_ ABSL_GUARDED_BY(mutex_) = nullptr;
 
   friend class ThreadPoolWorker;
+  FRIEND_TEST(ThreadPoolTest, DefaultStackSize);
   FRIEND_TEST(ThreadPoolTest, OptionsConstructor);
 };
 

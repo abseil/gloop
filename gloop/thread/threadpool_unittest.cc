@@ -20,6 +20,8 @@
 
 #include "gloop/thread/threadpool.h"
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -237,6 +239,17 @@ TEST(ThreadPoolTest, SetName) {
     }
   }
   CHECK_EQ(3, foo_threads_seen);
+}
+
+TEST(ThreadPoolTest, DefaultStackSize) {
+  ThreadPool pool(1);
+#ifdef THREAD_POOL_UNOPTIMIZED_BUILD
+  constexpr size_t kExpectedStackSize =
+      std::max<size_t>(ThreadPool::kDefaultStackBytes, 128 * 1024);
+#else
+  constexpr size_t kExpectedStackSize = ThreadPool::kDefaultStackBytes;
+#endif
+  EXPECT_EQ(pool.thread_options_.stack_size(), kExpectedStackSize);
 }
 
 TEST(ThreadPoolTest, OptionsConstructor) {
