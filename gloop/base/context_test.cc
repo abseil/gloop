@@ -52,6 +52,8 @@
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/test_only_access.h"
 #include "gloop/perftools/tracing/tracing_base.h"
+#include "gloop/thread/thread.h"
+#include "gloop/thread/thread_options.h"
 #include "gloop/thread/threadpool.h"
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
@@ -59,6 +61,8 @@
 #include "gloop/util/status/status_macros.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+
+namespace t = ::testing;
 
 using perftools::tracing::kMainSyncId;
 using perftools::tracing::kNoSyncId;
@@ -861,6 +865,55 @@ TEST_F(ContextTest, WithContextHardeningDisableThroughFlag) {
   std::optional<WithContext> wc1(context1);
   WithContext wc2(context2);
   wc1 = std::nullopt;
+}
+
+// If a context hasn't yet been created for the thread, then
+// CurrentTraceContextNoAlloc should return null. Otherwise it should return
+// that context's embedded trace context.
+TEST_F(ContextTest, CurrentTraceContextNoAlloc) {
+  // No context yet seen
+  {
+    ClosureThread t{
+        thread::Options().set_joinable(true),
+        "CurrentTraceContextNoAlloc",
+        [] { EXPECT_THAT(CurrentTraceContextNoAlloc(), t::IsNull()); },
+    };
+
+    t.Start();
+    t.Join();
+  }
+
+  // Context already seen
+  {
+    const TraceContext& expected = CurrentContext().trace_context();
+    EXPECT_THAT(CurrentTraceContextNoAlloc(), t::Pointee(t::Ref(expected)));
+  }
+}
+
+// If a context hasn't yet been created for the thread, then CurrentThreadStatus
+// should return null. Otherwise it should return that context's thread status
+// string.
+TEST_F(ContextTest, CurrentThreadStatus) {
+  // No context yet seen
+  {
+    ClosureThread t{
+        thread::Options().set_joinable(true),
+        "CurrentThreadStatus",
+        [] { EXPECT_THAT(CurrentThreadStatus(), t::IsNull()); },
+    };
+
+    t.Start();
+    t.Join();
+  }
+
+  // Context already seen
+  //
+  // TODO: check for reference equality with the string once
+  // Context owns its string.
+  {
+    const WithThreadStatus wts("taco");
+    EXPECT_STREQ("taco", CurrentThreadStatus());
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////
