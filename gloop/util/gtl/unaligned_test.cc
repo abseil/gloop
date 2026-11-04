@@ -33,8 +33,10 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/numeric/int128.h"
+#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "gloop/util/endian/endian.h"
+#include "gloop/util/gtl/internal/is_hardened.h"
 #include "gloop/util/gtl/requires.h"
 #include "gloop/util/gtl/unaligned_internal.h"
 #include "gmock/gmock.h"
@@ -248,6 +250,85 @@ TEST(UnalignedLoad, ArrayOfInt) {
   }
 }
 
+TEST(UnalignedLoad, SrcRangeMustHaveSingleByteElementType) {
+  EXPECT_TRUE(gtl::Requires<const std::string&>(
+      [](auto&& x) -> decltype(UnalignedLoad<int>(x)) {}));
+  EXPECT_TRUE(gtl::Requires<absl::string_view>(
+      [](auto&& x) -> decltype(UnalignedLoad<int>(x)) {}));
+  EXPECT_TRUE(gtl::Requires<const std::vector<char>&>(
+      [](auto&& x) -> decltype(UnalignedLoad<int>(x)) {}));
+  EXPECT_TRUE(gtl::Requires<const std::vector<unsigned char>&>(
+      [](auto&& x) -> decltype(UnalignedLoad<int>(x)) {}));
+  EXPECT_TRUE(gtl::Requires<const std::vector<signed char>&>(
+      [](auto&& x) -> decltype(UnalignedLoad<int>(x)) {}));
+  EXPECT_TRUE(gtl::Requires<const std::vector<std::byte>&>(
+      [](auto&& x) -> decltype(UnalignedLoad<int>(x)) {}));
+  EXPECT_TRUE((gtl::Requires<const std::array<std::byte, 4>&>(
+      [](auto&& x) -> decltype(UnalignedLoad<int>(x)) {})));
+  EXPECT_TRUE(gtl::Requires<absl::Span<const uint8_t>>(
+      [](auto&& x) -> decltype(UnalignedLoad<int>(x)) {}));
+
+  EXPECT_FALSE(gtl::Requires<const std::vector<int>&>(
+      [](auto&& x) -> decltype(UnalignedLoad<int>(x)) {}));
+  EXPECT_FALSE(gtl::Requires<const std::vector<uint64_t>&>(
+      [](auto&& x) -> decltype(UnalignedLoad<int>(x)) {}));
+  EXPECT_FALSE(gtl::Requires<const std::vector<float>&>(
+      [](auto&& x) -> decltype(UnalignedLoad<int>(x)) {}));
+  EXPECT_FALSE(gtl::Requires<const std::vector<double>&>(
+      [](auto&& x) -> decltype(UnalignedLoad<int>(x)) {}));
+  EXPECT_FALSE(gtl::Requires<absl::Span<const int>>(
+      [](auto&& x) -> decltype(UnalignedLoad<int>(x)) {}));
+}
+
+TEST(UnalignedLoad, SpanAndSubspan) {
+  const uint8_t data[5] = {0x11, 0x22, 0x33, 0x44, 0x55};
+  absl::Span<const uint8_t> sp(data);
+  if constexpr (LittleEndian::IsLittleEndian()) {
+    EXPECT_EQ(UnalignedLoad<uint32_t>(sp), 0x44332211u);
+    EXPECT_EQ(UnalignedLoad<uint32_t>(sp.subspan(1)), 0x55443322u);
+  } else {
+    EXPECT_EQ(UnalignedLoad<uint32_t>(sp), 0x11223344u);
+    EXPECT_EQ(UnalignedLoad<uint32_t>(sp.subspan(1)), 0x22334455u);
+  }
+}
+
+TEST(UnalignedLoad, StringAndStringView) {
+  const std::string str = {"\x11\x22\x33\x44\x55", 5};
+  const absl::string_view sv = str;
+  if constexpr (LittleEndian::IsLittleEndian()) {
+    EXPECT_EQ(UnalignedLoad<uint32_t>(str), 0x44332211u);
+    EXPECT_EQ(UnalignedLoad<uint32_t>(sv.substr(1)), 0x55443322u);
+  } else {
+    EXPECT_EQ(UnalignedLoad<uint32_t>(str), 0x11223344u);
+    EXPECT_EQ(UnalignedLoad<uint32_t>(sv.substr(1)), 0x22334455u);
+  }
+}
+
+TEST(UnalignedLoad, VectorAndArray) {
+  const std::vector<uint8_t> vec = {0x11, 0x22, 0x33, 0x44};
+  const std::array<std::byte, 4> arr = {std::byte{0x11}, std::byte{0x22},
+                                        std::byte{0x33}, std::byte{0x44}};
+  const uint32_t expected =
+      LittleEndian::IsLittleEndian() ? 0x44332211u : 0x11223344u;
+  EXPECT_EQ(UnalignedLoad<uint32_t>(vec), expected);
+  EXPECT_EQ(UnalignedLoad<uint32_t>(arr), expected);
+}
+
+TEST(UnalignedLoadDeathTest, CrashesOnOutOfBoundsRead) {
+#if GTEST_HAS_DEATH_TEST
+  if (gtl::internal::IsHardened()) {
+    const std::vector<uint8_t> vec = {0x11, 0x22, 0x33};
+    EXPECT_DEATH(UnalignedLoad<uint32_t>(vec), "");
+    EXPECT_DEATH(UnalignedLoad<uint32_t>(absl::MakeConstSpan(vec)), "");
+    EXPECT_DEATH(UnalignedLoad<uint64_t>(absl::string_view("1234567")), "");
+  } else {
+    GTEST_SKIP() << "hardening is disabled";
+  }
+#else
+  GTEST_SKIP() << "death tests are not supported";
+#endif
+}
+
 TEST(UnalignedStore, DestPtrMustBeCharPtrUnsignedCharPtrBytePtrOrVoidPtr) {
   EXPECT_TRUE(gtl::Requires<void*>(
       [](auto&& x) -> decltype(UnalignedStore<int>(100, x)) {}));
@@ -455,6 +536,94 @@ TEST(UnalignedStore, ArrayOfInt) {
                 ElementsAre(0x44, 0x7f, 0x00, 0xff, 0x00, 0x7f, 0xff, 0x00,
                             0x00, 0xbb, 0xaa, 0x99));
   }
+}
+
+TEST(UnalignedStore, DestRangeMustBeWritableSingleByteRange) {
+  EXPECT_TRUE(gtl::Requires<std::string&>(
+      [](auto&& x) -> decltype(UnalignedStore<int>(100, x)) {}));
+  EXPECT_TRUE(gtl::Requires<std::vector<char>&>(
+      [](auto&& x) -> decltype(UnalignedStore<int>(100, x)) {}));
+  EXPECT_TRUE(gtl::Requires<std::vector<unsigned char>&>(
+      [](auto&& x) -> decltype(UnalignedStore<int>(100, x)) {}));
+  EXPECT_TRUE(gtl::Requires<std::vector<signed char>&>(
+      [](auto&& x) -> decltype(UnalignedStore<int>(100, x)) {}));
+  EXPECT_TRUE(gtl::Requires<std::vector<std::byte>&>(
+      [](auto&& x) -> decltype(UnalignedStore<int>(100, x)) {}));
+  EXPECT_TRUE((gtl::Requires<std::array<std::byte, 4>&>(
+      [](auto&& x) -> decltype(UnalignedStore<int>(100, x)) {})));
+  EXPECT_TRUE(gtl::Requires<absl::Span<char>>(
+      [](auto&& x) -> decltype(UnalignedStore<int>(100, x)) {}));
+  EXPECT_TRUE(gtl::Requires<absl::Span<uint8_t>>(
+      [](auto&& x) -> decltype(UnalignedStore<int>(100, x)) {}));
+  EXPECT_TRUE(gtl::Requires<absl::Span<std::byte>>(
+      [](auto&& x) -> decltype(UnalignedStore<int>(100, x)) {}));
+
+  EXPECT_FALSE(gtl::Requires<const std::string&>(
+      [](auto&& x) -> decltype(UnalignedStore<int>(100, x)) {}));
+  EXPECT_FALSE(gtl::Requires<std::string>(
+      [](auto&& x) -> decltype(UnalignedStore<int>(
+                       100, std::forward<decltype(x)>(x))) {}));
+  EXPECT_FALSE(gtl::Requires<absl::string_view>(
+      [](auto&& x) -> decltype(UnalignedStore<int>(100, x)) {}));
+  EXPECT_FALSE(gtl::Requires<absl::Span<const char>>(
+      [](auto&& x) -> decltype(UnalignedStore<int>(100, x)) {}));
+  EXPECT_FALSE(gtl::Requires<const std::vector<uint8_t>&>(
+      [](auto&& x) -> decltype(UnalignedStore<int>(100, x)) {}));
+  EXPECT_FALSE(gtl::Requires<std::vector<uint8_t>>(
+      [](auto&& x) -> decltype(UnalignedStore<int>(
+                       100, std::forward<decltype(x)>(x))) {}));
+  EXPECT_FALSE(gtl::Requires<std::vector<int>&>(
+      [](auto&& x) -> decltype(UnalignedStore<int>(100, x)) {}));
+  EXPECT_FALSE(gtl::Requires<absl::Span<int>>(
+      [](auto&& x) -> decltype(UnalignedStore<int>(100, x)) {}));
+}
+
+TEST(UnalignedStore, SpanAndSubspan) {
+  uint8_t data[5] = {};
+  absl::Span<uint8_t> sp(data);
+  if constexpr (LittleEndian::IsLittleEndian()) {
+    UnalignedStore<uint32_t>(0x44332211u, sp);
+    EXPECT_THAT(data, ElementsAre(0x11, 0x22, 0x33, 0x44, 0x00));
+    UnalignedStore<uint32_t>(0x708090a0u, sp.subspan(1));
+    EXPECT_THAT(data, ElementsAre(0x11, 0xa0, 0x90, 0x80, 0x70));
+  } else {
+    UnalignedStore<uint32_t>(0x44332211u, sp);
+    EXPECT_THAT(data, ElementsAre(0x44, 0x33, 0x22, 0x11, 0x00));
+    UnalignedStore<uint32_t>(0x708090a0u, sp.subspan(1));
+    EXPECT_THAT(data, ElementsAre(0x44, 0x70, 0x80, 0x90, 0xa0));
+  }
+}
+
+TEST(UnalignedStore, String) {
+  std::string str(4, '\0');
+  UnalignedStore<uint32_t>(0x44332211u, str);
+  EXPECT_EQ(UnalignedLoad<uint32_t>(str), 0x44332211u);
+}
+
+TEST(UnalignedStore, VectorAndArray) {
+  std::vector<uint8_t> vec(4, 0);
+  std::array<std::byte, 4> arr = {};
+  UnalignedStore<uint32_t>(0x44332211u, vec);
+  UnalignedStore<uint32_t>(0x44332211u, arr);
+  EXPECT_EQ(UnalignedLoad<uint32_t>(vec), 0x44332211u);
+  EXPECT_EQ(UnalignedLoad<uint32_t>(arr), 0x44332211u);
+}
+
+TEST(UnalignedStoreDeathTest, CrashesOnOutOfBoundsWrite) {
+#if GTEST_HAS_DEATH_TEST
+  if (gtl::internal::IsHardened()) {
+    std::vector<uint8_t> vec(3, 0);
+    std::string str(7, '\0');
+    EXPECT_DEATH(UnalignedStore<uint32_t>(0x44332211u, vec), "");
+    EXPECT_DEATH(UnalignedStore<uint32_t>(0x44332211u, absl::MakeSpan(vec)),
+                 "");
+    EXPECT_DEATH(UnalignedStore<uint64_t>(0x1122334455667788ULL, str), "");
+  } else {
+    GTEST_SKIP() << "hardening is disabled";
+  }
+#else
+  GTEST_SKIP() << "death tests are not supported";
+#endif
 }
 
 TEST(Unaligned, Char) {

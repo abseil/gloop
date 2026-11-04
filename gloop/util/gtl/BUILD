@@ -700,6 +700,7 @@ cc_library(
         ":unaligned_internal",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/meta:type_traits",
     ],
 )
@@ -713,6 +714,7 @@ cc_library(
     deps = [
         ":requires",
         "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base",
     ],
 )
@@ -726,10 +728,12 @@ cc_test(
         ":unaligned_internal",
         "//gloop:gloop_test_main",
         "//gloop/util/endian",
+        "//gloop/util/gtl/internal:is_hardened",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/hash:hash_testing",
         "@abseil-cpp//absl/numeric:int128",
+        "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",

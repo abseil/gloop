@@ -97,7 +97,10 @@ cc_test(
     deps = [
         ":endian",
         "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

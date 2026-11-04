@@ -20,9 +20,15 @@
 
 #include "gloop/util/endian/endian-fp.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <string>
+#include <vector>
 
+#include "absl/base/macros.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "gloop/util/endian/endian.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -119,6 +125,38 @@ TEST_P(EndianFloatTest, WFFLoadStore) {
   EXPECT_THAT(be_output, ElementsAreArray(tv.be));
 }
 
+TEST_P(EndianFloatTest, WFFLoadStoreStringAndStringView) {
+  const FloatTestValue& tv = GetParam();
+
+  std::string le_str(4, '\0');
+  LittleEndianFloat::StoreToBuf(le_str, tv.f);
+  EXPECT_THAT(le_str, ElementsAreArray(tv.le));
+  EXPECT_EQ(LittleEndianFloat::LoadFromBuf(le_str), tv.f);
+  EXPECT_EQ(LittleEndianFloat::LoadFromBuf(absl::string_view(le_str)), tv.f);
+
+  std::string be_str(4, '\0');
+  BigEndianFloat::StoreToBuf(be_str, tv.f);
+  EXPECT_THAT(be_str, ElementsAreArray(tv.be));
+  EXPECT_EQ(BigEndianFloat::LoadFromBuf(be_str), tv.f);
+  EXPECT_EQ(BigEndianFloat::LoadFromBuf(absl::string_view(be_str)), tv.f);
+}
+
+TEST_P(EndianFloatTest, WFFLoadStoreVectorAndSubspan) {
+  const FloatTestValue& tv = GetParam();
+
+  std::vector<uint8_t> le_vec(6, 0);
+  LittleEndianFloat::StoreToBuf(absl::MakeSpan(le_vec).subspan(1, 4), tv.f);
+  EXPECT_EQ(
+      LittleEndianFloat::LoadFromBuf(absl::MakeConstSpan(le_vec).subspan(1, 4)),
+      tv.f);
+
+  std::vector<uint8_t> be_vec(6, 0);
+  BigEndianFloat::StoreToBuf(absl::MakeSpan(be_vec).subspan(1, 4), tv.f);
+  EXPECT_EQ(
+      BigEndianFloat::LoadFromBuf(absl::MakeConstSpan(be_vec).subspan(1, 4)),
+      tv.f);
+}
+
 INSTANTIATE_TEST_SUITE_P(
     , EndianFloatTest, testing::ValuesIn(kFloatTestValues),
     [](const testing::TestParamInfo<FloatTestValue>& info) {
@@ -163,10 +201,69 @@ TEST_P(EndianDoubleTest, WFDLoadStore) {
   EXPECT_THAT(be_output, ElementsAreArray(tv.be));
 }
 
+TEST_P(EndianDoubleTest, WFDLoadStoreStringAndStringView) {
+  const DoubleTestValue& tv = GetParam();
+
+  std::string le_str(8, '\0');
+  LittleEndianDouble::StoreToBuf(le_str, tv.d);
+  EXPECT_THAT(le_str, ElementsAreArray(tv.le));
+  EXPECT_EQ(LittleEndianDouble::LoadFromBuf(le_str), tv.d);
+  EXPECT_EQ(LittleEndianDouble::LoadFromBuf(absl::string_view(le_str)), tv.d);
+
+  std::string be_str(8, '\0');
+  BigEndianDouble::StoreToBuf(be_str, tv.d);
+  EXPECT_THAT(be_str, ElementsAreArray(tv.be));
+  EXPECT_EQ(BigEndianDouble::LoadFromBuf(be_str), tv.d);
+  EXPECT_EQ(BigEndianDouble::LoadFromBuf(absl::string_view(be_str)), tv.d);
+}
+
+TEST_P(EndianDoubleTest, WFDLoadStoreVectorAndSubspan) {
+  const DoubleTestValue& tv = GetParam();
+
+  std::vector<uint8_t> le_vec(10, 0);
+  LittleEndianDouble::StoreToBuf(absl::MakeSpan(le_vec).subspan(1, 8), tv.d);
+  EXPECT_EQ(LittleEndianDouble::LoadFromBuf(
+                absl::MakeConstSpan(le_vec).subspan(1, 8)),
+            tv.d);
+
+  std::vector<uint8_t> be_vec(10, 0);
+  BigEndianDouble::StoreToBuf(absl::MakeSpan(be_vec).subspan(1, 8), tv.d);
+  EXPECT_EQ(
+      BigEndianDouble::LoadFromBuf(absl::MakeConstSpan(be_vec).subspan(1, 8)),
+      tv.d);
+}
+
 INSTANTIATE_TEST_SUITE_P(
     , EndianDoubleTest, testing::ValuesIn(kDoubleTestValues),
     [](const testing::TestParamInfo<DoubleTestValue>& info) {
       return absl::StrCat("0x", absl::Hex(info.param.i, absl::kZeroPad16));
     });
+
+bool IsHardened() {
+  bool hardened = false;
+  ABSL_HARDENING_ASSERT([&hardened]() {
+    hardened = true;
+    return true;
+  }());
+  return hardened;
+}
+
+TEST(EndianFPDeathTest, OutOfBoundsAbortsWhenHardened) {
+  if (!IsHardened()) {
+    GTEST_SKIP() << "hardening is disabled";
+  }
+  std::vector<uint8_t> float_buf(3, 0);
+  EXPECT_DEATH_IF_SUPPORTED(LittleEndianFloat::LoadFromBuf(float_buf), "");
+  EXPECT_DEATH_IF_SUPPORTED(LittleEndianFloat::StoreToBuf(float_buf, 1.0f), "");
+  EXPECT_DEATH_IF_SUPPORTED(BigEndianFloat::LoadFromBuf(float_buf), "");
+  EXPECT_DEATH_IF_SUPPORTED(BigEndianFloat::StoreToBuf(float_buf, 1.0f), "");
+
+  std::vector<uint8_t> double_buf(7, 0);
+  EXPECT_DEATH_IF_SUPPORTED(LittleEndianDouble::LoadFromBuf(double_buf), "");
+  EXPECT_DEATH_IF_SUPPORTED(LittleEndianDouble::StoreToBuf(double_buf, 1.0),
+                            "");
+  EXPECT_DEATH_IF_SUPPORTED(BigEndianDouble::LoadFromBuf(double_buf), "");
+  EXPECT_DEATH_IF_SUPPORTED(BigEndianDouble::StoreToBuf(double_buf, 1.0), "");
+}
 
 }  // namespace

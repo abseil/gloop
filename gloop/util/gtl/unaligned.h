@@ -24,10 +24,12 @@
 #include <array>
 #include <cstddef>
 #include <cstring>
+#include <iterator>
 #include <type_traits>
 #include <utility>
 
 #include "absl/base/casts.h"
+#include "absl/base/macros.h"
 #include "absl/meta/type_traits.h"
 #include "gloop/util/gtl/unaligned_internal.h"
 
@@ -66,6 +68,25 @@ T UnalignedLoad(const U* data) {
   return UnalignedLoad<T>(reinterpret_cast<const char*>(data));
 }
 
+// Loads the byte representation (in host endianness) from the contiguous byte
+// range 'data'. It does not matter whether 'std::data(data)' is properly
+// aligned for T or not.
+//
+// Checked runtime constraint:
+//   * std::size(data) >= sizeof(T).
+//
+// Compile-time constraints:
+//   * T must be bit-castable (absl::bit_cast).
+//   * Must specify template argument T.
+//   * 'data' must be a contiguous range of char, unsigned char, or std::byte.
+template <typename T, int&... ExplicitArgumentBarrier, typename C,
+          typename = std::enable_if_t<
+              internal_unaligned::IsReadableByteRange<C>::value>>
+T UnalignedLoad(const C& data) {
+  ABSL_HARDENING_ASSERT(std::size(data) >= sizeof(T));
+  return UnalignedLoad<T>(reinterpret_cast<const char*>(std::data(data)));
+}
+
 // Stores the byte representation (in host endianness) of 'value' to the address
 // pointed by 'data'. It does not matter whether 'data' is properly aligned for
 // T or not.
@@ -95,6 +116,26 @@ template <typename T, int&... ExplicitArgumentBarrier, typename U,
           typename = std::enable_if_t<std::is_same_v<U, void>>>
 void UnalignedStore(const absl::type_identity_t<T>& value, U* data) {
   UnalignedStore<T>(value, reinterpret_cast<char*>(data));
+}
+
+// Stores the byte representation (in host endianness) of 'value' to the
+// contiguous byte range 'data'. It does not matter whether 'std::data(data)' is
+// properly aligned for T or not.
+//
+// Checked runtime constraint:
+//   * std::size(data) >= sizeof(T).
+//
+// Compile-time constraints:
+//   * T must be bit-castable (absl::bit_cast).
+//   * Must specify template argument T.
+//   * 'data' must be a writable contiguous range of char, unsigned char, or
+//     std::byte.
+template <typename T, int&... ExplicitArgumentBarrier, typename C,
+          typename = std::enable_if_t<
+              internal_unaligned::IsWritableByteRange<C>::value>>
+void UnalignedStore(const absl::type_identity_t<T>& value, C&& data) {
+  ABSL_HARDENING_ASSERT(std::size(data) >= sizeof(T));
+  UnalignedStore<T>(value, reinterpret_cast<char*>(std::data(data)));
 }
 
 // Unaligned<T> is a wrapper that allows a T value to be stored at an unaligned
