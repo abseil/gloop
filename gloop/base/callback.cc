@@ -23,8 +23,6 @@
 namespace base {
 namespace internal {
 
-CallbackBase::~CallbackBase() = default;
-
 void CallbackBase::UnusedKeyMethod() {}  // <link>
 
 }  // namespace internal
