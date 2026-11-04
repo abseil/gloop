@@ -77,7 +77,6 @@
 #include "absl/base/attributes.h"
 #include "absl/base/casts.h"
 #include "absl/base/const_init.h"
-#include "absl/base/dynamic_annotations.h"
 #include "absl/base/internal/direct_mmap.h"  // For direct mmap
 #include "absl/base/log_severity.h"
 #include "absl/base/no_destructor.h"
@@ -91,6 +90,7 @@
 #include "absl/log/log.h"
 #include "absl/log/log_streamer.h"
 #include "absl/log/vlog_is_on.h"
+#include "absl/numeric/bits.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
