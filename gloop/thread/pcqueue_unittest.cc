@@ -18,20 +18,20 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-#include <cstdint>
-#include <memory>
+#include "gloop/thread/pcqueue.h"
 
-#include "absl/time/clock.h"
-#include "absl/time/time.h"
 #undef NDEBUG
-
 #include <assert.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <unistd.h>
 
+#include <cstdint>
+#include <memory>
+
+#include "absl/time/clock.h"
+#include "absl/time/time.h"
 #include "benchmark/benchmark.h"
-#include "gloop/thread/pcqueue.h"
 #include "gloop/thread/thread.h"
 #include "gtest/gtest.h"
 
