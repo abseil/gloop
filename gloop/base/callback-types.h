@@ -46,7 +46,7 @@ class
 #endif
         CallbackBase {
  public:
-  virtual ~CallbackBase() = default;
+  virtual ~CallbackBase();
   virtual bool IsRepeatable() const { return false; }
 
 #ifndef SWIG
