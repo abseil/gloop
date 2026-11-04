@@ -315,6 +315,7 @@ cc_library(
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/time:clock_interface",
+        "@abseil-cpp//absl/types:optional_ref",
         "@abseil-cpp//absl/types:span",
         "@googletest//:gtest_prod",
         "@tcmalloc//tcmalloc:malloc_extension",
