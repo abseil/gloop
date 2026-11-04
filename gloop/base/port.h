@@ -450,6 +450,17 @@ typedef void (*sig_t)(int);
 #define PATH_MAX MAX_PATH
 #endif
 
+// SOCK_TYPE_MASK
+// Covers the core socket types (SOCK_STREAM, SOCK_DGRAM, etc.), excluding
+// operational flags bitwise-OR'd into socket(2)/socketpair(2) type arguments
+// (such as SOCK_NONBLOCK and SOCK_CLOEXEC).
+//
+// Example:
+//   if ((type & SOCK_TYPE_MASK) == SOCK_STREAM) { ... }
+#ifndef SOCK_TYPE_MASK
+#define SOCK_TYPE_MASK 0xf
+#endif
+
 // -----------------------------------------------------------------------------
 // Predefined System/Language Functions
 // -----------------------------------------------------------------------------
