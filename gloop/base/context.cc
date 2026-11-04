@@ -35,6 +35,7 @@
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/time/time.h"
+#include "absl/types/optional_ref.h"
 #include "gloop/base/censushandle.h"
 #include "gloop/base/context_access.h"
 #include "gloop/base/static_threadlocal.h"
@@ -85,8 +86,6 @@ Context ExchangeThreadContext(ThreadContextAccess, Context,
 WithContext::WithContext(const Context&, perftools::tracing::StringRef) {}
 
 WithContext::~WithContext() {}
-
-const TraceContext* CurrentTraceContextNoAlloc() { return nullptr; }
 
 }  // namespace base
 
@@ -182,9 +181,8 @@ void Context::SwapCensusHandle(CensusHandle* handle) {
 
 const Context& CurrentContext() { return *InlineCurrent(); }
 
-const char* CurrentThreadStatus() {
-  const Context* ctx = per_thread_context.safe_pointer();
-  return (ctx == nullptr) ? nullptr : ctx->thread_status();
+absl::optional_ref<const Context> CurrentContextNoAlloc() {
+  return per_thread_context.safe_pointer();
 }
 
 void SetCurrentThreadStatus(const char* thread_status) {
@@ -193,11 +191,6 @@ void SetCurrentThreadStatus(const char* thread_status) {
 
 TraceContext* internal::MutableCurrentContext::MutableCurrentTrace() {
   return &InlineCurrent()->tc_;
-}
-
-const TraceContext* CurrentTraceContextNoAlloc() {
-  const Context* c = per_thread_context.safe_pointer();
-  return c ? &c->trace_context() : nullptr;
 }
 
 ABSL_XRAY_ALWAYS_INSTRUMENT void SwapCurrentContext(Context* c) {
@@ -239,6 +232,17 @@ Context ExchangeThreadContext(ThreadContextAccess access, Context context,
   swap(*current, context);
   trace->AfterExchangeThreadContext(access, label);
   return context;
+}
+
+// HACK(jacobsa): provide a definition of the function declared in
+// tracecontext.h, despite that header not being part of this target. The code
+// there is, and long has been, incorrect unless context.cc is also linked into
+// the binary.
+//
+// Note that we can't just forward declare CurrentTraceContextNoAlloc there,
+// because that function is marked inline but it can't be defined in that file.
+const TraceContext* CurrentTraceContextNoAlloc_ForTraceContext() {
+  return CurrentTraceContextNoAlloc();
 }
 
 ContextBuilder& ContextBuilder::set_trace_context(TraceContext tc) {

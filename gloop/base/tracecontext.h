@@ -227,8 +227,7 @@ class CurrentTraceContext {
 };
 
 namespace base {
-const TraceContext* CurrentTraceContextNoAlloc();
-
+const TraceContext* CurrentTraceContextNoAlloc_ForTraceContext();
 }  // namespace base
 
 #else  // BASE_HAVE_TRACECONTEXT
@@ -249,7 +248,7 @@ namespace subtle {
 class WithLifetimeBoundContext;
 }  // namespace subtle
 
-const TraceContext* CurrentTraceContextNoAlloc();
+const TraceContext* CurrentTraceContextNoAlloc_ForTraceContext();
 
 }  // namespace base
 
@@ -1178,7 +1177,7 @@ inline void TraceContext::AfterRestoreCurrent(
 
 inline void TraceContext::AddTraceEventListener(
     perftools::tracing::TraceEventListener* listener) {
-  DCHECK_NE(this, base::CurrentTraceContextNoAlloc());
+  DCHECK_NE(this, base::CurrentTraceContextNoAlloc_ForTraceContext());
   sync_context_.AddListener(listener);
 }
 

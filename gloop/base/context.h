@@ -40,6 +40,7 @@
 #include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
+#include "absl/types/optional_ref.h"
 #include "gloop/base/censushandle.h"
 #include "gloop/base/config.h"
 #include "gloop/base/context_access.h"
@@ -344,10 +345,20 @@ const Context& DefaultContext();
 // change the current thread's context.
 const Context& CurrentContext();
 
-// Returns a pointer to the "status string" associated with the current thread,
-// or nullptr if there is no status set. This function is safe to call from a
-// signal handler.
-const char* CurrentThreadStatus();
+// Like CurrentContext, but returns null if the thread's current context hasn't
+// yet been created. This is safe for use in signal handlers, and is usually
+// *not* what you want outside of a signal handler.
+absl::optional_ref<const Context> CurrentContextNoAlloc();
+
+// TODO: get rid of this.
+ABSL_DEPRECATE_AND_INLINE()
+inline const char* CurrentThreadStatus() {
+  const absl::optional_ref<const Context> current_context =
+      CurrentContextNoAlloc();
+
+  return current_context.has_value() ? current_context->thread_status()
+                                     : nullptr;
+}
 
 // Sets a "status string" associated with the current context. Use of this
 // method is discouraged; use the scoped base::WithThreadStatus instead.
@@ -360,9 +371,14 @@ const char* CurrentThreadStatus();
 // means that no status string will be printed.
 void SetCurrentThreadStatus(const char* thread_status);
 
-// Return the TraceContext of the current thread, or nullptr if one cannot be
-// found. This function is safe to call inside signal handlers.
-const TraceContext* CurrentTraceContextNoAlloc();
+ABSL_DEPRECATE_AND_INLINE()
+inline const TraceContext* CurrentTraceContextNoAlloc() {
+  const absl::optional_ref<const Context> current_context =
+      CurrentContextNoAlloc();
+
+  return current_context.has_value() ? &current_context->trace_context()
+                                     : nullptr;
+}
 
 // Scoped object that sets the current thread's context to switch_to until
 // the object is destroyed.
