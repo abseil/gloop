@@ -23,11 +23,13 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
+#include "absl/strings/string_view.h"
 #include "absl/synchronization/notification.h"
 #include "absl/time/clock.h"
 #include "absl/time/clock_interface.h"
@@ -116,9 +118,10 @@ class AddAfterHelperTest : public testing::Test {
         dummy_task_(util::functional::ToPermanentCallback([] {})) {}
 
   void CompleteAddAfter(absl::AnyInvocable<void() &&> task) {
-    const char* thread_status = base::CurrentThreadStatus();
-    if (thread_status != nullptr) {
-      complete_add_after_thread_status_ = thread_status;
+    const std::optional<absl::string_view> thread_status =
+        base::CurrentContext().thread_status_string_view();
+    if (thread_status.has_value()) {
+      complete_add_after_thread_status_ = *thread_status;
     }
     std::move(task)();
   }
@@ -258,8 +261,10 @@ TEST_F(AddAfterHelperTest, DeletionExecutesUnrunClosures) {
 TEST_F(AddAfterHelperTest, PropagatesContextToDelayedTask) {
   const absl::Time now = absl::Now();
 
-  std::string task_thread_status = "uninitialized";
-  auto task = [&] { task_thread_status = base::CurrentThreadStatus(); };
+  std::optional<std::string> task_thread_status = "uninitialized";
+  auto task = [&] {
+    task_thread_status = base::CurrentContext().thread_status_string_view();
+  };
   EXPECT_CALL(mock_executor_, ScheduleAtCalled(now));
 
   {

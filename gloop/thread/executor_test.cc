@@ -21,6 +21,7 @@
 #include "gloop/thread/executor.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -151,13 +152,14 @@ TEST_P(AddCancellableTest, CancelledDuringDelay) {
 TEST_P(AddCancellableTest, PropagatesContextToTask) {
   ExecutorHandle h;
   absl::Notification n;
-  std::string task_thread_status = "uninitialized";
+  std::optional<std::string> task_thread_status = "uninitialized";
   {
     base::WithThreadStatus ts("expected_task_thread_status");
     AddCancellableHelper(
         executor_, absl::Milliseconds(20),
         [&n, &task_thread_status] {
-          task_thread_status = base::CurrentThreadStatus();
+          task_thread_status =
+              base::CurrentContext().thread_status_string_view();
           n.Notify();
         },
         &h);

@@ -306,7 +306,7 @@ TEST(ThreadTest, DetachedThreadPreservesContext) {
   {
     base::WithThreadStatus wts("banana");
     StartDetachedThread("ctx_detached", [&notify] {
-      EXPECT_STREQ(base::CurrentThreadStatus(), "banana");
+      EXPECT_EQ(base::CurrentContext().thread_status_string_view(), "banana");
       notify.Notify();
     });
   }
