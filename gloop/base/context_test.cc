@@ -52,6 +52,7 @@
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/test_only_access.h"
 #include "gloop/perftools/tracing/tracing_base.h"
+#include "gloop/thread/thread.h"
 #include "gloop/thread/threadpool.h"
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
@@ -59,6 +60,8 @@
 #include "gloop/util/status/status_macros.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+
+namespace t = ::testing;
 
 using perftools::tracing::kMainSyncId;
 using perftools::tracing::kNoSyncId;
