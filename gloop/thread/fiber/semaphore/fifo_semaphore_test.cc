@@ -63,8 +63,11 @@ class FifoSemaphoreTest : public ::testing::Test {
   // test destruction, to ensure that fibers no longer hold references to
   // test-local data.
   void Cleanup() {
+    // Cancel all fibers before joining so that they can exit without stalling.
     for (const auto& f : fibers_) {
       f->Cancel();
+    }
+    for (const auto& f : fibers_) {
       f->Join();
     }
     fibers_.clear();
