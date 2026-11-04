@@ -868,6 +868,30 @@ TEST_F(ContextTest, WithContextHardeningDisableThroughFlag) {
 }
 
 // If a context hasn't yet been created for the thread, then
+// CurrentContextNoAlloc should return nullopt. Otherwise it should return a
+// reference to that context.
+TEST_F(ContextTest, CurrentContextNoAlloc) {
+  // No context yet seen
+  {
+    ClosureThread t{
+        thread::Options().set_joinable(true),
+        "CurrentContextNoAlloc",
+        [] { EXPECT_THAT(CurrentContextNoAlloc(), t::Eq(std::nullopt)); },
+    };
+
+    t.Start();
+    t.Join();
+  }
+
+  // Context already seen
+  {
+    const Context& expected = CurrentContext();
+    EXPECT_THAT(CurrentContextNoAlloc().as_pointer(),
+                t::Pointee(t::Ref(expected)));
+  }
+}
+
+// If a context hasn't yet been created for the thread, then
 // CurrentTraceContextNoAlloc should return null. Otherwise it should return
 // that context's embedded trace context.
 TEST_F(ContextTest, CurrentTraceContextNoAlloc) {
