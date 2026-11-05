@@ -31,6 +31,9 @@ cc_test(
     srcs = ["example_test.cc"],
     deps = [
         ":example_lib",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@gloop//gloop/util/task:status_matchers",
         "@googletest//:gtest_main",
     ],
 )
