@@ -3,8 +3,8 @@ name: Tests
 on:
   # continuous
   schedule:
-    # Run every hour
-    - cron: "0 * * * *"
+    # Run every hour (staggered to avoid top-of-the-hour runner queue spikes)
+    - cron: "45 * * * *"
 
   # postsubmit
   push:
