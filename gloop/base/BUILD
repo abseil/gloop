@@ -2537,3 +2537,16 @@ cc_library(
     hdrs = ["xray/tracing_annotations.h"],
     deps = ["//gloop:enforce_gloop_support"],
 )
+
+cc_library(
+    name = "phased_flag",
+    srcs = ["phased_flag.cc"],
+    hdrs = ["phased_flag.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
+    ],
+)
