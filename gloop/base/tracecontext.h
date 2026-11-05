@@ -226,11 +226,6 @@ class CurrentTraceContext {
   CurrentTraceContext() {}
 };
 
-namespace base {
-const TraceContext* CurrentTraceContextNoAlloc();
-
-}  // namespace base
-
 #else  // BASE_HAVE_TRACECONTEXT
 
 #include <optional>

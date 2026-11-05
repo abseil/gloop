@@ -87,8 +87,6 @@ WithContext::WithContext(const Context&, perftools::tracing::StringRef) {}
 
 WithContext::~WithContext() {}
 
-const TraceContext* CurrentTraceContextNoAlloc() { return nullptr; }
-
 }  // namespace base
 
 #else  // BASE_CONTEXT_HAVE_DEADLINE
