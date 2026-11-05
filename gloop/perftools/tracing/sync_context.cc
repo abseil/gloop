@@ -29,6 +29,7 @@
 #include "absl/base/optimization.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "absl/time/clock.h"
 #include "gloop/perftools/tracing/multiplex_trace_event_listener.h"
 #include "gloop/perftools/tracing/noop_trace_event_listener.h"
 #include "gloop/perftools/tracing/perftools_verify.h"
@@ -105,9 +106,19 @@ SyncContext::Impl::~Impl() {
 }
 
 SyncContext::Impl::Impl(SharedPtr shared, TraceEventListener* listener,
-                        SyncId sync_id) noexcept
-    : sync_id_(sync_id), listener_(listener), shared_(std::move(shared)) {
+                        SyncId sync_id, Ancestor ancestor) noexcept
+    : sync_id_(sync_id),
+      ancestor_(ancestor),
+      listener_(listener),
+      shared_(std::move(shared)) {
   DCHECK_NE(sync_id, kNoSyncId);
+}
+
+Ancestor SyncContext::Impl::MakeAncestor() const {
+  if (tls_context != nullptr && same_trace(tls_context->impl_)) {
+    return Ancestor{tls_context->active_sync_id(), absl::Now()};
+  }
+  return ancestor_;
 }
 
 TraceEventListener* SyncContext::Impl::ActiveListener() const {
@@ -139,9 +150,9 @@ SyncContext::Impl* SyncContext::Impl::New(TraceEventListener* listener) {
 
 SyncContext::Impl* SyncContext::Impl::CreateForTesting(
     TraceEventListener* listener, State state, SyncId sync_id,
-    SyncId active_sync_id) {
+    SyncId active_sync_id, Ancestor ancestor) {
   auto shared = std::make_shared<Shared>();
-  auto* context = new Impl(std::move(shared), listener, sync_id);
+  auto* context = new Impl(std::move(shared), listener, sync_id, ancestor);
   context->state_ = state;
   context->active_sync_id_ = active_sync_id;
   return context;
@@ -153,7 +164,8 @@ SyncContext::Impl* SyncContext::Impl::CreateThread(StringRef label) const {
   SyncId sync_id = shared_->NewThreadSyncId();
   active_listener->OnTraceSpawn(sync_id, label);
   TraceEventListener* listener = active_listener->GetEventListener(sync_id);
-  return listener ? new Impl(shared_, listener, sync_id) : nullptr;
+  return listener ? new Impl(shared_, listener, sync_id, MakeAncestor())
+                  : nullptr;
 }
 
 SyncContext::Impl* SyncContext::Impl::Copy() const {
@@ -161,7 +173,8 @@ SyncContext::Impl* SyncContext::Impl::Copy() const {
   if (this_listener == nullptr) return nullptr;
   SyncId sync_id = shared_->NewSyncId();
   TraceEventListener* new_listener = this_listener->GetEventListener(sync_id);
-  return new_listener ? new Impl(shared_, new_listener, sync_id) : nullptr;
+  return new_listener ? new Impl(shared_, new_listener, sync_id, MakeAncestor())
+                      : nullptr;
 }
 
 SyncContext::Impl* SyncContext::Impl::CreateNoop() const {
@@ -267,6 +280,7 @@ bool SyncContext::Impl::ResumeContext(BarrierId barrier_id, StringRef label,
     case State::kDefault:
       active_sync_id_ = sync_id_;
       internal::set_active_sync_id(active_sync_id_);
+      SetActiveContext(&self);
       listener_->OnTraceBeginSync(active_sync_id_, label);
       if (barrier_id != kNoBarrierId) {
         listener_->OnTraceObserved(barrier_id, label);
@@ -274,10 +288,12 @@ bool SyncContext::Impl::ResumeContext(BarrierId barrier_id, StringRef label,
       break;
     case State::kWait:
       internal::set_active_sync_id(active_sync_id_);
+      SetActiveContext(&self);
       listener_->OnTraceContinue(barrier_id);
       break;
     case State::kSuspended:
       internal::set_active_sync_id(active_sync_id_);
+      SetActiveContext(&self);
       listener_->OnTraceResumeSync(active_sync_id_);
       break;
     default:
@@ -287,7 +303,6 @@ bool SyncContext::Impl::ResumeContext(BarrierId barrier_id, StringRef label,
 
   // Update state to active and transfer listener ownership to thread.
   state_ = State::kActive;
-  SetActiveContext(&self);
   internal::set_active_event_listener(listener_);
   listener_ = nullptr;
 
@@ -423,8 +438,8 @@ bool SyncContext::Impl::AfterSwap(StringRef label, SyncContext& self) {
     DCHECK_NE(state_, State::kSuspended);
     state_ = State::kActive;
     active_sync_id_ = tls_active_sync_id();
-    current->OnTraceEnterSync(sync_id_, label);
     SetActiveContext(&self);
+    current->OnTraceEnterSync(sync_id_, label);
     return true;
   }
 
@@ -439,6 +454,7 @@ bool SyncContext::Impl::AfterSwap(StringRef label, SyncContext& self) {
     return false;
   }
 
+  SetActiveContext(&self);
   if (state_ == State::kDefault) {
     active_sync_id_ = sync_id_;
     internal::set_active_sync_id(active_sync_id_);
@@ -447,7 +463,6 @@ bool SyncContext::Impl::AfterSwap(StringRef label, SyncContext& self) {
     internal::set_active_sync_id(active_sync_id_);
     listener_->OnTraceResumeSync(active_sync_id_);
   }
-  SetActiveContext(&self);
   internal::set_active_event_listener(listener_);
   listener_ = nullptr;
   state_ = State::kActive;
