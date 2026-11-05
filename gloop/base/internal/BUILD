@@ -67,9 +67,6 @@ cc_library(
 cc_library(
     name = "init_google",
     hdrs = ["init_google.h"],
-    visibility = [
-        "//gloop/base:__pkg__",
-    ],
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/strings",
