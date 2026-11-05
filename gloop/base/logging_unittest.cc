@@ -263,7 +263,7 @@ TEST_F(AutomaticGoldenStderrTest, Logging) { TestLogging(); }
 
 void NoAllocNewHook(const tcmalloc::MallocHook::NewInfo& info) {
   CHECK(tcmalloc::MallocHook::RemoveNewHook(&NoAllocNewHook));
-  LOG(FATAL) << "unexpected new";
+  ABSL_RAW_LOG(FATAL, "unexpected new");
 }
 
 #if !PORTABLE_BASE && GTEST_HAS_DEATH_TEST
