@@ -286,6 +286,15 @@ class WorkItem {
  public:
   // Becomes selectable when Finish() is called.
   thread::Case OnFinished() const;
+  // Waits until `count` cases have enqueued on this item.
+  void WaitUntilSelecting(int count) const {
+    Unready* unready;
+    {
+      absl::MutexLock lock(mutex_);
+      unready = unready_;
+    }
+    unready->WaitUntilEnqueued(count);
+  }
   // Sets status() and makes OnFinished() selectable.
   void Finish(absl::Status result);
   // The result previously given to Finish().
@@ -298,6 +307,12 @@ class WorkItem {
   class Unready : public AbstractSimpleSelectable<void, void> {
    public:
     using AbstractSimpleSelectable::OnEnabled;
+    void WaitUntilEnqueued(int count) const {
+      auto ready = [&]() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
+        return enqueued_count_ >= count;
+      };
+      absl::MutexLock lock(mutex_, absl::Condition(&ready));
+    }
     void Finish() {
       mutex_.lock();
       SetEnabled(true);
@@ -310,6 +325,14 @@ class WorkItem {
 
    private:
     bool WhenSelected(void*, void*) override { return true; }
+    bool Handle(thread::internal::CaseState* state, bool enqueue) override {
+      absl::MutexLock lock(mutex_);
+      bool handled = HandleLocked(state, enqueue);
+      if (!handled && enqueue) {
+        ++enqueued_count_;
+      }
+      return handled;
+    }
     void Unregister(thread::internal::CaseState* state) override {
       mutex_.lock();
       UnregisterLocked(state);
@@ -319,6 +342,7 @@ class WorkItem {
         delete this;
       }
     }
+    int enqueued_count_ ABSL_GUARDED_BY(mutex_) = 0;
   };
   mutable absl::Mutex mutex_;
   Unready* unready_ = new Unready();
@@ -358,9 +382,10 @@ TEST(AbstractSimpleSelectableTest, SetEnabledWhenIsSelecting) {
   thread::Fiber worker([&] {
     // Select the same case twice to make sure that we aren't relying on being
     // the only case or always winning a race in Pick().
-    EXPECT_LE(0, thread::TrySelect({work.OnFinished(), work.OnFinished()}));
+    EXPECT_LE(0, thread::Select({work.OnFinished(), work.OnFinished()}));
     ABSL_EXPECT_OK(work.status());
   });
+  work.WaitUntilSelecting(2);
   work.Finish(absl::OkStatus());
   worker.Join();
   ABSL_EXPECT_OK(work.status());
