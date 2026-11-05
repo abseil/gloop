@@ -1,0 +1,1 @@
+build:remote-base --remote_grpc_service_config=gloop/ci/rbe_grpc_service_config.json
