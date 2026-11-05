@@ -1004,6 +1004,17 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "scoped_sigmask_test",
+    size = "small",
+    srcs = ["scoped_sigmask_test.cc"],
+    deps = [
+        ":scoped_sigmask",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "signal-handler",
     srcs = ["signal-handler.cc"],
