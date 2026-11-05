@@ -21,233 +21,86 @@
 // TODO: add fuzz testing
 #include "gloop/perftools/tracing/sync_context.h"
 
+#include <optional>
 #include <utility>
 
-#include "absl/functional/any_invocable.h"
-#include "absl/strings/string_view.h"
-#include "gloop/base/context.h"
-#include "gloop/base/mock_tracer.h"
-#include "gloop/base/tracecontext.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/noop_trace_event_listener.h"
 #include "gloop/perftools/tracing/string_label.h"
+#include "gloop/perftools/tracing/test_only_access.h"
+#include "gloop/perftools/tracing/trace_event_listener.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
-#include "gloop/perftools/tracing/tracing_core.h"
-#include "gloop/thread/thread.h"
-#include "gloop/thread/thread_options.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace perftools::tracing::core {
 
+using ::perftools::tracing::testing::TestOnlyAccess;
 using ::testing::_;
+using ::testing::AnyNumber;
 using ::testing::Eq;
 using ::testing::InSequence;
-using ::testing::Mock;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::StrictMock;
-
 using State = SyncContext::State;
-
-class SyncContextTestPeer {
- public:
-  static SyncContext::Access access() { return SyncContext::Access(); }
-
-  // Creates a new SyncContext instance for testing, allowing any and all
-  // values to be explicitly set as required.
-  static SyncContext NewSync(TraceEventListener* listener,
-                             State state = State::kDefault,
-                             SyncId active_sync_id = kNoSyncId) {
-    MockTraceEventListener must_not_be_null;
-    SyncContext context;
-    context.impl_ = SyncContext::Impl::New(&must_not_be_null);
-    context.impl_->listener_ = listener;
-    context.impl_->state_ = state;
-    context.impl_->active_sync_id_ = active_sync_id;
-    return context;
-  };
-};
 
 namespace {
 
-// Namespace level convenience helper.
-SyncContext NewSync(TraceEventListener* listener, State state = State::kDefault,
-                    SyncId active_sync_id = kNoSyncId) {
-  return SyncContextTestPeer::NewSync(listener, state, active_sync_id);
+SyncContext::Access access() {
+  return TestOnlyAccess::Create<SyncContext::Access>();
 }
-
-// Convenience helper to set up TLS data.
-void SetupTLS(SyncId active_sync_id, TraceEventListener* listener) {
-  internal::set_active_sync_id(active_sync_id);
-  internal::set_active_event_listener(listener);
-}
-
-// RawThread runs some invocable on a raw thread, i.e., not copying or
-// initializing any per-thread context and other gloop specific goodies.
-class RawThread final : public Thread {
- public:
-  template <typename Fn>
-  explicit RawThread(Fn&& fn, absl::string_view name = "RawThread")
-      : Thread(thread::Options().set_joinable(true), name),
-        invocable_(std::forward<Fn>(fn)) {
-    Start();
-  }
-
- private:
-  void Run() final { std::move(invocable_)(); }
-
-  absl::AnyInvocable<void() &&> invocable_;
-};
-
-SyncContext::Access access() { return SyncContextTestPeer::access(); }
 
 // Whitebox: SyncContext will assign odd numbers for 'out of thin air' contexts
 // created through copies, and even numbers for contexts intended for explicit
 // scheduling through 'CreateThread'.
 constexpr SyncId kFirstThreadSyncId{2};
 constexpr SyncId kFirstAutoSyncId{3};
-constexpr SyncId kSecondAutoSyncId{5};
 
-class EmptyEventListener final : public TraceEventListener {
- public:
-  TraceEventListener* GetEventListener(SyncId sync_id) override { return this; }
-  void ReleaseEventListener() override {}
-};
-
-// Context is a helper class that wraps a `SyncContext` mimicking more closely
-// the actual implementation in `TraceContext` and simplifying unit tests.
-class Context {
- public:
-  // Context has default value semantics (default construct, copy, move)
-  Context() = default;
-  Context(Context&& rhs) = default;
-  Context(const Context& rhs) = default;
-  Context& operator=(Context&& rhs) = default;
-  Context& operator=(const Context& rhs) = default;
-
-  // Creates a context with the provided listener automatically added.
-  explicit Context(TraceEventListener* tel) { AddListener(tel); }
-
-  // Returns a context that is a 'spawned' child of the current thread.
-  static Context CreateThread(StringRef label = {}) {
-    Context context;
-    context.sync_ = thread_context_.sync_.CreateThread(label);
-    return context;
-  }
-
-  // Returns a context that is a 'no-op' child of the current thread.
-  static Context CreateNoop() {
-    Context context;
-    context.sync_ = thread_context_.sync_.CreateNoop();
-    return context;
-  }
-
-  // Returns the sync_id of the current instance.
-  SyncId sync_id() const { return sync_.sync_id(); }
-
-  // Returns the current thread context.
-  static const Context& Current() { return thread_context_; }
-
-  // Swaps `context` with the current thread context.
-  static void Swap(Context& context, StringRef label = {}) {
-    thread_context_.SwapTo(context, label);
-  }
-
-  // Restores the current thread context from `context`, resetting `context`.
-  static void Restore(Context& context) {
-    thread_context_.RestoreFrom(context);
-  }
-
-  // Called by the test fixture: checks no thread state was leaked,
-  // and resets any possibly leaked thread state.
-  static void Cleanup() {
-    EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
-    EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
-    EXPECT_TRUE(thread_context_.empty());
-
-    internal::set_active_sync_id(kNoSyncId);
-    internal::set_active_event_listener(nullptr);
-    thread_context_ = Context{};
-  }
-
-  // Functions directly routing to the wrapped sync context
-  void AddListener(TraceEventListener* tel) { sync_.AddListener(tel); }
-  void RemoveListener(TraceEventListener* tel) { sync_.RemoveListener(tel); }
-  static void AddListenerToCurrent(TraceEventListener* tel) {
-    auto& tc = thread_context_;
-    tc.sync_.AddListenerToCurrent(access(), tel);
-  }
-  static void AddListenerToCurrent(TraceEventListener* tel, StringLabel label) {
-    auto& tc = thread_context_;
-    tc.sync_.AddListenerToCurrent(access(), tel, label);
-  }
-  static void RemoveListenerFromCurrent(TraceEventListener* tel) {
-    thread_context_.sync_.RemoveListenerFromCurrent(access(), tel);
-  }
-  bool empty() const { return sync_.empty(); }
-
-  SyncContext& sync_context() { return sync_; }
-  const SyncContext& sync_context() const { return sync_; }
-
- private:
-  void SwapTo(Context& context, StringRef label = {}) {
-    sync_.BeforeSwapCurrent(access(), context.sync_);
-    using std::swap;
-    swap(*this, context);
-    sync_.AfterSwapCurrent(access(), label);
-  }
-
-  void RestoreFrom(Context& context) {
-    sync_.BeforeRestoreCurrent(access(), context.sync_);
-    using std::swap;
-    swap(*this, context);
-    sync_.AfterRestoreCurrent(access());
-  }
-
-  SyncContext sync_;
-  static thread_local Context thread_context_;
-};
-
-thread_local Context Context::thread_context_;  // NOLINT
-
-// `WithContext` is the equivalent of `base::WithTraceContext`
-class WithContext {
- public:
-  explicit WithContext(Context&& context, StringRef label = {})
-      : context_(std::move(context)) {
-    Context::Swap(context_, label);
-  }
-
-  explicit WithContext(const Context& context, StringRef label = {})
-      : context_(context) {
-    Context::Swap(context_, label);
-  }
-
-  explicit WithContext(TraceEventListener* listener, StringRef label = {}) {
-    context_.AddListener(listener);
-    Context::Swap(context_, label);
-  }
-
-  ~WithContext() { Context::Restore(context_); }
-
- private:
-  Context context_;
-};
-
+// Test fixture for SyncContext providing a default context and mock listener,
+// and automatically resetting TLS state and releasing `mock_` on teardown.
 class SyncContextTest : public ::testing::Test {
  public:
-  ~SyncContextTest() override { Context::Cleanup(); }
-};
-
-// Test fixture automatically resetting TLS context.
-class AutoCleanupSyncContextTest : public ::testing::Test {
- public:
-  ~AutoCleanupSyncContextTest() override {
+  ~SyncContextTest() override {
+    EXPECT_CALL(mock_, ReleaseEventListener()).Times(AnyNumber());
     internal::set_active_sync_id(kNoSyncId);
     internal::set_active_event_listener(nullptr);
   }
+
+ protected:
+  static constexpr SyncId kSyncId{4};
+  static constexpr SyncId kActiveSyncId{5};
+
+  // Creates a SyncContext configured with the given test state and IDs.
+  static SyncContext CreateSync(TraceEventListener* listener,
+                                State state = State::kDefault,
+                                SyncId active_sync_id = kNoSyncId,
+                                SyncId sync_id = kSyncId) {
+    return SyncContext::Create(TestOnlyAccess(), listener, state, sync_id,
+                               active_sync_id);
+  }
+
+  // Initializes `context_` with `mock_` in `state`. Defaults `active_sync_id`
+  // to `kNoSyncId` for `State::kDefault` and `kActiveSyncId` for other states.
+  void SetupContext(State state = State::kDefault,
+                    std::optional<SyncId> active_sync_id = std::nullopt) {
+    SyncId id = active_sync_id.value_or(
+        state == State::kDefault ? kNoSyncId : kActiveSyncId);
+    context_ = CreateSync(&mock_, state, id, kSyncId);
+  }
+
+  // Initializes `context_` as an active context (optionally holding a swapped
+  // `nested_listener`) and sets `mock_` and `kActiveSyncId` in TLS.
+  void SetupActiveContext(TraceEventListener* nested_listener = nullptr) {
+    context_ =
+        CreateSync(nested_listener, State::kActive, kActiveSyncId, kSyncId);
+    internal::set_active_sync_id(kActiveSyncId);
+    internal::set_active_event_listener(&mock_);
+  }
+
+  StrictMock<MockTraceEventListener> mock_;
+  SyncContext context_;
 };
 
 TEST(SyncContextValueSemantics, DefaultCtor) {
@@ -392,6 +245,7 @@ TEST(SyncContextValueSemantics, SelfMoveAssign) {
   EXPECT_THAT(context.listener(), Eq(&mock));
   EXPECT_CALL(mock, ReleaseEventListener());
 }
+
 TEST(SyncContextValueSemantics, Swap) {
   StrictMock<MockTraceEventListener> mock1, mock2;
   EXPECT_CALL(mock1, GetEventListener(_)).WillOnce(Return(&mock2));
@@ -419,51 +273,63 @@ TEST(SyncContextValueSemantics, Swap) {
 }
 
 TEST_F(SyncContextTest, AddListener) {
-  StrictMock<MockTraceEventListener> mock;
-  SyncContext root;
-  root.AddListener(&mock);
-  EXPECT_TRUE(root);
-  EXPECT_FALSE(root.empty());
-  EXPECT_THAT(root.sync_id(), Eq(kMainSyncId));
-  EXPECT_THAT(root.active_sync_id(), Eq(kNoSyncId));
-  EXPECT_THAT(root.state(), Eq(SyncContext::State::kDefault));
-  EXPECT_CALL(mock, ReleaseEventListener());
+  context_.AddListener(&mock_);
+  EXPECT_TRUE(context_);
+  EXPECT_FALSE(context_.empty());
+  EXPECT_THAT(context_.sync_id(), Eq(kMainSyncId));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(context_.state(), Eq(State::kDefault));
+  EXPECT_CALL(mock_, ReleaseEventListener());
+  context_ = {};
 }
 
 TEST_F(SyncContextTest, AddNullptrListener) {
-  SyncContext root;
-  root.AddListener(nullptr);
-  EXPECT_TRUE(root.empty());
+  context_.AddListener(nullptr);
+  EXPECT_TRUE(context_.empty());
 
-  WithContext with(Context{});
-  Context::AddListenerToCurrent(nullptr);
-  EXPECT_TRUE(Context::Current().empty());
+  context_.AddListenerToCurrent(access(), nullptr);
+  EXPECT_TRUE(context_.empty());
 }
 
 TEST_F(SyncContextTest, ListenersAreReleaseInLifoOrder) {
   StrictMock<MockTraceEventListener> mock1, mock2;
   InSequence in_sequence;
-  SyncContext root;
-  root.AddListener(&mock1);
-  root.AddListener(&mock2);
-  EXPECT_FALSE(root.empty());
+  context_.AddListener(&mock1);
+  context_.AddListener(&mock2);
+  EXPECT_FALSE(context_.empty());
   EXPECT_CALL(mock2, ReleaseEventListener());
   EXPECT_CALL(mock1, ReleaseEventListener());
+  context_ = {};
+}
+
+TEST_F(SyncContextTest, AddListenerToCurrentOnEmptyContext) {
+  EXPECT_CALL(mock_, OnTraceBeginSync(kMainSyncId, Eq("Main")));
+  context_.AddListenerToCurrent(access(), &mock_, "Main");
+
+  EXPECT_THAT(context_.state(), Eq(State::kActive));
+  EXPECT_THAT(context_.sync_id(), Eq(kMainSyncId));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kMainSyncId));
+  EXPECT_THAT(context_.listener(), Eq(nullptr));
+
+  EXPECT_THAT(active_sync_id(), Eq(kMainSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
 }
 
 TEST_F(SyncContextTest, ListenersOnCurrentAreEndedInLifoOrder) {
   StrictMock<MockTraceEventListener> mock1, mock2;
   InSequence sequence;
-  WithContext with(Context{});
 
   EXPECT_CALL(mock1, OnTraceBeginSync(kMainSyncId, Eq("Main1")));
-  Context::AddListenerToCurrent(&mock1, "Main1");
+  context_.AddListenerToCurrent(access(), &mock1, "Main1");
 
   EXPECT_CALL(mock2, OnTraceBeginSync(kMainSyncId, Eq("Main2")));
-  Context::AddListenerToCurrent(&mock2, "Main2");
+  context_.AddListenerToCurrent(access(), &mock2, "Main2");
 
   EXPECT_CALL(mock2, OnTraceEndSync(kMainSyncId));
   EXPECT_CALL(mock1, OnTraceEndSync(kMainSyncId));
+  EXPECT_CALL(mock2, ReleaseEventListener());
+  EXPECT_CALL(mock1, ReleaseEventListener());
+  context_.EndContext(access());
 }
 
 // Matches that `arg` contains a non empty source location.
@@ -472,116 +338,94 @@ MATCHER(IsSourceLocation, "Holds a source location") {
 }
 
 TEST_F(SyncContextTest, AddListenersToCurrentDefaultsToSourceLocation) {
-  NiceMock<MockTraceEventListener> mock1, mock2;
-  WithContext with(Context{});
+  NiceMock<MockTraceEventListener> mock2;
+  SetupActiveContext();
 
-  EXPECT_CALL(mock1, OnTraceBeginSync(kMainSyncId, IsSourceLocation()));
-  Context::AddListenerToCurrent(&mock1);
+  EXPECT_CALL(mock2, OnTraceBeginSync(kActiveSyncId, IsSourceLocation()));
+  context_.AddListenerToCurrent(access(), &mock2);
 
-  EXPECT_CALL(mock2, OnTraceBeginSync(kMainSyncId, IsSourceLocation()));
-  Context::AddListenerToCurrent(&mock2);
-}
-
-TEST_F(SyncContextTest, AddListenersToCurrentNoCurrent) {
-  NiceMock<MockTraceEventListener> mock1, mock2;
-  SyncContext root;
-
-  // The internal code has no way to verify the state of
-  // something that is 'empty' / a nullptr pimpl.
-  EXPECT_CALL(mock1, OnTraceBeginSync(kMainSyncId, _));
-  root.AddListenerToCurrent(access(), &mock1);
-
-  EXPECT_CALL(mock2, OnTraceBeginSync(kMainSyncId, _));
-  root.AddListenerToCurrent(access(), &mock2);
-
-  EXPECT_CALL(mock2, ReleaseEventListener());
-  EXPECT_CALL(mock1, ReleaseEventListener());
-
-  root.BeforeRestoreCurrent(access(), {});
-
-  // Cleanup state
-  internal::set_active_sync_id(kNoSyncId);
-  internal::set_active_event_listener(nullptr);
+  EXPECT_CALL(mock2, OnTraceEndSync(kActiveSyncId));
+  EXPECT_CALL(mock_, OnTraceEndSync(kActiveSyncId));
+  context_.EndContext(access());
 }
 
 TEST_F(SyncContextTest, ContainsListener) {
-  StrictMock<MockTraceEventListener> mock1, mock2;
-  SyncContext root;
-  root.AddListener(&mock1);
+  StrictMock<MockTraceEventListener> mock2;
+  SetupContext();
 
   // Confirm behavior for `nullptr`. SyncContext always forwards.
-  EXPECT_CALL(mock1, Contains(nullptr)).WillOnce(Return(false));
-  EXPECT_FALSE(root.ContainsListener(nullptr));
+  EXPECT_CALL(mock_, Contains(nullptr)).WillOnce(Return(false));
+  EXPECT_FALSE(context_.ContainsListener(nullptr));
 
   // Confirm behavior for `matching` on non empty SyncContext
-  EXPECT_CALL(mock1, Contains(&mock1)).WillOnce(Return(true));
-  EXPECT_TRUE(root.ContainsListener(&mock1));
+  EXPECT_CALL(mock_, Contains(&mock_)).WillOnce(Return(true));
+  EXPECT_TRUE(context_.ContainsListener(&mock_));
 
   // Confirm behavior for `non matching` on non empty SyncContext
-  EXPECT_CALL(mock1, Contains(&mock2)).WillOnce(Return(false));
-  EXPECT_FALSE(root.ContainsListener(&mock2));
+  EXPECT_CALL(mock_, Contains(&mock2)).WillOnce(Return(false));
+  EXPECT_FALSE(context_.ContainsListener(&mock2));
+}
 
-  EXPECT_CALL(mock1, ReleaseEventListener());
+TEST_F(SyncContextTest, ContainsListenerOnActiveContext) {
+  StrictMock<MockTraceEventListener> mock2;
+  SetupActiveContext();
+
+  EXPECT_CALL(mock_, Contains(&mock_)).WillOnce(Return(true));
+  EXPECT_TRUE(context_.ContainsListener(&mock_));
+
+  EXPECT_CALL(mock_, Contains(&mock2)).WillOnce(Return(false));
+  EXPECT_FALSE(context_.ContainsListener(&mock2));
 }
 
 TEST_F(SyncContextTest, ContainsListenerOnEmptyContext) {
-  StrictMock<MockTraceEventListener> mock;
-
   // Calls on an empty handle should never hit crash or anything,
   // and accept nullptr values directly returning false.
-  SyncContext root;
-  EXPECT_FALSE(root.ContainsListener(nullptr));
-  EXPECT_FALSE(root.ContainsListener(&mock));
+  EXPECT_FALSE(context_.ContainsListener(nullptr));
+  EXPECT_FALSE(context_.ContainsListener(&mock_));
 }
 
 TEST_F(SyncContextTest, RemoveListener) {
   InSequence in_sequence;
-  StrictMock<MockTraceEventListener> mock;
-  SyncContext root;
-  root.AddListener(&mock);
-  EXPECT_CALL(mock, Extract(&mock));
-  EXPECT_CALL(mock, ReleaseEventListener());
-  root.RemoveListener(&mock);
-  EXPECT_TRUE(root.empty());
+  SetupContext();
+  EXPECT_CALL(mock_, Extract(&mock_));
+  EXPECT_CALL(mock_, ReleaseEventListener());
+  context_.RemoveListener(&mock_);
+  EXPECT_TRUE(context_.empty());
 }
 
 TEST_F(SyncContextTest, RemoveNullptrListener) {
-  Context root;
-  root.RemoveListener(nullptr);
-  EXPECT_TRUE(root.empty());
+  context_.RemoveListener(nullptr);
+  EXPECT_TRUE(context_.empty());
 
-  Context::RemoveListenerFromCurrent(nullptr);
-  EXPECT_TRUE(Context::Current().empty());
+  context_.RemoveListenerFromCurrent(access(), nullptr);
+  EXPECT_TRUE(context_.empty());
 }
 
 TEST_F(SyncContextTest, RemoveListeners) {
   InSequence in_sequence;
   NiceMock<MockTraceEventListener> mock1, mock2;
-  SyncContext root;
-  root.AddListener(&mock1);
-  root.AddListener(&mock2);
+  context_.AddListener(&mock1);
+  context_.AddListener(&mock2);
 
   EXPECT_CALL(mock2, Extract(&mock2));
   EXPECT_CALL(mock2, ReleaseEventListener());
-  root.RemoveListener(&mock2);
+  context_.RemoveListener(&mock2);
 
   EXPECT_CALL(mock1, Extract(&mock1));
   EXPECT_CALL(mock1, ReleaseEventListener());
-  root.RemoveListener(&mock1);
+  context_.RemoveListener(&mock1);
+  EXPECT_TRUE(context_.empty());
 }
 
 TEST_F(SyncContextTest, RemoveListenersFromCurrent) {
-  NiceMock<MockTraceEventListener> mock1, mock2;
-  Context root;
-  root.AddListener(&mock1);
-  root.AddListener(&mock2);
-  EXPECT_CALL(mock1, OnTraceBeginSync(kMainSyncId, _));
-  EXPECT_CALL(mock2, OnTraceBeginSync(kMainSyncId, _));
-  WithContext with(std::move(root));
+  NiceMock<MockTraceEventListener> mock2;
+  SetupActiveContext();
+  EXPECT_CALL(mock2, OnTraceBeginSync(kActiveSyncId, _));
+  context_.AddListenerToCurrent(access(), &mock2);
   TraceEventListener* active_listener = internal::active_event_listener();
 
   // EndSync() is the last sync event invoked.
-  EXPECT_CALL(mock2, OnTraceEndSync(kMainSyncId)).WillOnce([&](auto) {
+  EXPECT_CALL(mock2, OnTraceEndSync(kActiveSyncId)).WillOnce([&](auto) {
     EXPECT_THAT(internal::active_event_listener(), Eq(active_listener));
   });
   // Extract() is the final interaction where active listener is in place.
@@ -591,72 +435,96 @@ TEST_F(SyncContextTest, RemoveListenersFromCurrent) {
   });
   // Release() is guaranteed to be invoked after the active listener is reset.
   EXPECT_CALL(mock2, ReleaseEventListener()).WillOnce([&](auto...) {
-    EXPECT_THAT(internal::active_event_listener(), Eq(&mock1));
+    EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
   });
-  Context::RemoveListenerFromCurrent(&mock2);
+  context_.RemoveListenerFromCurrent(access(), &mock2);
 
   // EndSync() is the last sync event invoked.
-  EXPECT_CALL(mock1, OnTraceEndSync(kMainSyncId));
+  EXPECT_CALL(mock_, OnTraceEndSync(kActiveSyncId));
   // Extract() is the final interaction where active listener is in place.
-  EXPECT_CALL(mock1, Extract(&mock1)).WillOnce([&](auto...) {
-    EXPECT_THAT(internal::active_event_listener(), Eq(&mock1));
+  EXPECT_CALL(mock_, Extract(&mock_)).WillOnce([&](auto...) {
+    EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
     return std::pair<TraceEventListener*, bool>(nullptr, true);
   });
   // Release() is guaranteed to be invoked after the active listener is reset.
-  EXPECT_CALL(mock1, ReleaseEventListener()).WillOnce([&](auto...) {
+  EXPECT_CALL(mock_, ReleaseEventListener()).WillOnce([&](auto...) {
     EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
   });
-  Context::RemoveListenerFromCurrent(&mock1);
+  context_.RemoveListenerFromCurrent(access(), &mock_);
+  EXPECT_TRUE(context_.empty());
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
 }
 
 TEST_F(SyncContextTest, CornerCaseAddDuplicateListener) {
-  StrictMock<MockTraceEventListener> mock;
   InSequence in_sequence;
-  SyncContext root;
-  root.AddListener(&mock);
-  root.AddListener(&mock);
+  context_.AddListener(&mock_);
+  context_.AddListener(&mock_);
 
-  EXPECT_CALL(mock, Extract(&mock));
-  EXPECT_CALL(mock, ReleaseEventListener());
-  root.RemoveListener(&mock);
-  EXPECT_FALSE(root.empty());
+  EXPECT_CALL(mock_, Extract(&mock_));
+  EXPECT_CALL(mock_, ReleaseEventListener());
+  context_.RemoveListener(&mock_);
+  EXPECT_FALSE(context_.empty());
 
-  EXPECT_CALL(mock, Extract(&mock));
-  EXPECT_CALL(mock, ReleaseEventListener());
-  root.RemoveListener(&mock);
-  EXPECT_TRUE(root.empty());
+  EXPECT_CALL(mock_, Extract(&mock_));
+  EXPECT_CALL(mock_, ReleaseEventListener());
+  context_.RemoveListener(&mock_);
+  EXPECT_TRUE(context_.empty());
 }
 
 TEST_F(SyncContextTest, CreateThread) {
-  NiceMock<MockTraceEventListener> mock1, mock2;
-  WithContext with(&mock1);
+  StrictMock<MockTraceEventListener> child_mock;
+  SetupActiveContext();
 
   SyncId sync_id = kFirstThreadSyncId;
-  EXPECT_CALL(mock1, OnTraceSpawn(sync_id, Eq("Child")));
-  EXPECT_CALL(mock1, GetEventListener(sync_id)).WillOnce(Return(&mock2));
-  Context context = Context::CreateThread("Child");
-  EXPECT_FALSE(context.empty());
-  EXPECT_THAT(context.sync_id(), Eq(sync_id));
+  EXPECT_CALL(mock_, OnTraceSpawn(sync_id, Eq("Child")));
+  EXPECT_CALL(mock_, GetEventListener(sync_id)).WillOnce(Return(&child_mock));
+  EXPECT_CALL(child_mock, ReleaseEventListener());
+  SyncContext child = context_.CreateThread("Child");
+  EXPECT_FALSE(child.empty());
+  EXPECT_THAT(child.state(), Eq(State::kDefault));
+  EXPECT_THAT(child.sync_id(), Eq(sync_id));
+  EXPECT_THAT(child.active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(child.listener(), Eq(&child_mock));
+  EXPECT_TRUE(child.same_trace(context_));
+}
+
+TEST_F(SyncContextTest, CreateThreadFailsWithoutActiveListener) {
+  context_ = CreateSync(nullptr, State::kActive, kActiveSyncId);
+  EXPECT_TRUE(context_.CreateThread("Child").empty());
+}
+
+TEST_F(SyncContextTest, CreateThreadFailsWithInvalidState) {
+  StrictMock<MockTraceEventListener> active_mock;
+  internal::set_active_sync_id(kActiveSyncId);
+  internal::set_active_event_listener(&active_mock);
+
+  for (State state : {
+           State::kDefault,
+           State::kNested,
+           State::kSuspended,
+           State::kWait,
+           State::kZombie,
+       }) {
+    SCOPED_TRACE(state);
+    SetupContext(state);
+    EXPECT_TRUE(context_.CreateThread("Child").empty());
+  }
+
+  internal::set_active_event_listener(nullptr);
 }
 
 TEST_F(SyncContextTest, CreateNoop) {
-  StrictMock<MockTraceEventListener> mock;
-  SyncContext root;
-  root.AddListener(&mock);
+  SetupContext();
 
-  SyncContext noop = root.CreateNoop();
-  EXPECT_TRUE(noop.same_trace(root));
+  SyncContext noop = context_.CreateNoop();
+  EXPECT_TRUE(noop.same_trace(context_));
   EXPECT_TRUE(noop.ContainsListener(NoopTraceEventListener()));
   EXPECT_THAT(noop.sync_id(), Eq(kFirstAutoSyncId));
-
-  EXPECT_CALL(mock, ReleaseEventListener());
 }
 
 TEST_F(SyncContextTest, SameTrace) {
-  StrictMock<MockTraceEventListener> mock;
-  EXPECT_CALL(mock, GetEventListener(_)).WillRepeatedly(Return(&mock));
-  SyncContext context1;
-  context1.AddListener(&mock);
+  EXPECT_CALL(mock_, GetEventListener(_)).WillRepeatedly(Return(&mock_));
+  SyncContext context1 = CreateSync(&mock_);
   SyncContext context2 = context1;
   SyncContext context3 = context2;
   SyncContext context4 = context3;
@@ -668,562 +536,709 @@ TEST_F(SyncContextTest, SameTrace) {
   EXPECT_TRUE(context1.same_trace(context5));
 
   SyncContext empty;
-  SyncContext other;
-  other.AddListener(&mock);
+  SyncContext other = CreateSync(&mock_);
   EXPECT_FALSE(context1.same_trace(other));
   EXPECT_FALSE(context1.same_trace(empty));
   EXPECT_FALSE(empty.same_trace(empty));
 }
 
-TEST_F(SyncContextTest, CommonSwapRestore) {
-  StrictMock<MockTraceEventListener> mock;
-  InSequence in_sequence;
-
-  EXPECT_CALL(mock, OnTraceBeginSync(kMainSyncId, Eq("Main")));
-  WithContext with(&mock, "Main");
-  EXPECT_THAT(tracing::active_sync_id(), Eq(kMainSyncId));
-
-  // Verify per thread listener is installed
-  EXPECT_CALL(mock, OnTraceMark(Eq("PerThreadListener"), _));
-  TraceMark("PerThreadListener", TraceSourceLocation::current());
-
-  EXPECT_CALL(mock, OnTraceEndSync(kMainSyncId));
-}
-
-TEST_F(SyncContextTest, SwapRestoreEmpty) {
-  WithContext with(Context{}, "Main");
-}
-
-TEST_F(SyncContextTest, SwapContextSuspendResumeContext) {
-  StrictMock<MockTraceEventListener> mock;
-  InSequence in_sequence;
-
-  EXPECT_CALL(mock, OnTraceBeginSync(kMainSyncId, Eq("Main")));
-  WithContext with(&mock, "Main");
-  {
-    EXPECT_CALL(mock, OnTraceSuspendSync(kMainSyncId));
-    WithContext with(Context{});
-    EXPECT_THAT(tracing::active_sync_id(), Eq(kNoSyncId));
-
-    // Verify per thread listener is uninstalled
-    TraceMark("NoPerThreadListener", TraceSourceLocation::current());
-
-    EXPECT_CALL(mock, OnTraceResumeSync(kMainSyncId));
-  }
-  EXPECT_THAT(tracing::active_sync_id(), Eq(kMainSyncId));
-
-  // Verify per thread listener is reinstalled
-  EXPECT_CALL(mock, OnTraceMark(Eq("PerThreadListener"), _));
-  TraceMark("PerThreadListener", TraceSourceLocation::current());
-
-  EXPECT_CALL(mock, OnTraceEndSync(kMainSyncId));
-}
-
-TEST_F(SyncContextTest, SwapContextSuspendResumeWithSwap) {
-  StrictMock<MockTraceEventListener> mock;
-  InSequence in_sequence;
-
-  EXPECT_CALL(mock, OnTraceBeginSync(kMainSyncId, Eq("Main")));
-  WithContext with(&mock, "Main");
-  {
-    EXPECT_CALL(mock, OnTraceSuspendSync(kMainSyncId));
-    Context empty;
-    Context::Swap(empty);
-    EXPECT_THAT(tracing::active_sync_id(), Eq(kNoSyncId));
-
-    // Verify per thread listener is uninstalled
-    TraceMark("NoPerThreadListener", TraceSourceLocation::current());
-
-    EXPECT_CALL(mock, OnTraceResumeSync(kMainSyncId));
-    Context::Swap(empty);
-  }
-  EXPECT_THAT(tracing::active_sync_id(), Eq(kMainSyncId));
-
-  // Verify per thread listener is reinstalled
-  EXPECT_CALL(mock, OnTraceMark(Eq("PerThreadListener"), _));
-  TraceMark("PerThreadListener", TraceSourceLocation::current());
-
-  EXPECT_CALL(mock, OnTraceEndSync(kMainSyncId));
-}
-
-TEST_F(SyncContextTest, CommonThreadSpawnIntoThread) {
-  StrictMock<MockTraceEventListener> mock, child_mock;
-  InSequence in_sequence;
-
-  EXPECT_CALL(mock, OnTraceBeginSync(kMainSyncId, Eq("Main")));
-  WithContext with(&mock, "Main");
-
-  SyncId sync_id = kFirstThreadSyncId;
-  EXPECT_CALL(mock, OnTraceSpawn(sync_id, Eq("Child")));
-  EXPECT_CALL(mock, GetEventListener(sync_id)).WillOnce(Return(&child_mock));
-  Context child = Context::CreateThread("Child");
-
-  RawThread thread([&, child = std::move(child)]() mutable {
-    EXPECT_CALL(child_mock, OnTraceBeginSync(kFirstThreadSyncId, Eq("Thread")));
-    WithContext with(std::move(child), "Thread");
-    EXPECT_CALL(child_mock, OnTraceEndSync(kFirstThreadSyncId));
+TEST_F(SyncContextTest, IsolateFromSideEffectsInReleaseOnRemoveFromCurrent) {
+  SetupActiveContext();
+  EXPECT_CALL(mock_, OnTraceEndSync(kActiveSyncId));
+  EXPECT_CALL(mock_, Extract(&mock_));
+  EXPECT_CALL(mock_, ReleaseEventListener()).WillOnce([&]() {
+    EXPECT_TRUE(context_.empty());
+    EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
   });
-  thread.Join();
-
-  EXPECT_CALL(mock, OnTraceEndSync(kMainSyncId));
+  context_.RemoveListenerFromCurrent(access(), &mock_);
+  EXPECT_TRUE(context_.empty());
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
 }
 
-TEST_F(SyncContextTest, CopiedContextIntoThread) {
-  StrictMock<MockTraceEventListener> mock, child_mock;
-  InSequence in_sequence;
-
-  EXPECT_CALL(mock, OnTraceBeginSync(kMainSyncId, Eq("Main")));
-  WithContext with(&mock, "Main");
-
-  SyncId sync_id = kFirstAutoSyncId;
-  EXPECT_CALL(mock, GetEventListener(sync_id)).WillOnce(Return(&child_mock));
-  Context child = Context::Current();
-
-  RawThread thread([&, child = std::move(child)]() mutable {
-    EXPECT_CALL(child_mock, OnTraceBeginSync(sync_id, Eq("Thread")));
-    WithContext with(std::move(child), "Thread");
-    EXPECT_CALL(child_mock, OnTraceEndSync(sync_id));
+TEST_F(SyncContextTest, IsolateFromSideEffectsInReleaseOnDelete) {
+  SetupContext();
+  EXPECT_CALL(mock_, ReleaseEventListener()).WillOnce([&]() {
+    EXPECT_TRUE(context_.empty());
   });
-  thread.Join();
-
-  EXPECT_CALL(mock, OnTraceEndSync(kMainSyncId));
+  context_ = {};
 }
 
-TEST_F(SyncContextTest, Nested) {
-  StrictMock<MockTraceEventListener> mock, nested_mock1, nested_mock2;
-  InSequence in_sequence;
+TEST_F(SyncContextTest, BeforeSwapEmptyContext) {
+  context_.BeforeSwapCurrent(access(), {});
+  EXPECT_TRUE(context_.empty());
 
-  EXPECT_CALL(mock, OnTraceBeginSync(kMainSyncId, Eq("Main")));
-  WithContext with(&mock, "Main");
-
-  SyncId sync_id = kFirstAutoSyncId;
-  EXPECT_CALL(mock, GetEventListener(sync_id)).WillOnce(Return(&nested_mock1));
-  Context nested = Context::Current();
-
-  // `nested_mock2` is ignored as this context is nested.
-  nested.AddListener(&nested_mock2);
-
-  {
-    // Swapping to `nested' should not affect the active_sync id or listener.
-    // We do expect a call to EnterSync() for the nested scoped
-    EXPECT_CALL(mock, OnTraceEnterSync(nested.sync_id(), Eq("Nested")));
-    WithContext with(std::move(nested), "Nested");
-    EXPECT_THAT(active_sync_id(), Eq(kMainSyncId));
-
-    // Verify that mock is still in place.
-    EXPECT_CALL(mock, OnTraceMark(Eq("Mark"), _));
-    core::TraceMark("Mark", TraceSourceLocation::current());
-
-    // Expect 'EnterSync' for switching back to the main scope
-    EXPECT_CALL(mock, OnTraceEnterSync(kMainSyncId, _));
-
-    EXPECT_CALL(nested_mock2, ReleaseEventListener());
-    EXPECT_CALL(nested_mock1, ReleaseEventListener());
-  }
-
-  EXPECT_CALL(mock, OnTraceEndSync(kMainSyncId));
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
 }
 
-TEST_F(SyncContextTest, BeforeSwapRestoreDeathTest) {
-  StrictMock<MockTraceEventListener> mock;
-  SyncContext root;
-  root.AddListener(&mock);
-  // TODO: b/559675297 - change back to EXPECT_DEBUG_DEATH
-  root.BeforeSwapCurrent(access(), {});
-  root.BeforeRestoreCurrent(access(), {});
+TEST_F(SyncContextTest, BeforeSwapZombieContext) {
+  StrictMock<MockTraceEventListener> other_mock;
+  EXPECT_CALL(other_mock, ReleaseEventListener());
+  SyncContext other = CreateSync(&other_mock);
+  SetupContext(State::kZombie);
+
+  context_.BeforeSwapCurrent(access(), {});
+  EXPECT_THAT(context_.state(), Eq(State::kZombie));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(context_.listener(), Eq(&mock_));
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+
+  context_.BeforeSwapCurrent(access(), other);
+  EXPECT_THAT(context_.state(), Eq(State::kZombie));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(context_.listener(), Eq(&mock_));
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
 }
 
-TEST_F(SyncContextTest, SwapSuspendedContextWithDifferentSyncId) {
-  StrictMock<MockTraceEventListener> mock1, mock2, mock3;
-  Context root(&mock1);
+TEST_F(SyncContextTest, BeforeSwapActiveContext) {
+  SetupActiveContext();
 
-  // Create a suspended context
-  SyncId sync_id2 = kFirstAutoSyncId;
-  EXPECT_CALL(mock1, GetEventListener(sync_id2)).WillOnce(Return(&mock2));
-  Context suspended = root;
-  EXPECT_CALL(mock2, OnTraceBeginSync(sync_id2, Eq("Thread2")));
-  Context::Swap(suspended, "Thread2");
-  EXPECT_CALL(mock2, OnTraceSuspendSync(sync_id2));
-  Context::Swap(suspended, "Thread2");
+  EXPECT_CALL(mock_, OnTraceSuspendSync(kActiveSyncId));
+  context_.BeforeSwapCurrent(access(), {});
 
-  // Create a new active context in the same trace
-  SyncId sync_id3 = kSecondAutoSyncId;
-  EXPECT_CALL(mock1, GetEventListener(sync_id3)).WillOnce(Return(&mock3));
-  Context context = root;
-  EXPECT_CALL(mock3, OnTraceBeginSync(sync_id3, Eq("Thread3")));
-  Context::Swap(context, "Thread3");
+  EXPECT_THAT(context_.state(), Eq(State::kSuspended));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(context_.listener(), Eq(&mock_));
 
-  // End context by restoring `suspended` in the thread.
-  EXPECT_CALL(mock3, OnTraceEndSync(sync_id3));
-  EXPECT_CALL(mock3, ReleaseEventListener());
-  EXPECT_CALL(mock2, OnTraceResumeSync(sync_id2));
-  Context::Restore(suspended);
-
-  // End `suspended` by restore `context` in it (which should be empty)
-  EXPECT_CALL(mock2, OnTraceEndSync(sync_id2));
-  EXPECT_CALL(mock2, ReleaseEventListener());
-  Context::Restore(context);
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
 }
 
-TEST_F(SyncContextTest, MoveSuspendedContextAcrossThreadsLikeK3) {
-  StrictMock<MockTraceEventListener> mock;
-  Context context(&mock);
+TEST_F(SyncContextTest, BeforeSwapActiveContextToSameTrace) {
+  SetupActiveContext();
+  EXPECT_CALL(mock_, GetEventListener(_)).WillOnce(Return(&mock_));
+  SyncContext to = context_;
 
-  // Begin and Suspend
-  EXPECT_CALL(mock, OnTraceBeginSync(kMainSyncId, Eq("Main")));
-  Context::Swap(context, "Main");
-  EXPECT_CALL(mock, OnTraceSuspendSync(kMainSyncId));
-  Context::Swap(context);
+  context_.BeforeSwapCurrent(access(), to);
 
-  //  'restore' into a thread
-  RawThread thread([&mock, context = std::move(context)]() mutable {
-    EXPECT_CALL(mock, OnTraceResumeSync(kMainSyncId));
-    Context::Swap(context);
-    EXPECT_CALL(mock, OnTraceEndSync(kMainSyncId));
-    EXPECT_CALL(mock, ReleaseEventListener());
-    Context::Restore(context);
-  });
-  thread.Join();
+  EXPECT_THAT(context_.state(), Eq(State::kNested));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(context_.listener(), Eq(nullptr));
+
+  EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
 }
 
-TEST_F(SyncContextTest, SuspendNestedContext) {
-  StrictMock<MockTraceEventListener> mock1, mock2;
-  EXPECT_CALL(mock1, OnTraceBeginSync(kMainSyncId, Eq("Main")));
-  WithContext with(&mock1, "Main");
+TEST_F(SyncContextTest, BeforeSwapActiveContextToSuspendedSameTrace) {
+  SyncContext to = CreateSync(&mock_, State::kSuspended, kActiveSyncId);
+  EXPECT_CALL(mock_, GetEventListener(_)).WillOnce(Return(&mock_));
+  context_ = to;
+  EXPECT_CALL(mock_, OnTraceBeginSync(kFirstAutoSyncId, _));
+  context_.AfterSwapCurrent(access(), "Begin");
 
-  {
-    EXPECT_CALL(mock1, GetEventListener(_)).WillOnce(Return(&mock2));
-    EXPECT_CALL(mock1, OnTraceEnterSync(kFirstAutoSyncId, Eq("Child")));
-    WithContext with(Context::Current(), "Child");
-    EXPECT_THAT(active_sync_id(), Eq(kMainSyncId));
-    EXPECT_THAT(internal::active_event_listener(), &mock1);
+  EXPECT_CALL(mock_, OnTraceSuspendSync(kFirstAutoSyncId));
+  context_.BeforeSwapCurrent(access(), to);
 
-    {
-      EXPECT_CALL(mock1, OnTraceSuspendSync(kMainSyncId));
-      WithContext with({}, "Empty");
-      EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
-      EXPECT_THAT(internal::active_event_listener(), nullptr);
-      EXPECT_CALL(mock1, OnTraceResumeSync(kMainSyncId));
-    }
+  EXPECT_THAT(context_.state(), Eq(State::kSuspended));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kFirstAutoSyncId));
+  EXPECT_THAT(context_.listener(), Eq(&mock_));
 
-    EXPECT_CALL(mock1, OnTraceEnterSync(kMainSyncId, _));
-
-    EXPECT_THAT(active_sync_id(), Eq(kMainSyncId));
-    EXPECT_THAT(internal::active_event_listener(), &mock1);
-  }
-  EXPECT_CALL(mock1, OnTraceEndSync(kMainSyncId));
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
 }
 
-TEST_F(SyncContextTest, CornerCaseSwapRestoreAbandonNestedContext) {
-  StrictMock<MockTraceEventListener> mock1, mock2;
-  Context tc1(&mock1);
-  EXPECT_CALL(mock1, GetEventListener(_)).WillOnce(Return(&mock2));
-  Context tc2 = tc1;
+TEST_F(SyncContextTest, BeforeSwapReleasesNestedListener) {
+  StrictMock<MockTraceEventListener> nested;
+  SetupActiveContext(&nested);
 
-  // Swap --> tc1 is active
-  EXPECT_CALL(mock1, OnTraceBeginSync(kMainSyncId, _));
-  Context::Swap(tc1);
+  EXPECT_CALL(mock_, OnTraceSuspendSync(kActiveSyncId));
+  EXPECT_CALL(nested, ReleaseEventListener());
+  context_.BeforeSwapCurrent(access(), {});
 
-  // Swap --> tc2 is nested
-  EXPECT_CALL(mock1, OnTraceEnterSync(tc2.sync_id(), _));
-  Context::Swap(tc2);
+  EXPECT_THAT(context_.state(), Eq(State::kSuspended));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(context_.listener(), Eq(&mock_));
 
-  // Swap out tc2 --> sync is suspended, mock2 is now discarded.
-  EXPECT_CALL(mock2, ReleaseEventListener());
-  EXPECT_CALL(mock1, OnTraceSuspendSync(kMainSyncId));
-  {
-    Context empty;
-    Context::Swap(empty);
-    EXPECT_CALL(mock1, ReleaseEventListener());
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+}
+
+TEST_F(SyncContextTest, BeforeSwapFailsWithoutActiveListener) {
+  context_ = CreateSync(nullptr, State::kActive, kActiveSyncId);
+  context_.BeforeSwapCurrent(access(), {});
+
+  EXPECT_THAT(context_.state(), Eq(State::kActive));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(context_.listener(), Eq(nullptr));
+
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+}
+
+TEST_F(SyncContextTest, BeforeSwapFailsWithInvalidState) {
+  StrictMock<MockTraceEventListener> active_mock;
+  internal::set_active_sync_id(kActiveSyncId);
+  internal::set_active_event_listener(&active_mock);
+
+  for (State state : {
+           State::kDefault,
+           State::kNested,
+           State::kSuspended,
+           State::kWait,
+       }) {
+    SCOPED_TRACE(state);
+    SetupContext(state, kActiveSyncId);
+    context_.BeforeSwapCurrent(access(), {});
+
+    EXPECT_THAT(context_.state(), Eq(state));
+    EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+    EXPECT_THAT(context_.listener(), Eq(&mock_));
+
+    EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
+    EXPECT_THAT(internal::active_event_listener(), Eq(&active_mock));
   }
 
-  // Swap back tc1 --> was nested, now abandoned
-  // TODO: b/559675297 - change back to EXPECT_DEBUG_DEATH
-  Context::Swap(tc2);
-  EXPECT_TRUE(tc2.empty());
-
-  // Restore
-  Context::Restore(tc1);
+  internal::set_active_event_listener(nullptr);
 }
 
-TEST_F(SyncContextTest, SwapAbandonNestedTraceContext) {
-  StrictMock<MockTraceEventListener> mock1, mock2;
-  Context tc1;
-  tc1.AddListener(&mock1);
-  EXPECT_CALL(mock1, GetEventListener(_)).WillOnce(Return(&mock2));
-  Context tc2 = tc1;
+TEST_F(SyncContextTest, BeforeRestoreEmptyContext) {
+  context_.BeforeRestoreCurrent(access(), {});
+  EXPECT_TRUE(context_.empty());
 
-  // Swap in tc1, then swap in tc2 nesting tc2 inside tc1:
-  //   BEGIN sync_id: 1
-  //   ENTER sync_id: 1, (enter sync_id: 3)
-  EXPECT_CALL(mock1, OnTraceBeginSync(kMainSyncId, _));
-  Context::Swap(tc1);
-  EXPECT_CALL(mock1, OnTraceEnterSync(kFirstAutoSyncId, _));
-  Context::Swap(tc2);
-
-  // Restore to empty using tc1. This ends the current sync execution.
-  //   END sync_id: 1
-  EXPECT_CALL(mock1, OnTraceEndSync(kMainSyncId));
-  Context::Restore(tc1);
-
-  // Restore from tc2 (swapped out tc1) now discovers we abandoned
-  // tc1 for synchronous tracing:
-  // TODO: b/559675297 - change back to EXPECT_DEBUG_DEATH
-  Context::Restore(tc2);
-  EXPECT_TRUE(tc2.empty());
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
 }
 
-TEST_F(SyncContextTest, SwapNestedContextIntoDifferentSyncOfSameTrace) {
-  // This test specifically exercises the subtle case where code scopes
-  // a nested context (leading to ENTER/ENTER) and swaps it back for re-use /
-  // resumption, but then swaps it back into an unrelated different sync id
-  // (say, a child fiber for the same RPC) again as a nested context.
-  // Our 'nested invariant' checks on 'managed_sync_id_` must make sure we
-  // recognize this by removing the active sync id value from the context once
-  // it is swapped out as 'nested'.
-  NiceMock<MockTraceEventListener> mock1, mock2, mock3;
-  WithContext with(&mock1, "Main");
+TEST_F(SyncContextTest, BeforeRestoreZombieContext) {
+  StrictMock<MockTraceEventListener> other_mock;
+  EXPECT_CALL(other_mock, ReleaseEventListener());
+  SyncContext other = CreateSync(&other_mock);
+  SetupContext(State::kZombie);
 
-  EXPECT_CALL(mock1, GetEventListener(_)).WillOnce(Return(&mock2));
-  Context nested = Context::Current();
+  context_.BeforeRestoreCurrent(access(), {});
+  EXPECT_THAT(context_.state(), Eq(State::kZombie));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(context_.listener(), Eq(&mock_));
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
 
-  EXPECT_CALL(mock1, GetEventListener(_)).WillOnce(Return(&mock3));
-  Context child = Context::Current();
-
-  EXPECT_CALL(mock1, OnTraceEnterSync(kFirstAutoSyncId, _));
-  Context::Swap(nested);
-  EXPECT_CALL(mock1, OnTraceEnterSync(kMainSyncId, _));
-  Context::Swap(nested);
-
-  RawThread thread([&, child = std::move(child)]() mutable {
-    WithContext with(std::move(child), "Thread");
-    EXPECT_CALL(mock3, OnTraceEnterSync(kFirstAutoSyncId, _));
-    Context::Swap(nested);
-    EXPECT_CALL(mock3, OnTraceEnterSync(kSecondAutoSyncId, _));
-    Context::Restore(nested);
-  });
-  thread.Join();
+  context_.BeforeRestoreCurrent(access(), other);
+  EXPECT_THAT(context_.state(), Eq(State::kZombie));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(context_.listener(), Eq(&mock_));
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
 }
 
-TEST_F(SyncContextTest, IsolateFromSideEffectsInReleaseOnAddRemoveCurrent) {
-  auto* mock = new StrictMock<MockTraceEventListener>;
-  EXPECT_CALL(*mock, OnTraceBeginSync(_, _));
-  EXPECT_CALL(*mock, Extract(_));
-  EXPECT_CALL(*mock, OnTraceEndSync(_));
-  EXPECT_CALL(*mock, ReleaseEventListener()).WillOnce([&]() {
-    WithContext with_blank(Context{});
-    delete mock;
-  });
+TEST_F(SyncContextTest, BeforeRestoreActiveContext) {
+  SetupActiveContext();
 
-  WithContext with(Context{});
-  Context::AddListenerToCurrent(mock);
-  Context::RemoveListenerFromCurrent(mock);
+  EXPECT_CALL(mock_, OnTraceEndSync(kActiveSyncId));
+  context_.BeforeRestoreCurrent(access(), {});
+
+  EXPECT_THAT(context_.state(), Eq(State::kZombie));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(context_.listener(), Eq(&mock_));
+
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
 }
 
-TEST_F(SyncContextTest, IsolateFromSideEffectsInReleaseFromWithContext) {
-  auto* mock = new StrictMock<MockTraceEventListener>;
-  EXPECT_CALL(*mock, OnTraceBeginSync(_, _));
-  EXPECT_CALL(*mock, OnTraceEndSync(_));
-  EXPECT_CALL(*mock, ReleaseEventListener()).WillOnce([&]() {
-    WithContext with_blank(Context{});
-    delete mock;
-  });
+TEST_F(SyncContextTest, BeforeRestoreActiveContextToSameTrace) {
+  SetupActiveContext();
+  EXPECT_CALL(mock_, GetEventListener(_)).WillOnce(Return(&mock_));
+  SyncContext to = context_;
 
-  Context context;
-  context.AddListener(mock);
-  WithContext with(std::move(context));
+  context_.BeforeRestoreCurrent(access(), to);
+
+  EXPECT_THAT(context_.state(), Eq(State::kZombie));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(context_.listener(), Eq(nullptr));
+
+  EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
 }
 
-TEST_F(AutoCleanupSyncContextTest, ResumeDefaultContext) {
-  StrictMock<MockTraceEventListener> mock;
-  SyncContext context = NewSync(&mock);
+TEST_F(SyncContextTest, BeforeRestoreActiveContextToSuspendedSameTrace) {
+  SyncContext to = CreateSync(&mock_, State::kSuspended, kActiveSyncId);
+  EXPECT_CALL(mock_, GetEventListener(_)).WillOnce(Return(&mock_));
+  context_ = to;
+  EXPECT_CALL(mock_, OnTraceBeginSync(kFirstAutoSyncId, _));
+  context_.AfterSwapCurrent(access(), "Begin");
 
-  EXPECT_CALL(mock, OnTraceBeginSync(Eq(kMainSyncId), Eq("Begin")));
-  EXPECT_TRUE(context.ResumeContext(access(), kNoBarrierId, "Begin"));
+  EXPECT_CALL(mock_, OnTraceEndSync(kFirstAutoSyncId));
+  context_.BeforeRestoreCurrent(access(), to);
 
-  EXPECT_THAT(context.state(), Eq(State::kActive));
-  EXPECT_THAT(context.active_sync_id(), Eq(context.sync_id()));
-  EXPECT_THAT(context.listener(), Eq(nullptr));
+  EXPECT_THAT(context_.state(), Eq(State::kZombie));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(context_.listener(), Eq(&mock_));
 
-  EXPECT_THAT(active_sync_id(), Eq(context.sync_id()));
-  EXPECT_THAT(internal::active_event_listener(), Eq(&mock));
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
 }
 
-TEST_F(AutoCleanupSyncContextTest, ResumeSuspendedContext) {
-  StrictMock<MockTraceEventListener> mock;
-  SyncContext context = NewSync(&mock, State::kSuspended, SyncId(4));
+TEST_F(SyncContextTest, BeforeRestoreReleasesNestedListener) {
+  StrictMock<MockTraceEventListener> nested;
+  SetupActiveContext(&nested);
 
-  EXPECT_CALL(mock, OnTraceResumeSync(SyncId(4)));
-  EXPECT_TRUE(context.ResumeContext(access(), BarrierId(1234), "Resume"));
+  EXPECT_CALL(mock_, OnTraceEndSync(kActiveSyncId));
+  EXPECT_CALL(nested, ReleaseEventListener());
+  context_.BeforeRestoreCurrent(access(), {});
 
-  EXPECT_THAT(context.state(), Eq(State::kActive));
-  EXPECT_THAT(context.active_sync_id(), Eq(SyncId(4)));
-  EXPECT_THAT(context.listener(), Eq(nullptr));
+  EXPECT_THAT(context_.state(), Eq(State::kZombie));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(context_.listener(), Eq(&mock_));
 
-  EXPECT_THAT(active_sync_id(), Eq(SyncId(4)));
-  EXPECT_THAT(internal::active_event_listener(), Eq(&mock));
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
 }
 
-TEST_F(AutoCleanupSyncContextTest, ResumeWaitSuspendedContext) {
-  StrictMock<MockTraceEventListener> mock;
-  SyncContext context = NewSync(&mock, State::kWait, SyncId(4));
+TEST_F(SyncContextTest, BeforeRestoreFailsWithoutActiveListener) {
+  context_ = CreateSync(nullptr, State::kActive, kActiveSyncId);
+  context_.BeforeRestoreCurrent(access(), {});
 
-  EXPECT_CALL(mock, OnTraceContinue(Eq(BarrierId(1234))));
-  EXPECT_TRUE(context.ResumeContext(access(), BarrierId(1234), "Resume"));
+  EXPECT_THAT(context_.state(), Eq(State::kActive));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(context_.listener(), Eq(nullptr));
 
-  EXPECT_THAT(context.state(), Eq(State::kActive));
-  EXPECT_THAT(context.active_sync_id(), Eq(SyncId(4)));
-  EXPECT_THAT(context.listener(), Eq(nullptr));
-
-  EXPECT_THAT(active_sync_id(), Eq(SyncId(4)));
-  EXPECT_THAT(internal::active_event_listener(), Eq(&mock));
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
 }
 
-TEST_F(AutoCleanupSyncContextTest, ResumeFailsOnAbandonedTracer) {
-  SyncContext context = NewSync(nullptr);
+TEST_F(SyncContextTest, BeforeRestoreFailsWithInvalidState) {
+  StrictMock<MockTraceEventListener> active_mock;
+  internal::set_active_sync_id(kActiveSyncId);
+  internal::set_active_event_listener(&active_mock);
 
-  EXPECT_FALSE(context.ResumeContext(access(), kNoBarrierId, "Begin"));
-  EXPECT_TRUE(context.empty());
+  for (State state : {
+           State::kDefault,
+           State::kNested,
+           State::kSuspended,
+           State::kWait,
+       }) {
+    SCOPED_TRACE(state);
+    SetupContext(state, kActiveSyncId);
+    context_.BeforeRestoreCurrent(access(), {});
+
+    EXPECT_THAT(context_.state(), Eq(state));
+    EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+    EXPECT_THAT(context_.listener(), Eq(&mock_));
+
+    EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
+    EXPECT_THAT(internal::active_event_listener(), Eq(&active_mock));
+  }
+
+  internal::set_active_event_listener(nullptr);
 }
 
-TEST_F(AutoCleanupSyncContextTest, ResumeFailsWithActiveListener) {
-  StrictMock<MockTraceEventListener> mock, tls;
-  SyncContext context = NewSync(&mock);
-  SetupTLS(SyncId(5), &tls);
+TEST_F(SyncContextTest, AfterSwapEmptyContext) {
+  context_.AfterSwapCurrent(access(), "Empty");
+  EXPECT_TRUE(context_.empty());
 
-  EXPECT_CALL(mock, ReleaseEventListener());
-  EXPECT_FALSE(context.ResumeContext(access(), kNoBarrierId, "Begin"));
-  EXPECT_TRUE(context.empty());
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
 }
 
-TEST_F(AutoCleanupSyncContextTest, ResumeFailsWithInvalidState) {
+TEST_F(SyncContextTest, AfterSwapDefaultContext) {
+  SetupContext();
+
+  EXPECT_CALL(mock_, OnTraceBeginSync(Eq(kSyncId), Eq("Begin")));
+  context_.AfterSwapCurrent(access(), "Begin");
+
+  EXPECT_THAT(context_.state(), Eq(State::kActive));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kSyncId));
+  EXPECT_THAT(context_.listener(), Eq(nullptr));
+
+  EXPECT_THAT(active_sync_id(), Eq(kSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+}
+
+TEST_F(SyncContextTest, AfterSwapSuspendedContext) {
+  SetupContext(State::kSuspended);
+
+  EXPECT_CALL(mock_, OnTraceResumeSync(kActiveSyncId));
+  context_.AfterSwapCurrent(access(), "Resume");
+
+  EXPECT_THAT(context_.state(), Eq(State::kActive));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(context_.listener(), Eq(nullptr));
+
+  EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+}
+
+TEST_F(SyncContextTest, AfterSwapNestedContext) {
+  StrictMock<MockTraceEventListener> nested;
+  for (State state : {State::kDefault, State::kNested}) {
+    SetupActiveContext();
+    SyncContext inner = CreateSync(&nested, state, SyncId(99), kSyncId);
+
+    EXPECT_CALL(mock_, OnTraceEnterSync(kSyncId, Eq("Nested")));
+    inner.AfterSwapCurrent(access(), "Nested");
+
+    EXPECT_THAT(inner.state(), Eq(State::kActive));
+    EXPECT_THAT(inner.active_sync_id(), Eq(kActiveSyncId));
+    EXPECT_THAT(inner.listener(), Eq(&nested));
+
+    EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
+    EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+  }
+}
+
+TEST_F(SyncContextTest, AfterSwapFailsOnAbandonedTracer) {
+  context_ = CreateSync(nullptr);
+  context_.AfterSwapCurrent(access(), "Abandoned");
+  EXPECT_TRUE(context_.empty());
+
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+}
+
+TEST_F(SyncContextTest, AfterSwapFailsWithInvalidState) {
+  SetupContext(State::kNested);
+
+  EXPECT_CALL(mock_, ReleaseEventListener());
+  context_.AfterSwapCurrent(access(), "NestedWithoutActiveTLS");
+  EXPECT_TRUE(context_.empty());
+
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+}
+
+TEST_F(SyncContextTest, AfterRestoreEmptyContext) {
+  context_.AfterRestoreCurrent(access(), "Empty");
+  EXPECT_TRUE(context_.empty());
+
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+}
+
+TEST_F(SyncContextTest, AfterRestoreZombieContext) {
+  SetupContext(State::kZombie);
+
+  EXPECT_CALL(mock_, ReleaseEventListener());
+  context_.AfterRestoreCurrent(access(), "Zombie");
+  EXPECT_TRUE(context_.empty());
+
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+}
+
+TEST_F(SyncContextTest, AfterRestoreDefaultContext) {
+  SetupContext();
+
+  EXPECT_CALL(mock_, OnTraceBeginSync(Eq(kSyncId), Eq("Begin")));
+  context_.AfterRestoreCurrent(access(), "Begin");
+
+  EXPECT_THAT(context_.state(), Eq(State::kActive));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kSyncId));
+  EXPECT_THAT(context_.listener(), Eq(nullptr));
+
+  EXPECT_THAT(active_sync_id(), Eq(kSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+}
+
+TEST_F(SyncContextTest, AfterRestoreSuspendedContext) {
+  SetupContext(State::kSuspended);
+
+  EXPECT_CALL(mock_, OnTraceResumeSync(kActiveSyncId));
+  context_.AfterRestoreCurrent(access(), "Resume");
+
+  EXPECT_THAT(context_.state(), Eq(State::kActive));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(context_.listener(), Eq(nullptr));
+
+  EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+}
+
+TEST_F(SyncContextTest, AfterRestoreNestedContext) {
+  StrictMock<MockTraceEventListener> nested;
+  for (State state : {State::kDefault, State::kNested}) {
+    SetupActiveContext();
+    SyncContext inner = CreateSync(&nested, state, SyncId(99), kSyncId);
+
+    EXPECT_CALL(mock_, OnTraceEnterSync(kSyncId, Eq("Nested")));
+    inner.AfterRestoreCurrent(access(), "Nested");
+
+    EXPECT_THAT(inner.state(), Eq(State::kActive));
+    EXPECT_THAT(inner.active_sync_id(), Eq(kActiveSyncId));
+    EXPECT_THAT(inner.listener(), Eq(&nested));
+
+    EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
+    EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+  }
+}
+
+TEST_F(SyncContextTest, AfterRestoreFailsOnAbandonedTracer) {
+  context_ = CreateSync(nullptr);
+  context_.AfterRestoreCurrent(access(), "Abandoned");
+  EXPECT_TRUE(context_.empty());
+
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+}
+
+TEST_F(SyncContextTest, AfterRestoreFailsWithInvalidState) {
+  SetupContext(State::kNested);
+
+  EXPECT_CALL(mock_, ReleaseEventListener());
+  context_.AfterRestoreCurrent(access(), "NestedWithoutActiveTLS");
+  EXPECT_TRUE(context_.empty());
+
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+}
+
+TEST_F(SyncContextTest, ResumeEmptyContext) {
+  EXPECT_FALSE(context_.ResumeContext(access(), kNoBarrierId, "Empty"));
+  EXPECT_TRUE(context_.empty());
+
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+}
+
+TEST_F(SyncContextTest, ResumeDefaultContext) {
+  SetupContext();
+
+  EXPECT_CALL(mock_, OnTraceBeginSync(Eq(kSyncId), Eq("Begin")));
+  EXPECT_TRUE(context_.ResumeContext(access(), kNoBarrierId, "Begin"));
+
+  EXPECT_THAT(context_.state(), Eq(State::kActive));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kSyncId));
+  EXPECT_THAT(context_.listener(), Eq(nullptr));
+
+  EXPECT_THAT(active_sync_id(), Eq(kSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+}
+
+TEST_F(SyncContextTest, ResumeDefaultContextWithBarrier) {
+  InSequence in_sequence;
+  SetupContext();
+
+  EXPECT_CALL(mock_, OnTraceBeginSync(Eq(kSyncId), Eq("Begin")));
+  EXPECT_CALL(mock_, OnTraceObserved(Eq(BarrierId(1234)), Eq("Begin")));
+  EXPECT_TRUE(context_.ResumeContext(access(), BarrierId(1234), "Begin"));
+
+  EXPECT_THAT(context_.state(), Eq(State::kActive));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kSyncId));
+  EXPECT_THAT(context_.listener(), Eq(nullptr));
+
+  EXPECT_THAT(active_sync_id(), Eq(kSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+}
+
+TEST_F(SyncContextTest, ResumeSuspendedContext) {
+  SetupContext(State::kSuspended);
+
+  EXPECT_CALL(mock_, OnTraceResumeSync(kActiveSyncId));
+  EXPECT_TRUE(context_.ResumeContext(access(), BarrierId(1234), "Resume"));
+
+  EXPECT_THAT(context_.state(), Eq(State::kActive));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(context_.listener(), Eq(nullptr));
+
+  EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+}
+
+TEST_F(SyncContextTest, ResumeWaitSuspendedContext) {
+  SetupContext(State::kWait);
+
+  EXPECT_CALL(mock_, OnTraceContinue(Eq(BarrierId(1234))));
+  EXPECT_TRUE(context_.ResumeContext(access(), BarrierId(1234), "Resume"));
+
+  EXPECT_THAT(context_.state(), Eq(State::kActive));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(context_.listener(), Eq(nullptr));
+
+  EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+}
+
+TEST_F(SyncContextTest, ResumeFailsOnAbandonedTracer) {
+  context_ = CreateSync(nullptr);
+
+  EXPECT_FALSE(context_.ResumeContext(access(), kNoBarrierId, "Begin"));
+  EXPECT_TRUE(context_.empty());
+}
+
+TEST_F(SyncContextTest, ResumeFailsWithActiveListener) {
+  StrictMock<MockTraceEventListener> other_mock;
+  SetupActiveContext();
+
+  SyncContext suspended = CreateSync(&other_mock);
+  EXPECT_CALL(other_mock, ReleaseEventListener());
+  EXPECT_FALSE(suspended.ResumeContext(access(), kNoBarrierId, "Begin"));
+  EXPECT_TRUE(suspended.empty());
+
+  EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+}
+
+TEST_F(SyncContextTest, ResumeFailsWithInvalidState) {
   for (State state : {
            State::kNested,
            State::kActive,
            State::kZombie,
        }) {
-    StrictMock<MockTraceEventListener> mock;
-    SyncContext context = NewSync(&mock, state);
+    SCOPED_TRACE(state);
+    SetupContext(state);
 
-    EXPECT_CALL(mock, ReleaseEventListener());
-    EXPECT_FALSE(context.ResumeContext(access(), kNoBarrierId, "Begin"));
-    EXPECT_TRUE(context.empty());
+    EXPECT_CALL(mock_, ReleaseEventListener());
+    ASSERT_FALSE(context_.ResumeContext(access(), kNoBarrierId, "Begin"));
+    EXPECT_TRUE(context_.empty());
+
+    EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+    EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
   }
 }
 
-TEST_F(AutoCleanupSyncContextTest, SuspendActiveContextAsWaiting) {
-  StrictMock<MockTraceEventListener> mock;
-  SyncContext context = NewSync(nullptr, State::kActive, SyncId(5));
-  SetupTLS(SyncId(5), &mock);
-  EXPECT_CALL(mock, GetEventListener(_)).WillOnce(Return(&mock));
-  SyncContext to = context;
-
-  EXPECT_CALL(mock, OnTraceWait(Eq(kNoBarrierId), Eq("Wait")));
-  EXPECT_TRUE(context.SuspendContext(access(), to, "Wait"));
-
-  EXPECT_THAT(context.state(), Eq(State::kWait));
-  EXPECT_THAT(context.active_sync_id(), Eq(SyncId(5)));
-  EXPECT_THAT(context.listener(), Eq(&mock));
+TEST_F(SyncContextTest, SuspendEmptyContext) {
+  EXPECT_FALSE(context_.SuspendContext(access(), {}, "Empty"));
+  EXPECT_TRUE(context_.empty());
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
 }
 
-TEST_F(AutoCleanupSyncContextTest, SuspendActiveContextAsSuspended) {
-  StrictMock<MockTraceEventListener> mock;
-  SyncContext context = NewSync(nullptr, State::kActive, SyncId(5));
+TEST_F(SyncContextTest, SuspendActiveContextAsWaiting) {
+  SetupActiveContext();
+  EXPECT_CALL(mock_, GetEventListener(_)).WillOnce(Return(&mock_));
+  SyncContext to = context_;
+
+  EXPECT_CALL(mock_, OnTraceWait(Eq(kNoBarrierId), Eq("Wait")));
+  EXPECT_TRUE(context_.SuspendContext(access(), to, "Wait"));
+
+  EXPECT_THAT(context_.state(), Eq(State::kWait));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(context_.listener(), Eq(&mock_));
+
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+}
+
+TEST_F(SyncContextTest, SuspendActiveContextAsSuspended) {
   SyncContext background;
-  SetupTLS(SyncId(5), &mock);
+  SetupActiveContext();
 
-  EXPECT_CALL(mock, OnTraceSuspendSync(SyncId(5)));
-  EXPECT_TRUE(context.SuspendContext(access(), background, "Unused"));
+  EXPECT_CALL(mock_, OnTraceSuspendSync(kActiveSyncId));
+  EXPECT_TRUE(context_.SuspendContext(access(), background, "Unused"));
 
-  EXPECT_THAT(context.state(), Eq(State::kSuspended));
-  EXPECT_THAT(context.active_sync_id(), Eq(SyncId(5)));
-  EXPECT_THAT(context.listener(), Eq(&mock));
-
-  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
-  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
-}
-
-TEST_F(AutoCleanupSyncContextTest, SuspendContextReleasesNestedListener) {
-  StrictMock<MockTraceEventListener> mock, nested;
-  SyncContext context = NewSync(&nested, State::kActive, SyncId(5));
-  SetupTLS(SyncId(5), &mock);
-
-  EXPECT_CALL(mock, OnTraceSuspendSync(_));
-  EXPECT_CALL(nested, ReleaseEventListener());
-  EXPECT_TRUE(context.SuspendContext(access(), {}, ""));
-
-  EXPECT_THAT(context.state(), Eq(State::kSuspended));
-  EXPECT_THAT(context.active_sync_id(), Eq(SyncId(5)));
-  EXPECT_THAT(context.listener(), Eq(&mock));
+  EXPECT_THAT(context_.state(), Eq(State::kSuspended));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(context_.listener(), Eq(&mock_));
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
 }
 
-TEST_F(AutoCleanupSyncContextTest, SuspendFailsWithoutActiveListener) {
-  StrictMock<MockTraceEventListener> mock;
-  SyncContext context = NewSync(nullptr, State::kActive);
+TEST_F(SyncContextTest, SuspendContextReleasesNestedListener) {
+  // A nested context typically still owns a listener as it was swapped
+  // in while retaining the outermost listener.
+  StrictMock<MockTraceEventListener> nested;
+  SetupActiveContext(&nested);
 
-  EXPECT_FALSE(context.SuspendContext(access(), {}, ""));
-  EXPECT_TRUE(context.empty());
-}
-
-TEST_F(AutoCleanupSyncContextTest, SuspendFailsWithInvalidState) {
-  for (State state : {
-           State::kDefault,
-           State::kNested,
-           State::kSuspended,
-           State::kZombie,
-       }) {
-    StrictMock<MockTraceEventListener> mock;
-    SyncContext context = NewSync(nullptr, state, SyncId(5));
-    SetupTLS(SyncId(5), &mock);
-
-    EXPECT_FALSE(context.SuspendContext(access(), {}, ""));
-    EXPECT_TRUE(context.empty());
-  }
-}
-
-TEST_F(AutoCleanupSyncContextTest, EndContext) {
-  StrictMock<MockTraceEventListener> mock;
-  SyncContext context = NewSync(nullptr, State::kActive, SyncId(5));
-  SetupTLS(SyncId(5), &mock);
-
-  EXPECT_CALL(mock, OnTraceEndSync(SyncId(5)));
-  EXPECT_CALL(mock, ReleaseEventListener());
-  EXPECT_TRUE(context.EndContext(access()));
-  EXPECT_TRUE(context.empty());
-}
-
-TEST_F(AutoCleanupSyncContextTest, EndContextReleasesNestedListener) {
-  StrictMock<MockTraceEventListener> mock, nested;
-  SyncContext context = NewSync(&nested, State::kActive, SyncId(5));
-  SetupTLS(SyncId(5), &mock);
-
-  EXPECT_CALL(mock, OnTraceEndSync(SyncId(5)));
-  EXPECT_CALL(mock, ReleaseEventListener());
+  EXPECT_CALL(mock_, OnTraceSuspendSync(_));
   EXPECT_CALL(nested, ReleaseEventListener());
-  EXPECT_TRUE(context.EndContext(access()));
-  EXPECT_TRUE(context.empty());
+  EXPECT_TRUE(context_.SuspendContext(access(), {}, ""));
+
+  EXPECT_THAT(context_.state(), Eq(State::kSuspended));
+  EXPECT_THAT(context_.active_sync_id(), Eq(kActiveSyncId));
+  EXPECT_THAT(context_.listener(), Eq(&mock_));
+
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
 }
 
-TEST_F(AutoCleanupSyncContextTest, EndFailsWithInvalidState) {
+TEST_F(SyncContextTest, SuspendFailsWithoutActiveListener) {
+  context_ = CreateSync(nullptr, State::kActive);
+  EXPECT_FALSE(context_.SuspendContext(access(), {}, ""));
+  EXPECT_TRUE(context_.empty());
+}
+
+TEST_F(SyncContextTest, SuspendFailsWithInvalidState) {
+  StrictMock<MockTraceEventListener> active_mock;
+  internal::set_active_sync_id(kActiveSyncId);
+  internal::set_active_event_listener(&active_mock);
+
   for (State state : {
            State::kDefault,
            State::kNested,
            State::kSuspended,
+           State::kWait,
            State::kZombie,
        }) {
-    StrictMock<MockTraceEventListener> mock;
-    SyncContext context = NewSync(nullptr, state, SyncId(5));
-    SetupTLS(SyncId(5), &mock);
+    SCOPED_TRACE(state);
+    SetupContext(state);
 
-    EXPECT_FALSE(context.EndContext(access()));
-    EXPECT_TRUE(context.empty());
+    EXPECT_CALL(mock_, ReleaseEventListener());
+    EXPECT_FALSE(context_.SuspendContext(access(), {}, ""));
+    EXPECT_TRUE(context_.empty());
+
+    EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
+    EXPECT_THAT(internal::active_event_listener(), Eq(&active_mock));
   }
+
+  internal::set_active_event_listener(nullptr);
+}
+
+TEST_F(SyncContextTest, EndEmptyContext) {
+  EXPECT_FALSE(context_.EndContext(access()));
+  EXPECT_TRUE(context_.empty());
+
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+}
+
+TEST_F(SyncContextTest, EndContext) {
+  SetupActiveContext();
+
+  EXPECT_CALL(mock_, OnTraceEndSync(kActiveSyncId));
+  EXPECT_CALL(mock_, ReleaseEventListener());
+  EXPECT_TRUE(context_.EndContext(access()));
+  EXPECT_TRUE(context_.empty());
+
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+}
+
+TEST_F(SyncContextTest, EndContextReleasesNestedListener) {
+  StrictMock<MockTraceEventListener> nested;
+  SetupActiveContext(&nested);
+
+  EXPECT_CALL(mock_, OnTraceEndSync(kActiveSyncId));
+  EXPECT_CALL(mock_, ReleaseEventListener());
+  EXPECT_CALL(nested, ReleaseEventListener());
+  EXPECT_TRUE(context_.EndContext(access()));
+  EXPECT_TRUE(context_.empty());
+
+  EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+}
+
+TEST_F(SyncContextTest, EndFailsWithoutActiveListener) {
+  context_ = CreateSync(nullptr, State::kActive, kActiveSyncId);
+  EXPECT_FALSE(context_.EndContext(access()));
+  EXPECT_TRUE(context_.empty());
+}
+
+TEST_F(SyncContextTest, EndFailsWithInvalidState) {
+  StrictMock<MockTraceEventListener> active_mock;
+  internal::set_active_sync_id(kActiveSyncId);
+  internal::set_active_event_listener(&active_mock);
+
+  for (State state : {
+           State::kDefault,
+           State::kNested,
+           State::kSuspended,
+           State::kWait,
+           State::kZombie,
+       }) {
+    SCOPED_TRACE(state);
+    SetupContext(state);
+
+    EXPECT_CALL(mock_, ReleaseEventListener());
+    EXPECT_FALSE(context_.EndContext(access()));
+    EXPECT_TRUE(context_.empty());
+
+    EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
+    EXPECT_THAT(internal::active_event_listener(), Eq(&active_mock));
+  }
+
+  internal::set_active_event_listener(nullptr);
 }
 
 }  // namespace

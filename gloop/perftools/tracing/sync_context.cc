@@ -121,9 +121,11 @@ SyncContext::Impl* SyncContext::Impl::New(TraceEventListener* listener) {
 }
 
 SyncContext::Impl* SyncContext::Impl::CreateForTesting(
-    TraceEventListener* listener, SyncId sync_id, SyncId active_sync_id) {
+    TraceEventListener* listener, State state, SyncId sync_id,
+    SyncId active_sync_id) {
   auto shared = std::make_shared<Shared>();
   auto* context = new Impl(std::move(shared), listener, sync_id);
+  context->state_ = state;
   context->active_sync_id_ = active_sync_id;
   return context;
 }

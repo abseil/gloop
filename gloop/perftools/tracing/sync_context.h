@@ -170,8 +170,9 @@ namespace perftools::tracing::core {
 // requirements or in-variants are broken.
 class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
  public:
-  // Access token for testing purposes
+  // Access token for internal and testing purposes.
   class Access;
+  using TestOnlyAccess = ::perftools::tracing::testing::TestOnlyAccess;
 
   // State of this context. The default state of a context is `kEmpty`.
   //
@@ -458,12 +459,12 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   void AfterRestoreCurrent(Access,
                            StringRef label = TraceSourceLocation::current());
 
-  static SyncContext CreateForTesting(Access, TraceEventListener* listener,
-                                      SyncId sync_id, SyncId active_sync_id);
+  // Create a hand-crafted instance for testing purposes.
+  // No checks are performed on the legality of the created instance.
+  static SyncContext Create(const TestOnlyAccess&, TraceEventListener* listener,
+                            State state, SyncId sync_id, SyncId active_sync_id);
 
  private:
-  friend class SyncContextTestPeer;
-
   // SyncContext follows a pimpl pattern for two main reasons:
   // - the fast path is that no execution tracers are installed. Using a pimpl
   //   pattern minimizes the footprint of the SyncContext class.
@@ -550,12 +551,10 @@ class SyncContext::Impl {
   bool SuspendContext(bool is_wait, StringRef label);
   bool EndContext();
 
-  static Impl* CreateForTesting(TraceEventListener* listener, SyncId sync_id,
-                                SyncId active_sync_id);
+  static Impl* CreateForTesting(TraceEventListener* listener, State state,
+                                SyncId sync_id, SyncId active_sync_id);
 
  private:
-  friend class SyncContextTestPeer;
-
   class Shared;
   using SharedPtr = std::shared_ptr<Shared>;
 
@@ -610,7 +609,6 @@ inline bool SyncContext::Impl::same_trace(const Impl* other) const {
 class SyncContext::Access {
  private:
   constexpr Access() noexcept;
-  friend class SyncContextTestPeer;
   friend class ::TraceContext;
   friend class ::base::Context;
 
@@ -767,11 +765,12 @@ inline void swap(SyncContext& lhs, SyncContext& rhs) noexcept {
   swap(lhs.impl_, rhs.impl_);
 }
 
-inline SyncContext SyncContext::CreateForTesting(Access,
-                                                 TraceEventListener* listener,
-                                                 SyncId sync_id,
-                                                 SyncId active_sync_id) {
-  return SyncContext(Impl::CreateForTesting(listener, sync_id, active_sync_id));
+inline SyncContext SyncContext::Create(const TestOnlyAccess&,
+                                       TraceEventListener* listener,
+                                       State state, SyncId sync_id,
+                                       SyncId active_sync_id) {
+  return SyncContext(
+      Impl::CreateForTesting(listener, state, sync_id, active_sync_id));
 }
 
 }  // namespace perftools::tracing::core
