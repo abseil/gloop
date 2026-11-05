@@ -193,11 +193,6 @@ TraceContext* internal::MutableCurrentContext::MutableCurrentTrace() {
   return &InlineCurrent()->tc_;
 }
 
-const TraceContext* CurrentTraceContextNoAlloc() {
-  const Context* c = per_thread_context.safe_pointer();
-  return c ? &c->trace_context() : nullptr;
-}
-
 ABSL_XRAY_ALWAYS_INSTRUMENT void SwapCurrentContext(Context* c) {
   using std::swap;
   Context* current = InlineCurrent();
@@ -237,6 +232,17 @@ Context ExchangeThreadContext(ThreadContextAccess access, Context context,
   swap(*current, context);
   trace->AfterExchangeThreadContext(access, label);
   return context;
+}
+
+// HACK(jacobsa): provide a definition of the function declared in
+// tracecontext.h, despite that header not being part of this target. The code
+// there is, and long has been, incorrect unless context.cc is also linked into
+// the binary.
+//
+// Note that we can't just forward declare CurrentTraceContextNoAlloc there,
+// because that function is marked inline but it can't be defined in that file.
+const TraceContext* CurrentTraceContextNoAlloc_ForTraceContext() {
+  return CurrentTraceContextNoAlloc();
 }
 
 ContextBuilder& ContextBuilder::set_trace_context(TraceContext tc) {

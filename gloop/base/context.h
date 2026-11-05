@@ -373,9 +373,15 @@ inline const char* CurrentThreadStatus() {
 // means that no status string will be printed.
 void SetCurrentThreadStatus(const char* thread_status);
 
-// Return the TraceContext of the current thread, or nullptr if one cannot be
-// found. This function is safe to call inside signal handlers.
-const TraceContext* CurrentTraceContextNoAlloc();
+// TODO: get rid of this.
+ABSL_DEPRECATE_AND_INLINE()
+inline const TraceContext* CurrentTraceContextNoAlloc() {
+  const absl::optional_ref<const Context> current_context =
+      CurrentContextNoAlloc();
+
+  return current_context.has_value() ? &current_context->trace_context()
+                                     : nullptr;
+}
 
 // Scoped object that sets the current thread's context to switch_to until
 // the object is destroyed.

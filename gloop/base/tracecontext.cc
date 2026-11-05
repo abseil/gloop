@@ -282,7 +282,7 @@ TraceContext& TraceContext::operator=(const TraceContext& c) {
   // We never allow assign `into` the thread local, swapping thread local
   // context should only ever happen in the designated Swap and Restore APIs
   // which do never use copy assign logic.
-  DCHECK_NE(this, base::CurrentTraceContextNoAlloc());
+  DCHECK_NE(this, base::CurrentTraceContextNoAlloc_ForTraceContext());
 
   if (this == &c) {
     return *this;
