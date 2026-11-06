@@ -25,6 +25,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
@@ -40,6 +41,8 @@ namespace perftools::tracing::core {
 namespace {
 
 SyncId tls_active_sync_id() { return active_sync_id(); }
+
+thread_local const SyncContext* absl_nullable tls_context = nullptr;
 
 }  // namespace
 
@@ -61,6 +64,20 @@ std::ostream& operator<<(std::ostream& s, SyncContext::State state) {
       return s << "Zombie";
   }
   return s << "???";
+}
+
+// ------------------------ SyncContext thread state -------------------
+
+const SyncContext* absl_nullable SyncContext::ActiveContext() {
+  return tls_context;
+}
+
+const SyncContext* absl_nullable SyncContext::ActiveContext(Access) {
+  return ActiveContext();
+}
+
+void SyncContext::SetActiveContext(const SyncContext* absl_nullable context) {
+  tls_context = context;
 }
 
 // ------------------------ Shared --------------------------------
@@ -200,6 +217,7 @@ bool SyncContext::Impl::RemoveListenerFromCurrent(
 
   // All listeners are removed, return `false` to the caller to indicate
   // that this instance is no longer live and must be deleted.
+  SetActiveContext(nullptr);
   internal::set_active_sync_id(kNoSyncId);
   return false;
 }
@@ -232,7 +250,8 @@ bool SyncContext::Impl::ContainsListener(TraceEventListener* listener) const {
 }
 
 // TODO: b/559675297 - change errors to DFATAL?
-bool SyncContext::Impl::ResumeContext(BarrierId barrier_id, StringRef label) {
+bool SyncContext::Impl::ResumeContext(BarrierId barrier_id, StringRef label,
+                                      SyncContext& self) {
   if (listener_ == nullptr) {
     LOG_EVERY_N_SEC(ERROR, 60) << "ResumeContext() on an abandoned tracer";
     return false;
@@ -268,6 +287,7 @@ bool SyncContext::Impl::ResumeContext(BarrierId barrier_id, StringRef label) {
 
   // Update state to active and transfer listener ownership to thread.
   state_ = State::kActive;
+  SetActiveContext(&self);
   internal::set_active_event_listener(listener_);
   listener_ = nullptr;
 
@@ -304,6 +324,7 @@ bool SyncContext::Impl::SuspendContext(bool is_wait, StringRef label) {
   listener_ = current;
 
   // Set TLS to empty
+  SetActiveContext(nullptr);
   internal::set_active_sync_id(kNoSyncId);
   internal::set_active_event_listener(nullptr);
 
@@ -332,6 +353,7 @@ bool SyncContext::Impl::EndContext() {
   // Take ownership of the listener.
   if (listener_ != nullptr) listener_->ReleaseEventListener();
   listener_ = current;
+  SetActiveContext(nullptr);
   internal::set_active_event_listener(nullptr);
 
   return true;
@@ -381,11 +403,12 @@ void SyncContext::Impl::BeforeSwap(const Impl* to) {
   // nested and still own an ignored nested listener instance.
   if (listener_ != nullptr) listener_->ReleaseEventListener();
   listener_ = current;
+  SetActiveContext(nullptr);
   internal::set_active_event_listener(nullptr);
 }
 
 template <SyncContext::Impl::SwapOrRestore swap_or_restore>
-bool SyncContext::Impl::AfterSwap(StringRef label) {
+bool SyncContext::Impl::AfterSwap(StringRef label, SyncContext& self) {
   // Make sure we are not restoring to a zombie state
   if (state_ == State::kZombie) {
     // This is only allowed on Restore as part of a zombie Swap/Restore.
@@ -401,6 +424,7 @@ bool SyncContext::Impl::AfterSwap(StringRef label) {
     state_ = State::kActive;
     active_sync_id_ = tls_active_sync_id();
     current->OnTraceEnterSync(sync_id_, label);
+    SetActiveContext(&self);
     return true;
   }
 
@@ -423,6 +447,7 @@ bool SyncContext::Impl::AfterSwap(StringRef label) {
     internal::set_active_sync_id(active_sync_id_);
     listener_->OnTraceResumeSync(active_sync_id_);
   }
+  SetActiveContext(&self);
   internal::set_active_event_listener(listener_);
   listener_ = nullptr;
   state_ = State::kActive;
@@ -437,15 +462,21 @@ void SyncContext::Impl::BeforeRestoreCurrent(const Impl* to) {
   BeforeSwap<kRestore>(to);
 }
 
-bool SyncContext::Impl::AfterSwapCurrent(StringRef label) {
-  return AfterSwap<kSwap>(label);
+bool SyncContext::Impl::AfterSwapCurrent(StringRef label, SyncContext& self) {
+  return AfterSwap<kSwap>(label, self);
 }
 
-bool SyncContext::Impl::AfterRestoreCurrent(StringRef label) {
-  return AfterSwap<kRestore>(label);
+bool SyncContext::Impl::AfterRestoreCurrent(StringRef label,
+                                            SyncContext& self) {
+  return AfterSwap<kRestore>(label, self);
 }
 
 // ------------------------ SyncContext --------------------------------
+
+void SyncContext::SetActiveContext(const TestOnlyAccess&,
+                                   const SyncContext* absl_nullable context) {
+  SetActiveContext(context);
+}
 
 void SyncContext::AddListener(TraceEventListener* listener) {
   if (listener != nullptr) {
@@ -464,7 +495,7 @@ void SyncContext::AddListenerToCurrent(Access, TraceEventListener* listener,
       impl_->AddListenerToCurrent(listener, label);
     } else {
       impl_ = Impl::New(listener);
-      impl_->AfterSwapCurrent(label);
+      impl_->AfterSwapCurrent(label, *this);
     }
   }
 }
@@ -497,6 +528,19 @@ void SyncContext::RemoveListenerFromCurrent(Access,
     LOG_EVERY_N_SEC(ERROR, 60)
         << "RemoveListenerFromCurrent() on an empty instance";
   }
+}
+
+void SyncContext::Reset(const TestOnlyAccess&) {
+  if (ActiveContext() == this) {
+    SetActiveContext(nullptr);
+  }
+  DeleteImpl();
+}
+
+void SyncContext::ResetThreadState(const TestOnlyAccess&) {
+  SetActiveContext(nullptr);
+  internal::set_active_sync_id(kNoSyncId);
+  internal::set_active_event_listener(nullptr);
 }
 
 }  // namespace perftools::tracing::core

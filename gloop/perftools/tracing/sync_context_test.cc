@@ -64,8 +64,8 @@ class SyncContextTest : public ::testing::Test {
  public:
   ~SyncContextTest() override {
     EXPECT_CALL(mock_, ReleaseEventListener()).Times(AnyNumber());
-    internal::set_active_sync_id(kNoSyncId);
-    internal::set_active_event_listener(nullptr);
+    context_.Reset(TestOnlyAccess());
+    SyncContext::ResetThreadState(TestOnlyAccess());
   }
 
  protected:
@@ -95,6 +95,7 @@ class SyncContextTest : public ::testing::Test {
   void SetupActiveContext(TraceEventListener* nested_listener = nullptr) {
     context_ =
         CreateSync(nested_listener, State::kActive, kActiveSyncId, kSyncId);
+    SyncContext::SetActiveContext(TestOnlyAccess(), &context_);
     internal::set_active_sync_id(kActiveSyncId);
     internal::set_active_event_listener(&mock_);
   }
@@ -313,6 +314,7 @@ TEST_F(SyncContextTest, AddListenerToCurrentOnEmptyContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kMainSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
 }
 
 TEST_F(SyncContextTest, ListenersOnCurrentAreEndedInLifoOrder) {
@@ -453,6 +455,7 @@ TEST_F(SyncContextTest, RemoveListenersFromCurrent) {
   context_.RemoveListenerFromCurrent(access(), &mock_);
   EXPECT_TRUE(context_.empty());
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, CornerCaseAddDuplicateListener) {
@@ -553,6 +556,7 @@ TEST_F(SyncContextTest, IsolateFromSideEffectsInReleaseOnRemoveFromCurrent) {
   context_.RemoveListenerFromCurrent(access(), &mock_);
   EXPECT_TRUE(context_.empty());
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, IsolateFromSideEffectsInReleaseOnDelete) {
@@ -569,6 +573,7 @@ TEST_F(SyncContextTest, BeforeSwapEmptyContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, BeforeSwapZombieContext) {
@@ -583,6 +588,7 @@ TEST_F(SyncContextTest, BeforeSwapZombieContext) {
   EXPECT_THAT(context_.listener(), Eq(&mock_));
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 
   context_.BeforeSwapCurrent(access(), other);
   EXPECT_THAT(context_.state(), Eq(State::kZombie));
@@ -590,6 +596,7 @@ TEST_F(SyncContextTest, BeforeSwapZombieContext) {
   EXPECT_THAT(context_.listener(), Eq(&mock_));
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, BeforeSwapActiveContext) {
@@ -604,6 +611,7 @@ TEST_F(SyncContextTest, BeforeSwapActiveContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, BeforeSwapActiveContextToSameTrace) {
@@ -619,6 +627,7 @@ TEST_F(SyncContextTest, BeforeSwapActiveContextToSameTrace) {
 
   EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
 }
 
 TEST_F(SyncContextTest, BeforeSwapActiveContextToSuspendedSameTrace) {
@@ -637,6 +646,7 @@ TEST_F(SyncContextTest, BeforeSwapActiveContextToSuspendedSameTrace) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, BeforeSwapReleasesNestedListener) {
@@ -653,6 +663,7 @@ TEST_F(SyncContextTest, BeforeSwapReleasesNestedListener) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, BeforeSwapFailsWithoutActiveListener) {
@@ -665,6 +676,7 @@ TEST_F(SyncContextTest, BeforeSwapFailsWithoutActiveListener) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, BeforeSwapFailsWithInvalidState) {
@@ -699,6 +711,7 @@ TEST_F(SyncContextTest, BeforeRestoreEmptyContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, BeforeRestoreZombieContext) {
@@ -713,6 +726,7 @@ TEST_F(SyncContextTest, BeforeRestoreZombieContext) {
   EXPECT_THAT(context_.listener(), Eq(&mock_));
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 
   context_.BeforeRestoreCurrent(access(), other);
   EXPECT_THAT(context_.state(), Eq(State::kZombie));
@@ -720,6 +734,7 @@ TEST_F(SyncContextTest, BeforeRestoreZombieContext) {
   EXPECT_THAT(context_.listener(), Eq(&mock_));
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, BeforeRestoreActiveContext) {
@@ -734,6 +749,7 @@ TEST_F(SyncContextTest, BeforeRestoreActiveContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, BeforeRestoreActiveContextToSameTrace) {
@@ -749,6 +765,7 @@ TEST_F(SyncContextTest, BeforeRestoreActiveContextToSameTrace) {
 
   EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
 }
 
 TEST_F(SyncContextTest, BeforeRestoreActiveContextToSuspendedSameTrace) {
@@ -767,6 +784,7 @@ TEST_F(SyncContextTest, BeforeRestoreActiveContextToSuspendedSameTrace) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, BeforeRestoreReleasesNestedListener) {
@@ -783,6 +801,7 @@ TEST_F(SyncContextTest, BeforeRestoreReleasesNestedListener) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, BeforeRestoreFailsWithoutActiveListener) {
@@ -795,6 +814,7 @@ TEST_F(SyncContextTest, BeforeRestoreFailsWithoutActiveListener) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, BeforeRestoreFailsWithInvalidState) {
@@ -818,6 +838,7 @@ TEST_F(SyncContextTest, BeforeRestoreFailsWithInvalidState) {
 
     EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
     EXPECT_THAT(internal::active_event_listener(), Eq(&active_mock));
+    EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
   }
 
   internal::set_active_event_listener(nullptr);
@@ -829,6 +850,7 @@ TEST_F(SyncContextTest, AfterSwapEmptyContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, AfterSwapDefaultContext) {
@@ -843,6 +865,7 @@ TEST_F(SyncContextTest, AfterSwapDefaultContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
 }
 
 TEST_F(SyncContextTest, AfterSwapSuspendedContext) {
@@ -857,6 +880,7 @@ TEST_F(SyncContextTest, AfterSwapSuspendedContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
 }
 
 TEST_F(SyncContextTest, AfterSwapNestedContext) {
@@ -874,6 +898,8 @@ TEST_F(SyncContextTest, AfterSwapNestedContext) {
 
     EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
     EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+    EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&inner));
+    inner.Reset(TestOnlyAccess());
   }
 }
 
@@ -884,6 +910,7 @@ TEST_F(SyncContextTest, AfterSwapFailsOnAbandonedTracer) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, AfterSwapFailsWithInvalidState) {
@@ -895,6 +922,7 @@ TEST_F(SyncContextTest, AfterSwapFailsWithInvalidState) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, AfterRestoreEmptyContext) {
@@ -903,6 +931,7 @@ TEST_F(SyncContextTest, AfterRestoreEmptyContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, AfterRestoreZombieContext) {
@@ -914,6 +943,7 @@ TEST_F(SyncContextTest, AfterRestoreZombieContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, AfterRestoreDefaultContext) {
@@ -928,6 +958,7 @@ TEST_F(SyncContextTest, AfterRestoreDefaultContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
 }
 
 TEST_F(SyncContextTest, AfterRestoreSuspendedContext) {
@@ -942,6 +973,7 @@ TEST_F(SyncContextTest, AfterRestoreSuspendedContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
 }
 
 TEST_F(SyncContextTest, AfterRestoreNestedContext) {
@@ -959,6 +991,8 @@ TEST_F(SyncContextTest, AfterRestoreNestedContext) {
 
     EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
     EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+    EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&inner));
+    inner.Reset(TestOnlyAccess());
   }
 }
 
@@ -969,6 +1003,7 @@ TEST_F(SyncContextTest, AfterRestoreFailsOnAbandonedTracer) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, AfterRestoreFailsWithInvalidState) {
@@ -980,6 +1015,7 @@ TEST_F(SyncContextTest, AfterRestoreFailsWithInvalidState) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, ResumeEmptyContext) {
@@ -988,6 +1024,7 @@ TEST_F(SyncContextTest, ResumeEmptyContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, ResumeDefaultContext) {
@@ -1002,6 +1039,7 @@ TEST_F(SyncContextTest, ResumeDefaultContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
 }
 
 TEST_F(SyncContextTest, ResumeDefaultContextWithBarrier) {
@@ -1018,6 +1056,7 @@ TEST_F(SyncContextTest, ResumeDefaultContextWithBarrier) {
 
   EXPECT_THAT(active_sync_id(), Eq(kSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
 }
 
 TEST_F(SyncContextTest, ResumeSuspendedContext) {
@@ -1032,6 +1071,7 @@ TEST_F(SyncContextTest, ResumeSuspendedContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
 }
 
 TEST_F(SyncContextTest, ResumeWaitSuspendedContext) {
@@ -1046,6 +1086,7 @@ TEST_F(SyncContextTest, ResumeWaitSuspendedContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
 }
 
 TEST_F(SyncContextTest, ResumeFailsOnAbandonedTracer) {
@@ -1066,6 +1107,7 @@ TEST_F(SyncContextTest, ResumeFailsWithActiveListener) {
 
   EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
 }
 
 TEST_F(SyncContextTest, ResumeFailsWithInvalidState) {
@@ -1083,6 +1125,7 @@ TEST_F(SyncContextTest, ResumeFailsWithInvalidState) {
 
     EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
     EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+    EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
   }
 }
 
@@ -1092,6 +1135,7 @@ TEST_F(SyncContextTest, SuspendEmptyContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, SuspendActiveContextAsWaiting) {
@@ -1108,6 +1152,7 @@ TEST_F(SyncContextTest, SuspendActiveContextAsWaiting) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, SuspendActiveContextAsSuspended) {
@@ -1123,6 +1168,7 @@ TEST_F(SyncContextTest, SuspendActiveContextAsSuspended) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, SuspendContextReleasesNestedListener) {
@@ -1141,6 +1187,7 @@ TEST_F(SyncContextTest, SuspendContextReleasesNestedListener) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, SuspendFailsWithoutActiveListener) {
@@ -1170,6 +1217,7 @@ TEST_F(SyncContextTest, SuspendFailsWithInvalidState) {
 
     EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
     EXPECT_THAT(internal::active_event_listener(), Eq(&active_mock));
+    EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
   }
 
   internal::set_active_event_listener(nullptr);
@@ -1181,6 +1229,7 @@ TEST_F(SyncContextTest, EndEmptyContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, EndContext) {
@@ -1193,6 +1242,7 @@ TEST_F(SyncContextTest, EndContext) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, EndContextReleasesNestedListener) {
@@ -1207,6 +1257,7 @@ TEST_F(SyncContextTest, EndContextReleasesNestedListener) {
 
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, EndFailsWithoutActiveListener) {
@@ -1236,6 +1287,7 @@ TEST_F(SyncContextTest, EndFailsWithInvalidState) {
 
     EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
     EXPECT_THAT(internal::active_event_listener(), Eq(&active_mock));
+    EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
   }
 
   internal::set_active_event_listener(nullptr);

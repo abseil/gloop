@@ -27,6 +27,7 @@
 #include <utility>
 
 #include "absl/base/attributes.h"
+#include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
@@ -244,6 +245,13 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   SyncContext(SyncContext&&) noexcept;
   SyncContext& operator=(const SyncContext&);
   SyncContext& operator=(SyncContext&&) noexcept;
+
+  // Returns the SyncContext instance active for the current thread or nullptr
+  // if the current thread is not being traced. The returned reference can be
+  // invalidated by any call into any google3 or 3p library function other than
+  // the standard c++ libraries, or functions explicitly documented to not
+  // affect any tracing state or context.
+  static const SyncContext* absl_nullable ActiveContext(Access);
 
   // Returns true if this instance is empty, false if this instance is part of
   // a causality trace graph and contains event listeners requiring processing
@@ -464,6 +472,19 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   static SyncContext Create(const TestOnlyAccess&, TraceEventListener* listener,
                             State state, SyncId sync_id, SyncId active_sync_id);
 
+  // Resets this instance to an empty state for testing purposes, clearing the
+  // active thread-local context if it points to this instance.
+  void Reset(const TestOnlyAccess&);
+
+  // Resets any per-thread or global state for testing purposes. Unit tests can
+  // call this method to cleanup any lingering thread or global state, and avoid
+  // the need to write "perfectly scoped" unit tests.
+  static void ResetThreadState(const TestOnlyAccess&);
+
+  // Sets the active instance for the current thread for testing purposes.
+  static void SetActiveContext(const TestOnlyAccess&,
+                               const SyncContext* absl_nullable context);
+
  private:
   // SyncContext follows a pimpl pattern for two main reasons:
   // - the fast path is that no execution tracers are installed. Using a pimpl
@@ -477,6 +498,12 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   // Deletes impl_ if non null, setting `impl_` to zero before deletion to make
   // sure the deletion is safe against any tracing side effects from listeners.
   void DeleteImpl() noexcept;
+
+  // Private implementation of ActiveContext(Access).
+  static const SyncContext* absl_nullable ActiveContext();
+
+  // Sets the active instance for the current thread.
+  static void SetActiveContext(const SyncContext* absl_nullable context);
 
   Impl* impl_ = nullptr;
 };
@@ -543,11 +570,11 @@ class SyncContext::Impl {
   // Returns true on success, false in case of an error or an invalid state,
   // in which case the caller must delete and clear the implementation for
   // the current context.
-  bool AfterSwapCurrent(StringRef label);
-  bool AfterRestoreCurrent(StringRef label);
+  bool AfterSwapCurrent(StringRef label, SyncContext& self);
+  bool AfterRestoreCurrent(StringRef label, SyncContext& self);
 
   // Implementations of ResumeContext, SuspendContext and EndContext.
-  bool ResumeContext(BarrierId barrier_id, StringRef label);
+  bool ResumeContext(BarrierId barrier_id, StringRef label, SyncContext& self);
   bool SuspendContext(bool is_wait, StringRef label);
   bool EndContext();
 
@@ -568,7 +595,7 @@ class SyncContext::Impl {
   // Implements 'AfterSwap/AfterRestore' logic. Returns true on success, false
   // in case of error in which case the caller should delete this instance.
   template <SwapOrRestore swap_or_restore>
-  bool AfterSwap(StringRef label);
+  bool AfterSwap(StringRef label, SyncContext& self);
 
   // Verifies that the current instance is the active instance for the current
   // thread, and returns the current thread's listener. Returns a nullptr on
@@ -626,7 +653,10 @@ inline void SyncContext::DeleteImpl() noexcept {
   }
 }
 
-inline SyncContext::~SyncContext() noexcept { DeleteImpl(); }
+inline SyncContext::~SyncContext() noexcept {
+  // TODO: b/581864531 - Enforce DCHECK(ActiveContext() != this);
+  DeleteImpl();
+}
 
 inline SyncContext::SyncContext(SyncContext&& rhs) noexcept : impl_(rhs.impl_) {
   rhs.impl_ = nullptr;
@@ -693,7 +723,7 @@ inline SyncContext SyncContext::CreateNoop() const {
 inline bool SyncContext::ResumeContext(Access, BarrierId barrier_id,
                                        StringRef label) {
   if (Impl* impl = impl_; impl != nullptr) {
-    if (impl->ResumeContext(barrier_id, label)) {
+    if (impl->ResumeContext(barrier_id, label, *this)) {
       return true;
     }
     impl_ = nullptr;
@@ -735,7 +765,7 @@ inline void SyncContext::BeforeSwapCurrent(Access, const SyncContext& to) {
 inline void SyncContext::AfterSwapCurrent(Access, StringRef label) {
   if (Impl* impl = impl_; impl != nullptr) {
     impl_ = nullptr;
-    if (impl->AfterSwapCurrent(label)) {
+    if (impl->AfterSwapCurrent(label, *this)) {
       impl_ = impl;
     } else {
       delete impl;
@@ -752,7 +782,7 @@ inline void SyncContext::BeforeRestoreCurrent(Access, const SyncContext& to) {
 inline void SyncContext::AfterRestoreCurrent(Access, StringRef label) {
   if (Impl* impl = impl_; impl != nullptr) {
     impl_ = nullptr;
-    if (impl->AfterRestoreCurrent(label)) {
+    if (impl->AfterRestoreCurrent(label, *this)) {
       impl_ = impl;
     } else {
       delete impl;

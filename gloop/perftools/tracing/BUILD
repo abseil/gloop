@@ -338,6 +338,7 @@ cc_library(
         ":tracing_base",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:nullability",
     ],
 )
 
