@@ -30,6 +30,7 @@
 #include "absl/synchronization/notification.h"
 #include "absl/time/time.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
+#include "gloop/perftools/tracing/sync_context.h"
 #include "gloop/perftools/tracing/test_only_access.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
@@ -72,6 +73,39 @@ struct WithMock {
     internal::set_active_event_listener(nullptr);
   }
 };
+
+TEST(TracingCore, CurrentAncestorWithoutActiveContext) {
+  EXPECT_FALSE(CurrentAncestor().has_value());
+}
+
+TEST(TracingCore, CurrentAncestorWithActiveContextWithoutAncestor) {
+  StrictMock<MockTraceEventListener> mock;
+  EXPECT_CALL(mock, ReleaseEventListener());
+  SyncContext context =
+      SyncContext::Create(TestOnlyAccess(), &mock, SyncContext::State::kActive,
+                          SyncId{1}, SyncId{1});
+  SyncContext::SetActiveContext(TestOnlyAccess(), &context);
+
+  EXPECT_FALSE(CurrentAncestor().has_value());
+
+  SyncContext::ResetThreadState(TestOnlyAccess());
+}
+
+TEST(TracingCore, CurrentAncestorWithActiveContextWithAncestor) {
+  StrictMock<MockTraceEventListener> mock;
+  EXPECT_CALL(mock, ReleaseEventListener());
+  const Ancestor expected{.sync_id = SyncId{7},
+                          .timestamp = absl::FromUnixNanos(123456789)};
+  SyncContext context =
+      SyncContext::Create(TestOnlyAccess(), &mock, SyncContext::State::kActive,
+                          SyncId{8}, SyncId{8}, expected);
+  SyncContext::SetActiveContext(TestOnlyAccess(), &context);
+
+  EXPECT_TRUE(CurrentAncestor().has_value());
+  EXPECT_THAT(CurrentAncestor(), Eq(expected));
+
+  SyncContext::ResetThreadState(TestOnlyAccess());
+}
 
 TEST(TracingCore, ApiWithoutActiveSync) {
   TraceSpawn(SyncId{4}, "Spam");

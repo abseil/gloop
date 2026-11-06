@@ -156,6 +156,11 @@ inline constexpr SyncId kMainSyncId = {1};
 inline constexpr BarrierId kNoBarrierId = {0};
 inline constexpr MsgSequence kNoMsgSequence = static_cast<uint32_t>(-1);
 
+// Returns true if `sync_id` identifies a spawned execution context.
+constexpr bool IsSpawnedSyncId(SyncId sync_id) {
+  return sync_id != kNoSyncId && (sync_id & 1) == 0;
+}
+
 // Identifies the ancestor synchronous execution and timestamp from which
 // a traced context was copied or spawned. A value of `kNoSyncId` for the
 // `sync_id` field identifies "unknown ancestor".
