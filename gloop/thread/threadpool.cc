@@ -151,6 +151,7 @@ ThreadPool::ThreadPool(int num_threads, Options options)
               .set_stack_size(thread::python::MaybeAdjustStackSize(
                   options.thread_options.stack_size(), "ThreadPool"))),
       eager_thread_creation_(options.force_eager_thread_creation),
+      use_try_start_(options.use_try_start),
       gc_workers_(!options.force_eager_thread_creation &&
                   absl::GetFlag(FLAGS_thread_pool_gc_workers)),
       add_after_helper_(nullptr,
@@ -172,6 +173,7 @@ ThreadPool::ThreadPool(int num_threads, Options options)
       << "falling back to num_threads=1.";
   CHECK_GT(max_threads_, 0u);
   CHECK_GT(options.queue_capacity, 0);
+  CHECK(!(eager_thread_creation_ && use_try_start_));
 
   // Spawn threads on an as-needed basis, unless eager thread creation is
   // requested.
@@ -215,22 +217,32 @@ ThreadPool::~ThreadPool() {
 ThreadPool::ThreadPoolWorker::ThreadPoolWorker(ThreadPool* pool)
     : Thread(pool->thread_options_, pool->name_prefix_), pool_(pool) {
   SetInitialCpuSubContainer(pool->subcontainer_);
-  Start();
 }
 
-void ThreadPool::SpawnThread() {
+bool ThreadPool::SpawnThread() {
   CHECK_LT(num_threads_ - exiting_threads_, max_threads_);
+  auto worker = std::make_unique<ThreadPoolWorker>(this);
+  if (use_try_start_) {
+    if (!worker->TryStart()) {
+      return false;
+    }
+  } else {
+    worker->Start();
+  }
   ++num_threads_;
-  (void)new ThreadPoolWorker(this);
+  worker.release();
+  return true;
 }
 
 void ThreadPool::Schedule(absl::AnyInvocable<void() &&> callback) {
+  CHECK(!use_try_start_);
   DCHECK(callback != nullptr);
   Put(std::move(callback));
 }
 
 void ThreadPool::ScheduleAt(absl::Time when,
                             absl::AnyInvocable<void() &&> callback) {
+  CHECK(!use_try_start_);
   DCHECK(callback != nullptr);
   DCHECK(!Stopping()) << "Callback added after destructor started";
   // TimedCall::RunAt requires that the schedule time be after the unix epoch.
@@ -283,6 +295,10 @@ bool ThreadPool::TryPut(absl_nonnull absl::AnyInvocable<void() &&>&& callback) {
   if (queue_.size() >= capacity_) {
     return false;
   }
+  if (use_try_start_ && num_threads_ - exiting_threads_ == 0 &&
+      !SpawnThread()) {
+    return false;
+  }
   InternalPut(std::move(callback));
   return true;
 }
@@ -309,7 +325,7 @@ void ThreadPool::SignalWaiter() {
     // If there are no waiters and no actively spawning threads, try spawning a
     // new thread to pick up work.
     if (no_spawning_threads && can_spawn_thread) {
-      SpawnThread();
+      (void)SpawnThread();
     }
   } else {
     // If there are waiters we wake the last inserted waiter. Note that we can
