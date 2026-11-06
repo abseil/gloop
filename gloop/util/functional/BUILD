@@ -177,6 +177,7 @@ cc_library(
         "//gloop/base:context",
         "//gloop/perftools/tracing:trace_source_location",
         "//gloop/perftools/tracing:tracing_base",
+        "@abseil-cpp//absl/base:core_headers",
     ],
 )
 

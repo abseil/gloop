@@ -22,24 +22,28 @@
 #define THIRD_PARTY_GLOOP_UTIL_FUNCTIONAL_CALLABLE_ONCE_INTERNAL_H_
 
 #include <atomic>
-#include <memory>
+#include <cstdint>
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/attributes.h"
+#include "absl/base/optimization.h"
 #include "absl/log/check.h"
 
 namespace util {
 namespace functional {
 namespace internal {
 
-// Encapsulates a functor and whether it was called or not.
+// Encapsulates a functor, its intrusive reference count, and whether it was
+// called or not.
 template <class Functor>
 struct CalledState {
   template <class F>
   explicit CalledState(F&& f) : functor(std::forward<F>(f)) {}
 
   std::atomic<bool> called{false};
-  Functor functor;
+  mutable std::atomic<uint32_t> refs{1};
+  ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS Functor functor;
 };
 
 // Encapsulates a functor and whether it was called or not, it also check fails
@@ -56,15 +60,46 @@ struct CheckCalledState : public CalledState<Functor> {
 // Encapsulates a Functor state giving it shared semantics and forwards
 // operator() const to operator() &&.
 template <class State>
-class SharedCallWrapperAtMostOnce {
+class ABSL_ATTRIBUTE_TRIVIAL_ABI SharedCallWrapperAtMostOnce {
  public:
   // The int is to limit overtriggering and to ensure that the copy/move
   // constructors are called when we want to copy/move, rather than this one.
   template <class Functor>
   explicit SharedCallWrapperAtMostOnce(int dummy, Functor&& functor)  // NOLINT
-      : internal_(
-            std::shared_ptr<State>(new State(std::forward<Functor>(functor)))) {
+      : ptr_(new State(std::forward<Functor>(functor))) {}
+
+  SharedCallWrapperAtMostOnce(const SharedCallWrapperAtMostOnce& other) noexcept
+      : ptr_(other.ptr_) {
+    if (ptr_ != nullptr) {
+      ptr_->refs.fetch_add(1, std::memory_order_relaxed);
+    }
   }
+
+  SharedCallWrapperAtMostOnce(SharedCallWrapperAtMostOnce&& other) noexcept
+      : ptr_(std::exchange(other.ptr_, nullptr)) {}
+
+  SharedCallWrapperAtMostOnce& operator=(
+      const SharedCallWrapperAtMostOnce& other) noexcept {
+    if (this == &other) return *this;
+    State* const next = other.ptr_;
+    if (next != nullptr) {
+      next->refs.fetch_add(1, std::memory_order_relaxed);
+    }
+    Unref(ptr_);
+    ptr_ = next;
+    return *this;
+  }
+
+  SharedCallWrapperAtMostOnce& operator=(
+      SharedCallWrapperAtMostOnce&& other) noexcept {
+    if (this != &other) {
+      Unref(ptr_);
+      ptr_ = std::exchange(other.ptr_, nullptr);
+    }
+    return *this;
+  }
+
+  ~SharedCallWrapperAtMostOnce() { Unref(ptr_); }
 
   // We use the std::void_t and decltype(auto) to avoid having the
   // decltype() expression of the return type as part of the mangled name.
@@ -72,14 +107,21 @@ class SharedCallWrapperAtMostOnce {
             typename = std::enable_if_t<std::is_invocable_v<
                 decltype(std::declval<State>().functor), Args...>>>
   decltype(auto) operator()(Args&&... args) const {  // NOLINT
-    const bool called =
-        internal_->called.exchange(true, std::memory_order_relaxed);
+    const bool called = ptr_->called.exchange(true, std::memory_order_relaxed);
     CHECK(!called) << "Functor was already called";
-    return std::move(internal_->functor)(std::forward<Args>(args)...);
+    return std::move(ptr_->functor)(std::forward<Args>(args)...);
   }
 
  private:
-  std::shared_ptr<State> internal_;
+  static void Unref(State* ptr) {
+    if (ptr == nullptr) return;
+    if (ABSL_PREDICT_TRUE(ptr->refs.load(std::memory_order_acquire) == 1) ||
+        ptr->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+      delete ptr;
+    }
+  }
+
+  State* ptr_;
 };
 
 }  // namespace internal
