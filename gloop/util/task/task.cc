@@ -24,10 +24,10 @@
 #include <utility>
 
 #include "absl/algorithm/container.h"
+#include "absl/base/optimization.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/flags/flag.h"
 #include "absl/functional/any_invocable.h"
-#include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
@@ -56,11 +56,16 @@ struct Task::Child final {
   Child* next_;  // nullptr or points to next sibling
   Child* prev_;  // nullptr or points to previous sibling
   Task* parent_;
+  base::Context user_ctx;
   absl::AnyInvocable<void(Task*) &&> user_cb_;
   Task child_task_;
 
-  explicit Child(thread::Executor* executor, Task* parent)
-      : parent_(parent),
+  Child(thread::Executor* executor, Task* parent,
+        absl::AnyInvocable<void(Task*) &&> user_cb)
+      : refs_(1),
+        parent_(parent),
+        user_ctx(base::Context::kThread),
+        user_cb_(std::move(user_cb)),
         child_task_([this](util::Task* task) { Run(task); }, executor,
                     parent->arena()) {}
   void Ref() { ++refs_; }
@@ -80,8 +85,6 @@ struct Task::Child final {
     parent_->RunChildCallback(this);
   }
 };
-
-inline Task::ChildList::ChildList() : list_(nullptr) {}
 
 inline void Task::ChildList::Add(Child* child) {
   child->prev_ = nullptr;
@@ -104,18 +107,21 @@ inline void Task::ChildList::Remove(Child* child) {
   }
 }
 
-void Task::CallbackHolder::Clear() { callbacks_.clear(); }
-
 void Task::CallbackHolder::ExecuteCallbacks(SpinLock* lock, const char* type) {
   CHECK(running_);
   while (!callbacks_.empty()) {
-    absl::AnyInvocable<void() &&> callback = std::move(callbacks_.back());
+    Entry entry = std::move(callbacks_.back());
     callbacks_.pop_back();
     lock->unlock();
-    std::move(callback)();
+    if (ABSL_PREDICT_TRUE(entry.has_context)) {
+      base::WithContext wc(std::move(entry.context));
+      std::move(entry.callback)();
+    } else {
+      std::move(entry.callback)();
+    }
     // Explicitly deallocate `callback` to immediately release any captured
     // resources.
-    callback = nullptr;
+    entry.callback = nullptr;
     lock->lock();
   }
 }
@@ -133,8 +139,6 @@ Task::Task(absl::AnyInvocable<void(Task*) &&> callback,
     : context_(base::Context::kThread, label),
       status_(),
       done_callback_(std::move(callback)),
-      cancel_callbacks_(),
-      prepared_callbacks_(),
       state_(ACTIVE),
       cancelled_(false),
       cancelled_children_(false),
@@ -142,7 +146,10 @@ Task::Task(absl::AnyInvocable<void(Task*) &&> callback,
       holds_(0),
       children_(),
       executor_(executor),
-      arena_(arena) {
+      arena_(arena),
+      deleters_(),
+      cancel_callbacks_(),
+      prepared_callbacks_() {
   DCHECK(executor_ != nullptr);
   DCHECK(done_callback_ != nullptr);
   DCHECK(Invariants());
@@ -155,19 +162,6 @@ Task::~Task() {
   CHECK(done_callback_ == nullptr);
   CHECK(children_.first() == nullptr);
   DCHECK(Invariants());
-}
-
-void Task::CleanupWhenDone(void (*cleanup_function)(const void*),
-                           const void* object) {
-  CHECK_NE(object, this)
-      << "This is an improper use of the `WhenDone` series of functions for "
-         "util::Task. This is inherently racy and may destroy the task before "
-         "the done function is called with a pointer to the task (now a "
-         "use-after-free to access). Instead, delete the task in the done "
-         "function.";
-  SpinLockHolder l(lock_);
-  CHECK_LE(static_cast<int>(state_), PREPARED);
-  deleters_.push_back({object, cleanup_function});
 }
 
 bool Task::IsActive() const {
@@ -206,11 +200,19 @@ void Task::set_inline_done_callback(bool inline_done_callback) {
   inline_done_callback_ = inline_done_callback;
 }
 
-bool Task::Return() { return Return(absl::OkStatus()); }
+bool Task::Return() {
+  lock_.lock();
+  if (ABSL_PREDICT_FALSE(state_ >= PREPARED)) {
+    // No effect on multiple calls
+    lock_.unlock();
+    return false;
+  }
+  return ReturnActive();
+}
 
 bool Task::Return(absl::Status status) {
   lock_.lock();
-  if (state_ >= PREPARED) {
+  if (ABSL_PREDICT_FALSE(state_ >= PREPARED)) {
     // No effect on multiple calls
     lock_.unlock();
     return false;
@@ -225,8 +227,7 @@ bool Task::Return(absl::Status status) {
 //
 // The task must be in active state and lock_ must be acquired before calling
 // this function. The lock will be released before the function returns.
-bool Task::ReturnActive(absl::Status status) {
-  status_ = std::move(status);
+inline bool Task::ReturnActive() {
   state_ = PREPARED;
   if (!cancel_callbacks_.IsRunning()) {
     // There is no need to fire cancel callbacks since we have reached
@@ -236,13 +237,13 @@ bool Task::ReturnActive(absl::Status status) {
     cancel_callbacks_.Clear();
   }
 
-  if (SchedulePreparedCallbacks()) {
+  if (ABSL_PREDICT_FALSE(SchedulePreparedCallbacks())) {
     DCHECK(Invariants());
     lock_.unlock();
 
-    executor_->Schedule(absl::bind_front(&Task::ExecuteCallbacks, this,
-                                         &prepared_callbacks_,
-                                         "prepared in Return()"));
+    executor_->Schedule([this] {
+      ExecuteCallbacks(&prepared_callbacks_, "prepared in Return()");
+    });
     return true;
   }
 
@@ -250,16 +251,15 @@ bool Task::ReturnActive(absl::Status status) {
   DCHECK(Invariants());
   lock_.unlock();
 
-  if (done) {
+  if (ABSL_PREDICT_TRUE(done)) {
     AddDone();
   }
   return true;
 }
 
-void Task::AddHold() {
-  SpinLockHolder l(lock_);
-  CHECK(state_ <= PREPARED);
-  holds_++;
+bool Task::ReturnActive(absl::Status status) {
+  status_ = std::move(status);
+  return ReturnActive();
 }
 
 void Task::AddMultipleHolds(int N) {
@@ -269,22 +269,32 @@ void Task::AddMultipleHolds(int N) {
   holds_ += N;
 }
 
-void Task::RemoveHold() {
-  lock_.lock();
-  RemoveHoldAndUnlock();
-}
-
-void Task::RemoveHoldAndUnlock() {
-  CHECK(state_ <= PREPARED);
-  CHECK_GT(holds_, 0);
-  holds_--;
-  const bool done = TryDoneTransition();
+void Task::RemoveHoldSlow() {
+  const bool done =
+      !cancel_callbacks_.IsRunning() && !prepared_callbacks_.IsRunning();
+  if (done) {
+    DCHECK(prepared_callbacks_.IsEmpty());
+    DCHECK(cancel_callbacks_.IsEmpty());
+    DCHECK(children_.first() == nullptr);
+    state_ = DONE;
+  }
   DCHECK(Invariants());
   lock_.unlock();
 
   if (done) {
     AddDone();
   }
+}
+
+inline void Task::RemoveHoldAndUnlock() {
+  CHECK(state_ <= PREPARED);
+  CHECK_GT(holds_, 0);
+  if (ABSL_PREDICT_TRUE(--holds_ > 0 || state_ != PREPARED)) {
+    DCHECK(Invariants());
+    lock_.unlock();
+    return;
+  }
+  RemoveHoldSlow();
 }
 
 void Task::Cancel() {
@@ -299,9 +309,8 @@ void Task::Cancel() {
     DCHECK(Invariants());
   }
   if (run_cancel_callbacks) {
-    executor_->Schedule(absl::bind_front(&Task::ExecuteCallbacks, this,
-                                         &cancel_callbacks_,
-                                         "cancel in Cancel()"));
+    executor_->Schedule(
+        [this] { ExecuteCallbacks(&cancel_callbacks_, "cancel in Cancel()"); });
   }
 }
 
@@ -349,8 +358,8 @@ void Task::WhenPrepared(absl::AnyInvocable<void() &&> prepared_callback) {
 }
 
 // L >= lock_
-bool Task::TryDoneTransition() {
-  if (state_ == PREPARED && holds_ == 0 && !cancel_callbacks_.IsRunning() &&
+inline bool Task::TryDoneTransition() {
+  if (holds_ == 0 && state_ == PREPARED && !cancel_callbacks_.IsRunning() &&
       !prepared_callbacks_.IsRunning()) {
     DCHECK(prepared_callbacks_.IsEmpty());
     DCHECK(cancel_callbacks_.IsEmpty());
@@ -362,12 +371,12 @@ bool Task::TryDoneTransition() {
 }
 
 // L >= lock_
-bool Task::NeedToCancelChildren() const {
+inline bool Task::NeedToCancelChildren() const {
   return !cancelled_children_ && (children_.first() != nullptr);
 }
 
 // L >= lock_
-bool Task::ScheduleCancelCallbacks() {
+inline bool Task::ScheduleCancelCallbacks() {
   if (cancelled_ && !cancel_callbacks_.IsRunning() &&
       (!cancel_callbacks_.IsEmpty() || NeedToCancelChildren())) {
     cancel_callbacks_.SetRunning(true);
@@ -383,7 +392,7 @@ bool Task::ScheduleCancelCallbacks() {
 }
 
 // L >= lock_
-bool Task::SchedulePreparedCallbacks() {
+inline bool Task::SchedulePreparedCallbacks() {
   if (state_ == PREPARED && !prepared_callbacks_.IsRunning() &&
       (!prepared_callbacks_.IsEmpty() || NeedToCancelChildren())) {
     prepared_callbacks_.SetRunning(true);
@@ -424,6 +433,9 @@ void Task::CancelChildren() {
     return;
   }
   cancelled_children_ = true;
+  if (children_.first() == nullptr) {
+    return;
+  }
 
   absl::InlinedVector<Child*, 4> to_cancel;
   for (Child* child = children_.first(); child != nullptr;
@@ -432,28 +444,23 @@ void Task::CancelChildren() {
     to_cancel.push_back(child);
   }
 
-  if (!to_cancel.empty()) {
-    lock_.unlock();
-    for (int i = 0; i < to_cancel.size(); i++) {
-      to_cancel[i]->child_task_.Cancel();
-    }
-    lock_.lock();
-    for (int i = 0; i < to_cancel.size(); i++) {
-      to_cancel[i]->Unref();
-    }
+  lock_.unlock();
+  for (int i = 0; i < to_cancel.size(); i++) {
+    to_cancel[i]->child_task_.Cancel();
+  }
+  lock_.lock();
+  for (int i = 0; i < to_cancel.size(); i++) {
+    to_cancel[i]->Unref();
   }
 }
 
 Task* Task::AddChildWithExecutor(absl::AnyInvocable<void(Task*) &&> callback,
                                  thread::Executor* e) {
-  Child* child = google::protobuf::Arena::Create<Child>(
-      arena_, ((e != nullptr) ? e : executor_), this);
-
-  child->refs_ = 1;
-
-  // Child tasks wrap the user callback; propagate the current
-  // Context to the outer callback.
-  child->user_cb_ = util::functional::WithCurrentContext(std::move(callback));
+  thread::Executor* const child_exec = (e != nullptr) ? e : executor_;
+  Child* const child = ABSL_PREDICT_TRUE(arena_ == nullptr)
+                           ? new Child(child_exec, this, std::move(callback))
+                           : google::protobuf::Arena::Create<Child>(
+                                 arena_, child_exec, this, std::move(callback));
 
   bool cancel_immediately = false;
   {
@@ -473,10 +480,6 @@ Task* Task::AddChildWithExecutor(absl::AnyInvocable<void(Task*) &&> callback,
   return &child->child_task_;
 }
 
-Task* Task::AddChild(absl::AnyInvocable<void(Task*) &&> callback) {
-  return AddChildWithExecutor(std::move(callback), nullptr);
-}
-
 void Task::RunChildCallback(Child* child) {
   // If cancellation hasn't already happened, prevent it from
   // happening in the future.  We do this before calling the user
@@ -489,8 +492,11 @@ void Task::RunChildCallback(Child* child) {
     children_.Remove(child);
   }
 
-  // Run user callback
-  std::move(child->user_cb_)(&child->child_task_);
+  // Run user callback under the Context captured when AddChild was called.
+  {
+    base::WithContext wc(std::move(child->user_ctx));
+    std::move(child->user_cb_)(&child->child_task_);
+  }
   // Reset user_cb_ so that any resources associated with it are freed now,
   // rather than when the child is destroyed under lock with Unref().
   child->user_cb_ = nullptr;
@@ -501,16 +507,19 @@ void Task::RunChildCallback(Child* child) {
   RemoveHoldAndUnlock();
 }
 
-void Task::AddDone() {
+inline void Task::AddDone() {
 #ifndef NDEBUG
   // Debug mode shuffle to catch tests relying on execution order.
   absl::c_shuffle(deleters_, util_random::SharedBitGen());
 #endif
-  if (!inline_done_callback_) {
+  if (ABSL_PREDICT_TRUE(!inline_done_callback_)) {
     executor_->Schedule([this] { RunDone(); });
     return;
   }
+  RunInlineDone();
+}
 
+void Task::RunInlineDone() {
   // Optimization for trivial callbacks such as in SyncTask.
 
   // AddDone is called at most once per task once it
@@ -559,7 +568,9 @@ void Task::RunDone() {
   // deletions after the callback, which would reduce latency a little, or do
   // the deletion in a completely separate thread.
   // TODO: figure out what to do here.
-  deleters_.clear();
+  if (ABSL_PREDICT_FALSE(!deleters_.empty())) {
+    deleters_.clear();
+  }
 
   // Execute the user's done callback
   std::move(callback)(this);

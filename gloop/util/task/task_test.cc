@@ -896,6 +896,128 @@ TEST(TaskHold, TaskHold) {
   ASSERT_TRUE(task.IsDone());
 }
 
+TEST(TaskTest, CallbackHolderLegacyCaptureContextAndOverflow) {
+  struct ScopedCaptureFlag {
+    bool prev = absl::GetFlag(FLAGS_task_legacy_capture_context);
+    explicit ScopedCaptureFlag(bool value) {
+      absl::SetFlag(&FLAGS_task_legacy_capture_context, value);
+    }
+    ~ScopedCaptureFlag() {
+      absl::SetFlag(&FLAGS_task_legacy_capture_context, prev);
+    }
+  };
+
+  const absl::Time reg_deadline = absl::Now() + absl::Minutes(3);
+  const absl::Time exec_deadline = absl::Now() + absl::Minutes(7);
+
+  for (const bool capture_ctx : {true, false}) {
+    ScopedCaptureFlag flag_guard(capture_ctx);
+
+    // Exercise >1 callbacks in both WhenPrepared and WhenCancelled (spilling
+    // past InlinedVector<Entry, 1>), plus un-run cancel callback cleanup on
+    // Return().
+    std::vector<absl::Time> prepared_deadlines(3);
+    int unrun_cancel_destroyed = 0;
+    {
+      util::Task task(&Nop, thread::SingletonInlineExecutor());
+      auto destroy_guard = std::shared_ptr<int>(
+          nullptr,
+          [&unrun_cancel_destroyed](int*) { ++unrun_cancel_destroyed; });
+      task.WhenCancelled([destroy_guard]() {});
+      {
+        base::WithContext w(base::ContextBuilder(base::BackgroundContext())
+                                .set_deadline(reg_deadline)
+                                .BuildValue());
+        for (int i = 0; i < 3; ++i) {
+          task.WhenPrepared([i, &prepared_deadlines] {
+            prepared_deadlines[i] = base::CurrentContext().deadline();
+          });
+        }
+      }
+      destroy_guard.reset();
+      EXPECT_EQ(unrun_cancel_destroyed, 0);
+
+      base::WithContext w(base::ContextBuilder(base::BackgroundContext())
+                              .set_deadline(exec_deadline)
+                              .BuildValue());
+      task.Return();
+      EXPECT_EQ(unrun_cancel_destroyed, 1);
+    }
+    const absl::Time expected_deadline =
+        capture_ctx ? reg_deadline : exec_deadline;
+    for (int i = 0; i < 3; ++i) {
+      EXPECT_EQ(prepared_deadlines[i], expected_deadline);
+    }
+
+    // Exercise WhenCancelled execution across inline (1) and spilled (3)
+    // capacities.
+    std::vector<absl::Time> cancel_deadlines(3);
+    {
+      util::Task task(&Nop, thread::SingletonInlineExecutor());
+      {
+        base::WithContext w(base::ContextBuilder(base::BackgroundContext())
+                                .set_deadline(reg_deadline)
+                                .BuildValue());
+        for (int i = 0; i < 3; ++i) {
+          task.WhenCancelled([i, &cancel_deadlines] {
+            cancel_deadlines[i] = base::CurrentContext().deadline();
+          });
+        }
+      }
+      {
+        base::WithContext w(base::ContextBuilder(base::BackgroundContext())
+                                .set_deadline(exec_deadline)
+                                .BuildValue());
+        task.Cancel();
+      }
+      task.Return();
+    }
+    for (int i = 0; i < 3; ++i) {
+      EXPECT_EQ(cancel_deadlines[i], expected_deadline);
+    }
+  }
+}
+
+TEST(TaskTest, CleanupWhenDoneInlineAndSpilledBoundaries) {
+  for (const bool inline_done : {false, true}) {
+    for (const int num_deleters : {0, 1, 4, 5, 6}) {
+      std::atomic<int> cleaned{0};
+      bool saw_all_cleaned_in_non_inline_done = false;
+      util::Task task(
+          [&](util::Task*) {
+            if (!inline_done) {
+              saw_all_cleaned_in_non_inline_done =
+                  (cleaned.load() == num_deleters);
+            }
+          },
+          thread::SingletonInlineExecutor());
+      task.set_inline_done_callback(inline_done);
+
+      for (int i = 0; i < num_deleters; ++i) {
+        task.CleanupWhenDone(
+            +[](const void* p) {
+              static_cast<std::atomic<int>*>(const_cast<void*>(p))
+                  ->fetch_add(1);
+            },
+            &cleaned);
+      }
+
+      task.AddHold();
+      task.AddHold();
+      task.RemoveHold();  // Fast path: state_ == ACTIVE, --holds_ == 1 > 0
+      EXPECT_FALSE(task.IsDone());
+      task.Return();  // Transitions to PREPARED while holds_ == 1
+      EXPECT_FALSE(task.IsDone());
+      task.RemoveHold();  // Slow path: state_ == PREPARED && --holds_ == 0
+      EXPECT_TRUE(task.IsDone());
+      EXPECT_EQ(cleaned.load(), num_deleters);
+      if (!inline_done) {
+        EXPECT_TRUE(saw_all_cleaned_in_non_inline_done);
+      }
+    }
+  }
+}
+
 // --------------------------------------------------------------
 // Death tests
 

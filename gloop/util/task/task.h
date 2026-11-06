@@ -192,6 +192,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/macros.h"
+#include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/flags/declare.h"
@@ -204,7 +205,6 @@
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/util/functional/from_callback.h"
-#include "gloop/util/functional/transitional.h"
 #include "google/protobuf/arena.h"
 
 ABSL_DECLARE_FLAG(bool, task_legacy_capture_context);
@@ -566,7 +566,7 @@ class Task {
    private:
     Child* list_;  // nullptr if empty
    public:
-    ChildList();
+    ChildList() : list_(nullptr) {}
     void Add(Child* child);
     void Remove(Child* child);
     Child* first() const { return list_; }
@@ -578,20 +578,34 @@ class Task {
   // Contains a bunch of callbacks for execution.
   class CallbackHolder {
    public:
-    inline CallbackHolder() : running_(false), callbacks_() {}
+    struct Entry {
+      Entry(absl::AnyInvocable<void() &&> cb, bool capture_context)
+          : callback(std::move(cb)),
+            context(capture_context ? base::Context(base::Context::kThread)
+                                    : base::Context()),
+            has_context(capture_context) {}
+      absl::AnyInvocable<void() &&> callback;
+      base::Context context;
+      bool has_context;
+    };
+
+    inline CallbackHolder() : callbacks_(), running_(false) {}
     CallbackHolder(const CallbackHolder&) = delete;
     CallbackHolder& operator=(const CallbackHolder&) = delete;
 
     void Insert(absl::AnyInvocable<void() &&> c) {
-      callbacks_.emplace_back(
-          util::functional::transitional::MaybeWithCurrentContext(
-              absl::GetFlag(FLAGS_task_legacy_capture_context), std::move(c)));
+      callbacks_.emplace_back(std::move(c),
+                              absl::GetFlag(FLAGS_task_legacy_capture_context));
     }
 
     bool IsEmpty() const { return callbacks_.empty(); }
 
     // Clears the list of callbacks without running them.
-    void Clear();
+    void Clear() {
+      if (ABSL_PREDICT_FALSE(!callbacks_.empty())) {
+        callbacks_.clear();
+      }
+    }
 
     // Clears the list of callbacks and executes them.
     // Must be invoked with *lock held.
@@ -617,10 +631,11 @@ class Task {
     void SetRunning(bool running) { running_ = running; }
 
    private:
+    absl::InlinedVector<Entry, 1> callbacks_;
     bool running_;
-    absl::InlinedVector<absl::AnyInvocable<void() &&>, 2> callbacks_;
   };
 
+  bool ReturnActive() ABSL_UNLOCK_FUNCTION(lock_);
   bool ReturnActive(absl::Status status) ABSL_UNLOCK_FUNCTION(lock_);
 #endif  // SWIG
 
@@ -629,8 +644,6 @@ class Task {
 #ifndef SWIG
   absl::AnyInvocable<void(Task*) &&> done_callback_;
 #endif  // SWIG
-  CallbackHolder cancel_callbacks_;
-  CallbackHolder prepared_callbacks_;
   // Protect the state of the task
   mutable SpinLock lock_;
 
@@ -641,19 +654,24 @@ class Task {
   int holds_;
 
   ChildList children_;
-  // Space for a single deleter inline.
-  absl::InlinedVector<std::unique_ptr<const void, void (*)(const void*)>, 1>
-      deleters_;
   thread::Executor* executor_;
   google::protobuf::Arena* const arena_;
 
+  // Space for up to 4 deleters inline.
+  absl::InlinedVector<std::unique_ptr<const void, void (*)(const void*)>, 4>
+      deleters_;
+  CallbackHolder cancel_callbacks_;
+  CallbackHolder prepared_callbacks_;
+
   void AddDone();
+  void RunInlineDone();
   void RunDone();
   bool Invariants() const;
   bool ScheduleCancelCallbacks();
   bool SchedulePreparedCallbacks();
   void ExecuteCallbacks(CallbackHolder* holder, const char* type);
   void RemoveHoldAndUnlock() ABSL_UNLOCK_FUNCTION(lock_);
+  void RemoveHoldSlow() ABSL_UNLOCK_FUNCTION(lock_);
   bool NeedToCancelChildren() const;
   void CancelChildren() ABSL_EXCLUSIVE_LOCKS_REQUIRED(lock_);
   void RunChildCallback(Child* child);
@@ -697,6 +715,24 @@ class TaskReturn {
 
 #ifndef SWIG
 
+inline void Task::AddHold() {
+  SpinLockHolder l(lock_);
+  CHECK_LE(static_cast<int>(state_), PREPARED);
+  ++holds_;
+}
+
+inline void Task::RemoveHold() {
+  lock_.lock();
+  CHECK_LE(static_cast<int>(state_), PREPARED);
+  CHECK_GT(holds_, 0);
+  if (ABSL_PREDICT_TRUE(--holds_ > 0 || state_ != PREPARED)) {
+    DCHECK(Invariants());
+    lock_.unlock();
+    return;
+  }
+  RemoveHoldSlow();
+}
+
 // TaskHold object that Holds up a task for its lifetime.
 // Moveable but not copyable.
 class ABSL_MUST_USE_RESULT TaskHold {
@@ -721,6 +757,23 @@ class ABSL_MUST_USE_RESULT TaskHold {
 
 // ----------------------------------------------------------------------
 // Implementation details follow.  Please ignore.
+
+inline util::Task* Task::AddChild(absl::AnyInvocable<void(Task*) &&> callback) {
+  return AddChildWithExecutor(std::move(callback), executor_);
+}
+
+inline void Task::CleanupWhenDone(void (*cleanup_function)(const void*),
+                                  const void* object) {
+  CHECK_NE(object, this)
+      << "This is an improper use of the `WhenDone` series of functions for "
+         "util::Task. This is inherently racy and may destroy the task before "
+         "the done function is called with a pointer to the task (now a "
+         "use-after-free to access). Instead, delete the task in the done "
+         "function.";
+  SpinLockHolder l(lock_);
+  CHECK_LE(static_cast<int>(state_), PREPARED);
+  deleters_.emplace_back(object, cleanup_function);
+}
 
 // Since we will take this function's address, do not mark it inline
 template <class T>
