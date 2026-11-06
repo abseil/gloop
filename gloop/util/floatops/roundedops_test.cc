@@ -118,153 +118,287 @@ TEST(RoundedOpsTest, RoundedMultiplyWorks) {
   EXPECT_EQ(RoundedMultiply<kTowardZero>(one_third_up, 3.0f), 1.0f);
 }
 
-void RunRoundingTest(int64_t (*RoundingFuncFloat)(float val),
-                     int64_t (*RoundingFuncDouble)(double val)) {
-  // Halfway cases are rounded to nearest even integer (for float).
-  EXPECT_EQ(RoundingFuncFloat(0.5f), 0);
-  EXPECT_EQ(RoundingFuncFloat(1.5f), 2);
-  EXPECT_EQ(RoundingFuncFloat(2.5f), 2);
-  EXPECT_EQ(RoundingFuncFloat(3.5f), 4);
-  EXPECT_EQ(RoundingFuncFloat(4.5f), 4);
+template <typename T>
+class RoundToNearestIntegerTiesToEvenTest : public ::testing::Test {};
 
-  EXPECT_EQ(RoundingFuncFloat(-0.5f), 0);
-  EXPECT_EQ(RoundingFuncFloat(-1.5f), -2);
-  EXPECT_EQ(RoundingFuncFloat(-2.5f), -2);
-  EXPECT_EQ(RoundingFuncFloat(-3.5f), -4);
-  EXPECT_EQ(RoundingFuncFloat(-4.5f), -4);
+using FloatTypes = ::testing::Types<float, double>;
+TYPED_TEST_SUITE(RoundToNearestIntegerTiesToEvenTest, FloatTypes);
 
-  // Halfway cases are rounded to nearest even integer (for double).
-  EXPECT_EQ(RoundingFuncDouble(0.5), 0);
-  EXPECT_EQ(RoundingFuncDouble(1.5), 2);
-  EXPECT_EQ(RoundingFuncDouble(2.5), 2);
-  EXPECT_EQ(RoundingFuncDouble(3.5), 4);
-  EXPECT_EQ(RoundingFuncDouble(4.5), 4);
+TYPED_TEST(RoundToNearestIntegerTiesToEvenTest,
+           HalfwayCasesRoundToNearestEven) {
+  using FloatType = TypeParam;
+  // Halfway cases are rounded to nearest even integer.
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(0.5)), 0);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(1.5)), 2);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(2.5)), 2);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(3.5)), 4);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(4.5)), 4);
 
-  EXPECT_EQ(RoundingFuncDouble(-0.5), 0);
-  EXPECT_EQ(RoundingFuncDouble(-1.5), -2);
-  EXPECT_EQ(RoundingFuncDouble(-2.5), -2);
-  EXPECT_EQ(RoundingFuncDouble(-3.5), -4);
-  EXPECT_EQ(RoundingFuncDouble(-4.5), -4);
-
-  // Almost halfway cases are handled as round() would handle them (for float).
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(0.5f, 0.0f)), 0);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(0.5f, 1.0f)), 1);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(1.5f, 1.0f)), 1);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(1.5f, 2.0f)), 2);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(2.5f, 2.0f)), 2);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(2.5f, 3.0f)), 3);
-
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(-0.5f, 0.0f)), 0);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(-0.5f, -1.0f)), -1);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(-1.5f, -1.0f)), -1);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(-1.5f, -2.0f)), -2);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(-2.5f, -2.0f)), -2);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(-2.5f, -3.0f)), -3);
-
-  // Almost halfway cases are handled as round() would handle them (for double).
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(0.5, 0)), 0);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(0.5, 1)), 1);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(1.5, 1)), 1);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(1.5, 2)), 2);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(2.5, 2)), 2);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(2.5, 3)), 3);
-
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(-0.5, 0)), 0);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(-0.5, -1)), -1);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(-1.5, -1)), -1);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(-1.5, -2)), -2);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(-2.5, -2)), -2);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(-2.5, -3)), -3);
-
-  // Other cases are also handled as round() would handle them (for float).
-  EXPECT_EQ(RoundingFuncFloat(0.0f), 0);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(0.0f, 1)), 0);
-  EXPECT_EQ(RoundingFuncFloat(0.25f), 0);
-  EXPECT_EQ(RoundingFuncFloat(0.75f), 1);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(1.0f, 0)), 1);
-  EXPECT_EQ(RoundingFuncFloat(1.0f), 1);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(1.0f, 2)), 1);
-  EXPECT_EQ(RoundingFuncFloat(1.25f), 1);
-  EXPECT_EQ(RoundingFuncFloat(1.75f), 2);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(2.0f, 1)), 2);
-  EXPECT_EQ(RoundingFuncFloat(2.0f), 2);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(2.0f, 3)), 2);
-  EXPECT_EQ(RoundingFuncFloat(2.25f), 2);
-  EXPECT_EQ(RoundingFuncFloat(2.75f), 3);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(3.0f, 2)), 3);
-  EXPECT_EQ(RoundingFuncFloat(3.0f), 3);
-
-  EXPECT_EQ(RoundingFuncFloat(-0.0f), 0);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(-0.0f, -1)), 0);
-  EXPECT_EQ(RoundingFuncFloat(-0.25f), 0);
-  EXPECT_EQ(RoundingFuncFloat(-0.75f), -1);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(-1.0f, 0)), -1);
-  EXPECT_EQ(RoundingFuncFloat(-1.0f), -1);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(-1.0f, -2)), -1);
-  EXPECT_EQ(RoundingFuncFloat(-1.25f), -1);
-  EXPECT_EQ(RoundingFuncFloat(-1.75f), -2);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(-2.0f, -1)), -2);
-  EXPECT_EQ(RoundingFuncFloat(-2.0f), -2);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(-2.0f, -3)), -2);
-  EXPECT_EQ(RoundingFuncFloat(-2.25f), -2);
-  EXPECT_EQ(RoundingFuncFloat(-2.75f), -3);
-  EXPECT_EQ(RoundingFuncFloat(std::nextafter(-3.0f, -2)), -3);
-  EXPECT_EQ(RoundingFuncFloat(-3.0f), -3);
-
-  // Other cases are also handled as round() would handle them (for double).
-  EXPECT_EQ(RoundingFuncDouble(0.0), 0);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(0.0, 1)), 0);
-  EXPECT_EQ(RoundingFuncDouble(0.25), 0);
-  EXPECT_EQ(RoundingFuncDouble(0.75), 1);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(1.0, 0)), 1);
-  EXPECT_EQ(RoundingFuncDouble(1.0), 1);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(1.0, 2)), 1);
-  EXPECT_EQ(RoundingFuncDouble(1.25), 1);
-  EXPECT_EQ(RoundingFuncDouble(1.75), 2);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(2.0, 1)), 2);
-  EXPECT_EQ(RoundingFuncDouble(2.0), 2);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(2.0, 3)), 2);
-  EXPECT_EQ(RoundingFuncDouble(2.25), 2);
-  EXPECT_EQ(RoundingFuncDouble(2.75), 3);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(3.0, 2)), 3);
-  EXPECT_EQ(RoundingFuncDouble(3.0), 3);
-
-  EXPECT_EQ(RoundingFuncDouble(-0.0), 0);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(-0.0, -1)), 0);
-  EXPECT_EQ(RoundingFuncDouble(-0.25), 0);
-  EXPECT_EQ(RoundingFuncDouble(-0.75), -1);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(-1.0, 0)), -1);
-  EXPECT_EQ(RoundingFuncDouble(-1.0), -1);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(-1.0, -2)), -1);
-  EXPECT_EQ(RoundingFuncDouble(-1.25), -1);
-  EXPECT_EQ(RoundingFuncDouble(-1.75), -2);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(-2.0, -1)), -2);
-  EXPECT_EQ(RoundingFuncDouble(-2.0), -2);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(-2.0, -3)), -2);
-  EXPECT_EQ(RoundingFuncDouble(-2.25), -2);
-  EXPECT_EQ(RoundingFuncDouble(-2.75), -3);
-  EXPECT_EQ(RoundingFuncDouble(std::nextafter(-3.0, -2)), -3);
-  EXPECT_EQ(RoundingFuncDouble(-3.0), -3);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(-0.5)), 0);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(-1.5)), -2);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(-2.5)), -2);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(-3.5)), -4);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(-4.5)), -4);
 }
 
-TEST(RoundedOpsTest, RoundToNearestIntegerTiesToEven) {
-  RunRoundingTest(
-      [](float val) -> int64_t {
-        return RoundToNearestIntegerTiesToEven<float>(val);
-      },
-      [](double val) -> int64_t {
-        return RoundToNearestIntegerTiesToEven<double>(val);
-      });
+TYPED_TEST(RoundToNearestIntegerTiesToEvenTest,
+           AlmostHalfwayCasesRoundLikeStdRound) {
+  using FloatType = TypeParam;
+  // Almost halfway cases are handled as round() would handle them.
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(0.5), FloatType(0.0))),
+            0);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(0.5), FloatType(1.0))),
+            1);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(1.5), FloatType(1.0))),
+            1);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(1.5), FloatType(2.0))),
+            2);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(2.5), FloatType(2.0))),
+            2);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(2.5), FloatType(3.0))),
+            3);
+
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(-0.5), FloatType(0.0))),
+            0);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(-0.5), FloatType(-1.0))),
+            -1);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(-1.5), FloatType(-1.0))),
+            -1);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(-1.5), FloatType(-2.0))),
+            -2);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(-2.5), FloatType(-2.0))),
+            -2);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(-2.5), FloatType(-3.0))),
+            -3);
 }
 
-TEST(RoundedOpsTest, RoundToNearestTiesToEven) {
-  RunRoundingTest(
-      [](float val) {
-        return static_cast<int64_t>(RoundToNearestTiesToEven(val));
-      },
-      [](double val) {
-        return static_cast<int64_t>(RoundToNearestTiesToEven(val));
-      });
+TYPED_TEST(RoundToNearestIntegerTiesToEvenTest, OtherCasesRoundLikeStdRound) {
+  using FloatType = TypeParam;
+  // Other cases are also handled as round() would handle them.
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(0.0)), 0);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(0.0), FloatType(1.0))),
+            0);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(0.25)), 0);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(0.75)), 1);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(1.0), FloatType(0.0))),
+            1);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(1.0)), 1);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(1.0), FloatType(2.0))),
+            1);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(1.25)), 1);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(1.75)), 2);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(2.0), FloatType(1.0))),
+            2);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(2.0)), 2);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(2.0), FloatType(3.0))),
+            2);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(2.25)), 2);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(2.75)), 3);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(3.0), FloatType(2.0))),
+            3);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(3.0)), 3);
+
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(-0.0)), 0);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(-0.0), FloatType(-1.0))),
+            0);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(-0.25)), 0);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(-0.75)), -1);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(-1.0), FloatType(0.0))),
+            -1);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(-1.0)), -1);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(-1.0), FloatType(-2.0))),
+            -1);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(-1.25)), -1);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(-1.75)), -2);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(-2.0), FloatType(-1.0))),
+            -2);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(-2.0)), -2);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(-2.0), FloatType(-3.0))),
+            -2);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(-2.25)), -2);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(-2.75)), -3);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(
+                std::nextafter(FloatType(-3.0), FloatType(-2.0))),
+            -3);
+  EXPECT_EQ(RoundToNearestIntegerTiesToEven<FloatType>(FloatType(-3.0)), -3);
+}
+
+template <typename T>
+class RoundToNearestTiesToEvenTest : public ::testing::Test {};
+
+TYPED_TEST_SUITE(RoundToNearestTiesToEvenTest, FloatTypes);
+
+TYPED_TEST(RoundToNearestTiesToEvenTest, HalfwayCasesRoundToNearestEven) {
+  using FloatType = TypeParam;
+  // Halfway cases are rounded to nearest even integer.
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(0.5)),
+            FloatType(0.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(1.5)),
+            FloatType(2.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(2.5)),
+            FloatType(2.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(3.5)),
+            FloatType(4.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(4.5)),
+            FloatType(4.0));
+
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(-0.5)),
+            FloatType(0.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(-1.5)),
+            FloatType(-2.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(-2.5)),
+            FloatType(-2.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(-3.5)),
+            FloatType(-4.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(-4.5)),
+            FloatType(-4.0));
+}
+
+TYPED_TEST(RoundToNearestTiesToEvenTest, AlmostHalfwayCasesRoundLikeStdRound) {
+  using FloatType = TypeParam;
+  // Almost halfway cases are handled as round() would handle them.
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(0.5), FloatType(0.0))),
+            FloatType(0.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(0.5), FloatType(1.0))),
+            FloatType(1.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(1.5), FloatType(1.0))),
+            FloatType(1.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(1.5), FloatType(2.0))),
+            FloatType(2.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(2.5), FloatType(2.0))),
+            FloatType(2.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(2.5), FloatType(3.0))),
+            FloatType(3.0));
+
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(-0.5), FloatType(0.0))),
+            FloatType(0.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(-0.5), FloatType(-1.0))),
+            FloatType(-1.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(-1.5), FloatType(-1.0))),
+            FloatType(-1.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(-1.5), FloatType(-2.0))),
+            FloatType(-2.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(-2.5), FloatType(-2.0))),
+            FloatType(-2.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(-2.5), FloatType(-3.0))),
+            FloatType(-3.0));
+}
+
+TYPED_TEST(RoundToNearestTiesToEvenTest, OtherCasesRoundLikeStdRound) {
+  using FloatType = TypeParam;
+  // Other cases are also handled as round() would handle them.
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(0.0)),
+            FloatType(0.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(0.0), FloatType(1.0))),
+            FloatType(0.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(0.25)),
+            FloatType(0.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(0.75)),
+            FloatType(1.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(1.0), FloatType(0.0))),
+            FloatType(1.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(1.0)),
+            FloatType(1.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(1.0), FloatType(2.0))),
+            FloatType(1.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(1.25)),
+            FloatType(1.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(1.75)),
+            FloatType(2.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(2.0), FloatType(1.0))),
+            FloatType(2.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(2.0)),
+            FloatType(2.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(2.0), FloatType(3.0))),
+            FloatType(2.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(2.25)),
+            FloatType(2.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(2.75)),
+            FloatType(3.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(3.0), FloatType(2.0))),
+            FloatType(3.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(3.0)),
+            FloatType(3.0));
+
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(-0.0)),
+            FloatType(0.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(-0.0), FloatType(-1.0))),
+            FloatType(0.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(-0.25)),
+            FloatType(0.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(-0.75)),
+            FloatType(-1.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(-1.0), FloatType(0.0))),
+            FloatType(-1.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(-1.0)),
+            FloatType(-1.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(-1.0), FloatType(-2.0))),
+            FloatType(-1.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(-1.25)),
+            FloatType(-1.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(-1.75)),
+            FloatType(-2.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(-2.0), FloatType(-1.0))),
+            FloatType(-2.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(-2.0)),
+            FloatType(-2.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(-2.0), FloatType(-3.0))),
+            FloatType(-2.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(-2.25)),
+            FloatType(-2.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(-2.75)),
+            FloatType(-3.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(
+                std::nextafter(FloatType(-3.0), FloatType(-2.0))),
+            FloatType(-3.0));
+  EXPECT_EQ(RoundToNearestTiesToEven<FloatType>(FloatType(-3.0)),
+            FloatType(-3.0));
 }
 
 }  // namespace
