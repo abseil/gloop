@@ -1452,6 +1452,9 @@ IPAddress DualstackIPAddress(const IPAddress& ip) {
   struct in6_addr v4mapped = {};
   v4mapped.s6_addr16[5] = htons(0xffff);
   UNALIGNED_STORE32(v4mapped.s6_addr16 + 6, ip.ipv4_address().s_addr);
+  // IN6_IS_ADDR_V4MAPPED has no side effects; it is flagged because it
+  // expands to a call to byte-swapping functions like htonl().
+  // NOLINTNEXTLINE(bugprone-assert-side-effect)
   DCHECK(IN6_IS_ADDR_V4MAPPED(&v4mapped))
       << "Conversion of " << ip << " to a dualstack IP address failed.";
 
