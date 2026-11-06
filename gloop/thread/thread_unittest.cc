@@ -1933,6 +1933,30 @@ TEST(ThreadTest, CheckOtherStack) {
   EXPECT_THAT(dump, HasSubstr("creator:"));
 }
 
+TEST(ThreadTest, CreatorStackDepthMatchesCreatorStackCount) {
+#if defined(__x86_64__) && defined(__linux__) &&                 \
+    !defined(ADDRESS_SANITIZER) && !defined(MEMORY_SANITIZER) && \
+    !defined(THREAD_SANITIZER)
+  EXPECT_EQ(sizeof(LiveThread), 392);
+#endif
+  if (!absl::debugging_internal::StackTraceWorksForTest()) {
+    GTEST_SKIP() << "Skipping because stack traces are not expected to work.";
+  }
+  int captured_depth = 0;
+  Recurse(kCreatorStackCount + 10, [&captured_depth] {
+    ThreadPool pool(1);
+    pool.Schedule([&captured_depth] {
+      const void* pcs[kStackCount] = {};
+      captured_depth =
+          LiveThread_CreatorStack(Thread_GetMyLiveThread(), kStackCount, pcs);
+      for (int i = 0; i < captured_depth; ++i) {
+        EXPECT_NE(pcs[i], nullptr);
+      }
+    });
+  });
+  EXPECT_EQ(captured_depth, kCreatorStackCount);
+}
+
 TEST(ThreadTest, CheckStackLineWrap) {
   if (!absl::debugging_internal::StackTraceWorksForTest()) {
     GTEST_SKIP() << "Skipping because stack traces are not expected to work.";
