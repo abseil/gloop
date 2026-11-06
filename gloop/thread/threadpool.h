@@ -135,6 +135,13 @@ class ThreadPool : public AbstractThreadPool {
     // When set, always spawn all workers on construction instead of lazily
     // creating when they are needed and deleting when they are idle.
     bool force_eager_thread_creation = false;
+    // When set, workers are started via Thread::TryStart(). TrySchedule()
+    // returns false with no side effects if no worker is running or starting
+    // and thread creation fails. Schedule() and ScheduleAt() may not be called
+    // when this option is set.
+    //
+    // REQUIRES: !force_eager_thread_creation
+    bool use_try_start = false;
   };
 
   // Create a thread pool that provides a concurrency of "num_threads" threads.
@@ -204,10 +211,11 @@ class ThreadPool : public AbstractThreadPool {
     absl::CondVar cv;  // signalled when there is work to do
   };
 
-  // Spawn a single new worker thread.
+  // Spawn a single new worker thread. When `use_try_start_` is true, uses
+  // Thread::TryStart() and returns false if thread creation fails.
   //
-  // REQUIRES: threads_.size() < max_threads_
-  void SpawnThread() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  // REQUIRES: num_threads_ - exiting_threads_ < max_threads_
+  bool SpawnThread() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   void RunWorker();
 
@@ -216,8 +224,9 @@ class ThreadPool : public AbstractThreadPool {
   void Put(absl_nonnull absl::AnyInvocable<void() &&>&& callback)
       ABSL_LOCKS_EXCLUDED(mutex_);
 
-  // If the queue is not full, adds `callback` to the queue and returns true.
-  // If the queue is full, returns false and has no side-effects.
+  // If the queue is not full (and, when use_try_start_ is set, a worker is
+  // available or can be started), adds `callback` to the queue and returns
+  // true. Otherwise returns false and has no side-effects.
   bool TryPut(absl_nonnull absl::AnyInvocable<void() &&>&& callback)
       ABSL_LOCKS_EXCLUDED(mutex_);
 
@@ -279,6 +288,7 @@ class ThreadPool : public AbstractThreadPool {
       queue_;  // Queue of elements
   std::atomic<int> queue_size_{0};
   const bool eager_thread_creation_;  // Whether to eagerly spawn threads
+  const bool use_try_start_;          // Whether SpawnThread uses TryStart
   // When true, spawn threads on an as-needed basis and clean them up when they
   // are idle for a long time.
   const bool gc_workers_;
