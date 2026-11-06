@@ -29,6 +29,7 @@
 #include "absl/base/casts.h"
 #include "absl/base/config.h"
 #include "absl/log/check.h"
+#include "absl/time/time.h"
 
 namespace perftools::tracing {
 
@@ -154,6 +155,25 @@ inline constexpr SyncId kNoSyncId = {0};
 inline constexpr SyncId kMainSyncId = {1};
 inline constexpr BarrierId kNoBarrierId = {0};
 inline constexpr MsgSequence kNoMsgSequence = static_cast<uint32_t>(-1);
+
+// Identifies the ancestor synchronous execution and timestamp from which
+// a traced context was copied or spawned. A value of `kNoSyncId` for the
+// `sync_id` field identifies "unknown ancestor".
+//
+// Callers should use the `has_value()` or `bool operator()` method to
+// provide readabillity at the call site.
+struct Ancestor {
+  SyncId sync_id = kNoSyncId;
+  absl::Time timestamp;
+
+  // Returns true if this instance identifies an ancestor id and time.
+  constexpr bool has_value() const { return sync_id != kNoSyncId; }
+  explicit constexpr operator bool() const { return has_value(); }
+
+  friend constexpr bool operator==(Ancestor lhs, Ancestor rhs) {
+    return lhs.sync_id == rhs.sync_id && lhs.timestamp == rhs.timestamp;
+  }
+};
 
 // Returns a `BarrierId` value computed from the passed in address value,
 // or `kNoBarrierId` if the passed in `object` is nullptr.

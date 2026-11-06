@@ -26,6 +26,7 @@
 #include <thread>  // NOLINT
 
 #include "absl/base/casts.h"
+#include "absl/time/time.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -36,6 +37,28 @@ using testing::StrEq;
 
 namespace perftools::tracing {
 namespace {
+
+TEST(TracingBase, Ancestor) {
+  constexpr Ancestor default_ancestor;
+  EXPECT_FALSE(default_ancestor.has_value());
+  EXPECT_FALSE(default_ancestor);
+  EXPECT_THAT(default_ancestor.sync_id, Eq(kNoSyncId));
+  EXPECT_THAT(default_ancestor.timestamp, Eq(absl::UnixEpoch()));
+
+  const absl::Time t1 = absl::FromUnixSeconds(100);
+  const absl::Time t2 = absl::FromUnixSeconds(200);
+  const Ancestor a1{.sync_id = kMainSyncId, .timestamp = t1};
+  const Ancestor a1_copy{.sync_id = kMainSyncId, .timestamp = t1};
+  const Ancestor a2{.sync_id = 2, .timestamp = t1};
+  const Ancestor a3{.sync_id = kMainSyncId, .timestamp = t2};
+
+  EXPECT_TRUE(a1.has_value());
+  EXPECT_TRUE(static_cast<bool>(a1));
+  EXPECT_THAT(a1, Eq(a1_copy));
+  EXPECT_THAT(a1, Ne(default_ancestor));
+  EXPECT_THAT(a1, Ne(a2));
+  EXPECT_THAT(a1, Ne(a3));
+}
 
 TEST(TracingBase, PerThreadDefaults) {
   EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));

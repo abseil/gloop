@@ -114,6 +114,7 @@ cc_library(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:source_location",
     ],
 )
@@ -126,6 +127,7 @@ cc_test(
         ":tracing_base",
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
