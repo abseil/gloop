@@ -156,6 +156,16 @@ class Thread {
   /** Create a runtime thread and invoke "this->Run()" as its body. */
   void Start(absl::SourceLocation loc = absl::SourceLocation::current());
 
+#ifndef SWIG
+  /** Non-retrying, non-fatal variant of Start(). Attempts a single thread
+      creation without retrying on EAGAIN or crashing on failure. Returns true
+      if the runtime thread was started, or false if pthread_create failed
+      (leaving the Thread unstarted so it can be destroyed without calling
+      Join()). */
+  [[nodiscard]] bool TryStart(
+      absl::SourceLocation loc = absl::SourceLocation::current());
+#endif
+
   /** Join with the running thread. Blocks until the thread terminates,
       unless it has already terminated.  The results of multiple simultaneous
       calls to Join are undefined.
@@ -239,10 +249,14 @@ class Thread {
   // Currently, it only dumps stack trace.
   static void ThreadExitHandler(void* unused);
 
+  bool StartImpl(absl::SourceLocation loc, bool no_retry);
+
   // CreatePthread wraps the setup and retry logic surrounding creating a
-  // pthread. If we cannot create a pthread, then we will crash via
-  // ABSL_RAW_LOG(FATAL).
-  void CreatePthread(pthread_attr_t& attr);
+  // pthread. When `no_retry` is false, retries on EAGAIN and crashes via
+  // ABSL_RAW_LOG(FATAL) if a pthread cannot be created; when `no_retry` is
+  // true, returns false immediately on failure (including EAGAIN from resource
+  // limits or a concurrent exec/group-exit) without sleeping or crashing.
+  bool CreatePthread(pthread_attr_t& attr, bool no_retry);
 };
 
 namespace thread {
