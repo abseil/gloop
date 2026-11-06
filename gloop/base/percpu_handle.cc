@@ -21,8 +21,13 @@
 #include <cstdint>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "gloop/base/percpu.h"
 #include "gloop/base/scheduling/scheduling_mode.h"
+
+#if ABSL_HAVE_MEMORY_SANITIZER
+#include <sanitizer/msan_interface.h>
+#endif
 
 #if __linux__
 
@@ -132,6 +137,10 @@ static int64_t* AllocateBacking(int num_cpus, int n, int* actual) {
   // Adjacent backings merge into a single VMA; prevent first-touch 2 MiB
   // hugepages from faulting pages for unused CPUs once the VMA spans >= 2 MiB.
   madvise(mem, mmap_length, MADV_NOHUGEPAGE);
+#endif
+
+#if ABSL_HAVE_MEMORY_SANITIZER
+  __msan_unpoison(mem, mmap_length);
 #endif
 
   *actual = n;
