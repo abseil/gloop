@@ -39,6 +39,11 @@
 
 namespace perftools::tracing::core {
 
+// Returns the ancestor of the currently active SyncContext on this thread,
+// or an empty Ancestor (`!has_value()`) if no context is active or the
+// active context has no ancestor.
+Ancestor CurrentAncestor();
+
 // Emits the `OnTraceSpawn()` event if the current thread is traced.
 // Requires: sync_id != kNoSyncId
 void TraceSpawn(SyncId sync_id, StringRef label);

@@ -253,6 +253,9 @@ cc_library(
     name = "tracing_core",
     srcs = ["tracing_core.cc"],
     hdrs = ["tracing_core.h"],
+    implementation_deps = [
+        ":sync_context",
+    ],
     visibility = [
         ":core_visibility",
         ":internal_visibility",
@@ -275,6 +278,7 @@ cc_test(
     srcs = ["tracing_core_test.cc"],
     deps = [
         ":mock_trace_event_listener",
+        ":sync_context",
         ":test_only_access",
         ":trace_source_location",
         ":tracing_base",
@@ -339,6 +343,7 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/time",
     ],
 )
 
@@ -354,6 +359,7 @@ cc_test(
         ":trace_source_location",
         ":tracing_base",
         "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

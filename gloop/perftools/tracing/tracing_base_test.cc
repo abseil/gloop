@@ -38,6 +38,22 @@ using testing::StrEq;
 namespace perftools::tracing {
 namespace {
 
+TEST(TracingBase, IsSpawnedSyncId) {
+  static_assert(!IsSpawnedSyncId(kNoSyncId));
+  static_assert(!IsSpawnedSyncId(kMainSyncId));
+  static_assert(IsSpawnedSyncId(SyncId{2}));
+  static_assert(!IsSpawnedSyncId(SyncId{3}));
+  static_assert(IsSpawnedSyncId(SyncId{4}));
+  static_assert(!IsSpawnedSyncId(SyncId{5}));
+
+  EXPECT_FALSE(IsSpawnedSyncId(kNoSyncId));
+  EXPECT_FALSE(IsSpawnedSyncId(kMainSyncId));
+  EXPECT_TRUE(IsSpawnedSyncId(SyncId{2}));
+  EXPECT_FALSE(IsSpawnedSyncId(SyncId{3}));
+  EXPECT_TRUE(IsSpawnedSyncId(SyncId{4}));
+  EXPECT_FALSE(IsSpawnedSyncId(SyncId{5}));
+}
+
 TEST(TracingBase, Ancestor) {
   constexpr Ancestor default_ancestor;
   EXPECT_FALSE(default_ancestor.has_value());

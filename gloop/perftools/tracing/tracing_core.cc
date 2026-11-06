@@ -24,10 +24,18 @@
 #include "absl/base/config.h"
 #include "absl/base/internal/tracing.h"
 #include "gloop/perftools/tracing/string_label.h"
-
-#if ABSL_HAVE_ATTRIBUTE_WEAK
+#include "gloop/perftools/tracing/sync_context.h"
+#include "gloop/perftools/tracing/tracing_base.h"
 
 namespace perftools::tracing::core {
+
+Ancestor CurrentAncestor() {
+  const SyncContext* context =
+      SyncContext::ActiveContext(SyncContext::Access());
+  return context ? context->ancestor() : Ancestor{};
+}
+
+#if ABSL_HAVE_ATTRIBUTE_WEAK
 
 namespace {
 
@@ -71,6 +79,6 @@ void ABSL_INTERNAL_C_SYMBOL(AbslInternalTraceObserved)(const void* object,
 
 }  // extern "C"
 
-}  // namespace perftools::tracing::core
-
 #endif  // ABSL_HAVE_ATTRIBUTE_WEAK
+
+}  // namespace perftools::tracing::core

@@ -350,6 +350,16 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   // returned by active_sync_id().
   SyncId active_sync_id() const;
 
+  // Returns the `Ancestor` identifying the timestamp and active synchronous
+  // execution considered causal for this execution, or an empty `Ancestor`
+  // (`!ancestor().has_value()`) if this context has no recorded ancestor.
+  //
+  // If the current context was not explicitly spawned, the ancestor represents
+  // the timestamp and active execution considered causal for this execution. In
+  // other words, for 'out of thin air' executions, the ancestor serves as a
+  // heuristic post factum spawn event.
+  Ancestor ancestor() const;
+
   // Returns true if this instance is part of a causality trace graph and
   // contains event listeners requiring processing event notifications.
   bool has_listeners() const { return impl_ != nullptr; }
@@ -470,7 +480,8 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   // Create a hand-crafted instance for testing purposes.
   // No checks are performed on the legality of the created instance.
   static SyncContext Create(const TestOnlyAccess&, TraceEventListener* listener,
-                            State state, SyncId sync_id, SyncId active_sync_id);
+                            State state, SyncId sync_id, SyncId active_sync_id,
+                            Ancestor ancestor = {});
 
   // Resets this instance to an empty state for testing purposes, clearing the
   // active thread-local context if it points to this instance.
@@ -556,11 +567,13 @@ class SyncContext::Impl {
   // Implementation of SyncContext accessors
   SyncId sync_id() const;
   SyncId active_sync_id() const;
+  Ancestor ancestor() const;
   SyncContext::State state() const;
   TraceEventListener* listener() const;
 
   // Implementation of SyncContext::same_trace()
   bool same_trace(const Impl* other) const;
+  bool same_trace(const SyncContext* other) const;
 
   // Implementation of BeforeSwapCurrent and BeforeRestoreCurrent.
   void BeforeSwapCurrent(const Impl* to);
@@ -579,7 +592,8 @@ class SyncContext::Impl {
   bool EndContext();
 
   static Impl* CreateForTesting(TraceEventListener* listener, State state,
-                                SyncId sync_id, SyncId active_sync_id);
+                                SyncId sync_id, SyncId active_sync_id,
+                                Ancestor ancestor);
 
  private:
   class Shared;
@@ -587,7 +601,14 @@ class SyncContext::Impl {
 
   enum SwapOrRestore { kSwap, kRestore };
 
-  Impl(SharedPtr shared, TraceEventListener* listener, SyncId sync_id) noexcept;
+  Impl(SharedPtr shared, TraceEventListener* listener, SyncId sync_id,
+       Ancestor ancestor = {}) noexcept;
+
+  // Returns the current active sync id and timestamp if the current thread is
+  // being traced by a sync context belonging to the same trace as this
+  // instance, else returns this instance's ancestor (preserving causal lineage
+  // when an inactive context is copied outside its trace).
+  Ancestor MakeAncestor() const;
 
   template <SwapOrRestore swap_or_restore>
   void BeforeSwap(const Impl* to);
@@ -610,6 +631,7 @@ class SyncContext::Impl {
   const SyncId sync_id_;
   State state_ = State::kDefault;
   SyncId active_sync_id_ = kNoSyncId;
+  Ancestor ancestor_;
   TraceEventListener* listener_ = nullptr;
   SharedPtr shared_;
 };
@@ -624,12 +646,18 @@ inline SyncId SyncContext::Impl::active_sync_id() const {
   return active_sync_id_;
 }
 
+inline Ancestor SyncContext::Impl::ancestor() const { return ancestor_; }
+
 inline TraceEventListener* SyncContext::Impl::listener() const {
   return listener_;
 }
 
 inline bool SyncContext::Impl::same_trace(const Impl* other) const {
   return other != nullptr && shared_ == other->shared_;
+}
+
+inline bool SyncContext::Impl::same_trace(const SyncContext* other) const {
+  return other != nullptr && same_trace(other->impl_);
 }
 
 // ------------------------ SyncContext --------------------------------
@@ -642,6 +670,7 @@ class SyncContext::Access {
   template <typename T>
   friend class ::perftools::tracing::TraceSpan;
   friend class ::perftools::tracing::LinkedTraceSpan;
+  friend Ancestor CurrentAncestor();
   friend struct ::perftools::tracing::testing::TestOnlyAccess;
 };
 constexpr SyncContext::Access::Access() noexcept = default;
@@ -704,6 +733,10 @@ inline SyncId SyncContext::active_sync_id() const {
   return impl_ ? impl_->active_sync_id() : kNoSyncId;
 }
 
+inline Ancestor SyncContext::ancestor() const {
+  return impl_ ? impl_->ancestor() : Ancestor{};
+}
+
 inline bool SyncContext::ContainsListener(TraceEventListener* listener) const {
   return impl_ != nullptr && impl_->ContainsListener(listener);
 }
@@ -764,10 +797,8 @@ inline void SyncContext::BeforeSwapCurrent(Access, const SyncContext& to) {
 
 inline void SyncContext::AfterSwapCurrent(Access, StringRef label) {
   if (Impl* impl = impl_; impl != nullptr) {
-    impl_ = nullptr;
-    if (impl->AfterSwapCurrent(label, *this)) {
-      impl_ = impl;
-    } else {
+    if (!impl->AfterSwapCurrent(label, *this)) {
+      impl_ = nullptr;
       delete impl;
     }
   }
@@ -781,10 +812,8 @@ inline void SyncContext::BeforeRestoreCurrent(Access, const SyncContext& to) {
 
 inline void SyncContext::AfterRestoreCurrent(Access, StringRef label) {
   if (Impl* impl = impl_; impl != nullptr) {
-    impl_ = nullptr;
-    if (impl->AfterRestoreCurrent(label, *this)) {
-      impl_ = impl;
-    } else {
+    if (!impl->AfterRestoreCurrent(label, *this)) {
+      impl_ = nullptr;
       delete impl;
     }
   }
@@ -798,9 +827,10 @@ inline void swap(SyncContext& lhs, SyncContext& rhs) noexcept {
 inline SyncContext SyncContext::Create(const TestOnlyAccess&,
                                        TraceEventListener* listener,
                                        State state, SyncId sync_id,
-                                       SyncId active_sync_id) {
-  return SyncContext(
-      Impl::CreateForTesting(listener, state, sync_id, active_sync_id));
+                                       SyncId active_sync_id,
+                                       Ancestor ancestor) {
+  return SyncContext(Impl::CreateForTesting(listener, state, sync_id,
+                                            active_sync_id, ancestor));
 }
 
 }  // namespace perftools::tracing::core
