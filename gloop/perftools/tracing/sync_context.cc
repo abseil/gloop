@@ -30,6 +30,7 @@
 #include "absl/base/optimization.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "absl/time/clock.h"
 #include "gloop/perftools/tracing/multiplex_trace_event_listener.h"
 #include "gloop/perftools/tracing/noop_trace_event_listener.h"
 #include "gloop/perftools/tracing/perftools_verify.h"
@@ -103,9 +104,19 @@ SyncContext::Impl::~Impl() {
 }
 
 SyncContext::Impl::Impl(SharedPtr shared, TraceEventListener* listener,
-                        SyncId sync_id) noexcept
-    : sync_id_(sync_id), listener_(listener), shared_(std::move(shared)) {
+                        SyncId sync_id, Ancestor ancestor) noexcept
+    : sync_id_(sync_id),
+      ancestor_(ancestor),
+      listener_(listener),
+      shared_(std::move(shared)) {
   DCHECK_NE(sync_id, kNoSyncId);
+}
+
+Ancestor SyncContext::Impl::MakeAncestor() const {
+  if (tls_context_ != nullptr && same_trace(tls_context_->impl_)) {
+    return Ancestor{tls_context_->active_sync_id(), absl::Now()};
+  }
+  return ancestor_;
 }
 
 TraceEventListener* SyncContext::Impl::ActiveListener() const {
@@ -132,16 +143,16 @@ TraceEventListener* SyncContext::Impl::ThisListener() const {
 SyncContext::Impl* SyncContext::Impl::New(TraceEventListener* listener) {
   DCHECK_NE(listener, nullptr);
   auto shared = std::make_shared<Shared>();
-  Impl* impl = new Impl(std::move(shared), listener, kMainSyncId);
+  Impl* impl = new Impl(std::move(shared), listener, kMainSyncId, Ancestor{});
   impl->blocked_ = true;
   return impl;
 }
 
 SyncContext::Impl* SyncContext::Impl::CreateForTesting(
     TraceEventListener* listener, State state, SyncId sync_id,
-    SyncId active_sync_id) {
+    SyncId active_sync_id, Ancestor ancestor) {
   auto shared = std::make_shared<Shared>();
-  auto* context = new Impl(std::move(shared), listener, sync_id);
+  auto* context = new Impl(std::move(shared), listener, sync_id, ancestor);
   context->state_ = state;
   context->active_sync_id_ = active_sync_id;
   return context;
@@ -153,7 +164,8 @@ SyncContext::Impl* SyncContext::Impl::CreateThread(StringRef label) const {
   SyncId sync_id = shared_->NewThreadSyncId();
   active_listener->OnTraceSpawn(sync_id, label);
   TraceEventListener* listener = active_listener->GetEventListener(sync_id);
-  return listener ? new Impl(shared_, listener, sync_id) : nullptr;
+  return listener ? new Impl(shared_, listener, sync_id, MakeAncestor())
+                  : nullptr;
 }
 
 SyncContext::Impl* SyncContext::Impl::Copy() const {
@@ -161,11 +173,13 @@ SyncContext::Impl* SyncContext::Impl::Copy() const {
   if (this_listener == nullptr) return nullptr;
   SyncId sync_id = shared_->NewSyncId();
   TraceEventListener* new_listener = this_listener->GetEventListener(sync_id);
-  return new_listener ? new Impl(shared_, new_listener, sync_id) : nullptr;
+  return new_listener ? new Impl(shared_, new_listener, sync_id, MakeAncestor())
+                      : nullptr;
 }
 
 SyncContext::Impl* SyncContext::Impl::CreateNoop() const {
-  return new Impl(shared_, NoopTraceEventListener(), shared_->NewSyncId());
+  return new Impl(shared_, NoopTraceEventListener(), shared_->NewSyncId(),
+                  Ancestor{});
 }
 
 void SyncContext::Impl::AddListenerToCurrent(TraceEventListener* listener,
