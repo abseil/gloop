@@ -63,9 +63,10 @@ namespace {
 using ErrorSpaceTable = absl::flat_hash_map<std::string, const ErrorSpace*>;
 using ErrorSpaceFactoryList = std::vector<const ErrorSpace* (*)()>;
 
-ABSL_CONST_INIT ABSL_CACHELINE_ALIGNED std::atomic<const ErrorSpaceTable*>
-    static_spaces = nullptr;
-ABSL_CONST_INIT ABSL_CACHELINE_ALIGNED absl::Mutex space_lock(absl::kConstInit);
+alignas(ABSL_CACHELINE_SIZE)
+    ABSL_CONST_INIT std::atomic<const ErrorSpaceTable*> static_spaces = nullptr;
+alignas(ABSL_CACHELINE_SIZE) ABSL_CONST_INIT absl::Mutex
+    space_lock(absl::kConstInit);
 ABSL_CONST_INIT ErrorSpaceFactoryList* pending_static_spaces
     ABSL_GUARDED_BY(space_lock) = nullptr;
 ABSL_CONST_INIT std::atomic<ErrorSpaceTable*> dynamic_spaces
