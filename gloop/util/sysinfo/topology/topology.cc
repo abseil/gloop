@@ -556,6 +556,11 @@ SysTopology* SysTopologyGenerator::FromSysfs() const {
   ti.levels[2].mode = SysTopology::LevelInfo::PARENTMAP;
 
   // Read each cpu.
+  // CPUs whose core_id cannot be read. Some sandboxes (e.g. gVisor) do not
+  // expose per-CPU topology files, so this can be every CPU on the host. Log
+  // once for all of them instead of once per CPU.
+  int num_cpus_without_core = 0;
+  SysTopology::Id first_cpu_without_core = 0;
   for (SysTopology::Id cpu : cpu_ids) {
     int online = 1;
     std::string online_path =
@@ -568,12 +573,13 @@ SysTopology* SysTopologyGenerator::FromSysfs() const {
     int core, package;
     std::string dir = absl::Substitute("$0/cpu$1/topology/", kCpuPrefix, cpu);
     if (!ReadProcField((dir + "core_id").c_str(), -1, 0, "%d", &core)) {
-      LOG(WARNING) << "Cannot read CPU core " << cpu;
+      VLOG(1) << "Cannot read CPU core " << cpu;
+      if (num_cpus_without_core++ == 0) first_cpu_without_core = cpu;
       continue;
     }
     if (!ReadProcField((dir + "physical_package_id").c_str(), -1, 0, "%d",
                        &package)) {
-      LOG(WARNING) << "Cannot read CPU package " << package;
+      LOG(WARNING) << "Cannot read CPU package " << cpu;
       continue;
     }
     VLOG(4) << "Found CPU " << cpu << ", core " << core << ", package "
@@ -596,6 +602,12 @@ SysTopology* SysTopologyGenerator::FromSysfs() const {
 
     ci.parent["core"] = core;
     ci.parent["package"] = package;
+  }
+
+  if (num_cpus_without_core > 0) {
+    LOG(WARNING) << "Cannot read CPU core for " << num_cpus_without_core
+                 << " of " << cpu_ids.size() << " CPUs (first: CPU "
+                 << first_cpu_without_core << ")";
   }
 
   if (ti.cpus.empty()) {
