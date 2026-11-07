@@ -174,7 +174,14 @@ TEST(ThreadPoolTest, ScheduleIfReadyToRunTest) {
 }
 
 // If num_threads is 0, ThreadPool should not CHECK-fail or crash.
-TEST(ThreadPoolTest, NumThreadsZero) { ThreadPool pool(0); }
+TEST(ThreadPoolTest, NumThreadsZero) {
+  ThreadPool pool(0);
+  EXPECT_EQ(pool.num_threads(), 1);
+}
+
+TEST(ThreadPoolDeathTest, NegativeNumThreadsDies) {
+  EXPECT_DEATH_IF_SUPPORTED(ThreadPool(-1), "Check failed: num_threads");
+}
 
 // If num_threads is 1, the closures are run in FIFO order.
 TEST(ThreadPoolTest, OneThreadRunsClosuresFIFO) {
