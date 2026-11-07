@@ -2014,10 +2014,14 @@ void SubProcess::ExecChild() {
   if (execve_fd_ != -1) {
     const char* const* envp = envp_ ? envp_ : (const char* const*)environ;
     lss_execveat(execve_fd_, "", argv_, envp, AT_EMPTY_PATH, &child_errno_);
-  } else if (envp_) {
-    lss_execve(filename_->c_str(), argv_, envp_, &child_errno_);
+  } else if (filename_.has_value()) {
+    if (envp_) {
+      lss_execve(filename_->c_str(), argv_, envp_, &child_errno_);
+    } else {
+      lss_execv(filename_->c_str(), argv_, &child_errno_);
+    }
   } else {
-    lss_execv(filename_->c_str(), argv_, &child_errno_);
+    child_errno_ = EINVAL;
   }
   // Alas, we cannot call LOG(FATAL) from the child process. The caller
   // will do this for us, when we return from this method.
@@ -2133,8 +2137,10 @@ void SubProcess::Close(Channel chan) {
 // L < subproc_mu
 void SubProcess::HandleExit(pid_t pid, int status, const struct rusage* usage) {
   finish_time_ = absl::Now();
-  VLOG(2) << "SubProcess::HandleExit " << *filename_ << "[" << pid
-          << "] status=" << status;
+  VLOG(2) << "SubProcess::HandleExit "
+          << (filename_.has_value() ? *filename_
+                                    : absl::StrCat("[fd=", execve_fd_, "]"))
+          << "[" << pid << "] status=" << status;
 
   //  Don't clear running_, because regular handlers might get called
   //  before DoExit() runs.
