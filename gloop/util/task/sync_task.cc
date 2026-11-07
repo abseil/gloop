@@ -48,7 +48,9 @@ SyncTask::SyncTask(WithBackgroundContextType, thread::Executor* executor,
   task()->set_context(base::BackgroundContext());
 }
 
-bool SyncTask::IsDone() const { return state_->done.HasBeenNotified(); }
+bool SyncTask::IsDone() const {
+  return state_.has_value() && state_->done.HasBeenNotified();
+}
 
 void SyncTask::Reset() {
   // Save a reference to the executor and arena before we destroy the task
