@@ -152,7 +152,7 @@ TEST(AbstractSimpleSelectableTest, Unregister) {
 
 // Test synchronization between SetEnabled and the destructor.
 TEST(AbstractSimpleSelectableTest, DeletingWhenEnabled) {
-  std::unique_ptr<Source<int>> source(new Source<int>);
+  std::unique_ptr<Source<int>> source = std::make_unique<Source<int>>();
   thread::Fiber fiber([&source]() {
     int value;
     thread::Select({source->OnValue(&value)});

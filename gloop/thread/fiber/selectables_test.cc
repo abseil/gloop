@@ -176,7 +176,7 @@ TEST_F(SelectablesTest, PermanentEventCanSynchronizeItsOwnDeletion) {
     std::unique_ptr<Fiber> f;
     // We heap-allocate the PermanentEvent so that when we delete it, the debug
     // malloc will overwrite it with garbage.
-    std::unique_ptr<PermanentEvent> e(new PermanentEvent);
+    std::unique_ptr<PermanentEvent> e = std::make_unique<PermanentEvent>();
     f = std::make_unique<Fiber>([&] { e->Notify(); });
     Select({e->OnEvent()});
     e.reset();
