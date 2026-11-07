@@ -65,7 +65,6 @@
 #include <string>
 #include <tuple>
 #include <utility>
-#include <vector>
 
 #include "absl/strings/str_format.h"
 #include "gloop/util/status/ret_check.h"
