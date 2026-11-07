@@ -21,10 +21,17 @@
 #include "gloop/perftools/tracing/tracing.h"
 
 #include "absl/base/no_destructor.h"
+#include "gloop/perftools/tracing/sync_context.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
 #include "gloop/perftools/tracing/tracing_base.h"
 
 namespace perftools::tracing {
+
+Ancestor CurrentAncestor() {
+  const core::SyncContext* context =
+      core::SyncContext::ActiveContext(core::SyncContext::Access());
+  return context != nullptr ? context->ancestor() : Ancestor{};
+}
 
 namespace {
 

@@ -24,6 +24,8 @@
 #include <optional>
 #include <utility>
 
+#include "absl/time/clock.h"
+#include "absl/time/time.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/noop_trace_event_listener.h"
 #include "gloop/perftools/tracing/string_label.h"
@@ -38,9 +40,12 @@ namespace perftools::tracing::core {
 
 using ::perftools::tracing::testing::TestOnlyAccess;
 using ::testing::_;
+using ::testing::AllOf;
 using ::testing::AnyNumber;
 using ::testing::Eq;
+using ::testing::Ge;
 using ::testing::InSequence;
+using ::testing::Le;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::StrictMock;
@@ -76,9 +81,10 @@ class SyncContextTest : public ::testing::Test {
   static SyncContext CreateSync(TraceEventListener* listener,
                                 State state = State::kDefault,
                                 SyncId active_sync_id = kNoSyncId,
-                                SyncId sync_id = kSyncId) {
+                                SyncId sync_id = kSyncId,
+                                Ancestor ancestor = {}) {
     return SyncContext::Create(TestOnlyAccess(), listener, state, sync_id,
-                               active_sync_id);
+                               active_sync_id, ancestor);
   }
 
   // Initializes `context_` with `mock_` in `state`. Defaults `active_sync_id`
@@ -108,6 +114,7 @@ TEST(SyncContextValueSemantics, DefaultCtor) {
   SyncContext context;
   EXPECT_THAT(context.sync_id(), Eq(kNoSyncId));
   EXPECT_THAT(context.active_sync_id(), Eq(kNoSyncId));
+  EXPECT_FALSE(context.ancestor().has_value());
   EXPECT_FALSE(context);
   EXPECT_TRUE(context.empty());
   EXPECT_THAT(context.state(), Eq(SyncContext::State::kEmpty));
@@ -279,6 +286,7 @@ TEST_F(SyncContextTest, AddListener) {
   EXPECT_FALSE(context_.empty());
   EXPECT_THAT(context_.sync_id(), Eq(kMainSyncId));
   EXPECT_THAT(context_.active_sync_id(), Eq(kNoSyncId));
+  EXPECT_FALSE(context_.ancestor().has_value());
   EXPECT_THAT(context_.state(), Eq(State::kDefault));
   EXPECT_CALL(mock_, ReleaseEventListener());
   context_ = {};
@@ -490,11 +498,16 @@ TEST_F(SyncContextTest, CreateThread) {
   EXPECT_CALL(mock_, OnTraceSpawn(sync_id, Eq("Child")));
   EXPECT_CALL(mock_, GetEventListener(sync_id)).WillOnce(Return(&child_mock));
   EXPECT_CALL(child_mock, ReleaseEventListener());
+  const absl::Time before = absl::Now();
   SyncContext child = context_.CreateThread("Child");
+  const absl::Time after = absl::Now();
   EXPECT_FALSE(child.empty());
   EXPECT_THAT(child.state(), Eq(State::kDefault));
   EXPECT_THAT(child.sync_id(), Eq(sync_id));
   EXPECT_THAT(child.active_sync_id(), Eq(kNoSyncId));
+  EXPECT_TRUE(child.ancestor().has_value());
+  EXPECT_THAT(child.ancestor().sync_id, Eq(kActiveSyncId));
+  EXPECT_THAT(child.ancestor().timestamp, AllOf(Ge(before), Le(after)));
   EXPECT_THAT(child.listener(), Eq(&child_mock));
   EXPECT_TRUE(child.same_trace(context_));
 }
@@ -525,12 +538,115 @@ TEST_F(SyncContextTest, CreateThreadFailsWithInvalidState) {
 }
 
 TEST_F(SyncContextTest, CreateNoop) {
-  SetupContext();
+  SetupActiveContext();
 
   SyncContext noop = context_.CreateNoop();
   EXPECT_TRUE(noop.same_trace(context_));
   EXPECT_TRUE(noop.ContainsListener(NoopTraceEventListener()));
   EXPECT_THAT(noop.sync_id(), Eq(kFirstAutoSyncId));
+  EXPECT_FALSE(noop.ancestor().has_value());
+}
+
+TEST_F(SyncContextTest, CopyActiveContextRecordsAncestor) {
+  StrictMock<MockTraceEventListener> child_mock;
+  SetupActiveContext();
+
+  EXPECT_CALL(mock_, GetEventListener(kFirstAutoSyncId))
+      .WillOnce(Return(&child_mock));
+  EXPECT_CALL(child_mock, ReleaseEventListener());
+  const absl::Time before = absl::Now();
+  SyncContext copy = context_;
+  const absl::Time after = absl::Now();
+  EXPECT_TRUE(copy.ancestor().has_value());
+  EXPECT_THAT(copy.ancestor().sync_id, Eq(kActiveSyncId));
+  EXPECT_THAT(copy.ancestor().timestamp, AllOf(Ge(before), Le(after)));
+}
+
+TEST_F(SyncContextTest, CopyInactiveContextInheritsAncestor) {
+  StrictMock<MockTraceEventListener> child_mock;
+  const Ancestor initial_ancestor{.sync_id = SyncId{42},
+                                  .timestamp = absl::FromUnixSeconds(12345)};
+  context_ =
+      CreateSync(&mock_, State::kDefault, kNoSyncId, kSyncId, initial_ancestor);
+
+  EXPECT_CALL(mock_, GetEventListener(kFirstAutoSyncId))
+      .WillOnce(Return(&child_mock));
+  EXPECT_CALL(child_mock, ReleaseEventListener());
+  SyncContext copy = context_;
+  EXPECT_THAT(copy.ancestor(), Eq(initial_ancestor));
+}
+
+TEST_F(SyncContextTest, CopyWithUnrelatedActiveTraceInheritsAncestor) {
+  StrictMock<MockTraceEventListener> other_mock, child_mock;
+  SetupActiveContext();
+
+  const Ancestor initial_ancestor{.sync_id = SyncId{42},
+                                  .timestamp = absl::FromUnixSeconds(12345)};
+  SyncContext unrelated = CreateSync(&other_mock, State::kDefault, kNoSyncId,
+                                     SyncId{10}, initial_ancestor);
+
+  EXPECT_CALL(other_mock, GetEventListener(kFirstAutoSyncId))
+      .WillOnce(Return(&child_mock));
+  EXPECT_CALL(child_mock, ReleaseEventListener());
+  EXPECT_CALL(other_mock, ReleaseEventListener());
+  SyncContext copy = unrelated;
+  EXPECT_THAT(copy.ancestor(), Eq(initial_ancestor));
+}
+
+TEST_F(SyncContextTest,
+       CopyInactiveContextWithSameTraceActiveRecordsActiveSyncId) {
+  StrictMock<MockTraceEventListener> inactive_mock, child_mock;
+  SetupActiveContext();
+
+  // Create an inactive copy belonging to the same trace while `context_` is not
+  // active in TLS so `inactive` starts with an empty ancestor.
+  SyncContext::SetActiveContext(TestOnlyAccess(), nullptr);
+  EXPECT_CALL(mock_, GetEventListener(kFirstAutoSyncId))
+      .WillOnce(Return(&inactive_mock));
+  SyncContext inactive = context_;
+  ASSERT_FALSE(inactive.ancestor().has_value());
+
+  // Now restore `context_` as the active context in TLS and copy `inactive`.
+  SyncContext::SetActiveContext(TestOnlyAccess(), &context_);
+  EXPECT_CALL(inactive_mock, GetEventListener(_)).WillOnce(Return(&child_mock));
+  EXPECT_CALL(child_mock, ReleaseEventListener());
+  EXPECT_CALL(inactive_mock, ReleaseEventListener());
+  const absl::Time before = absl::Now();
+  SyncContext copy = inactive;
+  const absl::Time after = absl::Now();
+  EXPECT_TRUE(copy.ancestor().has_value());
+  EXPECT_THAT(copy.ancestor().sync_id, Eq(kActiveSyncId));
+  EXPECT_THAT(copy.ancestor().timestamp, AllOf(Ge(before), Le(after)));
+}
+
+TEST_F(SyncContextTest,
+       CopyInactiveContextWithSameTraceActiveReplacesAncestor) {
+  StrictMock<MockTraceEventListener> active_mock, child_mock;
+  const Ancestor initial_ancestor{.sync_id = SyncId{42},
+                                  .timestamp = absl::FromUnixSeconds(12345)};
+  context_ =
+      CreateSync(&mock_, State::kDefault, kNoSyncId, kSyncId, initial_ancestor);
+
+  EXPECT_CALL(mock_, GetEventListener(kFirstAutoSyncId))
+      .WillOnce(Return(&active_mock));
+  SyncContext active_copy = context_;
+
+  EXPECT_CALL(active_mock, OnTraceBeginSync(kFirstAutoSyncId, Eq("Begin")));
+  ASSERT_TRUE(active_copy.ResumeContext(access(), kNoBarrierId, "Begin"));
+
+  EXPECT_CALL(mock_, GetEventListener(_)).WillOnce(Return(&child_mock));
+  EXPECT_CALL(child_mock, ReleaseEventListener());
+  const absl::Time before = absl::Now();
+  SyncContext copy = context_;
+  const absl::Time after = absl::Now();
+
+  EXPECT_TRUE(copy.ancestor().has_value());
+  EXPECT_THAT(copy.ancestor().sync_id, Eq(kFirstAutoSyncId));
+  EXPECT_THAT(copy.ancestor().timestamp, AllOf(Ge(before), Le(after)));
+
+  EXPECT_CALL(active_mock, OnTraceEndSync(kFirstAutoSyncId));
+  EXPECT_CALL(active_mock, ReleaseEventListener());
+  EXPECT_TRUE(active_copy.EndContext(access()));
 }
 
 TEST_F(SyncContextTest, SameTrace) {
@@ -965,6 +1081,20 @@ TEST_F(SyncContextTest, AfterSwapDefaultContext) {
   EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
 }
 
+TEST_F(SyncContextTest, AfterSwapDefaultContextSetsActiveAncestorForBeginSync) {
+  const Ancestor ancestor{.sync_id = SyncId{42},
+                          .timestamp = absl::FromUnixSeconds(12345)};
+  context_ = CreateSync(&mock_, State::kDefault, kNoSyncId, kSyncId, ancestor);
+
+  EXPECT_CALL(mock_, OnTraceBeginSync(Eq(kSyncId), Eq("Begin")))
+      .WillOnce([&](SyncId, StringRef) {
+        ASSERT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
+        EXPECT_THAT(SyncContext::ActiveContext(access())->ancestor(),
+                    Eq(ancestor));
+      });
+  context_.AfterSwapCurrent(access(), "Begin");
+}
+
 TEST_F(SyncContextTest, AfterSwapSuspendedContext) {
   SetupContext(State::kSuspended);
 
@@ -1139,6 +1269,20 @@ TEST_F(SyncContextTest, ResumeDefaultContext) {
   EXPECT_THAT(active_sync_id(), Eq(kSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
   EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
+}
+
+TEST_F(SyncContextTest, ResumeDefaultContextSetsActiveAncestorForBeginSync) {
+  const Ancestor ancestor{.sync_id = SyncId{42},
+                          .timestamp = absl::FromUnixSeconds(12345)};
+  context_ = CreateSync(&mock_, State::kDefault, kNoSyncId, kSyncId, ancestor);
+
+  EXPECT_CALL(mock_, OnTraceBeginSync(Eq(kSyncId), Eq("Begin")))
+      .WillOnce([&](SyncId, StringRef) {
+        ASSERT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
+        EXPECT_THAT(SyncContext::ActiveContext(access())->ancestor(),
+                    Eq(ancestor));
+      });
+  EXPECT_TRUE(context_.ResumeContext(access(), kNoBarrierId, "Begin"));
 }
 
 TEST_F(SyncContextTest, ResumeDefaultContextWithBarrier) {
