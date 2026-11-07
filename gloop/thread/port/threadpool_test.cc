@@ -174,7 +174,20 @@ TEST(ThreadPoolTest, ScheduleIfReadyToRunTest) {
 }
 
 // If num_threads is 0, ThreadPool should not CHECK-fail or crash.
-TEST(ThreadPoolTest, NumThreadsZero) { ThreadPool pool(0); }
+TEST(ThreadPoolTest, NumThreadsZero) {
+  ThreadPool pool(0);
+  EXPECT_EQ(pool.num_threads(), 1);
+}
+
+TEST(ThreadPoolDeathTest, NegativeNumThreadsDies) {
+#if defined(__Fuchsia__) || defined(__myriad2__)
+  // Fuchsia and myriad2 do not log to stderr by default, so death tests cannot
+  // inspect the error message.
+  EXPECT_DEATH_IF_SUPPORTED(ThreadPool(-1), "");
+#else
+  EXPECT_DEATH_IF_SUPPORTED(ThreadPool(-1), "Check failed: num_threads");
+#endif
+}
 
 // If num_threads is 1, the closures are run in FIFO order.
 TEST(ThreadPoolTest, OneThreadRunsClosuresFIFO) {

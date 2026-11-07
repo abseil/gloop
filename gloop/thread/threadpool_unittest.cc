@@ -24,6 +24,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <optional>
 #include <string>
 #include <utility>
@@ -248,7 +249,40 @@ TEST(ThreadPoolTest, OptionsConstructor) {
 }
 
 // If num_threads is 0, ThreadPool should not CHECK-fail or crash.
-TEST(ThreadPoolTest, NumThreadsZero) { ThreadPool pool(0); }
+TEST(ThreadPoolTest, NumThreadsZero) {
+  ThreadPool pool(0);
+  EXPECT_EQ(pool.num_threads(), 1);
+}
+
+TEST(ThreadPoolDeathTest, NegativeNumThreadsDies) {
+  EXPECT_DEATH_IF_SUPPORTED(ThreadPool(-1), "negative num_threads=-1");
+  EXPECT_DEATH_IF_SUPPORTED(ThreadPool pool(std::numeric_limits<int>::min()),
+                            "num_threads >= 0");
+  EXPECT_DEATH_IF_SUPPORTED(
+      ThreadPool(-1, ThreadPool::Options{.name_prefix = "neg_eager",
+                                         .force_eager_thread_creation = true}),
+      "neg_eager.*negative num_threads=-1");
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+  EXPECT_DEATH_IF_SUPPORTED(ThreadPool("neg_named", -1),
+                            "neg_named.*negative num_threads=-1");
+  EXPECT_DEATH_IF_SUPPORTED(ThreadPool(thread::Options{}, "neg_opts", -1),
+                            "neg_opts.*negative num_threads=-1");
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+}
+
+TEST(ThreadPoolDeathTest, NonPositiveQueueCapacityDies) {
+  EXPECT_DEATH_IF_SUPPORTED(
+      ThreadPool(1, ThreadPool::Options{.queue_capacity = 0}),
+      "options\\.queue_capacity > 0");
+  EXPECT_DEATH_IF_SUPPORTED(
+      ThreadPool(1, ThreadPool::Options{.queue_capacity = -1}),
+      "options\\.queue_capacity > 0");
+}
 
 // If num_threads is 1, the closures are run in FIFO order.
 TEST(ThreadPoolTest, OneThreadRunsClosuresFIFO) {

@@ -134,11 +134,11 @@ void ThreadPool::RunWorker() {
 }
 
 ThreadPool::ThreadPool(int num_threads, Options options)
-    : capacity_(options.queue_capacity),
+    : capacity_(static_cast<size_t>(options.queue_capacity)),
       // It is a common error to call ThreadPool(workitems.size()), which
       // crashes when workitems is empty. Prevent those crashes by creating at
       // least one thread.
-      max_threads_(num_threads == 0 ? 1 : num_threads),
+      max_threads_(static_cast<size_t>(num_threads == 0 ? 1 : num_threads)),
       watchdog_timeout_(options.watchdog_timeout),
       name_prefix_(std::move(options.name_prefix)),
       thread_options_(
@@ -170,7 +170,9 @@ ThreadPool::ThreadPool(int num_threads, Options options)
       << "Attempted to create ThreadPool (name: " << name_prefix_
       << ") with num_threads=0, "
       << "falling back to num_threads=1.";
-  CHECK_GT(max_threads_, 0u);
+  CHECK_GE(num_threads, 0) << "Attempted to create ThreadPool (name: "
+                           << name_prefix_
+                           << ") with negative num_threads=" << num_threads;
   CHECK_GT(options.queue_capacity, 0);
 
   // Spawn threads on an as-needed basis, unless eager thread creation is
