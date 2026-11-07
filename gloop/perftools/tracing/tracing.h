@@ -197,6 +197,11 @@ inline void TraceControlFlow(StringRef label, ControlFlowType type,
   core::TraceControlFlow(label, type, id, sequence);
 }
 
+// Returns the ancestor of the currently active SyncContext on this thread,
+// or an empty Ancestor (`!has_value()`) if no context is active or the
+// active context has no ancestor.
+Ancestor CurrentAncestor();
+
 // --------------------
 // Implementation
 // --------------------
