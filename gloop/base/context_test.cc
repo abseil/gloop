@@ -846,17 +846,6 @@ TEST_F(ContextTest, WithThreadStatus) {
   EXPECT_THAT(CurrentContext().thread_status(), IsNull());
 }
 
-TEST_F(ContextTest, WithContextHardenedAgainstIllegalScope) {
-  absl::SetFlag(&FLAGS_harden_with_context, true);
-  // Note that we are ok if this test dangles a default context.
-  Context context1;
-  Context context2;
-
-  std::optional<WithContext> wc1(context1);
-  WithContext wc2(context2);
-  EXPECT_DEATH_IF_SUPPORTED(wc1 = std::nullopt, ".*");
-}
-
 TEST_F(ContextTest, WithContextHardeningDisableThroughFlag) {
   absl::SetFlag(&FLAGS_harden_with_context, false);
   Context context1;
@@ -938,6 +927,23 @@ TEST_F(ContextTest, CurrentThreadStatus) {
     const WithThreadStatus wts("taco");
     EXPECT_STREQ("taco", CurrentThreadStatus());
   }
+}
+
+////////////////////////////////////////////////////////////////////////
+// ContextDeathTest
+////////////////////////////////////////////////////////////////////////
+
+using ContextDeathTest = ContextTest;
+
+TEST_F(ContextDeathTest, WithContextHardenedAgainstIllegalScope) {
+  absl::SetFlag(&FLAGS_harden_with_context, true);
+  // Note that we are ok if this test dangles a default context.
+  Context context1;
+  Context context2;
+
+  std::optional<WithContext> wc1(context1);
+  WithContext wc2(context2);
+  EXPECT_DEATH_IF_SUPPORTED(wc1 = std::nullopt, ".*");
 }
 
 ////////////////////////////////////////////////////////////////////////
