@@ -343,11 +343,11 @@ const char* strstr_delimited(const char* haystack, const char* needle,
   // delimiter and delimiter + needle.
   const absl::string_view haystack_sp = haystack;
   const absl::string_view needle_sp =
-      absl::string_view(delim_needle.data() + 1, n - 2);
+      absl::string_view(delim_needle).substr(1, n - 2);
   const absl::string_view first_needle =
-      absl::string_view(delim_needle.data() + 1, n - 1);
+      absl::string_view(delim_needle).substr(1, n - 1);
   const absl::string_view last_needle =
-      absl::string_view(delim_needle.data(), n - 1);
+      absl::string_view(delim_needle).substr(0, n - 1);
 
   // Cases (1) and (2)
   if (haystack_sp == needle_sp || absl::StartsWith(haystack_sp, first_needle)) {
@@ -553,17 +553,17 @@ namespace strings {
 absl::string_view FindEol(absl::string_view s) {
   for (size_t i = 0; i < s.length(); ++i) {
     if (s[i] == '\n') {
-      return absl::string_view(s.data() + i, 1);
+      return s.substr(i, 1);
     }
     if (s[i] == '\r') {
       if (i + 1 < s.length() && s[i + 1] == '\n') {
-        return absl::string_view(s.data() + i, 2);
+        return s.substr(i, 2);
       } else {
-        return absl::string_view(s.data() + i, 1);
+        return s.substr(i, 1);
       }
     }
   }
-  return absl::string_view(s.data() + s.length(), 0);
+  return s.substr(s.length(), 0);
 }
 
 bool ContainsWhitespace(absl::string_view s) {

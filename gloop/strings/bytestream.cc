@@ -283,7 +283,7 @@ size_t LimitByteSource::Available() const {
 absl::string_view LimitByteSource::Peek() {
   absl::string_view piece(source_->Peek());
   if (piece.size() > limit_) {
-    piece = absl::string_view(piece.data(), limit_);
+    piece = piece.substr(0, limit_);
   }
 
   return piece;

@@ -587,8 +587,8 @@ static void BM_FindLongestCommonPrefixNoPredict(benchmark::State& state) {
   int index = 0;
   for (auto _ : state) {
     int rlen = random_lengths[index];
-    const absl::string_view a(&x[0], rlen);
-    const absl::string_view b(&y[0], rlen);
+    const absl::string_view a = absl::string_view(x).substr(0, rlen);
+    const absl::string_view b = absl::string_view(y).substr(0, rlen);
 
     int rterm = random_terms[index];
     y[rterm] = '*';

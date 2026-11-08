@@ -68,7 +68,7 @@ bool CordReader::BtreeAdvance() {
     absl::string_view data = btree_reader_.Next();
     size_t sz = (std::min)(available, data.size());
     used_ += sz;
-    current_chunk_ = {data.data(), sz};
+    current_chunk_ = data.substr(0, sz);
     return true;
   }
   return false;
@@ -217,7 +217,7 @@ void CordReader::CopyToWithSharing(strings::ByteSink* absl_nonnull sink,
       // passing to AppendExternalMemory.
       assert(absl::cord_internal::IsDataEdge(node));
 
-      absl::string_view mem(current_chunk_.data(), fragment_size);
+      absl::string_view mem = current_chunk_.substr(0, fragment_size);
       sink->AppendExternalMemory(
           mem, absl::Cord::CordRep::Ref(node), [](void* arg) {
             absl::Cord::CordRep::Unref(static_cast<absl::Cord::CordRep*>(arg));

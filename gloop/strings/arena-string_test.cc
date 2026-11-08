@@ -213,7 +213,7 @@ static void BM_alloc_unsafearenastring(benchmark::State& state) {
   const int len = state.range(0);
 
   std::string x(len, 'a');
-  absl::string_view str(x.data(), x.size());
+  absl::string_view str = x;
   UnsafeArena arena(1 << 20);
   ArenaString a;
 
@@ -230,7 +230,7 @@ static void BM_alloc_basearenastring(benchmark::State& state) {
   const int len = state.range(0);
 
   std::string x(len, 'a');
-  absl::string_view str(x.data(), x.size());
+  absl::string_view str = x;
   UnsafeArena uarena(1 << 20);
   BaseArena* arena = &uarena;
   ArenaString a;
@@ -247,7 +247,7 @@ static void BM_alloc_safearenastring(benchmark::State& state) {
   const int len = state.range(0);
 
   std::string x(len, 'a');
-  absl::string_view str(x.data(), x.size());
+  absl::string_view str = x;
   SafeArena arena(1 << 20);
   ArenaString a;
 
@@ -262,7 +262,7 @@ static void BM_copy_arenastring(benchmark::State& state) {
   const int len = state.range(0);
 
   std::string x(len, 'a');
-  absl::string_view a(x.data(), x.size());
+  absl::string_view a = x;
   absl::FixedArray<char, 0> buf(ArenaString::EncSize(len) + 7);
   char* data;
 
@@ -290,7 +290,7 @@ static void BM_copy_stringpiece(benchmark::State& state) {
   for (auto s : state) {
     // rotate the buffer to avoid word-alignment effects in memcpy
     memcpy(&buf[(n & 7)], data, len);
-    a = absl::string_view(&buf[(--n & 7)], len);
+    a = absl::string_view(buf.data(), buf.size()).substr(--n & 7, len);
   }
   CHECK_EQ(0, memcmp(x.data(), a.data(), len));
   CHECK_EQ(len, a.size());
@@ -310,7 +310,7 @@ static void BM_encode_arenastring(benchmark::State& state) {
   const int len = state.range(0);
 
   std::string x(len, 'a');
-  absl::string_view a(x.data(), x.size());
+  absl::string_view a = x;
   absl::FixedArray<char, 0> buf(ArenaString::EncSize(len) + 7);
   ArenaString::Encode(a, buf.data());
 
@@ -342,7 +342,7 @@ static void BM_arenastring_str(benchmark::State& state) {
   const int len = state.range(0);
 
   std::string x(len, 'a');
-  absl::string_view str(x.data(), x.size());
+  absl::string_view str = x;
   UnsafeArena arena(1 << 16);
   ArenaString a(str, &arena);
 
@@ -359,7 +359,7 @@ static void BM_arenastring_size(benchmark::State& state) {
   const int len = state.range(0);
 
   std::string x(len, 'a');
-  absl::string_view str(x.data(), x.size());
+  absl::string_view str = x;
   UnsafeArena arena(1 << 16);
   ArenaString a(str, &arena);
 
@@ -376,7 +376,7 @@ static void BM_arenastring_data(benchmark::State& state) {
   const int len = state.range(0);
 
   std::string x(len, 'a');
-  absl::string_view str(x.data(), x.size());
+  absl::string_view str = x;
   UnsafeArena arena(1 << 16);
   ArenaString a(str, &arena);
 
