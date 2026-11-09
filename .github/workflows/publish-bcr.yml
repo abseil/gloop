@@ -50,7 +50,7 @@ jobs:
     name: Surface BCR PR Summary
     needs: [bcr]
     if: always() && needs.bcr.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:

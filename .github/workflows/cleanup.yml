@@ -11,7 +11,7 @@ permissions: {}
 jobs:
   stale-prs:
     name: Close Stale Copybara PRs
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write # to allow deleting branches
       pull-requests: write # to allow closing the PR

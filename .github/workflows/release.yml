@@ -48,7 +48,7 @@ jobs:
     name: Cut and Publish Release
     needs: [test]
     if: always() && (needs.test.result == 'success' || needs.test.result == 'skipped')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       tag: ${{ steps.params.outputs.tag }}
       draft: ${{ steps.params.outputs.draft }}
