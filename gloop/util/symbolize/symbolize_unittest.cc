@@ -44,6 +44,7 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "absl/types/span.h"
 #include "gloop/util/symbolize/demangle.h"
 #include "gloop/util/symbolize/symbolize-inl.h"
 #include "gmock/gmock.h"
@@ -102,9 +103,9 @@ struct SymbolMapTestPeer {
     }
     const int level = map.symbol_map_compression_level_;
     SymbolMap::CompressedUintArray name_col, addr_col, size_col;
-    name_col.Assign({names.data(), names.size()}, level);
-    addr_col.Assign({addrs.data(), addrs.size()}, level);
-    size_col.Assign({sizes.data(), sizes.size()}, level);
+    name_col.Assign(absl::MakeSpan(names), level);
+    addr_col.Assign(absl::MakeSpan(addrs), level);
+    size_col.Assign(absl::MakeSpan(sizes), level);
     return {name_col.shrunk_array_byte_length(),
             addr_col.shrunk_array_byte_length(),
             name_col.shrunk_array_byte_length() +
