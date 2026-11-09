@@ -332,7 +332,6 @@ cc_library(
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/strings:string_view",
     ],
 )
 
@@ -1116,14 +1115,9 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "//gloop/base/scheduling",
         "//gloop/base/scheduling:scheduling_mode",
-        "@abseil-cpp//absl/base:base_internal",
         "@abseil-cpp//absl/base:config",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/base:spinlock_wait",
         "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/numeric:bits",
-        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/time",
     ],
     alwayslink = 1,

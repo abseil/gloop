@@ -24,7 +24,6 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <signal.h>
-#include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -274,6 +273,37 @@ char* LineReader::Next(int* error) {
     end = start_ + valid_ - 1;
   }
   return OutputLine(end);
+}
+
+ScopedSigaction::ScopedSigaction(int sig, void (*handler)(int)) : signum_(sig) {
+  struct sigaction action;
+  memset(&action, 0, sizeof(action));
+  action.sa_handler = handler;
+  Enable(&action);
+}
+
+ScopedSigaction::ScopedSigaction(int sig,
+                                 void (*action)(int, siginfo_t*, void*))
+    : signum_(sig) {
+  struct sigaction act;
+  memset(&act, 0, sizeof(act));
+  act.sa_flags = SA_SIGINFO;
+  act.sa_sigaction = action;
+  Enable(&act);
+}
+
+ScopedSigaction::ScopedSigaction(int sig, struct sigaction* action)
+    : signum_(sig) {
+  Enable(action);
+}
+
+ScopedSigaction::~ScopedSigaction() {
+  ABSL_RAW_CHECK(0 == sigaction(signum_, &old_, nullptr), "Unable to restore");
+}
+
+void ScopedSigaction::Enable(struct sigaction* action) {
+  ABSL_RAW_CHECK(0 == sigaction(signum_, action, &old_),
+                 "Unsable to set signal handler");
 }
 
 std::vector<int> AllowedCpus() {

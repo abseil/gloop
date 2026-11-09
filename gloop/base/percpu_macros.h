@@ -116,6 +116,7 @@
 #include <stddef.h>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"  // IWYU pragma: keep
 #include "gloop/base/internal/percpu.inc"
 
 #if PERCPU_USE_RSEQ
