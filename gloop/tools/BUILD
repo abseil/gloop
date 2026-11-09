@@ -34,7 +34,6 @@ cc_binary(
         "//gloop/tools:__subpackages__",
     ],
     deps = [
-        "//gloop:enforce_gloop_support",
         "@boringssl//:crypto",
         "@rules_cc//cc/runfiles",
     ],
