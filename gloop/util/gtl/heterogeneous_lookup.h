@@ -30,6 +30,28 @@ namespace gtl {
 // `gtl::IsTransparent<Functor>::value` is true if `Functor` is transparent.
 using absl::container_internal::IsTransparent;
 
+namespace heterogeneous_lookup_internal {
+
+template <bool is_transparent>
+struct KeyArg;
+
+template <>
+struct KeyArg<true> {
+  // Transparent case: forward the user's argument type as-is (without
+  // converting to the key type).
+  template <typename Arg, typename Key>
+  using Select = Arg;
+};
+
+template <>
+struct KeyArg<false> {
+  // Non-transparent case: convert the user's argument to the key type first.
+  template <typename Arg, typename Key>
+  using Select = Key;
+};
+
+}  // namespace heterogeneous_lookup_internal
+
 // Alias used for heterogeneous lookup functions.
 //
 // Usage:
@@ -50,8 +72,10 @@ using absl::container_internal::IsTransparent;
 //
 // `MyContainer<Key, Fn>::Find<K>()` can be used for any type supported by `Fn`.
 template <typename K, typename KeyType, typename... Functors>
-using HeterogeneousLookupKeyArg = typename absl::container_internal::KeyArg<(
-    ... && gtl::IsTransparent<Functors>::value)>::template type<K, KeyType>;
+using HeterogeneousLookupKeyArg =
+    typename heterogeneous_lookup_internal::KeyArg<(
+        ... && gtl::IsTransparent<Functors>::value)>::template Select<K,
+                                                                      KeyType>;
 
 }  // namespace gtl
 
