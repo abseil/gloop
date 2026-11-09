@@ -25,6 +25,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "absl/base/attributes.h"
@@ -34,6 +35,7 @@
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "absl/types/optional_ref.h"
 #include "gloop/base/censushandle.h"
@@ -185,6 +187,25 @@ absl::optional_ref<const Context> CurrentContextNoAlloc() {
   return per_thread_context.safe_pointer();
 }
 
+const char* CurrentThreadStatus() {
+  const Context* const context = per_thread_context.safe_pointer();
+  if (context == nullptr) {
+    return nullptr;
+  }
+
+  return context->thread_status_.load_in_signal_handler();
+}
+
+std::optional<std::optional<absl::string_view> > CurrentThreadStatusNoAlloc() {
+  const Context* const context = per_thread_context.safe_pointer();
+  if (context == nullptr) {
+    return {};
+  }
+
+  const char* const p = context->thread_status_.load_in_signal_handler();
+  return p == nullptr ? std::nullopt : std::make_optional(absl::string_view(p));
+}
+
 void SetCurrentThreadStatus(const char* thread_status) {
   InlineCurrent()->set_thread_status(thread_status);
 }
@@ -270,10 +291,10 @@ Context ContextBuilder::BuildValue() { return std::move(context_); }
 
 absl::Time Context::deadline() const { return deadline_; }
 
-const char* Context::thread_status() const { return thread_status_; }
+const char* Context::thread_status() const { return thread_status_.load(); }
 
-void Context::set_thread_status(const char* thread_status) {
-  thread_status_ = thread_status;
+void Context::set_thread_status(const char* const thread_status) {
+  thread_status_.store(thread_status);
 }
 
 WithContext::WithContext(const Context& switch_to,
