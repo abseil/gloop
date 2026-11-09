@@ -28,6 +28,7 @@
 #ifndef THIRD_PARTY_GLOOP_BASE_CONTEXT_H_
 #define THIRD_PARTY_GLOOP_BASE_CONTEXT_H_
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -150,7 +151,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
   // TODO: once the old thread_status method is gone, rename this
   // one to thread_status.
   std::optional<absl::string_view> thread_status_string_view() const {
-    const char* const p = thread_status();
+    const char* const p = thread_status_.load();
     return p == nullptr ? std::nullopt
                         : std::make_optional(absl::string_view(p));
   }
@@ -200,6 +201,70 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
   const TraceContext* absl_nonnull trace() const { return &trace_context(); }
 
  private:
+  // Container for a nullable C string pointer that can safely be read from
+  // within a signal handler, but is still copyable and still has a trivial ABI.
+  //
+  // Signal handlers must read via the load_in_signal_handler method.
+  //
+  // TODO: remove this once we stop using a C string.
+  class ABSL_ATTRIBUTE_TRIVIAL_ABI SignalSafeCStr final {
+   public:
+    constexpr explicit SignalSafeCStr(
+        const char* absl_nullable const p) noexcept
+        : p_(p) {}
+
+    SignalSafeCStr(const SignalSafeCStr& other) noexcept
+        : SignalSafeCStr{other.load()} {}
+
+    SignalSafeCStr& operator=(const SignalSafeCStr& other) noexcept {
+      store(other.load());
+      return *this;
+    }
+
+    const char* absl_nullable load() const noexcept {
+      return std::atomic_ref<const char*>(p_).load(std::memory_order_relaxed);
+    }
+
+    const char* absl_nullable load_in_signal_handler() const noexcept {
+      // The acquire here pairs with the release fence in our store method.
+      return std::atomic_ref<const char*>(p_).load(std::memory_order_acquire);
+    }
+
+    void store(const char* absl_nullable const p) noexcept {
+      // Before we update the pointer, add a release fence to pair with the
+      // acquire load of the value in load_in_signal_handler. This means that
+      // the contents of the C string initialized before calling this function
+      // will be visible before the pointer can be accessed by a signal handler,
+      // ensuring a signal handler will never see a partially initialized
+      // string. It will always see either the old string or a fully initialized
+      // new one.
+      //
+      // We do this rather than using a release store because we don't need a
+      // CPU-level barrier: we're not trying to synchronize with other threads,
+      // only with a signal handler that interrupts this thread while we're
+      // setting the string. The signal fence prevents compiler re-ordering, but
+      // has no runtime cost beyond that.
+      std::atomic_signal_fence(std::memory_order_release);
+
+      // Update the pointer.
+      std::atomic_ref<const char*>(p_).store(p, std::memory_order_relaxed);
+
+      // TODO: we also need a barrier here to avoid compiler
+      // reordering of destruction of the string after this function exits to
+      // within or before its body. See
+      // https://stackoverflow.com/q/79808589/1505451.
+    }
+
+   private:
+    // This must be mutable because there is no way to create a
+    // `const std::atomic_ref<T>` from `const T&`.
+    alignas(std::atomic_ref<const char*>::required_alignment) mutable const
+        char* absl_nullable p_;
+
+    // Assumption check: we shouldn't be introducing locks into signal handlers.
+    static_assert(std::atomic_ref<const char*>::is_always_lock_free);
+  };
+
   // Swaps the supplied deadline with the one in this context, leaving
   // the remainder of the context intact.
   void SwapDeadline(absl::Time* deadline);
@@ -221,7 +286,15 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
   TraceContext tc_{};
 
   absl::Time deadline_ = absl::InfiniteFuture();
-  const char* thread_status_ = nullptr;
+
+  // An unowned null-terminated string.
+  SignalSafeCStr thread_status_{nullptr};
+
+  friend std::optional<std::optional<absl::string_view>>
+  CurrentThreadStatusNoAlloc();
+
+  // TODO: don't forget to get rid of this.
+  friend const char* CurrentThreadStatus();
 
   friend class ContextBuilder;
   friend class internal::MutableCurrentContext;
@@ -348,19 +421,24 @@ const Context& CurrentContext();
 // Like CurrentContext, but returns nullopt if the thread's current context
 // hasn't yet been created. This is safe for use in signal handlers, and is
 // usually *not* what you want outside of a signal handler.
+//
+// TODO: using this function correctly is subtle, due to sheared
+// writes and other ordering concerns. Get rid of it.
 absl::optional_ref<const Context> CurrentContextNoAlloc();
+
+// Like calling CurrentContext and then Context::thread_status_string_view, but
+// safe to use in signal handlers.
+//
+// If the thread's context hasn't yet been created, return nullopt. Otherwise
+// return the result of Context::thread_status_string_view for the thread's
+// context (which may itself result in an inner nullopt).
+std::optional<std::optional<absl::string_view>> CurrentThreadStatusNoAlloc();
 
 // TODO: get rid of this.
 ABSL_DEPRECATED(
-    "Use CurrentContext (or CurrentContextNoAlloc in signal handlers) and "
-    "Context::thread_status_string_view")
-inline const char* CurrentThreadStatus() {
-  const absl::optional_ref<const Context> current_context =
-      CurrentContextNoAlloc();
-
-  return current_context.has_value() ? current_context->thread_status()
-                                     : nullptr;
-}
+    "Use CurrentThreadStatusNoAlloc in signal handlers, and "
+    "Context::thread_status_string_view otherwise")
+const char* CurrentThreadStatus();
 
 // Sets a "status string" associated with the current context. Use of this
 // method is discouraged; use the scoped base::WithThreadStatus instead.
