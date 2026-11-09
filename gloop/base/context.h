@@ -32,6 +32,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 
 #include "absl/base/attributes.h"
@@ -559,11 +560,13 @@ class WithCensusHandle {
 //
 class WithThreadStatus {
  public:
+  // TODO: make this accept std::optional<std::string>, like
+  // Context::thread_status eventually will.
   explicit WithThreadStatus(const char* status);
   ~WithThreadStatus();
 
  private:
-  const char* const swapped_status_;
+  std::optional<std::string> swapped_status_;
 
   WithThreadStatus(const WithThreadStatus&) = delete;
   WithThreadStatus& operator=(const WithThreadStatus&) = delete;

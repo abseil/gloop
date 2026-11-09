@@ -374,12 +374,20 @@ WithCensusHandle::~WithCensusHandle() {
 }
 
 WithThreadStatus::WithThreadStatus(const char* status)
-    : swapped_status_(InlineCurrent()->thread_status()) {
+    : swapped_status_(InlineCurrent()->thread_status_string_view()) {
   InlineCurrent()->set_thread_status(status);
 }
 
 WithThreadStatus::~WithThreadStatus() {
-  InlineCurrent()->set_thread_status(swapped_status_);
+  // TODO: we'll need to fix this atomically with allowing users to
+  // provide arbitrary byte strings as thread statuses. It works currently only
+  // because we have the invariant that all actual status strings are null
+  // terminated.
+  //
+  // TODO: move this in once we have a setter that allows us to do
+  // so.
+  InlineCurrent()->set_thread_status(
+      swapped_status_.has_value() ? swapped_status_->data() : nullptr);
 }
 
 const CensusHandle& CensusAccess::GetCurrentHandle() {
