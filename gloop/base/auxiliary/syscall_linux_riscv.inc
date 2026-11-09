@@ -14,8 +14,8 @@
 
 
 
-/* Only #included by base/linux_syscall_support.h */
-// IWYU pragma: private, include "base/linux_syscall_support.h"
+/* Only #included by gloop/base/linux_syscall_support.h */
+// IWYU pragma: private, include "gloop/base/linux_syscall_support.h"
 
 #if !defined(__GLIBC__)
   #define loff_t off_t

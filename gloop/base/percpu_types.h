@@ -24,6 +24,7 @@
 #include <stdint.h>  // for __WORDSIZE
 
 #include <atomic>
+#include <utility>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
