@@ -196,8 +196,8 @@ inline Chunk ReadNextAndFold(const uint8_t* ptr, int offset, Chunk chunk,
 template <class Base, typename CRCValue>
 class CRCHWPolyMul : public Base {
  public:
-  CRCHWPolyMul() {}
-  ~CRCHWPolyMul() override {}
+  CRCHWPolyMul() = default;
+  ~CRCHWPolyMul() override = default;
 
   void Extend(uint64_t* lo, uint64_t* hi, const void* bytes,
               int64_t length) const override;
