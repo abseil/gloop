@@ -22,6 +22,7 @@
 
 #include <sys/types.h>
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -33,11 +34,13 @@
 #include "absl/base/casts.h"
 #include "absl/base/no_destructor.h"
 #include "absl/base/nullability.h"
+#include "absl/cleanup/cleanup.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
+#include "absl/types/optional_ref.h"
 #include "gloop/base/censushandle.h"
 #include "gloop/base/context_access.h"
 #include "gloop/base/static_threadlocal.h"

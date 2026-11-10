@@ -246,11 +246,13 @@ cc_library(
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:optional_ref",
     ],
 )
 

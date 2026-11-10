@@ -42,12 +42,14 @@
 #include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
+#include "absl/types/optional_ref.h"
 #include "gloop/base/censushandle.h"
 #include "gloop/base/config.h"
 #include "gloop/base/context_access.h"
 #include "gloop/base/tracecontext.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
+#include "gloop/util/refcount/reffed_ptr.h"
 
 namespace security {
 namespace context {
