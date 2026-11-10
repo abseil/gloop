@@ -214,6 +214,7 @@ cc_test(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/memory",
         "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/types:span",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
         "@tcmalloc//tcmalloc:malloc_extension",
