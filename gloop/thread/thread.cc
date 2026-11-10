@@ -100,7 +100,6 @@
 #include "absl/synchronization/mutex.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include "absl/types/optional_ref.h"
 #include "absl/types/source_location.h"
 #include "absl/types/span.h"
 #include "gloop/base/config.h"
@@ -937,16 +936,12 @@ ABSL_ATTRIBUTE_NOINLINE void FillStackTrace(StackTrace* trace,
   }
 #endif
 
-  // Copy the Context thread_status string, if one is available. We copy, rather
+  // Copy the context thread status string, if one is available. We copy, rather
   // than just keeping a pointer, in case the thread clobbers or frees the
   // status string right after we grab the trace.
   {
-    const absl::optional_ref<const base::Context> context =
-        base::CurrentContextNoAlloc();
-
     const absl::string_view thread_status =
-        context.has_value() ? context->thread_status_string_view().value_or("")
-                            : "";
+        base::CurrentThreadStatusNoAlloc().value_or(std::nullopt).value_or("");
 
     const size_t copied = thread_status.copy(trace->thread_status,
                                              sizeof(trace->thread_status) - 1);
