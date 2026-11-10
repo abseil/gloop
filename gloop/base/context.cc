@@ -185,6 +185,15 @@ absl::optional_ref<const Context> CurrentContextNoAlloc() {
   return per_thread_context.safe_pointer();
 }
 
+const char* CurrentThreadStatus() {
+  const Context* const context = per_thread_context.safe_pointer();
+  if (context == nullptr) {
+    return nullptr;
+  }
+
+  return context->thread_status_.load_in_signal_handler();
+}
+
 void SetCurrentThreadStatus(const char* thread_status) {
   InlineCurrent()->set_thread_status(thread_status);
 }
@@ -270,10 +279,10 @@ Context ContextBuilder::BuildValue() { return std::move(context_); }
 
 absl::Time Context::deadline() const { return deadline_; }
 
-const char* Context::thread_status() const { return thread_status_; }
+const char* Context::thread_status() const { return thread_status_.load(); }
 
-void Context::set_thread_status(const char* thread_status) {
-  thread_status_ = thread_status;
+void Context::set_thread_status(const char* const thread_status) {
+  thread_status_.store(thread_status);
 }
 
 WithContext::WithContext(const Context& switch_to,
