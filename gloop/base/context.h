@@ -477,8 +477,14 @@ const Context& CurrentContext();
 // If the thread's context hasn't yet been created, return nullopt. Otherwise
 // return the result of Context::thread_status_string_view for the thread's
 // context (which may itself result in an inner nullopt).
+//
+// Note that this may spuriously act as if the context has no thread status if
+// the context is in the process of being modified.
 std::optional<std::optional<absl::string_view>> CurrentThreadStatusNoAlloc();
 
+// Note that this may spuriously act as if the context has no thread status if
+// the context is in the process of being modified.
+//
 // TODO: get rid of this.
 ABSL_DEPRECATED(
     "Use CurrentThreadStatusNoAlloc in signal handlers, and "
