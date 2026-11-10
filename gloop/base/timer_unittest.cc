@@ -531,6 +531,9 @@ TEST(TimerTest, UsageTimerTests) {
   GTEST_SKIP() << "tsan distorts usage too much to be worthwhile for testing.";
 #elif defined(__APPLE__)
   GTEST_SKIP() << "Darwin usage is flaky, even in the flaky timer loop.";
+#elif defined(__ANDROID__) && defined(__arm__)
+  GTEST_SKIP() << "Android ARM32 (emulated) getrusage() misattributes syscall "
+                  "time between user and system, even in the flaky timer loop.";
 #endif
   DoFlakyTimerTestLoop(&DoUsageTimerTests);
 }
