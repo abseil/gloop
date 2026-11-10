@@ -575,7 +575,7 @@ void BM_ElapsedSeconds(benchmark::State& state) {
   TestTracer tracer(&deleted);
   tracer.SetStartTimeNow();
   for (auto _ : state) {
-    tracer.ElapsedSeconds();
+    absl::ToDoubleSeconds(tracer.Elapsed());
   }
 }
 BENCHMARK(BM_ElapsedSeconds);
