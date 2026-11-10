@@ -137,7 +137,7 @@
 #include "gloop/util/gtl/intrusive_list.h"
 #include "gloop/util/gtl/unique_array.h"
 #include "gloop/util/priority/io-priority.h"
-#include "tcmalloc/malloc_extension.h"
+#include "tcmalloc/experiment.h"
 
 #ifdef MAP_STACK
 // Linux specific, available since 2.6.27 and glibc-2.19
