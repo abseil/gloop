@@ -36,6 +36,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <utility>  // for pair, make_pair
 
 #include "absl/base/optimization.h"
@@ -231,8 +232,15 @@ uint64_t Fingerprint2011(absl::string_view sv) {
 }
 
 uint64_t Fingerprint2011(const absl::Cord& s) {
+  if (std::optional<absl::string_view> flat = s.TryFlat();
+      ABSL_PREDICT_TRUE(flat.has_value())) {
+    return Fingerprint2011(*flat);
+  }
   if (s.size() <= 64) {
-    return Fingerprint2011(absl::Cord(s).Flatten());
+    char buffer[64];
+    strings::CordReader reader(s);
+    reader.ReadN(s.size(), buffer);
+    return Fingerprint2011(absl::string_view(buffer, s.size()));
   }
   uint64_t u, v;
   char buffer[sizeof(u)];

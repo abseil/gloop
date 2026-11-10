@@ -20,9 +20,11 @@
 
 #include "gloop/util/hash/fingerprint2011.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <ios>
 #include <string>
+#include <utility>
 
 #include "absl/base/casts.h"
 #include "absl/log/log.h"
@@ -156,6 +158,23 @@ TEST_F(Fingerprint2011Test, Overloaded) {
     EXPECT_EQ(Fingerprint2011(absl::string_view(buf, len)),
               Fingerprint2011(absl::Cord(absl::string_view(buf, len))))
         << "Cord " << len;
+  }
+}
+
+TEST_F(Fingerprint2011Test, FragmentedCord) {
+  for (size_t len : {size_t{2}, size_t{9}, size_t{32}, size_t{33}, size_t{64},
+                     size_t{65}, size_t{128}, size_t{261}, size_t{1000}}) {
+    const size_t split = len / 2;
+    absl::Cord fragmented =
+        absl::MakeCordFromExternal(absl::string_view(buf, split), []() {});
+    absl::Cord tail = absl::MakeCordFromExternal(
+        absl::string_view(buf + split, len - split), []() {});
+    tail.Prepend(fragmented);
+    fragmented = std::move(tail);
+    ASSERT_FALSE(fragmented.TryFlat().has_value()) << "len=" << len;
+    EXPECT_EQ(Fingerprint2011(absl::string_view(buf, len)),
+              Fingerprint2011(fragmented))
+        << "len=" << len;
   }
 }
 
