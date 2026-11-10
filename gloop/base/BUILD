@@ -251,7 +251,6 @@ cc_library(
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/time",
-        "@abseil-cpp//absl/types:optional_ref",
     ],
 )
 

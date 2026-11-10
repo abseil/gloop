@@ -41,7 +41,6 @@
 #include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
-#include "absl/types/optional_ref.h"
 #include "gloop/base/censushandle.h"
 #include "gloop/base/config.h"
 #include "gloop/base/context_access.h"
@@ -469,14 +468,6 @@ const Context& DefaultContext();
 // change the current thread's context.
 const Context& CurrentContext();
 
-// Like CurrentContext, but returns nullopt if the thread's current context
-// hasn't yet been created. This is safe for use in signal handlers, and is
-// usually *not* what you want outside of a signal handler.
-//
-// TODO: using this function correctly is subtle, due to sheared
-// writes and other ordering concerns. Get rid of it.
-absl::optional_ref<const Context> CurrentContextNoAlloc();
-
 // Like calling CurrentContext and then Context::thread_status_string_view, but
 // safe to use in signal handlers.
 //
@@ -502,15 +493,15 @@ const char* CurrentThreadStatus();
 // means that no status string will be printed.
 void SetCurrentThreadStatus(const char* thread_status);
 
-// TODO: get rid of this.
-ABSL_DEPRECATE_AND_INLINE()
-inline const TraceContext* CurrentTraceContextNoAlloc() {
-  const absl::optional_ref<const Context> current_context =
-      CurrentContextNoAlloc();
-
-  return current_context.has_value() ? &current_context->trace_context()
-                                     : nullptr;
-}
+// Like calling CurrentContext and then Context::trace_context, but safe to use
+// in signal handlers.
+//
+// (…except that it's not actually safe: http://b/583569210)
+//
+// If the thread's context hasn't yet been created, return null. Otherwise
+// return a pointer to the result of Context::trace_context for the thread's
+// context.
+const TraceContext* CurrentTraceContextNoAlloc();
 
 // Scoped object that sets the current thread's context to switch_to until
 // the object is destroyed.

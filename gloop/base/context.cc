@@ -37,7 +37,6 @@
 #include "absl/log/log.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
-#include "absl/types/optional_ref.h"
 #include "gloop/base/censushandle.h"
 #include "gloop/base/context_access.h"
 #include "gloop/base/static_threadlocal.h"
@@ -183,8 +182,11 @@ void Context::SwapCensusHandle(CensusHandle* handle) {
 
 const Context& CurrentContext() { return *InlineCurrent(); }
 
-absl::optional_ref<const Context> CurrentContextNoAlloc() {
-  return per_thread_context.safe_pointer();
+const TraceContext* CurrentTraceContextNoAlloc() {
+  const Context* const absl_nullable context =
+      per_thread_context.safe_pointer();
+
+  return context != nullptr ? &context->trace_context() : nullptr;
 }
 
 const char* CurrentThreadStatus() {
@@ -260,8 +262,8 @@ Context ExchangeThreadContext(ThreadContextAccess access, Context context,
 // there is, and long has been, incorrect unless context.cc is also linked into
 // the binary.
 //
-// Note that we can't just forward declare CurrentTraceContextNoAlloc there,
-// because that function is marked inline but it can't be defined in that file.
+// We avoid just forward declaring CurrentTraceContextNoAlloc there because it
+// causes include-cleaner to fail to add an include for context.h.
 const TraceContext* CurrentTraceContextNoAlloc_ForTraceContext() {
   return CurrentTraceContextNoAlloc();
 }
