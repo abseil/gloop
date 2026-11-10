@@ -250,10 +250,39 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
       // Update the pointer.
       std::atomic_ref<const char*>(p_).store(p, std::memory_order_relaxed);
 
-      // TODO: we also need a barrier here to avoid compiler
-      // reordering of destruction of the string after this function exits to
-      // within or before its body. See
-      // https://stackoverflow.com/q/79808589/1505451.
+      // Ensure that the compiler doesn't reorder destruction of the string we
+      // just unpublished (after this function returns) to before unpublishing
+      // it. Doing so would cause an interrupting signal handler to potentially
+      // use a partially destroyed object.
+      //
+      // It would be great to use std::atomic_signal_fence for this, but the
+      // standard offers no way to do so that isn't a tortured and inefficient
+      // mess (https://stackoverflow.com/q/79808589/1505451). So instead we
+      // match the kernel (http://shortn/_24XvjEMkLd), other code in base/
+      // (http://shortn/_5XDad7HMVh), and elsewhere in google3
+      // (http://shortn/_ZBWgpnMIIP) in using an old-fashioned inline assembly
+      // barrier to avoid compiler reordering.
+      //
+      // Clang's documentation about this sort of thing is poor compared to gcc,
+      // but gcc's docs at least imply this guarantee
+      // (https://stackoverflow.com/q/67943540/1505451), and with respect to
+      // this kind of old school C-like thing clang generally tries to be like
+      // gcc.
+      //
+      // See also http://b/458798425.
+      //
+      // Note that __GNUC__ doesn't mean specifically gcc; it also includes
+      // clang (https://stackoverflow.com/a/55926503/1505451).
+#if defined(__GNUC__)
+      // NOLINTNEXTLINE(google3-runtime-inline-assembly): b/458798425
+      __asm__ __volatile__("" : : : "memory");
+#else
+      // HACK(jacobsa): on other platforms we simply leave this code as
+      // incorrect. This is not great, but this function was incorrect for the
+      // better part of a decade before this problem was fixed and nobody
+      // noticed, so it must not be a large concern in practice. Fixing
+      // http://b/458798425 would make it easy to fix this.
+#endif
     }
 
    private:
