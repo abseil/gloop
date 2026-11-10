@@ -499,6 +499,14 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   // sure the deletion is safe against any tracing side effects from listeners.
   void DeleteImpl() noexcept;
 
+  // Marks `impl_` as blocked against recursive state-mutating operations and
+  // returns `impl_`. Returns nullptr if `impl_` is null or already blocked.
+  Impl* absl_nullable Block();
+
+  // Unblocks `impl` after a state-mutating operation.
+  // Clears and deletes `impl_` if `delete_impl` is true.
+  void Unblock(Impl* absl_nonnull impl, bool delete_impl = false);
+
   // Private implementation of ActiveContext(Access).
   static const SyncContext* absl_nullable ActiveContext();
 
@@ -523,6 +531,7 @@ class SyncContext::Impl {
 
   // Creates a new instance with the specified listener.
   // `listener` must not be null.
+  // The returned listener is created in the blocked state.
   static Impl* New(TraceEventListener* listener);
 
   // Implementation used for SyncContext copy operations.
@@ -558,6 +567,10 @@ class SyncContext::Impl {
   SyncId active_sync_id() const;
   SyncContext::State state() const;
   TraceEventListener* listener() const;
+
+  // Block / unblock logic
+  bool Block();
+  void Unblock();
 
   // Implementation of SyncContext::same_trace()
   bool same_trace(const Impl* other) const;
@@ -609,6 +622,7 @@ class SyncContext::Impl {
 
   const SyncId sync_id_;
   State state_ = State::kDefault;
+  bool blocked_ = false;
   SyncId active_sync_id_ = kNoSyncId;
   TraceEventListener* listener_ = nullptr;
   SharedPtr shared_;
@@ -626,6 +640,10 @@ inline SyncId SyncContext::Impl::active_sync_id() const {
 
 inline TraceEventListener* SyncContext::Impl::listener() const {
   return listener_;
+}
+
+inline bool SyncContext::Impl::Block() {
+  return blocked_ ? false : (blocked_ = true);
 }
 
 inline bool SyncContext::Impl::same_trace(const Impl* other) const {
@@ -651,6 +669,10 @@ inline void SyncContext::DeleteImpl() noexcept {
     impl_ = nullptr;
     delete impl;
   }
+}
+
+inline SyncContext::Impl* absl_nullable SyncContext::Block() {
+  return (impl_ != nullptr && impl_->Block()) ? impl_ : nullptr;
 }
 
 inline SyncContext::~SyncContext() noexcept {
@@ -722,71 +744,59 @@ inline SyncContext SyncContext::CreateNoop() const {
 
 inline bool SyncContext::ResumeContext(Access, BarrierId barrier_id,
                                        StringRef label) {
-  if (Impl* impl = impl_; impl != nullptr) {
-    if (impl->ResumeContext(barrier_id, label, *this)) {
-      return true;
-    }
-    impl_ = nullptr;
-    delete impl;
+  if (Impl* impl = Block(); impl != nullptr) {
+    const bool success = impl->ResumeContext(barrier_id, label, *this);
+    Unblock(impl, /*delete_impl=*/!success);
+    return success;
   }
   return false;
 }
 
 inline bool SyncContext::SuspendContext(Access, const SyncContext& to,
                                         StringRef label) {
-  if (Impl* impl = impl_; impl != nullptr) {
-    const bool is_wait = same_trace(to);
-    impl_ = nullptr;
-    if (impl->SuspendContext(is_wait, label)) {
-      impl_ = impl;
-      return true;
-    }
-    delete impl;
+  if (Impl* impl = Block(); impl != nullptr) {
+    const bool is_wait = impl->same_trace(to.impl_);
+    const bool success = impl->SuspendContext(is_wait, label);
+    Unblock(impl, /*delete_impl=*/!success);
+    return success;
   }
   return false;
 }
 
 inline bool SyncContext::EndContext(Access) {
-  if (Impl* impl = impl_; impl != nullptr) {
-    impl_ = nullptr;
-    const bool ended = impl->EndContext();
-    delete impl;
-    return ended;
+  if (Impl* impl = Block(); impl != nullptr) {
+    const bool success = impl->EndContext();
+    Unblock(impl, /*delete_impl=*/true);
+    return success;
   }
   return false;
 }
 
 inline void SyncContext::BeforeSwapCurrent(Access, const SyncContext& to) {
-  if (impl_ != nullptr) {
-    impl_->BeforeSwapCurrent(to.impl_);
+  if (Impl* impl = Block(); impl != nullptr) {
+    impl->BeforeSwapCurrent(to.impl_);
+    Unblock(impl);
   }
 }
 
 inline void SyncContext::AfterSwapCurrent(Access, StringRef label) {
-  if (Impl* impl = impl_; impl != nullptr) {
-    impl_ = nullptr;
-    if (impl->AfterSwapCurrent(label, *this)) {
-      impl_ = impl;
-    } else {
-      delete impl;
-    }
+  if (Impl* impl = Block(); impl != nullptr) {
+    const bool success = impl->AfterSwapCurrent(label, *this);
+    Unblock(impl, /*delete_impl=*/!success);
   }
 }
 
 inline void SyncContext::BeforeRestoreCurrent(Access, const SyncContext& to) {
-  if (impl_ != nullptr) {
-    impl_->BeforeRestoreCurrent(to.impl_);
+  if (Impl* impl = Block(); impl != nullptr) {
+    impl->BeforeRestoreCurrent(to.impl_);
+    Unblock(impl);
   }
 }
 
 inline void SyncContext::AfterRestoreCurrent(Access, StringRef label) {
-  if (Impl* impl = impl_; impl != nullptr) {
-    impl_ = nullptr;
-    if (impl->AfterRestoreCurrent(label, *this)) {
-      impl_ = impl;
-    } else {
-      delete impl;
-    }
+  if (Impl* impl = Block(); impl != nullptr) {
+    const bool success = impl->AfterRestoreCurrent(label, *this);
+    Unblock(impl, /*delete_impl=*/!success);
   }
 }
 

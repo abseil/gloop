@@ -550,7 +550,6 @@ TEST_F(SyncContextTest, IsolateFromSideEffectsInReleaseOnRemoveFromCurrent) {
   EXPECT_CALL(mock_, OnTraceEndSync(kActiveSyncId));
   EXPECT_CALL(mock_, Extract(&mock_));
   EXPECT_CALL(mock_, ReleaseEventListener()).WillOnce([&]() {
-    EXPECT_TRUE(context_.empty());
     EXPECT_THAT(internal::active_event_listener(), Eq(nullptr));
   });
   context_.RemoveListenerFromCurrent(access(), &mock_);

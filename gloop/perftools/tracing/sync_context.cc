@@ -134,7 +134,9 @@ TraceEventListener* SyncContext::Impl::ThisListener() const {
 SyncContext::Impl* SyncContext::Impl::New(TraceEventListener* listener) {
   DCHECK_NE(listener, nullptr);
   auto shared = std::make_shared<Shared>();
-  return new Impl(std::move(shared), listener, kMainSyncId);
+  Impl* impl = new Impl(std::move(shared), listener, kMainSyncId);
+  impl->blocked_ = true;
+  return impl;
 }
 
 SyncContext::Impl* SyncContext::Impl::CreateForTesting(
@@ -471,7 +473,24 @@ bool SyncContext::Impl::AfterRestoreCurrent(StringRef label,
   return AfterSwap<kRestore>(label, self);
 }
 
+void SyncContext::Impl::Unblock() {
+  DCHECK(blocked_);
+  blocked_ = false;
+}
+
 // ------------------------ SyncContext --------------------------------
+
+void SyncContext::Unblock(Impl* absl_nonnull impl, bool delete_impl) {
+  if (PERFTOOLS_VERIFY(impl != nullptr)) {
+    DCHECK_EQ(impl, impl_);
+    if (delete_impl) {
+      impl_ = nullptr;
+      delete impl;
+    } else {
+      impl->Unblock();
+    }
+  }
+}
 
 void SyncContext::SetActiveContext(const TestOnlyAccess&,
                                    const SyncContext* absl_nullable context) {
@@ -484,6 +503,7 @@ void SyncContext::AddListener(TraceEventListener* listener) {
       impl_->AddListener(listener);
     } else {
       impl_ = Impl::New(listener);
+      impl_->Unblock();
     }
   }
 }
@@ -491,11 +511,16 @@ void SyncContext::AddListener(TraceEventListener* listener) {
 void SyncContext::AddListenerToCurrent(Access, TraceEventListener* listener,
                                        StringRef label) {
   if (listener != nullptr) {
-    if (impl_) {
-      impl_->AddListenerToCurrent(listener, label);
-    } else {
+    if (impl_ == nullptr) {
       impl_ = Impl::New(listener);
       impl_->AfterSwapCurrent(label, *this);
+      impl_->Unblock();
+    } else if (Impl* impl = Block(); impl != nullptr) {
+      impl->AddListenerToCurrent(listener, label);
+      Unblock(impl);
+    } else {
+      DLOG(DFATAL) << "Adding listener on blocked sync context";
+      listener->ReleaseEventListener();
     }
   }
 }
@@ -515,18 +540,16 @@ void SyncContext::RemoveListener(TraceEventListener* listener) {
 void SyncContext::RemoveListenerFromCurrent(Access,
                                             TraceEventListener* listener) {
   if (listener == nullptr) return;
-  if (Impl* impl = impl_; impl != nullptr) {
-    // Avoid side effects.
-    impl_ = nullptr;
-    if (impl->RemoveListenerFromCurrent(listener)) {
-      impl_ = impl;
-    } else {
-      delete impl;
-    }
-  } else {
+  if (impl_ == nullptr) {
     // TODO: b/559675297 - change back to DFATAL
     LOG_EVERY_N_SEC(ERROR, 60)
         << "RemoveListenerFromCurrent() on an empty instance";
+  } else if (Impl* impl = Block(); impl != nullptr) {
+    const bool has_listeners = impl->RemoveListenerFromCurrent(listener);
+    Unblock(impl, /*delete_impl=*/!has_listeners);
+  } else {
+    LOG_EVERY_N_SEC(ERROR, 60)
+        << "RemoveListenerFromCurrent() on a blocked instance";
   }
 }
 
