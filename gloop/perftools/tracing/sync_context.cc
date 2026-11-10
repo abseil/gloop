@@ -269,6 +269,7 @@ bool SyncContext::Impl::ResumeContext(BarrierId barrier_id, StringRef label,
     case State::kDefault:
       active_sync_id_ = sync_id_;
       internal::set_active_sync_id(active_sync_id_);
+      SetActiveContext(&self);
       listener_->OnTraceBeginSync(active_sync_id_, label);
       if (barrier_id != kNoBarrierId) {
         listener_->OnTraceObserved(barrier_id, label);
@@ -276,10 +277,12 @@ bool SyncContext::Impl::ResumeContext(BarrierId barrier_id, StringRef label,
       break;
     case State::kWait:
       internal::set_active_sync_id(active_sync_id_);
+      SetActiveContext(&self);
       listener_->OnTraceContinue(barrier_id);
       break;
     case State::kSuspended:
       internal::set_active_sync_id(active_sync_id_);
+      SetActiveContext(&self);
       listener_->OnTraceResumeSync(active_sync_id_);
       break;
     default:
@@ -289,7 +292,6 @@ bool SyncContext::Impl::ResumeContext(BarrierId barrier_id, StringRef label,
 
   // Update state to active and transfer listener ownership to thread.
   state_ = State::kActive;
-  SetActiveContext(&self);
   internal::set_active_event_listener(listener_);
   listener_ = nullptr;
 
@@ -350,12 +352,12 @@ bool SyncContext::Impl::EndContext() {
   // End the current execution. The current context is now in a zombie state.
   current->OnTraceEndSync(active_sync_id_);
   internal::set_active_sync_id(active_sync_id_ = kNoSyncId);
+  SetActiveContext(nullptr);
   state_ = State::kZombie;
 
   // Take ownership of the listener.
   if (listener_ != nullptr) listener_->ReleaseEventListener();
   listener_ = current;
-  SetActiveContext(nullptr);
   internal::set_active_event_listener(nullptr);
 
   return true;
@@ -400,12 +402,12 @@ void SyncContext::Impl::BeforeSwap(const Impl* to) {
     internal::set_active_sync_id(active_sync_id_ = kNoSyncId);
     state_ = State::kZombie;
   }
+  SetActiveContext(nullptr);
 
   // Swap active listener back to this instance. The current instance may be
   // nested and still own an ignored nested listener instance.
   if (listener_ != nullptr) listener_->ReleaseEventListener();
   listener_ = current;
-  SetActiveContext(nullptr);
   internal::set_active_event_listener(nullptr);
 }
 
@@ -425,8 +427,8 @@ bool SyncContext::Impl::AfterSwap(StringRef label, SyncContext& self) {
     DCHECK_NE(state_, State::kSuspended);
     state_ = State::kActive;
     active_sync_id_ = tls_active_sync_id();
-    current->OnTraceEnterSync(sync_id_, label);
     SetActiveContext(&self);
+    current->OnTraceEnterSync(sync_id_, label);
     return true;
   }
 
@@ -441,6 +443,7 @@ bool SyncContext::Impl::AfterSwap(StringRef label, SyncContext& self) {
     return false;
   }
 
+  SetActiveContext(&self);
   if (state_ == State::kDefault) {
     active_sync_id_ = sync_id_;
     internal::set_active_sync_id(active_sync_id_);
@@ -449,7 +452,6 @@ bool SyncContext::Impl::AfterSwap(StringRef label, SyncContext& self) {
     internal::set_active_sync_id(active_sync_id_);
     listener_->OnTraceResumeSync(active_sync_id_);
   }
-  SetActiveContext(&self);
   internal::set_active_event_listener(listener_);
   listener_ = nullptr;
   state_ = State::kActive;

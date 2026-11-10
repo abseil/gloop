@@ -566,6 +566,91 @@ TEST_F(SyncContextTest, IsolateFromSideEffectsInReleaseOnDelete) {
   context_ = {};
 }
 
+// Listeners must be able to observe the active context (e.g. to resolve the
+// current ancestor) from inside the events that start or resume an execution.
+TEST_F(SyncContextTest, ActiveContextIsSetBeforeBeginResumeContinueAndEnter) {
+  const auto expect_active = [&](SyncId sync_id) {
+    EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
+    EXPECT_THAT(active_sync_id(), Eq(sync_id));
+  };
+
+  // OnTraceBeginSync via AfterSwapCurrent / ResumeContext.
+  for (int i = 0; i < 2; ++i) {
+    SetupContext();
+    EXPECT_CALL(mock_, OnTraceBeginSync(kSyncId, _)).WillOnce([&](auto...) {
+      expect_active(kSyncId);
+    });
+    if (i == 0) {
+      context_.AfterSwapCurrent(access(), "Begin");
+    } else {
+      EXPECT_TRUE(context_.ResumeContext(access(), kNoBarrierId, "Begin"));
+    }
+    SyncContext::ResetThreadState(TestOnlyAccess());
+  }
+
+  // OnTraceResumeSync via AfterSwapCurrent / ResumeContext.
+  for (int i = 0; i < 2; ++i) {
+    SetupContext(State::kSuspended);
+    EXPECT_CALL(mock_, OnTraceResumeSync(kActiveSyncId)).WillOnce([&](auto...) {
+      expect_active(kActiveSyncId);
+    });
+    if (i == 0) {
+      context_.AfterSwapCurrent(access(), "Resume");
+    } else {
+      EXPECT_TRUE(context_.ResumeContext(access(), kNoBarrierId, "Resume"));
+    }
+    SyncContext::ResetThreadState(TestOnlyAccess());
+  }
+
+  // OnTraceContinue via ResumeContext.
+  SetupContext(State::kWait);
+  EXPECT_CALL(mock_, OnTraceContinue(BarrierId(1234))).WillOnce([&](auto...) {
+    expect_active(kActiveSyncId);
+  });
+  EXPECT_TRUE(context_.ResumeContext(access(), BarrierId(1234), "Continue"));
+  SyncContext::ResetThreadState(TestOnlyAccess());
+
+  // OnTraceEnterSync via AfterSwapCurrent on a nested context.
+  StrictMock<MockTraceEventListener> nested;
+  SetupActiveContext();
+  SyncContext inner = CreateSync(&nested, State::kDefault, SyncId(99), kSyncId);
+  EXPECT_CALL(mock_, OnTraceEnterSync(kSyncId, _)).WillOnce([&](auto...) {
+    EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&inner));
+    EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
+  });
+  inner.AfterSwapCurrent(access(), "Nested");
+  inner.Reset(TestOnlyAccess());
+}
+
+// `SetActiveContext(nullptr)` pairs with `set_active_sync_id(kNoSyncId)`: both
+// are cleared before any (nested) listener is released as part of ending or
+// suspending the active execution.
+TEST_F(SyncContextTest, ActiveContextIsClearedBeforeNestedListenerIsReleased) {
+  StrictMock<MockTraceEventListener> nested;
+  EXPECT_CALL(nested, ReleaseEventListener()).Times(3).WillRepeatedly([&]() {
+    EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
+    EXPECT_THAT(active_sync_id(), Eq(kNoSyncId));
+  });
+  EXPECT_CALL(mock_, OnTraceEndSync(kActiveSyncId)).Times(2);
+  EXPECT_CALL(mock_, OnTraceSuspendSync(kActiveSyncId));
+  EXPECT_CALL(mock_, ReleaseEventListener()).Times(2);
+
+  // EndContext.
+  SetupActiveContext(&nested);
+  EXPECT_TRUE(context_.EndContext(access()));
+  EXPECT_TRUE(context_.empty());
+
+  // BeforeRestoreCurrent to an empty (unrelated) context.
+  SetupActiveContext(&nested);
+  context_.BeforeRestoreCurrent(access(), {});
+  EXPECT_THAT(context_.state(), Eq(State::kZombie));
+
+  // BeforeSwapCurrent to an empty (unrelated) context.
+  SetupActiveContext(&nested);
+  context_.BeforeSwapCurrent(access(), {});
+  EXPECT_THAT(context_.state(), Eq(State::kSuspended));
+}
+
 TEST_F(SyncContextTest, BeforeSwapEmptyContext) {
   context_.BeforeSwapCurrent(access(), {});
   EXPECT_TRUE(context_.empty());
