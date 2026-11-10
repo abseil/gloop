@@ -35,13 +35,11 @@
 #include <numeric>
 #include <type_traits>
 
-#include "absl/base/attributes.h"
 #include "absl/base/casts.h"
 #include "absl/base/config.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/log/check.h"
-#include "absl/log/log.h"
 #include "absl/meta/type_traits.h"
 #include "absl/numeric/bits.h"
 #include "gloop/util/math/mathlimits.h"
@@ -153,7 +151,7 @@ class MathUtil {
                                         long double* r1, long double* r2) {
     if (discriminant <= 0 || a == 0) {
       // A case that should have been excluded by the caller.
-      DLOG(FATAL);
+      DCHECK(false);
       return false;
     }
 
