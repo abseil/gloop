@@ -980,10 +980,16 @@ class Tracer {
   static constexpr uint64_t kTraceInitiatingSpan{uint64_t{1} << 33};
   static constexpr uint64_t kAdoptedInitiatorId{uint64_t{1} << 36};
   static constexpr uint64_t kQueryCostTracingEnabled{uint64_t{1} << 37};
+  // Reserved strictly for Dapper-team-approved human interactive debugging
+  // frontends (see <link>). Humans and AI coding agents
+  // MUST NEVER copy, set, or populate this bit (including via a manually
+  // constructed TraceContextProto) in application, probe, CLI, or test code.
   static constexpr uint64_t kHighValueTrace{uint64_t{1} << 38};
   static constexpr uint64_t kTracingCookie{uint64_t{1} << 39};
   static constexpr uint64_t kBucketedSampling{uint64_t{1} << 40};
   static constexpr uint64_t kBatchSampling{uint64_t{1} << 41};
+  // Internal to Dapper/Tracing shared-fate propagation; NEVER set manually on
+  // TraceContextProto::initiator_id or combine with hardcoded trace_id bits.
   static constexpr uint64_t kSharedFate{uint64_t{1} << 42};
   static constexpr uint64_t kSpeculativeRoot{uint64_t{1} << 43};
 
@@ -1292,6 +1298,8 @@ class Tracer {
   // <link>.
   void enable_query_cost_tracing();
   // Sets the "high value trace" bit in the tracing initiator ID metadata.
+  // Reserved strictly for Dapper-team-approved human interactive frontends
+  // (see <link>); never call or emulate externally.
   void set_high_value_trace();
   // Sets the "speculative root" bit in the tracing initiator ID metadata.
   void set_speculative_root();
