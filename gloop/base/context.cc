@@ -151,7 +151,7 @@ Context::Context(ThreadInitType, perftools::tracing::StringRef thread_name)
     : Context(*InlineCurrent(), thread_name) {}
 
 Context::Context(const Context& c, perftools::tracing::StringRef thread_name)
-    : tc_(c.tc_), deadline_(c.deadline_), thread_status_(c.thread_status_) {}
+    : tc_(c.tc_), deadline_(c.deadline_) {}
 
 Context::Context(const Context& c) = default;
 Context::Context(Context&& c) noexcept = default;
@@ -164,7 +164,6 @@ void swap(Context& lhs, Context& rhs) noexcept {
 
   swap(lhs.tc_, rhs.tc_);
   swap(lhs.deadline_, rhs.deadline_);
-  swap(lhs.thread_status_, rhs.thread_status_);
 }
 
 void Context::SwapDeadline(absl::Time* deadline) {
@@ -191,29 +190,6 @@ const TraceContext* CurrentTraceContextNoAlloc() {
       per_thread_context.safe_pointer();
 
   return context != nullptr ? &context->trace_context() : nullptr;
-}
-
-const char* CurrentThreadStatus() {
-  const Context* const context = per_thread_context.safe_pointer();
-  if (context == nullptr) {
-    return nullptr;
-  }
-
-  return context->thread_status_.load_in_signal_handler();
-}
-
-std::optional<std::optional<absl::string_view> > CurrentThreadStatusNoAlloc() {
-  const Context* const context = per_thread_context.safe_pointer();
-  if (context == nullptr) {
-    return {};
-  }
-
-  const char* const p = context->thread_status_.load_in_signal_handler();
-  return p == nullptr ? std::nullopt : std::make_optional(absl::string_view(p));
-}
-
-void SetCurrentThreadStatus(const char* thread_status) {
-  InlineCurrent()->set_thread_status(thread_status);
 }
 
 TraceContext* internal::MutableCurrentContext::MutableCurrentTrace() {
@@ -287,21 +263,9 @@ ContextBuilder& ContextBuilder::set_census_handle(CensusHandle handle) {
   return *this;
 }
 
-ContextBuilder& ContextBuilder::set_thread_status(
-    const char* absl_nullable const thread_status) {
-  context_.set_thread_status(thread_status);
-  return *this;
-}
-
 Context ContextBuilder::BuildValue() { return std::move(context_); }
 
 absl::Time Context::deadline() const { return deadline_; }
-
-const char* Context::thread_status() const { return thread_status_.load(); }
-
-void Context::set_thread_status(const char* const thread_status) {
-  thread_status_.store(thread_status);
-}
 
 WithContext::WithContext(const Context& switch_to,
                          perftools::tracing::StringRef label)
@@ -398,15 +362,6 @@ WithCensusHandle::WithCensusHandle(CensusHandle&& handle)
 
 WithCensusHandle::~WithCensusHandle() {
   InlineCurrent()->SwapCensusHandle(&swapped_handle_);
-}
-
-WithThreadStatus::WithThreadStatus(const char* status)
-    : swapped_status_(InlineCurrent()->thread_status()) {
-  InlineCurrent()->set_thread_status(status);
-}
-
-WithThreadStatus::~WithThreadStatus() {
-  InlineCurrent()->set_thread_status(swapped_status_);
 }
 
 const CensusHandle& CensusAccess::GetCurrentHandle() {

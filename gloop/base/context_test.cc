@@ -176,11 +176,12 @@ class ContextTest : public ::testing::Test {
   }
 
   Context GetRandomContext() {
-    static char status[] = "ABCDEFDGHIJKLMNOPQRSTUVWXYZ1234567890";
+    [[maybe_unused]] static char status[] =
+        "ABCDEFDGHIJKLMNOPQRSTUVWXYZ1234567890";
+
     return ContextBuilder()
         .set_trace_context(GetRandomTraceContext())
         .set_deadline(absl::Now() + absl::Hours(1))
-        .set_thread_status(status + absl::Uniform(bitgen_, 0, 30))
         .BuildValue();
   }
 
@@ -241,10 +242,7 @@ MATCHER_P(EqualsContext, expected, "") {
     *result_listener << "trace_context().global_id() mismatch";
     return false;
   }
-  if (arg.thread_status() != expected.thread_status()) {
-    *result_listener << "thread_status() mismatch";
-    return false;
-  }
+
   if (arg.deadline() != expected.deadline()) {
     *result_listener << "deadline() mismatch";
     return false;
@@ -290,9 +288,6 @@ TEST_F(ContextTest, TestInitialState) {
 
   // DEFAULT: Deadline is infinite future.
   EXPECT_EQ(default_context.deadline(), absl::InfiniteFuture());
-
-  // DEFAULT: Thread status is null.
-  EXPECT_EQ(default_context.thread_status_string_view(), std::nullopt);
 
   // The background context is specified to be Context::kDefault constructed.
   EXPECT_THAT(default_context, EqualsContext(BackgroundContext()));
@@ -379,24 +374,6 @@ TEST_F(ContextTest, Initializers) {
   }
 }
 
-TEST_F(ContextTest, AssignWithThreadStatus) {
-  base::Context c1;
-  base::Context c2;
-  base::Context c3;
-  base::Context c4;
-
-  c1.set_thread_status("status 1");
-  c2.set_thread_status("status 2");
-  c3.set_thread_status("status 3");
-  c4.set_thread_status("status 4");
-
-  c1 = c2;
-  c3 = std::move(c4);
-
-  EXPECT_EQ(c1.thread_status_string_view(), "status 2");
-  EXPECT_EQ(c3.thread_status_string_view(), "status 4");
-}
-
 TEST_F(ContextTest, AccessorsAndMutators) {
   Context ctx;
 #if BASE_CONTEXT_HAVE_SECURITYCONTEXT
@@ -404,14 +381,13 @@ TEST_F(ContextTest, AccessorsAndMutators) {
   ctx.set_census_handle(h);
   EXPECT_FALSE(stats_census::IsDefaultHandle(h));
 #endif  // BASE_CONTEXT_HAVE_SECURITYCONTEXT
-  ctx.set_thread_status("my status");
+
   {
     WithContext wc(ctx);
 #if BASE_CONTEXT_HAVE_SECURITYCONTEXT
     EXPECT_TRUE(
         stats_census::CensusHandlesEqual(h, CurrentContext().census_handle()));
 #endif  // BASE_CONTEXT_HAVE_SECURITYCONTEXT
-    EXPECT_EQ("my status", CurrentContext().thread_status_string_view());
   }
 }
 
@@ -837,15 +813,6 @@ TEST_F(ContextTest, WithCensusHandle) {
 }
 #endif  // BASE_CONTEXT_HAVE_SECURITYCONTEXT
 
-TEST_F(ContextTest, WithThreadStatus) {
-  EXPECT_THAT(CurrentContext().thread_status(), IsNull());
-  {
-    WithThreadStatus w("my_status");
-    EXPECT_STREQ(CurrentContext().thread_status(), "my_status");
-  }
-  EXPECT_THAT(CurrentContext().thread_status(), IsNull());
-}
-
 TEST_F(ContextTest, WithContextHardeningDisableThroughFlag) {
   absl::SetFlag(&FLAGS_harden_with_context, false);
   Context context1;
@@ -876,63 +843,6 @@ TEST_F(ContextTest, CurrentTraceContextNoAlloc) {
   {
     const TraceContext& expected = CurrentContext().trace_context();
     EXPECT_THAT(CurrentTraceContextNoAlloc(), t::Pointee(t::Ref(expected)));
-  }
-}
-
-// If a context hasn't yet been created for the thread, then
-// CurrentThreadStatusNoAlloc should return nullopt. Otherwise it should return
-// that context's thread status string, which may also be nullopt.
-TEST_F(ContextTest, CurrentThreadStatusNoAlloc) {
-  // No context yet seen
-  {
-    ClosureThread t{
-        thread::Options().set_joinable(true),
-        "CurrentThreadStatusNoAlloc",
-        [] { EXPECT_FALSE(CurrentThreadStatusNoAlloc().has_value()); },
-    };
-
-    t.Start();
-    t.Join();
-  }
-
-  // Context already seen, no thread status
-  (void)CurrentContext();
-  EXPECT_EQ(std::make_optional(std::optional<absl::string_view>()),
-            CurrentThreadStatusNoAlloc());
-
-  // Context already seen, with thread status
-  //
-  // TODO: check for reference equality with the string once
-  // Context owns its string.
-  {
-    const WithThreadStatus wts("taco");
-    EXPECT_EQ("taco", CurrentThreadStatusNoAlloc());
-  }
-}
-
-// If a context hasn't yet been created for the thread, then CurrentThreadStatus
-// should return null. Otherwise it should return that context's thread status
-// string.
-TEST_F(ContextTest, CurrentThreadStatus) {
-  // No context yet seen
-  {
-    ClosureThread t{
-        thread::Options().set_joinable(true),
-        "CurrentThreadStatus",
-        [] { EXPECT_THAT(CurrentThreadStatus(), t::IsNull()); },
-    };
-
-    t.Start();
-    t.Join();
-  }
-
-  // Context already seen
-  //
-  // TODO: check for reference equality with the string once
-  // Context owns its string.
-  {
-    const WithThreadStatus wts("taco");
-    EXPECT_STREQ("taco", CurrentThreadStatus());
   }
 }
 

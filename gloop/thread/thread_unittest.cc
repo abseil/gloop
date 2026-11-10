@@ -146,10 +146,6 @@ void TestClosure() {
 void IncrementMe(int* x) { ++*x; }
 
 void DieHorribly() {
-#if AVOID_TRACECONTEXT
-  static const char* status_string = "Hi, mom!";
-  base::WithThreadStatus trace_status_switcher(status_string);
-#endif
   char* null = nullptr;
   strcpy(null, "Hi!");  // NOLINT
 }
@@ -297,19 +293,6 @@ TEST(ThreadTest, StartDetachedThreadWithCustomOptions) {
       // Arbitrary custom options.
       thread::Options().set_joinable(false).set_stack_size(1024 * 1024),
       "custom_detached", [&notify] { notify.Notify(); });
-  notify.WaitForNotification();
-  WaitForDetachedThreadsToExit();
-}
-
-TEST(ThreadTest, DetachedThreadPreservesContext) {
-  absl::Notification notify;
-  {
-    base::WithThreadStatus wts("banana");
-    StartDetachedThread("ctx_detached", [&notify] {
-      EXPECT_EQ(base::CurrentContext().thread_status_string_view(), "banana");
-      notify.Notify();
-    });
-  }
   notify.WaitForNotification();
   WaitForDetachedThreadsToExit();
 }
@@ -1518,11 +1501,6 @@ class ThreadStatusRaceHelper : public Thread {
     snprintf(static_cast<char*>(status_addr), page_size, "%s", status_string);
 
     {
-#if AVOID_TRACECONTEXT
-      base::WithThreadStatus trace_status_switcher(
-          static_cast<char*>(status_addr));
-#endif
-
       sigset_t mask_to_block, orig_mask;
       CHECK_EQ(0, sigemptyset(&mask_to_block));
       CHECK_EQ(0, sigaddset(&mask_to_block, GOOGLE_OBSCURE_SIGNAL));

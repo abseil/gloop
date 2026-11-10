@@ -149,25 +149,6 @@ TEST_P(AddCancellableTest, CancelledDuringDelay) {
   delete cb;
 }
 
-TEST_P(AddCancellableTest, PropagatesContextToTask) {
-  ExecutorHandle h;
-  absl::Notification n;
-  std::optional<std::string> task_thread_status = "uninitialized";
-  {
-    base::WithThreadStatus ts("expected_task_thread_status");
-    AddCancellableHelper(
-        executor_, absl::Milliseconds(20),
-        [&n, &task_thread_status] {
-          task_thread_status =
-              base::CurrentContext().thread_status_string_view();
-          n.Notify();
-        },
-        &h);
-  }
-  n.WaitForNotification();
-  EXPECT_EQ(task_thread_status, "expected_task_thread_status");
-}
-
 namespace {
 
 struct Notifications {

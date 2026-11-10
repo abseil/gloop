@@ -936,17 +936,7 @@ ABSL_ATTRIBUTE_NOINLINE void FillStackTrace(StackTrace* trace,
   }
 #endif
 
-  // Copy the context thread status string, if one is available. We copy, rather
-  // than just keeping a pointer, in case the thread clobbers or frees the
-  // status string right after we grab the trace.
-  {
-    const absl::string_view thread_status =
-        base::CurrentThreadStatusNoAlloc().value_or(std::nullopt).value_or("");
-
-    const size_t copied = thread_status.copy(trace->thread_status,
-                                             sizeof(trace->thread_status) - 1);
-    trace->thread_status[copied] = '\0';
-  }
+  trace->thread_status[0] = '\0';
 
   const absl::string_view fiber_name = ::thread::InternalGetCurrentFiberName();
   if (fiber_name.empty()) {

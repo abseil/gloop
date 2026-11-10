@@ -107,11 +107,6 @@ using ::testing::NotNull;
 int32_t Inc(int32_t val) { return val + 1; }
 int32_t One() { return 1; }
 
-std::string GetTraceStatus() {
-  return std::string(
-      base::CurrentContext().thread_status_string_view().value_or(""));
-}
-
 TEST(FunctorToCallback, Closure) {
   Closure* c = ToCallback([] {});
   ASSERT_THAT(c, NotNull());
@@ -301,16 +296,6 @@ TEST(FunctorToCallback, ConstFunctorWithNonConstCallOperator) {
   Closure* cb = ToCallback(f);
   ASSERT_THAT(cb, NotNull());
   cb->Run();
-}
-
-TEST(FunctorToCallback, TraceContext) {
-  base::WithThreadStatus w1("foo");
-  ResultCallbackFunctor<std::string> c = ToCallback(GetTraceStatus);
-  ResultCallbackFunctor<std::string> p(ToPermanentCallback(GetTraceStatus));
-  base::WithThreadStatus w2("bar");
-  EXPECT_EQ((*c)(), "foo");
-  EXPECT_EQ(GetTraceStatus(), "bar");
-  EXPECT_EQ((*p)(), "bar");
 }
 
 TEST(FunctorToCallback, ConvertibleAmbiguities) {

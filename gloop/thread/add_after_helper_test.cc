@@ -118,11 +118,6 @@ class AddAfterHelperTest : public testing::Test {
         dummy_task_(util::functional::ToPermanentCallback([] {})) {}
 
   void CompleteAddAfter(absl::AnyInvocable<void() &&> task) {
-    const std::optional<absl::string_view> thread_status =
-        base::CurrentContext().thread_status_string_view();
-    if (thread_status.has_value()) {
-      complete_add_after_thread_status_ = *thread_status;
-    }
     std::move(task)();
   }
 
@@ -132,7 +127,6 @@ class AddAfterHelperTest : public testing::Test {
   // unique_ptr<> so I can delete the instance and check what happens afterward.
   std::unique_ptr<AddAfterHelper> helper_;
   const ::util::functional::CallbackFunctor<> dummy_task_;
-  std::string complete_add_after_thread_status_;
 };
 
 TEST_F(AddAfterHelperTest, AddAfterForwardsToUnderlyingExecutorAddAfter) {
@@ -256,47 +250,6 @@ TEST_F(AddAfterHelperTest, DeletionExecutesUnrunClosures) {
   // complete_add_after_->Run(anything).
   EXPECT_EQ(mock_executor_.num_add_afters(), 2);
   mock_executor_.RunPendingAddAfters();
-}
-
-TEST_F(AddAfterHelperTest, PropagatesContextToDelayedTask) {
-  const absl::Time now = absl::Now();
-
-  std::optional<std::string> task_thread_status = "uninitialized";
-  auto task = [&] {
-    task_thread_status = base::CurrentContext().thread_status_string_view();
-  };
-  EXPECT_CALL(mock_executor_, ScheduleAtCalled(now));
-
-  {
-    base::WithThreadStatus ts("expected_task_thread_status");
-    helper_->ScheduleAddAfterAt(now, std::move(task));
-  }
-
-  ASSERT_EQ(mock_executor_.num_add_afters(), 1);
-  // The MockExecutor doesn't run anything on its own, so we do it
-  // explicitly here.  This will call the CancellableClosure that the
-  // AddAfterHelper passed to the underlying Executor's AddAfter()
-  // method, and that CancellableClosure will call
-  // complete_add_after->Run(dummy_task_).
-  mock_executor_.RunPendingAddAfters();
-  EXPECT_EQ(task_thread_status, "expected_task_thread_status");
-}
-
-TEST_F(AddAfterHelperTest, PropagatesContextToCompleteAddAfter) {
-  const absl::Time now = absl::Now();
-
-  EXPECT_CALL(mock_executor_, ScheduleAtCalled(now));
-
-  {
-    base::WithThreadStatus ts("expected_task_thread_status");
-    helper_->ScheduleAddAfterAt(now, [] {});
-  }
-
-  ASSERT_EQ(mock_executor_.num_add_afters(), 1);
-  // The MockExecutor doesn't run anything on its own, so we do it
-  // explicitly here.
-  mock_executor_.RunPendingAddAfters();
-  EXPECT_EQ(complete_add_after_thread_status_, "expected_task_thread_status");
 }
 
 void RunClosureArg(absl::AnyInvocable<void() &&> task) { std::move(task)(); }

@@ -147,34 +147,6 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
     tc_.set_census_handle(std::move(handle));
   }
 
-  // Returns the thread status string associated with the context, or nullopt if
-  // there is no thread status set.
-  //
-  // TODO: once the old thread_status method is gone, rename this
-  // one to thread_status.
-  std::optional<absl::string_view> thread_status_string_view() const {
-    const char* const p = thread_status_.load();
-    return p == nullptr ? std::nullopt
-                        : std::make_optional(absl::string_view(p));
-  }
-
-  // Returns a pointer to the "status string" associated with the context, or
-  // nullptr if there is no status set.
-  //
-  // TODO: move users to thread_status_string_view and then get rid
-  // of this.
-  ABSL_DEPRECATED("Use thread_status_string_view")
-  const char* thread_status() const;
-
-  // This function sets a "status string" associated with this context.  This is
-  // output along with all stack traces. It's most useful for keeping track of
-  // what a thread was working on when it died. This function does not take
-  // ownership of the argument, and the const char* must survive until it is no
-  // longer the thread_status of any context, including all Callbacks created
-  // while it was set. Setting this to nullptr (the default) means that no
-  // status string will be printed.
-  void set_thread_status(const char* thread_status);
-
   // Returns a deadline after which continued execution may no longer be of
   // interest.  The Context API does not specify any behavior(s) to be taken
   // relative to this deadline; it is only an advisory property that individual
@@ -340,15 +312,6 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
 
   absl::Time deadline_ = absl::InfiniteFuture();
 
-  // An unowned null-terminated string.
-  SignalSafeCStr thread_status_{nullptr};
-
-  friend std::optional<std::optional<absl::string_view>>
-  CurrentThreadStatusNoAlloc();
-
-  // TODO: don't forget to get rid of this.
-  friend const char* CurrentThreadStatus();
-
   friend class ContextBuilder;
   friend class internal::MutableCurrentContext;
   friend const Context& BackgroundContext();
@@ -425,13 +388,6 @@ class ContextBuilder {
   // Sets the census handle for the context.
   ContextBuilder& set_census_handle(CensusHandle handle);
 
-  // Sets a "status string" associated with this context. This is output along
-  // with all stack traces and most useful for keeping track of what a thread
-  // was working on when it died. This function does not take ownership of the
-  // argument, and the const char* must outlive any context it is referenced in
-  // including any callbacks created while it was set.
-  ContextBuilder& set_thread_status(const char* absl_nullable thread_status);
-
   // Returns the new Context value. May only be called once. This method
   // invalidates the internal state of this instance. Subsequent calls to
   // either `BuildValue()` or `Build()` may fail under debug builds, and
@@ -470,37 +426,6 @@ const Context& DefaultContext();
 // only valid inside the current thread, and may be invalidated by actions that
 // change the current thread's context.
 const Context& CurrentContext();
-
-// Like calling CurrentContext and then Context::thread_status_string_view, but
-// safe to use in signal handlers.
-//
-// If the thread's context hasn't yet been created, return nullopt. Otherwise
-// return the result of Context::thread_status_string_view for the thread's
-// context (which may itself result in an inner nullopt).
-//
-// Note that this may spuriously act as if the context has no thread status if
-// the context is in the process of being modified.
-std::optional<std::optional<absl::string_view>> CurrentThreadStatusNoAlloc();
-
-// Note that this may spuriously act as if the context has no thread status if
-// the context is in the process of being modified.
-//
-// TODO: get rid of this.
-ABSL_DEPRECATED(
-    "Use CurrentThreadStatusNoAlloc in signal handlers, and "
-    "Context::thread_status_string_view otherwise")
-const char* CurrentThreadStatus();
-
-// Sets a "status string" associated with the current context. Use of this
-// method is discouraged; use the scoped base::WithThreadStatus instead.
-//
-// The thread status is output along with all stack traces. It's mostly useful
-// for keeping track of what a thread was working on when it died. This function
-// does not take ownership of the argument, and the const char* must survive
-// until it is no longer the thread_status of any context, including all
-// Callbacks created while it was set. Setting this to nullptr (the default)
-// means that no status string will be printed.
-void SetCurrentThreadStatus(const char* thread_status);
 
 // Like calling CurrentContext and then Context::trace_context, but safe to use
 // in signal handlers.
@@ -675,27 +600,6 @@ class WithCensusHandle {
 
   WithCensusHandle(const WithCensusHandle&) = delete;
   WithCensusHandle& operator=(const WithCensusHandle&) = delete;
-};
-
-// Scoped object that sets the current thread's status until the object is
-// destroyed. The thread status is displayed in /threadz.
-//
-// NEVER allocate in one thread and deallocate in another.  A simple way to
-// guarantee this is to only allocate directly on the stack.
-//
-// Example:
-//    {  WithThreadStatus wts("processing"); ... }
-//
-class WithThreadStatus {
- public:
-  explicit WithThreadStatus(const char* status);
-  ~WithThreadStatus();
-
- private:
-  const char* const swapped_status_;
-
-  WithThreadStatus(const WithThreadStatus&) = delete;
-  WithThreadStatus& operator=(const WithThreadStatus&) = delete;
 };
 
 // ======================================================================

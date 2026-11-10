@@ -115,11 +115,6 @@ MATCHER_P(ContextEq, expected, "") {
 }
 }  // namespace
 
-// Strong implementation for testing leaving a breadcrumb in thread_status.
-void AdjustDefaultTreeContext(base::Context& context, const void*) {
-  context.set_thread_status("Adjusted");
-}
-
 extern bool StackShouldIncludeGuardSize();
 
 namespace internal {
@@ -667,24 +662,6 @@ TEST_F(FiberTest, RootFiberWorks) {
     root_ran.WaitForNotification();
     r->Join();  // Root fibers still require joining.
   }
-}
-
-TEST_F(FiberTest, RootFiberTreeOptionsInvokesWeakHook) {
-  TreeOptions options;
-  std::unique_ptr<Fiber> r = NewTree(options, [] {
-    // 'thread_status' should be set by our strong hook in this test.
-    ASSERT_EQ(base::CurrentContext().thread_status_string_view(), "Adjusted");
-  });
-  r->Join();
-}
-
-TEST_F(FiberTest, RootFiberTreeOptionsByRValueInvokesWeakHook) {
-  TreeOptions options;
-  std::unique_ptr<Fiber> r = NewTree(options, [] {
-    // 'thread_status' should be set by our strong hook in this test.
-    ASSERT_EQ(base::CurrentContext().thread_status_string_view(), "Adjusted");
-  });
-  r->Join();
 }
 
 TEST_F(FiberTest, DetachedRootFiberWorks) {
