@@ -312,7 +312,12 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
   // An unowned null-terminated string.
   SignalSafeCStr thread_status_{nullptr};
 
+  friend std::optional<std::optional<absl::string_view>>
+  CurrentThreadStatusNoAlloc();
+
+  // TODO: don't forget to get rid of this.
   friend const char* CurrentThreadStatus();
+
   friend class ContextBuilder;
   friend class internal::MutableCurrentContext;
   friend const Context& BackgroundContext();
@@ -443,14 +448,18 @@ const Context& CurrentContext();
 // writes and other ordering concerns. Get rid of it.
 absl::optional_ref<const Context> CurrentContextNoAlloc();
 
-// Like calling CurrentContext and then Context::thread_status, but safe to use
-// in signal handlers.
+// Like calling CurrentContext and then Context::thread_status_string_view, but
+// safe to use in signal handlers.
 //
-// If the thread's context hasn't yet been created, return null. Otherwise
-// return the result of Context::thread_status for the thread's context.
-//
-// TODO: get rid of this in favor of a string_view-returning
-// version (that also distinguishes the two sorts of null).
+// If the thread's context hasn't yet been created, return nullopt. Otherwise
+// return the result of Context::thread_status_string_view for the thread's
+// context (which may itself result in an inner nullopt).
+std::optional<std::optional<absl::string_view>> CurrentThreadStatusNoAlloc();
+
+// TODO: get rid of this.
+ABSL_DEPRECATED(
+    "Use CurrentThreadStatusNoAlloc in signal handlers, and "
+    "Context::thread_status_string_view otherwise")
 const char* CurrentThreadStatus();
 
 // Sets a "status string" associated with the current context. Use of this

@@ -903,6 +903,37 @@ TEST_F(ContextTest, CurrentTraceContextNoAlloc) {
   }
 }
 
+// If a context hasn't yet been created for the thread, then
+// CurrentThreadStatusNoAlloc should return nullopt. Otherwise it should return
+// that context's thread status string, which may also be nullopt.
+TEST_F(ContextTest, CurrentThreadStatusNoAlloc) {
+  // No context yet seen
+  {
+    ClosureThread t{
+        thread::Options().set_joinable(true),
+        "CurrentThreadStatusNoAlloc",
+        [] { EXPECT_FALSE(CurrentThreadStatusNoAlloc().has_value()); },
+    };
+
+    t.Start();
+    t.Join();
+  }
+
+  // Context already seen, no thread status
+  (void)CurrentContext();
+  EXPECT_EQ(std::make_optional(std::optional<absl::string_view>()),
+            CurrentThreadStatusNoAlloc());
+
+  // Context already seen, with thread status
+  //
+  // TODO: check for reference equality with the string once
+  // Context owns its string.
+  {
+    const WithThreadStatus wts("taco");
+    EXPECT_EQ("taco", CurrentThreadStatusNoAlloc());
+  }
+}
+
 // If a context hasn't yet been created for the thread, then CurrentThreadStatus
 // should return null. Otherwise it should return that context's thread status
 // string.
