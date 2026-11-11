@@ -442,6 +442,9 @@ cc_library(
     name = "tracing",
     srcs = ["tracing.cc"],
     hdrs = ["tracing.h"],
+    implementation_deps = [
+        ":sync_context",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         ":trace_event_listener",
@@ -460,6 +463,7 @@ cc_test(
     srcs = ["tracing_test.cc"],
     deps = [
         ":mock_trace_event_listener",
+        ":sync_context",
         ":test_only_access",
         ":trace_source_location",
         ":tracing",
@@ -467,6 +471,7 @@ cc_test(
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],

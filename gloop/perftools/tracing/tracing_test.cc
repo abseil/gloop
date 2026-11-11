@@ -22,8 +22,10 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
+#include "absl/time/time.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/string_label.h"
+#include "gloop/perftools/tracing/sync_context.h"
 #include "gloop/perftools/tracing/test_only_access.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
 #include "gloop/perftools/tracing/tracing_base.h"
@@ -33,6 +35,7 @@
 namespace perftools::tracing {
 namespace {
 
+using ::perftools::tracing::core::SyncContext;
 using ::perftools::tracing::testing::TestOnlyAccess;
 using ::testing::_;
 using ::testing::Eq;
@@ -352,6 +355,41 @@ TEST(TracingApiTest, TraceStreamingSendReceive) {
                         MsgFlags::kControl);
   TraceStreamingReceive(MsgOrigin::kClient, 12345, MsgSequence{2},
                         MsgFlags::kControl, absl::StatusCode::kCancelled);
+}
+
+TEST(TracingApiTest, CurrentAncestorWithoutActiveContext) {
+  EXPECT_FALSE(CurrentAncestor().has_value());
+}
+
+TEST(TracingApiTest, CurrentAncestorWithActiveContextWithoutAncestor) {
+  StrictMock<MockTraceEventListener> mock;
+  EXPECT_CALL(mock, ReleaseEventListener());
+  SyncContext context =
+      SyncContext::Create(TestOnlyAccess(), &mock, SyncContext::State::kActive,
+                          SyncId{1}, SyncId{1});
+  SyncContext::SetActiveContext(TestOnlyAccess(), &context);
+
+  EXPECT_FALSE(CurrentAncestor().has_value());
+
+  SyncContext::ResetThreadState(TestOnlyAccess());
+  context.Reset(TestOnlyAccess());
+}
+
+TEST(TracingApiTest, CurrentAncestorWithActiveContextWithAncestor) {
+  StrictMock<MockTraceEventListener> mock;
+  EXPECT_CALL(mock, ReleaseEventListener());
+  const Ancestor expected{.sync_id = SyncId{7},
+                          .timestamp = absl::FromUnixNanos(123456789)};
+  SyncContext context =
+      SyncContext::Create(TestOnlyAccess(), &mock, SyncContext::State::kActive,
+                          SyncId{8}, SyncId{8}, expected);
+  SyncContext::SetActiveContext(TestOnlyAccess(), &context);
+
+  EXPECT_TRUE(CurrentAncestor().has_value());
+  EXPECT_THAT(CurrentAncestor(), Eq(expected));
+
+  SyncContext::ResetThreadState(TestOnlyAccess());
+  context.Reset(TestOnlyAccess());
 }
 
 }  // namespace
