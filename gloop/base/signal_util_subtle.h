@@ -25,8 +25,6 @@
 #include <sched.h>
 #include <signal.h>
 #include <stddef.h>
-#include <stdint.h>
-#include <string.h>
 #include <sys/types.h>
 #include <time.h>
 
@@ -158,46 +156,25 @@ class ScopedSigaction {
   ScopedSigaction(int sig,
                   void (*handler)(
                       // lint screws up on function pointer without newline
-                      int))
-      : signum_(sig) {
-    struct sigaction action;
-    memset(&action, 0, sizeof(action));
-    action.sa_handler = handler;
-    Enable(&action);
-  }
+                      int));
 
   ScopedSigaction(int sig,
                   void (*action)(
                       // lint screws up on function pointer without newline
-                      int, siginfo_t*, void*))
-      : signum_(sig) {
-    struct sigaction act;
-    memset(&act, 0, sizeof(act));
-    act.sa_flags = SA_SIGINFO;
-    act.sa_sigaction = action;
-    Enable(&act);
-  }
+                      int, siginfo_t*, void*));
 
   // Set the handler for <sig> as described in <action>; restore to old
   // value on destruction.
-  ScopedSigaction(int sig, struct sigaction* action) : signum_(sig) {
-    Enable(action);
-  }
+  ScopedSigaction(int sig, struct sigaction* action);
 
-  ~ScopedSigaction() {
-    ABSL_RAW_CHECK(0 == sigaction(signum_, &old_, nullptr),
-                   "Unable to restore");
-  }
+  ~ScopedSigaction();
 
   // Not copyable or movable.
   ScopedSigaction(const ScopedSigaction&) = delete;
   ScopedSigaction& operator=(const ScopedSigaction&) = delete;
 
  private:
-  void Enable(struct sigaction* action) {
-    ABSL_RAW_CHECK(0 == sigaction(signum_, action, &old_),
-                   "Unsable to set signal handler");
-  }
+  void Enable(struct sigaction* action);
   struct sigaction old_;
   int signum_;
 };

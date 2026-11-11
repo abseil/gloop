@@ -20,10 +20,9 @@
 
 #include "gloop/base/coredump_flags.h"
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "absl/flags/flag.h"
-#include "absl/strings/string_view.h"
 
 ABSL_FLAG(int32_t, coredump_timeout, 300,
           "Max number of secs we expect to take while writing a core dump");

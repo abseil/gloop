@@ -14,8 +14,8 @@
 
 
 
-/* Only #included by base/linux_syscall_support.h */
-// IWYU pragma: private, include "base/linux_syscall_support.h"
+/* Only #included by gloop/base/linux_syscall_support.h */
+// IWYU pragma: private, include "gloop/base/linux_syscall_support.h"
 
 /* Failing system calls return a negative result in the range of
  * -1..-4095. These are "errno" values with the sign inverted.
