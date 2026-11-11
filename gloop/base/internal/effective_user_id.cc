@@ -26,7 +26,7 @@
 #include <cstdlib>
 #include <optional>
 
-#if !defined(_WIN32)
+#if !defined(_WIN32) && !defined(__wasi__)
 #include <unistd.h>  // For geteuid()
 #endif
 
@@ -36,9 +36,9 @@ namespace base::internal {
 
 std::optional<uint64_t> GetEffectiveUserId() {
   // Fall back to OS-provided user ID.
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__wasi__)
   return geteuid();
-#else  // _WIN32
+#else  // _WIN32 || __wasi__
   return std::nullopt;
 #endif
 }
