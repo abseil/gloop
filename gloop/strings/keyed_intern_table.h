@@ -144,6 +144,13 @@ class KeyedInternTable {
     keys_.reserve(count);
   }
 
+  // ShrinkToFit reduces the capacity of the underlying containers to the
+  // minimum size needed to hold the strings.
+  void ShrinkToFit() {
+    values_.shrink_to_fit();
+    keys_.rehash();
+  }
+
   // Returns the number of bytes allocated by the underlying arena. This method
   // is thread safe. Useful for debugging or tuning the arena block size.
   size_t ArenaBytesAllocated() const {
