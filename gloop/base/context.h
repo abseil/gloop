@@ -33,6 +33,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 #include <type_traits>
 #include <utility>
 
@@ -175,121 +176,6 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
   const TraceContext* absl_nonnull trace() const { return &trace_context(); }
 
  private:
-#ifdef __cpp_lib_atomic_ref
-  // Container for a nullable C string pointer that can safely be read from
-  // within a signal handler, but is still copyable and still has a trivial ABI.
-  //
-  // Signal handlers must read via the load_in_signal_handler method.
-  //
-  // TODO: remove this once we stop using a C string.
-  class ABSL_ATTRIBUTE_TRIVIAL_ABI SignalSafeCStr final {
-   public:
-    constexpr explicit SignalSafeCStr(
-        const char* absl_nullable const p) noexcept
-        : p_(p) {}
-
-    SignalSafeCStr(const SignalSafeCStr& other) noexcept
-        : SignalSafeCStr{other.load()} {}
-
-    SignalSafeCStr& operator=(const SignalSafeCStr& other) noexcept {
-      store(other.load());
-      return *this;
-    }
-
-    const char* absl_nullable load() const noexcept {
-      return std::atomic_ref<const char*>(p_).load(std::memory_order_relaxed);
-    }
-
-    const char* absl_nullable load_in_signal_handler() const noexcept {
-      // The acquire here pairs with the release fence in our store method.
-      return std::atomic_ref<const char*>(p_).load(std::memory_order_acquire);
-    }
-
-    void store(const char* absl_nullable const p) noexcept {
-      // Before we update the pointer, add a release fence to pair with the
-      // acquire load of the value in load_in_signal_handler. This means that
-      // the contents of the C string initialized before calling this function
-      // will be visible before the pointer can be accessed by a signal handler,
-      // ensuring a signal handler will never see a partially initialized
-      // string. It will always see either the old string or a fully initialized
-      // new one.
-      //
-      // We do this rather than using a release store because we don't need a
-      // CPU-level barrier: we're not trying to synchronize with other threads,
-      // only with a signal handler that interrupts this thread while we're
-      // setting the string. The signal fence prevents compiler re-ordering, but
-      // has no runtime cost beyond that.
-      std::atomic_signal_fence(std::memory_order_release);
-
-      // Update the pointer.
-      std::atomic_ref<const char*>(p_).store(p, std::memory_order_relaxed);
-
-      // Ensure that the compiler doesn't reorder destruction of the string we
-      // just unpublished (after this function returns) to before unpublishing
-      // it. Doing so would cause an interrupting signal handler to potentially
-      // use a partially destroyed object.
-      //
-      // It would be great to use std::atomic_signal_fence for this, but the
-      // standard offers no way to do so that isn't a tortured and inefficient
-      // mess (https://stackoverflow.com/q/79808589/1505451). So instead we
-      // match the kernel (http://shortn/_24XvjEMkLd), other code in base/
-      // (http://shortn/_5XDad7HMVh), and elsewhere in google3
-      // (http://shortn/_ZBWgpnMIIP) in using an old-fashioned inline assembly
-      // barrier to avoid compiler reordering.
-      //
-      // Clang's documentation about this sort of thing is poor compared to gcc,
-      // but gcc's docs at least imply this guarantee
-      // (https://stackoverflow.com/q/67943540/1505451), and with respect to
-      // this kind of old school C-like thing clang generally tries to be like
-      // gcc.
-      //
-      // See also http://b/458798425.
-      //
-      // Note that __GNUC__ doesn't mean specifically gcc; it also includes
-      // clang (https://stackoverflow.com/a/55926503/1505451).
-#if defined(__GNUC__)
-      // NOLINTNEXTLINE(google3-runtime-inline-assembly): b/458798425
-      __asm__ __volatile__("" : : : "memory");
-#else
-      // HACK(jacobsa): on other platforms we simply leave this code as
-      // incorrect. This is not great, but this function was incorrect for the
-      // better part of a decade before this problem was fixed and nobody
-      // noticed, so it must not be a large concern in practice. Fixing
-      // http://b/458798425 would make it easy to fix this.
-#endif
-    }
-
-   private:
-    // This must be mutable because there is no way to create a
-    // `const std::atomic_ref<T>` from `const T&`.
-    alignas(std::atomic_ref<const char*>::required_alignment) mutable const
-        char* absl_nullable p_;
-
-    // Assumption check: we shouldn't be introducing locks into signal handlers.
-    static_assert(std::atomic_ref<const char*>::is_always_lock_free);
-  };
-#else
-  // On toolchains without std::atomic_ref available we can't easily implement
-  // this. Instead, signal handlers always return null.
-  class ABSL_ATTRIBUTE_TRIVIAL_ABI SignalSafeCStr final {
-   public:
-    constexpr explicit SignalSafeCStr(
-        const char* absl_nullable const p) noexcept
-        : p_(p) {}
-
-    const char* absl_nullable load() const noexcept { return p_; }
-
-    const char* absl_nullable load_in_signal_handler() const noexcept {
-      return nullptr;
-    }
-
-    void store(const char* absl_nullable const p) noexcept { p_ = p; }
-
-   private:
-    const char* absl_nullable p_;
-  };
-#endif
-
   // Swaps the supplied deadline with the one in this context, leaving
   // the remainder of the context intact.
   void SwapDeadline(absl::Time* deadline);
