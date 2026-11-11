@@ -326,6 +326,7 @@ cc_library(
         ":noop_trace_event_listener",
         ":perftools_verify",
         "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/time",
     ],
     visibility = [
         ":base_visibility",
@@ -354,6 +355,7 @@ cc_test(
         ":trace_source_location",
         ":tracing_base",
         "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
