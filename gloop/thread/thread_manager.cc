@@ -1203,6 +1203,7 @@ static bool TMQueueAdd(ThreadManagerRep* rep, absl::AnyInvocable<void() &&> cb,
       // The pool can be deleted right after pool->pool_mu.Unlock() above.
       pool = nullptr;
       added = true;
+      break;
     } else {
       q_rep->queue_mu.lock();
       if ((flags & kDecAddAfter) != 0) {
@@ -1221,11 +1222,13 @@ static bool TMQueueAdd(ThreadManagerRep* rep, absl::AnyInvocable<void() &&> cb,
         // The pool can be deleted right after pool->pool_mu.Unlock() above.
         pool = nullptr;
         added = true;
+        break;
       } else if (static_cast<int64_t>(q_rep->queue_work.size()) <
                  queue_limit) {                      // room in queue
         q_rep->queue_work.push_back(std::move(cb));  // append work to queue
         q_rep->queue_mu.unlock();
         added = true;
+        break;
       } else {
         if ((flags & kAddBlock) != 0) {  // wait till we can dispose of work
           q_rep->queue_waiters++;
