@@ -185,8 +185,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI
                                          typename std::iterator_traits<
                                              Iterator>::iterator_category>,
                        int> = 0>
-  UniqueArray(Iterator first ABSL_ATTRIBUTE_LIFETIME_BOUND,
-              Iterator last ABSL_ATTRIBUTE_LIFETIME_BOUND) {
+  UniqueArray(Iterator first, Iterator last) {
     size_ = std::distance(first, last);
     data_ = std::unique_ptr<T[], deleter_type>(new T[size_]);
     std::copy(first, last, data());
