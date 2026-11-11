@@ -116,8 +116,10 @@
 
 #include <stdint.h>
 
+#include <cstddef>
 #include <new>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "absl/base/attributes.h"
