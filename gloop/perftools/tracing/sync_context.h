@@ -29,6 +29,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
+#include "absl/log/check.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
@@ -473,7 +474,8 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
                             State state, SyncId sync_id, SyncId active_sync_id);
 
   // Resets this instance to an empty state for testing purposes, clearing the
-  // active thread-local context if it points to this instance.
+  // active thread-local context if it points to this instance. Bypasses the
+  // active-instance checks to allow for test teardown.
   void Reset(const TestOnlyAccess&);
 
   // Resets any per-thread or global state for testing purposes. Unit tests can
@@ -495,8 +497,10 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
 
   explicit constexpr SyncContext(Impl* context);
 
-  // Deletes impl_ if non null, setting `impl_` to zero before deletion to make
-  // sure the deletion is safe against any tracing side effects from listeners.
+  // Deletes `impl_` (which must be non-null), setting `impl_` to nullptr
+  // before deletion to make sure the deletion is safe against any tracing side
+  // effects from listeners. DCHECKs that `impl_` is not in state `kActive`,
+  // which catches deletion of an active instance from any thread.
   void DeleteImpl() noexcept;
 
   // Marks `impl_` as blocked against recursive state-mutating operations and
@@ -512,6 +516,16 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
 
   // Sets the active instance for the current thread.
   static void SetActiveContext(const SyncContext* absl_nullable context);
+
+  // The active instance for the current thread, or nullptr if none. The
+  // referenced instance is always in state `kActive`. It is set and cleared
+  // only by `Impl` state transitions, paired with
+  // `internal::set_active_sync_id()` (except transiently between same-trace
+  // `BeforeSwap` and `AfterSwap`, where `tls_context_` is cleared while
+  // `active_sync_id` is retained). Moving or destroying the referenced instance
+  // without first ending or suspending it is a bug.
+  ABSL_CONST_INIT static thread_local const SyncContext* absl_nullable
+      tls_context_;
 
   Impl* impl_ = nullptr;
 };
@@ -664,11 +678,8 @@ class SyncContext::Access {
 };
 constexpr SyncContext::Access::Access() noexcept = default;
 
-inline void SyncContext::DeleteImpl() noexcept {
-  if (Impl* impl = impl_; impl != nullptr) {
-    impl_ = nullptr;
-    delete impl;
-  }
+inline const SyncContext* absl_nullable SyncContext::ActiveContext() {
+  return tls_context_;
 }
 
 inline SyncContext::Impl* absl_nullable SyncContext::Block() {
@@ -676,8 +687,8 @@ inline SyncContext::Impl* absl_nullable SyncContext::Block() {
 }
 
 inline SyncContext::~SyncContext() noexcept {
-  // TODO: b/581864531 - Enforce DCHECK(ActiveContext() != this);
-  DeleteImpl();
+  DCHECK(this != tls_context_);
+  if (impl_ != nullptr) DeleteImpl();
 }
 
 inline SyncContext::SyncContext(SyncContext&& rhs) noexcept : impl_(rhs.impl_) {
@@ -689,7 +700,7 @@ inline SyncContext::SyncContext(const SyncContext& rhs)
 
 inline SyncContext& SyncContext::operator=(SyncContext&& rhs) noexcept {
   if (this == &rhs) return *this;
-  DeleteImpl();
+  if (impl_ != nullptr) DeleteImpl();
   impl_ = rhs.impl_;
   rhs.impl_ = nullptr;
   return *this;
@@ -697,7 +708,7 @@ inline SyncContext& SyncContext::operator=(SyncContext&& rhs) noexcept {
 
 inline SyncContext& SyncContext::operator=(const SyncContext& rhs) {
   if (this == &rhs) return *this;
-  DeleteImpl();
+  if (impl_ != nullptr) DeleteImpl();
   if (rhs.impl_ != nullptr) {
     impl_ = rhs.impl_->Copy();
   }

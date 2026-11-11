@@ -326,7 +326,6 @@ cc_library(
         ":noop_trace_event_listener",
         ":perftools_verify",
         "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
     ],
     visibility = [
         ":base_visibility",
@@ -339,6 +338,7 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/log:check",
     ],
 )
 

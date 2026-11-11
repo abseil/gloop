@@ -25,6 +25,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 #include "absl/log/check.h"
@@ -42,9 +43,10 @@ namespace {
 
 SyncId tls_active_sync_id() { return active_sync_id(); }
 
-thread_local const SyncContext* absl_nullable tls_context = nullptr;
-
 }  // namespace
+
+ABSL_CONST_INIT thread_local const SyncContext* absl_nullable
+    SyncContext::tls_context_ = nullptr;
 
 std::ostream& operator<<(std::ostream& s, SyncContext::State state) {
   switch (state) {
@@ -68,16 +70,12 @@ std::ostream& operator<<(std::ostream& s, SyncContext::State state) {
 
 // ------------------------ SyncContext thread state -------------------
 
-const SyncContext* absl_nullable SyncContext::ActiveContext() {
-  return tls_context;
-}
-
 const SyncContext* absl_nullable SyncContext::ActiveContext(Access) {
   return ActiveContext();
 }
 
 void SyncContext::SetActiveContext(const SyncContext* absl_nullable context) {
-  tls_context = context;
+  tls_context_ = context;
 }
 
 // ------------------------ Shared --------------------------------
@@ -302,6 +300,7 @@ bool SyncContext::Impl::SuspendContext(bool is_wait, StringRef label) {
   // Make sure we are indeed active
   if (state_ != State::kActive) {
     LOG_EVERY_N_SEC(ERROR, 60) << "SuspendContext() with state " << state_;
+    SetActiveContext(nullptr);
     return false;
   }
 
@@ -309,6 +308,7 @@ bool SyncContext::Impl::SuspendContext(bool is_wait, StringRef label) {
   TraceEventListener* current = internal::active_event_listener();
   if (current == nullptr) {
     LOG_EVERY_N_SEC(ERROR, 60) << "SuspendContext() without an active listener";
+    SetActiveContext(nullptr);
     return false;
   }
 
@@ -341,11 +341,13 @@ bool SyncContext::Impl::EndContext() {
   if (current == nullptr) {
     // TODO: b/559675297 - change back to DFATAL
     LOG_EVERY_N_SEC(ERROR, 60) << "EndContext() without an active listener";
+    SetActiveContext(nullptr);
     return false;
   }
 
   if (state_ != State::kActive) {
     LOG_EVERY_N_SEC(ERROR, 60) << "EndContext() with state " << state_;
+    SetActiveContext(nullptr);
     return false;
   }
 
@@ -375,11 +377,17 @@ void SyncContext::Impl::BeforeSwap(const Impl* to) {
   // or zombie moments for the application provided `to` instance. The catch
   // here is that 'to' may be the counterpart of the empty Swap/Restore call
   // of the above scenario, so we check on that in the 'after swap'.
-  if (state_ == State::kZombie) return;
+  if (state_ == State::kZombie) {
+    SetActiveContext(nullptr);
+    return;
+  }
 
   // Invariant: the active TLS context is active if not empty.
   TraceEventListener* current = ActiveListener();
-  if (current == nullptr) return;
+  if (current == nullptr) {
+    SetActiveContext(nullptr);
+    return;
+  }
 
   // If the `to` instance is part of the same execution graph, we will retain
   // the `active_sync_id` as the nested context is nested and thus not affect
@@ -388,6 +396,7 @@ void SyncContext::Impl::BeforeSwap(const Impl* to) {
   // should allow for it, especially in the context of co-routines.
   if (same_trace(to) && to->state_ != State::kSuspended) {
     state_ = (swap_or_restore == kSwap) ? State::kNested : State::kZombie;
+    SetActiveContext(nullptr);
     return;
   }
 
@@ -482,6 +491,14 @@ void SyncContext::Impl::Unblock() {
 
 // ------------------------ SyncContext --------------------------------
 
+void SyncContext::DeleteImpl() noexcept {
+  if (Impl* impl = impl_; PERFTOOLS_VERIFY(impl != nullptr)) {
+    DCHECK(impl->state() != State::kActive) << "Deleting an active SyncContext";
+    impl_ = nullptr;
+    delete impl;
+  }
+}
+
 void SyncContext::Unblock(Impl* absl_nonnull impl, bool delete_impl) {
   if (PERFTOOLS_VERIFY(impl != nullptr)) {
     DCHECK_EQ(impl, impl_);
@@ -556,10 +573,11 @@ void SyncContext::RemoveListenerFromCurrent(Access,
 }
 
 void SyncContext::Reset(const TestOnlyAccess&) {
-  if (ActiveContext() == this) {
-    SetActiveContext(nullptr);
+  if (tls_context_ == this) tls_context_ = nullptr;
+  if (Impl* impl = impl_; impl != nullptr) {
+    impl_ = nullptr;
+    delete impl;
   }
-  DeleteImpl();
 }
 
 void SyncContext::ResetThreadState(const TestOnlyAccess&) {

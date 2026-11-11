@@ -303,6 +303,14 @@ TEST_F(SyncContextTest, ListenersAreReleaseInLifoOrder) {
   context_ = {};
 }
 
+TEST_F(SyncContextTest, DestroyingEmptyContextIsNoOp) {
+  SetupActiveContext();
+  {
+    SyncContext empty;
+  }
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
+}
+
 TEST_F(SyncContextTest, AddListenerToCurrentOnEmptyContext) {
   EXPECT_CALL(mock_, OnTraceBeginSync(kMainSyncId, Eq("Main")));
   context_.AddListenerToCurrent(access(), &mock_, "Main");
@@ -586,6 +594,7 @@ TEST_F(SyncContextTest, ActiveContextIsSetBeforeBeginResumeContinueAndEnter) {
       EXPECT_TRUE(context_.ResumeContext(access(), kNoBarrierId, "Begin"));
     }
     SyncContext::ResetThreadState(TestOnlyAccess());
+    context_.Reset(TestOnlyAccess());
   }
 
   // OnTraceResumeSync via AfterSwapCurrent / ResumeContext.
@@ -600,6 +609,7 @@ TEST_F(SyncContextTest, ActiveContextIsSetBeforeBeginResumeContinueAndEnter) {
       EXPECT_TRUE(context_.ResumeContext(access(), kNoBarrierId, "Resume"));
     }
     SyncContext::ResetThreadState(TestOnlyAccess());
+    context_.Reset(TestOnlyAccess());
   }
 
   // OnTraceContinue via ResumeContext.
@@ -609,6 +619,7 @@ TEST_F(SyncContextTest, ActiveContextIsSetBeforeBeginResumeContinueAndEnter) {
   });
   EXPECT_TRUE(context_.ResumeContext(access(), BarrierId(1234), "Continue"));
   SyncContext::ResetThreadState(TestOnlyAccess());
+  context_.Reset(TestOnlyAccess());
 
   // OnTraceEnterSync via AfterSwapCurrent on a nested context.
   StrictMock<MockTraceEventListener> nested;
@@ -711,7 +722,7 @@ TEST_F(SyncContextTest, BeforeSwapActiveContextToSameTrace) {
 
   EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
-  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, BeforeSwapActiveContextToSuspendedSameTrace) {
@@ -752,6 +763,7 @@ TEST_F(SyncContextTest, BeforeSwapReleasesNestedListener) {
 
 TEST_F(SyncContextTest, BeforeSwapFailsWithoutActiveListener) {
   context_ = CreateSync(nullptr, State::kActive, kActiveSyncId);
+  SyncContext::SetActiveContext(TestOnlyAccess(), &context_);
   context_.BeforeSwapCurrent(access(), {});
 
   EXPECT_THAT(context_.state(), Eq(State::kActive));
@@ -849,7 +861,7 @@ TEST_F(SyncContextTest, BeforeRestoreActiveContextToSameTrace) {
 
   EXPECT_THAT(active_sync_id(), Eq(kActiveSyncId));
   EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
-  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&context_));
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, BeforeRestoreActiveContextToSuspendedSameTrace) {
@@ -890,6 +902,7 @@ TEST_F(SyncContextTest, BeforeRestoreReleasesNestedListener) {
 
 TEST_F(SyncContextTest, BeforeRestoreFailsWithoutActiveListener) {
   context_ = CreateSync(nullptr, State::kActive, kActiveSyncId);
+  SyncContext::SetActiveContext(TestOnlyAccess(), &context_);
   context_.BeforeRestoreCurrent(access(), {});
 
   EXPECT_THAT(context_.state(), Eq(State::kActive));
@@ -984,6 +997,7 @@ TEST_F(SyncContextTest, AfterSwapNestedContext) {
     EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
     EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&inner));
     inner.Reset(TestOnlyAccess());
+    context_.Reset(TestOnlyAccess());
   }
 }
 
@@ -1077,6 +1091,7 @@ TEST_F(SyncContextTest, AfterRestoreNestedContext) {
     EXPECT_THAT(internal::active_event_listener(), Eq(&mock_));
     EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(&inner));
     inner.Reset(TestOnlyAccess());
+    context_.Reset(TestOnlyAccess());
   }
 }
 
@@ -1275,9 +1290,12 @@ TEST_F(SyncContextTest, SuspendContextReleasesNestedListener) {
 }
 
 TEST_F(SyncContextTest, SuspendFailsWithoutActiveListener) {
-  context_ = CreateSync(nullptr, State::kActive);
+  context_ = CreateSync(nullptr, State::kActive, kActiveSyncId);
+  SyncContext::SetActiveContext(TestOnlyAccess(), &context_);
+
   EXPECT_FALSE(context_.SuspendContext(access(), {}, ""));
   EXPECT_TRUE(context_.empty());
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, SuspendFailsWithInvalidState) {
@@ -1346,8 +1364,11 @@ TEST_F(SyncContextTest, EndContextReleasesNestedListener) {
 
 TEST_F(SyncContextTest, EndFailsWithoutActiveListener) {
   context_ = CreateSync(nullptr, State::kActive, kActiveSyncId);
+  SyncContext::SetActiveContext(TestOnlyAccess(), &context_);
+
   EXPECT_FALSE(context_.EndContext(access()));
   EXPECT_TRUE(context_.empty());
+  EXPECT_THAT(SyncContext::ActiveContext(access()), Eq(nullptr));
 }
 
 TEST_F(SyncContextTest, EndFailsWithInvalidState) {
