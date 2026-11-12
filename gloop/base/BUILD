@@ -347,7 +347,7 @@ cc_library(
         ":config",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
     ],
 )
 
