@@ -28,7 +28,9 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "gloop/base/context.h"
+#include "gloop/perftools/tracing/string_label.h"
 
 namespace util {
 namespace functional {
@@ -45,6 +47,12 @@ class WithContextFunctorImpl {
   explicit WithContextFunctorImpl(Functor&& functor, Context&& context)
       : functor_(std::forward<Functor>(functor)),
         context_(std::forward<Context>(context)) {}
+
+  template <typename F>
+  explicit WithContextFunctorImpl(F&& functor,
+                                  ::base::Context::ThreadInitType init,
+                                  ::perftools::tracing::StringRef label)
+      : functor_(std::forward<F>(functor)), context_(init, label) {}
 
   template <typename... Args>
   std::invoke_result_t<Functor&, Args&&...> operator()(Args&&... args) & {
@@ -73,7 +81,7 @@ class WithContextFunctorImpl {
   }
 
  private:
-  Functor functor_;
+  ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS Functor functor_;
   base::Context context_;
 };
 
