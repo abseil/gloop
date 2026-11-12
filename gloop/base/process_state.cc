@@ -1508,7 +1508,7 @@ KernelVersionInfo* ReadAndParseKernelVersionString(const char* filename) {
   bool uname_fallback = false;
   static const size_t kBufferSize = 1024;
   char buffer[kBufferSize];
-  FILE* fp = fopen(filename, "r");
+  FILE* fp = (filename[0] != '\0') ? fopen(filename, "r") : nullptr;
   if (fp != nullptr) {
     PCHECK(fgets(buffer, kBufferSize, fp) != nullptr)
         << "Failed to read kernel version string from " << filename;
@@ -1596,8 +1596,14 @@ bool GetKernelVersionIfValid(const KernelVersionInfo& info,
 }
 
 const KernelVersionInfo& GetKernelVersionInfo() {
+#if defined(__ANDROID__)
+  // On Android, SELinux denies app domains access to /proc/version, so opening
+  // it triggers an audit denial before falling back to uname(2).
+  static KernelVersionInfo* const info = ReadAndParseKernelVersionString("");
+#else
   static KernelVersionInfo* const info =
       ReadAndParseKernelVersionString("/proc/version");
+#endif
   return *info;
 }
 
