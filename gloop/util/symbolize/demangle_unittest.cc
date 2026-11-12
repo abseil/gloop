@@ -49,9 +49,20 @@ struct DemangleTestStruct {};
 namespace {
 
 TEST(Demangle, DemangleTypeName) {
+  static_assert(util::DemangledTypeName<char>() == "char");
+  static_assert(util::DemangledTypeName<int>() == "int");
   EXPECT_THAT(util::DemangledTypeName<util_testing::DemangleTestStruct>(),
               testing::AnyOf("util_testing::DemangleTestStruct",
                              "::util_testing::DemangleTestStruct"));
+}
+
+TEST(Demangle, DemangleNullptrTypeName) {
+  constexpr auto kName = util::DemangledTypeName<std::nullptr_t>();
+#if defined(_MSC_VER) && !defined(__clang__)
+  static_assert(kName == "nullptr");
+#else
+  static_assert(kName == "std::nullptr_t");
+#endif
 }
 
 }  // namespace
