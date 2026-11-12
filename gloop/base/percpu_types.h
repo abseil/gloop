@@ -28,13 +28,10 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/low_level_scheduling.h"
 #include "absl/base/internal/raw_logging.h"
-#include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "gloop/base/percpu.h"
-#include "gloop/base/scheduling/scheduling_mode.h"
 
 #ifdef ABSL_HAVE_SCHED_YIELD
 #include <sched.h>

@@ -36,7 +36,6 @@
 #include <sched.h>
 #include <stddef.h>
 #include <sys/auxv.h>
-#include <sys/mman.h>
 #include <syscall.h>
 #include <unistd.h>
 
@@ -185,10 +184,6 @@ static uint32_t RseqVcpuModeToFlags(RseqVcpuMode mode) {
       return 0;  // accessing mm_cid needs normal RSEQ on a modern kernel
   }
 }
-
-#ifndef MFD_CLOEXEC
-#define MFD_CLOEXEC 1U
-#endif
 
 static int RegisterRseq(const uint32_t flags) {
   if (syscall(__NR_rseq, &__rseq_abi, sizeof(__rseq_abi), flags,
