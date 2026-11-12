@@ -1865,7 +1865,7 @@ cc_library(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log/internal:globals",
-        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
     ],
