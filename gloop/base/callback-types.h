@@ -18,8 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-// IWYU pragma: private, include "base/callback.h"
-// IWYU pragma: friend base/callback.*
+// IWYU pragma: private, include "gloop/base/callback.h"
+// IWYU pragma: friend gloop/base/callback.*
 
 #ifndef THIRD_PARTY_GLOOP_BASE_CALLBACK_TYPES_H_
 #define THIRD_PARTY_GLOOP_BASE_CALLBACK_TYPES_H_
@@ -29,7 +29,6 @@
 
 #include "absl/base/attributes.h"
 #include "gloop/base/context.h"
-#include "gloop/base/tracecontext.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
 

@@ -116,7 +116,6 @@ cc_library(
     ],
     deps = [
         ":context",
-        ":tracecontext",
         "//gloop:enforce_gloop_support",
         "//gloop/perftools/tracing:trace_source_location",
         "//gloop/perftools/tracing:tracing_base",
