@@ -27,10 +27,14 @@
 #include "absl/flags/declare.h"
 #include "absl/strings/string_view.h"
 #include "gloop/base/config.h"  // For GOOGLE_ENABLE_SIGNAL_HANDLERS
-#include "gloop/base/port.h"
+#include "gloop/base/port.h"    // IWYU pragma: keep
 
 #if defined(GOOGLE_ENABLE_SIGNAL_HANDLERS)
 #include <csignal>  // IWYU pragma: keep
+#endif
+
+#ifndef _WIN32
+#include <sys/types.h>  // IWYU pragma: keep
 #endif
 
 // Set an alarm in the crash handler to avoid infinite loops
