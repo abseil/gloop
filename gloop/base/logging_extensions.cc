@@ -20,10 +20,9 @@
 
 #include "gloop/base/logging_extensions.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <array>
+#include <cstddef>
+#include <cstdint>
 
 #include "absl/base/attributes.h"
 #include "absl/base/const_init.h"
