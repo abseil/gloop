@@ -1909,7 +1909,6 @@ cc_library(
         "//gloop/concurrent/rcu",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:base_internal",
-        "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/base:no_destructor",
