@@ -332,7 +332,6 @@ cc_library(
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/strings:string_view",
     ],
 )
 
