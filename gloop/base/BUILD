@@ -1134,10 +1134,7 @@ cc_binary(
         ":per-thread-sem",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base",
-        "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest",
     ],
 )
 
