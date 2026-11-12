@@ -20,9 +20,8 @@
 
 #include "gloop/base/tracer.h"
 
-#include <stdint.h>
-
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
