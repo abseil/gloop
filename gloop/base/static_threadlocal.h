@@ -26,6 +26,7 @@
 
 #include <atomic>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"  // IWYU pragma: keep
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
