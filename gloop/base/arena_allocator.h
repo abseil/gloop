@@ -56,7 +56,6 @@
 
 #include "absl/base/attributes.h"
 #include "gloop/base/arena.h"
-#include "gloop/base/port.h"
 
 #define _ARENA_ALLOCATOR_  // let arena.h know this has been defined
 

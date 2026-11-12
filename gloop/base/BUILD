@@ -1787,7 +1787,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":arena",
-        ":port",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
     ],
