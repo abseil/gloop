@@ -585,7 +585,6 @@ cc_library(
         "//gloop/base/scheduling",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:config",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
