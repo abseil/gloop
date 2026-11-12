@@ -23,11 +23,11 @@
 // https://github.com/abseil/abseil-cpp/tree/master/absl/base/sleep.cc.
 
 #include <errno.h>
-#include <stdint.h>
 #include <time.h>
 
 #include <algorithm>
 #include <atomic>
+#include <cstdint>
 #include <limits>
 
 #include "absl/base/config.h"
