@@ -30,8 +30,11 @@
 #include "absl/synchronization/mutex.h"
 #include "absl/time/clock_interface.h"
 #include "absl/time/time.h"
+#include "gloop/util/time/monotonic_clock-internal.h"
 
 namespace util {
+
+MonotonicClock::~MonotonicClock() = default;
 
 namespace monotonic_clock_internal {
 
@@ -54,6 +57,8 @@ struct State {
 }  // namespace monotonic_clock_internal
 
 using monotonic_clock_internal::State;
+
+namespace {
 
 class MonotonicClockImpl : public MonotonicClock {
  public:
@@ -253,6 +258,8 @@ class MonotonicClockImpl : public MonotonicClock {
   absl::AnyInvocable<void(absl::Time, absl::Time, absl::Time)>
       correction_callback_ ABSL_GUARDED_BY(callback_lock_);
 };
+
+}  // namespace
 
 // Factory methods.
 MonotonicClock* MonotonicClock::CreateMonotonicClock(absl::Clock* clock) {

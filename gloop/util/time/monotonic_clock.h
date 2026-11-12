@@ -46,7 +46,7 @@ namespace util {
 // All methods support concurrent access.
 class MonotonicClock : public absl::Clock {
  public:
-  ~MonotonicClock() override = default;
+  ~MonotonicClock() override;
 
   // The Clock interface (see absl/time/clock_interface.h).
   //

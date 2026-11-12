@@ -23,12 +23,11 @@
 
 #include "absl/time/clock_interface.h"
 
-namespace util {
-class MonotonicClock;
-}  // namespace util
 // Test interface only -- do not #include this file!
-
 namespace util {
+
+class MonotonicClock;
+
 namespace monotonic_clock_internal {
 
 // Reset internal global state.  Should only be called by test code.

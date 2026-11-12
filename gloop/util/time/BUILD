@@ -89,15 +89,25 @@ cc_test(
 )
 
 cc_library(
+    name = "monotonic_clock_internal",
+    hdrs = ["monotonic_clock-internal.h"],
+    visibility = ["//visibility:private"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/time:clock_interface",
+    ],
+)
+
+cc_library(
     name = "monotonic_clock",
     srcs = [
         "monotonic_clock.cc",
     ],
     hdrs = [
         "monotonic_clock.h",
-        "monotonic_clock-internal.h",
     ],
     deps = [
+        ":monotonic_clock_internal",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
@@ -133,6 +143,7 @@ cc_test(
     srcs = ["monotonic_clock_test.cc"],
     deps = [
         ":monotonic_clock",
+        ":monotonic_clock_internal",
         "//gloop:gloop_test_main",
         "//gloop/base:commandlineflags",
         "//gloop/thread",
