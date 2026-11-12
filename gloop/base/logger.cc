@@ -20,8 +20,6 @@
 
 #include "gloop/base/logger.h"
 
-#include <string_view>
-
 #include "absl/base/const_init.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/log/log_sink.h"

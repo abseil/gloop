@@ -42,7 +42,6 @@
 #include "gloop/base/logger.h"
 #endif  // GLOOP_INTERNAL_PROD_LOGGING
 
-#include <array>
 #include <atomic>
 #include <functional>
 
@@ -50,7 +49,6 @@
 #include "absl/base/thread_annotations.h"
 #include "absl/log/log_sink.h"
 #include "absl/log/log_sink_registry.h"
-#include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 
 namespace base_logging {
