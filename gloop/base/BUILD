@@ -2228,7 +2228,6 @@ cc_library(
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:marshalling",
         "@abseil-cpp//absl/log:globals",
-        "@abseil-cpp//absl/strings",
     ],
 )
 
