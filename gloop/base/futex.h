@@ -30,7 +30,6 @@
 // google3 shim to make raw futex calls.  You have been warned.
 
 #include <errno.h>
-#include <stdint.h>
 #include <syscall.h>
 #include <time.h>
 
