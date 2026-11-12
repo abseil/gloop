@@ -2337,7 +2337,6 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
-        "@abseil-cpp//absl/types:optional",
         "@abseil-cpp//absl/types:source_location",
         "@abseil-cpp//absl/types:span",
     ],

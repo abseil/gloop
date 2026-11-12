@@ -24,13 +24,13 @@
 
 #include <assert.h>
 #include <stdarg.h>  // For va_list and related operations
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
+#include <cstdint>
 #include <cstdlib>
 #include <functional>
 #include <iostream>

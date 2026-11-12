@@ -114,14 +114,12 @@
 #ifndef THIRD_PARTY_GLOOP_BASE_COMMANDLINEFLAGS_H_
 #define THIRD_PARTY_GLOOP_BASE_COMMANDLINEFLAGS_H_
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <new>
 #include <string>
 #include <vector>
 
 #include "absl/base/attributes.h"
-#include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/flags/commandlineflag.h"
 #include "absl/flags/config.h"                    // IWYU pragma: keep
@@ -134,7 +132,6 @@
 #include "absl/flags/usage.h"                     // IWYU pragma: keep
 #include "absl/flags/usage_config.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "absl/types/source_location.h"
 #include "gloop/base/commandlineflags_declare.h"  // IWYU pragma: keep
 
