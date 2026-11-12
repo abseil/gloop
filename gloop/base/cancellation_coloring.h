@@ -23,9 +23,7 @@
 
 #include <sys/types.h>
 
-#include <ostream>
-
-#include "absl/base/attributes.h"
+#include <iosfwd>
 
 namespace base::internal {
 
