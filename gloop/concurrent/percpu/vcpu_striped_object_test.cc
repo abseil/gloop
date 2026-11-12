@@ -35,6 +35,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/internal/raw_logging.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/log/check.h"
@@ -224,7 +225,7 @@ class ScopedDisallowAllocations {
 
  private:
   static void Hook(const tcmalloc::MallocHook::NewInfo&) {
-    QCHECK(false) << "Unexpected allocation when can_alloc=false";
+    ABSL_RAW_LOG(FATAL, "Unexpected allocation when can_alloc=false");
   }
 };
 
