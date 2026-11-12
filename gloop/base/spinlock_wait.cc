@@ -29,10 +29,10 @@
 #include <errno.h>
 #include <limits.h>
 #include <linux/futex.h>
-#include <stdint.h>
 #include <syscall.h>
 
 #include <atomic>
+#include <cstdint>
 
 #include "absl/base/config.h"
 #include "absl/flags/flag.h"

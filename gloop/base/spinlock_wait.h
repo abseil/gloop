@@ -18,12 +18,13 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-#ifndef BASE_SPINLOCK_WAIT_H_
-#define BASE_SPINLOCK_WAIT_H_
+#ifndef THIRD_PARTY_GLOOP_BASE_SPINLOCK_WAIT_H_
+#define THIRD_PARTY_GLOOP_BASE_SPINLOCK_WAIT_H_
 
-// Google3 developers should still #include "base/spinlock_wait.h".  Headers in
-// Abseil internal directories are not intended for public use.
+// Google3 developers should still #include
+// "gloop/base/spinlock_wait.h". Headers in Abseil internal
+// directories are not intended for public use.
 
 #include "absl/base/internal/spinlock_wait.h"  // IWYU pragma: export
 
-#endif  // BASE_SPINLOCK_WAIT_H_
+#endif  // THIRD_PARTY_GLOOP_BASE_SPINLOCK_WAIT_H_
