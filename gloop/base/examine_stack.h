@@ -37,7 +37,6 @@
 #include "absl/debugging/internal/examine_stack.h"
 #include "absl/flags/declare.h"
 #include "absl/functional/function_ref.h"
-#include "absl/log/log_streamer.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 

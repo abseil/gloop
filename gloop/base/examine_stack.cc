@@ -21,7 +21,6 @@
 #include "gloop/base/examine_stack.h"
 
 #include <inttypes.h>  // PRIxPTR
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -33,6 +32,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include <iterator>
 #include <memory>
 #include <ostream>
