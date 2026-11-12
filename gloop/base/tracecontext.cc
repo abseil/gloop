@@ -23,10 +23,9 @@
 
 #include "gloop/base/tracecontext.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
@@ -34,7 +33,6 @@
 #if BASE_HAVE_TRACECONTEXT
 
 #include "absl/base/internal/raw_logging.h"
-#include "absl/base/optimization.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/log/vlog_is_on.h"
