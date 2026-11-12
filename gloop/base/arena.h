@@ -264,7 +264,6 @@
 #include <string>  // so we can define astring
 #include <vector>
 
-#include "absl/base/attributes.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/strings/str_format.h"
