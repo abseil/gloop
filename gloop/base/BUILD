@@ -1970,7 +1970,6 @@ cc_library(
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/debugging:leak_check",
         "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
     ],

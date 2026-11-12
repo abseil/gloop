@@ -26,7 +26,6 @@
 #include <errno.h>
 #include <grp.h>
 #include <pwd.h>
-#include <sys/types.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -43,7 +42,6 @@
 #include "absl/base/thread_annotations.h"
 #include "absl/debugging/leak_check.h"
 #include "absl/flags/flag.h"
-#include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"

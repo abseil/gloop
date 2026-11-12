@@ -32,10 +32,10 @@
 #include <memory>
 #include <string>
 
-#include "absl/flags/flag.h"
+#include "absl/flags/declare.h"
 
 #ifndef SWIG
-extern absl::Flag<int32_t> FLAGS_nsscache_timeout;
+ABSL_DECLARE_FLAG(int32_t, nsscache_timeout);
 #endif
 
 bool LookupNameByUID(uid_t uid, std::string* username);
