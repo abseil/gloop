@@ -30,7 +30,7 @@
 //
 // While this is implemented via unique_ptr, this is not a hard guarantee; do
 // not look behind the typedef, or use release/reset.  Simply treat this as a
-// smart pointer as follows:
+// smart pointer, with implicit conversion to `std::shared_ptr` as follows:
 //
 //   struct Foo {
 //     int x;
@@ -45,6 +45,8 @@
 //   Foo* pointer = snapshot.get();
 //   int x = snapshot->x;
 //   std::string_view sv = snapshot->s;  // Safe while `snapshot` lives.
+//   // This is also fine.
+//   std::shared_ptr<const Foo> new_snapshot = view.Get();
 //
 //   // Not thread-safe: temporary Snapshot drops RCU lock at statement end.
 //   std::string_view bad_sv = view.Get()->s;  // Not thread-safe!
