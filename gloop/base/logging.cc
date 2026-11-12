@@ -20,9 +20,6 @@
 
 #include "gloop/base/logging.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <string>
 
 #include "absl/base/attributes.h"
@@ -36,8 +33,6 @@
 #include "absl/log/internal/flags.h"
 #include "absl/log/log.h"
 #include "absl/log/log_sink_registry.h"
-#include "absl/strings/str_format.h"
-#include "absl/strings/string_view.h"
 #include "gloop/base/commandlineflags.h"
 #include "gloop/base/config.h"
 #include "gloop/base/internal/logging.h"
