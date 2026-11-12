@@ -21,8 +21,12 @@
 #ifndef THIRD_PARTY_GLOOP_BASE_MOCK_TRACER_H_
 #define THIRD_PARTY_GLOOP_BASE_MOCK_TRACER_H_
 
+#include <cstdint>
+#include <memory>
+#include <optional>
 #include <string>
 
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "absl/types/source_location.h"
@@ -68,15 +72,34 @@ class MockTracer : public Tracer {
 
   MOCK_METHOD(void, SetMaxBytesToKeep, (int), (override));
   MOCK_METHOD(void, SetMaxBytesToKeepPerEntry, (int), (override));
+  MOCK_METHOD(void, SetSourceLocation, (uint64_t), (override));
+  MOCK_METHOD(std::optional<uint64_t>, source_location, (), (const, override));
 
   MOCK_METHOD(void, Attach, (base::TraceEntrySource*), (override));
+  MOCK_METHOD(bool, IsInteresting, (), (const, override));
   MOCK_METHOD(void, Detach, (base::TraceEntrySource*, bool), (override));
+  MOCK_METHOD(void, EmitPreformattedHTML, (IOBuffer*), (const, override));
   MOCK_METHOD(void, EmitTraceEntrySources, (base::TraceEntrySink*, bool),
               (const, override));
+
+  MOCK_METHOD(void, set_status, (absl::Status), (override));
+  MOCK_METHOD(absl::Status, status, (), (const, override));
+  MOCK_METHOD(void, SetErrorStatus, (), (override));
+  MOCK_METHOD(bool, GetErrorStatus, (), (const, override));
 
   MOCK_METHOD(void, AttachTraceConsumer, (base::TraceConsumer*), (override));
   MOCK_METHOD(perftools::tracing::TraceBuffer*, GetAnnotationMap, (),
               (override));
+  MOCK_METHOD(const perftools::tracing::TraceBuffer*, GetTraceBuffer,
+              (TraceBufferAccess), (const, override));
+  MOCK_METHOD(perftools::tracing::typed_annotation::Map*, GetTypedAnnotationMap,
+              (), (override));
+  // Keep the non-virtual const overload visible.
+  using Tracer::GetTypedAnnotationMap;
+  MOCK_METHOD(void, SetChildSampler,
+              (std::unique_ptr<base::ChildSampler>, ChildSamplerAccess),
+              (override));
+  MOCK_METHOD(base::ChildSampler*, GetChildSampler, (), (const, override));
 
   MOCK_METHOD(void, ChannelPrintFormattedStringImpl,
               (perftools::tracing::channels::ChannelID,

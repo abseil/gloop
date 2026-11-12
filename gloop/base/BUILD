@@ -2397,6 +2397,7 @@ cc_library(
         ":tracing_types",
         "//gloop:enforce_gloop_support",
         "//gloop/perftools/tracing:trace_source_location",
+        "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:source_location",
