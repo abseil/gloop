@@ -111,7 +111,7 @@ absl::Duration ComputeBackoff(absl::Duration min_delay,
   // large values that cap the second term, the random multiplier
   // can cause up to a 40% variation in the second term.
 
-  static const double kBackoffRandMult = 0.4;
+  constexpr double kBackoffRandMult = 0.4;
   const absl::Duration first_term = kBackoffRandMult * min_delay;
   absl::Duration uncapped_second_term = min_delay;
   while (previous_retries > 0 &&

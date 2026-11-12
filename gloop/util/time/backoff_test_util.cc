@@ -34,6 +34,45 @@ namespace {
 
 constexpr double kDefaultBackoffBase = 1.3;
 
+// This matcher compares a given duration to the possible range of backoff
+// durations.
+class DurationIsExpectedBackoffMatcher
+    : public testing::MatcherInterface<absl::Duration> {
+ public:
+  DurationIsExpectedBackoffMatcher(absl::Duration min_delay,
+                                   absl::Duration max_delay,
+                                   double backoff_base, int retries)
+      : min_delay_(min_delay),
+        max_delay_(max_delay),
+        backoff_base_(backoff_base),
+        retries_(retries),
+        range_(BackoffRange(min_delay, max_delay, backoff_base, retries)) {}
+
+  bool MatchAndExplain(absl::Duration d,
+                       testing::MatchResultListener*) const override {
+    return range_.first <= d && d <= range_.second;
+  }
+
+  void DescribeTo(std::ostream* os) const override {
+    *os << "is in range [" << range_.first << ',' << range_.second
+        << "] for min_delay = " << min_delay_ << ", max_delay = " << max_delay_
+        << ", backoff_base = " << backoff_base_ << ", retries = " << retries_;
+  }
+
+  void DescribeNegationTo(std::ostream* os) const override {
+    *os << "is not in range [" << range_.first << ',' << range_.second
+        << "] for min_delay = " << min_delay_ << ", max_delay = " << max_delay_
+        << ", backoff_base = " << backoff_base_ << ", retries = " << retries_;
+  }
+
+ private:
+  absl::Duration min_delay_;
+  absl::Duration max_delay_;
+  double backoff_base_;
+  int retries_;
+  std::pair<absl::Duration, absl::Duration> range_;
+};
+
 }  // namespace
 
 testing::AssertionResult IsExpectedBackoff(absl::Duration d,
@@ -42,12 +81,12 @@ testing::AssertionResult IsExpectedBackoff(absl::Duration d,
                                            double backoff_base, int retries) {
   const auto range = BackoffRange(min_delay, max_delay, backoff_base, retries);
   if (range.first <= d && d <= range.second) {
-    return ::testing::AssertionSuccess()
+    return testing::AssertionSuccess()
            << d << " is in range [" << range.first << ',' << range.second
            << "] for min_delay = " << min_delay << ", max_delay = " << max_delay
            << ", backoff_base = " << backoff_base << ", retries = " << retries;
   }
-  return ::testing::AssertionFailure()
+  return testing::AssertionFailure()
          << d << " is not in range [" << range.first << ',' << range.second
          << "] for min_delay = " << min_delay << ", max_delay = " << max_delay
          << ", backoff_base = " << backoff_base << ", retries = " << retries;
@@ -77,7 +116,7 @@ std::pair<absl::Duration, absl::Duration> BackoffRange(absl::Duration min_delay,
   // ComputeBackoff changes. If ComputeBackoff is changed
   // without changing this code, tests using this lib will start failing unless
   // the new impl only shrinks the expected range.
-  static const double kBackoffRandMult = 0.4;
+  constexpr double kBackoffRandMult = 0.4;
   const absl::Duration first_term = kBackoffRandMult * min_delay;
   absl::Duration uncapped_second_term = min_delay;
   while (retries > 0 && uncapped_second_term < max_delay - first_term) {
@@ -91,8 +130,8 @@ std::pair<absl::Duration, absl::Duration> BackoffRange(absl::Duration min_delay,
   absl::Duration upper_bound = first_term + second_term;
 
   return {
-      std::min(std::max(lower_bound, min_delay), max_delay),
-      std::min(std::max(upper_bound, min_delay), max_delay),
+      std::clamp(lower_bound, min_delay, max_delay),
+      std::clamp(upper_bound, min_delay, max_delay),
   };
 }
 
@@ -101,45 +140,6 @@ std::pair<absl::Duration, absl::Duration> BackoffRange(absl::Duration min_delay,
                                                        int retries) {
   return BackoffRange(min_delay, max_delay, kDefaultBackoffBase, retries);
 }
-
-// This matcher compares a given duration to the possible range of backoff
-// durations.
-class DurationIsExpectedBackoffMatcher
-    : public testing::MatcherInterface<absl::Duration> {
- public:
-  DurationIsExpectedBackoffMatcher(absl::Duration min_delay,
-                                   absl::Duration max_delay,
-                                   double backoff_base, int retries)
-      : min_delay_(min_delay),
-        max_delay_(max_delay),
-        backoff_base_(backoff_base),
-        retries_(retries),
-        range_(BackoffRange(min_delay, max_delay, backoff_base, retries)) {}
-
-  bool MatchAndExplain(absl::Duration d,
-                       testing::MatchResultListener*) const override {
-    return range_.first <= d && d <= range_.second;
-  }
-
-  void DescribeTo(::std::ostream* os) const override {
-    *os << "is in range [" << range_.first << ',' << range_.second
-        << "] for min_delay = " << min_delay_ << ", max_delay = " << max_delay_
-        << ", backoff_base = " << backoff_base_ << ", retries = " << retries_;
-  }
-
-  void DescribeNegationTo(::std::ostream* os) const override {
-    *os << "is not in range [" << range_.first << ',' << range_.second
-        << "] for min_delay = " << min_delay_ << ", max_delay = " << max_delay_
-        << ", backoff_base = " << backoff_base_ << ", retries = " << retries_;
-  }
-
- private:
-  absl::Duration min_delay_;
-  absl::Duration max_delay_;
-  double backoff_base_;
-  int retries_;
-  std::pair<absl::Duration, absl::Duration> range_;
-};
 
 testing::Matcher<absl::Duration> DurationIsExpectedBackoff(
     absl::Duration min_delay, absl::Duration max_delay, double backoff_base,
