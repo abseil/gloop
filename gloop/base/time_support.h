@@ -22,7 +22,6 @@
 
 #ifndef THIRD_PARTY_GLOOP_BASE_TIME_SUPPORT_H_
 #define THIRD_PARTY_GLOOP_BASE_TIME_SUPPORT_H_
-#include <sys/types.h>
 #include <time.h>
 
 #include <cstdint>
