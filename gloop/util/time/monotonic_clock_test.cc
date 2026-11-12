@@ -28,6 +28,7 @@
 #include "absl/base/log_severity.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/flags/flag.h"
+#include "absl/functional/any_invocable.h"
 #include "absl/functional/bind_front.h"
 #include "absl/log/log.h"
 #include "absl/log/scoped_mock_log.h"
