@@ -21,7 +21,7 @@
 #ifndef THIRD_PARTY_GLOOP_BASE_AUXILIARY_PARSED_PROCESS_STAT_H_
 #define THIRD_PARTY_GLOOP_BASE_AUXILIARY_PARSED_PROCESS_STAT_H_
 
-// IWYU pragma: private, include "base/sysinfo.h"
+// IWYU pragma: private, include "gloop/base/sysinfo.h"
 
 #include <cstddef>
 #include <cstdint>
