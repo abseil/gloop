@@ -76,10 +76,11 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/casts.h"
+#include "absl/base/config.h"  // IWYU pragma: keep
 #include "absl/base/const_init.h"
-#include "absl/base/internal/direct_mmap.h"  // For direct mmap
 #include "absl/base/log_severity.h"
 #include "absl/base/no_destructor.h"
+#include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/debugging/leak_check.h"
@@ -138,6 +139,10 @@
 #include "gloop/util/gtl/unique_array.h"
 #include "gloop/util/priority/io-priority.h"
 #include "tcmalloc/malloc_extension.h"
+
+#ifndef ABSL_HAVE_THREAD_SANITIZER
+#include "absl/base/internal/direct_mmap.h"  // For direct mmap
+#endif
 
 #ifdef MAP_STACK
 // Linux specific, available since 2.6.27 and glibc-2.19
@@ -1225,6 +1230,34 @@ static bool SetUpSignalAltStack(stack_t* sigstk) {
 #endif
 }
 
+namespace {
+
+void* absl_nullable MmapAltStack(size_t length) {
+#ifdef ABSL_HAVE_THREAD_SANITIZER
+  // Under ThreadSanitizer, use hooked mmap/munmap so TSan resets and clears
+  // shadow memory across alternate signal stack mappings and unmappings,
+  // avoiding false positive data races when addresses are reused.
+  return mmap(nullptr, length, PROT_READ | PROT_WRITE,
+              MAP_PRIVATE | MAP_ANONYMOUS | THREAD_MAP_STACK, -1, 0);
+#else
+  // NOLINTNEXTLINE(abseil-no-internal-dependencies)
+  return absl::base_internal::DirectMmap(
+      nullptr, length, PROT_READ | PROT_WRITE,
+      MAP_PRIVATE | MAP_ANONYMOUS | THREAD_MAP_STACK, -1, 0);
+#endif
+}
+
+int MunmapAltStack(void* absl_nonnull addr, size_t length) {
+#ifdef ABSL_HAVE_THREAD_SANITIZER
+  return munmap(addr, length);
+#else
+  // NOLINTNEXTLINE(abseil-no-internal-dependencies)
+  return absl::base_internal::DirectMunmap(addr, length);
+#endif
+}
+
+}  // namespace
+
 LiveThread::~LiveThread() {
   // Remove the thread from the live thread list.
 
@@ -1256,8 +1289,8 @@ LiveThread::~LiveThread() {
                    "We may be executing on it; leaking it.",
                    strerror(errno));
     } else {
-      PCHECK(absl::base_internal::DirectMunmap(alt_signal_stack_addr_,
-                                               alt_signal_stack_size_) != -1);
+      PCHECK(MunmapAltStack(alt_signal_stack_addr_, alt_signal_stack_size_) !=
+             -1);
     }
   }
 }
@@ -1335,10 +1368,8 @@ void SetupAlternateSignalHandlerStack(LiveThread* thread_info) {
   // Handlers for other signals like SIGPROF run on the main stack.
   stack_t sigstk = {};
   sigstk.ss_size = GetRequiredAlternateSignalStackSize();
-  sigstk.ss_sp = absl::base_internal::DirectMmap(
-      nullptr, sigstk.ss_size, PROT_READ | PROT_WRITE,
-      MAP_PRIVATE | MAP_ANONYMOUS | THREAD_MAP_STACK, -1, 0);
-  if (sigstk.ss_sp == MAP_FAILED) {
+  sigstk.ss_sp = MmapAltStack(sigstk.ss_size);
+  if (sigstk.ss_sp == MAP_FAILED || sigstk.ss_sp == nullptr) {
     ABSL_RAW_LOG(FATAL, "mmap for alternate signal stack: %s", strerror(errno));
   }
   if (!SetUpSignalAltStack(&sigstk)) {

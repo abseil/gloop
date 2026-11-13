@@ -23,6 +23,8 @@
 
 #include "gloop/thread/thread.h"
 
+#include <pthread.h>
+#include <sched.h>
 #include <signal.h>
 #include <stdio.h>
 #include <sys/mman.h>
@@ -33,6 +35,7 @@
 #endif
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -46,8 +49,10 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"  // IWYU pragma: keep
 #include "absl/base/log_severity.h"
 #include "absl/base/no_destructor.h"
+#include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/cleanup/cleanup.h"
@@ -77,6 +82,7 @@
 #include "gloop/base/googleinit.h"
 #include "gloop/base/init_google.h"
 #include "gloop/base/port.h"
+#include "gloop/base/process_state.h"
 #include "gloop/base/raw_logging.h"
 #include "gloop/base/signal-handler.h"
 #include "gloop/base/sysinfo.h"
@@ -118,12 +124,14 @@ class DeprecatedSingleThreadedTest {
 
 namespace {
 
+using ::benchmark::DoNotOptimize;
 using ::testing::Contains;
 using ::testing::ContainsRegex;
 using ::testing::ExplainMatchResult;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::IsSupersetOf;
+using ::testing::IsTrue;
 using ::testing::Not;
 using ::testing::NotNull;
 using ::testing::UnorderedElementsAreArray;
@@ -2272,6 +2280,185 @@ TEST(ThreadDeathTest, SetJoinableAfterStartCrashes) {
   EXPECT_DEATH_IF_SUPPORTED(t.SetJoinable(false), "Only call SetJoinable");
   t.Join();
 }
+
+#if defined(GOOGLE_HAVE_POSIX_SIGNAL_ALT_STACK) && \
+    defined(GOOGLE_ENABLE_SIGNAL_HANDLERS) && defined(__linux__)
+
+thread_local std::atomic<bool> g_thread_sigusr2_on_altstack{false};
+
+ABSL_ATTRIBUTE_NOINLINE void TouchThreadAltStackBuffer(
+    absl::Span<uint64_t> buf) {
+  for (size_t i = 0; i < buf.size(); ++i) {
+    buf[i] = 0xdeadbeefULL + i;
+  }
+}
+
+void ThreadSigusr2AltStackHandler(int /*sig*/,
+                                  siginfo_t* absl_nullable /*info*/,
+                                  void* absl_nullable /*ucontext*/) {
+  stack_t current_stack = {};
+  if (sigaltstack(nullptr, &current_stack) == 0 &&
+      (current_stack.ss_flags & SS_ONSTACK) != 0) {
+    g_thread_sigusr2_on_altstack.store(true, std::memory_order_relaxed);
+  }
+  uint64_t buf[768];
+  TouchThreadAltStackBuffer(buf);
+  DoNotOptimize(buf);
+}
+
+bool RaiseSigusr2OnThreadAltStack() {
+  g_thread_sigusr2_on_altstack.store(false, std::memory_order_relaxed);
+  raise(SIGUSR2);
+  return g_thread_sigusr2_on_altstack.load(std::memory_order_relaxed);
+}
+
+void WarmUpThreadAltStacks() {
+  constexpr int kWarmupThreads = 2;
+  std::array<std::optional<ClosureThread>, kWarmupThreads> threads;
+  for (std::optional<ClosureThread>& t : threads) {
+    t.emplace(thread::Options().set_joinable(true), "warmup_altstack",
+              []() { RaiseSigusr2OnThreadAltStack(); });
+  }
+  for (std::optional<ClosureThread>& t : threads) {
+    t->Start();
+  }
+  for (std::optional<ClosureThread>& t : threads) {
+    t->Join();
+  }
+}
+
+void* absl_nullable RunThreadUnitTestPthreadHelper(void* absl_nonnull arg) {
+  (*static_cast<absl::AnyInvocable<void()>* absl_nonnull>(arg))();
+  return nullptr;
+}
+
+class ScopedThreadUnitTestRawPthread {
+ public:
+  explicit ScopedThreadUnitTestRawPthread(
+      absl::AnyInvocable<void()>* absl_nonnull fn) {
+    PCHECK(pthread_create(&tid_, nullptr, &RunThreadUnitTestPthreadHelper,
+                          fn) == 0);
+  }
+
+  ScopedThreadUnitTestRawPthread(const ScopedThreadUnitTestRawPthread&) =
+      delete;
+  ScopedThreadUnitTestRawPthread& operator=(
+      const ScopedThreadUnitTestRawPthread&) = delete;
+
+  ~ScopedThreadUnitTestRawPthread() { Join(); }
+
+  void Join() {
+    if (!joined_) {
+      PCHECK(pthread_join(tid_, nullptr) == 0);
+      joined_ = true;
+    }
+  }
+
+ private:
+  pthread_t tid_ = {};
+  bool joined_ = false;
+};
+
+bool RunThreadSignalOnAltStackAfterUnalignedMunmap(size_t unaligned_size) {
+  // Map multiple unaligned regions of (altstack_size - page_size + 320) bytes
+  // so the kernel rounds each VMA up to altstack_size while TSan's
+  // MemoryRangeSet marks the trailing 320 bytes in the top page as written by
+  // driver_a. Unmapping with the same unaligned size frees all altstack_size
+  // pages in the kernel, but TSan's DontNeedShadowFor rounds down to shadow
+  // page boundaries and leaves stale mmap write shadow on the top page.
+  constexpr size_t kNumSlabs = 8;
+
+  // Use a raw pthread for driver_a (no LiveThread altstack or ThreadIdentity
+  // freelist synchronization), start driver_b before driver_a unmaps, and
+  // coordinate exclusively with relaxed atomics so TSan adds no happens-before.
+  std::atomic<int> driver_b_ready{0};
+  std::atomic<int> driver_a_unmapped{0};
+  std::atomic<int> driver_b_done{0};
+  bool worker_b_on_altstack = false;
+
+  absl::AnyInvocable<void()> driver_a_fn = [&]() {
+    while (driver_b_ready.load(std::memory_order_relaxed) == 0) {
+      sched_yield();
+    }
+    std::array<void* absl_nullable, kNumSlabs> slabs{};
+    for (void* absl_nullable& slab : slabs) {
+      slab = mmap(nullptr, unaligned_size, PROT_READ | PROT_WRITE,
+                  MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+      PCHECK(slab != MAP_FAILED && slab != nullptr);
+    }
+    for (void* absl_nullable slab : slabs) {
+      if (slab != nullptr) {
+        PCHECK(munmap(slab, unaligned_size) == 0);
+      }
+    }
+    driver_a_unmapped.store(1, std::memory_order_relaxed);
+    while (driver_b_done.load(std::memory_order_relaxed) == 0) {
+      sched_yield();
+    }
+  };
+
+  absl::AnyInvocable<void()> driver_b_fn = [&]() {
+    driver_b_ready.store(1, std::memory_order_relaxed);
+    while (driver_a_unmapped.load(std::memory_order_relaxed) == 0) {
+      sched_yield();
+    }
+    ClosureThread worker_b(
+        thread::Options().set_joinable(true), "worker_b",
+        [&]() { worker_b_on_altstack = RaiseSigusr2OnThreadAltStack(); });
+    worker_b.Start();
+    worker_b.Join();
+    driver_b_done.store(1, std::memory_order_relaxed);
+  };
+
+  ScopedThreadUnitTestRawPthread driver_b(&driver_b_fn);
+  ScopedThreadUnitTestRawPthread driver_a(&driver_a_fn);
+  driver_a.Join();
+  driver_b.Join();
+  return worker_b_on_altstack;
+}
+
+TEST(ThreadAltStackTsanTest, ReusesPartiallyUnmappedRegionWithoutRace) {
+  absl::Cleanup restore_flags =
+      [orig_install = absl::GetFlag(FLAGS_install_signal_handlers),
+       orig_use_altstack =
+           absl::GetFlag(FLAGS_use_alternate_stack_for_signal_handlers),
+       orig_named = absl::GetFlag(FLAGS_install_named_signal_handlers)]() {
+        absl::SetFlag(&FLAGS_install_signal_handlers, orig_install);
+        absl::SetFlag(&FLAGS_use_alternate_stack_for_signal_handlers,
+                      orig_use_altstack);
+        absl::SetFlag(&FLAGS_install_named_signal_handlers, orig_named);
+      };
+  absl::SetFlag(&FLAGS_install_signal_handlers, true);
+  absl::SetFlag(&FLAGS_use_alternate_stack_for_signal_handlers, true);
+  if (absl::GetFlag(FLAGS_install_named_signal_handlers).empty()) {
+    absl::SetFlag(&FLAGS_install_named_signal_handlers, "failure");
+  }
+  ASSERT_TRUE(UseAlternateSignalHandlerStack());
+
+  struct sigaction sa = {};
+  sa.sa_sigaction = &ThreadSigusr2AltStackHandler;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
+  struct sigaction old_sa = {};
+  ASSERT_EQ(sigaction(SIGUSR2, &sa, &old_sa), 0);
+  absl::Cleanup restore_sigusr2 = [&old_sa]() {
+    sigaction(SIGUSR2, &old_sa, nullptr);
+  };
+
+  WarmUpThreadAltStacks();
+
+  const size_t page_size = static_cast<size_t>(getpagesize());
+  const size_t altstack_size =
+      static_cast<size_t>(GetRequiredAlternateSignalStackSize());
+  ASSERT_GT(altstack_size, page_size);
+  ASSERT_EQ(altstack_size % page_size, 0);
+
+  EXPECT_THAT(RunThreadSignalOnAltStackAfterUnalignedMunmap(altstack_size -
+                                                            page_size + 320),
+              IsTrue());
+}
+
+#endif  // GOOGLE_HAVE_POSIX_SIGNAL_ALT_STACK && ...
 
 }  // namespace
 
