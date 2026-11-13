@@ -153,6 +153,19 @@ cc_library(
 )
 
 cc_test(
+    name = "mt_random_benchmark",
+    size = "small",
+    srcs = ["mt_random_benchmark.cc"],
+    deps = [
+        ":mt_random",
+        "//gloop:gloop_test_main",
+        "@abseil-cpp//absl/strings:string_view",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest",
+    ],
+)
+
+cc_test(
     name = "mt_random_unittest",
     size = "small",
     srcs = ["mt_random_unittest.cc"],
@@ -161,6 +174,7 @@ cc_test(
         ":secure_random_testutils",
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/strings:string_view",
         "@fuzztest//fuzztest",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
