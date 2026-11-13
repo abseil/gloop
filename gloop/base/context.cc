@@ -25,6 +25,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -106,6 +107,28 @@ namespace {
 STATIC_THREAD_LOCAL_WITH_CONSTRUCTOR_ARGS(Context, per_thread_context, ());
 
 Context* InlineCurrent() { return per_thread_context.pointer(); }
+
+// Temporarily hide `current` (which must be the current thread's context) from
+// signal handlers while calling `f` to mutate it in place.
+//
+// `CurrentTraceContextNoAlloc` may be called from a signal handler at any time,
+// and in-place mutations of `Context` or `TraceContext` (moves, copies, and
+// swaps) are not atomic: an interrupting signal handler could otherwise observe
+// a moved-from, partially constructed, or sheared trace context. Installing a
+// temporary default-constructed `Context` ensures signal handlers only ever
+// observe the context before the mutation, a background context, or the context
+// after the mutation.
+template <typename F>
+std::invoke_result_t<F> MutateCurrentContext(Context* absl_nonnull current,
+                                             F&& f) {
+  DCHECK_EQ(current, per_thread_context.safe_pointer());
+  Context background;
+  per_thread_context.set_pointer(&background);
+  const absl::Cleanup restore = [current] {
+    per_thread_context.set_pointer(current);
+  };
+  return std::invoke(std::forward<F>(f));
+}
 
 }  // namespace
 
@@ -202,7 +225,7 @@ ABSL_XRAY_ALWAYS_INSTRUMENT void SwapCurrentContext(Context* c) {
   Context* current = InlineCurrent();
   NotifyTraceContextChanging(current->trace(), c->trace());
   current->trace()->BeforeSwapCurrent(ContextAccess(), c->trace_context());
-  swap(*current, *c);
+  MutateCurrentContext(current, [&] { swap(*current, *c); });
   current->trace()->AfterSwapCurrent(base::ContextAccess());
 }
 
@@ -210,7 +233,7 @@ ABSL_XRAY_ALWAYS_INSTRUMENT void RestoreCurrentContext(Context* c) {
   using std::swap;
   Context* current = InlineCurrent();
   current->trace()->BeforeRestoreCurrent(ContextAccess(), *c->trace());
-  *current = std::move(*c);
+  MutateCurrentContext(current, [&] { *current = std::move(*c); });
   current->trace()->AfterRestoreCurrent(ContextAccess());
 }
 
@@ -221,7 +244,7 @@ ABSL_XRAY_ALWAYS_INSTRUMENT void SetThreadContext(
   NotifyTraceContextChanging(current->trace(), context.trace());
   TraceContext* trace = current->trace();
   trace->BeforeSetThreadContext(access, context.trace_context(), label);
-  *current = std::move(context);
+  MutateCurrentContext(current, [&] { *current = std::move(context); });
   trace->AfterSetThreadContext(access, label);
 }
 
@@ -233,7 +256,7 @@ Context ExchangeThreadContext(ThreadContextAccess access, Context context,
   NotifyTraceContextChanging(current->trace(), context.trace());
   TraceContext* trace = current->trace();
   trace->BeforeExchangeThreadContext(access, context.trace_context(), label);
-  swap(*current, context);
+  MutateCurrentContext(current, [&] { swap(*current, context); });
   trace->AfterExchangeThreadContext(access, label);
   return context;
 }
@@ -294,39 +317,47 @@ WithContext::~WithContext() {
 
 WithTraceContext::WithTraceContext(const TraceContext& switch_to,
                                    perftools::tracing::StringRef label) {
-  TraceContext* current = InlineCurrent()->trace();
+  Context* current_context = InlineCurrent();
+  TraceContext* current = current_context->trace();
   current->BeforeSwapCurrent(ContextAccess(), switch_to);
-  if (&switch_to != current) {
-    new (&previous_) TraceContext(std::move(*current));
-    current = new (current) TraceContext(switch_to);
-  } else {
-    // This should be rare (and ideally illegal). Just make a copy of current.
-    new (&previous_) TraceContext(*current);
-  }
+  MutateCurrentContext(current_context, [&] {
+    if (&switch_to != current) {
+      new (&previous_) TraceContext(std::move(*current));
+      current = new (current) TraceContext(switch_to);
+    } else {
+      // This should be rare (and ideally illegal). Just make a copy of current.
+      new (&previous_) TraceContext(*current);
+    }
+  });
   NotifyTraceContextChanging(&previous_, current);
   current->AfterSwapCurrent(ContextAccess(), label);
 }
 
 WithTraceContext::WithTraceContext(TraceContext&& switch_to,
                                    perftools::tracing::StringRef label) {
-  TraceContext* current = InlineCurrent()->trace();
+  Context* current_context = InlineCurrent();
+  TraceContext* current = current_context->trace();
   NotifyTraceContextChanging(current, &switch_to);
   current->BeforeSwapCurrent(ContextAccess(), switch_to);
-  if (&switch_to != current) {
-    new (&previous_) TraceContext(std::move(*current));
-    current = new (current) TraceContext(std::move(switch_to));
-  } else {
-    // Nobody should ever 'consume' the current context. Still, DTRT.
-    DLOG(FATAL) << "Illegal call consuming <CurrentTraceContext>";
-    new (&previous_) TraceContext(*current);
-  }
+  MutateCurrentContext(current_context, [&] {
+    if (&switch_to != current) {
+      new (&previous_) TraceContext(std::move(*current));
+      current = new (current) TraceContext(std::move(switch_to));
+    } else {
+      // Nobody should ever 'consume' the current context. Still, DTRT.
+      DLOG(FATAL) << "Illegal call consuming <CurrentTraceContext>";
+      new (&previous_) TraceContext(*current);
+    }
+  });
   current->AfterSwapCurrent(ContextAccess(), label);
 }
 
 WithTraceContext::~WithTraceContext() {
-  TraceContext* current = InlineCurrent()->trace();
+  Context* current_context = InlineCurrent();
+  TraceContext* current = current_context->trace();
   current->BeforeRestoreCurrent(ContextAccess(), previous_);
-  *current = std::move(previous_);
+  MutateCurrentContext(current_context,
+                       [&] { *current = std::move(previous_); });
   current->AfterRestoreCurrent(ContextAccess());
   DCHECK(!previous_.CanRecordAnnotations() &&
          !previous_.has_sync_tracer());  // NOLINT

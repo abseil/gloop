@@ -198,6 +198,9 @@ class StaticThreadLocalImpl {
     // safe_pointer, for the same reason as in the method above.
     std::atomic_signal_fence(std::memory_order_release);
     Derived::Var().value.store(obj, std::memory_order_relaxed);
+    // Keep later writes to the previous object from being reordered before
+    // the store above, where a signal handler could still observe them.
+    std::atomic_signal_fence(std::memory_order_seq_cst);
   }
 
   T& get() const { return *pointer(); }
