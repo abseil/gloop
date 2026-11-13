@@ -564,13 +564,17 @@ size_t ChooseHasher(const T& x) {
 // ----------------------------------------------------------------------
 uint64_t FingerprintReferenceImplementation(const char* s, size_t len);
 uint64_t FingerprintInterleavedImplementation(const char* s, size_t len);
-inline uint64_t Fingerprint(const char* s, size_t len) {
-  if (sizeof(s) == 8) {  // 64-bit systems have 8-byte pointers.
+inline uint64_t Fingerprint(absl::string_view s) {
+  if (sizeof(s.data()) == 8) {  // 64-bit systems have 8-byte pointers.
     // The better choice when we have a decent number of registers.
-    return FingerprintInterleavedImplementation(s, len);
+    return FingerprintInterleavedImplementation(s.data(), s.size());
   } else {
-    return FingerprintReferenceImplementation(s, len);
+    return FingerprintReferenceImplementation(s.data(), s.size());
   }
+}
+ABSL_DEPRECATE_AND_INLINE()
+inline uint64_t Fingerprint(const char* s, size_t len) {
+  return Fingerprint(absl::string_view(s, len));
 }
 
 // Routine that combines together the hi/lo part of a fingerprint
@@ -584,9 +588,6 @@ inline uint64_t CombineFingerprintHalves(uint64_t hi, uint32_t lo) {
   return result ^ uint64_t{0x130f9bef94a0a928};
 }
 
-inline uint64_t Fingerprint(absl::string_view s) {
-  return Fingerprint(s.data(), s.size());
-}
 inline uint64_t Fingerprint(char c) {
   return Hash64NumWithSeed(static_cast<uint64_t>(static_cast<unsigned char>(c)),
                            MIX64);
