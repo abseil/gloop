@@ -180,7 +180,7 @@ TEST(CMemsetTest, WorksForStaticallySizedArrays) {
   EXPECT_THAT(a, ElementsAre(0, 0, 0, 0));
 
   char b[4] = {1, 2, 3, 4};
-  gtl::c_memset(b, '9');
+  absl::c_fill(b, '9');
   EXPECT_THAT(b, ElementsAre('9', '9', '9', '9'));
 }
 
