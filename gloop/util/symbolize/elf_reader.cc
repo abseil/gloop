@@ -1755,7 +1755,7 @@ ElfReader::ElfReader(const absl::string_view path, size_t off,
   if (path == "[vdso]") return;
   if (path == "[vsyscall]") return;
 
-  fd_ = TEMP_FAILURE_RETRY(open(path_.c_str(), O_RDONLY));
+  fd_ = TEMP_FAILURE_RETRY(open(path_.c_str(), O_RDONLY | O_CLOEXEC));
   std::string proc_self_exe = "/proc/self/exe";
   testing::testvalue::Adjust("elf_reader_proc_self_exe", &proc_self_exe);
   if (fd_ == -1 && path == proc_self_exe) {
@@ -2157,10 +2157,11 @@ static bool IsNonStrippedELFBinaryImpl(const absl::string_view path,
 // Helper for the IsNon[Debug]StrippedELFBinary functions.
 static bool IsNonStrippedELFBinaryHelper(const std::string& path,
                                          bool debug_only) {
-  const int fd = TEMP_FAILURE_RETRY(open(path.c_str(), O_RDONLY));
+  int fd = TEMP_FAILURE_RETRY(open(path.c_str(), O_RDONLY | O_CLOEXEC));
   if (fd == -1) {
     return false;
   }
+  testing::testvalue::Adjust("elf_reader_non_stripped_fd", &fd);
 
   if (IsNonStrippedELFBinaryImpl<Elf32>(path, fd, debug_only) ||
       IsNonStrippedELFBinaryImpl<Elf64>(path, fd, debug_only)) {

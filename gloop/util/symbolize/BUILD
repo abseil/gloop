@@ -125,6 +125,7 @@ cc_test(
         "//gloop/base:log_file_flags",
         "//gloop/base:proc_maps",
         "//gloop/base:strerror",
+        "//gloop/testing/production_stub:testvalue",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base:log_severity",
         "@abseil-cpp//absl/flags:flag",

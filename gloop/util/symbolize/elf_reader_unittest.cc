@@ -20,10 +20,14 @@
 
 #include "gloop/util/symbolize/elf_reader.h"
 
+#include <dirent.h>
 #include <elf.h>
 #include <endian.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <cerrno>
@@ -48,6 +52,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/match.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
@@ -55,6 +60,7 @@
 #include "gloop/base/log_file_flags.h"
 #include "gloop/base/proc_maps.h"
 #include "gloop/base/strerror.h"
+#include "gloop/testing/production_stub/testvalue.h"
 #include "gloop/util/symbolize/symbolize-inl.h"
 #include "gloop/util/symbolize/symbolize.h"
 #include "gmock/gmock.h"
@@ -137,6 +143,74 @@ TEST(ElfReader, IsNativeElfFile) {
       }
     }
   }
+}
+
+// Returns the file descriptors open in this process that refer to the same
+// file (device and inode) as `path`.
+std::vector<int> FdsReferringTo(const std::string& path) {
+  struct stat target;
+  PCHECK(stat(path.c_str(), &target) == 0) << path;
+  std::vector<int> fds;
+  DIR* dir = opendir("/proc/self/fd");
+  PCHECK(dir != nullptr);
+  while (const struct dirent* entry = readdir(dir)) {
+    int fd;
+    struct stat st;
+    if (absl::SimpleAtoi(entry->d_name, &fd) && fstat(fd, &st) == 0 &&
+        st.st_dev == target.st_dev && st.st_ino == target.st_ino) {
+      fds.push_back(fd);
+    }
+  }
+  PCHECK(closedir(dir) == 0);
+  return fds;
+}
+
+TEST(ElfReader, OpensFileWithCloexec) {
+  // Use a freshly created file that nothing else has open, so that any
+  // descriptor referring to it was opened by ElfReader, regardless of what
+  // other threads in this process are doing. The contents don't matter:
+  // ElfReader keeps the file open for its lifetime even if it isn't ELF.
+  std::string path =
+      absl::StrCat(testing::TempDir(), "elf_reader_cloexec_XXXXXX");
+  const int tmp_fd = mkstemp(path.data());
+  ASSERT_TRUE(tmp_fd != -1)  // NOLINT(readability/check)
+      << base::StrError(errno);
+  ASSERT_EQ(close(tmp_fd), 0);
+
+  ElfReader reader(path);
+  const std::vector<int> fds = FdsReferringTo(path);
+  ASSERT_FALSE(fds.empty()) << "ElfReader has no descriptor open for " << path;
+  for (int fd : fds) {
+    const int fd_flags = fcntl(fd, F_GETFD);
+    ASSERT_TRUE(fd_flags != -1) << "fd=" << fd;  // NOLINT(readability/check)
+    EXPECT_TRUE((fd_flags & FD_CLOEXEC) != 0)    // NOLINT(readability/check)
+        << "FD_CLOEXEC is not set on fd " << fd;
+  }
+}
+
+TEST(ElfReader, IsNonStrippedELFBinaryOpensFileWithCloexec) {
+  std::string path =
+      absl::StrCat(testing::TempDir(), "elf_reader_non_stripped_XXXXXX");
+  const int tmp_fd = mkstemp(path.data());
+  ASSERT_TRUE(tmp_fd != -1)  // NOLINT(readability/check)
+      << base::StrError(errno);
+  ASSERT_EQ(close(tmp_fd), 0);
+
+  testing::testvalue::Enable();
+  int callback_calls = 0;
+  testing::testvalue::ScopedSetCallback<int> check_fd(
+      "elf_reader_non_stripped_fd", [&callback_calls](int* fd) {
+        ++callback_calls;
+        const int fd_flags = fcntl(*fd, F_GETFD);
+        ASSERT_TRUE(fd_flags != -1)  // NOLINT(readability/check)
+            << "fd=" << *fd;
+        EXPECT_TRUE((fd_flags & FD_CLOEXEC) != 0)  // NOLINT(readability/check)
+            << "FD_CLOEXEC is not set on fd " << *fd;
+      });
+  EXPECT_FALSE(ElfReader::IsNonStrippedELFBinary(path));
+  EXPECT_EQ(callback_calls, 1);
+  EXPECT_FALSE(ElfReader::IsNonDebugStrippedELFBinary(path));
+  EXPECT_EQ(callback_calls, 2);
 }
 
 TEST(ElfReader, NonexistentFile) {
