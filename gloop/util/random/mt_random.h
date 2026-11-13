@@ -50,6 +50,7 @@
 #include <cstdint>
 
 #include "absl/base/attributes.h"
+#include "absl/base/optimization.h"
 #include "absl/strings/string_view.h"
 #include "gloop/util/random/random_base.h"
 
@@ -71,7 +72,7 @@ class MTRandom : public RandomBase {
   explicit MTRandom(uint32_t seed);
 
   // Seed MTRandom using a string as seed.  Uses InitArray().
-  explicit MTRandom(const absl::string_view seed);
+  explicit MTRandom(absl::string_view seed);
 
   // Seed MTRandom using an array of uint32.  When using this initializer,
   // 'seed' should be well distributed random data of kMTSizeBytes bytes
@@ -82,27 +83,37 @@ class MTRandom : public RandomBase {
   MTRandom(const uint32_t* seed, int num_words);
 
   // Creates an MTRandom generator object that has been seeded using
-  // some weak random data.  (time of day, hostname, etc.).  Uses InitArray().
+  // some weak random data.  (time of day, hostname, etc.).
   MTRandom();
 
   // Disallow copy, however allow move.
   MTRandom(const MTRandom&) = delete;
   MTRandom& operator=(const MTRandom&) = delete;
-  MTRandom(MTRandom&&) = default;
-  MTRandom& operator=(MTRandom&&) = default;
+  MTRandom(MTRandom&&) noexcept = default;
+  MTRandom& operator=(MTRandom&&) noexcept = default;
 
-  ~MTRandom() override;
+  ~MTRandom() override = default;
 
   MTRandom* Clone() const override;
 
   ABSL_DEPRECATED("Use absl::Uniform<uint8>(gen) instead.")
-  uint8_t Rand8() override;
+  uint8_t Rand8() override { return NextByte(); }
   ABSL_DEPRECATED("Use absl::Uniform<uint16>(gen) instead.")
-  uint16_t Rand16() override;
+  uint16_t Rand16() override {
+    const uint16_t rv = NextByte();
+    return static_cast<uint16_t>((rv << 8) | NextByte());
+  }
   ABSL_DEPRECATED("Use absl::Uniform<uint32>(gen) instead.")
-  uint32_t Rand32() override;
+  uint32_t Rand32() override { return NextWord(); }
   ABSL_DEPRECATED("Use absl::Uniform<uint64>(gen) instead.")
-  uint64_t Rand64() override;
+  uint64_t Rand64() override {
+    const uint32_t idx = static_cast<uint32_t>(context_.randcnt);
+    if (ABSL_PREDICT_FALSE(idx >= static_cast<uint32_t>(kMTNumWords - 1))) {
+      return CycleAndRand64();
+    }
+    context_.randcnt = static_cast<int32_t>(idx + 2);
+    return (uint64_t{context_.buffer[idx]} << 32) | context_.buffer[idx + 1];
+  }
 
   static int SeedSize() { return kMTSizeBytes; }
 
@@ -116,7 +127,7 @@ class MTRandom : public RandomBase {
   // The semantics and restrictions are identical to those in the
   // corresponding constructors.
   void Reset(uint32_t seed);
-  void Reset(const absl::string_view seed);
+  void Reset(absl::string_view seed);
   void Reset(const uint32_t* seed, int num_words);
 
  private:
@@ -126,8 +137,8 @@ class MTRandom : public RandomBase {
   explicit MTRandom(const MTContext& context);
 
   // InitRaw: Initialize the MTRandom context using an array of raw
-  // uint32 values.  Requires length == SeedSize().
-  void InitRaw(const uint32_t* seed, int length);
+  // uint32 values.  Requires num_words == kMTNumWords.
+  void InitRaw(const uint32_t* seed, int num_words);
 
   // Initialize the MTRandom context using a 32-bit seed.  The seed
   // is distributed across the initial space.
@@ -136,22 +147,49 @@ class MTRandom : public RandomBase {
   // identical sequence is required, use InitRaw.
   void InitSeed(uint32_t seed);
 
-  // InitArray: Initialize the MTRandom context using an array of
-  // uint32 values.  The values will be mixed to form an initial seed.
-  void InitArray(const uint32_t* seed, int length);
+  // InitArray: Initialize the MTRandom context using a string seed as a
+  // sequence of little-endian uint32 values (final word zero-padded).
+  void InitArray(absl::string_view seed);
+
+  inline uint32_t NextWord() {
+    const uint32_t idx = static_cast<uint32_t>(context_.randcnt);
+    if (ABSL_PREDICT_FALSE(idx >= static_cast<uint32_t>(kMTNumWords))) {
+      return CycleAndRand32();
+    }
+    context_.randcnt = static_cast<int32_t>(idx + 1);
+    return context_.buffer[idx];
+  }
+
+  inline uint8_t NextByte() {
+    if (context_.poolsize == 0) {
+      context_.pool = NextWord();
+      context_.poolsize = 3;
+    } else {
+      context_.pool >>= 8;
+      --context_.poolsize;
+    }
+    return static_cast<uint8_t>(context_.pool & 0xffu);
+  }
+
+  // Slow paths of Rand32() and Rand64() when the current generation is
+  // exhausted (or only one word remains for Rand64()).
+  ABSL_ATTRIBUTE_NOINLINE uint32_t CycleAndRand32();
+  ABSL_ATTRIBUTE_NOINLINE uint64_t CycleAndRand64();
 
   // The MT context. This holds our RNG state and the current generation
-  // of generated numbers.
+  // of generated numbers. `tempered` occupies an existing padding byte after
+  // `poolsize`, keeping sizeof(MTRandom) == 2520 bytes unchanged.
   struct MTContext {
     int8_t poolsize;  // For giving back bytes.
-    int32_t randcnt;  // Count of remaining bytes.
+    bool tempered;    // Whether `buffer` holds pre-tempered words.
+    int32_t randcnt;  // Count of consumed words in buffer.
     uint32_t pool;
     uint32_t buffer[kMTNumWords];
   };
 
-  // This method cycles the MTContext and generates the next set of random
-  // numbers.
-  void Cycle();
+  // This method cycles the MTContext and generates the next pre-tempered set
+  // of random numbers.
+  ABSL_ATTRIBUTE_NOINLINE void Cycle();
 
   MTContext context_;
 };
