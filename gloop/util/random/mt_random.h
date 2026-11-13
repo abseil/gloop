@@ -50,6 +50,7 @@
 #include <cstdint>
 
 #include "absl/base/attributes.h"
+#include "absl/base/optimization.h"
 #include "absl/strings/string_view.h"
 #include "gloop/util/random/random_base.h"
 
@@ -88,10 +89,10 @@ class MTRandom : public RandomBase {
   // Disallow copy, however allow move.
   MTRandom(const MTRandom&) = delete;
   MTRandom& operator=(const MTRandom&) = delete;
-  MTRandom(MTRandom&&) = default;
-  MTRandom& operator=(MTRandom&&) = default;
+  MTRandom(MTRandom&&) noexcept = default;
+  MTRandom& operator=(MTRandom&&) noexcept = default;
 
-  ~MTRandom() override;
+  ~MTRandom() override = default;
 
   MTRandom* Clone() const override;
 
@@ -100,9 +101,18 @@ class MTRandom : public RandomBase {
   ABSL_DEPRECATED("Use absl::Uniform<uint16>(gen) instead.")
   uint16_t Rand16() override;
   ABSL_DEPRECATED("Use absl::Uniform<uint32>(gen) instead.")
-  uint32_t Rand32() override;
+  uint32_t Rand32() override { return NextWord(); }
   ABSL_DEPRECATED("Use absl::Uniform<uint64>(gen) instead.")
-  uint64_t Rand64() override;
+  uint64_t Rand64() override {
+    const uint32_t idx = static_cast<uint32_t>(context_.randcnt);
+    if (ABSL_PREDICT_TRUE(idx <= static_cast<uint32_t>(kMTNumWords - 2))) {
+      context_.randcnt = static_cast<int32_t>(idx + 2);
+      const uint64_t hi = TemperWord(context_.buffer[idx]);
+      return (hi << 32) | TemperWord(context_.buffer[idx + 1]);
+    }
+    const uint64_t hi = NextWord();
+    return (hi << 32) | NextWord();
+  }
 
   static int SeedSize() { return kMTSizeBytes; }
 
@@ -140,6 +150,24 @@ class MTRandom : public RandomBase {
   // uint32 values.  The values will be mixed to form an initial seed.
   void InitArray(const uint32_t* seed, int length);
 
+  static inline uint32_t TemperWord(uint32_t y) {
+    y ^= (y >> 11);
+    y ^= (y << 7) & 0x9d2c5680u;
+    y ^= (y << 15) & 0xefc60000u;
+    y ^= (y >> 18);
+    return y;
+  }
+
+  inline uint32_t NextWord() {
+    uint32_t idx = static_cast<uint32_t>(context_.randcnt);
+    if (ABSL_PREDICT_FALSE(idx >= static_cast<uint32_t>(kMTNumWords))) {
+      Cycle();
+      idx = 0;
+    }
+    context_.randcnt = static_cast<int32_t>(idx + 1);
+    return TemperWord(context_.buffer[idx]);
+  }
+
   // The MT context. This holds our RNG state and the current generation
   // of generated numbers.
   struct MTContext {
@@ -151,7 +179,7 @@ class MTRandom : public RandomBase {
 
   // This method cycles the MTContext and generates the next set of random
   // numbers.
-  void Cycle();
+  ABSL_ATTRIBUTE_NOINLINE void Cycle();
 
   MTContext context_;
 };
