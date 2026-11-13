@@ -1171,5 +1171,21 @@ void BM_CleanStringLineEndings(benchmark::State& state) {
 }
 BENCHMARK(BM_CleanStringLineEndings)->RangePair(1, 1 << 20, 16, 128);
 
+TEST(Escaping, b2a_bin) {
+  std::string b;
+  // put binary data in b, not ascii characters
+  b.append(1, 0);
+  b.append(1, 1);
+  b.append(1, 2);
+  b.append(1, 3);
+  b.append(1, 4);
+
+  std::string result;
+  result = strings::b2a_bin(b, true);
+  EXPECT_EQ(result, "0000000000000001000000100000001100000100");
+  result = strings::b2a_bin(b, false);
+  EXPECT_EQ(result, "0000000010000000010000001100000000100000");
+}
+
 }  // namespace
 }  // namespace strings

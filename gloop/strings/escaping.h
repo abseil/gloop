@@ -430,6 +430,14 @@ void CleanStringLineEndings(const std::string& src, std::string* dst,
 // Same as above, but transforms the argument in place.
 void CleanStringLineEndings(std::string* str, bool auto_end_last_line);
 
+// b2a_bin()
+//
+// Binary-to-Ascii binary conversion. This converts from.size() bytes of binary
+// to a 8*from.size() character representation (ascii '0' or '1'). The highest
+// order bit in each byte is returned first in the string if byte_order_msb is
+// set. Return value: 8*from.size() characters of ascii text
+std::string b2a_bin(const std::string& from, bool byte_order_msb);
+
 }  // namespace strings
 
 #endif  // THIRD_PARTY_GLOOP_STRINGS_ESCAPING_H_

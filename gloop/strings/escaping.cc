@@ -769,4 +769,16 @@ void CleanStringLineEndings(std::string* str, bool auto_end_last_line) {
   }
 }
 
+std::string b2a_bin(const std::string& from, bool byte_order_msb) {
+  std::string result;
+  result.reserve(from.size() * 8);
+  for (const auto byte : from) {
+    for (ptrdiff_t bit_offset = 0; bit_offset < 8; ++bit_offset) {
+      ptrdiff_t x = (byte_order_msb) ? 7 - bit_offset : bit_offset;
+      result.append(1, (byte & (1 << x)) ? '1' : '0');
+    }
+  }
+  return result;
+}
+
 }  // namespace strings
