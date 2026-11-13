@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Removing the following header is prohibited as it can introduce undefined
-// behavior.
-// clang-format off
-#include "gloop/enforce_gloop_support.h"
-// clang-format on
-
 // NOTE NOTE: This utility does not depend on //gloop/base, so that it can be
 // used to build //gloop/base itself. Because we don't create any threads
 // ourselves, this also means we need not be concerned with multithreading
