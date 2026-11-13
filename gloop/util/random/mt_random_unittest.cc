@@ -20,11 +20,18 @@
 
 #include "gloop/util/random/mt_random.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <iterator>
+#include <memory>
 #include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
 #include "absl/container/btree_set.h"
+#include "absl/strings/string_view.h"
 #include "fuzztest/fuzztest.h"
 #include "gloop/util/random/random_base_testutils.h"
 #include "gtest/gtest.h"
@@ -511,8 +518,690 @@ TEST(MTRandomTest, Regression_CloseStringsAreDifferent) {
 }
 
 // ---------------------------------------------------------------------------
+// Bit-exactness tests against a reference model: the original (eagerly seeded,
+// scalar) MTRandom implementation, transcribed verbatim.
+// ---------------------------------------------------------------------------
+
+class ReferenceMTRandom {
+ public:
+  static constexpr int kN = MTRandom::kMTNumWords;
+
+  explicit ReferenceMTRandom(uint32_t seed) { Reset(seed); }
+  explicit ReferenceMTRandom(absl::string_view seed) { Reset(seed); }
+  explicit ReferenceMTRandom(const uint32_t* seed) { Reset(seed); }
+
+  void Reset(uint32_t seed) {
+    Clear();
+    InitSeed(seed);
+  }
+
+  void Reset(absl::string_view seed_str) {
+    Clear();
+    // Little endian words, zero-padded.
+    const int num_words = static_cast<int>((seed_str.length() + 3) / 4);
+    std::vector<uint32_t> seed(num_words, 0);
+    for (size_t pos = 0; pos < seed_str.length(); ++pos) {
+      seed[pos / 4] |= uint32_t{static_cast<uint8_t>(seed_str[pos])}
+                       << (8 * (pos % 4));
+    }
+    InitArray(seed.data(), num_words);
+  }
+
+  void Reset(const uint32_t* seed) {
+    Clear();
+    std::copy(seed, seed + kN, mt_);
+    randcnt_ = kN;
+  }
+
+  uint8_t Rand8() {
+    if (poolsize_ == 0) {
+      pool_ = Rand32();
+      poolsize_ = 3;
+    } else {
+      pool_ >>= 8;
+      --poolsize_;
+    }
+    return pool_ & 0x000000ff;
+  }
+
+  uint16_t Rand16() {
+    uint16_t rv = Rand8();
+    return (rv << 8) | Rand8();
+  }
+
+  uint32_t Rand32() {
+    if (randcnt_ >= kN) {
+      Cycle();
+    }
+    uint32_t y = mt_[randcnt_++];
+    y ^= (y >> 11);
+    y ^= (y << 7) & 0x9d2c5680;
+    y ^= (y << 15) & 0xefc60000;
+    y ^= (y >> 18);
+    return y;
+  }
+
+  uint64_t Rand64() {
+    uint64_t rv = Rand32();
+    return (rv << 32) | Rand32();
+  }
+
+ private:
+  static constexpr int kM = 397;
+
+  static uint32_t Mix30(uint32_t a) { return a ^ (a >> 30); }
+
+  static uint32_t Twist(uint32_t a, uint32_t b) {
+    static constexpr uint32_t kMatrix[] = {0x0, 0x9908b0df};
+    return (((a & 0x80000000) | (b & 0x7fffffff)) >> 1) ^ kMatrix[(b & 0x01)];
+  }
+
+  void Clear() {
+    poolsize_ = 0;
+    randcnt_ = 0;
+    pool_ = 0;
+    std::fill(std::begin(mt_), std::end(mt_), 0);
+  }
+
+  void InitSeed(uint32_t seed) {
+    pool_ = 0;
+    mt_[0] = seed;
+    for (int i = 1; i < kN; ++i) {
+      mt_[i] = 1664525 * Mix30(mt_[i - 1]) + i;
+    }
+    randcnt_ = kN;
+  }
+
+  void InitArray(const uint32_t* seed, const int seed_length) {
+    pool_ = 0;
+    uint32_t* mt = mt_;
+    mt[0] = 19650218UL;
+    for (int k = 1; k < kN; ++k) {
+      mt[k] = 1812433253UL * Mix30(mt[k - 1]) + k;
+    }
+    int i = 1;
+    for (int j = 0, k = std::max(kN, seed_length); k > 0; k--) {
+      mt[i] = (mt[i] ^ (Mix30(mt[i - 1]) * 1664525UL)) + seed[j] + j;
+      j = (j + 1) % seed_length;
+      if (++i >= kN) {
+        mt[0] = mt[kN - 1];
+        i = 1;
+      }
+    }
+    for (int k = kN - 1; k > 0; k--) {
+      mt[i] = (mt[i] ^ (Mix30(mt[i - 1]) * 1566083941UL)) - i;
+      if (++i >= kN) {
+        mt[0] = mt[kN - 1];
+        i = 1;
+      }
+    }
+    mt[0] = 0x80000000UL;
+    randcnt_ = kN;
+  }
+
+  void Cycle() {
+    const int kBack = -(kN - kM);
+    uint32_t* mt = mt_;
+    for (; mt < mt_ + (kN - kM); mt++) {
+      mt[0] = mt[kM] ^ Twist(mt[0], mt[1]);
+    }
+    for (; mt < mt_ + (kN - 1); mt++) {
+      mt[0] = mt[kBack] ^ Twist(mt[0], mt[1]);
+    }
+    mt[0] = mt[kBack] ^ Twist(mt[0], mt_[0]);
+    randcnt_ = 0;
+  }
+
+  int8_t poolsize_;
+  int32_t randcnt_;
+  uint32_t pool_;
+  uint32_t mt_[kN];
+};
+
+// Deterministic pseudo-random test inputs (SplitMix64).
+class TestSequence {
+ public:
+  explicit TestSequence(uint64_t seed) : state_(seed) {}
+
+  uint64_t Next64() {
+    uint64_t z = (state_ += uint64_t{0x9e3779b97f4a7c15});
+    z = (z ^ (z >> 30)) * uint64_t{0xbf58476d1ce4e5b9};
+    z = (z ^ (z >> 27)) * uint64_t{0x94d049bb133111eb};
+    return z ^ (z >> 31);
+  }
+  uint32_t Next32() { return static_cast<uint32_t>(Next64() >> 32); }
+
+  std::string Bytes(size_t length) {
+    std::string bytes(length, '\0');
+    for (char& c : bytes) c = static_cast<char>(Next64() >> 56);
+    return bytes;
+  }
+
+  std::vector<uint32_t> RawSeed() {
+    std::vector<uint32_t> seed(MTRandom::kMTNumWords);
+    for (uint32_t& word : seed) word = Next32();
+    return seed;
+  }
+
+ private:
+  uint64_t state_;
+};
+
+// Seeds exercising the high and low bits that the seeding computation treats
+// specially, and pseudo-random ones.
+std::vector<uint32_t> TestSeeds(int num_random) {
+  std::vector<uint32_t> seeds = {
+      0u,          1u,          2u,          3u,          4u,
+      5u,          471u,        327u,        12345u,      0x3fffffffu,
+      0x40000000u, 0x7ffffffeu, 0x7fffffffu, 0x80000000u, 0x80000001u,
+      0xbfffffffu, 0xc0000000u, 0x9e3779b9u, 0xfffffffeu, 0xffffffffu};
+  TestSequence sequence(num_random);
+  for (int i = 0; i < num_random; ++i) seeds.push_back(sequence.Next32());
+  return seeds;
+}
+
+// Numbers of words drawn around block and generation boundaries.
+std::vector<int> TestDrawCounts() {
+  std::vector<int> counts = {1, 3, 5, 7, 11, 100, 397, 500, 1000, 2000};
+  for (int boundary : {0, 8, 16, 32, 64, 128, 227, 228, 396, 397, 624, 1248}) {
+    for (int count = std::max(0, boundary - 2); count <= boundary + 2;
+         ++count) {
+      counts.push_back(count);
+    }
+  }
+  std::sort(counts.begin(), counts.end());
+  counts.erase(std::unique(counts.begin(), counts.end()), counts.end());
+  return counts;
+}
+
+// Returns whether the next `count` outputs of Rand32() are identical.
+testing::AssertionResult SameRand32(MTRandom& rng, ReferenceMTRandom& ref,
+                                    int count) {
+  for (int i = 0; i < count; ++i) {
+    const uint32_t expected = ref.Rand32();
+    const uint32_t actual = rng.Rand32();
+    if (actual != expected) {
+      return testing::AssertionFailure()
+             << "Rand32() #" << i << ": " << actual << " != " << expected;
+    }
+  }
+  return testing::AssertionSuccess();
+}
+
+// Returns whether the next `count` outputs of two generators are identical.
+testing::AssertionResult SameRand32(MTRandom& a, MTRandom& b, int count) {
+  for (int i = 0; i < count; ++i) {
+    const uint32_t expected = a.Rand32();
+    const uint32_t actual = b.Rand32();
+    if (actual != expected) {
+      return testing::AssertionFailure()
+             << "Rand32() #" << i << ": " << actual << " != " << expected;
+    }
+  }
+  return testing::AssertionSuccess();
+}
+
+// Applies the same pseudo-random sequence of Rand8(), Rand16(), Rand32() and
+// Rand64() calls to both generators, and returns whether the outputs match.
+testing::AssertionResult SameMixedOutputs(MTRandom& rng, ReferenceMTRandom& ref,
+                                          int count, uint64_t ops_seed) {
+  TestSequence ops(ops_seed);
+  for (int i = 0; i < count; ++i) {
+    uint64_t expected;
+    uint64_t actual;
+    switch (ops.Next64() % 4) {
+      case 0:
+        expected = ref.Rand8();
+        actual = rng.Rand8();
+        break;
+      case 1:
+        expected = ref.Rand16();
+        actual = rng.Rand16();
+        break;
+      case 2:
+        expected = ref.Rand32();
+        actual = rng.Rand32();
+        break;
+      default:
+        expected = ref.Rand64();
+        actual = rng.Rand64();
+        break;
+    }
+    if (actual != expected) {
+      return testing::AssertionFailure()
+             << "draw #" << i << ": " << actual << " != " << expected;
+    }
+  }
+  return testing::AssertionSuccess();
+}
+
+TEST(MTRandomReferenceTest, ReferenceModelMatchesExpectedOutput) {
+  ReferenceMTRandom from_raw(kSeed32);
+  ReferenceMTRandom from_string(
+      absl::string_view(kStringSeed, std::size(kStringSeed)));
+  for (int i = 0; i < std::size(kExpected32); ++i) {
+    EXPECT_EQ(kExpected32[i], from_raw.Rand32()) << i;
+    EXPECT_EQ(kExpected32[i], from_string.Rand32()) << i;
+  }
+}
+
+constexpr uint32_t ModInverse32(const uint32_t a) {
+  uint32_t inv = 1u;
+  for (int iter = 0; iter < 5; ++iter) {
+    inv *= 2u - a * inv;
+  }
+  return inv;
+}
+
+constexpr uint32_t Mix30Inv(const uint32_t a) { return a ^ (a >> 30); }
+
+constexpr uint32_t kSeedMul = 1664525u;
+constexpr uint32_t kSeedMulInv = ModInverse32(kSeedMul);
+constexpr uint32_t kLoop3Mul = 1566083941u;
+constexpr uint32_t kLoop3MulInv = ModInverse32(kLoop3Mul);
+static_assert(kSeedMul * kSeedMulInv == 1u);
+static_assert(kLoop3Mul * kLoop3MulInv == 1u);
+static_assert(Mix30Inv(Mix30Inv(0xdeadbeefu)) == 0xdeadbeefu);
+
+// Inverts mt[k] = kSeedMul * Mix30(mt[k - 1]) + k back to mt[0] so that
+// mt[target_index] == target_value.
+uint32_t SeedProducingWordAt(const int target_index,
+                             const uint32_t target_value) {
+  uint32_t x = target_value;
+  for (int k = target_index; k >= 1; --k) {
+    x = Mix30Inv((x - static_cast<uint32_t>(k)) * kSeedMulInv);
+  }
+  return x;
+}
+
+TEST(MTRandomReferenceTest, Uint32SeedCarryBoundarySeedsMatchReference) {
+  static_assert(sizeof(void*) != 8 || sizeof(MTRandom) == 2520,
+                "sizeof(MTRandom) must stay 2520 bytes on 64-bit platforms");
+  std::vector<uint32_t> boundary_seeds;
+  // Exact seeds forcing bit-29 carry in (A * y + i) at odd indices covering
+  // mt[1], mt[3], [4..15], [16..623], and the final odd index 621.
+  for (const int idx : {1, 3, 5, 15, 17, 621}) {
+    for (const uint32_t high_bits :
+         {0x00000000u, 0x40000000u, 0x80000000u, 0xc0000000u}) {
+      boundary_seeds.push_back(SeedProducingWordAt(idx, high_bits));
+      boundary_seeds.push_back(
+          SeedProducingWordAt(idx, high_bits + static_cast<uint32_t>(idx - 1)));
+    }
+  }
+  // Exact seeds forcing even-index words onto bit-30 carry boundaries.
+  for (const int idx : {2, 4, 622}) {
+    for (const uint32_t target :
+         {0x00000000u, 0x3fffffffu, 0x40000000u, 0x7fffffffu, 0x80000000u,
+          0xbfffffffu, 0xc0000000u, 0xffffffffu}) {
+      boundary_seeds.push_back(SeedProducingWordAt(idx, target));
+    }
+  }
+  MTRandom reused(1u);
+  for (const uint32_t seed : boundary_seeds) {
+    MTRandom rng(seed);
+    ReferenceMTRandom ref(seed);
+    EXPECT_TRUE(SameRand32(rng, ref, 2 * MTRandom::kMTNumWords + 10))
+        << "ctor seed " << seed;
+
+    reused.Rand8();
+    reused.Reset(seed);
+    ReferenceMTRandom reset_ref(seed);
+    EXPECT_TRUE(SameRand32(reused, reset_ref, 2 * MTRandom::kMTNumWords + 10))
+        << "Reset seed " << seed;
+  }
+}
+
+TEST(MTRandomReferenceTest, StringSeedLoop3BorrowBoundaryMatchesReference) {
+  constexpr int kN = MTRandom::kMTNumWords;
+  std::vector<uint32_t> mt(kN, 0u);
+  mt[0] = 19650218u;
+  for (int k = 1; k < kN; ++k) {
+    mt[k] = 1812433253u * Mix30Inv(mt[k - 1]) + static_cast<uint32_t>(k);
+  }
+  std::vector<uint32_t> seed_words(kN, 0u);
+  for (int j = 0; j < kN - 1; ++j) {
+    const int i = j + 1;
+    mt[i] = (mt[i] ^ (Mix30Inv(mt[i - 1]) * kSeedMul)) + seed_words[j] +
+            static_cast<uint32_t>(j);
+  }
+  const uint32_t mt0_after = mt[kN - 1];
+  const uint32_t base_term = mt[1] ^ (Mix30Inv(mt0_after) * kSeedMul);
+  const uint32_t mt2_after = mt[2];
+
+  // Force the first Loop 3 step (idx = 2, prev = q - 2) to borrow across bit
+  // 30 across all four top-2-bit quadrants.
+  MTRandom reused(1u);
+  for (const uint32_t target_q : {0x00000000u, 0x00000001u, 0x40000000u,
+                                  0x40000001u, 0x80000000u, 0xc0000000u}) {
+    const uint32_t desired_mt1 =
+        Mix30Inv((target_q ^ mt2_after) * kLoop3MulInv);
+    seed_words[kN - 1] =
+        desired_mt1 - base_term - static_cast<uint32_t>(kN - 1);
+    std::string seed_str(kN * sizeof(uint32_t), '\0');
+    for (int j = 0; j < kN; ++j) {
+      const uint32_t w = seed_words[j];
+      seed_str[j * 4 + 0] = static_cast<char>(w & 0xffu);
+      seed_str[j * 4 + 1] = static_cast<char>((w >> 8) & 0xffu);
+      seed_str[j * 4 + 2] = static_cast<char>((w >> 16) & 0xffu);
+      seed_str[j * 4 + 3] = static_cast<char>((w >> 24) & 0xffu);
+    }
+    MTRandom rng(seed_str);
+    ReferenceMTRandom ref(seed_str);
+    EXPECT_TRUE(SameRand32(rng, ref, 2 * kN + 10)) << "target_q=" << target_q;
+
+    reused.Rand8();
+    reused.Reset(seed_str);
+    ReferenceMTRandom reset_ref(seed_str);
+    EXPECT_TRUE(SameRand32(reused, reset_ref, 2 * kN + 10))
+        << "Reset target_q=" << target_q;
+  }
+}
+
+TEST(MTRandomReferenceTest, Uint32SeedMatchesReference) {
+  for (const uint32_t seed : TestSeeds(200)) {
+    MTRandom rng(seed);
+    ReferenceMTRandom ref(seed);
+    EXPECT_TRUE(SameRand32(rng, ref, 3 * MTRandom::kMTNumWords + 100))
+        << "seed " << seed;
+  }
+}
+
+TEST(MTRandomReferenceTest, Uint32SeedMixedOutputsMatchReference) {
+  for (const uint32_t seed : TestSeeds(20)) {
+    MTRandom rng(seed);
+    ReferenceMTRandom ref(seed);
+    EXPECT_TRUE(SameMixedOutputs(rng, ref, 5000, seed)) << "seed " << seed;
+  }
+}
+
+TEST(MTRandomReferenceTest, CloneAndMoveAfterAnyNumberOfDraws) {
+  for (const uint32_t seed : TestSeeds(4)) {
+    for (const int count : TestDrawCounts()) {
+      SCOPED_TRACE(testing::Message()
+                   << "seed " << seed << ", " << count << " draws");
+      MTRandom rng(seed);
+      ReferenceMTRandom ref(seed);
+      ASSERT_TRUE(SameRand32(rng, ref, count));
+
+      // A clone generates the same sequence as the original.
+      std::unique_ptr<MTRandom> clone(rng.Clone());
+      ReferenceMTRandom clone_ref = ref;
+      EXPECT_TRUE(SameRand32(*clone, clone_ref, 1500));
+
+      // So does a moved-to generator.
+      MTRandom moved(std::move(rng));
+      ReferenceMTRandom moved_ref = ref;
+      EXPECT_TRUE(SameRand32(moved, moved_ref, 700));
+      MTRandom assigned(~seed);
+      assigned.Rand32();
+      assigned = std::move(moved);
+      EXPECT_TRUE(SameRand32(assigned, moved_ref, 1500));
+    }
+  }
+}
+
+TEST(MTRandomReferenceTest, CloneWithPendingBytes) {
+  for (const int count : TestDrawCounts()) {
+    MTRandom rng(count);
+    ReferenceMTRandom ref(count);
+    for (int i = 0; i < count; ++i) {
+      ASSERT_EQ(ref.Rand8(), rng.Rand8());
+    }
+    std::unique_ptr<MTRandom> clone(rng.Clone());
+    ReferenceMTRandom clone_ref = ref;
+    EXPECT_TRUE(SameMixedOutputs(*clone, clone_ref, 3000, count));
+    EXPECT_TRUE(SameMixedOutputs(rng, ref, 3000, count + 1));
+  }
+}
+
+// Verifies that Reset(uint32_t) behaves as a freshly seeded generator, from
+// any state (including a non-empty Rand8() byte pool).
+TEST(MTRandomReferenceTest, ResetUint32FromAnyState) {
+  const std::vector<uint32_t> raw = TestSequence(1).RawSeed();
+  std::vector<std::unique_ptr<MTRandom>> generators;
+  for (const int count : {0, 1, 7, 8, 9, 64, 129, 624, 700}) {
+    for (const bool pending_bytes : {false, true}) {
+      std::vector<std::unique_ptr<MTRandom>> states;
+      states.push_back(std::make_unique<MTRandom>(count));
+      states.push_back(std::make_unique<MTRandom>(std::string(count + 1, 'x')));
+      states.push_back(std::make_unique<MTRandom>(raw.data(), raw.size()));
+      states.push_back(std::make_unique<MTRandom>());
+      for (std::unique_ptr<MTRandom>& rng : states) {
+        for (int i = 0; i < count; ++i) rng->Rand32();
+        if (pending_bytes) rng->Rand8();
+        generators.push_back(std::move(rng));
+      }
+    }
+  }
+  for (const uint32_t seed : TestSeeds(2)) {
+    for (std::unique_ptr<MTRandom>& rng : generators) {
+      rng->Reset(seed);
+      ReferenceMTRandom ref(seed);
+      ASSERT_TRUE(SameMixedOutputs(*rng, ref, 2000, seed)) << "seed " << seed;
+    }
+  }
+}
+
+TEST(MTRandomReferenceTest, ResetUint32AfterAnyNumberOfDraws) {
+  MTRandom rng(7);
+  for (const int count : TestDrawCounts()) {
+    for (const uint32_t seed :
+         {0u, 0xffffffffu, static_cast<uint32_t>(count)}) {
+      rng.Reset(seed);
+      ReferenceMTRandom ref(seed);
+      ASSERT_TRUE(SameRand32(rng, ref, count))
+          << "seed " << seed << ", " << count << " draws";
+    }
+  }
+}
+
+TEST(MTRandomReferenceTest, StringSeedMatchesReference) {
+  std::vector<size_t> lengths;
+  for (size_t length = 1; length <= 80; ++length) lengths.push_back(length);
+  for (size_t length : {255, 256, 257, 1023, 1024, 2492, 2493, 2495, 2496, 2497,
+                        2500, 4096, 4980, 4981, 4982, 4983, 4984, 4985, 9999}) {
+    lengths.push_back(length);
+  }
+  TestSequence sequence(3);
+  MTRandom reused(1u);
+  for (const size_t length : lengths) {
+    // Exercise every alignment of the seed data.
+    const std::string bytes = sequence.Bytes(length + 3);
+    for (size_t offset = 0; offset < 4; offset += (length < 100 ? 1 : 3)) {
+      const absl::string_view seed(bytes.data() + offset, length);
+      SCOPED_TRACE(testing::Message()
+                   << "length " << length << ", offset " << offset);
+      MTRandom rng(seed);
+      ReferenceMTRandom ref(seed);
+      EXPECT_TRUE(SameRand32(rng, ref, 2 * MTRandom::kMTNumWords + 10));
+
+      reused.Rand8();
+      reused.Reset(seed);
+      ReferenceMTRandom reused_ref(seed);
+      EXPECT_TRUE(SameMixedOutputs(reused, reused_ref, 300, length));
+    }
+  }
+}
+
+// Verifies that Reset(absl::string_view) behaves as a freshly seeded
+// generator, from any state, and that the result can be cloned or moved before
+// any output is requested.
+TEST(MTRandomReferenceTest, ResetStringFromAnyState) {
+  TestSequence sequence(5);
+  const std::vector<uint32_t> raw = sequence.RawSeed();
+  for (const size_t length : {1, 3, 4, 5, 64, 255, 256, 257, 1000}) {
+    const std::string seed = sequence.Bytes(length);
+    for (const int count : {0, 1, 8, 9, 624, 700}) {
+      std::vector<std::unique_ptr<MTRandom>> states;
+      states.push_back(std::make_unique<MTRandom>(count));
+      states.push_back(std::make_unique<MTRandom>(seed));
+      states.push_back(std::make_unique<MTRandom>(std::string(count + 1, 'y')));
+      states.push_back(std::make_unique<MTRandom>(raw.data(), raw.size()));
+      states.push_back(std::make_unique<MTRandom>());
+      for (std::unique_ptr<MTRandom>& rng : states) {
+        SCOPED_TRACE(testing::Message()
+                     << "length " << length << ", " << count << " draws");
+        for (int i = 0; i < count; ++i) rng->Rand32();
+        rng->Rand8();
+        rng->Reset(seed);
+        std::unique_ptr<MTRandom> clone(rng->Clone());
+        MTRandom moved(std::move(*rng));
+        ReferenceMTRandom ref(seed);
+        ReferenceMTRandom clone_ref(seed);
+        ASSERT_TRUE(SameMixedOutputs(moved, ref, 1500, length));
+        ASSERT_TRUE(SameMixedOutputs(*clone, clone_ref, 1500, length));
+      }
+    }
+  }
+}
+
+TEST(MTRandomReferenceTest, RawSeedMatchesReference) {
+  TestSequence sequence(4);
+  MTRandom reused(1u);
+  for (int i = 0; i < 20; ++i) {
+    const std::vector<uint32_t> seed = sequence.RawSeed();
+    MTRandom rng(seed.data(), seed.size());
+    ReferenceMTRandom ref(seed.data());
+    EXPECT_TRUE(SameMixedOutputs(rng, ref, 3000, i));
+
+    reused.Rand8();
+    reused.Reset(seed.data(), seed.size());
+    ReferenceMTRandom reused_ref(seed.data());
+    EXPECT_TRUE(SameRand32(reused, reused_ref, 2000));
+  }
+}
+
+TEST(MTRandomTest, DefaultConstructedCloneAndMove) {
+  for (const int count : TestDrawCounts()) {
+    MTRandom rng;
+    for (int i = 0; i < count; ++i) rng.Rand32();
+    std::unique_ptr<MTRandom> clone(rng.Clone());
+    std::unique_ptr<MTRandom> clone2(rng.Clone());
+    MTRandom moved(std::move(rng));
+    EXPECT_TRUE(SameRand32(moved, *clone, 1500)) << count;
+    std::unique_ptr<MTRandom> clone3(moved.Clone());
+    for (int i = 0; i < 1500; ++i) clone2->Rand32();
+    EXPECT_TRUE(SameRand32(*clone2, *clone3, 1500)) << count;
+  }
+}
+
+TEST(MTRandomTest, DefaultConstructedGeneratorsAreDistinct) {
+  constexpr int kNumGenerators = 1000;
+  absl::btree_set<uint64_t> first_outputs;
+  absl::btree_set<uint64_t> later_outputs;
+  for (int i = 0; i < kNumGenerators; ++i) {
+    MTRandom rng;
+    first_outputs.insert(rng.Rand64());
+    for (int j = 0; j < MTRandom::kMTNumWords; ++j) rng.Rand32();
+    later_outputs.insert(rng.Rand64());
+  }
+  EXPECT_EQ(first_outputs.size(), kNumGenerators);
+  EXPECT_EQ(later_outputs.size(), kNumGenerators);
+}
+
+TEST(MTRandomTest, StatisticsTestUint32) {
+  MTRandom rng(12345u);
+  EXPECT_TRUE(Statistics("MTRandom, uint32 seed", &rng));
+}
+
+TEST(MTRandomTest, MoveOperationsAreNothrowAndSelfMoveSafe) {
+  static_assert(std::is_nothrow_move_constructible_v<MTRandom>);
+  static_assert(std::is_nothrow_move_assignable_v<MTRandom>);
+  const std::vector<uint32_t> raw = TestSequence(9).RawSeed();
+  for (const int draws : {0, 1, 8, 64, 128, 624}) {
+    // uint32_t seed constructor.
+    MTRandom from_seed(42u);
+    ReferenceMTRandom ref_seed(42u);
+    ASSERT_TRUE(SameRand32(from_seed, ref_seed, draws));
+    MTRandom& self_ref = from_seed;
+    from_seed = std::move(self_ref);
+    EXPECT_TRUE(SameRand32(from_seed, ref_seed, 1000)) << draws;
+
+    // string_view seed constructor.
+    MTRandom from_str(pseed);
+    ReferenceMTRandom ref_str(pseed);
+    ASSERT_TRUE(SameRand32(from_str, ref_str, draws));
+    MTRandom& str_ref = from_str;
+    from_str = std::move(str_ref);
+    EXPECT_TRUE(SameRand32(from_str, ref_str, 1000)) << draws;
+
+    // Default weak-seed constructor.
+    MTRandom from_weak;
+    for (int i = 0; i < draws; ++i) from_weak.Rand32();
+    std::unique_ptr<MTRandom> weak_clone(from_weak.Clone());
+    MTRandom& weak_ref = from_weak;
+    from_weak = std::move(weak_ref);
+    EXPECT_TRUE(SameRand32(from_weak, *weak_clone, 1000)) << draws;
+
+    // Raw 624-word seed constructor.
+    MTRandom from_raw(raw.data(), raw.size());
+    ReferenceMTRandom ref_raw(raw.data());
+    ASSERT_TRUE(SameRand32(from_raw, ref_raw, draws));
+    MTRandom& raw_ref = from_raw;
+    from_raw = std::move(raw_ref);
+    EXPECT_TRUE(SameRand32(from_raw, ref_raw, 1000)) << draws;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Fuzz tests for MTRandom.
 // ---------------------------------------------------------------------------
+
+// Applies the operations encoded by `ops` to a generator seeded with `seed`,
+// and to the reference model.
+void Uint32SeedMatchesReference(uint32_t seed,
+                                const std::vector<uint8_t>& ops) {
+  auto rng = std::make_unique<MTRandom>(seed);
+  ReferenceMTRandom ref(seed);
+  for (size_t i = 0; i < ops.size(); ++i) {
+    switch (ops[i] % 9) {
+      case 0:
+        ASSERT_EQ(ref.Rand8(), rng->Rand8());
+        break;
+      case 1:
+        ASSERT_EQ(ref.Rand16(), rng->Rand16());
+        break;
+      case 2:
+        ASSERT_EQ(ref.Rand32(), rng->Rand32());
+        break;
+      case 3:
+        ASSERT_EQ(ref.Rand64(), rng->Rand64());
+        break;
+      case 4:
+        ASSERT_TRUE(SameRand32(*rng, ref, ops[i]));
+        break;
+      case 5:
+        rng.reset(rng->Clone());
+        break;
+      case 6:
+        rng = std::make_unique<MTRandom>(std::move(*rng));
+        break;
+      case 7: {
+        MTRandom other(seed + 1);
+        other = std::move(*rng);
+        *rng = std::move(other);
+        break;
+      }
+      default:
+        rng->Reset(seed ^ static_cast<uint32_t>(i));
+        ref.Reset(seed ^ static_cast<uint32_t>(i));
+        break;
+    }
+  }
+  ASSERT_TRUE(SameRand32(*rng, ref, 700));
+}
+FUZZ_TEST(MTRandomFuzzTest, Uint32SeedMatchesReference)
+    .WithDomains(fuzztest::Arbitrary<uint32_t>(),
+                 fuzztest::Arbitrary<std::vector<uint8_t>>().WithMaxSize(4000));
+
+void StringSeedMatchesReference(const std::string& seed, int draws) {
+  MTRandom rng(seed);
+  ReferenceMTRandom ref(seed);
+  ASSERT_TRUE(SameRand32(rng, ref, draws));
+}
+FUZZ_TEST(MTRandomFuzzTest, StringSeedMatchesReference)
+    .WithDomains(fuzztest::Arbitrary<std::string>().WithMinSize(1),
+                 fuzztest::InRange(0, 1300));
 
 void MTRandomStringConstructionNeverCrashes(const std::string& seed) {
   MTRandom rng(seed);
