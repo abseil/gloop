@@ -767,7 +767,6 @@ void Basic() {
 #else
   const int kIters = 20;  // Avoids timeouts.
 #endif  // !ABSL_HAVE_MEMORY_SANITIZER
-  const std::string data(kIters, 'a');
   for (int i = 0; i < kIters; i++) {
     std::string s(i, 'a');
     a[s] = b[s] = i;
