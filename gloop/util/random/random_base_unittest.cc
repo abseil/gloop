@@ -24,7 +24,14 @@
 #include <string.h>
 #include <sys/types.h>
 
+#if defined(_WIN32)
+#include <winsock2.h>
+#else
+#include <unistd.h>
+#endif
+
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <random>
@@ -110,6 +117,46 @@ TEST(RandomBase, WeakSeedString) {
 
   EXPECT_EQ(len1, len2);
   EXPECT_NE(0, memcmp(buf1, buf2, std::min(len1, len2)));
+}
+
+TEST(RandomBase, WeakSeedIncludesHostnameAndRespectsLength) {
+  // Sequence (2) + CycleClock (8) + timestamp (8).
+  constexpr int kPrefixLen = 2 + 8 + 8;
+
+  // Buffers shorter than or equal to the prefix must not write past `length`.
+  for (const int length : {0, 1, 2, 10, kPrefixLen}) {
+    uint8_t buf[kPrefixLen + 16];
+    memset(buf, 0xA5, sizeof(buf));
+    const int len = MyRandomBase::WeakSeed(buf, length);
+    EXPECT_EQ(len, length);
+    for (int i = length; i < static_cast<int>(sizeof(buf)); ++i) {
+      EXPECT_EQ(buf[i], 0xA5) << "length=" << length << " i=" << i;
+    }
+  }
+
+  char expected_host[256] = {};
+  if (gethostname(expected_host, sizeof(expected_host)) == 0) {
+    expected_host[sizeof(expected_host) - 1] = '\0';
+    const size_t host_len = strlen(expected_host);
+    std::vector<uint8_t> buf(kPrefixLen + host_len + 16, 0xA5);
+
+    // Exact fit for hostname + trailing NUL appends the hostname.
+    const int full_len = MyRandomBase::WeakSeed(
+        buf.data(), kPrefixLen + static_cast<int>(host_len) + 1);
+    EXPECT_EQ(full_len, kPrefixLen + static_cast<int>(host_len));
+    EXPECT_EQ(0, memcmp(buf.data() + kPrefixLen, expected_host, host_len + 1));
+
+    // Truncated buffer (no room for trailing NUL) does not advance offset,
+    // matching gethostname() failure semantics, and never writes past length.
+    if (host_len > 0) {
+      std::fill(buf.begin(), buf.end(), 0xA5);
+      const int trunc_len = kPrefixLen + static_cast<int>(host_len);
+      const int len = MyRandomBase::WeakSeed(buf.data(), trunc_len);
+      EXPECT_EQ(len, kPrefixLen);
+      EXPECT_EQ(0, memcmp(buf.data() + kPrefixLen, expected_host, host_len));
+      EXPECT_EQ(buf[trunc_len], 0xA5);
+    }
+  }
 }
 
 TEST(RandomBase, Rand32) {

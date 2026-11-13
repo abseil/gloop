@@ -30,7 +30,6 @@
 #include <algorithm>
 #include <cstdint>
 #include <string>
-#include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/base/casts.h"
@@ -64,30 +63,53 @@ uint32_t Word32At(const uint8_t* ptr) {
           (static_cast<uint32_t>(ptr[3]) << 24));
 }
 // clang-format on
+
+// The host name, as returned by gethostname().
+struct HostName {
+  bool ok;        // Whether gethostname() succeeded.
+  size_t length;  // strlen(name).
+  char name[256];
+};
+
+// Returns the host name.  Since gethostname() is a system call, which would
+// dominate the cost of WeakSeed(), it is only called once.
+const HostName& GetHostName() {
+  static const HostName host_name = [] {
+    HostName host_name = {};
+    host_name.ok = gethostname(host_name.name, sizeof(host_name.name)) == 0;
+    host_name.name[sizeof(host_name.name) - 1] = '\0';
+    host_name.length = host_name.ok ? strlen(host_name.name) : 0;
+    return host_name;
+  }();
+  return host_name;
+}
 }  // namespace
 
 uint32_t RandomBase::WeakSeed32() {
-  constexpr int kBufferSize = PATH_MAX + 3 * sizeof(uint32_t);
-  std::vector<uint8_t> buffer(kBufferSize);
+  // Large enough for all the weak random contents WeakSeed() can provide (the
+  // host name has at most sizeof(HostName::name) - 1 characters), and 3 uint32
+  // guard values (0) past them.
+  constexpr int kSeedSize = 2 + 8 + 8 + sizeof(HostName::name);
+  uint8_t buffer[kSeedSize + 3 * sizeof(uint32_t)];
 
   // Initialize the buffer with weak random contents, leaving room
   // for 3 uint32 guard values (0) past the end of the buffer.
-  int len = WeakSeed(buffer.data(), PATH_MAX);
+  const int len = WeakSeed(buffer, kSeedSize);
 
   // Ensure that we still have at least 3 * sizeof(uint32) bytes
   // in the buffer after len, and zero those values.
-  int remaining = buffer.size() - len;
+  const int remaining = static_cast<int>(sizeof(buffer)) - len;
   CHECK_GT(remaining, static_cast<int>(3 * sizeof(uint32_t)));
-  memset(buffer.data() + len, 0, 3 * sizeof(uint32_t));
+  memset(buffer + len, 0, 3 * sizeof(uint32_t));
 
-  uint32_t a = Word32At(buffer.data());
-  uint32_t b = Word32At(buffer.data() + sizeof(uint32_t));
+  uint32_t a = Word32At(buffer);
+  uint32_t b = Word32At(buffer + sizeof(uint32_t));
   uint32_t c = 0;
   for (int i = sizeof(uint32_t) * 2; i < len; i += sizeof(uint32_t) * 3) {
     hash_mix(a, b, c);
-    a += Word32At(buffer.data() + i);
-    b += Word32At(buffer.data() + i + sizeof(uint32_t));
-    c += Word32At(buffer.data() + i + sizeof(uint32_t) + sizeof(uint32_t));
+    a += Word32At(buffer + i);
+    b += Word32At(buffer + i + sizeof(uint32_t));
+    c += Word32At(buffer + i + sizeof(uint32_t) + sizeof(uint32_t));
   }
   c += len;
   hash_mix(a, b, c);
@@ -96,7 +118,7 @@ uint32_t RandomBase::WeakSeed32() {
 
 int RandomBase::WeakSeed(uint8_t* buffer, int length) {
   int offset = 0;
-  char* seed_buffer = reinterpret_cast<char*>(buffer);
+  char* const seed_buffer = reinterpret_cast<char*>(buffer);
 
   // The low order 16 bits of a sequence.
   if (length >= offset + 2) {
@@ -115,16 +137,26 @@ int RandomBase::WeakSeed(uint8_t* buffer, int length) {
 
   // Time of day.
   if (length > offset) {
-    auto nanos = absl::GetCurrentTimeNanos();
-    size_t len = std::min(sizeof(nanos), static_cast<size_t>(length - offset));
+    const auto nanos = absl::GetCurrentTimeNanos();
+    const size_t len =
+        std::min(sizeof(nanos), static_cast<size_t>(length - offset));
     memcpy(seed_buffer + offset, &nanos, len);
     offset += static_cast<int>(len);
   }
 
-  // Get the hostname.
-  if (length > offset &&
-      gethostname(seed_buffer + offset, length - offset) == 0) {
-    offset += static_cast<int>(strlen(seed_buffer + offset));
+  // Get the hostname.  As gethostname(seed_buffer + offset, length - offset),
+  // this copies the NUL-terminated host name, or as much of it as fits (in
+  // which case the call fails, and offset is not updated).
+  if (length > offset) {
+    const HostName& host_name = GetHostName();
+    if (host_name.ok) {
+      const size_t available = static_cast<size_t>(length - offset);
+      memcpy(seed_buffer + offset, host_name.name,
+             std::min(available, host_name.length + 1));
+      if (host_name.length < available) {
+        offset += static_cast<int>(host_name.length);
+      }
+    }
   }
   return offset;
 }
