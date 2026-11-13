@@ -28,11 +28,11 @@ cc_library(
     name = "effective_user_id",
     srcs = ["effective_user_id.cc"],
     hdrs = ["effective_user_id.h"],
-    implementation_deps = ["@abseil-cpp//absl/strings"],
     visibility = [
         "//gloop/base:__pkg__",
     ],
     deps = ["//gloop:enforce_gloop_support"],
+    implementation_deps = ["@abseil-cpp//absl/strings"],
 )
 
 cc_test(
@@ -53,14 +53,14 @@ cc_library(
     testonly = 1,
     srcs = ["gcapturedstream.cc"],
     hdrs = ["gcapturedstream.h"],
-    implementation_deps = [
-        "//gloop/base:port",
-        "@abseil-cpp//absl/log:check",
-    ],
     visibility = [
         "//gloop/base:__pkg__",
     ],
     deps = ["//gloop:enforce_gloop_support"],
+    implementation_deps = [
+        "//gloop/base:port",
+        "@abseil-cpp//absl/log:check",
+    ],
 )
 
 cc_library(
@@ -88,13 +88,6 @@ cc_library(
     name = "logging_directories",
     srcs = ["logging_directories.cc"],
     hdrs = ["logging_directories.h"],
-    implementation_deps = [
-        ":temp_directories",
-        "//gloop/base:log_file_flags",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/synchronization",
-    ],
     visibility = [
         "//gloop/base:__pkg__",
         "//gloop/base/internal:__pkg__",
@@ -104,17 +97,24 @@ cc_library(
         "//gloop/base:config",
         "@abseil-cpp//absl/types:span",
     ],
+    implementation_deps = [
+        ":temp_directories",
+        "//gloop/base:log_file_flags",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/synchronization",
+    ],
 )
 
 cc_library(
     name = "logging_globals",
     srcs = ["logging_globals.cc"],
     hdrs = ["logging_globals.h"],
-    implementation_deps = ["@abseil-cpp//absl/base:core_headers"],
     visibility = [
         "//gloop/base:__pkg__",
     ],
     deps = ["//gloop:enforce_gloop_support"],
+    implementation_deps = ["@abseil-cpp//absl/base:core_headers"],
 )
 
 cc_library(
@@ -122,11 +122,6 @@ cc_library(
     testonly = 1,
     srcs = ["munge_output.cc"],
     hdrs = ["munge_output.h"],
-    implementation_deps = [
-        "//gloop/util/status:errno_mapping",
-        "@abseil-cpp//absl/strings",
-        "@re2",
-    ],
     visibility = [
         "//gloop/base:__pkg__",
         "//gloop/base/internal:__pkg__",
@@ -135,6 +130,11 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:string_view",
+    ],
+    implementation_deps = [
+        "//gloop/util/status:errno_mapping",
+        "@abseil-cpp//absl/strings",
+        "@re2",
     ],
 )
 
@@ -166,9 +166,9 @@ cc_library(
     name = "temp_directories",
     srcs = ["temp_directories.cc"],
     hdrs = ["temp_directories.h"],
-    implementation_deps = ["@abseil-cpp//absl/algorithm:container"],
     visibility = [
         "//gloop/base:__pkg__",
     ],
     deps = ["//gloop:enforce_gloop_support"],
+    implementation_deps = ["@abseil-cpp//absl/algorithm:container"],
 )
