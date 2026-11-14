@@ -124,7 +124,6 @@ TEST(TimeUnixNanosTest, Comparison) {
 
 TEST(TimeUnixNanosTest, StreamInsertion) {
   TimeUnixNanos value = TimeUnixNanos::Now();
-  std::string time_unix_nanos;
   std::stringstream time_unix_nanos_ss;
   time_unix_nanos_ss << value;
   std::stringstream time_ss;

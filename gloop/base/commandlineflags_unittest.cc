@@ -1761,7 +1761,7 @@ int main(int argc, char** argv) {
   SetArgv(std::size(kTestArgv), kTestArgv);
 
   // The first arg is the usage message, also important for testing.
-  std::string usage_message =
+  [[maybe_unused]] std::string usage_message =
       (std::string(GetArgv0()) +
        ": <useless flag> [...]\nDoes something useless.\n");
 
