@@ -257,7 +257,7 @@ struct Dummy1 {};
 struct Dummy2 {};
 
 struct NotCopyable {
-  NotCopyable() {}
+  NotCopyable() = default;
 
  private:
   NotCopyable(const NotCopyable&) = delete;

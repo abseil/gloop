@@ -60,7 +60,7 @@ class ExplainingEq : public ::testing::MatcherInterface<T> {
  public:
   explicit ExplainingEq(const T& rhs) : rhs_(rhs) {}
 
-  ~ExplainingEq() override {}
+  ~ExplainingEq() override = default;
 
   void DescribeTo(::std::ostream* os) const override {
     *os << "is equal to " << rhs_;

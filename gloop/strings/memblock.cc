@@ -92,7 +92,7 @@ static int64_t total_mmapped ABSL_GUARDED_BY(total_lock) = 0;
 
 #endif  // ABSL_HAVE_MMAP
 
-/*virtual*/ MemBlock::~MemBlock() {}
+/*virtual*/ MemBlock::~MemBlock() = default;
 
 void MemBlock::DiscardPrefix(size_t n) {
   CHECK_LE(n, length());
@@ -471,7 +471,7 @@ int64_t MMappedMemBlock::TotalMappedBytes() {
 }
 #endif  // ABSL_HAVE_MMAP
 
-NoCleanupMemBlock::~NoCleanupMemBlock() {}
+NoCleanupMemBlock::~NoCleanupMemBlock() = default;
 
 AlignedMemBlock::AlignedMemBlock(size_t length, size_t alignment)
     : MemBlock(length == 0 ? nullptr

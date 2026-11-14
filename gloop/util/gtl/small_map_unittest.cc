@@ -1115,7 +1115,7 @@ TEST(SmallMap, DefaultEqualKeyWorks) {
 namespace {
 class hash_map_add_item : public std::unordered_map<int, int> {
  public:
-  hash_map_add_item() : std::unordered_map<int, int>() {}
+  hash_map_add_item() : = default;
   explicit hash_map_add_item(const std::pair<int, int>& item)
       : std::unordered_map<int, int>() {
     insert(item);
