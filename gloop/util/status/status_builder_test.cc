@@ -50,6 +50,7 @@
 #include "absl/types/source_location.h"
 #include "benchmark/benchmark.h"
 #include "gloop/util/status/codes.pb.h"
+#include "gloop/util/status/error_space.h"
 #include "gloop/util/status/posixerrorspace.h"
 #include "gloop/util/status/status.h"
 #include "gloop/util/status/status.pb.h"

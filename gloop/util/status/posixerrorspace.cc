@@ -26,6 +26,7 @@
 #include "absl/strings/string_view.h"
 #include "gloop/base/strerror.h"
 #include "gloop/util/status/errno_mapping.h"
+#include "gloop/util/status/error_space.h"
 #include "gloop/util/status/status.h"
 
 namespace util {
