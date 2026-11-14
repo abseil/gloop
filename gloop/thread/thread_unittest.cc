@@ -1971,9 +1971,11 @@ TEST(ThreadTest, CheckThreadNotesInStack) {
 
 // Pretend to be a Python interpreter to test detection of threads
 // holding the Python GIL.
+std::atomic<int> py_initialized{1};
 std::atomic<bool> gil_held;
 std::atomic<unsigned int> gil_queue_length;
 typedef struct _ts PyThreadState;
+extern "C" int Py_IsInitialized() { return py_initialized.load(); }
 extern "C" PyThreadState* PyThreadState_GetUnchecked() {
   return gil_held.load() ? reinterpret_cast<PyThreadState*>(1) : nullptr;
 }
@@ -1983,6 +1985,7 @@ extern "C" unsigned int PyGILState_GetQueueLength() {
 
 TEST(ThreadTest, DumpGilHolder) {
   absl::Cleanup restore_gil_state = [] {
+    py_initialized.store(1);
     gil_held.store(false);
     gil_queue_length.store(0);
   };
@@ -1998,6 +2001,11 @@ TEST(ThreadTest, DumpGilHolder) {
   gil_queue_length.store(3);
   SaveStackTraceDump(&dump);
   EXPECT_THAT(dump, HasSubstr("python_gil: held\npython_gil_waiters: 2\n"));
+
+  py_initialized.store(0);
+  SaveStackTraceDump(&dump);
+  EXPECT_THAT(dump, Not(HasSubstr("python_gil: held")));
+  EXPECT_THAT(dump, Not(HasSubstr("python_gil_waiters:")));
 }
 
 #endif
