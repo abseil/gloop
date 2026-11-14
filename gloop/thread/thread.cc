@@ -850,6 +850,7 @@ void* MaybeGetPC(const StackTrace* trace) { return GetPC(trace->uc); }
 // (https://docs.python.org/3/c-api/threads.html#c.PyThreadState_GetUnchecked).
 // This function is async-signal-safe.
 typedef struct _ts PyThreadState;
+extern "C" ABSL_ATTRIBUTE_WEAK int Py_IsInitialized() { return 0; }
 extern "C" ABSL_ATTRIBUTE_WEAK PyThreadState* PyThreadState_GetUnchecked() {
   return nullptr;
 }
@@ -862,7 +863,7 @@ namespace {
 // thread holds the Python GIL. This is async-signal-safe.
 bool IsCurrentThreadHoldingPythonGil() {
 #if !PORTABLE_BASE
-  return PyThreadState_GetUnchecked() != nullptr;
+  return Py_IsInitialized() && PyThreadState_GetUnchecked() != nullptr;
 #else
   return false;
 #endif
@@ -870,6 +871,9 @@ bool IsCurrentThreadHoldingPythonGil() {
 
 unsigned int GetPythonGilWaiters() {
 #if !PORTABLE_BASE
+  if (!Py_IsInitialized()) {
+    return 0;
+  }
   const unsigned int queue_length = PyGILState_GetQueueLength();
   // PyGILState_GetQueueLength() includes the thread currently holding the GIL
   // (1 + waiters), and returns -1 under TSan/MSan.
