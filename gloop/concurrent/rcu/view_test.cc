@@ -179,8 +179,6 @@ TEST(ViewTest, PointerManipulation) {
     n.WaitForNotification();
   }
   // shares
-  // N.B. Converting Snapshot<T> to shared_ptr<T> is an undocumented feature
-  // and somewhat likely to be removed; please avoid using this.
   {
     absl::Notification n;
     rv.Update(std::make_unique<Foo>(&n));
