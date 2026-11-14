@@ -45,7 +45,7 @@ void DebugPrintValue(std::ostream&, const T&);
 template <class T>
 struct ReflectionExtension : Extension<ReflectionExtension, T> {
   // Private to prevent structs and non allow-listed extensions from calling
-  // GetFieldNames().
+  // GetFieldNames(); too few callers to justify maintaining a public API.
  private:
   static const auto& GetFieldNames(const T& value);
 
