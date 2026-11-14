@@ -194,10 +194,46 @@ class StaticThreadLocalImpl {
 
   void set_pointer(T* absl_nonnull obj) {
     DCHECK(obj != nullptr);
-    // Release fence to synchronize with signal handlers that call
-    // safe_pointer, for the same reason as in the method above.
+
+    // Before we update the pointer, synchronize with signal handlers that call
+    // safe_pointer, for the same reason as described in `pointer` above.
     std::atomic_signal_fence(std::memory_order_release);
+
+    // Update the pointer.
     Derived::Var().value.store(obj, std::memory_order_relaxed);
+
+    // Ensure that the compiler doesn't reorder modifications to the object we
+    // just unpublished that happen after we return to before unpublishing it.
+    // Doing so would cause an interrupting signal handler to potentially use a
+    // partially modified or destroyed object.
+    //
+    // It would be great to use std::atomic_signal_fence for this, but the
+    // standard offers no way to do so that isn't a tortured and inefficient
+    // mess (https://stackoverflow.com/q/79808589/1505451). So instead we match
+    // the kernel (http://shortn/_24XvjEMkLd), other code in base/
+    // (http://shortn/_HoKRcPm8UA), and elsewhere in google3
+    // (http://shortn/_ZBWgpnMIIP) in using an old-fashioned inline assembly
+    // barrier to avoid compiler reordering.
+    //
+    // Clang's documentation about this sort of thing is poor compared to gcc,
+    // but gcc's docs at least imply this guarantee
+    // (https://stackoverflow.com/q/67943540/1505451), and with respect to this
+    // kind of old school C-like thing clang generally tries to be like gcc.
+    //
+    // See also http://b/458798425.
+    //
+    // Note that __GNUC__ doesn't mean specifically gcc; it also includes clang
+    // (https://stackoverflow.com/a/55926503/1505451).
+#if defined(__GNUC__)
+    // NOLINTNEXTLINE(google3-runtime-inline-assembly): b/458798425
+    __asm__ __volatile__("" : : : "memory");
+#else
+    // HACK(jacobsa): on other platforms we simply leave this code as incorrect.
+    // This is not great, but this function was incorrect for almost two decades
+    // before this problem was fixed and nobody noticed, so it must not be a
+    // large concern in practice. Fixing http://b/458798425 would make it easy
+    // to fix this.
+#endif
   }
 
   T& get() const { return *pointer(); }
