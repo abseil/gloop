@@ -106,6 +106,11 @@ void Domain::MarkFullyConstructed() {
 }
 
 Domain::~Domain() {
+  if (Scheduler* root =
+          root_scheduler_.exchange(nullptr, std::memory_order_acq_rel);
+      root != nullptr) {
+    root->ClearRegisteredAsRoot();
+  }
   absl::MutexLock lock(domain_list_mutex);
   GetDomainList()->remove(this);
 }
@@ -119,8 +124,15 @@ void Domain::Iterate(const std::function<void(const Domain*)>& functor) {
 }
 
 void Domain::set_root_scheduler(Scheduler* scheduler) {
-  ABSL_RAW_CHECK(!root_scheduler_, "domain already has a root scheduler");
-  root_scheduler_ = scheduler;
+  Scheduler* expected = nullptr;
+  ABSL_RAW_CHECK(root_scheduler_.compare_exchange_strong(
+                     expected, scheduler, std::memory_order_acq_rel),
+                 "domain already has a root scheduler");
+}
+
+void Domain::ClearRootScheduler(Scheduler* scheduler) {
+  root_scheduler_.compare_exchange_strong(scheduler, nullptr,
+                                          std::memory_order_acq_rel);
 }
 
 void Domain::SetCurrentThreadSchedulable(Schedulable* new_current) {

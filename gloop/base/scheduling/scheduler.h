@@ -437,14 +437,18 @@ class Scheduler {
   // before the constructor reference is released.
   virtual void NotifyOrphaned() {}
 
+  void ClearRegisteredAsRoot();
+
   Domain& domain_;           // Constant for all schedulers in a tree.
   Scheduler* const parent_;  // null for the root-scheduler in a domain.
   const int depth_;          // Indexed from 0 at the root-scheduler.
   const int num_slots_;      // Must be <= domain_->max_concurrency()
   atomic_danger::RefCount<int32_t> references_held_;
   std::atomic<bool> orphaned_;
+  std::atomic<bool> registered_as_root_;
   intptr_t parent_arg1_;
 
+  friend class Domain;
   friend class Downcalls;
   friend class ::absl::base_internal::SchedulingGuard;
   friend void DeleteSchedulable(Schedulable* schedulable);

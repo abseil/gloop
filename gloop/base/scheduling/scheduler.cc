@@ -72,6 +72,7 @@ Scheduler::Scheduler(Domain* absl_nonnull domain)
       num_slots_(domain->max_concurrency()),
       parent_arg1_(0) {
   orphaned_.store(false, std::memory_order_relaxed);
+  registered_as_root_.store(true, std::memory_order_relaxed);
   domain->set_root_scheduler(this);
 }
 
@@ -83,6 +84,7 @@ Scheduler::Scheduler(Scheduler* parent, int max_slots)
       parent_arg1_(0) {
   parent->Ref();  // Parent's lifetime is to span that of *this.
   orphaned_.store(false, std::memory_order_relaxed);
+  registered_as_root_.store(false, std::memory_order_relaxed);
 }
 
 Scheduler::~Scheduler() {
@@ -96,8 +98,15 @@ Scheduler::~Scheduler() {
 void Scheduler::Orphan() {
   ABSL_RAW_DCHECK(!orphaned_.load(std::memory_order_relaxed), "double orphan");
   orphaned_.store(true, std::memory_order_relaxed);
+  if (registered_as_root_.exchange(false, std::memory_order_acq_rel)) {
+    domain_.ClearRootScheduler(this);
+  }
   NotifyOrphaned();
   Unref();  // Pairs with the reference taken in the base constructor.
+}
+
+void Scheduler::ClearRegisteredAsRoot() {
+  registered_as_root_.store(false, std::memory_order_release);
 }
 
 // Returns a root level slot schedulable managing "scheduler".
