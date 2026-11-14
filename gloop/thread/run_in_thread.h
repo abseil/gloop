@@ -131,14 +131,15 @@ class RunInThread {
                               // nullptr means "nothing to do."
   void* arg_;                 // argument to func_; under spin_
   const LiveThread* thread_;  // target thread; under spin_
-  SpinLock spin_;             // > mu_; protects func_, arg_, thread_, done_.
-                              // (Held to keep invocations of Run() and the
-                              // signal handler on the target thread from
-                              // interfering with each other.  Held while func_
-                              // is running, and to check doneness while a
-                              // request is outstanding.)
+  SpinLock spin_;  // > mu_; protects func_, arg_, thread_, done_, aborted_.
+                   // (Held to keep invocations of Run() and the signal handler
+                   // on the target thread from interfering with each other.
+                   // Held while func_ is running, and to check doneness while
+                   // a request is outstanding.)
 
   bool done_;  // thread_ has finished running (*func_)(arg_,uc); under spin_
+  bool aborted_ = false;  // thread_ began exiting before func_ could run; under
+                          // spin_
 
   static pthread_once_t instance_init_once_;
   static RunInThread* instance_;   // Read-only after init.  Will be
@@ -154,10 +155,11 @@ class RunInThread {
   bool RunLocked(const LiveThread* target_thread, TargetFunctionType func,
                  void* arg, int timeout_ms);
 
-  // Check to see if the target function has finished.
-  bool done() {
+  // Check to see if the target function has finished or was aborted because
+  // the target thread is exiting.
+  bool done_or_aborted() {
     SpinLockHolder l(spin_);
-    return done_;
+    return done_ || aborted_;
   }
 
   RunInThread();

@@ -53,7 +53,7 @@ void RunInThread::NotifyThread(const LiveThread* target_thread,
   // step) could make this code wait longer than desired.  That's not
   // considered a real worry.
 
-  while (pthread_kill(target_thread->tid_, 0) == 0 && !done()) {
+  while (pthread_kill(target_thread->tid_, 0) == 0 && !done_or_aborted()) {
     // If the request timed out, give up.  Otherwise, we keep trying.
     // (This code is robust against extra posts, e.g., due to late
     // delivery of the signal, and is intended to use sem_ only to get
@@ -88,6 +88,14 @@ void RunInThread::SignalHandler(int sig, siginfo_t* si, void* vuc) {
   // in that window, then this function will be run when there is no
   // LiveThread pointer for this thread.
   if (this_thread == nullptr) {
+    {
+      SpinLockHolder spin_lock(instance_->spin_);
+      if (instance_->func_ != nullptr && instance_->thread_ != nullptr &&
+          pthread_equal(instance_->thread_->tid_, pthread_self())) {
+        instance_->aborted_ = true;
+      }
+    }
+    thread::internal::OsSemaphorePost(&instance_->sem_);
     errno = saved_errno;
     return;
   }
@@ -141,6 +149,7 @@ bool RunInThread::RunLocked(const LiveThread* target_thread,
     arg_ = arg;
     thread_ = target_thread;
     done_ = false;
+    aborted_ = false;
   }
 
   NotifyThread(target_thread, timeout_ms);
