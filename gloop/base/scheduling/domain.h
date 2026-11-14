@@ -147,7 +147,9 @@ class Domain {
   // to any domain.
   static Domain* CurrentDomain();
 
-  Scheduler* root_scheduler() const { return root_scheduler_; }
+  Scheduler* root_scheduler() const {
+    return root_scheduler_.load(std::memory_order_acquire);
+  }
   const std::string& name() const { return name_; }
   int max_concurrency() const { return max_concurrency_; }
 
@@ -277,6 +279,7 @@ class Domain {
   // Called by Scheduler::Scheduler(Domain*) constructor.  Does not take
   // ownership of "scheduler"'s storage.
   void set_root_scheduler(Scheduler* scheduler);
+  void ClearRootScheduler(Scheduler* scheduler);
 
   std::atomic<int32_t> schedule_from_root_count_;
   const int max_concurrency_;
@@ -284,13 +287,14 @@ class Domain {
   // PerDomainCounters is used to collect fiber specific stats.
   thread::internal::PerDomainCounters
       counters_[thread::internal::kNumFiberTypes];
-  Scheduler* root_scheduler_;
+  std::atomic<Scheduler*> root_scheduler_;
 
   const std::string name_;
 
   friend class ConditionalPotentiallyBlockingRegion;
   friend class DomainTest;
   friend class DomainTestlets;
+  friend class Scheduler;
   friend class Downcalls;
   friend class Scheduler;
   friend class thread::Fiber;
