@@ -31,6 +31,7 @@
 #include <climits>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <iterator>
 #include <limits>
 #include <numeric>
@@ -39,6 +40,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/base/macros.h"
 #include "absl/base/prefetch.h"
 #include "absl/hash/hash.h"
@@ -247,7 +249,22 @@ class BasicBitmap {
   }
 
   // Returns the number of one bits in the bitmap.
-  size_type GetOnesCount() const { return GetOnesCountInRange(0, size_); }
+  size_type GetOnesCount() const {
+    const size_t full_words = size_ / kIntBits;
+    size_type sum = 0;
+    if (full_words == 1) {
+      sum = absl::popcount(static_cast<Word>(map_[0]));
+    } else if (full_words > 1) {
+      sum = PopcountWords(map_, full_words);
+    }
+    const size_t rem_bits = size_ & (kIntBits - 1);
+    if (rem_bits != 0) {
+      const ArithmeticWord mask = kAllOnesWord >> (kIntBits - rem_bits);
+      sum += absl::popcount(static_cast<Word>(
+          static_cast<ArithmeticWord>(map_[full_words]) & mask));
+    }
+    return sum;
+  }
 
   // Returns the number of zero bits in the range start to end - 1.
   // REQUIRES: start <= end <= bits()
@@ -262,9 +279,7 @@ class BasicBitmap {
   }
 
   // Returns the number of zero bits in the bitmap.
-  size_type GetZeroesCount() const {
-    return size_ - GetOnesCountInRange(0, size_);
-  }
+  size_type GetZeroesCount() const { return size_ - GetOnesCount(); }
 
   // Returns true if all bits are unset
   bool IsAllZeroes() const {
@@ -709,6 +724,8 @@ class BasicBitmap {
   static constexpr auto kAllOnesWord =
       ArithmeticWord{static_cast<Word>(~ArithmeticWord{0})};
 
+  static ABSL_ATTRIBUTE_NOINLINE size_type PopcountWords(const W* p, size_t n);
+
   // Implements FindNextSetBitInVector if 'complement' is false,
   // and FindNextUnsetBitInVector if 'complement' is true.
   static bool FindNextBitInVector(bool complement, const W* words,
@@ -1026,6 +1043,26 @@ bool BasicBitmap<W>::IsIntersectionNonEmpty(const BasicBitmap<W>& other) const {
          other.HighOrderMapElementMask();
 }
 
+/*static*/
+template <typename W>
+ABSL_ATTRIBUTE_NOINLINE typename BasicBitmap<W>::size_type
+BasicBitmap<W>::PopcountWords(const W* p, size_t n) {
+  size_type sum = 0;
+  size_t i = 0;
+  if constexpr (!is_atomic<W>::value && sizeof(Word) < sizeof(uint64_t)) {
+    constexpr size_t kWordsPerU64 = sizeof(uint64_t) / sizeof(Word);
+    for (; i + kWordsPerU64 <= n; i += kWordsPerU64) {
+      uint64_t chunk;
+      std::memcpy(&chunk, p + i, sizeof(chunk));
+      sum += absl::popcount(chunk);
+    }
+  }
+  for (; i < n; ++i) {
+    sum += absl::popcount(static_cast<Word>(p[i]));
+  }
+  return sum;
+}
+
 template <typename W>
 typename BasicBitmap<W>::size_type BasicBitmap<W>::GetOnesCountInRange(
     size_type start, size_type end) const {
@@ -1043,19 +1080,21 @@ typename BasicBitmap<W>::size_type BasicBitmap<W>::GetOnesCountInRange(
   ArithmeticWord c = static_cast<ArithmeticWord>(*p) &
                      (kAllOnesWord << (start & (kIntBits - 1)));
 
-  ArithmeticWord endmask = (kAllOnesWord >> ((end_word + 1) * kIntBits - end));
+  ArithmeticWord endmask = kAllOnesWord >> (-end & (kIntBits - 1));
   if (end_word == start_word) {  // Only one word?
     return absl::popcount(static_cast<Word>(c & endmask));
   }
 
   size_type sum = absl::popcount(static_cast<Word>(c));
-
-  for (++p; p < map_ + end_word; ++p) {
-    sum += absl::popcount(static_cast<Word>(*p));
+  const size_t mid_words = end_word - start_word - 1;
+  if (mid_words == 1) {
+    sum += absl::popcount(static_cast<Word>(p[1]));
+  } else if (mid_words > 1) {
+    sum += PopcountWords(p + 1, mid_words);
   }
 
   return sum + absl::popcount(static_cast<Word>(
-                   static_cast<ArithmeticWord>(*p) & endmask));
+                   static_cast<ArithmeticWord>(map_[end_word]) & endmask));
 }
 
 template <typename W>
