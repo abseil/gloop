@@ -98,8 +98,9 @@ extern "C" void ABSL_INTERNAL_C_SYMBOL(AbslInternalOnFatalLogMessage)(
   if (!chars_written || fatal_message_buf[chars_written - 1] != '\n') {
     fatal_message_buf[chars_written++] = '\n';
   }
-  base_logging::logging_internal::fatal_message = {fatal_message_buf.data(),
-                                                   chars_written};
+  base_logging::logging_internal::fatal_message =
+      std::string_view(fatal_message_buf.data(), fatal_message_buf.size())
+          .substr(0, chars_written);
   base_logging::logging_internal::fatal_message_ready.store(
       true, std::memory_order_release);
 
