@@ -24,6 +24,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <optional>
 #include <string>
 #include <utility>
@@ -248,7 +249,62 @@ TEST(ThreadPoolTest, OptionsConstructor) {
 }
 
 // If num_threads is 0, ThreadPool should not CHECK-fail or crash.
-TEST(ThreadPoolTest, NumThreadsZero) { ThreadPool pool(0); }
+TEST(ThreadPoolTest, NumThreadsZero) {
+  ThreadPool pool(0);
+  EXPECT_EQ(pool.num_threads(), 1);
+}
+
+#ifndef NDEBUG
+TEST(ThreadPoolDeathTest, NegativeNumThreadsDies) {
+  EXPECT_DEATH_IF_SUPPORTED(
+      ThreadPool(-1), "negative num_threads=-1, falling back to num_threads=1");
+  EXPECT_DEATH_IF_SUPPORTED(
+      ThreadPool(std::numeric_limits<int>::min(), ThreadPool::Options{}),
+      "negative num_threads=.*, falling back to num_threads=1");
+  EXPECT_DEATH_IF_SUPPORTED(
+      ThreadPool(-1, ThreadPool::Options{.name_prefix = "neg_eager",
+                                         .force_eager_thread_creation = true}),
+      "neg_eager.*negative num_threads=-1, falling back to num_threads=1");
+}
+#else
+namespace {
+// Schedules a closure on pool and returns whether it executed before timeout.
+bool RunsScheduledWork(ThreadPool& pool) {
+  absl::Notification done;
+  pool.Schedule([&done]() { done.Notify(); });
+  return done.WaitForNotificationWithTimeout(absl::Seconds(5));
+}
+}  // namespace
+
+TEST(ThreadPoolTest, NegativeNumThreadsFallsBackToOneInOpt) {
+  {
+    ThreadPool pool(-1);
+    EXPECT_EQ(pool.num_threads(), 1);
+    EXPECT_TRUE(RunsScheduledWork(pool));
+  }
+  {
+    ThreadPool pool(std::numeric_limits<int>::min());
+    EXPECT_EQ(pool.num_threads(), 1);
+    EXPECT_TRUE(RunsScheduledWork(pool));
+  }
+  {
+    ThreadPool pool(-1,
+                    ThreadPool::Options{.name_prefix = "neg_eager",
+                                        .force_eager_thread_creation = true});
+    EXPECT_EQ(pool.num_threads(), 1);
+    EXPECT_TRUE(RunsScheduledWork(pool));
+  }
+}
+#endif  // !NDEBUG
+
+TEST(ThreadPoolDeathTest, NonPositiveQueueCapacityDies) {
+  EXPECT_DEATH_IF_SUPPORTED(
+      ThreadPool(1, ThreadPool::Options{.queue_capacity = 0}),
+      "options\\.queue_capacity > 0");
+  EXPECT_DEATH_IF_SUPPORTED(
+      ThreadPool(1, ThreadPool::Options{.queue_capacity = -1}),
+      "options\\.queue_capacity > 0");
+}
 
 // If num_threads is 1, the closures are run in FIFO order.
 TEST(ThreadPoolTest, OneThreadRunsClosuresFIFO) {
