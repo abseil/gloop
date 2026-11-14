@@ -1171,6 +1171,55 @@ TEST(CountingMutexTest, AssertHeld) {
 #endif
 }
 
+// Exercises the debug reader lock tracking for a thread holding many reader
+// locks at once: this allocates overflow blocks, which must be freed on thread
+// exit (verified by LSAN under `--config=asan`), and the lock assertions must
+// keep working when the inline slot is released while overflow blocks remain.
+//
+// All locks are acquired in a single consistent order (`mutexes` by index, then
+// `extra`): acquiring a mutex while holding one that was acquired after it is a
+// lock order inversion, which TSAN rightfully reports as a potential deadlock.
+TEST(CountingMutexTest, ManyReaderLocksOnOneThread) {
+#ifdef NDEBUG
+  // The tracking under test only exists in debug builds, and
+  // `EXPECT_DEBUG_DEATH` would execute the duplicate `lock_shared()` calls
+  // below in-process.
+  GTEST_SKIP() << "Skipping test in non-debug mode";
+#endif
+  constexpr int kLocks = 10;
+  std::deque<CountingMutex> mutexes(kLocks);
+  CountingMutex extra;
+  TestThread thread([&]() ABSL_NO_THREAD_SAFETY_ANALYSIS {
+    for (auto& mu : mutexes) mu.lock_shared();
+    for (auto& mu : mutexes) mu.AssertReaderHeld();
+
+    // Release the first lock (the inline slot) while overflow blocks remain.
+    mutexes[0].unlock_shared();
+    mutexes[0].AssertNotHeld();
+    for (int i = 1; i < kLocks; ++i) mutexes[i].AssertReaderHeld();
+#if defined(GTEST_HAS_DEATH_TEST) && !defined(__APPLE__)
+    EXPECT_DEBUG_DEATH(mutexes[1].lock_shared(), "should not hold a lock");
+    EXPECT_DEBUG_DEATH(mutexes[kLocks - 1].lock_shared(),
+                       "should not hold a lock");
+#endif
+
+    // Take another lock, which lands in the vacated inline slot while the
+    // overflow blocks are still populated, then release the overflow entries
+    // in reverse order and the inline slot last.
+    extra.lock_shared();
+    extra.AssertReaderHeld();
+    for (int i = kLocks - 1; i >= 1; --i) mutexes[i].unlock_shared();
+    extra.unlock_shared();
+    for (auto& mu : mutexes) mu.AssertNotHeld();
+    extra.AssertNotHeld();
+
+    // Acquire again, in the same order, after the overflow blocks were emptied.
+    for (auto& mu : mutexes) mu.lock_shared();
+    for (auto& mu : mutexes) mu.unlock_shared();
+  });
+  thread.Join();
+}
+
 TEST(CountingMutexTest, LockWhenAlreadyLockedAsserts) {
 #ifdef NDEBUG
   GTEST_SKIP() << "Skipping test in non-debug mode";
