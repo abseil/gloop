@@ -20,8 +20,11 @@
 
 #include "gloop/util/bitmap/inlined_bitvector.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <initializer_list>
+#include <limits>
 #include <ostream>
 #include <random>
 #include <sstream>
@@ -30,6 +33,7 @@
 
 #include "absl/hash/hash_testing.h"
 #include "absl/log/log.h"
+#include "absl/types/span.h"
 #include "benchmark/benchmark.h"
 #include "gtest/gtest.h"
 
@@ -470,6 +474,222 @@ TYPED_TEST(BitVecTest, FindNextUnsetBitBeforeLimit) {
   EXPECT_EQ(find_me, 297);  // the next find_me after 278
 }
 
+TYPED_TEST(BitVecTest, FindPreviousSetBit) {
+  // Empty vector: returns false and leaves index unmodified.
+  {
+    TypeParam bv;
+    int64_t index = 12345;
+    EXPECT_FALSE(bv.FindPreviousSetBit(&index));
+    EXPECT_EQ(index, 12345);
+
+    // Negative indices safely return false.
+    index = -1;
+    EXPECT_FALSE(bv.FindPreviousSetBit(&index));
+    EXPECT_EQ(index, -1);
+    index = std::numeric_limits<int64_t>::min();
+    EXPECT_FALSE(bv.FindPreviousSetBit(&index));
+    EXPECT_EQ(index, std::numeric_limits<int64_t>::min());
+
+    index = static_cast<int64_t>(bv.size()) - 1;
+    EXPECT_FALSE(bv.FindPreviousSetBit(&index));
+    EXPECT_EQ(index, -1);
+
+    // Loop executes 0 times on empty vector without needing !empty() guard.
+    int count = 0;
+    for (int64_t i = static_cast<int64_t>(bv.size()) - 1;
+         bv.FindPreviousSetBit(&i); --i) {
+      ++count;
+    }
+    EXPECT_EQ(count, 0);
+  }
+
+  // Negative and out-of-bounds indices on non-empty vector: returns false.
+  {
+    TypeParam bv(10);
+    bv.set_bit(5);
+    int64_t index = -1;
+    EXPECT_FALSE(bv.FindPreviousSetBit(&index));
+    EXPECT_EQ(index, -1);
+    index = std::numeric_limits<int64_t>::min();
+    EXPECT_FALSE(bv.FindPreviousSetBit(&index));
+    EXPECT_EQ(index, std::numeric_limits<int64_t>::min());
+    index = -100;
+    EXPECT_FALSE(bv.FindPreviousSetBit(&index));
+    EXPECT_EQ(index, -100);
+    index = 10;
+    EXPECT_FALSE(bv.FindPreviousSetBit(&index));
+    EXPECT_EQ(index, 10);
+    index = 100;
+    EXPECT_FALSE(bv.FindPreviousSetBit(&index));
+    EXPECT_EQ(index, 100);
+  }
+
+  // All-zero vectors of various lengths: returns false, index unmodified.
+  for (size_t len : {1, 31, 32, 33, 63, 64, 65, 127, 128, 200}) {
+    TypeParam bv(len);
+    int64_t index = static_cast<int64_t>(len) - 1;
+    EXPECT_FALSE(bv.FindPreviousSetBit(&index));
+    EXPECT_EQ(index, static_cast<int64_t>(len) - 1);
+  }
+
+  // Single bit set at every possible position up to kMaxTestSize.
+  for (size_t len = 1; len < kMaxTestSize; ++len) {
+    TypeParam bv(len);
+    for (size_t b = 0; b < len; ++b) {
+      bv.set_bit(b);
+
+      // Starting from above the bit (at len - 1) finds b.
+      int64_t index = static_cast<int64_t>(len) - 1;
+      EXPECT_TRUE(bv.FindPreviousSetBit(&index));
+      EXPECT_EQ(index, static_cast<int64_t>(b));
+
+      // Starting exactly at b finds b.
+      index = static_cast<int64_t>(b);
+      EXPECT_TRUE(bv.FindPreviousSetBit(&index));
+      EXPECT_EQ(index, static_cast<int64_t>(b));
+
+      // Starting below b (if b > 0) does not find b.
+      if (b > 0) {
+        index = static_cast<int64_t>(b) - 1;
+        EXPECT_FALSE(bv.FindPreviousSetBit(&index));
+        EXPECT_EQ(index, static_cast<int64_t>(b) - 1);
+      }
+
+      bv.clear_bit(b);
+    }
+  }
+
+  // Reverse iteration over multiple bits.
+  {
+    TypeParam bv(200);
+    std::vector<int64_t> bits = {0, 2, 5, 31, 32, 63, 64, 99, 128, 199};
+    for (int64_t b : bits) {
+      bv.set_bit(static_cast<size_t>(b));
+    }
+
+    std::vector<int64_t> found;
+    for (int64_t index = static_cast<int64_t>(bv.size()) - 1;
+         bv.FindPreviousSetBit(&index); --index) {
+      found.push_back(index);
+    }
+    std::reverse(found.begin(), found.end());
+    EXPECT_EQ(found, bits);
+  }
+
+  // Interaction with resize: bits beyond new size must not be seen.
+  {
+    TypeParam bv(100);
+    bv.set_bit(80);
+    bv.set_bit(40);
+    bv.set_bit(10);
+
+    int64_t index = 99;
+    EXPECT_TRUE(bv.FindPreviousSetBit(&index));
+    EXPECT_EQ(index, 80);
+
+    bv.resize(60);
+    index = 59;
+    EXPECT_TRUE(bv.FindPreviousSetBit(&index));
+    EXPECT_EQ(index, 40);
+
+    bv.resize(30);
+    index = 29;
+    EXPECT_TRUE(bv.FindPreviousSetBit(&index));
+    EXPECT_EQ(index, 10);
+
+    bv.resize(5);
+    index = 4;
+    EXPECT_FALSE(bv.FindPreviousSetBit(&index));
+    EXPECT_EQ(index, 4);
+  }
+}
+
+TYPED_TEST(BitVecTest, Bytes) {
+  // Empty vector: bytes() is empty.
+  {
+    TypeParam bv;
+    EXPECT_TRUE(bv.bytes().empty());
+    EXPECT_EQ(bv.bytes().size(), 0);
+  }
+
+  // Test byte representation across various lengths.
+  for (size_t sz :
+       {1, 7, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 200}) {
+    TypeParam bv(sz);
+    for (size_t i = 0; i < sz; ++i) {
+      if ((i % 3 == 0) || (i % 7 == 0)) {
+        bv.set_bit(i);
+      }
+    }
+
+    absl::Span<const uint8_t> bytes = bv.bytes();
+    const size_t expected_bytes = (sz + 7) / 8;
+    EXPECT_EQ(bytes.size(), expected_bytes);
+
+    for (size_t byte_idx = 0; byte_idx < expected_bytes; ++byte_idx) {
+      uint8_t expected_byte = 0;
+      for (size_t bit = 0; bit < 8; ++bit) {
+        size_t bit_idx = byte_idx * 8 + bit;
+        if (bit_idx < sz && bv.get_bit(bit_idx)) {
+          expected_byte |= static_cast<uint8_t>(1 << bit);
+        }
+      }
+      EXPECT_EQ(bytes[byte_idx], expected_byte)
+          << "sz=" << sz << " byte_idx=" << byte_idx;
+    }
+  }
+
+  // Verify that trailing bits in the last byte beyond size() are zero.
+  {
+    TypeParam bv(60);
+    bv.SetBits(0, 60);
+    bv.resize(11);  // 11 bits = 2 bytes; bits 11..15 in byte 1 must be 0
+    absl::Span<const uint8_t> bytes = bv.bytes();
+    ASSERT_EQ(bytes.size(), 2);
+    EXPECT_EQ(bytes[0], 0xFF);
+    // Lower 3 bits (bits 8, 9, 10) are 1; upper 5 bits are 0.
+    EXPECT_EQ(bytes[1], 0x07);
+  }
+}
+
+TYPED_TEST(BitVecTest, ByteConstructor) {
+  // Empty vector.
+  {
+    TypeParam bv(0, absl::Span<const uint8_t>());
+    EXPECT_EQ(bv.size(), 0);
+    EXPECT_TRUE(bv.bytes().empty());
+  }
+
+  // Round-trip with bytes() across various lengths.
+  for (size_t sz :
+       {1, 7, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 200}) {
+    TypeParam bv_orig(sz);
+    for (size_t i = 0; i < sz; ++i) {
+      if ((i % 3 == 0) || (i % 7 == 0)) {
+        bv_orig.set_bit(i);
+      }
+    }
+
+    TypeParam bv_from_span(sz, bv_orig.bytes());
+    EXPECT_EQ(bv_orig, bv_from_span) << "sz=" << sz;
+  }
+
+  // Trailing bits in the last byte beyond size() must be sanitized to zero.
+  {
+    const uint8_t dirty_bytes[] = {0xFF, 0xFF};
+    TypeParam bv(11, absl::MakeConstSpan(dirty_bytes));
+    EXPECT_EQ(bv.size(), 11);
+    EXPECT_EQ(bv.count(), 11);
+    EXPECT_EQ(bv.bytes()[0], 0xFF);
+    // Lower 3 bits (bits 8, 9, 10) are 1; upper 5 bits sanitized to 0.
+    EXPECT_EQ(bv.bytes()[1], 0x07);
+
+    // Verify bit 11 is not set when scanning from index 11.
+    size_t idx = 11;
+    EXPECT_FALSE(bv.FindNextSetBit(&idx));
+  }
+}
+
 TYPED_TEST(BitVecTest, Union) {
   TypeParam bv;
   TypeParam bv2;
@@ -754,6 +974,108 @@ TYPED_TEST(BitVecTest, Difference_DifferingInlineBits) {
   bv.Difference(bv2);
   EXPECT_EQ(bv.size(), 10);
   EXPECT_EQ(bv.ToString(), "{7}");
+}
+
+TYPED_TEST(BitVecTest, IsSubsetOf) {
+  // Empty vectors are subsets of each other.
+  {
+    TypeParam bv1;
+    TypeParam bv2;
+    EXPECT_TRUE(bv1.IsSubsetOf(bv2));
+    EXPECT_TRUE(bv2.IsSubsetOf(bv1));
+
+    bv1.resize(10);
+    bv2.resize(20);
+    EXPECT_TRUE(bv1.IsSubsetOf(bv2));
+    EXPECT_TRUE(bv2.IsSubsetOf(bv1));
+  }
+
+  // Same size vectors.
+  {
+    TypeParam bv1(10);
+    TypeParam bv2(10);
+    bv1.set_bit(5);
+    EXPECT_FALSE(bv1.IsSubsetOf(bv2));
+    EXPECT_TRUE(bv2.IsSubsetOf(bv1));
+
+    bv2.set_bit(5);
+    EXPECT_TRUE(bv1.IsSubsetOf(bv2));
+    EXPECT_TRUE(bv2.IsSubsetOf(bv1));
+
+    bv2.set_bit(7);
+    EXPECT_TRUE(bv1.IsSubsetOf(bv2));
+    EXPECT_FALSE(bv2.IsSubsetOf(bv1));
+
+    bv1.set_bit(8);
+    EXPECT_FALSE(bv1.IsSubsetOf(bv2));
+    EXPECT_FALSE(bv2.IsSubsetOf(bv1));
+  }
+
+  // Differing sizes and capacities across 32-bit word boundaries.
+  {
+    TypeParam bv1(10);
+    TypeParam bv2(100);
+    bv1.set_bit(5);
+    bv2.set_bit(5);
+    bv2.set_bit(65);
+    EXPECT_TRUE(bv1.IsSubsetOf(bv2));
+    EXPECT_FALSE(bv2.IsSubsetOf(bv1));
+
+    // If bv1 has bits set beyond bv2's size, bv1 is not a subset.
+    bv1.resize(100);
+    bv1.set_bit(80);
+    bv2.resize(50);
+    EXPECT_FALSE(bv1.IsSubsetOf(bv2));
+  }
+
+  // Multi-word patterns and self-subset.
+  {
+    TypeParam bv(128);
+    EXPECT_TRUE(bv.IsSubsetOf(bv));
+    for (size_t b : {1, 31, 32, 63, 64, 100}) {
+      bv.set_bit(b);
+    }
+    EXPECT_TRUE(bv.IsSubsetOf(bv));
+
+    TypeParam superset(128);
+    superset.SetBits(0, 128);
+    EXPECT_TRUE(bv.IsSubsetOf(superset));
+    EXPECT_FALSE(superset.IsSubsetOf(bv));
+  }
+
+  // Trailing bits beyond size() after resize must not affect subset check.
+  {
+    TypeParam bv1(60);
+    bv1.SetBits(0, 60);
+    bv1.resize(10);  // bits 10..59 are cleared in trailing bits
+
+    TypeParam bv2(10);
+    bv2.SetBits(0, 10);
+    EXPECT_TRUE(bv1.IsSubsetOf(bv2));
+    EXPECT_TRUE(bv2.IsSubsetOf(bv1));
+  }
+}
+
+TYPED_TEST(BitVecTest, IsSubsetOf_DifferingInlineBits) {
+  TypeParam bv1(64);
+  BitVecWithDifferingInlineBits bv2(64);
+
+  bv1.set_bit(10);
+  bv1.set_bit(40);
+  EXPECT_FALSE(bv1.IsSubsetOf(bv2));
+  EXPECT_TRUE(bv2.IsSubsetOf(bv1));
+
+  bv2.set_bit(10);
+  EXPECT_FALSE(bv1.IsSubsetOf(bv2));
+  EXPECT_TRUE(bv2.IsSubsetOf(bv1));
+
+  bv2.set_bit(40);
+  EXPECT_TRUE(bv1.IsSubsetOf(bv2));
+  EXPECT_TRUE(bv2.IsSubsetOf(bv1));
+
+  bv2.set_bit(50);
+  EXPECT_TRUE(bv1.IsSubsetOf(bv2));
+  EXPECT_FALSE(bv2.IsSubsetOf(bv1));
 }
 
 // This test is slow, so just test it on a single type.
