@@ -2273,6 +2273,65 @@ TEST(ThreadDeathTest, SetJoinableAfterStartCrashes) {
   t.Join();
 }
 
+#if !defined(__APPLE__) && !defined(__ANDROID__) && \
+    !defined(ABSL_HAVE_THREAD_SANITIZER)
+TEST(ThreadTest, ProcessStackTracesDoesNotStallOnExitingThread) {
+  // Coordinates a thread exiting after LiveThreadList::Iterate has incremented
+  // its per-thread num_currently_iterating_ counter:
+  // 1. Inside the filter callback for "exiting_target",
+  // num_currently_iterating_
+  //    on that LiveThread is already 1.
+  // 2. We notify the target thread to exit; StaticThreadLocalDestructor clears
+  //    Thread_GetMyLiveThread() to nullptr before ~LiveThread() blocks in
+  //    LiveThreadList::Remove() waiting for num_currently_iterating_ == 0.
+  // 3. Returning true from the filter causes Thread_ProcessStackTraces to
+  //    signal the target thread via RunInThread; RunInThread::SignalHandler
+  //    must wake NotifyThread immediately rather than stalling for the full
+  //    per_thread_timeout_ms.
+  absl::Notification victim_ready;
+  absl::Notification victim_exit_now;
+
+  ClosureThread victim(thread::Options().set_joinable(true), "exiting_target",
+                       [&]() {
+                         victim_ready.Notify();
+                         victim_exit_now.WaitForNotification();
+                       });
+  victim.Start();
+  victim_ready.WaitForNotification();
+
+  struct FilterState {
+    absl::Notification* victim_exit_now;
+    absl::Time filter_release_time;
+    bool triggered = false;
+  } state{&victim_exit_now, absl::Now(), false};
+
+  constexpr int kTimeoutMs = 2000;
+  Thread_ProcessStackTracesArg arg;
+  arg.process_trace = [](void*, const LiveThread*, const StackTrace*) {};
+  arg.filter = [](void* raw, const LiveThread* lt) -> bool {
+    auto* s = static_cast<FilterState*>(raw);
+    if (!s->triggered &&
+        absl::StartsWith(LiveThread_Name(lt), "exiting_target")) {
+      s->triggered = true;
+      s->victim_exit_now->Notify();
+      absl::SleepFor(absl::Milliseconds(25));
+      s->filter_release_time = absl::Now();
+      return true;
+    }
+    return false;
+  };
+  arg.filter_arg = &state;
+  arg.per_thread_timeout_ms = kTimeoutMs;
+
+  Thread_ProcessStackTraces(arg);
+  const absl::Duration stall = absl::Now() - state.filter_release_time;
+  victim.Join();
+  ASSERT_TRUE(state.triggered);
+  EXPECT_LT(stall, absl::Milliseconds(kTimeoutMs / 2))
+      << "Thread_ProcessStackTraces stalled on exiting thread for " << stall;
+}
+#endif  // !__APPLE__ && !__ANDROID__ && !ABSL_HAVE_THREAD_SANITIZER
+
 }  // namespace
 
 // We want to test thread watchers and watchdogs for mobile platforms regardless
