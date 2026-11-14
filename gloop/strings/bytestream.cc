@@ -46,7 +46,7 @@ void ByteSource::CopyTo(ByteSink* absl_nonnull sink, size_t n) {
       break;
     }
     size_t fragment_size = std::min<size_t>(n, fragment.size());
-    sink->Append(fragment.data(), fragment_size);
+    sink->Append(absl::string_view(fragment.data(), fragment_size));
     Skip(fragment_size);
     n -= fragment_size;
   }
@@ -55,7 +55,7 @@ void ByteSource::CopyTo(ByteSink* absl_nonnull sink, size_t n) {
 void ByteSink::AppendExternalMemory(
     absl::string_view data, void* absl_nullable arg,
     void (*absl_nonnull memory_releaser)(void* absl_nullable)) {
-  Append(data.data(), data.size());
+  Append(data);
   (*memory_releaser)(arg);
 }
 
