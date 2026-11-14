@@ -87,8 +87,7 @@ enum ElfBinaryFlavor {
   STRIPPED = 1 << 3,
   HAS_DEBUG_INFO = 1 << 4,
   MANY_SECTIONS = 1 << 5,
-  PPC = 1 << 6,
-  SPLIT_TEXT_SECTIONS = 1 << 7,
+  SPLIT_TEXT_SECTIONS = 1 << 6,
 };
 
 // Checks if the file name is likely an executable of the running program.

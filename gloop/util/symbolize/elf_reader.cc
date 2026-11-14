@@ -623,8 +623,6 @@ class ElfReaderImpl {
         whole_file_(whole_file),  // May be null.
         whole_file_size_(whole_file_size),
         is_dwp_(absl::EndsWith(path, ".dwp")),
-        opd_section_(nullptr),
-        base_for_text_(0),
         plts_supported_(false),
         plt_code_size_(0),
         plt0_size_(0),
@@ -636,25 +634,6 @@ class ElfReaderImpl {
     if (!ParseHeaders(fd, path)) {
       LOG(ERROR) << "Failed to parse headers for " << path;
       return;
-    }
-    // Currently we need some extra information for PowerPC64 binaries
-    // including a way to read the .opd section for function descriptors and a
-    // way to find the linked base for function symbols.
-    if (header_.e_machine == EM_PPC64) {
-      // "opd_section_" must always be checked for nullptr before use.
-      opd_section_ = GetSectionInfoByName(".opd", &opd_info_);
-      for (int k = 1, num_sections = GetNumSections(); k < num_sections; ++k) {
-        const char* name = GetSectionName(section_headers_[k].sh_name);
-        if (name == nullptr) {
-          LOG(ERROR) << "NULL section name for section " << k << " in " << path;
-          return;
-        }
-        if (strncmp(name, ".text", strlen(".text")) == 0) {
-          base_for_text_ =
-              section_headers_[k].sh_addr - section_headers_[k].sh_offset;
-          break;
-        }
-      }
     }
     // Turn on PLTs.
     if (header_.e_machine == EM_386 || header_.e_machine == EM_X86_64) {
@@ -851,20 +830,7 @@ class ElfReaderImpl {
         const uint64_t real_base = mem_offset - (file_offset - off_);
         const uint64_t adjust = real_base - expected_base;
 
-        uint64_t start = sym->st_value + adjust;
-
-        // Adjust function symbols for PowerPC64 by dereferencing and adjusting
-        // the function descriptor to get the function address.
-        if (header_.e_machine == EM_PPC64 && ElfArch::Type(sym) == STT_FUNC) {
-          const uint64_t opd_addr =
-              AdjustPPC64FunctionDescriptorSymbolValue(sym->st_value);
-          // Only adjust the returned value if the function address was found.
-          if (opd_addr != sym->st_value) {
-            const int64_t adjust_function_symbols = real_base - base_for_text_;
-            start = opd_addr + adjust_function_symbols;
-          }
-        }
-
+        const uint64_t start = sym->st_value + adjust;
         addr_to_sym_map.push_back(std::make_pair(start, sym));
       }
     }
@@ -1587,21 +1553,6 @@ class ElfReaderImpl {
     return false;
   }
 
-  // Given the "value" of a function descriptor return the address of the
-  // function (i.e. the dereferenced value). Otherwise return "value".
-  uint64_t AdjustPPC64FunctionDescriptorSymbolValue(uint64_t value) {
-    if (opd_section_ != nullptr && opd_info_.addr <= value &&
-        value < opd_info_.addr + opd_info_.size) {
-      if (opd_info_.entsize != 0) {
-        CHECK_EQ(value, opd_info_.entsize * (value / opd_info_.entsize))
-            << "mis-aligned symbol";
-      }
-      uint64_t offset = value - opd_info_.addr;
-      return (*reinterpret_cast<const uint64_t*>(opd_section_ + offset));
-    }
-    return value;
-  }
-
   void AdjustSymbolValue(typename ElfArch::Sym* sym) {
     switch (header_.e_machine) {
       case EM_ARM:
@@ -1614,13 +1565,6 @@ class ElfReaderImpl {
       case EM_386:
         // No adjustment needed for Intel x86 architecture.  However, explicitly
         // define this case as we use it quite often.
-        break;
-      case EM_PPC64:
-        // PowerPC64 currently has function descriptors as part of the ABI.
-        // Function symbols need to be adjusted accordingly.
-        if (ElfArch::Type(sym) == STT_FUNC)
-          sym->st_value =
-              AdjustPPC64FunctionDescriptorSymbolValue(sym->st_value);
         break;
       default:
         break;
@@ -1665,13 +1609,6 @@ class ElfReaderImpl {
   // mmaped as they're needed and not released until this object is
   // destroyed.
   std::vector<std::unique_ptr<ElfSectionReader<ElfArch>>> sections_;
-
-  // For PowerPC64 we need to keep track of function descriptors when looking up
-  // values for function symbols values. Function descriptors are kept in the
-  // .opd section and are dereferenced to find the function address.
-  ElfReader::SectionInfo opd_info_;
-  const char* opd_section_;  // Must be checked for nullptr before use.
-  int64_t base_for_text_;
 
   // Read PLT-related sections for the current architecture.
   bool plts_supported_;
