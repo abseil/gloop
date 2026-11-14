@@ -97,6 +97,8 @@ class Bundle {
 
   // Join all fibers, and any descendants, belonging to this bundle.  Returns
   // immediately if the bundle is empty (i.e. no children currently exist).
+  // As for Fiber::Join(), this includes the teardown of the base::Context that
+  // each of those fibers ran under.
   // It is illegal to Add() children after calling JoinAll(). Must be called
   // prior to releasing *this, by the Fiber that created *this.
   void JoinAll();
@@ -113,7 +115,7 @@ class Bundle {
   Case OnCancel() const;
 
   // Returns a token that may be used to Select() against the completion of all
-  // fibers belonging to this Bundle.
+  // fibers belonging to this Bundle, in the same sense as for JoinAll().
   // It is illegal to Add() children after calling OnJoinable().
   // Note: Callers must still ensure JoinAll() is called.
   Case OnJoinable();
