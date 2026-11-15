@@ -354,14 +354,17 @@ struct Shard {
   Table table;
   uint64_t next_key = 1;
 
-  // Shrinks the table's capacity if it is now empty after having grown beyond a
-  // certain threshold in the past.
+  // Shrinks the table's capacity if it is now (nearly) empty after having grown
+  // beyond a certain threshold in the past.
   void ReclaimMemoryIfEmpty() {
     // Reclaim memory only if the table had grown beyond an arbitrary small
     // threshold. The threshold ensures we only pay the rehash() penalty for
     // tables that grew significantly large before going empty, which preserves
-    // performance for typical workloads.
-    if (table.empty() && table.capacity() > 16) {
+    // performance for typical workloads. Shards are shared by the whole
+    // process, so a few long-lived entries (e.g. periodic timers) often keep a
+    // shard from ever becoming empty; also shrink below 1/16 occupancy, which
+    // leaves ample hysteresis before the table needs to grow again.
+    if (table.capacity() > 16 && table.size() * 16 < table.capacity()) {
       table.rehash(0);
     }
   }
