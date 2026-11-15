@@ -2554,6 +2554,7 @@ cc_library(
         ":tracecontext",
         ":tracer",
         "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
     ],
 )
 

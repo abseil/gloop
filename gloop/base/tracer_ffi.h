@@ -24,6 +24,7 @@
 #include <cstddef>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "gloop/base/tracecontext.h"
 #include "gloop/base/tracer.h"
 
@@ -36,9 +37,14 @@ inline void PrintLiteral(const char* literal) {
 
 using RustFormatter = int (&)(void* arg, char* buf, size_t len);
 
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI inline int InvokeRustFormatter(
+    RustFormatter formatter, void* arg, char* buf, size_t len) {
+  return formatter(arg, buf, len);
+}
+
 inline void PrintFormattedString(RustFormatter formatter, void* arg) {
   auto cpp_formatter = [formatter, arg](char* buf, size_t len) -> int {
-    return formatter(arg, buf, len);
+    return InvokeRustFormatter(formatter, arg, buf, len);
   };
   const TraceContext* tc = TraceContext::Current();
   tc->tracer()->PrintFormattedString(std::move(cpp_formatter));
