@@ -18,8 +18,8 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
-#ifndef BASE_INTERNAL_INIT_GOOGLE_H_
-#define BASE_INTERNAL_INIT_GOOGLE_H_
+#ifndef THIRD_PARTY_GLOOP_BASE_INTERNAL_INIT_GOOGLE_H_
+#define THIRD_PARTY_GLOOP_BASE_INTERNAL_INIT_GOOGLE_H_
 
 // Internal details of init_google.cc.
 // To be included only by init_google.cc.
@@ -36,4 +36,4 @@ bool IsValidMlockStyle(absl::string_view);
 }  // namespace internal
 }  // namespace base
 
-#endif  // BASE_INTERNAL_INIT_GOOGLE_H_
+#endif  // THIRD_PARTY_GLOOP_BASE_INTERNAL_INIT_GOOGLE_H_

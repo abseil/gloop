@@ -24,7 +24,6 @@
 #include <string>
 #include <vector>
 
-#include "absl/log/log.h"
 #include "absl/types/span.h"
 #include "gloop/base/config.h"
 
