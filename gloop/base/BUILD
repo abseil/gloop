@@ -111,7 +111,6 @@ cc_library(
     srcs = ["callback.cc"],
     hdrs = ["callback-types.h"],
     visibility = [
-        "//gloop/base:__subpackages__",
         "//gloop/util/functional:__subpackages__",
     ],
     deps = [
@@ -163,7 +162,6 @@ cc_library(
         "@abseil-cpp//absl/strings:string_view",
     ],
     visibility = [
-        "//gloop/base:__subpackages__",
         "//gloop/thread/fiber:__subpackages__",
     ],
     deps = ["//gloop:enforce_gloop_support"],
@@ -305,9 +303,6 @@ cc_test(
 cc_library(
     name = "context_origin",
     hdrs = ["context_origin.h"],
-    visibility = [
-        "//gloop/base:__subpackages__",
-    ],
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/util/atomic_danger:refcount",
@@ -444,7 +439,6 @@ cc_test(
     name = "hostname_test",
     size = "small",
     srcs = ["hostname_test.cc"],
-    visibility = ["//visibility:public"],
     deps = [
         ":hostname",
         "//gloop:gloop_test_main",
@@ -567,9 +561,6 @@ cc_library(
             ":signal-handler",
         ],
     }),
-    visibility = [
-        "//gloop:__subpackages__",
-    ],
     deps = ["//gloop:enforce_gloop_support"],
     alwayslink = True,
 )
@@ -689,9 +680,6 @@ cc_test(
     tags = [
         # numactl causes sanitizer false-positives from the numa_init constructor.
         "nosan",
-    ],
-    visibility = [
-        ":base_implementation",
     ],
     deps = [
         ":callback",
@@ -947,7 +935,6 @@ cc_library(
     hdrs = ["raw_printer.h"],
     copts = ["-O3"],
     visibility = [
-        "//gloop/base:__subpackages__",
         "//gloop/thread:__subpackages__",
     ],
     deps = [
@@ -1010,7 +997,6 @@ cc_library(
     name = "scoped_sigmask",
     hdrs = ["scoped_sigmask.h"],
     visibility = [
-        "//gloop/base:__subpackages__",
         "//gloop/concurrent/rcu:__subpackages__",
     ],
     deps = [
@@ -1135,10 +1121,6 @@ cc_library(
             "//gloop/base/scheduling",
         ],
     }),
-    visibility = [
-        "//gloop/base:__pkg__",
-        "//gloop/thread/fiber:__subpackages__",
-    ],
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:spinlock_wait",
@@ -1564,7 +1546,6 @@ cc_library(
     hdrs = ["signal_util_subtle.h"],
     implementation_deps = ["@abseil-cpp//absl/time"],
     visibility = [
-        "//gloop/base:__subpackages__",
         "//gloop/concurrent/rcu:__subpackages__",
     ],
     deps = [
@@ -1651,7 +1632,6 @@ cc_library(
     hdrs = ["futex.h"],
     implementation_deps = ["@abseil-cpp//absl/base:core_headers"],
     visibility = [
-        "//gloop/base:__subpackages__",
         "//gloop/concurrent/percpu:__pkg__",
         "//gloop/thread/fiber:__pkg__",
     ],
@@ -1666,9 +1646,6 @@ cc_library(
 cc_library(
     name = "inlined_syscall",
     hdrs = ["inlined_syscall.h"],
-    visibility = [
-        "//gloop/base:__subpackages__",
-    ],
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
@@ -2213,7 +2190,6 @@ cc_library(
     ],
     # Please use `absl::LogSink` instead of adding new uses of `base::Logger`.
     visibility = [
-        "//gloop/base:__subpackages__",
         "//gloop/thread:__pkg__",
         "//gloop/util/status:__pkg__",
     ],
