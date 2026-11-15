@@ -28,6 +28,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/base/internal/thread_identity.h"
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
@@ -86,6 +87,15 @@ ABSL_FLAG(
 //
 // All fibers will undergo all of these transitions.
 namespace thread {
+
+namespace {
+
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI void InvokeCleanup(void (*clean_up)(Fiber*),
+                                                  Fiber* fiber) {
+  clean_up(fiber);
+}
+
+}  // namespace
 
 extern void InternalSetCurrentFiberName(absl::string_view fiber_name);
 extern absl::string_view InternalGetCurrentFiberName();
@@ -424,7 +434,7 @@ void Fiber::Body() {
     } else {
       InternalJoin();
     }
-    clean_up(this);
+    InvokeCleanup(clean_up, this);
   }
 }
 
@@ -634,7 +644,7 @@ void subtle::Detach(Fiber& fiber, Fiber::CleanupFn& clean_up) {
     fiber.InternalJoin();
 
     // It's our job to clean up the fiber.
-    return clean_up(&fiber);
+    return InvokeCleanup(&clean_up, &fiber);
   }
 
   fiber.detached_cleanup_.store(&clean_up, std::memory_order_relaxed);
