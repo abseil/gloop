@@ -24,7 +24,7 @@
 // processor/OS that haven't been supported yet.
 #include "gloop/base/user_name.h"
 
-#if !defined(_WIN32)
+#if !defined(_WIN32) && !defined(__wasi__)
 #include <unistd.h>
 #endif
 
@@ -39,7 +39,7 @@
 #include "absl/base/thread_annotations.h"
 #include "absl/synchronization/mutex.h"
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__wasi__)
 
 // ----------------------------------------------------------------------
 // Internal helpers for UserName() and MyUserName()
@@ -130,6 +130,15 @@ std::string MyUserName() {
   const uid_t uid = geteuid();
   return MyUserName_Cached(uid);
 }
+
+#elif defined(__wasi__)
+
+std::string UserName(const uid_t uid) {
+  if (uid == 0) return "root";
+  return "wasi";
+}
+
+std::string MyUserName() { return "wasi"; }
 
 #else                                 // _WIN32
 
