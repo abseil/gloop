@@ -99,13 +99,45 @@ WithContext::~WithContext() {}
 
 namespace base {
 
+#if BASE_HAVE_TRACECONTEXT && (!ABSL_HAVE_ATTRIBUTE_WEAK || defined(__APPLE__))
+void RegisterContextTraceHooks(TraceContext* (*mutable_current_trace)(),
+                               const TraceContext* (*current_trace_no_alloc)());
+#endif
+
 namespace {
 
 // Keep thread-local state on the current context. The current TraceContext
 // now points to the trace state within the current generic context.
 STATIC_THREAD_LOCAL_WITH_CONSTRUCTOR_ARGS(Context, per_thread_context, ());
 
-Context* InlineCurrent() { return per_thread_context.pointer(); }
+#if BASE_HAVE_TRACECONTEXT && (!ABSL_HAVE_ATTRIBUTE_WEAK || defined(__APPLE__))
+TraceContext* ContextMutableCurrentTraceHook() {
+  return const_cast<TraceContext*>(
+      &per_thread_context.pointer()->trace_context());
+}
+
+void EnsureContextTraceHooksRegistered() {
+  static const bool kRegistered = [] {
+    RegisterContextTraceHooks(&ContextMutableCurrentTraceHook,
+                              &CurrentTraceContextNoAlloc);
+    return true;
+  }();
+  (void)kRegistered;
+}
+
+const bool kRegisteredContextTraceHooks = [] {
+  EnsureContextTraceHooksRegistered();
+  return true;
+}();
+#endif  // BASE_HAVE_TRACECONTEXT && (!ABSL_HAVE_ATTRIBUTE_WEAK ||
+        // defined(__APPLE__))
+
+Context* InlineCurrent() {
+#if BASE_HAVE_TRACECONTEXT && (!ABSL_HAVE_ATTRIBUTE_WEAK || defined(__APPLE__))
+  EnsureContextTraceHooksRegistered();
+#endif
+  return per_thread_context.pointer();
+}
 
 }  // namespace
 
@@ -129,7 +161,7 @@ absl::NoDestructor<Context> background_context{Context::kDefault};
 Context* absl_nonnull SwapContext(ContextAccess access,
                                   Context* absl_nonnull context,
                                   perftools::tracing::StringRef label) {
-  Context* current = per_thread_context.pointer();
+  Context* current = InlineCurrent();
   NotifyTraceContextChanging(current->trace(), context->trace());
   current->trace()->BeforeSwapCurrent(access, context->trace_context());
   per_thread_context.set_pointer(context);
@@ -193,9 +225,21 @@ const TraceContext* CurrentTraceContextNoAlloc() {
   return context != nullptr ? &context->trace_context() : nullptr;
 }
 
-TraceContext* internal::MutableCurrentContext::MutableCurrentTrace() {
-  return &InlineCurrent()->tc_;
+#if BASE_HAVE_TRACECONTEXT && ABSL_HAVE_ATTRIBUTE_WEAK && !defined(__APPLE__)
+extern "C" {
+TraceContext* base_internal_context_mutable_current_trace();
+const TraceContext* base_internal_context_current_trace_no_alloc();
+}  // extern "C"
+
+extern "C" TraceContext* base_internal_context_mutable_current_trace() {
+  return const_cast<TraceContext*>(&InlineCurrent()->trace_context());
 }
+
+extern "C" const TraceContext* base_internal_context_current_trace_no_alloc() {
+  return CurrentTraceContextNoAlloc();
+}
+#endif  // BASE_HAVE_TRACECONTEXT && ABSL_HAVE_ATTRIBUTE_WEAK &&
+        // !defined(__APPLE__)
 
 ABSL_XRAY_ALWAYS_INSTRUMENT void SwapCurrentContext(Context* c) {
   using std::swap;
@@ -236,17 +280,6 @@ Context ExchangeThreadContext(ThreadContextAccess access, Context context,
   swap(*current, context);
   trace->AfterExchangeThreadContext(access, label);
   return context;
-}
-
-// HACK(jacobsa): provide a definition of the function declared in
-// tracecontext.h, despite that header not being part of this target. The code
-// there is, and long has been, incorrect unless context.cc is also linked into
-// the binary.
-//
-// We avoid just forward declaring CurrentTraceContextNoAlloc there because it
-// causes include-cleaner to fail to add an include for context.h.
-const TraceContext* CurrentTraceContextNoAlloc_ForTraceContext() {
-  return CurrentTraceContextNoAlloc();
 }
 
 ContextBuilder& ContextBuilder::set_trace_context(TraceContext tc) {

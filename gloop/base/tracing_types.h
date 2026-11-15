@@ -27,8 +27,11 @@
 
 #include "absl/functional/function_ref.h"
 
+class TraceContext;
+
 namespace perftools {
 namespace tracing {
+class SkeletalTracingAccess;
 namespace channels {
 
 // The file //perftools/tracing/proto/channel_id.proto contains a
@@ -41,6 +44,41 @@ using ChannelID = int32_t;
 }  // namespace perftools
 
 namespace base {
+
+class Tracer;
+
+namespace tracing_internal {
+
+inline constexpr uint32_t kTraceMaskRPCTracingOn = 0x1;
+inline constexpr uint32_t kTraceMaskNonUniform = 0x2;
+inline constexpr uint32_t kTraceMaskLayerLocalSamplingOn = 0x4;
+inline constexpr uint32_t kTraceMaskVerboseTrace = 0x8;
+inline constexpr uint32_t kTraceMaskSkeletalTracingOn = 0x10;
+inline constexpr uint32_t kTraceMaskClientRootedTrace = 0x40;
+inline constexpr uint32_t kTraceMaskTransientTracingOn = 0x800;
+inline constexpr uint32_t kTraceMaskTransientTracingOffset = 11;
+inline constexpr uint32_t kTraceMaskGoogleWideFaultInjection = 0x2000;
+inline constexpr uint32_t kTraceMaskSherlogTracingOn = 0x4000;
+inline constexpr uint32_t kTraceMaskSpeculativeCollectingOn = 0x8000;
+inline constexpr uint32_t kTraceMaskUserVisibleTracing =
+    kTraceMaskRPCTracingOn | kTraceMaskSpeculativeCollectingOn |
+    kTraceMaskTransientTracingOn | kTraceMaskSherlogTracingOn;
+inline constexpr uint32_t kTraceMaskDapperTracing =
+    kTraceMaskRPCTracingOn | kTraceMaskSpeculativeCollectingOn |
+    kTraceMaskSkeletalTracingOn;
+inline constexpr uint32_t kTraceMaskTagWidth = 8;
+inline constexpr uint32_t kTraceMaskTagOffset = 32 - kTraceMaskTagWidth;
+
+// Grants access to skeletal tracing APIs via the passkey idiom.
+class SkeletalTracingAccess {
+ private:
+  constexpr SkeletalTracingAccess() = default;
+  friend class ::perftools::tracing::SkeletalTracingAccess;
+  friend class ::TraceContext;
+  friend class ::base::Tracer;
+};
+
+}  // namespace tracing_internal
 
 #ifndef SWIG
 // Type-erased function for use with PrintFormattedString. The type erased

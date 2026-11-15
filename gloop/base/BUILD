@@ -1374,6 +1374,8 @@ cc_library(
     srcs = ["tracecontext.cc"],
     hdrs = ["tracecontext.h"],
     implementation_deps = [
+        ":static_threadlocal",
+        ":tracer_internal",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:vlog_is_on",
         "@abseil-cpp//absl/strings",
@@ -1386,7 +1388,7 @@ cc_library(
         ":context_origin",
         ":port",
         ":sysinfo",
-        ":tracer",  # buildcleaner: keep
+        ":tracing_types",
         ":xray_tracing_annotations",
         "//gloop:enforce_gloop_support",
         "//gloop/perftools/tracing:sync_context",
@@ -1398,6 +1400,27 @@ cc_library(
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:string_view",
+    ],
+)
+
+cc_test(
+    name = "tracecontext_backref_test",
+    size = "small",
+    srcs = ["tracecontext_backref_test.cc"],
+    deps = [
+        ":context",  # buildcleaner: keep
+        ":tracecontext",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+    ],
+)
+
+cc_test(
+    name = "tracecontext_standalone_test",
+    size = "small",
+    srcs = ["tracecontext_backref_test.cc"],
+    deps = [
+        ":tracecontext",
+        "@abseil-cpp//absl/base:raw_logging_internal",
     ],
 )
 
@@ -2480,45 +2503,28 @@ cc_test(
 
 cc_library(
     name = "tracer",
-    srcs = [
-        # TODO: Break the Tracer<->TraceContext circular dependency.
-        "tracecontext.h",
-        "tracer.cc",
-    ],
+    srcs = ["tracer.cc"],
     hdrs = ["tracer.h"],
-    implementation_deps = [
-        "//gloop/base/internal:effective_user_id",
-        "//gloop/perftools/tracing",
-        "@abseil-cpp//absl/base",
-    ],
     visibility = ["//visibility:public"],
     deps = [
-        ":censushandle",
-        ":context_access",
-        ":context_origin",
-        ":port",
-        ":reference_tracker",
-        ":sysinfo",
-        ":tracing_types",
-        ":walltime",
-        ":xray_tracing_annotations",
+        ":tracecontext",
+        ":tracer_internal",
         "//gloop:enforce_gloop_support",
-        "//gloop/base/time:time_unix_nanos",
-        "//gloop/perftools/tracing:format_to_buffer_sink",
-        "//gloop/perftools/tracing:sync_context",
-        "//gloop/perftools/tracing:trace_event_listener",
-        "//gloop/perftools/tracing:trace_source_location",
-        "//gloop/perftools/tracing:tracing_base",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/types:source_location",
+    ],
+)
+
+cc_test(
+    name = "tracer_backref_test",
+    size = "small",
+    srcs = ["tracer_backref_test.cc"],
+    deps = [
+        ":context",  # buildcleaner: keep
+        ":tracecontext",
+        ":tracer",
+        ":tracing_types",
         "@abseil-cpp//absl/base:raw_logging_internal",
-        "@abseil-cpp//absl/flags:flag",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/memory",
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/strings:str_format",
-        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:source_location",
     ],
 )
@@ -2531,6 +2537,51 @@ cc_library(
         ":tracer",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
+    ],
+)
+
+cc_library(
+    name = "tracer_internal",
+    srcs = ["tracer_internal.cc"],
+    hdrs = ["tracer_internal.h"],
+    implementation_deps = [
+        "//gloop/base/internal:effective_user_id",
+        "//gloop/perftools/tracing",
+        "@abseil-cpp//absl/base",
+    ],
+    deps = [
+        ":port",
+        ":reference_tracker",
+        ":tracing_types",
+        ":walltime",
+        ":xray_tracing_annotations",
+        "//gloop:enforce_gloop_support",
+        "//gloop/base/time:time_unix_nanos",
+        "//gloop/perftools/tracing:format_to_buffer_sink",
+        "//gloop/perftools/tracing:trace_source_location",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/memory",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:source_location",
+    ],
+)
+
+cc_test(
+    name = "tracer_standalone_test",
+    size = "small",
+    srcs = ["tracer_backref_test.cc"],
+    deps = [
+        ":tracecontext",
+        ":tracer",
+        ":tracing_types",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:source_location",
     ],
 )
 
