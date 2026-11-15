@@ -559,7 +559,7 @@ class Tracer {
     // We must consider any request which is traced by any mechanism as
     // "interesting", because all these mechanisms will have TraceEntrySources
     // attached, and not detaching them can lead to dangling references.
-    return is_traced_any_kind(TraceContext::SkeletalTracingAccess());
+    return is_traced_any_kind(tracing_internal::SkeletalTracingAccess());
   }
 
   // Detaches a TraceEntrySource instance |source| from this tracer.
@@ -763,39 +763,40 @@ class Tracer {
 
   // Returns true iff this Tracer was created in a traced context.
   bool is_traced() const {
-    return trace_mask() & TraceContext::kTraceMaskRPCTracingOn;
+    return trace_mask() & tracing_internal::kTraceMaskRPCTracingOn;
   }
 
   // Returns true iff this Tracer was created in a traced context.
   // TODO: Find a more intuitive name and update the comments.
   bool is_traced_or_speculatively_traced() const {
-    return trace_mask() & (TraceContext::kTraceMaskRPCTracingOn |
-                           TraceContext::kTraceMaskSpeculativeCollectingOn);
+    return trace_mask() & (tracing_internal::kTraceMaskRPCTracingOn |
+                           tracing_internal::kTraceMaskSpeculativeCollectingOn);
   }
 
   // Returns true if the traced context was selected by layer-local sampling.
   // Only true when is_traced() is true.
   bool is_layer_local_sampled() const {
-    return trace_mask() & TraceContext::kTraceMaskLayerLocalSamplingOn;
+    return trace_mask() & tracing_internal::kTraceMaskLayerLocalSamplingOn;
   }
 
   // Returns true if this Tracer is skeletally traced.
-  bool is_skeletally_traced(TraceContext::SkeletalTracingAccess) const {
-    return trace_mask() & TraceContext::kTraceMaskSkeletalTracingOn;
+  bool is_skeletally_traced(tracing_internal::SkeletalTracingAccess) const {
+    return trace_mask() & tracing_internal::kTraceMaskSkeletalTracingOn;
   }
 
   // Returns true if this Tracer is *only* skeletally traced but not normally
   // traced.
-  bool is_only_skeletally_traced(TraceContext::SkeletalTracingAccess) const {
-    return (trace_mask() & (TraceContext::kTraceMaskUserVisibleTracing |
-                            TraceContext::kTraceMaskSkeletalTracingOn)) ==
-           TraceContext::kTraceMaskSkeletalTracingOn;
+  bool is_only_skeletally_traced(
+      tracing_internal::SkeletalTracingAccess) const {
+    return (trace_mask() & (tracing_internal::kTraceMaskUserVisibleTracing |
+                            tracing_internal::kTraceMaskSkeletalTracingOn)) ==
+           tracing_internal::kTraceMaskSkeletalTracingOn;
   }
 
   // Returns true if this Tracer is traced by any kind of sampling process
   // (normally, speculatively, or skeletally) which would send data to Dapper.
-  bool is_traced_any_kind(TraceContext::SkeletalTracingAccess) const {
-    return trace_mask() & TraceContext::kTraceMaskDapperTracing;
+  bool is_traced_any_kind(tracing_internal::SkeletalTracingAccess) const {
+    return trace_mask() & tracing_internal::kTraceMaskDapperTracing;
   }
 
   // Returns the relative inverse skeletal sampling probability. The relative
@@ -805,7 +806,7 @@ class Tracer {
   // This returns 0 if this is not skeletally traced, or if this Tracer did not
   // change the skeletal sampling probability.
   double inverse_relative_skeletal_sampling_probability(
-      TraceContext::SkeletalTracingAccess) const {
+      tracing_internal::SkeletalTracingAccess) const {
     return inverse_relative_skeletal_sampling_probability_;
   }
 
@@ -1257,7 +1258,7 @@ class Tracer {
 
   void set_inverse_relative_skeletal_sampling_probability(
       double inverse_relative_sampling_probability,
-      TraceContext::SkeletalTracingAccess) {
+      tracing_internal::SkeletalTracingAccess) {
     inverse_relative_skeletal_sampling_probability_ =
         inverse_relative_sampling_probability;
   }
@@ -1692,7 +1693,8 @@ class TraceConsumer {
     ABSL_DEPRECATE_AND_INLINE()
     double ElapsedSeconds() const { return absl::ToDoubleSeconds(Elapsed()); }
 
-    bool is_traced_any_kind(TraceContext::SkeletalTracingAccess access) const {
+    bool is_traced_any_kind(
+        tracing_internal::SkeletalTracingAccess access) const {
       return tracer_.is_traced_any_kind(access);
     }
 
