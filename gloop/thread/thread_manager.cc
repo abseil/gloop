@@ -503,7 +503,8 @@ static void TMWorker(ThreadManagerRep* rep, TMPool* pool, TMThread* self) {
           << " name_prefix=" << pool->name_prefix;
   Executor** exec_ptr = Executor::CurrentExecutorPointerInternal();
   int watchdog_timeout = INT_MAX;
-  WatchDog watchdog("threadpool worker " + pool->name_prefix, watchdog_timeout);
+  WatchDog watchdog("threadpool worker " + pool->name_prefix,
+                    absl::Seconds(watchdog_timeout));
   if (rep->watchdog_callback != nullptr) {
     // WatchDog takes ownership of this callback, it is re-wrapped to avoid
     // premature deletion of rep->watchdog_callback should the watchdog fire.
@@ -555,7 +556,7 @@ static void TMWorker(ThreadManagerRep* rep, TMPool* pool, TMThread* self) {
         if (time_limit_s != INT_MAX) {
           if (watchdog_timeout != time_limit_s) {
             watchdog_timeout = time_limit_s;
-            watchdog.SetTimeout(watchdog_timeout);
+            watchdog.SetTimeoutDuration(absl::Seconds(watchdog_timeout));
           }
           watchdog.Alive();
           std::move(work.cb)();
@@ -896,8 +897,8 @@ static int64_t TMOverseePoolInterval(
 // before calling the watchdog's default TimedOut() routine.
 [[noreturn]] static void TMOverseerTimeout(WatchDog* w) {
   const char* suggestion = "";
-  LOG(ERROR) << "ThreadManager overseer was not scheduled for " << w->timeout()
-             << " seconds." << suggestion;
+  LOG(ERROR) << "ThreadManager overseer was not scheduled for "
+             << w->timeout_duration() << "." << suggestion;
   w->TimedOut();
 }
 
