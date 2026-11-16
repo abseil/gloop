@@ -427,7 +427,7 @@ static void TestSwapWithQueueSizeLimit(ThreadPool* pool) {
 
   CHECK(!write_finished_1.HasBeenNotified());
   CHECK(!write_finished_2.HasBeenNotified());
-  typename Qtype::container_type c = wq.PopAll();
+  [[maybe_unused]] typename Qtype::container_type c = wq.PopAll();
   absl::SleepFor(
       absl::Seconds(2));  // This should be enough time for unblocking to happen
   CHECK(write_finished_1.HasBeenNotified());

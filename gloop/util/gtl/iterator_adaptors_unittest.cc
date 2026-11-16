@@ -1190,7 +1190,6 @@ TEST_F(IteratorAdaptorTest, EmptyAndSize) {
     EXPECT_EQ(0, key_view(container).size());
     EXPECT_EQ(0, value_view(container).size());
     std::string s0 = "s0";
-    std::string s1 = "s1";
     container.insert(std::make_pair("0", &s0));
     container.insert(std::make_pair("1", &s0));
     EXPECT_FALSE(key_view(container).empty());

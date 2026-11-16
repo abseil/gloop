@@ -383,7 +383,7 @@ TEST(Enum, Basic) { EXPECT_EQ(to_string(kSquare), "42"); }
 
 TEST(Proto, Empty) {
   TestProto obj;
-  auto s = to_string(obj);
+  [[maybe_unused]] auto s = to_string(obj);
   EXPECT_THAT(to_string(obj), StrEq("<>"));
 }
 

@@ -1551,7 +1551,7 @@ TEST(MoveOnlyConstructor, CreateByName) {
 ///////////////////////////////////
 
 void BM_GetByName(benchmark::State& state) {
-  std::string key(kNoArgumentsTest1);
+  [[maybe_unused]] std::string key(kNoArgumentsTest1);
   for (auto _ : state) {
     NoArgumentsBaseRegisterer::GetByNameOrDie(kNoArgumentsTest1);
   }
