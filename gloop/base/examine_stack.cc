@@ -661,7 +661,7 @@ void DumpAddressMap(DebugWriter* writer, void* writer_arg) {
   } else {
     // Dynamically allocate the output buffer; ProcMapsIterator will
     // allocate its own buffer
-    alloced_out_buffer.reset(new char[kOutBufSize]);
+    alloced_out_buffer = std::make_unique<char[]>(kOutBufSize);
     maps_buffer = nullptr;
     out_buffer = alloced_out_buffer.get();
     alloced_dir_buffer = std::make_unique<char[]>(kOutBufSize);
