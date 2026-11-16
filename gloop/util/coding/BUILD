@@ -76,7 +76,6 @@ cc_library(
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings:resize_and_overwrite",
         "@abseil-cpp//absl/strings:string_view",
-        "@tcmalloc//tcmalloc:malloc_extension",
     ],
 )
 
