@@ -781,7 +781,7 @@ static void LoopingSignalHandler(int signo, siginfo_t* si, void* uc) {
   // Restore the previous mask to unblock GOOGLE_OBSCURE_SIGNAL while we loop.
   sigprocmask(SIG_SETMASK, &prev_sigset, nullptr);
 
-  while (1) {
+  while (true) {
     absl::SNPrintF(buf, sizeof(buf), "%s",
                    "Sleeping for you to attach to me.\n");
     (void)write(STDERR_FILENO, buf, strlen(buf));
