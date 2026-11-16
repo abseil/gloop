@@ -61,11 +61,48 @@
 #include "gtest/gtest.h"
 
 // Outside the anonymous namespace so that TracerTest can be a friend of
-// MutableCurrentContext.
+// MutableCurrentContext and base::Tracer.
 class TracerTest {
  public:
   static TraceContext* TraceContextMutableCurrent() {
     return ::base::internal::MutableCurrentContext::MutableCurrentTrace();
+  }
+
+  static void ExerciseProtectedMutators(base::Tracer* tracer) {
+    int owners[2] = {0, 0};
+    tracer->SetStartTime(absl::FromUnixSeconds(100));
+    tracer->SetStartTimeNow();
+    tracer->SetUnrefTime(absl::FromUnixSeconds(200));
+    tracer->SetUnrefTimeNow();
+    tracer->Ref(&owners[0]);
+    tracer->SwapRefOwner(&owners[0], &owners[1]);
+    EXPECT_EQ(tracer->UnrefNoDelete(&owners[1]), nullptr);
+    tracer->Unref(&owners[1]);
+    tracer->set_tracer_attributes(/*span_id=*/11, /*parent_span_id=*/22,
+                                  /*trace_id=*/33,
+                                  TraceContext::kTraceMaskRPCTracingOn);
+    tracer->add_child();
+    tracer->add_children(5);
+    tracer->set_span_type(3);
+    tracer->set_inverse_sampling_probability(64.0);
+    tracer->UpdateMask(/*add=*/TraceContext::kTraceMaskRPCTracingOn,
+                       /*remove=*/0);
+    tracer->set_initiator_id(/*initiate_as_prod_uid=*/1234);
+    tracer->set_initiated_by_batch_sampling();
+    tracer->set_initiator_id_string(0xCAFEBABE);
+    tracer->set_inherited_initiator_id(0x12345678ULL);
+    tracer->set_initiator_id_on_child_trace(0x12345678ULL);
+    tracer->set_invalid_inherited_initiator_id();
+    tracer->enable_query_cost_tracing();
+    tracer->set_high_value_trace();
+    tracer->set_speculative_root();
+    tracer->set_initiated_by_tracing_cookie();
+    tracer->set_initiated_by_bucketed_sampling();
+    tracer->internal_enable_shared_fate();
+  }
+
+  static int32_t NumChildren(const base::Tracer& tracer) {
+    return tracer.num_children();
   }
 };
 
@@ -568,6 +605,70 @@ TEST(Tracer, UnrefNoDeleteRefcountEqualsOneWithUnrefTime) {
 
   returned_tracer.reset();
   EXPECT_TRUE(deleted);
+}
+
+class NoopTestNotification : public base::TracerNotification {
+ public:
+  bool TakeOwnershipBeforeDestroy(base::Tracer*) override { return false; }
+};
+
+TEST(Tracer, GlobalNoopTracerIsImmutable) {
+  base::Tracer* noop = base::GetNoopTracer();
+  ASSERT_THAT(noop, NotNull());
+
+  const auto cpu_access = ::perftools::tracing::testing::TestOnlyAccess::Create<
+      base::Tracer::CpuProfileAccess>();
+  const auto notify_access =
+      ::perftools::tracing::testing::TestOnlyAccess::Create<
+          base::Tracer::NotificationAccess>();
+  NoopTestNotification notification;
+
+  // Attempt all public and protected/friend non-virtual mutations on the
+  // process-wide singleton.
+  noop->SetStopTime(absl::FromUnixSeconds(300));
+  noop->SetStopTimeNow();
+  noop->add_cpu_profile_ticks_signal_safe(42, cpu_access);
+  noop->add_lock_contention_delay_safe(absl::Milliseconds(15));
+  EXPECT_FALSE(noop->NotifyBeforeDestroy(&notification, notify_access));
+  noop->set_status(absl::InternalError("ignored"));
+  TracerTest::ExerciseProtectedMutators(noop);
+
+  EXPECT_EQ(noop->span_id(), 0);
+  EXPECT_EQ(noop->parent_span_id(), 0);
+  EXPECT_EQ(noop->trace_id(), 0);
+  EXPECT_EQ(noop->trace_mask(), 0);
+  EXPECT_EQ(noop->span_type(), 0);
+  EXPECT_FALSE(noop->is_traced());
+  EXPECT_FALSE(noop->is_traced_or_speculatively_traced());
+  EXPECT_FALSE(noop->IsInteresting());
+  EXPECT_EQ(noop->initiator_id(), 0);
+  EXPECT_FALSE(noop->is_high_value_trace());
+  EXPECT_FALSE(noop->is_speculative_root());
+  EXPECT_EQ(noop->inverse_sampling_probability(), 0.0);
+  EXPECT_FALSE(noop->has_start_time());
+  EXPECT_FALSE(noop->has_stop_time());
+  EXPECT_FALSE(noop->has_unref_time());
+  EXPECT_FALSE(noop->IsStarted());
+  EXPECT_FALSE(noop->IsRunning());
+  EXPECT_FALSE(noop->IsAlive());
+  EXPECT_EQ(noop->RefCountForTesting(), 0);
+  EXPECT_EQ(TracerTest::NumChildren(*noop), 0);
+  EXPECT_EQ(noop->cpu_profile_ticks(cpu_access), 0);
+  EXPECT_EQ(noop->lock_contention_delay(), absl::ZeroDuration());
+  EXPECT_THAT(noop->status(), IsOk());
+}
+
+TEST(Tracer, GetNoopTracerForTestingRemainsMutable) {
+  std::unique_ptr<base::Tracer> test_noop = base::GetNoopTracerForTesting();
+  ASSERT_THAT(test_noop, NotNull());
+  EXPECT_NE(test_noop.get(), base::GetNoopTracer());
+  EXPECT_TRUE(test_noop->has_start_time());
+  EXPECT_FALSE(test_noop->has_stop_time());
+
+  test_noop->SetStopTimeNow();
+  EXPECT_TRUE(test_noop->has_stop_time());
+  EXPECT_FALSE(base::GetNoopTracer()->has_start_time());
+  EXPECT_FALSE(base::GetNoopTracer()->has_stop_time());
 }
 
 void BM_ElapsedSeconds(benchmark::State& state) {

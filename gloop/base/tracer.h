@@ -88,6 +88,8 @@
 #include "absl/base/attributes.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
+#include "absl/base/nullability.h"
+#include "absl/base/optimization.h"
 #include "absl/flags/declare.h"
 #include "absl/flags/flag.h"  // IWYU pragma: keep
 #include "absl/memory/memory.h"
@@ -111,6 +113,7 @@ ABSL_DECLARE_FLAG(bool, tracer_debug_refcounts);
 
 class IOBuffer;
 class TraceRecord;
+class TracerTest;
 
 namespace base {
 class Tracer;
@@ -462,6 +465,7 @@ class Tracer {
     // To get access, please add yourself to the visibility list at
     // //perftools/tracing/internal:tracer_cpu_profile_access.
     friend class ::perftools::tracing::TracerCpuProfileAccess;
+    friend struct ::perftools::tracing::testing::TestOnlyAccess;
   };
 
   // A passkey type (see passkey idiom in https://abseil.io/tips/134) used to
@@ -474,6 +478,7 @@ class Tracer {
     // //perftools/tracing/internal:tracer_notification_access.
     friend class ::perftools::tracing::TracerNotificationAccess;
     friend class ::base::Tracer;
+    friend struct ::perftools::tracing::testing::TestOnlyAccess;
   };
 
   // A passkey type (see passkey idiom in https://abseil.io/tips/134) used to
@@ -662,6 +667,7 @@ class Tracer {
   //            example:
   //
   //            TraceContext::Current()->tracer()->SetStopTimeNow();
+  //            (Ignored on GetNoopTracer() when the context is untraced.)
   //
   //            This is especially useful for automatic tracers where
   //            deferred work can keep the tracer active despite
@@ -914,6 +920,7 @@ class Tracer {
   // Increments the CPU ticks counter by the specified number of ticks.
   // This is safe to call from async signal contexts.
   void add_cpu_profile_ticks_signal_safe(int ticks, Tracer::CpuProfileAccess) {
+    if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
     cpu_profile_ticks_.fetch_add(ticks, std::memory_order_relaxed);
   }
 
@@ -931,6 +938,7 @@ class Tracer {
   // Note that this only works when the --dapper_lock_contention_reporting flag
   // is set.
   void add_lock_contention_delay_safe(absl::Duration duration) {
+    if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
     lock_contention_delay_ns_.fetch_add(
         static_cast<uint64_t>(absl::ToInt64Nanoseconds(duration)),
         std::memory_order_relaxed);
@@ -1129,6 +1137,7 @@ class Tracer {
   // function is intended mostly for testing purposes.
   // See `SetUnrefTimeNow()` for more information.
   ABSL_XRAY_ALWAYS_INSTRUMENT void SetUnrefTime(absl::Time time) {
+    if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
     ABSL_RAW_DCHECK(time != absl::UnixEpoch(), "Invalid unref time");
     ABSL_RAW_DCHECK(has_start_time(), "Start time is not set");
     ABSL_RAW_DCHECK(!has_unref_time(), "Unref time already set");
@@ -1149,12 +1158,14 @@ class Tracer {
   // the Tracer.  Use by subclasses is reserved for keeping the object
   // alive after Stop (e.g., for /rpcz).
   friend class ::TraceContext;
+  friend class ::TracerTest;
   // TracerNotifications may need to resurrect the Tracer after its ref count
   // reaches zero, but before it gets destroyed, so they are allowed to call
   // Ref() and Unref() as well.
   friend class ::perftools::tracing::WrappedTracer;
 
   void Ref(void* owner) {
+    if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
     tracker_.Ref(owner);
     ref_count_.fetch_add(1, std::memory_order_relaxed);
   }
@@ -1164,6 +1175,7 @@ class Tracer {
   // nullptr otherwise. Protected: only derived tracer implementations can call
   // this.
   std::unique_ptr<Tracer> UnrefNoDelete(void* owner) {
+    if (ABSL_PREDICT_FALSE(is_immutable_noop())) return nullptr;
     tracker_.Unref(owner);
     if (ref_count_.fetch_sub(1, std::memory_order_acq_rel) - 1 == 0) {
       return UnrefSlow();
@@ -1174,6 +1186,7 @@ class Tracer {
   void Unref(void* owner) { UnrefNoDelete(owner); }
 
   void SwapRefOwner(void* old_owner, void* new_owner) {
+    if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
     tracker_.Ref(new_owner);
     tracker_.Unref(old_owner);
   }
@@ -1182,6 +1195,7 @@ class Tracer {
   // available for the constructor, for example when Tracers are re-used.
   void set_tracer_attributes(uint64_t span_id, uint64_t parent_span_id,
                              uint64_t trace_id, uint32_t trace_mask) {
+    if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
     span_id_ = span_id;
     parent_span_id_ = parent_span_id;
     trace_id_ = trace_id;
@@ -1230,10 +1244,14 @@ class Tracer {
   friend class perftools::tracing::BatchedTraceContext;
 
   // Adds 1 to the total number of children for this span.
-  void add_child() { num_children_.fetch_add(1, std::memory_order_release); }
+  void add_child() {
+    if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
+    num_children_.fetch_add(1, std::memory_order_release);
+  }
 
   // Adds num_children to the total number of children for this span.
   void add_children(int32_t num_children) {
+    if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
     num_children_.fetch_add(num_children, std::memory_order_release);
   }
 
@@ -1248,16 +1266,19 @@ class Tracer {
   // be called before exposing the Tracer to other threads.
   // TODO: These values should be passed to the Tracer constructor.
   void set_span_type(int32_t span_type) {
+    if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
     span_type_ = span_type;  // see TraceRecord::SpanType
   }
 
   void set_inverse_sampling_probability(double inverse_sampling_probability) {
+    if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
     inverse_sampling_probability_ = inverse_sampling_probability;
   }
 
   void set_inverse_relative_skeletal_sampling_probability(
       double inverse_relative_sampling_probability,
       TraceContext::SkeletalTracingAccess) {
+    if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
     inverse_relative_skeletal_sampling_probability_ =
         inverse_relative_sampling_probability;
   }
@@ -1344,6 +1365,12 @@ class Tracer {
   // to be deallocated.
   ABSL_ATTRIBUTE_COLD std::unique_ptr<Tracer> UnrefSlow();
 
+  friend Tracer* GetNoopTracer();
+
+  bool is_immutable_noop() const {
+    return this == immutable_noop_tracer_.load(std::memory_order_relaxed);
+  }
+
   // Attributes of this trace span.
   uint64_t span_id_ = 0;
   uint64_t parent_span_id_ = 0;
@@ -1399,6 +1426,14 @@ class Tracer {
 
   // Stores the lock contention delay in nanoseconds.
   std::atomic<uint64_t> lock_contention_delay_ns_{0};
+
+  // Points to the process-wide `GetNoopTracer()` singleton once initialized
+  // (null prior to the first `GetNoopTracer()` call). Comparing `this` against
+  // this pointer keeps `GetNoopTracer()` immutable across all non-virtual
+  // mutators without increasing `sizeof(Tracer)` (120 bytes in opt builds),
+  // while leaving `GetNoopTracerForTesting()` instances mutable.
+  ABSL_CONST_INIT static std::atomic<const Tracer* absl_nullable>
+      immutable_noop_tracer_;
 
   // An optional callback to invoked the first time the Tracer's reference count
   // drops to zero. This allows an application to capture the Tracer without
