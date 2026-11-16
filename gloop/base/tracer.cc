@@ -30,6 +30,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/call_once.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/base/optimization.h"
 #include "absl/flags/flag.h"
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
@@ -102,14 +103,19 @@ class NoopTracer : public base::Tracer {
 static absl::once_flag nooptracer_init;
 base::Tracer* noop_tracer_instance = nullptr;
 
-void CreateNoopTracer() { noop_tracer_instance = new NoopTracer; }
-
 }  // namespace
 
 namespace base {
 
+ABSL_CONST_INIT std::atomic<const Tracer* absl_nullable>
+    Tracer::immutable_noop_tracer_{nullptr};
+
 Tracer* GetNoopTracer() {
-  absl::call_once(nooptracer_init, &CreateNoopTracer);
+  absl::call_once(nooptracer_init, []() {
+    noop_tracer_instance = new NoopTracer();
+    Tracer::immutable_noop_tracer_.store(noop_tracer_instance,
+                                         std::memory_order_release);
+  });
   return noop_tracer_instance;
 }
 
@@ -177,7 +183,9 @@ std::unique_ptr<Tracer> Tracer::UnrefSlow() {
 
 bool Tracer::NotifyBeforeDestroy(TracerNotification* new_notify,
                                  NotificationAccess) {
-  if (new_notify == nullptr) return false;
+  if (ABSL_PREDICT_FALSE(is_immutable_noop()) || new_notify == nullptr) {
+    return false;
+  }
   TracerNotification* old_notify = nullptr;
   // Only a single notification can be registered. Any subsequent attempts to
   // override an existing notification will fail.
@@ -190,6 +198,7 @@ bool Tracer::NotifyBeforeDestroy(TracerNotification* new_notify,
 }
 
 void Tracer::UpdateMask(uint32_t add, uint32_t remove) {
+  if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
   // The tracer may be shared between trace contexts, so we must update its mask
   // atomically.
   uint32_t old_mask = trace_mask_.load(std::memory_order_relaxed);
@@ -202,6 +211,7 @@ void Tracer::UpdateMask(uint32_t add, uint32_t remove) {
 }
 
 void Tracer::SetStartTime(absl::Time time) {
+  if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
   start_time_ = time;
   unref_time_.store(base::TimeUnixNanos(), std::memory_order_relaxed);
   stop_time_.store(base::TimeUnixNanos(), std::memory_order_relaxed);
@@ -210,6 +220,7 @@ void Tracer::SetStartTime(absl::Time time) {
 }
 
 void Tracer::set_inherited_initiator_id(uint64_t value) {
+  if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
   // Reset the bit indicating this span is initiating the trace.
   value &= ~kTraceInitiatingSpan;
   initiator_id_.store(value, std::memory_order_relaxed);
@@ -221,6 +232,7 @@ void Tracer::GetTraceContextStackTraces(
 }
 
 void Tracer::set_initiator_id_on_child_trace(uint64_t value) {
+  if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
   // Add the bits indicating this is a linked trace and the span is its root
   // (the decision to sample was propagated from the parent at this span).
   value |= kInitiatedByLinkContexts;
@@ -253,6 +265,7 @@ static std::optional<uint64_t> GetTracingEffectiveUserId() {
 }
 
 void Tracer::set_invalid_inherited_initiator_id() {
+  if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
   // The initiator id has been lost. Introduce a new initiator id based on prod
   // UID if available, tagged with a marker that remembers that we synthesized
   // an initiator. See <link> for details. If prod UID is
@@ -266,6 +279,7 @@ void Tracer::set_invalid_inherited_initiator_id() {
 }
 
 void Tracer::set_initiator_id(std::optional<uint64_t> initiate_as_prod_uid) {
+  if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
   std::optional<uint64_t> effective_uid = initiate_as_prod_uid.has_value()
                                               ? initiate_as_prod_uid
                                               : GetTracingEffectiveUserId();
@@ -278,10 +292,12 @@ void Tracer::set_initiator_id(std::optional<uint64_t> initiate_as_prod_uid) {
 }
 
 void Tracer::set_initiated_by_batch_sampling() {
+  if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
   initiator_id_.fetch_or(kBatchSampling, std::memory_order_relaxed);
 }
 
 void Tracer::set_initiator_id_string(uint32_t hash) {
+  if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
   // There may be other unrelated bits already set in the initiator ID metadata,
   // which we don't want to change.
   constexpr uint64_t kUpdateBits =
@@ -300,31 +316,38 @@ absl::Duration Tracer::Elapsed() const {
 }
 
 void Tracer::enable_query_cost_tracing() {
+  if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
   initiator_id_.fetch_or(kQueryCostTracingEnabled, std::memory_order_relaxed);
 }
 
 void Tracer::internal_enable_shared_fate() {
+  if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
   initiator_id_.fetch_or(kSharedFate, std::memory_order_relaxed);
 }
 
 void Tracer::set_high_value_trace() {
+  if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
   initiator_id_.fetch_or(kHighValueTrace, std::memory_order_relaxed);
 }
 
 void Tracer::set_speculative_root() {
+  if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
   initiator_id_.fetch_or(kSpeculativeRoot, std::memory_order_relaxed);
 }
 
 void Tracer::set_initiated_by_tracing_cookie() {
+  if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
   initiator_id_.fetch_or(kTracingCookie | kTraceInitiatingSpan,
                          std::memory_order_relaxed);
 }
 
 void Tracer::set_initiated_by_bucketed_sampling() {
+  if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
   initiator_id_.fetch_or(kBucketedSampling, std::memory_order_relaxed);
 }
 
 ABSL_XRAY_ALWAYS_INSTRUMENT void Tracer::SetStopTime(absl::Time time) {
+  if (ABSL_PREDICT_FALSE(is_immutable_noop())) return;
   ABSL_RAW_DCHECK(IsAlive(), "Tracer is not alive.");
   if (!has_stop_time()) {
     auto stop_time = base::TimeUnixNanos::FromTime(time);
