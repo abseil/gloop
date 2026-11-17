@@ -91,6 +91,11 @@ TEST(CMemInternal, CanUseCFill) {
   static_assert(!kCanUseCFill<std::vector<int>&>);
   static_assert(!kCanUseCFill<absl::Span<const char>>);
   static_assert(!kCanUseCFill<std::array<NonAssignableByte, 3>&>);
+
+  // absl::c_fill() would convert the byte value to `bool`.
+  static_assert(!kCanUseCFill<std::array<bool, 3>&>);
+  static_assert(!kCanUseCFill<absl::Span<bool>>);
+  static_assert(!kCanUseCFill<bool (&)[3]>);
 }
 
 TEST(CMemInternal, IsRangeToRangeTransfer) {

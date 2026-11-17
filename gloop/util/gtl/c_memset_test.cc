@@ -22,6 +22,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstring>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -99,6 +100,35 @@ TEST(CMemsetTest, WorksForContainersOfSingleByteType) {
   std::array<char, 4> a = {'1', '2', '3', '4'};
   CMemsetViaCFill(a, '9');
   EXPECT_THAT(a, ElementsAre('9', '9', '9', '9'));
+}
+
+// Returns the object representation of `bools`. The bytes are inspected
+// through unsigned char copies because reading a bool whose representation is
+// neither 0 nor 1 is undefined behavior.
+std::array<unsigned char, 4> BytesOf(const std::array<bool, 4>& bools) {
+  std::array<unsigned char, 4> bytes = {};
+  // NOLINTNEXTLINE(google3-readability-container-libc-calls)
+  std::memcpy(bytes.data(), bools.data(), bools.size());
+  return bytes;
+}
+
+// Containers of bool must not take the absl::c_fill() path: converting the
+// byte value to bool would write 0x01 for every non-zero value, whereas
+// std::memset() writes the byte value itself.
+TEST(CMemsetTest, WritesByteValueForContainersOfBool) {
+  std::array<bool, 4> a = {};
+  gtl::c_memset(a, 0xff);
+  EXPECT_THAT(BytesOf(a), ElementsAre(0xff, 0xff, 0xff, 0xff));
+}
+
+TEST(CMemsetTest, WorksForBoolValuesInContainersOfBool) {
+  std::array<bool, 4> a = {false, true, false, true};
+  gtl::c_memset(a, true);
+  EXPECT_THAT(a, ElementsAre(true, true, true, true));
+  EXPECT_THAT(BytesOf(a), ElementsAre(0x01, 0x01, 0x01, 0x01));
+
+  gtl::c_memset(a, false);
+  EXPECT_THAT(a, ElementsAre(false, false, false, false));
 }
 
 TEST(CMemsetNTest, WorksForContainersOfMultiByteType) {

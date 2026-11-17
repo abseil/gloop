@@ -55,6 +55,10 @@ c_memset(C&& c, int ch) {
 // Specialized for containers of single-byte sized elements. Wrapper around
 // absl::c_fill().
 //
+// Containers of `bool` use the std::memset() overload instead, because
+// converting the byte value to `bool` would write 0x01 for every non-zero
+// value rather than the value itself.
+//
 // This overload requires the element type of the container to be trivial,
 // because 1) it may be used to write to memory where objects are not
 // constructed yet, thus requiring the element type to be at least trivially

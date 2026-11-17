@@ -50,9 +50,14 @@ inline constexpr bool kIsTrivialDestRange =
         std::remove_reference_t<C>>::value;
 
 // True iff absl::c_fill(c, ch) can stand in for memset on `C`.
+//
+// `bool` elements are excluded because converting a byte value to `bool`
+// yields `true` for every non-zero value, so absl::c_fill() would write 0x01
+// where memset() writes the byte value itself (e.g. 0xff).
 template <typename C>
 inline constexpr bool kCanUseCFill =
     kIsTrivialDestRange<C> && sizeof(element_type_t<C>) == 1 &&
+    !std::is_same_v<std::remove_cv_t<element_type_t<C>>, bool> &&
     std::is_trivially_copy_assignable_v<element_type_t<C>>;
 
 // True iff absl::c_copy(src, dest) / absl::c_copy_n(src, n, dest) would select
