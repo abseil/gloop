@@ -308,38 +308,69 @@ class StaticThreadLocalImpl {
 // No compiler-supported TLS. Use PerThread
 //
 
-#define STATIC_THREAD_LOCAL_WITH_CONSTRUCTOR_ARGS(_Type_, _var_, _args_)    \
-  ABSL_CONST_INIT static PerThread::Key s_key_##_var_{PerThread::kInvalid}; \
-  namespace {                                                               \
-  class ThreadLocal_##_var_ {                                               \
-   public:                                                                  \
-    ThreadLocal_##_var_() {}                                                \
-    _Type_* pointer() const {                                               \
-      PerThread::Allocate(&s_key_##_var_, Destructor);                      \
-      void** loc = PerThread::Data(s_key_##_var_);                          \
-      auto* obj = static_cast<_Type_*>(*loc);                               \
-      if (!obj) {                                                           \
-        *loc = obj = new _Type_ _args_;                                     \
-        ::absl::IgnoreLeak(obj);                                            \
-      }                                                                     \
-      return obj;                                                           \
-    }                                                                       \
-    _Type_& get() const { return *pointer(); }                              \
-    _Type_* safe_pointer() const {                                          \
-      if (s_key_##_var_ == PerThread::kInvalid) return nullptr;             \
-      return static_cast<_Type_*>(PerThread::GetData(s_key_##_var_));       \
-    }                                                                       \
-    void set_pointer(_Type_* absl_nonnull obj) {                            \
-      *PerThread::Data(s_key_##_var_) = obj;                                \
-    }                                                                       \
-    bool is_native_tls() const { return false; }                            \
-                                                                            \
-   private:                                                                 \
-    static void Destructor(void* obj) { delete static_cast<_Type_*>(obj); } \
-    ThreadLocal_##_var_(const ThreadLocal_##_var_&) = delete;               \
-    ThreadLocal_##_var_& operator=(const ThreadLocal_##_var_&) = delete;    \
-  };                                                                        \
-  }                                                                         \
+namespace base {
+namespace internal {
+
+template <typename T, typename Derived>
+class StaticThreadLocalImpl {
+ public:
+  StaticThreadLocalImpl() = default;
+  StaticThreadLocalImpl(const StaticThreadLocalImpl&) = delete;
+  StaticThreadLocalImpl& operator=(const StaticThreadLocalImpl&) = delete;
+
+  T* pointer() const {
+    PerThread::Key& key = Derived::Key();
+    PerThread::Allocate(&key, Destructor);
+    void** loc = PerThread::Data(key);
+    auto* obj = static_cast<T*>(*loc);
+    if (!obj) {
+      *loc = obj = Derived::New();
+      ::absl::IgnoreLeak(obj);
+    }
+    return obj;
+  }
+
+  T& get() const { return *pointer(); }
+
+  T* safe_pointer() const {
+    const PerThread::Key& key = Derived::Key();
+    if (key == PerThread::kInvalid) return nullptr;
+    return static_cast<T*>(PerThread::GetData(key));
+  }
+
+  void set_pointer(T* absl_nonnull obj) {
+    *PerThread::Data(Derived::Key()) = obj;
+  }
+
+  bool is_native_tls() const { return false; }
+  static void Destructor(void* obj) { delete static_cast<T*>(obj); }
+};
+
+}  // namespace internal
+}  // namespace base
+
+#define STATIC_THREAD_LOCAL_WITH_CONSTRUCTOR_ARGS(_Type_, _var_, _args_)       \
+  ABSL_CONST_INIT static PerThread::Key s_key_##_var_{PerThread::kInvalid};    \
+  namespace {                                                                  \
+  class ThreadLocal_##_var_                                                    \
+      : private ::base::internal::StaticThreadLocalImpl<_Type_,                \
+                                                        ThreadLocal_##_var_> { \
+   private:                                                                    \
+    using Base = typename ThreadLocal_##_var_::StaticThreadLocalImpl;          \
+    friend Base;                                                               \
+                                                                               \
+    static PerThread::Key& Key() { return s_key_##_var_; }                     \
+    static _Type_* New() { return new _Type_ _args_; }                         \
+                                                                               \
+   public:                                                                     \
+    _Type_* pointer() const { return Base::pointer(); }                        \
+    _Type_& get() const { return Base::get(); }                                \
+    _Type_* safe_pointer() const { return Base::safe_pointer(); }              \
+    void set_pointer(_Type_* absl_nonnull obj) { Base::set_pointer(obj); }     \
+    bool is_native_tls() const { return Base::is_native_tls(); }               \
+    static void Destructor(void* p) { Base::Destructor(p); }                   \
+  };                                                                           \
+  }                                                                            \
   static ThreadLocal_##_var_ _var_;
 
 #define STATIC_THREAD_LOCAL_POD(_Type_, _var_) \
