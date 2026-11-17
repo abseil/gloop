@@ -37,6 +37,7 @@
 #include "absl/numeric/internal/bits.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/resize_and_overwrite.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
@@ -494,25 +495,36 @@ absl::StatusOr<std::string> Encoder2::FinalizeToStr(size_t max_wasted_space) {
   auto opts = GetOptions(num_vals_, max_val_, index_, version_);
 
   std::string encoded;
-  absl::strings_internal::STLStringResizeUninitialized(
-      &encoded, elias_fano::Encoder::MaxEncodingBytes(opts));
-  Encoder encoder(opts, absl::MakeSpan(encoded));
+  absl::Status status;
+  absl::StringResizeAndOverwrite(
+      encoded, elias_fano::Encoder::MaxEncodingBytes(opts),
+      [&](char* buf, size_t buf_size) -> size_t {
+        auto encode = [&]() -> absl::StatusOr<size_t> {
+          Encoder encoder(opts, absl::MakeSpan(buf, buf_size));
 
-  uint64_t value = 0;
-  ::Decoder dec(vals_enc_.base(), vals_enc_.length());
-  for (size_t i = 0; i < num_vals_; ++i) {
-    uint64_t delta = 0;
-    RET_QCHECK(dec.get_varint64(&delta));
-    value += delta;
+          uint64_t value = 0;
+          ::Decoder dec(vals_enc_.base(), vals_enc_.length());
+          for (size_t i = 0; i < num_vals_; ++i) {
+            uint64_t delta = 0;
+            RET_QCHECK(dec.get_varint64(&delta));
+            value += delta;
 
-    encoder.Append(value);
-  }
-  vals_enc_.reset();
+            encoder.Append(value);
+          }
+          vals_enc_.reset();
 
-  ABSL_ASSIGN_OR_RETURN(size_t size, encoder.Finalize());
-  encoded.resize(size);
+          return encoder.Finalize();
+        };
+        absl::StatusOr<size_t> size = encode();
+        if (!size.ok()) {
+          status = std::move(size).status();
+          return 0;
+        }
+        return *size;
+      });
+  ABSL_RETURN_IF_ERROR(status);
 
-  if (encoded.capacity() - size > max_wasted_space) {
+  if (encoded.capacity() - encoded.size() > max_wasted_space) {
     encoded.shrink_to_fit();
   }
 
