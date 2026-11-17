@@ -98,5 +98,41 @@ void BM_Nthbit(benchmark::State& state) {
 }
 BENCHMARK(BM_Nthbit);
 
+void BM_NthbitSlow(benchmark::State& state) {
+  const int size = 1 << 16;
+  std::vector<uint64_t> xx(size);
+  std::vector<uint8_t> nn(size);
+  absl::InsecureBitGen rng;
+  for (int i = 0; i < size; ++i) {
+    xx[i] = absl::Uniform<uint64_t>(rng) | 1ULL;
+    nn[i] = absl::Uniform(rng, 0, absl::popcount(xx[i]));
+  }
+  while (state.KeepRunningBatch(size)) {
+    for (int i = 0; i < size; ++i) {
+      benchmark::DoNotOptimize(nthbit_internal::NthbitSlow(xx[i], nn[i]));
+    }
+  }
+}
+BENCHMARK(BM_NthbitSlow);
+
+void BM_NthbitSlowLatency(benchmark::State& state) {
+  const int size = 1 << 14;
+  std::vector<uint64_t> xx(size);
+  std::vector<uint8_t> nn(size);
+  absl::InsecureBitGen rng;
+  for (int i = 0; i < size; ++i) {
+    xx[i] = absl::Uniform<uint64_t>(rng) | 0x8000000000000001ULL;
+    nn[i] = absl::Uniform(rng, 0, absl::popcount(xx[i]) - 1);
+  }
+  uint64_t dep = 0;
+  while (state.KeepRunningBatch(size)) {
+    for (int i = 0; i < size; ++i) {
+      dep = nthbit_internal::NthbitSlow(xx[i], nn[i] + (dep & 1));
+    }
+  }
+  benchmark::DoNotOptimize(dep);
+}
+BENCHMARK(BM_NthbitSlowLatency);
+
 }  // namespace
 }  // namespace elias_fano

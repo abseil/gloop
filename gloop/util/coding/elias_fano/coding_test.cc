@@ -69,6 +69,20 @@ struct CodecAccess {
   static BitPos SelectZero(const Decoder& dec, uint32_t rank) {
     return dec.Select(0, rank, false).first;
   }
+  template <typename EmitFn>
+  static void ForEachAdjacentPairNoPdep(const Decoder& dec,
+                                        absl::Span<const uint32_t> indices,
+                                        uint32_t limit_index, EmitFn&& emit) {
+    if (indices.empty() || limit_index == 0) return;
+    dec.ForEachAdjacentPairPdep<false>(indices, limit_index, emit);
+  }
+  static void UpperBoundMinusOneBatchNoPdep(const Decoder& dec,
+                                            absl::Span<const uint32_t> values,
+                                            uint64_t cap, uint32_t inv,
+                                            uint32_t* out) {
+    auto emit = [&out](uint32_t mapped) { *out++ = mapped; };
+    dec.UpperBoundBatchImpl<false, false>(values, cap, inv, emit);
+  }
 };
 
 namespace {
@@ -787,6 +801,240 @@ void WorstCase(benchmark::State& state) {
 BENCHMARK(WorstCase);
 
 }  // namespace bm
+
+TEST(DecoderBatchTest, MatchesScalarOracleAcrossWidthsSparsityAndBatchSizes) {
+  absl::InsecureBitGen rng;
+  auto verify_sequence = [&](const std::vector<uint64_t>& vals,
+                             Options::Index index_mode = Options::ALL) {
+    ASSERT_FALSE(vals.empty());
+    Encoder2 enc(index_mode);
+    ASSERT_TRUE(enc.Append(vals));
+    const std::string encoded = std::string(enc.Finalize());
+    auto dec = Decoder::Make(encoded).value();
+    const uint32_t n = dec.size();
+    ASSERT_EQ(n, vals.size());
+
+    // 1. DecodePair on every element (small arrays) or sampled + boundaries.
+    if (n >= 2) {
+      std::vector<uint32_t> check_idx;
+      if (n <= 600) {
+        for (uint32_t i = 0; i + 1 < n; ++i) check_idx.push_back(i);
+      } else {
+        for (uint32_t b : {0u, 31u, 32u, 63u, 64u, 254u, 255u, 256u, 257u, 511u,
+                           512u, n - 3, n - 2}) {
+          if (b + 1 < n) check_idx.push_back(b);
+        }
+        for (int t = 0; t < 300; ++t) {
+          check_idx.push_back(absl::Uniform<uint32_t>(rng, 0, n - 1));
+        }
+      }
+      for (uint32_t i : check_idx) {
+        const auto [a, b] = dec.DecodePair(i);
+        ASSERT_EQ(a, vals[i])
+            << "i=" << i << " w=" << int{dec.options().width()};
+        ASSERT_EQ(b, vals[i + 1]) << "i=" << i;
+      }
+
+      // 2. ForEachAdjacentPair across dense, medium, sparse, unsorted, OOB,
+      // and pipeline-boundary batch sizes.
+      const uint32_t limit_idx = n - 1;
+      for (size_t bsz :
+           {size_t{0}, size_t{1}, size_t{7}, size_t{16}, size_t{23}, size_t{24},
+            size_t{31}, size_t{32}, size_t{33}, size_t{48}, size_t{96}}) {
+        for (int mode = 0; mode < 4; ++mode) {
+          std::vector<uint32_t> q;
+          q.reserve(bsz);
+          if (mode == 0) {
+            // Dense step 1..3.
+            uint32_t cur = absl::Uniform<uint32_t>(rng, 0, limit_idx);
+            for (size_t k = 0; k < bsz; ++k) {
+              q.push_back(cur < limit_idx ? cur : ~0u);
+              cur += absl::Uniform<uint32_t>(rng, 0, 4);
+            }
+          } else if (mode == 1) {
+            // Medium step 1..30.
+            uint32_t cur = absl::Uniform<uint32_t>(rng, 0, limit_idx);
+            for (size_t k = 0; k < bsz; ++k) {
+              q.push_back(cur);
+              cur += absl::Uniform<uint32_t>(rng, 1, 31);
+            }
+          } else if (mode == 2) {
+            // Sorted sparse across full domain + OOB sentinel.
+            for (size_t k = 0; k < bsz; ++k) {
+              q.push_back(absl::Uniform<uint32_t>(rng, 0, limit_idx));
+            }
+            std::sort(q.begin(), q.end());
+            if (!q.empty() && (bsz & 1)) q.back() = limit_idx;
+          } else {
+            // Unsorted random + OOB.
+            for (size_t k = 0; k < bsz; ++k) {
+              q.push_back(k % 7 == 0
+                              ? ~0u
+                              : absl::Uniform<uint32_t>(rng, 0, limit_idx + 2));
+            }
+          }
+          std::vector<std::tuple<uint32_t, uint64_t, uint64_t>> got, want;
+          for (uint32_t idx : q) {
+            if (idx < limit_idx) {
+              want.emplace_back(idx, vals[idx], vals[idx + 1]);
+            }
+          }
+          dec.ForEachAdjacentPair(q, limit_idx,
+                                  [&](uint32_t idx, uint64_t s, uint64_t l) {
+                                    got.emplace_back(idx, s, l);
+                                  });
+          ASSERT_EQ(got, want) << "bsz=" << bsz << " mode=" << mode;
+          got.clear();
+          CodecAccess::ForEachAdjacentPairNoPdep(
+              dec, q, limit_idx, [&](uint32_t idx, uint64_t s, uint64_t l) {
+                got.emplace_back(idx, s, l);
+              });
+          ASSERT_EQ(got, want) << "nopdep bsz=" << bsz << " mode=" << mode;
+        }
+      }
+    }
+
+    // 3. UpperBoundWithValue, ForEachUniqueUpperBoundMinusOne, and
+    // UpperBoundMinusOneBatch (for 32-bit queryable ranges).
+    const uint64_t max_v = vals.back();
+    const uint64_t q_cap =
+        std::min<uint64_t>(max_v, std::numeric_limits<uint32_t>::max());
+    if (q_cap > 0) {
+      for (int t = 0; t < 200; ++t) {
+        const uint64_t v =
+            (t == 0) ? 0
+                     : ((t == 1) ? q_cap - 1
+                                 : absl::Uniform<uint64_t>(rng, 0, q_cap + 2));
+        const auto res = dec.UpperBoundWithValue(v);
+        const uint32_t want_idx = dec.UpperBound(v);
+        ASSERT_EQ(res.index, want_idx) << "v=" << v;
+        const uint64_t want_val = (want_idx < n) ? vals[want_idx] : max_v;
+        ASSERT_EQ(res.value_at_index, want_val) << "v=" << v;
+      }
+
+      for (size_t bsz :
+           {size_t{1}, size_t{16}, size_t{31}, size_t{32}, size_t{47},
+            size_t{48}, size_t{49}, size_t{64}, size_t{128}}) {
+        for (int mode = 0; mode < 3; ++mode) {
+          std::vector<uint32_t> qv;
+          qv.reserve(bsz);
+          if (mode == 0) {
+            // Dense sorted values.
+            uint64_t cur = absl::Uniform<uint64_t>(rng, 0, q_cap);
+            for (size_t k = 0; k < bsz; ++k) {
+              qv.push_back(static_cast<uint32_t>(std::min<uint64_t>(
+                  cur, std::numeric_limits<uint32_t>::max())));
+              cur += absl::Uniform<uint32_t>(rng, 0, 5);
+            }
+          } else if (mode == 1) {
+            // Sparse sorted values across full cap + OOB.
+            for (size_t k = 0; k < bsz; ++k) {
+              qv.push_back(static_cast<uint32_t>(
+                  absl::Uniform<uint64_t>(rng, 0, q_cap)));
+            }
+            std::sort(qv.begin(), qv.end());
+            if (q_cap < std::numeric_limits<uint32_t>::max()) {
+              qv.push_back(static_cast<uint32_t>(q_cap));
+            }
+          } else {
+            // Unsorted values (for UpperBoundMinusOneBatch).
+            for (size_t k = 0; k < bsz; ++k) {
+              qv.push_back(k % 9 == 0
+                               ? ~0u
+                               : static_cast<uint32_t>(
+                                     absl::Uniform<uint64_t>(rng, 0, q_cap)));
+            }
+          }
+
+          constexpr uint32_t kInv = ~0u;
+          std::vector<uint32_t> got_batch(qv.size()), want_batch(qv.size());
+          dec.UpperBoundMinusOneBatch(qv, q_cap, kInv, got_batch.data());
+          for (size_t k = 0; k < qv.size(); ++k) {
+            if (uint64_t{qv[k]} >= q_cap) {
+              want_batch[k] = kInv;
+            } else {
+              const uint32_t idx = dec.UpperBound(qv[k]);
+              want_batch[k] = (idx == 0) ? kInv : (idx - 1);
+            }
+          }
+          ASSERT_EQ(got_batch, want_batch) << "bsz=" << bsz << " mode=" << mode;
+          std::vector<uint32_t> got_nopdep(qv.size());
+          CodecAccess::UpperBoundMinusOneBatchNoPdep(dec, qv, q_cap, kInv,
+                                                     got_nopdep.data());
+          ASSERT_EQ(got_nopdep, want_batch)
+              << "nopdep bsz=" << bsz << " mode=" << mode;
+
+          if (mode != 2) {
+            std::vector<uint32_t> got_uniq, want_uniq;
+            dec.ForEachUniqueUpperBoundMinusOne(
+                qv, q_cap, [&](uint32_t o) { got_uniq.push_back(o); });
+            for (uint32_t m : want_batch) {
+              if (m != kInv && (want_uniq.empty() || want_uniq.back() != m)) {
+                want_uniq.push_back(m);
+              }
+            }
+            ASSERT_EQ(got_uniq, want_uniq) << "bsz=" << bsz << " mode=" << mode;
+          }
+        }
+      }
+    }
+  };
+
+  // Tiny no-index, width==0, all-zeros, nonzero start, D1 boundary sizes.
+  verify_sequence({0, 0});
+  verify_sequence({0, 1});
+  verify_sequence({5, 5, 10, 10, 15});
+  verify_sequence(std::vector<uint64_t>(300, 0));
+  verify_sequence(std::vector<uint64_t>(300, 7));
+
+  // Width == 0 non-trivial (M < N).
+  {
+    std::vector<uint64_t> v(600);
+    for (size_t i = 0; i < v.size(); ++i) v[i] = i / 2;
+    verify_sequence(v);
+    verify_sequence(v, Options::NONE);
+  }
+
+  // Sparse blocks (> 65536 zero-bit jumps crossing D1=256 boundaries).
+  {
+    std::vector<uint64_t> v;
+    uint64_t cur = 0;
+    for (int i = 0; i < 1025; ++i) {
+      v.push_back(cur);
+      if (i == 254 || i == 255 || i == 512) {
+        cur += (1u << 19);
+      } else {
+        cur += (i % 3 == 0) ? 0 : 1;
+      }
+    }
+    verify_sequence(v);
+  }
+
+  // Large array > 32768 exercising 3-stage & 4-stage pipelines.
+  {
+    std::vector<uint64_t> v;
+    v.reserve(50000);
+    uint64_t cur = 0;
+    for (int i = 0; i < 50000; ++i) {
+      v.push_back(cur);
+      cur += (i % 2 == 0) ? 0 : absl::Uniform<uint32_t>(rng, 1, 25);
+    }
+    verify_sequence(v);
+  }
+
+  // Wide low-bits: width 28 and width > 28 (up to 40).
+  for (int shift : {28, 29, 40}) {
+    std::vector<uint64_t> v;
+    v.reserve(600);
+    uint64_t cur = 0;
+    for (int i = 0; i < 600; ++i) {
+      v.push_back(cur);
+      cur += (i % 3 == 0) ? 0 : ((uint64_t{1} << shift) + i * 17 + 1);
+    }
+    verify_sequence(v);
+  }
+}
+
 }  // namespace
 }  // namespace testing
 }  // namespace elias_fano

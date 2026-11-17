@@ -35,6 +35,10 @@ cc_library(
     name = "backoff",
     srcs = ["backoff.cc"],
     hdrs = ["backoff.h"],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/time",
+    ],
     implementation_deps = [
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base:core_headers",
@@ -42,10 +46,6 @@ cc_library(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/synchronization",
-    ],
-    deps = [
-        "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/time",
     ],
 )
 
@@ -67,13 +67,13 @@ cc_library(
     testonly = 1,
     srcs = ["backoff_test_util.cc"],
     hdrs = ["backoff_test_util.h"],
-    implementation_deps = ["@abseil-cpp//absl/log:check"],
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/time",
         "@google_benchmark//:benchmark",
         "@googletest//:gtest_for_library",
     ],
+    implementation_deps = ["@abseil-cpp//absl/log:check"],
 )
 
 cc_test(
@@ -108,13 +108,6 @@ cc_library(
     hdrs = [
         "monotonic_clock.h",
     ],
-    implementation_deps = [
-        ":monotonic_clock_internal",
-        "@abseil-cpp//absl/base",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
-    ],
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/functional:any_invocable",
@@ -122,13 +115,19 @@ cc_library(
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/time:clock_interface",
     ],
+    implementation_deps = [
+        ":monotonic_clock_internal",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+    ],
 )
 
 cc_library(
     name = "protoutil",
     srcs = ["protoutil.cc"],
     hdrs = ["protoutil.h"],
-    implementation_deps = ["@abseil-cpp//absl/strings"],
     deps = [
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
@@ -138,6 +137,7 @@ cc_library(
         "@protobuf//:duration_cc_proto",
         "@protobuf//:timestamp_cc_proto",
     ],
+    implementation_deps = ["@abseil-cpp//absl/strings"],
 )
 
 # Tests:

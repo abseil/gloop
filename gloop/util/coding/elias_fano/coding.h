@@ -216,6 +216,7 @@
 //   -------------+------+------+------+------+------+
 //
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
@@ -483,6 +484,113 @@ class Decoder {
     return iterator(this, Index(i), Select(1, i, false).first);
   }
 
+  // Decodes the pair of adjacent elements `(at(i), at(i + 1))` using a single
+  // high-bit select and (for width <= 28) a single 64-bit low-bit load.
+  // REQUIRES: i + 1 < size().
+  ABSL_ATTRIBUTE_ALWAYS_INLINE std::pair<uint64_t, uint64_t> DecodePair(
+      uint32_t i) const {
+    DCHECK_LT(i + 1, opts_.size());
+    const uint8_t width = opts_.width();
+    const auto [pos0, pos1] = Select1AdjacentPair(i);
+    const uint64_t hi0 = pos0 - i;
+    const uint64_t hi1 = pos1 - (i + 1);
+    if (width == 0) return {hi0, hi1};
+    if (ABSL_PREDICT_TRUE(width <= 28)) {
+      const size_t low_bit_pos = size_t{i} * width;
+      const uint64_t mask = (uint64_t{1} << width) - 1;
+      const uint64_t raw =
+          LittleEndian::Load64(&low_[low_bit_pos >> 3]) >> (low_bit_pos & 7u);
+      return {(hi0 << width) | (raw & mask),
+              (hi1 << width) | ((raw >> width) & mask)};
+    }
+    return {(hi0 << width) | Decode56(Index(i)),
+            (hi1 << width) | Decode56(Index(i + 1))};
+  }
+
+  // Invokes `emit(idx, at(idx), at(idx + 1))` for each `idx` in `indices` with
+  // `idx < limit_index` (out-of-range indices are skipped). Uses a 3-stage
+  // software-pipelined prefetch ring (`dense1_`/`low_` -> `high_` -> decode)
+  // combined with a forward bit-word cursor for sorted inputs.
+  // REQUIRES: limit_index < size().
+  template <typename EmitFn>
+  void ForEachAdjacentPair(absl::Span<const uint32_t> indices,
+                           uint32_t limit_index, EmitFn&& emit) const {
+    if (indices.empty() || limit_index == 0) return;
+    DCHECK_LT(limit_index, opts_.size());
+    if (nthbit_internal::HasFastPdep()) {
+      ForEachAdjacentPairPdep<true>(indices, limit_index, emit);
+    } else {
+      ForEachAdjacentPairPdep<false>(indices, limit_index, emit);
+    }
+  }
+
+  struct UpperBoundResult {
+    // First index with `at(index) > v`, or `size()` if `v >= max_value()`.
+    uint32_t index;
+    // Value `at(index)` when `index < size()`, or `max_value()` otherwise.
+    uint64_t value_at_index;
+  };
+
+  // Computes `UpperBound(v)` together with `at(UpperBound(v))` using only the
+  // ZEROS select pass (avoiding a second ONES `Select` call).
+  UpperBoundResult UpperBoundWithValue(uint64_t v) const {
+    if (ABSL_PREDICT_FALSE(opts_.max_value() <= v)) {
+      return {opts_.size(), opts_.max_value()};
+    }
+    const uint8_t width = opts_.width();
+    if (width == 0) {
+      const uint32_t hi = static_cast<uint32_t>(v);
+      const uint64_t z_curr = Select(0, hi, false).first.value();
+      const uint32_t idx = static_cast<uint32_t>(z_curr - hi);
+      const uint64_t next_one = NextOneAfterZero(z_curr, idx);
+      return {idx, next_one - idx};
+    }
+    const uint32_t hi = static_cast<uint32_t>(v >> width);
+    const uint64_t low_mask = (uint64_t{1} << width) - 1;
+    const auto [start, limit, z_curr] = ResolveZeroBucket(hi);
+    return FinishUpperBoundInBucket(hi, v & low_mask, width, low_mask, start,
+                                    limit, z_curr);
+  }
+
+  // For sorted `values`, calls `emit(idx - 1)` for each distinct positive
+  // `idx = UpperBound(v)` among elements with `v < domain_limit`
+  // (`domain_limit <= max_value()`), using a 4-stage software-pipelined
+  // `dense0_ -> high_ -> low_ -> search` loop plus interval/bucket skipping.
+  template <typename EmitFn>
+  void ForEachUniqueUpperBoundMinusOne(absl::Span<const uint32_t> values,
+                                       uint64_t domain_limit,
+                                       EmitFn&& emit) const {
+    const uint64_t cap = std::min(domain_limit, opts_.max_value());
+    if (values.empty() || cap == 0 || opts_.size() <= 1) return;
+    if (nthbit_internal::HasFastPdep()) {
+      UpperBoundBatchImpl<true, /*kUniqueOnly=*/true>(values, cap, 0, emit);
+    } else {
+      UpperBoundBatchImpl<false, /*kUniqueOnly=*/true>(values, cap, 0, emit);
+    }
+  }
+
+  // Writes `(idx > 0 ? idx - 1 : invalid_value)` where `idx = UpperBound(v)`
+  // for each `v` in `values` (writing `invalid_value` when `v >=
+  // domain_limit`).
+  void UpperBoundMinusOneBatch(absl::Span<const uint32_t> values,
+                               uint64_t domain_limit, uint32_t invalid_value,
+                               uint32_t* out) const {
+    if (values.empty()) return;
+    const uint64_t cap = std::min(domain_limit, opts_.max_value());
+    if (ABSL_PREDICT_FALSE(cap == 0 || opts_.size() <= 1)) {
+      for (size_t i = 0; i < values.size(); ++i) out[i] = invalid_value;
+      return;
+    }
+    auto emit = [&out](uint32_t mapped) { *out++ = mapped; };
+    if (nthbit_internal::HasFastPdep()) {
+      UpperBoundBatchImpl<true, /*kUniqueOnly=*/false>(values, cap,
+                                                       invalid_value, emit);
+    } else {
+      UpperBoundBatchImpl<false, /*kUniqueOnly=*/false>(values, cap,
+                                                        invalid_value, emit);
+    }
+  }
+
   // Returns the index of the first element with value > v.
   uint32_t UpperBound(uint64_t v) const {
     if (ABSL_PREDICT_FALSE(opts_.max_value() <= v)) return opts_.size();
@@ -657,10 +765,12 @@ class Decoder {
         << "Can't find two consecutive positions at the end of the index";
     uint32_t d1_i = rank / Options::kD1;
     const auto& entry = dense[d1_i];
-    uint64_t base = entry.base.Load();
+    // Load `base` (bytes 0..3) and `delta[0]` (bytes 4..5) together.
+    const uint64_t header = LittleEndian::Load64(&entry);
+    uint64_t base = static_cast<uint32_t>(header);
     // If the first delta is zero then the position is in the dense index.
     // Otherwise it is in the sparse.
-    if (ABSL_PREDICT_TRUE(entry.delta[0].Load() == 0)) {
+    if (ABSL_PREDICT_TRUE(((header >> 32) & 0xffffu) == 0)) {
       base += d1_i * Options::kD1;
       uint32_t d2_i = (rank % Options::kD1) / Options::kD2;
       ELIAS_FANO_MUSTTAIL return BroadWordSearch(
@@ -684,33 +794,902 @@ class Decoder {
   // Searches ones if `one` is non-zero, zeros otherwise.
   std::pair<BitPos, BitPos> BroadWordSearch(uint32_t one, uint32_t rank,
                                             bool next, BitPos hint_pos) const {
-    uint32_t i = hint_pos.value() / 8;
-    // Negate the word if we are counting zeros.
-    uint64_t x = one ? LittleEndian::Load64(&high_[i])
-                     : ~LittleEndian::Load64(&high_[i]);
-    x = x >> (hint_pos.value() % 8);
-    // Prefetch the next line, which we're likely to reuse.
-    absl::PrefetchToLocalCache(&high_[i] + ABSL_CACHELINE_SIZE);
-    uint32_t cnt = absl::popcount(x);
-    if (cnt > rank) {
-      BitPos pos{hint_pos.value() + Nthbit(x, rank)};
-      if (!next) return {pos, BitPos{0}};
-      ++rank;
-      if (cnt > rank) return {pos, BitPos(hint_pos.value() + Nthbit(x, rank))};
-      return {pos, FindNextSetBitSlow(i, one)};
+    uint32_t i = static_cast<uint32_t>(hint_pos.value() >> 3);
+    const uint64_t flip = one ? uint64_t{0} : ~uint64_t{0};
+    uint64_t x = (LittleEndian::Load64(&high_[i]) ^ flip) &
+                 (~uint64_t{0} << (hint_pos.value() & 7u));
+    // Prefetch the next line when starting near the end of a cache line.
+    if ((i & (ABSL_CACHELINE_SIZE - 1)) >= ABSL_CACHELINE_SIZE - 16) {
+      absl::PrefetchToLocalCache(&high_[i] + ABSL_CACHELINE_SIZE);
     }
-    do {
+    uint32_t cnt = absl::popcount(x);
+    while (cnt <= rank) {
       i += 8;
       rank -= cnt;
-      x = one ? LittleEndian::Load64(&high_[i])
-              : ~LittleEndian::Load64(&high_[i]);
+      x = LittleEndian::Load64(&high_[i]) ^ flip;
       cnt = absl::popcount(x);
-    } while (cnt <= rank);
-    BitPos pos{uint64_t{i} * 8 + Nthbit(x, rank)};
-    if (!next) return {pos, BitPos{0}};
-    ++rank;
-    if (cnt > rank) return {pos, BitPos(uint64_t{i} * 8 + Nthbit(x, rank))};
+    }
+    const uint64_t word_base = uint64_t{i} * 8;
+    if (!next) {
+      return {BitPos{word_base + Nthbit(x, rank)}, BitPos{0}};
+    }
+    const auto [b0, after] = NthbitAndAfter(x, rank);
+    const BitPos pos{word_base + b0};
+    if (ABSL_PREDICT_TRUE(after != 0)) {
+      return {pos, BitPos{word_base + absl::countr_zero(after)}};
+    }
     return {pos, FindNextSetBitSlow(i, one)};
+  }
+
+  static constexpr uint64_t kSparseHintFlag = uint64_t{1} << 63;
+  static constexpr uint64_t kZeroHiHintFlag = uint64_t{1} << 62;
+
+  ABSL_ATTRIBUTE_ALWAYS_INLINE uint64_t DecodeLowFast(uint32_t i, uint8_t width,
+                                                      uint64_t low_mask) const {
+    const size_t pos = size_t{i} * width;
+    return (LittleEndian::Load64(&low_[pos >> 3]) >> (pos & 7u)) & low_mask;
+  }
+
+  // Returns bit positions of `i`-th and `(i+1)`-th one bits (`i + 1 < size()`),
+  // seamlessly handling D1 boundaries and sparse blocks.
+  ABSL_ATTRIBUTE_ALWAYS_INLINE std::pair<uint64_t, uint64_t>
+  Select1AdjacentPair(uint32_t i) const {
+    uint64_t hint_pos = 0;
+    uint32_t r = i;
+    if (ABSL_PREDICT_TRUE(opts_.has_index(Options::ONES))) {
+      const uint32_t d1 = i >> 8;
+      const auto& entry = dense1_[d1];
+      const uint64_t hdr = LittleEndian::Load64(&entry);
+      const uint32_t base = static_cast<uint32_t>(hdr);
+      if (ABSL_PREDICT_FALSE(((hdr >> 32) & 0xffffu) != 0)) {
+        return Select1AdjacentPairSparse(base, i);
+      }
+      hint_pos = uint64_t{base} + (uint64_t{d1} << 8) +
+                 entry.delta[(i >> 5) & 7u].Load();
+      r = i & 31u;
+    }
+    uint32_t byte_idx = static_cast<uint32_t>(hint_pos >> 3);
+    uint64_t x = LittleEndian::Load64(&high_[byte_idx]) &
+                 (~uint64_t{0} << (hint_pos & 7u));
+    uint32_t cnt = absl::popcount(x);
+    while (ABSL_PREDICT_FALSE(cnt <= r)) {
+      byte_idx += 8;
+      r -= cnt;
+      x = LittleEndian::Load64(&high_[byte_idx]);
+      cnt = absl::popcount(x);
+    }
+    const auto [b0, after] = NthbitAndAfter(x, r);
+    const uint64_t pos0 = uint64_t{byte_idx} * 8 + b0;
+    if (ABSL_PREDICT_TRUE(after != 0)) {
+      return {pos0, uint64_t{byte_idx} * 8 + absl::countr_zero(after)};
+    }
+    return {pos0, NextOneAfterWordSlow(byte_idx, i + 1)};
+  }
+
+  ABSL_ATTRIBUTE_NOINLINE std::pair<uint64_t, uint64_t>
+  Select1AdjacentPairSparse(uint32_t base, uint32_t i) const {
+    if (ABSL_PREDICT_TRUE((i & 255u) != 255u)) {
+      const auto [p0, p1] = SelectSparse(base, i, true, BitPos{0});
+      return {p0.value(), p1.value()};
+    }
+    return {SelectSparse(base, i, false, BitPos{0}).first.value(),
+            Select(1, i + 1, false).first.value()};
+  }
+
+  ABSL_ATTRIBUTE_NOINLINE uint64_t
+  NextOneAfterWordSlow(uint32_t byte_idx, uint32_t next_rank) const {
+    uint32_t nb = byte_idx + 8;
+    uint64_t nx = LittleEndian::Load64(&high_[nb]);
+    if (ABSL_PREDICT_TRUE(nx != 0)) {
+      return uint64_t{nb} * 8 + absl::countr_zero(nx);
+    }
+    if ((next_rank & 255u) == 0 && opts_.has_index(Options::ONES)) {
+      return Select(1, next_rank, false).first.value();
+    }
+    do {
+      nb += 8;
+      nx = LittleEndian::Load64(&high_[nb]);
+    } while (nx == 0);
+    return uint64_t{nb} * 8 + absl::countr_zero(nx);
+  }
+
+  // Advances from an exhausted word at `byte_idx` to the `next_rank`-th one
+  // bit, returning `{pos1, word_byte_idx, word_masked_from_pos1}` with non-zero
+  // masked word.
+  ABSL_ATTRIBUTE_NOINLINE std::tuple<uint64_t, uint32_t, uint64_t>
+  NextOneWordSlow(uint32_t byte_idx, uint32_t next_rank) const {
+    uint32_t nb = byte_idx + 8;
+    uint64_t nx = LittleEndian::Load64(&high_[nb]);
+    if (ABSL_PREDICT_TRUE(nx != 0)) {
+      return {uint64_t{nb} * 8 + absl::countr_zero(nx), nb, nx};
+    }
+    if ((next_rank & 255u) == 0 && opts_.has_index(Options::ONES)) {
+      const uint64_t p1 = Select(1, next_rank, false).first.value();
+      const uint32_t pb = static_cast<uint32_t>(p1 >> 3);
+      const uint64_t px =
+          LittleEndian::Load64(&high_[pb]) & (~uint64_t{0} << (p1 & 7u));
+      return {p1, pb, px};
+    }
+    do {
+      nb += 8;
+      nx = LittleEndian::Load64(&high_[nb]);
+    } while (nx == 0);
+    return {uint64_t{nb} * 8 + absl::countr_zero(nx), nb, nx};
+  }
+
+  enum class WidthMode : uint8_t { kZero, kSmall, kLarge };
+
+  template <bool kFastPdep, typename EmitFn>
+  void ForEachAdjacentPairPdep(absl::Span<const uint32_t> indices,
+                               uint32_t limit_index, EmitFn& emit) const {
+    const uint8_t width = opts_.width();
+    if (width == 0) {
+      ForEachAdjacentPairImpl<kFastPdep, WidthMode::kZero>(indices, limit_index,
+                                                           emit);
+    } else if (ABSL_PREDICT_TRUE(width <= 28)) {
+      ForEachAdjacentPairImpl<kFastPdep, WidthMode::kSmall>(indices,
+                                                            limit_index, emit);
+    } else {
+      ForEachAdjacentPairImpl<kFastPdep, WidthMode::kLarge>(indices,
+                                                            limit_index, emit);
+    }
+  }
+
+  template <bool kFastPdep>
+  ABSL_ATTRIBUTE_ALWAYS_INLINE std::pair<uint64_t, uint64_t>
+  DecodeHighPairFromHint(const uint8_t* high, uint32_t i, uint64_t hint) const {
+    if (ABSL_PREDICT_FALSE((hint & kSparseHintFlag) != 0)) {
+      return Select1AdjacentPairSparse(static_cast<uint32_t>(hint), i);
+    }
+    uint32_t byte_idx = static_cast<uint32_t>(hint >> 3);
+    uint32_t r = i & 31u;
+    uint64_t x =
+        LittleEndian::Load64(&high[byte_idx]) & (~uint64_t{0} << (hint & 7u));
+    uint32_t cnt = static_cast<uint32_t>(absl::popcount(x));
+    while (cnt <= r) {
+      byte_idx += 8;
+      r -= cnt;
+      x = LittleEndian::Load64(&high[byte_idx]);
+      cnt = static_cast<uint32_t>(absl::popcount(x));
+    }
+    const auto [b0, after] =
+        nthbit_internal::NthbitAndAfterDispatch<kFastPdep>(x, r);
+    const uint64_t pos0 = uint64_t{byte_idx} * 8 + b0;
+    if (ABSL_PREDICT_TRUE(after != 0)) {
+      return {pos0, uint64_t{byte_idx} * 8 + absl::countr_zero(after)};
+    }
+    const uint64_t nx = LittleEndian::Load64(&high[byte_idx + 8]);
+    if (ABSL_PREDICT_TRUE(nx != 0)) {
+      return {pos0, uint64_t{byte_idx + 8} * 8 + absl::countr_zero(nx)};
+    }
+    return {pos0, NextOneAfterWordSlow(byte_idx + 8, i + 1)};
+  }
+
+  template <WidthMode kWMode, typename EmitFn>
+  ABSL_ATTRIBUTE_ALWAYS_INLINE void EmitFromHighPair(
+      const uint8_t* low, uint8_t width, uint64_t low_mask, uint32_t i,
+      uint64_t pos0, uint64_t pos1, EmitFn& emit) const {
+    const uint64_t hi0 = pos0 - i;
+    const uint64_t hi1 = pos1 - (i + 1);
+    if constexpr (kWMode == WidthMode::kZero) {
+      emit(i, hi0, hi1);
+    } else if constexpr (kWMode == WidthMode::kSmall) {
+      const size_t bp = size_t{i} * width;
+      const uint64_t raw = LittleEndian::Load64(&low[bp >> 3]) >> (bp & 7u);
+      emit(i, (hi0 << width) | (raw & low_mask),
+           (hi1 << width) | ((raw >> width) & low_mask));
+    } else {
+      emit(i, (hi0 << width) | Decode56(Index(i)),
+           (hi1 << width) | Decode56(Index(i + 1)));
+    }
+  }
+
+  ABSL_ATTRIBUTE_ALWAYS_INLINE static uint64_t LoadDenseHint(
+      const internal::DenseEntry* dense, uint32_t idx) {
+    const uint32_t d1 = idx >> 8;
+    const auto& entry = dense[d1];
+    const uint64_t hdr = LittleEndian::Load64(&entry);
+    const uint32_t base = static_cast<uint32_t>(hdr);
+    if (ABSL_PREDICT_TRUE(((hdr >> 32) & 0xffffu) == 0)) {
+      return uint64_t{base} + (uint64_t{d1} << 8) +
+             entry.delta[(idx >> 5) & 7u].Load();
+    }
+    return kSparseHintFlag | uint64_t{base};
+  }
+
+  template <bool kFastPdep, WidthMode kWMode, typename EmitFn>
+  void ForEachAdjacentPairImpl(absl::Span<const uint32_t> indices,
+                               uint32_t limit_index, EmitFn& emit) const {
+    const uint8_t width = opts_.width();
+    const uint64_t low_mask =
+        (kWMode == WidthMode::kSmall) ? ((uint64_t{1} << width) - 1) : 0;
+    const uint8_t* const high = high_;
+    const uint8_t* const low = low_;
+    const internal::DenseEntry* const dense1 = dense1_;
+    const size_t n = indices.size();
+    const uint32_t* const in = indices.data();
+
+    // No-index tiny array fallback (`bits() <= 64`).
+    if (ABSL_PREDICT_FALSE(!opts_.has_index(Options::ONES))) {
+      for (size_t k = 0; k < n; ++k) {
+        const uint32_t i = in[k];
+        if (ABSL_PREDICT_FALSE(i >= limit_index)) continue;
+        uint32_t bi = 0;
+        uint32_t r = i;
+        uint64_t x = LittleEndian::Load64(&high[0]);
+        uint32_t cnt = static_cast<uint32_t>(absl::popcount(x));
+        while (cnt <= r) {
+          bi += 8;
+          r -= cnt;
+          x = LittleEndian::Load64(&high[bi]);
+          cnt = static_cast<uint32_t>(absl::popcount(x));
+        }
+        const auto [b0, after] =
+            nthbit_internal::NthbitAndAfterDispatch<kFastPdep>(x, r);
+        const uint64_t pos0 = uint64_t{bi} * 8 + b0;
+        const uint64_t pos1 =
+            after != 0 ? (uint64_t{bi} * 8 + absl::countr_zero(after))
+                       : NextOneAfterWordSlow(bi, i + 1);
+        EmitFromHighPair<kWMode>(low, width, low_mask, i, pos0, pos1, emit);
+      }
+      return;
+    }
+
+    // Regime 1 — Dense forward word-stream (`avg_step <= 24` on sorted input):
+    // streams sequentially across 64-bit `high_` words with zero `dense1_`
+    // reads between contiguous clusters.
+    const bool looks_dense = (n >= 4) && (in[0] < limit_index) &&
+                             (in[n - 1] >= in[0]) &&
+                             (uint64_t{in[n - 1] - in[0]} <= uint64_t{n} * 24);
+    if (looks_dense) {
+      bool cur_valid = false;
+      uint32_t prev_i = 0;
+      uint32_t cur_byte = 0;
+      uint64_t cur_after = 0;  // non-zero, starts at `(prev_i + 1)`-th 1-bit
+      uint32_t cur_rem = 0;    // popcount(cur_after)
+
+      for (size_t k = 0; k < n; ++k) {
+        const uint32_t i = in[k];
+        if (ABSL_PREDICT_FALSE(i >= limit_index)) continue;
+        uint64_t pos0, pos1;
+        if (ABSL_PREDICT_TRUE(cur_valid && i > prev_i && i - prev_i <= 64)) {
+          uint32_t need = i - prev_i - 1;  // 0-indexed rank within `cur_after`
+          while (cur_rem <= need) {
+            need -= cur_rem;
+            cur_byte += 8;
+            cur_after = LittleEndian::Load64(&high[cur_byte]);
+            cur_rem = static_cast<uint32_t>(absl::popcount(cur_after));
+          }
+          // Unconditional branchless `NthbitAndAfter` avoids 50/50 branch
+          // mispredicts when `need` mixes 0 and >=1 (e.g. step 1..2).
+          const auto [b0, after] =
+              nthbit_internal::NthbitAndAfterDispatch<kFastPdep>(cur_after,
+                                                                 need);
+          pos0 = uint64_t{cur_byte} * 8 + b0;
+          const uint32_t new_rem = cur_rem - need - 1;
+          if (ABSL_PREDICT_TRUE(new_rem != 0)) {
+            cur_after = after;
+            cur_rem = new_rem;
+            pos1 = uint64_t{cur_byte} * 8 + absl::countr_zero(after);
+          } else {
+            std::tie(pos1, cur_byte, cur_after) =
+                NextOneWordSlow(cur_byte, i + 1);
+            cur_rem = static_cast<uint32_t>(absl::popcount(cur_after));
+          }
+          prev_i = i;
+          EmitFromHighPair<kWMode>(low, width, low_mask, i, pos0, pos1, emit);
+          continue;
+        }
+        // Initial seek or jump > 64 (or unsorted/duplicate element).
+        const uint64_t hint = LoadDenseHint(dense1, i);
+        if (ABSL_PREDICT_FALSE((hint & kSparseHintFlag) != 0)) {
+          std::tie(pos0, pos1) =
+              Select1AdjacentPairSparse(static_cast<uint32_t>(hint), i);
+          cur_valid = false;
+        } else {
+          uint32_t bi = static_cast<uint32_t>(hint >> 3);
+          uint32_t r = i & 31u;
+          uint64_t x =
+              LittleEndian::Load64(&high[bi]) & (~uint64_t{0} << (hint & 7u));
+          uint32_t cnt = static_cast<uint32_t>(absl::popcount(x));
+          while (cnt <= r) {
+            bi += 8;
+            r -= cnt;
+            x = LittleEndian::Load64(&high[bi]);
+            cnt = static_cast<uint32_t>(absl::popcount(x));
+          }
+          const auto [b0, after] =
+              nthbit_internal::NthbitAndAfterDispatch<kFastPdep>(x, r);
+          pos0 = uint64_t{bi} * 8 + b0;
+          const uint32_t new_rem = cnt - r - 1;
+          if (ABSL_PREDICT_TRUE(new_rem != 0)) {
+            cur_byte = bi;
+            cur_after = after;
+            cur_rem = new_rem;
+            pos1 = uint64_t{bi} * 8 + absl::countr_zero(after);
+          } else {
+            std::tie(pos1, cur_byte, cur_after) = NextOneWordSlow(bi, i + 1);
+            cur_rem = static_cast<uint32_t>(absl::popcount(cur_after));
+          }
+          cur_valid = true;
+          prev_i = i;
+        }
+        EmitFromHighPair<kWMode>(low, width, low_mask, i, pos0, pos1, emit);
+      }
+      return;
+    }
+
+    // Regime 2 — L1-resident array, small batch, or moderate step (`<= 48`):
+    // tight fully-inlined loop caching `d2` hints with zero ring-buffer
+    // overhead.
+    const bool use_3stage_pipe =
+        (opts_.size() > 32768u) && (n >= 24) &&
+        !(in[n - 1] >= in[0] &&
+          uint64_t{in[n - 1] - in[0]} <= uint64_t{n} * 48);
+    if (!use_3stage_pipe) {
+      uint32_t last_d2 = std::numeric_limits<uint32_t>::max();
+      uint64_t last_hint = 0;
+      const bool do_pf = (opts_.size() > 32768u) && (n >= 8);
+      for (size_t k = 0; k < n; ++k) {
+        if (do_pf && k + 8 < n) {
+          const uint32_t pf = in[k + 8];
+          if (ABSL_PREDICT_TRUE(pf < limit_index)) {
+            absl::PrefetchToLocalCache(&dense1[pf >> 8]);
+            if constexpr (kWMode != WidthMode::kZero) {
+              absl::PrefetchToLocalCache(&low[(size_t{pf} * width) >> 3]);
+            }
+          }
+        }
+        const uint32_t i = in[k];
+        if (ABSL_PREDICT_FALSE(i >= limit_index)) continue;
+        const uint32_t d2_key = i >> 5;
+        if (d2_key != last_d2) {
+          last_d2 = d2_key;
+          last_hint = LoadDenseHint(dense1, i);
+        }
+        const auto [pos0, pos1] =
+            DecodeHighPairFromHint<kFastPdep>(high, i, last_hint);
+        EmitFromHighPair<kWMode>(low, width, low_mask, i, pos0, pos1, emit);
+      }
+      return;
+    }
+
+    // Regime 3 — Sparse large-array batch: branch-free, fully-inlined 3-stage
+    // software pipeline overlapping independent `dense1_` + `low_` fetches
+    // (2*kStage ahead) with dependent `high_` fetches (kStage ahead).
+    constexpr size_t kStage = 16;
+    constexpr size_t kMask = kStage - 1;
+    struct Slot {
+      uint32_t idx;
+      uint64_t hint;
+    };
+    Slot ring[kStage];
+
+    auto stage1 = [&](uint32_t raw_i) ABSL_ATTRIBUTE_ALWAYS_INLINE {
+      if (ABSL_PREDICT_TRUE(raw_i < limit_index)) {
+        absl::PrefetchToLocalCache(&dense1[raw_i >> 8]);
+        if constexpr (kWMode != WidthMode::kZero) {
+          absl::PrefetchToLocalCache(&low[(size_t{raw_i} * width) >> 3]);
+        }
+      }
+    };
+
+    auto stage2 = [&](uint32_t raw_i) ABSL_ATTRIBUTE_ALWAYS_INLINE -> Slot {
+      if (ABSL_PREDICT_FALSE(raw_i >= limit_index)) {
+        return {limit_index, 0};
+      }
+      const uint64_t hint = LoadDenseHint(dense1, raw_i);
+      if (ABSL_PREDICT_TRUE((hint & kSparseHintFlag) == 0)) {
+        const uint8_t* hp = &high[hint >> 3];
+        absl::PrefetchToLocalCache(hp);
+      } else {
+        absl::PrefetchToLocalCache(
+            &sparse_[static_cast<uint32_t>(hint) + (raw_i & 255u)]);
+      }
+      return {raw_i, hint};
+    };
+
+    for (size_t k = 0; k < kStage; ++k) stage1(in[k]);
+    const size_t prime1_end = std::min(n, 2 * kStage);
+    for (size_t k = 0; k < kStage; ++k) {
+      if (k + kStage < prime1_end) stage1(in[k + kStage]);
+      ring[k] = stage2(in[k]);
+    }
+    size_t k = 0;
+    if (n >= 2 * kStage) {
+      const size_t steady_end = n - 2 * kStage;
+      for (; k < steady_end; ++k) {
+        stage1(in[k + 2 * kStage]);
+        const Slot cur = ring[k & kMask];
+        ring[k & kMask] = stage2(in[k + kStage]);
+        if (ABSL_PREDICT_TRUE(cur.idx < limit_index)) {
+          const auto [pos0, pos1] =
+              DecodeHighPairFromHint<kFastPdep>(high, cur.idx, cur.hint);
+          EmitFromHighPair<kWMode>(low, width, low_mask, cur.idx, pos0, pos1,
+                                   emit);
+        }
+      }
+    }
+    const size_t drain2_end = n - kStage;
+    for (; k < drain2_end; ++k) {
+      const Slot cur = ring[k & kMask];
+      ring[k & kMask] = stage2(in[k + kStage]);
+      if (ABSL_PREDICT_TRUE(cur.idx < limit_index)) {
+        const auto [pos0, pos1] =
+            DecodeHighPairFromHint<kFastPdep>(high, cur.idx, cur.hint);
+        EmitFromHighPair<kWMode>(low, width, low_mask, cur.idx, pos0, pos1,
+                                 emit);
+      }
+    }
+    for (; k < n; ++k) {
+      const Slot cur = ring[k & kMask];
+      if (ABSL_PREDICT_TRUE(cur.idx < limit_index)) {
+        const auto [pos0, pos1] =
+            DecodeHighPairFromHint<kFastPdep>(high, cur.idx, cur.hint);
+        EmitFromHighPair<kWMode>(low, width, low_mask, cur.idx, pos0, pos1,
+                                 emit);
+      }
+    }
+  }
+
+  // Finds the first set bit at or after `z_curr + 1` (the `idx`-th one bit,
+  // where `idx < size()`), staying in L1 cache for common buckets and falling
+  // back to O(1) `Select(1, idx)` on long runs of zeros.
+  ABSL_ATTRIBUTE_ALWAYS_INLINE uint64_t NextOneAfterZero(uint64_t z_curr,
+                                                         uint32_t idx) const {
+    const uint64_t bp = z_curr + 1;
+    const uint32_t bi = static_cast<uint32_t>(bp >> 3);
+    const uint64_t w0 = LittleEndian::Load64(&high_[bi]) >> (bp & 7u);
+    if (ABSL_PREDICT_TRUE(w0 != 0)) return bp + absl::countr_zero(w0);
+    const uint64_t w1 = LittleEndian::Load64(&high_[bi + 8]);
+    if (ABSL_PREDICT_TRUE(w1 != 0)) {
+      return uint64_t{bi + 8} * 8 + absl::countr_zero(w1);
+    }
+    if (opts_.has_index(Options::ONES)) {
+      return Select(1, idx, false).first.value();
+    }
+    return FindNextSetBitSlow(bi + 8, true).value();
+  }
+
+  struct ZeroBucket {
+    uint32_t start;
+    uint32_t limit;
+    uint64_t z_curr;
+  };
+
+  // Resolves the index range `[start, limit)` of elements with high bits `hi`
+  // (`hi <= zero_bits()`) and, when `hi < zero_bits()`, the position `z_curr`
+  // of the `hi`-th zero bit. (When `hi == zero_bits()` and `v < max_value()`,
+  // `at(size() - 1)` is in `[start, size())` with low bits `> lo`, so `idx <
+  // limit` always holds and `z_curr` is unused.)
+  ZeroBucket ResolveZeroBucket(uint32_t hi) const {
+    if (ABSL_PREDICT_FALSE(hi >= opts_.zero_bits())) {
+      const uint32_t s =
+          (hi == 0) ? 0u
+                    : static_cast<uint32_t>(
+                          Select(0, hi - 1, false).first.value() - (hi - 1));
+      return {s, opts_.size(), 0};
+    }
+    if (ABSL_PREDICT_FALSE(hi == 0)) {
+      const uint64_t z0 = Select(0, 0, false).first.value();
+      return {0, static_cast<uint32_t>(z0), z0};
+    }
+    if (ABSL_PREDICT_TRUE(hi % Options::kD1 != 0)) {
+      const auto [zp, zc] = Select(0, hi - 1, true);
+      return {static_cast<uint32_t>(zp.value() - (hi - 1)),
+              static_cast<uint32_t>(zc.value() - hi), zc.value()};
+    }
+    const uint64_t zp = Select(0, hi - 1, false).first.value();
+    const uint64_t zc = Select(0, hi, false).first.value();
+    return {static_cast<uint32_t>(zp - (hi - 1)),
+            static_cast<uint32_t>(zc - hi), zc};
+  }
+
+  // Completes `UpperBoundWithValue` inside a resolved zero bucket `[start,
+  // limit)` (where `start` may already be narrowed to a monotone lower bound
+  // `<= limit`).
+  ABSL_ATTRIBUTE_ALWAYS_INLINE UpperBoundResult FinishUpperBoundInBucket(
+      uint32_t hi, uint64_t lo, uint8_t width, uint64_t low_mask,
+      uint32_t start, uint32_t limit, uint64_t z_curr) const {
+    uint32_t len = limit - start;
+    if (len == 0) {
+      const uint64_t next_one = NextOneAfterZero(z_curr, limit);
+      return {limit, ((next_one - limit) << width) |
+                         DecodeLowFast(limit, width, low_mask)};
+    }
+    uint32_t s = start;
+    while (len > 1) {
+      const uint32_t half = len >> 1;
+      const uint32_t mid = s + half;
+      s = (lo < DecodeLowFast(mid, width, low_mask)) ? s : mid;
+      len -= half;
+    }
+    const uint64_t lo_s = DecodeLowFast(s, width, low_mask);
+    if (lo < lo_s) {
+      return {s, (uint64_t{hi} << width) | lo_s};
+    }
+    const uint32_t idx = s + 1;
+    if (idx < limit) {
+      return {idx,
+              (uint64_t{hi} << width) | DecodeLowFast(idx, width, low_mask)};
+    }
+    const uint64_t next_one = NextOneAfterZero(z_curr, idx);
+    return {idx,
+            ((next_one - idx) << width) | DecodeLowFast(idx, width, low_mask)};
+  }
+
+  // Index-only bucket resolution for the sparse 4-stage pipeline: skips
+  // reconstructing `at(idx)` (`NextOneAfterZero` + extra `DecodeLowFast`),
+  // cutting retired instructions by ~35% on sparse `UpperBound` batches.
+  ABSL_ATTRIBUTE_ALWAYS_INLINE uint32_t
+  FinishUpperBoundIndexOnly(uint64_t lo, uint8_t width, uint64_t low_mask,
+                            uint32_t start, uint32_t limit) const {
+    uint32_t len = limit - start;
+    if (len == 0) return start;
+    uint32_t s = start;
+    while (len > 1) {
+      const uint32_t half = len >> 1;
+      const uint32_t mid = s + half;
+      s = (lo < DecodeLowFast(mid, width, low_mask)) ? s : mid;
+      len -= half;
+    }
+    return s + static_cast<uint32_t>(lo >= DecodeLowFast(s, width, low_mask));
+  }
+
+  template <bool kFastPdep>
+  ABSL_ATTRIBUTE_ALWAYS_INLINE ZeroBucket
+  ResolveZeroBucketFromHint(uint32_t hi, uint64_t hint) const {
+    if (ABSL_PREDICT_FALSE(hi >= opts_.zero_bits())) {
+      return ResolveZeroBucket(hi);
+    }
+    if (ABSL_PREDICT_FALSE((hint & kZeroHiHintFlag) != 0)) {
+      const uint64_t raw_hint = hint & ~kZeroHiHintFlag;
+      uint64_t z0;
+      if (ABSL_PREDICT_FALSE((raw_hint & kSparseHintFlag) != 0)) {
+        z0 = SelectSparse(static_cast<uint32_t>(raw_hint), 0, false, BitPos{0})
+                 .first.value();
+      } else {
+        const uint32_t bi = static_cast<uint32_t>(raw_hint >> 3);
+        const uint64_t x = (~LittleEndian::Load64(&high_[bi])) &
+                           (~uint64_t{0} << (raw_hint & 7u));
+        z0 = (x != 0) ? (uint64_t{bi} * 8 + absl::countr_zero(x))
+                      : FindNextSetBitSlow(bi, false).value();
+      }
+      return {0, static_cast<uint32_t>(z0), z0};
+    }
+
+    const uint32_t r0 = hi - 1;
+    if (ABSL_PREDICT_FALSE((hint & kSparseHintFlag) != 0)) {
+      const uint32_t sbase = static_cast<uint32_t>(hint);
+      uint64_t zp, zc;
+      if (ABSL_PREDICT_TRUE((hi & 255u) != 0)) {
+        const auto [p0, p1] = SelectSparse(sbase, r0, true, BitPos{0});
+        zp = p0.value();
+        zc = p1.value();
+      } else {
+        zp = SelectSparse(sbase, r0, false, BitPos{0}).first.value();
+        zc = Select(0, hi, false).first.value();
+      }
+      return {static_cast<uint32_t>(zp - r0), static_cast<uint32_t>(zc - hi),
+              zc};
+    }
+
+    uint32_t bi = static_cast<uint32_t>(hint >> 3);
+    uint32_t r = r0 & 31u;
+    uint64_t x =
+        (~LittleEndian::Load64(&high_[bi])) & (~uint64_t{0} << (hint & 7u));
+    uint32_t cnt = static_cast<uint32_t>(absl::popcount(x));
+    while (cnt <= r) {
+      bi += 8;
+      r -= cnt;
+      x = ~LittleEndian::Load64(&high_[bi]);
+      cnt = static_cast<uint32_t>(absl::popcount(x));
+    }
+    const auto [b0, after] =
+        nthbit_internal::NthbitAndAfterDispatch<kFastPdep>(x, r);
+    const uint64_t zp = uint64_t{bi} * 8 + b0;
+    uint64_t zc;
+    if (ABSL_PREDICT_TRUE(after != 0)) {
+      zc = uint64_t{bi} * 8 + absl::countr_zero(after);
+    } else {
+      const uint64_t nx = ~LittleEndian::Load64(&high_[bi + 8]);
+      if (ABSL_PREDICT_TRUE(nx != 0)) {
+        zc = uint64_t{bi + 8} * 8 + absl::countr_zero(nx);
+      } else if ((hi & 255u) == 0) {
+        zc = Select(0, hi, false).first.value();
+      } else {
+        zc = FindNextSetBitSlow(bi + 8, false).value();
+      }
+    }
+    return {static_cast<uint32_t>(zp - r0), static_cast<uint32_t>(zc - hi), zc};
+  }
+
+  template <bool kFastPdep, bool kUniqueOnly, typename EmitFn>
+  void UpperBoundBatchImpl(absl::Span<const uint32_t> values, uint64_t cap,
+                           uint32_t invalid_value, EmitFn& emit) const {
+    const uint8_t width = opts_.width();
+    const size_t n = values.size();
+    const uint32_t* const in = values.data();
+
+    // Rare width==0 path or missing ZEROS index: interval-cached direct loop.
+    if (ABSL_PREDICT_FALSE(width == 0 || !opts_.has_index(Options::ZEROS))) {
+      bool has_cur = false;
+      uint64_t prev_v = 0;
+      uint64_t cur_limit = 0;
+      uint32_t cur_idx = 0;
+      uint32_t last_emitted = 0;
+      for (size_t k = 0; k < n; ++k) {
+        const uint64_t v = in[k];
+        if (ABSL_PREDICT_FALSE(v >= cap)) {
+          if constexpr (!kUniqueOnly) emit(invalid_value);
+          continue;
+        }
+        if (has_cur && v >= prev_v && v < cur_limit) {
+          prev_v = v;
+          if constexpr (!kUniqueOnly) {
+            emit(cur_idx == 0 ? invalid_value : cur_idx - 1);
+          }
+          continue;
+        }
+        const auto res = UpperBoundWithValue(v);
+        has_cur = true;
+        prev_v = v;
+        cur_idx = res.index;
+        cur_limit = res.value_at_index;
+        if constexpr (kUniqueOnly) {
+          if (res.index > 0 && res.index != last_emitted) {
+            last_emitted = res.index;
+            emit(res.index - 1);
+          }
+        } else {
+          emit(res.index == 0 ? invalid_value : res.index - 1);
+        }
+      }
+      return;
+    }
+
+    const uint64_t low_mask = (uint64_t{1} << width) - 1;
+    const internal::DenseEntry* const dense0 = dense0_;
+    const uint8_t* const high = high_;
+    const uint8_t* const low = low_;
+
+    const uint32_t zero_bits = opts_.zero_bits();
+    auto compute_z_hint = [&](uint32_t hi, bool do_pf)
+                              ABSL_ATTRIBUTE_ALWAYS_INLINE -> uint64_t {
+      if (ABSL_PREDICT_FALSE(zero_bits == 0)) return 0;
+      const uint32_t q = (hi == 0) ? 0u : (hi - 1);
+      const uint32_t d1 = q >> 8;
+      const auto& entry = dense0[d1];
+      const uint64_t hdr = LittleEndian::Load64(&entry);
+      const uint32_t base = static_cast<uint32_t>(hdr);
+      uint64_t hint;
+      if (ABSL_PREDICT_TRUE(((hdr >> 32) & 0xffffu) == 0)) {
+        hint = uint64_t{base} + (uint64_t{d1} << 8) +
+               entry.delta[(q >> 5) & 7u].Load();
+        if (do_pf) {
+          const uint8_t* hp = &high[hint >> 3];
+          absl::PrefetchToLocalCache(hp);
+          if ((reinterpret_cast<uintptr_t>(hp) & 63u) >= 48u) {
+            absl::PrefetchToLocalCache(hp + 64);
+          }
+        }
+      } else {
+        hint = kSparseHintFlag | uint64_t{base};
+        if (do_pf) absl::PrefetchToLocalCache(&sparse_[base + (q & 255u)]);
+      }
+      return (hi == 0) ? (hint | kZeroHiHintFlag) : hint;
+    };
+
+    // Detect dense regime (many consecutive hits per outer doc / zero bucket)
+    // vs. sparse regime (cold L3/DRAM chases across a large array).
+    const bool use_pipeline =
+        (opts_.size() > 32768u) && (n >= 48) &&
+        (in[n - 1] <= in[0] ||
+         (uint64_t{in[n - 1] - in[0]} >= (uint64_t{n} << (width + 5))));
+
+    if (!use_pipeline) {
+      bool has_cur = false;
+      uint64_t prev_v = 0;
+      uint64_t cur_limit = 0;
+      uint32_t cur_idx = 0;
+      uint32_t last_emitted = 0;
+      uint32_t cached_hi = std::numeric_limits<uint32_t>::max();
+      ZeroBucket cached_zb{0, 0, 0};
+      uint32_t cached_d2 = std::numeric_limits<uint32_t>::max();
+      uint64_t cached_hint = 0;
+      for (size_t k = 0; k < n; ++k) {
+        const uint64_t v = in[k];
+        if (ABSL_PREDICT_FALSE(v >= cap)) {
+          if constexpr (!kUniqueOnly) emit(invalid_value);
+          continue;
+        }
+        if (ABSL_PREDICT_TRUE(has_cur && v >= prev_v && v < cur_limit)) {
+          prev_v = v;
+          if constexpr (!kUniqueOnly) {
+            emit(cur_idx == 0 ? invalid_value : cur_idx - 1);
+          }
+          continue;
+        }
+        // Lightweight lookahead prefetch on `dense0_` for medium-stride scans
+        // (such as ExtractDocs over sparse inner terms).
+        if (k + 12 < n) {
+          const uint64_t v_pf = in[k + 12];
+          if (ABSL_PREDICT_TRUE(v_pf < cap)) {
+            const uint32_t hi_pf = static_cast<uint32_t>(v_pf >> width);
+            absl::PrefetchToLocalCache(
+                &dense0[(hi_pf == 0 ? 0u : hi_pf - 1) >> 8]);
+          }
+        }
+        const uint32_t hi = static_cast<uint32_t>(v >> width);
+        uint32_t s_start;
+        if (hi == cached_hi) {
+          s_start = (has_cur && v >= prev_v)
+                        ? std::max(cached_zb.start, cur_idx)
+                        : cached_zb.start;
+        } else {
+          const uint32_t d2_key =
+              (hi == 0) ? (std::numeric_limits<uint32_t>::max() - 1)
+                        : ((hi - 1) >> 5);
+          if (d2_key != cached_d2) {
+            cached_d2 = d2_key;
+            cached_hint = compute_z_hint(hi, /*do_pf=*/false);
+          }
+          cached_zb = ResolveZeroBucketFromHint<kFastPdep>(hi, cached_hint);
+          cached_hi = hi;
+          s_start = cached_zb.start;
+        }
+        const auto res =
+            FinishUpperBoundInBucket(hi, v & low_mask, width, low_mask, s_start,
+                                     cached_zb.limit, cached_zb.z_curr);
+        has_cur = true;
+        prev_v = v;
+        cur_idx = res.index;
+        cur_limit = res.value_at_index;
+        if constexpr (kUniqueOnly) {
+          if (res.index > 0 && res.index != last_emitted) {
+            last_emitted = res.index;
+            emit(res.index - 1);
+          }
+        } else {
+          emit(res.index == 0 ? invalid_value : res.index - 1);
+        }
+      }
+      return;
+    }
+
+    // 4-stage fully-inlined software-pipelined lookup for sparse batches:
+    //   Stage 1 (k + 3*kS): prefetch `dense0_[(hi-1) >> 8]`
+    //   Stage 2 (k + 2*kS): decode `dense0_`, prefetch `high_[z_hint >> 3]`
+    //   Stage 3 (k +   kS): resolve zero bucket `[start, limit)`, prefetch
+    //   `low_` Stage 4 (k)       : branchless index-only search on L1-hot
+    //   `low_`, emit
+    constexpr size_t kS = 16;
+    constexpr size_t kM = kS - 1;
+    static constexpr uint32_t kInvalidBucket =
+        std::numeric_limits<uint32_t>::max();
+    struct HintSlot {
+      uint32_t v;
+      bool valid;
+      uint64_t hint;
+    };
+    struct BucketSlot {
+      uint32_t v;
+      uint32_t start;
+      uint32_t limit;  // `kInvalidBucket` encodes out-of-range `v >= cap`
+    };
+    HintSlot ring_a[kS];
+    BucketSlot ring_b[kS];
+
+    uint32_t last_s3_hi = std::numeric_limits<uint32_t>::max();
+    uint32_t last_s3_start = 0;
+    uint32_t last_s3_limit = 0;
+
+    uint32_t prev_v = 0;
+    uint32_t cur_idx = 0;
+    uint32_t last_emitted = 0;
+    uint32_t last_s4_hi = std::numeric_limits<uint32_t>::max();
+
+    auto s1 = [&](uint32_t v) ABSL_ATTRIBUTE_ALWAYS_INLINE {
+      if (ABSL_PREDICT_TRUE(uint64_t{v} < cap && zero_bits != 0)) {
+        const uint32_t hi = static_cast<uint32_t>(uint64_t{v} >> width);
+        const uint32_t d1 = (hi == 0) ? 0u : ((hi - 1) >> 8);
+        absl::PrefetchToLocalCache(&dense0[d1]);
+      }
+    };
+
+    auto s2 = [&](uint32_t v) ABSL_ATTRIBUTE_ALWAYS_INLINE -> HintSlot {
+      if (ABSL_PREDICT_FALSE(uint64_t{v} >= cap)) return {v, false, 0};
+      const uint32_t hi = static_cast<uint32_t>(uint64_t{v} >> width);
+      return {v, true, compute_z_hint(hi, /*do_pf=*/true)};
+    };
+
+    auto s3 = [&](const HintSlot& hs)
+                  ABSL_ATTRIBUTE_ALWAYS_INLINE -> BucketSlot {
+      if (ABSL_PREDICT_FALSE(!hs.valid)) return {hs.v, 0, kInvalidBucket};
+      const uint32_t hi = static_cast<uint32_t>(uint64_t{hs.v} >> width);
+      if (ABSL_PREDICT_FALSE(hi == last_s3_hi)) {
+        return {hs.v, last_s3_start, last_s3_limit};
+      }
+      const ZeroBucket zb = ResolveZeroBucketFromHint<kFastPdep>(hi, hs.hint);
+      last_s3_hi = hi;
+      last_s3_start = zb.start;
+      last_s3_limit = zb.limit;
+      if (zb.start < zb.limit) {
+        absl::PrefetchToLocalCache(&low[(size_t{zb.start} * width) >> 3]);
+      }
+      return {hs.v, zb.start, zb.limit};
+    };
+
+    auto s4 = [&](const BucketSlot& bs) ABSL_ATTRIBUTE_ALWAYS_INLINE {
+      if (ABSL_PREDICT_FALSE(bs.limit == kInvalidBucket)) {
+        if constexpr (!kUniqueOnly) emit(invalid_value);
+        return;
+      }
+      const uint32_t v = bs.v;
+      const uint32_t hi = static_cast<uint32_t>(uint64_t{v} >> width);
+      const uint32_t s_start =
+          (ABSL_PREDICT_FALSE(hi == last_s4_hi) && v >= prev_v)
+              ? std::max(bs.start, cur_idx)
+              : bs.start;
+      const uint32_t idx = FinishUpperBoundIndexOnly(
+          uint64_t{v} & low_mask, width, low_mask, s_start, bs.limit);
+      prev_v = v;
+      cur_idx = idx;
+      last_s4_hi = hi;
+      if constexpr (kUniqueOnly) {
+        if (ABSL_PREDICT_TRUE(idx > 0 && idx != last_emitted)) {
+          last_emitted = idx;
+          emit(idx - 1);
+        }
+      } else {
+        emit(idx == 0 ? invalid_value : idx - 1);
+      }
+    };
+
+    // Fill pipeline: n >= 32 == 2*kS.
+    for (size_t i = 0; i < kS; ++i) s1(in[i]);
+    for (size_t i = 0; i < kS; ++i) {
+      s1(in[i + kS]);
+      ring_a[i] = s2(in[i]);
+    }
+    for (size_t i = 0; i < kS; ++i) {
+      if (i + 2 * kS < n) s1(in[i + 2 * kS]);
+      const HintSlot prev_a = ring_a[i];
+      ring_a[i] = s2(in[i + kS]);
+      ring_b[i] = s3(prev_a);
+    }
+    size_t k = 0;
+    if (n >= 3 * kS) {
+      const size_t end3 = n - 3 * kS;
+      for (; k < end3; ++k) {
+        const size_t slot = k & kM;
+        s1(in[k + 3 * kS]);
+        const BucketSlot cur_b = ring_b[slot];
+        const HintSlot cur_a = ring_a[slot];
+        ring_a[slot] = s2(in[k + 2 * kS]);
+        ring_b[slot] = s3(cur_a);
+        s4(cur_b);
+      }
+    }
+    const size_t end2 = n - 2 * kS;
+    for (; k < end2; ++k) {
+      const size_t slot = k & kM;
+      const BucketSlot cur_b = ring_b[slot];
+      const HintSlot cur_a = ring_a[slot];
+      ring_a[slot] = s2(in[k + 2 * kS]);
+      ring_b[slot] = s3(cur_a);
+      s4(cur_b);
+    }
+    const size_t end1 = n - kS;
+    for (; k < end1; ++k) {
+      const size_t slot = k & kM;
+      const BucketSlot cur_b = ring_b[slot];
+      ring_b[slot] = s3(ring_a[slot]);
+      s4(cur_b);
+    }
+    for (; k < n; ++k) {
+      s4(ring_b[k & kM]);
+    }
   }
 
   friend struct testing::CodecAccess;
