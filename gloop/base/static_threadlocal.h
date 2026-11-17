@@ -25,11 +25,15 @@
 #define THIRD_PARTY_GLOOP_BASE_STATIC_THREADLOCAL_H_
 
 #include <atomic>
+#include <functional>
+#include <type_traits>
+#include <utility>
 
-#include "absl/base/attributes.h"
-#include "absl/base/config.h"  // IWYU pragma: keep
+#include "absl/base/attributes.h"  // IWYU pragma: keep, ifdef'd
+#include "absl/base/config.h"      // IWYU pragma: keep
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
+#include "absl/cleanup/cleanup.h"
 #include "absl/debugging/leak_check.h"  // IWYU pragma: keep
 #include "absl/log/check.h"
 #include "gloop/base/per_thread.h"
@@ -60,9 +64,13 @@
 // allocates a new object when called for the first time by the
 // thread.
 //
-// - safe_pointer() is similar to pointer(), but it returns nullptr if
-// the object is not yet allocated to the thread. It is safe to call
-// this function inside a signal handler.
+// - MutateInCriticalSection() allows mutating the thread-local object in a
+// non-atomic way without sacrificing signal safety.
+//
+// - safe_pointer() is similar to pointer(), but it returns nullptr if the
+// object is not yet allocated to the thread or a call to
+// MutateInCriticalSection is currently in flight on the thread. It is safe to
+// call this function inside a signal handler.
 //
 // - get() just returns *pointer().
 //
@@ -159,6 +167,12 @@ class StaticThreadLocalImpl {
     // (since it allocates).
     if (void* const value = stll.value.load(std::memory_order_relaxed);
         ABSL_PREDICT_TRUE(value != nullptr)) {
+      // Check that this thread isn't in a MutateInCriticalSection call. In
+      // optimized builds this would cause us to leak the object by taking the
+      // path below. At destruction we may also wind up in a cycle in the linked
+      // list.
+      DCHECK(value != this);
+
       return static_cast<T*>(value);
     }
 
@@ -192,15 +206,82 @@ class StaticThreadLocalImpl {
     return obj;
   }
 
-  void set_pointer(T* absl_nonnull obj) {
+  void set_pointer(T* absl_nonnull const obj) {
     DCHECK(obj != nullptr);
 
+    // Ensure we're not in the middle of a MutateInCriticalSection critical
+    // section.
+    DCHECK(Derived::Var().value.load(std::memory_order_relaxed) != this);
+
+    return set_pointer_internal(obj);
+  }
+
+  T& get() const { return *pointer(); }
+
+  T* safe_pointer() const {
+    // Read the value pointer from the thread-local struct. Unlike the other
+    // method, we don't initialize it here if it's still null because it
+    // hasn't been initialized before.
+    //
+    // The acquire here pairs with the release fences in `pointer` and
+    // `set_pointer_internal`.
+    //
+    void* const p = Derived::Var().value.load(std::memory_order_acquire);
+
+    // In debug builds we must filter out the sentinel set up by
+    // MutateInCriticalSection.
+#ifndef NDEBUG
+    if (p == this) {
+      return nullptr;
+    }
+#endif
+
+    return static_cast<T*>(p);
+  }
+
+  // Run the supplied function on the current value of the thread-local,
+  // allocating one if it's not already present, in such a way that safe_pointer
+  // will return null while the function runs. This allows for making non-atomic
+  // mutations to it in such a way that a signal handler interrupting this
+  // thread won't see an inconsistent object.
+  //
+  // REQUIRES: the function must not call back into *this, with exception of the
+  // safe_pointer method.
+  template <typename F>
+  std::invoke_result_t<F, T&> MutateInCriticalSection(F&& f) {
+    // We must hide the value from signal handlers while mutating it, as
+    // arbitrary mutations are not necessarily atomic and a signal handler may
+    // otherwise see an inconsistent state.
+    //
+    // In debug builds we temporarily set the pointer to a sentinel value that
+    // will cause `pointer` to crash if it's later loaded, detecting bugs where
+    // we might accidentally leak a new T if the function calls back into us. In
+    // optimized builds we shoot for code that may be faster.
+    T* absl_nonnull const current = pointer();
+    const absl::Cleanup c = [&] { set_pointer_internal(current); };
+
+#ifndef NDEBUG
+    set_pointer_internal(this);
+#else
+    set_pointer_internal(nullptr);
+#endif
+
+    return std::invoke(std::forward<F>(f), *current);
+  }
+
+  bool is_native_tls() const { return true; }
+  static void Destructor(void* p) { delete static_cast<T*>(p); }
+
+ private:
+  // Like set_pointer, but allows setting any pointer. Careful—if null is
+  // observed by `pointer`, it will cause a new T to be allocated.
+  void set_pointer_internal(void* absl_nullable const p) {
     // Before we update the pointer, synchronize with signal handlers that call
     // safe_pointer, for the same reason as described in `pointer` above.
     std::atomic_signal_fence(std::memory_order_release);
 
     // Update the pointer.
-    Derived::Var().value.store(obj, std::memory_order_relaxed);
+    Derived::Var().value.store(p, std::memory_order_relaxed);
 
     // Ensure that the compiler doesn't reorder modifications to the object we
     // just unpublished that happen after we return to before unpublishing it.
@@ -235,23 +316,6 @@ class StaticThreadLocalImpl {
     // to fix this.
 #endif
   }
-
-  T& get() const { return *pointer(); }
-
-  T* safe_pointer() const {
-    // Read the value pointer from the thread-local struct. Unlike the other
-    // method, we don't initialize it here if it's still null because it
-    // hasn't been initialized before.
-    //
-    // The acquire here pairs with the release fence in the initialization
-    // logic in the pointer method.
-    //
-    return static_cast<T*>(
-        Derived::Var().value.load(std::memory_order_acquire));
-  }
-
-  bool is_native_tls() const { return true; }
-  static void Destructor(void* p) { delete static_cast<T*>(p); }
 };
 
 }  // namespace internal
@@ -280,6 +344,12 @@ class StaticThreadLocalImpl {
     void set_pointer(_Type_* absl_nonnull obj) { Base::set_pointer(obj); }   \
     bool is_native_tls() const { return Base::is_native_tls(); }             \
     static void Destructor(void* p) { Base::Destructor(p); }                 \
+                                                                             \
+    template <typename _Func_>                                               \
+    std::invoke_result_t<_Func_, _Type_&> MutateInCriticalSection(           \
+        _Func_&& f) {                                                        \
+      return Base::MutateInCriticalSection(std::forward<_Func_>(f));         \
+    }                                                                        \
   };                                                                         \
   }                                                                          \
   static ThreadLocal_##_var_ _var_;
@@ -322,11 +392,16 @@ class StaticThreadLocalImpl {
     PerThread::Key& key = Derived::Key();
     PerThread::Allocate(&key, Destructor);
     void** loc = PerThread::Data(key);
-    auto* obj = static_cast<T*>(*loc);
+
+    void* const value = *loc;
+    DCHECK(value != this);
+
+    auto* obj = static_cast<T*>(value);
     if (!obj) {
       *loc = obj = Derived::New();
       ::absl::IgnoreLeak(obj);
     }
+
     return obj;
   }
 
@@ -335,15 +410,45 @@ class StaticThreadLocalImpl {
   T* safe_pointer() const {
     const PerThread::Key& key = Derived::Key();
     if (key == PerThread::kInvalid) return nullptr;
-    return static_cast<T*>(PerThread::GetData(key));
+
+    void* const p = PerThread::GetData(key);
+
+#ifndef NDEBUG
+    if (p == this) {
+      return nullptr;
+    }
+#endif
+
+    return static_cast<T*>(p);
   }
 
   void set_pointer(T* absl_nonnull obj) {
-    *PerThread::Data(Derived::Key()) = obj;
+    DCHECK(obj != nullptr);
+    DCHECK(*PerThread::Data(Derived::Key()) != this);
+    set_pointer_internal(obj);
+  }
+
+  template <typename F>
+  std::invoke_result_t<F, T&> MutateInCriticalSection(F&& f) {
+    T* absl_nonnull const current = pointer();
+    const absl::Cleanup c = [&] { set_pointer_internal(current); };
+
+#ifndef NDEBUG
+    set_pointer_internal(this);
+#else
+    set_pointer_internal(nullptr);
+#endif
+
+    return std::invoke(std::forward<F>(f), *current);
   }
 
   bool is_native_tls() const { return false; }
   static void Destructor(void* obj) { delete static_cast<T*>(obj); }
+
+ private:
+  void set_pointer_internal(void* absl_nullable const p) {
+    *PerThread::Data(Derived::Key()) = p;
+  }
 };
 
 }  // namespace internal
@@ -369,6 +474,12 @@ class StaticThreadLocalImpl {
     void set_pointer(_Type_* absl_nonnull obj) { Base::set_pointer(obj); }     \
     bool is_native_tls() const { return Base::is_native_tls(); }               \
     static void Destructor(void* p) { Base::Destructor(p); }                   \
+                                                                               \
+    template <typename _Func_>                                                 \
+    std::invoke_result_t<_Func_, _Type_&> MutateInCriticalSection(             \
+        _Func_&& f) {                                                          \
+      return Base::MutateInCriticalSection(std::forward<_Func_>(f));           \
+    }                                                                          \
   };                                                                           \
   }                                                                            \
   static ThreadLocal_##_var_ _var_;

@@ -24,6 +24,7 @@
 
 #include <iostream>
 #include <memory>
+#include <string>
 #include <thread>  // NOLINT(build/c++11)
 #include <vector>
 
@@ -156,6 +157,57 @@ TEST(StaticThreadLocal, Leak) {
   }
 
   std::cout << "Created " << n << " threads";
+}
+
+STATIC_THREAD_LOCAL_WITH_CONSTRUCTOR_ARGS(std::string, value4, ("taco"));
+
+// MutateInCriticalSection should cause safe_pointer to return null during the
+// critical section. Afterward the modifications should be reflected in the
+// contained object.
+TEST(StaticThreadLocal, MutateInCriticalSection) {
+  std::thread([] {
+    // Assumption check: the thread-local shouldn't yet be initialized on this
+    // thread.
+    EXPECT_EQ(value4.safe_pointer(), nullptr);
+
+    // The first call to MutateInCriticalSection should see the initial value.
+    // During the critical section safe_pointer should return null, and
+    // afterward it should return a pointer to the modified value.
+    value4.MutateInCriticalSection([](std::string& s) {
+      EXPECT_EQ(s, "taco");
+      EXPECT_EQ(value4.safe_pointer(), nullptr);
+      s = "burrito";
+    });
+
+    const std::string* const pointer = value4.pointer();
+    EXPECT_EQ(*pointer, "burrito");
+    EXPECT_EQ(value4.safe_pointer(), pointer);
+
+    // We should also be able to modify in place again, without allocating a new
+    // value. Returning a result should work fine too.
+    EXPECT_EQ(value4.MutateInCriticalSection([pointer](std::string& s) {
+      EXPECT_EQ(&s, pointer);
+      EXPECT_EQ(s, "burrito");
+      EXPECT_EQ(value4.safe_pointer(), nullptr);
+      s = "enchilada";
+      return 17;
+    }),
+              17);
+
+    EXPECT_EQ(*pointer, "enchilada");
+    EXPECT_EQ(value4.safe_pointer(), pointer);
+  }).join();
+}
+
+// Calling into `pointer` from a critical section should crash.
+TEST(StaticThreadLocalDeathTest, MutateInCriticalSectionReentrantCall) {
+#ifdef NDEBUG
+  GTEST_SKIP() << "We don't detect this bug in optimized builds";
+#endif
+
+  EXPECT_DEATH_IF_SUPPORTED(value4.MutateInCriticalSection(
+                                [](std::string&) { (void)value4.pointer(); }),
+                            R"(value !=.*\bthis\b)");
 }
 
 // Test that the initialization of non-POD STATIC_THREAD_LOCAL objects is safe

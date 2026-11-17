@@ -1479,6 +1479,7 @@ cc_library(
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
+        "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/debugging:leak_check",
         "@abseil-cpp//absl/log:check",
     ],
