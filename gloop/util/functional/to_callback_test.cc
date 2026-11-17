@@ -20,10 +20,13 @@
 
 #include "gloop/util/functional/to_callback.h"
 
+#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
+#include <thread>  // NOLINT
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -341,6 +344,99 @@ TEST(FunctorToCallback, ResultCallbackVoid) {
   (*c)();
   EXPECT_TRUE(called);
 }
+
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
+TEST(FunctorToCallback, PermanentClosureOmitsInlineContextAndLabel) {
+  struct alignas(16) Aligned16Functor {
+    uint64_t words[2];
+    void operator()() const {}
+  };
+  static_assert(sizeof(internal::FunctorClosure<true, void (*)()>) ==
+                sizeof(Closure) + sizeof(void (*)()));
+  static_assert(!std::is_copy_constructible_v<
+                internal::FunctorClosure<true, void (*)()>>);
+  if constexpr (sizeof(void*) == 8) {
+    static_assert(sizeof(internal::FunctorClosure<true, void (*)()>) == 24);
+    static_assert(sizeof(internal::FunctorClosure<true, Aligned16Functor>) ==
+                  32);
+    static_assert(sizeof(internal::FunctorClosure<false, void (*)()>) >
+                  sizeof(Closure) + sizeof(::base::Context) +
+                      sizeof(void (*)()));
+  }
+  std::unique_ptr<Closure> perm(ToPermanentCallback(examples::Nop));
+  EXPECT_TRUE(perm->IsRepeatable());
+}
+
+TEST(FunctorToCallback, PermanentClosureWithExplicitLabelSupportsEmptyAndRun) {
+  EXPECT_THAT(ToPermanentCallback(std::function<void()>(), "lbl"), IsNull());
+  int calls = 0;
+  std::unique_ptr<Closure> perm(
+      ToPermanentCallback([&calls] { ++calls; }, "lbl"));
+  perm->Run();
+  perm->Run();
+  EXPECT_EQ(calls, 2);
+}
+
+TEST(FunctorToCallback, PermanentClosureInvokesLvalueOverload) {
+  struct RefQualified {
+    int* lv;
+    int* rv;
+    void operator()() & { ++(*lv); }
+    void operator()() && { ++(*rv); }
+  };
+  int lv = 0;
+  int rv = 0;
+  std::unique_ptr<Closure> perm(ToPermanentCallback(RefQualified{&lv, &rv}));
+  perm->Run();
+  Closure* oneshot = ToCallback(RefQualified{&lv, &rv});
+  oneshot->Run();
+  EXPECT_EQ(lv, 1);
+  EXPECT_EQ(rv, 1);
+}
+
+TEST(FunctorToCallback, ConcurrentContextPtrMaterializesSingleInstance) {
+  constexpr int kThreads = 4;
+  constexpr int kRounds = 64;
+  std::vector<std::unique_ptr<Closure>> closures(kRounds);
+  for (auto& c : closures) c.reset(ToPermanentCallback([] {}));
+  std::vector<::base::Context*> seen(kThreads * kRounds, nullptr);
+  // Release all threads together each round so several race on the first
+  // context_ptr() call.
+  std::atomic<int> step{0};
+  std::vector<std::thread> threads;
+  for (int t = 0; t < kThreads; ++t) {
+    threads.emplace_back([&, t] {
+      for (int r = 0; r < kRounds; ++r) {
+        const int target = (r + 1) * kThreads;
+        step.fetch_add(1, std::memory_order_acq_rel);
+        for (int spin = 0;
+             spin < 200 && step.load(std::memory_order_acquire) < target;
+             ++spin) {
+        }
+        while (step.load(std::memory_order_acquire) < target) {
+          std::this_thread::yield();
+        }
+        closures[r]->Run();
+        seen[r * kThreads + t] = closures[r]->context_ptr();
+      }
+    });
+  }
+  for (std::thread& th : threads) th.join();
+  for (int r = 0; r < kRounds; ++r) {
+    ASSERT_NE(closures[r]->context_ptr(), nullptr);
+    for (int t = 0; t < kThreads; ++t) {
+      EXPECT_EQ(seen[r * kThreads + t], closures[r]->context_ptr());
+    }
+  }
+}
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 }  // namespace
 }  // namespace functional

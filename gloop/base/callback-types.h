@@ -24,13 +24,24 @@
 #ifndef THIRD_PARTY_GLOOP_BASE_CALLBACK_TYPES_H_
 #define THIRD_PARTY_GLOOP_BASE_CALLBACK_TYPES_H_
 
+#include <atomic>
 #include <cstddef>
-#include <memory>
 
 #include "absl/base/attributes.h"
 #include "gloop/base/context.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
+
+#ifndef SWIG
+namespace util {
+namespace functional {
+namespace internal {
+template <bool Permanent, typename Functor>
+class FunctorClosure;
+}  // namespace internal
+}  // namespace functional
+}  // namespace util
+#endif
 
 namespace base {
 namespace internal {
@@ -46,12 +57,19 @@ class
         CallbackBase {
  public:
   virtual ~CallbackBase();
+#ifndef SWIG
+  CallbackBase(const CallbackBase&) = delete;
+  CallbackBase& operator=(const CallbackBase&) = delete;
+#endif
   virtual bool IsRepeatable() const { return false; }
 
 #ifndef SWIG
   ABSL_DEPRECATED("Access to legacy callback captured context is deprecated.")
 #endif
-  ::base::Context* context_ptr() { return context_.get(); }
+  ::base::Context* context_ptr() {
+    ::base::Context* ctx = context_.load(std::memory_order_acquire);
+    return ctx != nullptr ? ctx : SlowContextPtr();
+  }
 
  protected:
   CallbackBase() : CallbackBase(::base::Context::DefaultInitType()) {}
@@ -60,11 +78,11 @@ class
   // The label is only used in the (possibly traced) thread context constructor.
   explicit CallbackBase(::base::Context::DefaultInitType /*initializer*/,
                         perftools::tracing::StringRef = /*unused*/ {})
-      : context_(std::make_unique<base::Context>()) {}
+      : context_(new ::base::Context()) {}
   explicit CallbackBase(::base::Context::ThreadInitType initializer,
                         perftools::tracing::StringRef label =
                             perftools::tracing::TraceSourceLocation::current())
-      : context_(std::make_unique<base::Context>(initializer, label)) {}
+      : context_(new ::base::Context(initializer, label)) {}
 
 #ifndef SWIG
   ABSL_DEPRECATED(
@@ -74,12 +92,19 @@ class
       "Those APIs should be converted long term to deal in functor objects "
       "instead.")
 #endif
-  explicit CallbackBase(std::nullptr_t) {}
-
-  std::unique_ptr<::base::Context> context_;
+  explicit CallbackBase(std::nullptr_t) : context_(nullptr) {}
 
  private:
+#ifndef SWIG
+  template <bool Permanent, typename Functor>
+  friend class ::util::functional::internal::FunctorClosure;
+#endif
+
+  ::base::Context* MaterializeDefaultContext();
   virtual void UnusedKeyMethod();  // <link>
+  virtual ::base::Context* SlowContextPtr();
+
+  std::atomic<::base::Context*> context_;
 };
 
 }  // namespace internal

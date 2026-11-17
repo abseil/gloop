@@ -122,15 +122,20 @@ Closure* ToCallback(Functor&& functor,
 //   Closure* c = ToPermanentCallback([] { sleep(1); });
 template <typename Functor>
   requires(std::is_void_v<std::invoke_result_t<std::decay_t<Functor>>>)
-Closure* ToPermanentCallback(
-    Functor&& functor, perftools::tracing::StringLabel label =
-                           perftools::tracing::TraceSourceLocation::current()) {
+Closure* ToPermanentCallback(Functor&& functor) {
   if (internal::IsEmpty(functor)) {
     return nullptr;
   }
   return new internal::FunctorClosure</*Permanent=*/true,
                                       std::decay_t<Functor>>(
-      std::forward<Functor>(functor), std::move(label));
+      std::forward<Functor>(functor));
+}
+
+template <typename Functor>
+  requires(std::is_void_v<std::invoke_result_t<std::decay_t<Functor>>>)
+Closure* ToPermanentCallback(Functor&& functor,
+                             perftools::tracing::StringLabel /*label*/) {
+  return util::functional::ToPermanentCallback(std::forward<Functor>(functor));
 }
 
 // Variant of ToCallback that allows the specification of the
