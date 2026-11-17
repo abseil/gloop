@@ -125,12 +125,11 @@ class WatchDog final {
   // of the callback to ensure that the process will die.
   void SetCallback(WatchdogCallback callback);
 
-  // Set the timeout to the new value and return the previous timeout.
-  // Also marks the calling thread as alive, but does not affect whether or not
-  // the watchdog is enabled.
+  // Sets the timeout to the new value. Also marks the calling thread as alive,
+  // but does not affect whether or not the watchdog is enabled.
   ABSL_DEPRECATED("Use SetTimeoutDuration() instead")
-  int32_t SetTimeout(int32_t timeout_sec) {
-    return SetTimeoutDuration(absl::Seconds(timeout_sec)) / absl::Seconds(1);
+  void SetTimeout(int32_t timeout_sec) {
+    SetTimeoutDuration(absl::Seconds(timeout_sec));
   }
 
   // Set the timeout to the new value and return the previous timeout.
@@ -149,10 +148,6 @@ class WatchDog final {
 
   // Returns the current timeout.
   absl::Duration timeout_duration() const;
-
-  // Current timeout in seconds.
-  ABSL_DEPRECATED("Use timeout_duration() instead")
-  int32_t timeout() const { return timeout_duration() / absl::Seconds(1); }
 
   // Writes a human-readable status of this watchdog.
   //
