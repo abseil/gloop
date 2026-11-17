@@ -1438,7 +1438,6 @@ void SubProcess::ForkedChild(struct ChildArgs* args) {
   // Instead, we will inform the parent process and then have it report
   // a (fake) SIGABRT condition to the caller.
   SendFatalError("exec() failed");
-  lss__exit(127, &child_errno_);  // We never get here
 }
 
 // CloneFnc()
