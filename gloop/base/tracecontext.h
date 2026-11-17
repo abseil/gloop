@@ -667,7 +667,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
   }
 
   // Returns true if this context has causality aware trace event listeners.
-  bool has_sync_tracer() const { return sync_context_.has_listeners(); }
+  bool has_sync_tracer() const { return !sync_context_.empty(); }
 
   bool has_gwfi_enabled() const {
     return mask() & kTraceMaskGoogleWideFaultInjection;
@@ -1024,7 +1024,7 @@ inline TraceContext::TraceContext(const TraceContext& c)
     tracer_ = t;
     RefTracer();
   }
-  if (c.sync_context_.has_listeners()) {
+  if (c.sync_context_) {
     sync_context_ = c.sync_context_;
   }
   // No rpc_add_ktrace needed here since the current TraceContext can not
@@ -1045,7 +1045,7 @@ inline TraceContext::TraceContext(const TraceContext& c,
     tracer_ = t;
     RefTracer();
   }
-  if (c.sync_context_.has_listeners()) {
+  if (c.sync_context_) {
     sync_context_ = c.sync_context_.CreateThread(thread_name);
   }
   // No rpc_add_ktrace needed here since the current TraceContext can not
@@ -1076,7 +1076,7 @@ inline TraceContext::TraceContext(TraceContext&& c) noexcept
     tracer_ = t;
     MoveTracer(&c, this);
   }
-  if (c.sync_context_.has_listeners()) {
+  if (c.sync_context_) {
     sync_context_ = std::move(c.sync_context_);
   }
 #ifdef ENABLE_TRACER_REF_TRACKING
@@ -1141,7 +1141,7 @@ inline void TraceContext::AfterExchangeThreadContext(
 
 inline void TraceContext::BeforeSwapCurrent(base::ContextAccess,
                                             const TraceContext& to) {
-  if (sync_context_.has_listeners()) {
+  if (sync_context_) {
     sync_context_.BeforeSwapCurrent(SyncContextAccess(), to.sync_context_);
   }
   MaybeCopyKtraceRpcIdTo(to);
@@ -1149,7 +1149,7 @@ inline void TraceContext::BeforeSwapCurrent(base::ContextAccess,
 
 inline void TraceContext::AfterSwapCurrent(
     base::ContextAccess, perftools::tracing::StringRef label) {
-  if (sync_context_.has_listeners()) {
+  if (sync_context_) {
     sync_context_.AfterSwapCurrent(SyncContextAccess(), label);
   }
   CAPTURE_TRACECONTEXT_CHANGE_ANNOTATION(this);
@@ -1157,7 +1157,7 @@ inline void TraceContext::AfterSwapCurrent(
 
 inline void TraceContext::BeforeRestoreCurrent(base::ContextAccess,
                                                const TraceContext& from) {
-  if (sync_context_.has_listeners()) {
+  if (sync_context_) {
     sync_context_.BeforeRestoreCurrent(SyncContextAccess(), from.sync_context_);
   }
   from.MaybeCopyKtraceRpcIdTo(*this);
@@ -1165,7 +1165,7 @@ inline void TraceContext::BeforeRestoreCurrent(base::ContextAccess,
 
 inline void TraceContext::AfterRestoreCurrent(
     base::ContextAccess, perftools::tracing::StringRef label) {
-  if (sync_context_.has_listeners()) {
+  if (sync_context_) {
     sync_context_.AfterRestoreCurrent(SyncContextAccess(), label);
   }
   CAPTURE_TRACECONTEXT_CHANGE_ANNOTATION(this);
