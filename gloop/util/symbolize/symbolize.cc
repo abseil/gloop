@@ -255,6 +255,28 @@ bool SymbolMap::AddSymbol(const char* name, const char* section_end,
   return true;
 }
 
+void SymbolMap::ReserveAdditionalSymbols(size_t count) {
+  // PopulateSymbols() sorts mapped images by path (with the vDSO last), so the
+  // main executable usually comes before system shared libraries (e.g. /lib or
+  // /usr/lib). Scaling headroom with `count` (~1.6%, clamped to [64, 16384])
+  // avoids over-allocating on small or stripped binaries (keeping slack at
+  // 64 symbols = 1.5 KiB, enough for the ~10 vDSO symbols) while giving a
+  // larger main executable (>= ~320K symbols) up to 16384 symbols (384 KiB) of
+  // slack so subsequent libc/libm DSOs (glibc 2.27 has ~4,600-4,900 symbols)
+  // and the vDSO usually fit without copying a multi-MB buffer.
+  constexpr size_t kMinReserveHeadroom = 64;
+  constexpr size_t kMaxReserveHeadroom = 16384;
+  constexpr size_t kReserveHeadroomDivisor = 64;
+  const size_t headroom = std::clamp(count / kReserveHeadroomDivisor,
+                                     kMinReserveHeadroom, kMaxReserveHeadroom);
+  const size_t needed = symbols_.size() + count + headroom;
+  if (needed > symbols_.capacity()) {
+    constexpr size_t kMinGrowthDivisor = 2;  // 1.5x minimum growth.
+    symbols_.reserve(std::max(
+        needed, symbols_.capacity() + symbols_.capacity() / kMinGrowthDivisor));
+  }
+}
+
 bool SymbolMap::GetSymbolInfoAtPosition(uint64_t pos, const char** name,
                                         uint64_t* start, uint64_t* size) const {
   EnsureFinalized();

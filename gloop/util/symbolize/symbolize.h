@@ -166,6 +166,12 @@ class SymbolMap : public internal::SymbolMapSink {
 
   static void PopulateSymbols(SymbolMap& symbols);
 
+  // Reserves capacity for at least `count` more symbols, plus some headroom
+  // so that symbols from subsequent small DSOs and the vDSO usually fit
+  // without reallocating. When it does have to reallocate, grows capacity by
+  // at least 1.5x, so that repeated calls stay amortized O(1).
+  void ReserveAdditionalSymbols(size_t count) override;
+
   // Ensures that Finalize has been called for this instance.
   void EnsureFinalized() const;
 

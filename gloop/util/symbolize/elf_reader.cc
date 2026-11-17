@@ -867,6 +867,7 @@ class ElfReaderImpl {
     typename AddrToSymMap::iterator curr = addr_to_sym_map.begin();
     const char* const string_section_end =
         string_section->contents() + string_section->section_size();
+    symbols->ReserveAdditionalSymbols(addr_to_sym_map.size());
     // Always insert the first symbol.
     if (!symbols->AddSymbol(string_section->GetOffset(curr->second->st_name),
                             string_section_end, curr->first,

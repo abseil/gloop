@@ -21,6 +21,7 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_SYMBOLIZE_SYMBOL_MAP_SINK_H_
 #define THIRD_PARTY_GLOOP_UTIL_SYMBOLIZE_SYMBOL_MAP_SINK_H_
 
+#include <cstddef>
 #include <cstdint>
 
 namespace util::internal {
@@ -30,6 +31,10 @@ class SymbolMapSink {
  public:
   virtual bool AddSymbol(const char* name, const char* section_end,
                          uint64_t start, uint64_t size) = 0;
+
+  // Hint that the caller is about to add up to `count` more symbols;
+  // implementations may use it to pre-allocate storage.
+  virtual void ReserveAdditionalSymbols(size_t count) {}
 
   virtual ~SymbolMapSink() = default;
 };
