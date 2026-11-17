@@ -103,8 +103,6 @@ namespace base {
 // now points to the trace state within the current generic context.
 STATIC_THREAD_LOCAL_WITH_CONSTRUCTOR_ARGS(Context, per_thread_context, ());
 
-static Context* InlineCurrent() { return per_thread_context.pointer(); }
-
 // Defined in <path>
 ABSL_ATTRIBUTE_WEAK void CurrentTraceContextChanging(const TraceContext*,
                                                      TraceContext*) {}
@@ -145,7 +143,7 @@ Context* absl_nonnull RestoreContext(ContextAccess access,
 }  // namespace internal
 
 Context::Context(ThreadInitType, perftools::tracing::StringRef thread_name)
-    : Context(*InlineCurrent(), thread_name) {}
+    : Context(CurrentContext(), thread_name) {}
 
 Context::Context(const Context& c, perftools::tracing::StringRef thread_name)
     : tc_(c.tc_), deadline_(c.deadline_) {}
@@ -180,7 +178,7 @@ void Context::SwapCensusHandle(CensusHandle* handle) {
   swap(tc_.census_handle_, *handle);
 }
 
-const Context& CurrentContext() { return *InlineCurrent(); }
+const Context& CurrentContext() { return *per_thread_context.pointer(); }
 
 const TraceContext* CurrentTraceContextNoAlloc() {
   const Context* const absl_nullable context =
@@ -189,13 +187,16 @@ const TraceContext* CurrentTraceContextNoAlloc() {
   return context != nullptr ? &context->trace_context() : nullptr;
 }
 
+// TODO: promiscuous use of APIs backed by this function will very
+// likely remain a signal-safety issue even after fixing this file. Document
+// this.
 TraceContext* internal::MutableCurrentContext::MutableCurrentTrace() {
-  return &InlineCurrent()->tc_;
+  return &per_thread_context.pointer()->tc_;
 }
 
 ABSL_XRAY_ALWAYS_INSTRUMENT void SwapCurrentContext(Context* c) {
   using std::swap;
-  Context* current = InlineCurrent();
+  Context* current = per_thread_context.pointer();
   NotifyTraceContextChanging(current->trace(), c->trace());
   current->trace()->BeforeSwapCurrent(ContextAccess(), c->trace_context());
   swap(*current, *c);
@@ -204,7 +205,7 @@ ABSL_XRAY_ALWAYS_INSTRUMENT void SwapCurrentContext(Context* c) {
 
 ABSL_XRAY_ALWAYS_INSTRUMENT void RestoreCurrentContext(Context* c) {
   using std::swap;
-  Context* current = InlineCurrent();
+  Context* current = per_thread_context.pointer();
   current->trace()->BeforeRestoreCurrent(ContextAccess(), *c->trace());
   *current = std::move(*c);
   current->trace()->AfterRestoreCurrent(ContextAccess());
@@ -290,7 +291,7 @@ WithContext::~WithContext() {
 
 WithTraceContext::WithTraceContext(const TraceContext& switch_to,
                                    perftools::tracing::StringRef label) {
-  TraceContext* current = InlineCurrent()->trace();
+  TraceContext* current = per_thread_context.pointer()->trace();
   current->BeforeSwapCurrent(ContextAccess(), switch_to);
   if (&switch_to != current) {
     new (&previous_) TraceContext(std::move(*current));
@@ -305,7 +306,7 @@ WithTraceContext::WithTraceContext(const TraceContext& switch_to,
 
 WithTraceContext::WithTraceContext(TraceContext&& switch_to,
                                    perftools::tracing::StringRef label) {
-  TraceContext* current = InlineCurrent()->trace();
+  TraceContext* current = per_thread_context.pointer()->trace();
   NotifyTraceContextChanging(current, &switch_to);
   current->BeforeSwapCurrent(ContextAccess(), switch_to);
   if (&switch_to != current) {
@@ -320,7 +321,7 @@ WithTraceContext::WithTraceContext(TraceContext&& switch_to,
 }
 
 WithTraceContext::~WithTraceContext() {
-  TraceContext* current = InlineCurrent()->trace();
+  TraceContext* current = per_thread_context.pointer()->trace();
   current->BeforeRestoreCurrent(ContextAccess(), previous_);
   *current = std::move(previous_);
   current->AfterRestoreCurrent(ContextAccess());
@@ -330,7 +331,7 @@ WithTraceContext::~WithTraceContext() {
 
 WithDeadline::WithDeadline(absl::Time new_deadline)
     : swapped_deadline_(new_deadline), is_deadline_swapped_(false) {
-  Context* current_context = InlineCurrent();
+  Context* current_context = per_thread_context.pointer();
   // Check to see if the existing deadline is nearer than the new one.
   if (current_context->deadline() <= new_deadline) {
     return;
@@ -341,29 +342,29 @@ WithDeadline::WithDeadline(absl::Time new_deadline)
 
 WithDeadline::~WithDeadline() {
   if (is_deadline_swapped_) {
-    Context* current_context = InlineCurrent();
+    Context* current_context = per_thread_context.pointer();
     current_context->SwapDeadline(&swapped_deadline_);
   }
 }
 
 WithCensusHandle::WithCensusHandle(const CensusHandle& handle)
     : swapped_handle_(handle) {
-  InlineCurrent()->SwapCensusHandle(&swapped_handle_);
+  per_thread_context.pointer()->SwapCensusHandle(&swapped_handle_);
 }
 
 WithCensusHandle::WithCensusHandle(CensusHandle&& handle)
     // Keep std::move() here, in preparation for refcounted handles.
     : swapped_handle_(std::move(handle)) {
-  InlineCurrent()->SwapCensusHandle(&swapped_handle_);
+  per_thread_context.pointer()->SwapCensusHandle(&swapped_handle_);
 }
 
 WithCensusHandle::~WithCensusHandle() {
-  InlineCurrent()->SwapCensusHandle(&swapped_handle_);
+  per_thread_context.pointer()->SwapCensusHandle(&swapped_handle_);
 }
 
 const CensusHandle& CensusAccess::GetCurrentHandle() {
 #if BASE_HAVE_TRACECONTEXT
-  return InlineCurrent()->trace()->census_handle_;
+  return CurrentContext().trace()->census_handle_;
 #else
   static CensusHandle* dummy_ch = new CensusHandle;
   return *dummy_ch;
@@ -373,7 +374,7 @@ const CensusHandle& CensusAccess::GetCurrentHandle() {
 void CensusAccess::SwapCurrentHandle(CensusHandle* h) {
 #if BASE_HAVE_TRACECONTEXT
   using std::swap;
-  swap(InlineCurrent()->trace()->census_handle_, *h);
+  swap(per_thread_context.pointer()->trace()->census_handle_, *h);
 #endif
 }
 
