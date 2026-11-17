@@ -1374,6 +1374,7 @@ cc_library(
     srcs = ["tracecontext.cc"],
     hdrs = ["tracecontext.h"],
     implementation_deps = [
+        ":static_threadlocal",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:vlog_is_on",
         "@abseil-cpp//absl/strings",
@@ -1398,6 +1399,27 @@ cc_library(
         "@abseil-cpp//absl/base:raw_logging_internal",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:string_view",
+    ],
+)
+
+cc_test(
+    name = "tracecontext_backref_test",
+    size = "small",
+    srcs = ["tracecontext_backref_test.cc"],
+    deps = [
+        ":context",  # buildcleaner: keep
+        ":tracecontext",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+    ],
+)
+
+cc_test(
+    name = "tracecontext_standalone_test",
+    size = "small",
+    srcs = ["tracecontext_backref_test.cc"],
+    deps = [
+        ":tracecontext",
+        "@abseil-cpp//absl/base:raw_logging_internal",
     ],
 )
 
