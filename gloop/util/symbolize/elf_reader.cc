@@ -591,7 +591,8 @@ class SymbolIterator {
     const char* name = string_section_->GetOffset(name_offset);
     if (name != nullptr && verify_nul_termination) {
       // Make sure it's properly NUL-terminated within the section bounds.
-      if (memchr(name, '\0', str_section_sz - name_offset) == nullptr) {
+      if (!absl::StrContains(
+              absl::string_view(name, str_section_sz - name_offset), '\0')) {
         return nullptr;
       }
     }

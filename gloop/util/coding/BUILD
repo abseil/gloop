@@ -86,6 +86,8 @@ cc_test(
     deps = [
         ":coding",
         "//gloop:gloop_test_main",
+        "//gloop/util/gtl:c_memcmp",
+        "//gloop/util/gtl:c_memset",
         "//gloop/util/gtl:unique_array",
         "//gloop/util/random:acmrandom",
         "//gloop/util/random:distributions",

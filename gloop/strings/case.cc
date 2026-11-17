@@ -109,8 +109,7 @@ size_t AsciiCaseInsensitiveHash::operator()(absl::string_view s) const {
 
 bool AsciiCaseInsensitiveEq::operator()(absl::string_view s1,
                                         absl::string_view s2) const {
-  return s1.size() == s2.size() &&
-         memcasecmp(s1.data(), s2.data(), s1.size()) == 0;
+  return absl::EqualsIgnoreCase(s1, s2);
 }
 
 void MakeAsciiTitlecase(std::string* s, absl::string_view delimiters) {

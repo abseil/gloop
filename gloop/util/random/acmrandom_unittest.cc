@@ -40,6 +40,7 @@
 #include "absl/strings/str_format.h"
 #include "benchmark/benchmark.h"
 #include "fuzztest/fuzztest.h"
+#include "gloop/util/gtl/c_memset.h"
 #include "gloop/util/math/mathutil.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -190,7 +191,7 @@ TEST(ACMRandomTest, TestCollisions) {
   int32_t num_tests = absl::GetFlag(FLAGS_num_urns) * kSteadyStateReached;
 
   absl::FixedArray<int, 0> urns(num_urns);
-  memset(urns.data(), 0, num_urns * sizeof(int));
+  gtl::c_memset_n(urns, 0, num_urns * sizeof(int));
   for (int i = 0; i < num_tests; i++) {
     urns[rnd.Uniform(num_urns)]++;
   }

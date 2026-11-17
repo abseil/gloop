@@ -80,7 +80,7 @@ std::string OutputWithMarkupTagsStripped(absl::string_view s) {
 
 ptrdiff_t TrimStringLeft(std::string* s, absl::string_view remove) {
   size_t i = 0;
-  while (i < s->size() && memchr(remove.data(), (*s)[i], remove.size())) {
+  while (i < s->size() && absl::StrContains(remove, (*s)[i])) {
     ++i;
   }
   if (i > 0) s->erase(0, i);
@@ -89,7 +89,7 @@ ptrdiff_t TrimStringLeft(std::string* s, absl::string_view remove) {
 
 ptrdiff_t TrimStringRight(std::string* s, absl::string_view remove) {
   size_t i = s->size(), trimmed = 0;
-  while (i > 0 && memchr(remove.data(), (*s)[i - 1], remove.size())) {
+  while (i > 0 && absl::StrContains(remove, (*s)[i - 1])) {
     --i;
   }
   if (i < s->size()) {
@@ -103,7 +103,7 @@ ptrdiff_t TrimStringRight(std::string* s, absl::string_view remove) {
 // the implementation with remove_prefix()/remove_suffix()
 ptrdiff_t TrimStringLeft(absl::string_view* s, absl::string_view remove) {
   size_t i = 0;
-  while (i < s->size() && memchr(remove.data(), (*s)[i], remove.size())) {
+  while (i < s->size() && absl::StrContains(remove, (*s)[i])) {
     ++i;
   }
   if (i > 0) s->remove_prefix(i);
@@ -112,7 +112,7 @@ ptrdiff_t TrimStringLeft(absl::string_view* s, absl::string_view remove) {
 
 ptrdiff_t TrimStringRight(absl::string_view* s, absl::string_view remove) {
   size_t i = s->size(), trimmed = 0;
-  while (i > 0 && memchr(remove.data(), (*s)[i - 1], remove.size())) {
+  while (i > 0 && absl::StrContains(remove, (*s)[i - 1])) {
     --i;
   }
   if (i < s->size()) {

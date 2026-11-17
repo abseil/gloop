@@ -24,6 +24,7 @@
 
 #include "gloop/base/timer.h"
 
+#include "gloop/util/gtl/c_memset.h"
 #include "gloop/util/gtl/unique_array.h"
 
 #ifdef _WIN32
@@ -212,7 +213,7 @@ static void EatUserTimeForSeconds(double seconds) {
 static void EatSystemTimeForSeconds(double seconds) {
   constexpr size_t bufsize = 100 << 10;
   auto buffer = gtl::MakeUniqueArrayForOverwrite<char>(bufsize);
-  memset(buffer.data(), 0, bufsize);
+  gtl::c_memset_n(buffer, 0, bufsize);
 
   SimpleCycleTimer elapsed;
   elapsed.Start();

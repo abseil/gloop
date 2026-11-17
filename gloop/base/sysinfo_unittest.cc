@@ -86,6 +86,7 @@
 #include "gloop/base/googleinit.h"
 #include "gloop/base/proc_maps.h"
 #include "gloop/thread/thread.h"
+#include "gloop/util/gtl/c_memset.h"
 #include "gloop/util/process/subprocess.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -689,7 +690,7 @@ TEST(SysinfoUnittest, ProcMaps) {
   const char* exe = "/proc/self/exe";
   struct stat statbuf;
   absl::FixedArray<char> binname(PATH_MAX);
-  memset(binname.data(), 0, binname.size());
+  gtl::c_memset(binname, 0);
   ASSERT_NE(stat(exe, &statbuf), -1) << strerror(errno);
   ASSERT_NE(readlink(exe, binname.data(), binname.size()), -1)
       << strerror(errno);

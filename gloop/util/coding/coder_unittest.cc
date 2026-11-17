@@ -39,6 +39,8 @@
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
 #include "gloop/util/coding/varint.h"
+#include "gloop/util/gtl/c_memcmp.h"
+#include "gloop/util/gtl/c_memset.h"
 #include "gloop/util/gtl/unique_array.h"
 #include "gloop/util/random/acmrandom.h"
 #include "gloop/util/random/distributions.h"
@@ -188,7 +190,7 @@ TEST(CoderUnitTEst, TestEncodeDecode) {
   }
   // Compare buf and buf2 directly.
   CHECK_EQ(dec.pos(), enc.length());
-  CHECK_EQ(memcmp(buf.data(), buf2.data(), enc.length()), 0);
+  CHECK_EQ(gtl::c_memcmp(buf, buf2, enc.length()), 0);
   // Check each value via decoding.
   dec.reset(buf2.data(), kBufSize);
   dec.get_varint64(&u64);
@@ -211,7 +213,7 @@ TEST(CoderUnitTEst, TestEncodeDecode) {
   dec.get_varint64(&u64);
   CHECK_EQ(u64, uint64_t{0xc245e44536da3256u});
   // Test invalid long (Encoder::kVarintMax64 + 1) encoded data.
-  memset(buf.data(), 0xff, Encoder::kVarintMax64);
+  gtl::c_memset_n(buf, 0xff, Encoder::kVarintMax64);
   memset(buf.data() + Encoder::kVarintMax64, 1, 1);
   dec.reset(buf.data(), kBufSize);
   enc.reset(buf2.data(), kBufSize);

@@ -43,6 +43,7 @@ cc_test(
     deps = [
         ":acmrandom",
         "//gloop:gloop_test_main",
+        "//gloop/util/gtl:c_memset",
         "//gloop/util/math:mathutil",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/flags:flag",

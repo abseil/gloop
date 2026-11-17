@@ -65,6 +65,7 @@
 #include <tuple>
 
 #include "absl/strings/str_format.h"
+#include "gloop/util/gtl/c_memset.h"
 #include "gloop/util/status/ret_check.h"
 #include "gloop/util/status/status_builder.h"
 #include "gloop/util/status/status_macros.h"
@@ -289,7 +290,7 @@ Encoder::Encoder(const Options& opts, absl::Span<char> span) : opts_(opts) {
   // We zero initialize everything because memory sanitizers are not smart
   // enough to check how many bits we use from each loaded word. In a better
   // world we can zero initialize the high bytes only.
-  memset(span.data(), 0, span.size());
+  gtl::c_memset(span, 0);
 
   low_mask_ = (uint64_t{1} << opts_.width()) - 1;
   uint8_t* meta;

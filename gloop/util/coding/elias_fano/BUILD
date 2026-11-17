@@ -31,6 +31,7 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "//gloop/util/coding",
         "//gloop/util/endian",
+        "//gloop/util/gtl:c_memset",
         "//gloop/util/gtl:unaligned",
         "//gloop/util/intops",
         "//gloop/util/status:ret_check",
