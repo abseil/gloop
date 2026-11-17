@@ -362,10 +362,6 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI SyncContext {
   // a heuristic post factum spawn event.
   Ancestor ancestor() const;
 
-  // Returns true if this instance is part of a causality trace graph and
-  // contains event listeners requiring processing event notifications.
-  bool has_listeners() const { return impl_ != nullptr; }
-
   // The listener managed by this instance. This listener can be a multiplexing
   // listener created through `MultiplexTraceEventListener`, holding multiple
   // listener instances all requiring processing event notifications.
