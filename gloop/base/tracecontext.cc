@@ -32,6 +32,7 @@
 
 #if BASE_HAVE_TRACECONTEXT
 
+#include "absl/base/attributes.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
@@ -42,7 +43,9 @@
 #include "base/tracecontext-ktrace.h"
 #include "gloop/base/censushandle.h"
 #include "gloop/base/context_access.h"
-#include "gloop/base/tracer.h"
+#include "gloop/base/static_threadlocal.h"
+#include "gloop/base/tracer_internal.h"
+#include "gloop/base/tracing_types.h"
 #include "gloop/perftools/tracing/sync_context.h"
 #include "gloop/perftools/tracing/trace_event_listener.h"
 
@@ -62,6 +65,113 @@ const uint32_t TraceContext::kTraceMaskSkeletalTracingOn;
 
 const uint32_t TraceContext::kTraceMaskTagWidth;
 const uint32_t TraceContext::kTraceMaskTagOffset;
+
+static_assert(TraceContext::kTraceMaskRPCTracingOn ==
+              base::tracing_internal::kTraceMaskRPCTracingOn);
+static_assert(TraceContext::kTraceMaskNonUniform ==
+              base::tracing_internal::kTraceMaskNonUniform);
+static_assert(TraceContext::kTraceMaskLayerLocalSamplingOn ==
+              base::tracing_internal::kTraceMaskLayerLocalSamplingOn);
+static_assert(TraceContext::kTraceMaskVerboseTrace ==
+              base::tracing_internal::kTraceMaskVerboseTrace);
+static_assert(TraceContext::kTraceMaskSkeletalTracingOn ==
+              base::tracing_internal::kTraceMaskSkeletalTracingOn);
+static_assert(TraceContext::kTraceMaskClientRootedTrace ==
+              base::tracing_internal::kTraceMaskClientRootedTrace);
+static_assert(TraceContext::kTraceMaskTransientTracingOn ==
+              base::tracing_internal::kTraceMaskTransientTracingOn);
+static_assert(TraceContext::kTraceMaskTransientTracingOffset ==
+              base::tracing_internal::kTraceMaskTransientTracingOffset);
+static_assert(TraceContext::kTraceMaskGoogleWideFaultInjection ==
+              base::tracing_internal::kTraceMaskGoogleWideFaultInjection);
+static_assert(TraceContext::kTraceMaskSherlogTracingOn ==
+              base::tracing_internal::kTraceMaskSherlogTracingOn);
+static_assert(TraceContext::kTraceMaskSpeculativeCollectingOn ==
+              base::tracing_internal::kTraceMaskSpeculativeCollectingOn);
+static_assert(TraceContext::kTraceMaskUserVisibleTracing ==
+              base::tracing_internal::kTraceMaskUserVisibleTracing);
+static_assert(TraceContext::kTraceMaskDapperTracing ==
+              base::tracing_internal::kTraceMaskDapperTracing);
+static_assert(TraceContext::kTraceMaskTagWidth ==
+              base::tracing_internal::kTraceMaskTagWidth);
+static_assert(TraceContext::kTraceMaskTagOffset ==
+              base::tracing_internal::kTraceMaskTagOffset);
+
+namespace {
+
+STATIC_THREAD_LOCAL(TraceContext, standalone_per_thread_trace_context);
+
+}  // namespace
+
+#if ABSL_HAVE_ATTRIBUTE_WEAK && !defined(__APPLE__)
+extern "C" {
+TraceContext* base_internal_context_mutable_current_trace();
+const TraceContext* base_internal_context_current_trace_no_alloc();
+}  // extern "C"
+
+extern "C" ABSL_ATTRIBUTE_WEAK ABSL_ATTRIBUTE_NOINLINE TraceContext*
+base_internal_context_mutable_current_trace() {
+  return standalone_per_thread_trace_context.pointer();
+}
+
+extern "C" ABSL_ATTRIBUTE_WEAK ABSL_ATTRIBUTE_NOINLINE const TraceContext*
+base_internal_context_current_trace_no_alloc() {
+  return standalone_per_thread_trace_context.safe_pointer();
+}
+#else
+namespace {
+
+TraceContext* StandaloneMutableCurrentTrace() {
+  return standalone_per_thread_trace_context.pointer();
+}
+
+const TraceContext* StandaloneCurrentTraceNoAlloc() {
+  return standalone_per_thread_trace_context.safe_pointer();
+}
+
+std::atomic<TraceContext* (*)()> g_mutable_current_trace{
+    &StandaloneMutableCurrentTrace};
+std::atomic<const TraceContext* (*)()> g_current_trace_no_alloc{
+    &StandaloneCurrentTraceNoAlloc};
+
+}  // namespace
+
+namespace base {
+
+void RegisterContextTraceHooks(
+    TraceContext* (*mutable_current_trace)(),
+    const TraceContext* (*current_trace_no_alloc)()) {
+  g_mutable_current_trace.store(mutable_current_trace,
+                                std::memory_order_release);
+  g_current_trace_no_alloc.store(current_trace_no_alloc,
+                                 std::memory_order_release);
+}
+
+}  // namespace base
+#endif  // ABSL_HAVE_ATTRIBUTE_WEAK && !defined(__APPLE__)
+
+namespace base {
+namespace internal {
+
+TraceContext* MutableCurrentContext::MutableCurrentTrace() {
+#if ABSL_HAVE_ATTRIBUTE_WEAK && !defined(__APPLE__)
+  return base_internal_context_mutable_current_trace();
+#else
+  return g_mutable_current_trace.load(std::memory_order_acquire)();
+#endif
+}
+
+}  // namespace internal
+
+const TraceContext* CurrentTraceContextNoAlloc_ForTraceContext() {
+#if ABSL_HAVE_ATTRIBUTE_WEAK && !defined(__APPLE__)
+  return base_internal_context_current_trace_no_alloc();
+#else
+  return g_current_trace_no_alloc.load(std::memory_order_acquire)();
+#endif
+}
+
+}  // namespace base
 
 // Wrapper to base::GetNoopTracer() as including base/tracer.h
 // in tracecontext.h won't compile.
