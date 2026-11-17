@@ -117,6 +117,7 @@
 #include "gloop/base/context_origin.h"
 #include "gloop/base/port.h"
 #include "gloop/base/sysinfo.h"
+#include "gloop/base/tracing_types.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
 
@@ -209,11 +210,7 @@ class TraceContext {
       kTraceMaskRPCTracingOn | kTraceMaskSpeculativeCollectingOn |
       kTraceMaskSkeletalTracingOn;
 
-  class SkeletalTracingAccess {
-   private:
-    SkeletalTracingAccess() = default;
-    friend class base::Tracer;
-  };
+  using SkeletalTracingAccess = ::base::tracing_internal::SkeletalTracingAccess;
 
  private:
   CensusHandle census_handle_;
@@ -596,13 +593,7 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
   }
 
   // Grants access to skeletal tracing APIs via the <link>.
-  class SkeletalTracingAccess {
-   private:
-    SkeletalTracingAccess() = default;
-    friend class perftools::tracing::SkeletalTracingAccess;
-    friend class TraceContext;
-    friend class base::Tracer;
-  };
+  using SkeletalTracingAccess = ::base::tracing_internal::SkeletalTracingAccess;
 
   // Returns true if this trace context can record annotations.
   // This is useful to guard calls for tracing annotations so that we can avoid
