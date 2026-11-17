@@ -2342,11 +2342,10 @@ cc_test(
 cc_library(
     name = "commandlineflags",
     srcs = ["commandlineflags.cc"],
-    hdrs = ["commandlineflags_declare.h"],
-    # Textual include configurable by defining STRIP_FLAG_HELP.
-    # Can't be in hdrs without breaking header_modules.
-    # TODO: Fix this.
-    textual_hdrs = ["commandlineflags.h"],
+    hdrs = [
+        "commandlineflags.h",
+        "commandlineflags_declare.h",
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//gloop:enforce_gloop_support",
