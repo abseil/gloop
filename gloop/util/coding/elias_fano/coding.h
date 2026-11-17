@@ -691,13 +691,30 @@ class Decoder {
     x = x >> (hint_pos.value() % 8);
     // Prefetch the next line, which we're likely to reuse.
     absl::PrefetchToLocalCache(&high_[i] + ABSL_CACHELINE_SIZE);
-    uint32_t cnt = absl::popcount(x);
-    if (cnt > rank) {
-      BitPos pos{hint_pos.value() + Nthbit(x, rank)};
+    if (const uint64_t p = TryDepositNthbit(x, rank);
+        ABSL_PREDICT_TRUE(p != 0)) {
+      const BitPos pos{hint_pos.value() + absl::countr_zero(p)};
+      if (!next) return {pos, BitPos{0}};
+      const uint64_t after = x & (uint64_t{0} - (p + p));
+      if (after != 0) {
+        return {pos, BitPos{hint_pos.value() + absl::countr_zero(after)}};
+      }
+      return {pos, FindNextSetBitSlow(i, one)};
+    }
+    auto finish = [&](uint64_t base,
+                      uint32_t cnt) -> std::pair<BitPos, BitPos> {
+      const auto [b, after] = NthbitAndAfter(x, rank);
+      const BitPos pos{base + b};
       if (!next) return {pos, BitPos{0}};
       ++rank;
-      if (cnt > rank) return {pos, BitPos(hint_pos.value() + Nthbit(x, rank))};
+      if (cnt > rank) {
+        return {pos, BitPos{base + NthbitNext(x, rank, after)}};
+      }
       return {pos, FindNextSetBitSlow(i, one)};
+    };
+    uint32_t cnt = absl::popcount(x);
+    if (!HasTryDepositNthbit() && cnt > rank) {
+      return finish(hint_pos.value(), cnt);
     }
     do {
       i += 8;
@@ -706,11 +723,7 @@ class Decoder {
               : ~LittleEndian::Load64(&high_[i]);
       cnt = absl::popcount(x);
     } while (cnt <= rank);
-    BitPos pos{uint64_t{i} * 8 + Nthbit(x, rank)};
-    if (!next) return {pos, BitPos{0}};
-    ++rank;
-    if (cnt > rank) return {pos, BitPos(uint64_t{i} * 8 + Nthbit(x, rank))};
-    return {pos, FindNextSetBitSlow(i, one)};
+    return finish(uint64_t{i} * 8, cnt);
   }
 
   friend struct testing::CodecAccess;
@@ -946,15 +959,20 @@ class ForwardDecoder {
       rank += pos_in_block;
       block_ = ~block_;
     }
-    uint32_t cnt = absl::popcount(block_);
-    while (cnt <= rank) {
-      i += 8;
-      rank -= cnt;
-      block_ = one ? LittleEndian::Load64(&high_[i])
-                   : ~LittleEndian::Load64(&high_[i]);
-      cnt = absl::popcount(block_);
+    if (const uint64_t p = TryDepositNthbit(block_, rank);
+        ABSL_PREDICT_TRUE(p != 0)) {
+      pos_in_block = absl::countr_zero(p);
+    } else {
+      uint32_t cnt = absl::popcount(block_);
+      while (cnt <= rank) {
+        i += 8;
+        rank -= cnt;
+        block_ = one ? LittleEndian::Load64(&high_[i])
+                     : ~LittleEndian::Load64(&high_[i]);
+        cnt = absl::popcount(block_);
+      }
+      pos_in_block = Nthbit(block_, rank);
     }
-    pos_in_block = Nthbit(block_, rank);
     if (!one) block_ = ~block_;
     block_ = (block_ >> pos_in_block) << pos_in_block;
     if (!one) ScanForNextOne(i);

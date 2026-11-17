@@ -20,6 +20,14 @@
 
 #include "gloop/util/coding/elias_fano/nthbit.h"
 
+#if defined(ELIAS_FANO_INTERNAL_HAVE_ARM_SVE2_BDEP)
+#include <asm/hwcap.h>
+#include <sys/auxv.h>
+#endif
+#if defined(__aarch64__) && defined(__ARM_NEON) && !defined(__ARM_FEATURE_CSSC)
+#include <arm_neon.h>
+#endif
+
 #include <cstdint>
 
 #include "absl/base/internal/cpu_detect.h"
@@ -47,6 +55,18 @@ const bool kUseFastPath = []() {
   }
 }();
 // NOLINTEND(abseil-no-internal-dependencies)
+#elif defined(ELIAS_FANO_INTERNAL_HAVE_ARM_SVE2_BDEP)
+// SVE2-BitPerm provides single-instruction 64-bit `bdep`. Probe via
+// HWCAP/HWCAP2 so baseline Armv8-A binaries safely fall back on cores without
+// SVE2-BitPerm.
+const bool kUseFastPath = []() {
+  const uint64_t hwcap = getauxval(AT_HWCAP);
+  const uint64_t hwcap2 = getauxval(AT_HWCAP2);
+  constexpr uint64_t kNeededHwcap2 =
+      uint64_t{HWCAP2_SVE2} | uint64_t{HWCAP2_SVEBITPERM};
+  return (hwcap & uint64_t{HWCAP_SVE}) != 0 &&
+         (hwcap2 & kNeededHwcap2) == kNeededHwcap2;
+}();
 #endif
 
 namespace {
@@ -101,6 +121,40 @@ uint64_t NthbitSlow(uint64_t x, uint64_t n) {
   DCHECK_LT(n, 64);
   DCHECK_GT(absl::popcount(x), n);
 
+#if defined(__aarch64__) && defined(__ARM_NEON) && !defined(__ARM_FEATURE_CSSC)
+  // Without FEAT_CSSC, each scalar absl::popcount crosses GPR->NEON->GPR.
+  // Compute all 8 per-byte popcounts in a single `cnt` and finish in scalar.
+  const uint64_t byte_cnts = vget_lane_u64(
+      vreinterpret_u64_u8(vcnt_u8(vreinterpret_u8_u64(vcreate_u64(x)))), 0);
+  uint32_t c = (static_cast<uint32_t>(byte_cnts) * 0x01010101u) >> 24;
+  uint32_t v = static_cast<uint32_t>(x);
+  uint32_t vc = static_cast<uint32_t>(byte_cnts);
+  uint32_t r = static_cast<uint32_t>(n);
+  uint32_t bit_base = 0;
+  int32_t delta = static_cast<int32_t>(r) - static_cast<int32_t>(c);
+  if (delta >= 0) {
+    v = static_cast<uint32_t>(x >> 32);
+    vc = static_cast<uint32_t>(byte_cnts >> 32);
+    r = static_cast<uint32_t>(delta);
+    bit_base = 32;
+  }
+  c = (vc + (vc >> 8)) & 0xffu;
+  delta = static_cast<int32_t>(r) - static_cast<int32_t>(c);
+  if (delta >= 0) {
+    v >>= 16;
+    vc >>= 16;
+    r = static_cast<uint32_t>(delta);
+    bit_base += 16;
+  }
+  c = vc & 0xffu;
+  delta = static_cast<int32_t>(r) - static_cast<int32_t>(c);
+  if (delta >= 0) {
+    v >>= 8;
+    r = static_cast<uint32_t>(delta);
+    bit_base += 8;
+  }
+  return bit_base + ((kBitOffset[v & 0xffu] >> ((r << 2) & 31u)) & 0xfu);
+#else
   uint32_t c = absl::popcount(static_cast<uint32_t>(x));
 
   // Use a uint32 when possible to avoid opsize prefixes.
@@ -145,6 +199,7 @@ uint64_t NthbitSlow(uint64_t x, uint64_t n) {
   mask32 = delta32 >> 31;
   shift_accumulator = shift_accumulator * 2 + mask32;
   return 8 * shift_accumulator + remainder + 0x38;
+#endif
 }
 
 }  // namespace nthbit_internal
