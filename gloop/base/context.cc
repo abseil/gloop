@@ -99,15 +99,11 @@ WithContext::~WithContext() {}
 
 namespace base {
 
-namespace {
-
 // Keep thread-local state on the current context. The current TraceContext
 // now points to the trace state within the current generic context.
 STATIC_THREAD_LOCAL_WITH_CONSTRUCTOR_ARGS(Context, per_thread_context, ());
 
-Context* InlineCurrent() { return per_thread_context.pointer(); }
-
-}  // namespace
+static Context* InlineCurrent() { return per_thread_context.pointer(); }
 
 // Defined in <path>
 ABSL_ATTRIBUTE_WEAK void CurrentTraceContextChanging(const TraceContext*,
