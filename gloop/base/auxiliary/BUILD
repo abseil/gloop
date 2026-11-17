@@ -27,10 +27,6 @@ cc_library(
     name = "parsed_process_stat",
     srcs = ["parsed_process_stat.cc"],
     hdrs = ["parsed_process_stat.h"],
-    implementation_deps = [
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/strings",
-    ],
     visibility = [
         "//gloop/base:__subpackages__",
     ],
@@ -39,6 +35,10 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:string_view",
+    ],
+    implementation_deps = [
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/strings",
     ],
 )
 
