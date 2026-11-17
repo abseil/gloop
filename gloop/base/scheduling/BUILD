@@ -61,17 +61,6 @@ cc_library(
         "downcalls.h",
         "scheduler.h",
     ],
-    implementation_deps = [
-        "//gloop/base:examine_stack",
-        "//gloop/base:static_threadlocal",
-        "@abseil-cpp//absl/base",
-        "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/debugging:leak_check",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/log:check",
-        "@abseil-cpp//absl/log:die_if_null",
-        "@abseil-cpp//absl/synchronization",
-    ],
     visibility = ["//visibility:public"],
     deps = [
         ":domain_thread_assignment_callback_accessor",
@@ -90,6 +79,17 @@ cc_library(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
+    ],
+    implementation_deps = [
+        "//gloop/base:examine_stack",
+        "//gloop/base:static_threadlocal",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/debugging:leak_check",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+        "@abseil-cpp//absl/log:die_if_null",
+        "@abseil-cpp//absl/synchronization",
     ],
     alwayslink = 1,
 )
@@ -143,6 +143,18 @@ cc_library(
     testonly = 1,
     srcs = ["domain-test.cc"],
     hdrs = ["domain-test.h"],
+    visibility = [
+        "//gloop/thread/fiber:__subpackages__",
+    ],
+    deps = [
+        ":scheduling",
+        "//gloop:enforce_gloop_support",
+        "//gloop/base:callback",
+        "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:span",
+        "@google_benchmark//:benchmark",
+        "@googletest//:gtest_for_library",
+    ],
     implementation_deps = [
         ":low-level-support",
         "//gloop/base:sysinfo",
@@ -157,18 +169,6 @@ cc_library(
         "@abseil-cpp//absl/memory",
         "@abseil-cpp//absl/synchronization:kernel_timeout_internal",
         "@abseil-cpp//absl/time",
-    ],
-    visibility = [
-        "//gloop/thread/fiber:__subpackages__",
-    ],
-    deps = [
-        ":scheduling",
-        "//gloop:enforce_gloop_support",
-        "//gloop/base:callback",
-        "@abseil-cpp//absl/strings:string_view",
-        "@abseil-cpp//absl/types:span",
-        "@google_benchmark//:benchmark",
-        "@googletest//:gtest_for_library",
     ],
     alwayslink = 1,
 )

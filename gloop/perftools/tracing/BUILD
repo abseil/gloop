@@ -321,13 +321,6 @@ cc_library(
     name = "sync_context",
     srcs = ["sync_context.cc"],
     hdrs = ["sync_context.h"],
-    implementation_deps = [
-        ":multiplex_trace_event_listener",
-        ":noop_trace_event_listener",
-        ":perftools_verify",
-        "@abseil-cpp//absl/log",
-        "@abseil-cpp//absl/time",
-    ],
     visibility = [
         ":base_visibility",
         ":internal_visibility",
@@ -340,6 +333,13 @@ cc_library(
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/log:check",
+    ],
+    implementation_deps = [
+        ":multiplex_trace_event_listener",
+        ":noop_trace_event_listener",
+        ":perftools_verify",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/time",
     ],
 )
 
@@ -442,9 +442,6 @@ cc_library(
     name = "tracing",
     srcs = ["tracing.cc"],
     hdrs = ["tracing.h"],
-    implementation_deps = [
-        ":sync_context",
-    ],
     visibility = ["//visibility:public"],
     deps = [
         ":trace_event_listener",
@@ -455,6 +452,9 @@ cc_library(
         "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/status",
+    ],
+    implementation_deps = [
+        ":sync_context",
     ],
 )
 
