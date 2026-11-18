@@ -252,27 +252,32 @@ static std::optional<uint64_t> GetTracingEffectiveUserId() {
   return internal::GetEffectiveUserId();
 }
 
+std::optional<uint64_t> Tracer::CurrentProcessInitiatorId() {
+  std::optional<uint64_t> effective_uid = GetTracingEffectiveUserId();
+  if (!effective_uid.has_value()) {
+    return std::nullopt;
+  }
+  return (*effective_uid & kInitiatorValueMask) | kInitiatorTypeProdUid;
+}
+
 void Tracer::set_invalid_inherited_initiator_id() {
   // The initiator id has been lost. Introduce a new initiator id based on prod
   // UID if available, tagged with a marker that remembers that we synthesized
   // an initiator. See <link> for details. If prod UID is
   // not available, use kInitiatorNotSetByParent as a fallback.
-  std::optional<uint64_t> effective_uid = GetTracingEffectiveUserId();
-  uint64_t initiator_id = effective_uid.has_value()
-                              ? ((*effective_uid & kInitiatorValueMask) |
-                                 kInitiatorTypeProdUid | kAdoptedInitiatorId)
-                              : kInitiatorNotSetByParent;
-  initiator_id_.store(initiator_id, std::memory_order_relaxed);
+  if (std::optional<uint64_t> id = CurrentProcessInitiatorId();
+      id.has_value()) {
+    initiator_id_.store(*id | kAdoptedInitiatorId, std::memory_order_relaxed);
+  } else {
+    initiator_id_.store(kInitiatorNotSetByParent, std::memory_order_relaxed);
+  }
 }
 
 void Tracer::set_initiator_id(std::optional<uint64_t> initiate_as_prod_uid) {
-  std::optional<uint64_t> effective_uid = initiate_as_prod_uid.has_value()
-                                              ? initiate_as_prod_uid
-                                              : GetTracingEffectiveUserId();
-  uint64_t initiator_id =
-      effective_uid.has_value()
-          ? ((*effective_uid & kInitiatorValueMask) | kInitiatorTypeProdUid)
-          : 0;
+  uint64_t initiator_id = initiate_as_prod_uid.has_value()
+                              ? ((*initiate_as_prod_uid & kInitiatorValueMask) |
+                                 kInitiatorTypeProdUid)
+                              : CurrentProcessInitiatorId().value_or(0);
   initiator_id_.store(initiator_id | kTraceInitiatingSpan,
                       std::memory_order_relaxed);
 }

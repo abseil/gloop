@@ -972,6 +972,11 @@ class Tracer {
   [[nodiscard]] bool NotifyBeforeDestroy(TracerNotification* new_notify,
                                          NotificationAccess);
 
+  // Returns the prod-uid initiator ID for the current process (respecting any
+  // startup effective user ID override; runtime changes are not supported), or
+  // `std::nullopt` if no effective user ID is available.
+  static std::optional<uint64_t> CurrentProcessInitiatorId();
+
  protected:
   // Tracing initiator ID bit definitions. For details, refer to
   // <link>.
