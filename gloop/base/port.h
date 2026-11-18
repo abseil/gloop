@@ -32,9 +32,7 @@
 // - Predefined system/language macros
 // - Predefined system/language functions
 // - Performance optimization (alignment)
-// - Obsolete
 
-#include <inttypes.h>  // IWYU pragma: keep
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -259,8 +257,6 @@
 
 // The following guarantees declaration of the byte swap functions
 #ifdef COMPILER_MSVC
-#include <stdlib.h>  // NOLINT(build/include)
-
 #define bswap_16(x) _byteswap_ushort(x)
 #define bswap_32(x) _byteswap_ulong(x)
 #define bswap_64(x) _byteswap_uint64(x)

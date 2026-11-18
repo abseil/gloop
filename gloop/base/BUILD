@@ -840,8 +840,6 @@ cc_test(
     ],
 )
 
-# Platform specific library that currently contains implementations of snprintf
-# and vsnprintf for Windows.
 cc_library(
     name = "port",
     hdrs = ["port.h"],
