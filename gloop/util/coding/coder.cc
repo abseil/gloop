@@ -27,11 +27,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <new>
 #include <utility>
 
 #include "absl/log/check.h"
 #include "gloop/util/coding/varint.h"
-#include "tcmalloc/malloc_extension.h"
 
 Encoder::Encoder(Encoder&& other)
     : buf_(std::exchange(other.buf_, nullptr)),
@@ -59,8 +59,7 @@ int Encoder::varint32_length(uint32_t v) { return Varint::Length32(v); }
 int Encoder::varint64_length(uint64_t v) { return Varint::Length64(v); }
 
 std::pair<unsigned char*, size_t> Encoder::NewBuffer(size_t size) {
-  auto res = __size_returning_new(size);
-  return {static_cast<unsigned char*>(res.p), res.n};
+  return {static_cast<unsigned char*>(::operator new(size)), size};
 }
 
 void Encoder::DeleteBuffer(unsigned char* buf, size_t size) {
