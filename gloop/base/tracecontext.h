@@ -138,8 +138,11 @@
 // TraceContext functionality will *not* work.
 
 namespace base {
+
 class Context;
 class Tracer;
+class WithCensusHandle;
+
 }  // namespace base
 
 class TraceContext {
@@ -218,7 +221,9 @@ class TraceContext {
  private:
   CensusHandle census_handle_;
   uint64_t rpc_id_ = 0;
+
   friend class base::Context;
+  friend class base::WithCensusHandle;
 };
 
 class CurrentTraceContext {
@@ -238,8 +243,11 @@ class CurrentTraceContext {
 #include "gloop/perftools/tracing/trace_event_listener.h"
 
 namespace base {
+
 class Context;
 class Tracer;
+class WithCensusHandle;
+
 namespace subtle {
 class WithLifetimeBoundContext;
 }  // namespace subtle
@@ -902,6 +910,8 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
   friend class TracerTest;
   friend class base::Context;
   friend class base::CensusAccess;
+  friend class base::WithCensusHandle;
+
   // For AbandonTracer.
   friend class perftools::tracing::OperationTraceSpan;
   // For AdoptTracer.

@@ -177,11 +177,6 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
   // the remainder of the context intact.
   void SwapDeadline(absl::Time* deadline);
 
-  // Swaps the supplied Census handle with the one in this context, leaving
-  // the remainder of the context intact. This should only be called from
-  // WithCensusHandle.
-  void SwapCensusHandle(CensusHandle* handle);
-
   // Provides const reference access to the CensusHandle. Note that the
   // lifetime of the returned reference is tied to the lifetime of the Context
   // object, and should not outlive it.
@@ -198,12 +193,11 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
   friend class ContextBuilder;
   friend class internal::MutableCurrentContext;
   friend const Context& BackgroundContext();
+  friend class WithCensusHandle;
   // For propagating legacy FiberOption deadlines.
   friend class ::thread::Fiber;
   // For SwapDeadline.
   friend class WithDeadline;
-  // For SwapCensusHandle.
-  friend class WithCensusHandle;
   // For accessing a const reference to the CensusHandle.
   friend class CensusAccess;
   // For accessing census_handle_ref().
@@ -482,6 +476,10 @@ class WithCensusHandle {
   ~WithCensusHandle();
 
  private:
+  // Swap the supplied Census handle with the one in this thread's current
+  // context, leaving the remainder of the context intact.
+  static void SwapCurrentCensusHandle(CensusHandle& handle);
+
   CensusHandle swapped_handle_;
 
   WithCensusHandle(const WithCensusHandle&) = delete;

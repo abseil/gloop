@@ -195,14 +195,6 @@ void Context::SwapDeadline(absl::Time* deadline) {
 ABSL_ATTRIBUTE_WEAK void CurrentCensusHandleChanging(TraceContext*,
                                                      CensusHandle*) {}
 
-void Context::SwapCensusHandle(CensusHandle* handle) {
-  using std::swap;
-#ifdef ENABLE_CONTEXT_ORIGIN
-  CurrentCensusHandleChanging(&tc_, handle);
-#endif
-  swap(tc_.census_handle_, *handle);
-}
-
 const Context& CurrentContext() { return *per_thread_context.pointer(); }
 
 const TraceContext* CurrentTraceContextNoAlloc() {
@@ -471,34 +463,34 @@ WithDeadline::~WithDeadline() {
   per_thread_context.pointer()->SwapDeadline(&swapped_deadline_);
 }
 
-// TODO: this function needs to use an "unpublish while modifying"
-// critical section to avoid allowing CurrentTraceContextNoAlloc to see a
-// potentially inconsistent trace context. This probably requires refactoring
-// SwapCensusHandle so that the notification logic runs outside of the critical
-// section.
 WithCensusHandle::WithCensusHandle(const CensusHandle& handle)
     : swapped_handle_(handle) {
-  per_thread_context.pointer()->SwapCensusHandle(&swapped_handle_);
+  SwapCurrentCensusHandle(swapped_handle_);
 }
 
-// TODO: this function needs to use an "unpublish while modifying"
-// critical section to avoid allowing CurrentTraceContextNoAlloc to see a
-// potentially inconsistent trace context. This probably requires refactoring
-// SwapCensusHandle so that the notification logic runs outside of the critical
-// section.
 WithCensusHandle::WithCensusHandle(CensusHandle&& handle)
     // Keep std::move() here, in preparation for refcounted handles.
     : swapped_handle_(std::move(handle)) {
-  per_thread_context.pointer()->SwapCensusHandle(&swapped_handle_);
+  SwapCurrentCensusHandle(swapped_handle_);
 }
 
+WithCensusHandle::~WithCensusHandle() {
+  SwapCurrentCensusHandle(swapped_handle_);
+}
+
+// static
+//
 // TODO: this function needs to use an "unpublish while modifying"
 // critical section to avoid allowing CurrentTraceContextNoAlloc to see a
-// potentially inconsistent trace context. This probably requires refactoring
-// SwapCensusHandle so that the notification logic runs outside of the critical
-// section.
-WithCensusHandle::~WithCensusHandle() {
-  per_thread_context.pointer()->SwapCensusHandle(&swapped_handle_);
+// potentially inconsistent trace context.
+void WithCensusHandle::SwapCurrentCensusHandle(CensusHandle& handle) {
+  Context* absl_nonnull const current_context = per_thread_context.pointer();
+
+  using std::swap;
+#ifdef ENABLE_CONTEXT_ORIGIN
+  CurrentCensusHandleChanging(&current_context->tc_, &handle);
+#endif
+  swap(current_context->tc_.census_handle_, handle);
 }
 
 const CensusHandle& CensusAccess::GetCurrentHandle() {
