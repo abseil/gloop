@@ -63,6 +63,10 @@ class SysTopology {
   virtual int LevelCount(int level) const;
 
   virtual const std::set<std::string>& LevelNames(int level) const {
+    if (level < 0 || level >= levels_.size()) {
+      static const auto* const kEmptySet = new std::set<std::string>();
+      return *kEmptySet;
+    }
     return levels_[level].names;
   }
 
@@ -80,14 +84,19 @@ class SysTopology {
 #ifndef SWIG
   // The parent of a CPU at a given level
   virtual Id ParentOf(Id cpu, int level) const {
+    if (level < 0 || level >= levels_.size() || cpu < 0 ||
+        cpu >= levels_[level].parent.size()) {
+      return -1;
+    }
     return levels_[level].parent[cpu];
   }
 
   // The child CPUs of an entity at a given level.
   virtual cpu_set_t ChildrenOf(Id id, int level) const {
-    if (id >= levels_[level].children.size()) {
+    if (level < 0 || level >= levels_.size() || id < 0 ||
+        id >= levels_[level].children.size()) {
       LOG_EVERY_N_SEC(ERROR, 3600) << "invalid id: " << id;
-      return {};
+      return util_os_core::CpuSetMakeEmpty();
     }
     return levels_[level].children[id];
   }
@@ -98,6 +107,10 @@ class SysTopology {
 
   // The siblings of a CPU at a given level.
   virtual cpu_set_t SiblingsOf(Id cpu, int level) const {
+    if (level < 0 || level >= levels_.size() || cpu < 0 ||
+        cpu >= levels_[level].siblings.size()) {
+      return util_os_core::CpuSetMakeEmpty();
+    }
     return levels_[level].siblings[cpu];
   }
   // Deprecated API.
@@ -115,14 +128,19 @@ class SysTopology {
   virtual int NumCaches() const { return LevelCount(l3_cache_level_); }
   // Returns the number of hyperthread siblings (CPUs) per core.
   virtual int NumHyperthreadSiblings() const {
-    if (NumCores() == 0) {
+    const int num_cores = NumCores();
+    if (num_cores <= 0) {
       LOG_EVERY_N_SEC(ERROR, 60)
           << "NumCores() is 0; Returning 1 for NumHyperthreadSiblings() to "
              "avoid division by 0. This function called "
           << COUNTER << " times so far with 0 NumCores().";
       return 1;
     }
-    return NumCPUs() / NumCores();
+    const int num_cpus = NumCPUs();
+    if (num_cpus <= 0) {
+      return 1;
+    }
+    return (num_cpus + num_cores - 1) / num_cores;
   }
   // Total number of nodes; includes both nodes with CPUs on them and nodes that
   // are memory-only.
