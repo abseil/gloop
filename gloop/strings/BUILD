@@ -584,10 +584,7 @@ cc_library(
     srcs = ["serialize.cc"],
     hdrs = ["serialize.h"],
     deps = [
-        ":numbers",
         "//gloop:enforce_gloop_support",
-        "//gloop/util/endian",
-        "//gloop/util/gtl:stl_util",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:dynamic_annotations",
