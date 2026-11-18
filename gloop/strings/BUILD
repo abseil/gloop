@@ -753,7 +753,6 @@ cc_library(
     hdrs = ["string_view_utils.h"],
     deps = [
         "//gloop:enforce_gloop_support",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/base:nullability",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:string_view",
