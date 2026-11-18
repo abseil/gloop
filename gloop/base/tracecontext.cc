@@ -199,7 +199,8 @@ void TraceContext::ReplaceTracer(base::Tracer* tracer) {
 }
 
 // Note that it's important that this function not call any code that may access
-// the thread-local context. See SwapCurrentContext in context.cc.
+// the thread-local context. See SwapCurrentContextWithoutNotifying in
+// context.cc.
 void swap(TraceContext& lhs, TraceContext& rhs) noexcept {
   // If we are tracking ownership of trace contexts, swap our reference
   // tracking between lhs and rhs.

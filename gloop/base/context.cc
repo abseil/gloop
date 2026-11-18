@@ -179,7 +179,7 @@ Context& Context::operator=(Context&& c) noexcept = default;
 Context::~Context() = default;
 
 // Note that it's important that this function not call any code that may access
-// the thread-local context. See SwapCurrentContext.
+// the thread-local context. See SwapCurrentContextWithoutNotifying.
 void swap(Context& lhs, Context& rhs) noexcept {
   using std::swap;
 
@@ -220,19 +220,9 @@ TraceContext* internal::MutableCurrentContext::MutableCurrentTrace() {
   return &per_thread_context.pointer()->tc_;
 }
 
-ABSL_XRAY_ALWAYS_INSTRUMENT void SwapCurrentContext(Context* const c) {
-  Context* absl_nonnull const current = per_thread_context.pointer();
-
-  // Arrange for listeners to know that the context is changing.
-  NotifyTraceContextChanging(current->trace(), c->trace());
-  current->trace()->BeforeSwapCurrent(ContextAccess(), c->trace_context());
-
-  const absl::Cleanup after = [&] {
-    current->trace()->AfterSwapCurrent(base::ContextAccess());
-  };
-
-  // Swap the contents of the two context objects.
-  //
+// Swap the current context with the given object, without doing any sort of
+// trace context notifications.
+static void SwapCurrentContextWithoutNotifying(Context& c) {
   // Unpublish the context while we swap it out, ensuring that
   // CurrentThreadStatusNoAlloc and CurrentTraceContextNoAlloc can't see an
   // inconsistent state if they're called from a signal handler that interrupts
@@ -245,10 +235,25 @@ ABSL_XRAY_ALWAYS_INSTRUMENT void SwapCurrentContext(Context* const c) {
   // http://shortn/_Ug73VeFwKT). It may take locks and allocate for reference
   // tracking (http://shortn/_vF10T3sWFp), but neither of these should be
   // accessing the current context except through *NoAlloc hooks.
-  per_thread_context.MutateInCriticalSection([c](Context& current) {
+  per_thread_context.MutateInCriticalSection([&c](Context& current) {
     using std::swap;
-    swap(current, *c);
+    swap(current, c);
   });
+}
+
+ABSL_XRAY_ALWAYS_INSTRUMENT void SwapCurrentContext(Context* const c) {
+  Context* absl_nonnull const current = per_thread_context.pointer();
+
+  // Arrange for listeners to know that the context is changing.
+  NotifyTraceContextChanging(current->trace(), c->trace());
+  current->trace()->BeforeSwapCurrent(ContextAccess(), c->trace_context());
+
+  const absl::Cleanup after = [&] {
+    current->trace()->AfterSwapCurrent(base::ContextAccess());
+  };
+
+  // Swap the contents of the two context objects.
+  SwapCurrentContextWithoutNotifying(*c);
 }
 
 // TODO: this function needs to use an "unpublish while modifying"
@@ -301,16 +306,11 @@ ABSL_XRAY_ALWAYS_INSTRUMENT void SetThreadContext(
   *current = std::move(context);
 }
 
-// TODO: this function needs to use an "unpublish while modifying"
-// critical section to avoid allowing CurrentTraceContextNoAlloc to see a
-// potentially inconsistent trace context, and (when SignalSafeSharedContextPtr
-// goes away) allowing CurrentThreadStatusNoAlloc to see a potentially
-// inconsistent shared context.
 ABSL_XRAY_ALWAYS_INSTRUMENT
 Context ExchangeThreadContext(ThreadContextAccess access, Context context,
                               const perftools::tracing::StringRef label) {
-  Context* absl_nonnull const current = per_thread_context.pointer();
-  TraceContext* absl_nonnull const trace = current->trace();
+  TraceContext* absl_nonnull const trace =
+      per_thread_context.pointer()->trace();
 
   // Arrange for listeners to know that the context is changing.
   NotifyTraceContextChanging(trace, context.trace());
@@ -321,8 +321,7 @@ Context ExchangeThreadContext(ThreadContextAccess access, Context context,
   };
 
   // Swap the contents of the two context objects.
-  using std::swap;
-  swap(*current, context);
+  SwapCurrentContextWithoutNotifying(context);
 
   return context;
 }
