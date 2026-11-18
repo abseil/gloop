@@ -104,18 +104,21 @@ cc_library(
     deps = [
         ":trace_source_location",
         "//gloop:enforce_gloop_support",
-        "//gloop/util/gtl:lockfree_hashmap",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/base:no_destructor",
         "@abseil-cpp//absl/base:nullability",
-        "@abseil-cpp//absl/hash",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings:string_view",
-        "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:source_location",
+    ],
+    implementation_deps = [
+        "//gloop/util/gtl:lockfree_hashmap",
+        "@abseil-cpp//absl/base:core_headers",
+        "@abseil-cpp//absl/base:no_destructor",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/synchronization",
     ],
 )
 
