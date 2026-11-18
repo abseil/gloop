@@ -321,6 +321,9 @@ const Context& CurrentContext();
 // If the thread's context hasn't yet been created, return null. Otherwise
 // return a pointer to the result of Context::trace_context for the thread's
 // context.
+//
+// Note that this may spuriously act as if the thread has no context if the
+// context is in the process of being modified on the calling thread.
 const TraceContext* CurrentTraceContextNoAlloc();
 
 // Scoped object that sets the current thread's context to switch_to until

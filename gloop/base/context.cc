@@ -178,6 +178,8 @@ Context& Context::operator=(const Context& c) = default;
 Context& Context::operator=(Context&& c) noexcept = default;
 Context::~Context() = default;
 
+// Note that it's important that this function not call any code that may access
+// the thread-local context. See SwapCurrentContext.
 void swap(Context& lhs, Context& rhs) noexcept {
   using std::swap;
 
@@ -218,11 +220,6 @@ TraceContext* internal::MutableCurrentContext::MutableCurrentTrace() {
   return &per_thread_context.pointer()->tc_;
 }
 
-// TODO: this function needs to use an "unpublish while modifying"
-// critical section to avoid allowing CurrentTraceContextNoAlloc to see a
-// potentially inconsistent trace context, and (when SignalSafeSharedContextPtr
-// goes away) allowing CurrentThreadStatusNoAlloc to see a potentially
-// inconsistent shared context.
 ABSL_XRAY_ALWAYS_INSTRUMENT void SwapCurrentContext(Context* const c) {
   Context* absl_nonnull const current = per_thread_context.pointer();
 
@@ -235,8 +232,23 @@ ABSL_XRAY_ALWAYS_INSTRUMENT void SwapCurrentContext(Context* const c) {
   };
 
   // Swap the contents of the two context objects.
-  using std::swap;
-  swap(*current, *c);
+  //
+  // Unpublish the context while we swap it out, ensuring that
+  // CurrentThreadStatusNoAlloc and CurrentTraceContextNoAlloc can't see an
+  // inconsistent state if they're called from a signal handler that interrupts
+  // us while swapping.
+  //
+  // Note that we expect to meet MutateInCriticalSection's requirements of not
+  // calling back in to the thread-local from the critical section except
+  // through the safe_pointer method, because the swap logic doesn't call any
+  // user code (http://shortn/_zVbb0GhTpO, http://shortn/_cJGuzpwdb3,
+  // http://shortn/_Ug73VeFwKT). It may take locks and allocate for reference
+  // tracking (http://shortn/_vF10T3sWFp), but neither of these should be
+  // accessing the current context except through *NoAlloc hooks.
+  per_thread_context.MutateInCriticalSection([c](Context& current) {
+    using std::swap;
+    swap(current, *c);
+  });
 }
 
 // TODO: this function needs to use an "unpublish while modifying"
