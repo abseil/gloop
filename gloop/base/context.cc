@@ -256,15 +256,6 @@ ABSL_XRAY_ALWAYS_INSTRUMENT void SwapCurrentContext(Context* const c) {
   SwapCurrentContextWithoutNotifying(*c);
 }
 
-// TODO: this function needs to use an "unpublish while modifying"
-// critical section to avoid allowing CurrentTraceContextNoAlloc to see a
-// potentially inconsistent trace context, and (when SignalSafeSharedContextPtr
-// goes away) allowing CurrentThreadStatusNoAlloc to see a potentially
-// inconsistent shared context.
-//
-// TODO: for this particular function the TODO above is not
-// sufficient to avoid re-entrancy because the move assignment operator may run
-// arbitrary user code in destructors.
 ABSL_XRAY_ALWAYS_INSTRUMENT void RestoreCurrentContext(Context* const c) {
   Context* absl_nonnull const current = per_thread_context.pointer();
 
@@ -275,8 +266,9 @@ ABSL_XRAY_ALWAYS_INSTRUMENT void RestoreCurrentContext(Context* const c) {
     current->trace()->AfterRestoreCurrent(ContextAccess());
   };
 
-  // Overwrite the current context's contents.
-  *current = std::move(*c);
+  // Swap the contents of the two context objects, leaving it up to the caller
+  // to destroy the swapped-out version.
+  SwapCurrentContextWithoutNotifying(*c);
 }
 
 ABSL_XRAY_ALWAYS_INSTRUMENT void SetThreadContext(
