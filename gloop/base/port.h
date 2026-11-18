@@ -273,7 +273,7 @@
 #define bswap_32(x) OSSwapInt32(x)
 #define bswap_64(x) OSSwapInt64(x)
 
-#elif defined(__GLIBC__) || defined(__MUSL__)
+#elif defined(__GLIBC__) || defined(__MUSL__) || defined(__LLVM_LIBC__)
 #include <byteswap.h>  // IWYU pragma: export
 
 #else
