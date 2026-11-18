@@ -26,6 +26,7 @@
 #include <cstddef>
 
 #include "absl/base/attributes.h"
+#include "absl/base/call_once.h"
 #include "absl/base/const_init.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/optimization.h"
@@ -56,7 +57,8 @@
 
 namespace concurrent {
 
-ABSL_CONST_INIT CountingMutex::Handle CountingMutex::null_handle_{nullptr};
+ABSL_CONST_INIT std::atomic<std::atomic<uint32_t>*> CountingMutex::null_handle_{
+    nullptr};
 
 namespace {
 
@@ -296,6 +298,14 @@ CountingMutex::Handle CountingMutex::InitHandle(std::atomic<uint32_t>* ptr) {
   return Handle{ptr + 2 * kPerRegion};
 }
 
+CountingMutex::Handle CountingMutex::SlowInitNullHandle() {
+  static absl::once_flag once;
+  absl::call_once(once, [] {
+    null_handle_.store(AllocHandle().ptr, std::memory_order_release);
+  });
+  return Handle{null_handle_.load(std::memory_order_relaxed)};
+}
+
 CountingMutex::Handle CountingMutex::AllocHandle() {
   auto& list = freelist();
   {
@@ -318,11 +328,8 @@ CountingMutex::Handle CountingMutex::AllocHandle() {
   auto* const ptr_end = ptr + kPerRegion;
   Handle handle = InitHandle(ptr++);
 
-  // Check if null_handle_ is already set, and move remaining onto free-list.
+  // Move remaining handles onto free-list.
   absl::MutexLock lock(freelist_mutex);
-  if (null_handle_.ptr == nullptr) {
-    null_handle_ = InitHandle(ptr++);
-  }
   while (ptr != ptr_end) {
     list.push_back(ptr++);
   }
@@ -336,9 +343,11 @@ void CountingMutex::FreeHandle(Handle handle) {
 }
 
 void CountingMutex::WaitReaderLocks() ABSL_EXCLUSIVE_LOCKS_REQUIRED(mu_) {
+  DCHECK(handle_.ptr != nullptr);
   uint32_t pending = 0;
   std::atomic<uint32_t>* ptr = handle_.ptr;
-  percpu_data_.store(null_handle_.ptr, std::memory_order_release);
+  percpu_data_.store(null_handle_.load(std::memory_order_relaxed),
+                     std::memory_order_release);
   if (ABSL_PREDICT_TRUE(IsFast())) {
     for (int cpu = 0, n = base::subtle::percpu::NumCPUs(); cpu < n; ++cpu) {
       if ((ptr->load(std::memory_order_acquire) & 1) != 0) {
@@ -394,11 +403,12 @@ void CountingMutex::MutexUnlockForReadLock(bool try_lock)
 
 bool CountingMutex::MutexLockForReadLock(bool try_lock) {
   if (try_lock) {
-    ABSL_TSAN_MUTEX_PRE_LOCK(this, __tsan_mutex_try_read_lock);
     if (!mu_.try_lock()) {
+      ABSL_TSAN_MUTEX_PRE_LOCK(this, __tsan_mutex_try_read_lock);
       ABSL_TSAN_MUTEX_POST_LOCK(this, __tsan_mutex_try_read_lock_failed, 0);
       return false;
     }
+    ABSL_TSAN_MUTEX_PRE_LOCK(this, __tsan_mutex_try_read_lock);
   } else {
     mu_.lock();
     ABSL_TSAN_MUTEX_PRE_LOCK(this, __tsan_mutex_read_lock);
@@ -408,6 +418,10 @@ bool CountingMutex::MutexLockForReadLock(bool try_lock) {
 
 bool CountingMutex::ReaderLockInitSlow(bool try_lock) {
   if (!MutexLockForReadLock(try_lock)) return false;
+  if (ABSL_PREDICT_FALSE(handle_.ptr == nullptr)) {
+    handle_ = AllocHandle();
+    percpu_data_.store(handle_.ptr, std::memory_order_release);
+  }
   if (!reader_locks_) reader_locks_ = true;
   std::atomic<uint32_t>* ptr = GetPtr(GetCurrentCpu());
   if (ptr->load(std::memory_order_acquire) & 1) {
@@ -422,6 +436,10 @@ bool CountingMutex::ReaderLockInitSlow(bool try_lock) {
 bool CountingMutex::ReaderLockInitFast(bool try_lock) {
 #if COUNTING_MUTEX_USE_RSEQ
   if (!MutexLockForReadLock(try_lock)) return false;
+  if (ABSL_PREDICT_FALSE(handle_.ptr == nullptr)) {
+    handle_ = AllocHandle();
+    percpu_data_.store(handle_.ptr, std::memory_order_release);
+  }
   // Set `reader_locks_ = true` before activating the per-CPU slot so any reader
   // observing the active slot in `RefFast()` also observes `reader_locks_` as
   // `true` in `AwaitCommonSlow()`. Only store when `!reader_locks_` (i.e. on

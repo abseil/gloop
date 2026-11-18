@@ -349,6 +349,11 @@ class ABSL_LOCKABLE CountingMutex {
   bool AwaitCommonSlow(const absl::Condition& cond, const absl::Time* deadline)
       ABSL_NO_THREAD_SAFETY_ANALYSIS;
 
+  // Returns the global handle used for disabled `percpu_data_` values,
+  // initializing it on first use.
+  static Handle GetNullHandle();
+  static Handle SlowInitNullHandle();
+
   // Allocates a handle allowing indexes in the half open range [-2, NumCPUs).
   static Handle AllocHandle();
 
@@ -358,18 +363,22 @@ class ABSL_LOCKABLE CountingMutex {
   // Returns an initialized handle from the provided ptr.
   static Handle InitHandle(std::atomic<uint32_t>* ptr);
 
-  // Handle for this mutex.
-  Handle handle_ = AllocHandle();
+  // Handle for this mutex, lazily allocated on the first shared lock.
+  Handle handle_{nullptr};
 
-  // Fast per cpu data pointer. May be temporarily repointed to `null_handle_`.
-  std::atomic<std::atomic<uint32_t>*> percpu_data_{handle_.ptr};
+  // Fast per cpu data pointer. Points to `null_handle_` until `handle_` is
+  // allocated, and may be temporarily repointed to `null_handle_` during
+  // exclusive locks.
+  std::atomic<std::atomic<uint32_t>*> percpu_data_{GetNullHandle().ptr};
 
   std::atomic<uint32_t> pending_{0};
   bool reader_locks_ ABSL_GUARDED_BY(this) = false;
   absl::Mutex mu_;
 
-  // global handle used for repointing disabled percpu_data_ values.
-  ABSL_CONST_INIT static Handle null_handle_;
+  // Global handle pointer used for repointing disabled `percpu_data_` values.
+  ABSL_CONST_INIT static std::atomic<std::atomic<uint32_t>*> null_handle_;
+
+  friend class CountingMutexTestPeer;
 
 #ifdef NDEBUG
   constexpr void own_locked_context(bool) {}
@@ -402,7 +411,17 @@ class ABSL_LOCKABLE CountingMutex {
 #endif
 };
 
-inline CountingMutex::~CountingMutex() { FreeHandle(handle_); }
+inline CountingMutex::Handle CountingMutex::GetNullHandle() {
+  std::atomic<uint32_t>* ptr = null_handle_.load(std::memory_order_acquire);
+  if (ABSL_PREDICT_FALSE(ptr == nullptr)) {
+    return SlowInitNullHandle();
+  }
+  return Handle{ptr};
+}
+
+inline CountingMutex::~CountingMutex() {
+  if (handle_.ptr != nullptr) FreeHandle(handle_);
+}
 
 inline bool CountingMutex::IsFast() {
   return COUNTING_MUTEX_USE_RSEQ && base::subtle::percpu::IsFast();
@@ -502,7 +521,13 @@ slow_path:
 
 inline bool CountingMutex::ReaderLockSlow(bool try_lock) {
   ABSL_TSAN_MUTEX_PRE_LOCK(this, __tsan_mutex_try_read_lock);
-  std::atomic<uint32_t>* ptr = GetPtr(GetCurrentCpu());
+  std::atomic<uint32_t>* percpu = percpu_data_.load(std::memory_order_acquire);
+  if (ABSL_PREDICT_FALSE(percpu ==
+                         null_handle_.load(std::memory_order_relaxed))) {
+    ABSL_TSAN_MUTEX_POST_LOCK(this, __tsan_mutex_try_read_lock_failed, 0);
+    return ReaderLockInitSlow(try_lock);
+  }
+  std::atomic<uint32_t>* ptr = percpu + GetCurrentCpu() * kPerRegion;
   if ((ptr->fetch_add(2, std::memory_order_acq_rel) & 1) == 0) {
     ABSL_TSAN_MUTEX_POST_LOCK(this, __tsan_mutex_try_read_lock_failed, 0);
     return ReaderLockInitSlow(try_lock);
@@ -513,7 +538,13 @@ inline bool CountingMutex::ReaderLockSlow(bool try_lock) {
 }
 
 inline void CountingMutex::ReaderUnlockSlow() {
-  std::atomic<uint32_t>* ptr = GetPtr(GetCurrentCpu());
+  std::atomic<uint32_t>* percpu = percpu_data_.load(std::memory_order_acquire);
+  if (ABSL_PREDICT_FALSE(percpu ==
+                         null_handle_.load(std::memory_order_relaxed))) {
+    ReaderUnlockPending();
+    return;
+  }
+  std::atomic<uint32_t>* ptr = percpu + GetCurrentCpu() * kPerRegion;
   if ((ptr->fetch_sub(2, std::memory_order_acq_rel) & 1) == 0) {
     ReaderUnlockPending();
   }
@@ -600,7 +631,9 @@ inline void CountingMutex::unlock() ABSL_UNLOCK_FUNCTION() {
   ABSL_TSAN_MUTEX_PRE_UNLOCK(this, 0);
   // Allow readers to obtain shared slots from here on
   DCHECK(!reader_locks_);
-  percpu_data_.store(handle_.ptr, std::memory_order_release);
+  if (handle_.ptr != nullptr) {
+    percpu_data_.store(handle_.ptr, std::memory_order_release);
+  }
 
   // Unlocking the mutex may execute a waiting condition, which gets executed
   // on this thread context, so downgrade to shared while the lock is in an
