@@ -41,7 +41,7 @@ STATIC_THREAD_LOCAL(ThreadInfo, per_thread);
 
 #ifdef ABSL_HAVE_THREAD_LOCAL
 // static
-thread_local absl::Span<Instance*> Var::per_thread_instances_;
+ABSL_CONST_INIT thread_local absl::Span<Instance*> Var::per_thread_instances_;
 #else
 absl::Span<Instance*>* Var::PerThreadInstances() {
   return &per_thread.pointer()->per_thread_instances_;
