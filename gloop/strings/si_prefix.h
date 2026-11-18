@@ -25,7 +25,6 @@
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 
 //                              IMPORTANT WARNING
 // This file supports both decimal (1k=1000) and binary (1k=1024) prefixes.

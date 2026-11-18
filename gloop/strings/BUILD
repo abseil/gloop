@@ -38,7 +38,7 @@ cc_library(
         "//gloop/base:arena",
         "//gloop/util/endian",
         "@abseil-cpp//absl/base:core_headers",
-        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
     ],
 )
 
@@ -374,7 +374,7 @@ cc_library(
         "@abseil-cpp//absl/hash",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/meta:type_traits",
-        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
     ],
 )
 
@@ -646,12 +646,10 @@ cc_library(
     deps = [
         "//gloop:enforce_gloop_support",
         "//gloop/util/math:mathutil",
-        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/strings:string_view",
-        "@abseil-cpp//absl/types:optional",
     ],
 )
 
