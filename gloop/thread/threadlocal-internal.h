@@ -50,6 +50,7 @@
 #include <functional>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/log/check.h"
 #include "absl/types/span.h"
 #include "gloop/util/functional/from_callback.h"
@@ -161,7 +162,8 @@ class Var {
   static absl::Span<Instance*>* PerThreadInstances() {
     return &per_thread_instances_;
   }
-  static thread_local absl::Span<Instance*> per_thread_instances_;
+  ABSL_CONST_INIT static thread_local absl::Span<Instance*>
+      per_thread_instances_;
 #else
   static absl::Span<Instance*>* PerThreadInstances();
 #endif
