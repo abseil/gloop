@@ -27,6 +27,8 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <numeric>
+#include <optional>
 #include <random>
 #include <string>
 #include <tuple>
@@ -383,6 +385,160 @@ TEST(Finalize, Equivalent) {
   auto e2_encoded = e2.FinalizeToStr();
   ABSL_ASSERT_OK(e2_encoded);
   ASSERT_EQ(*e2_encoded, e1_encoded);
+}
+
+TEST(CodingTest, BulkRangesAtAndUpperBounds) {
+  auto verify_decoder = [](const Decoder& dec,
+                           const std::vector<uint64_t>& vals) {
+    // RangesAt across all valid indices plus out-of-range indices and 1-elem.
+    std::vector<uint32_t> indices(vals.size() - 1);
+    std::iota(indices.begin(), indices.end(), 0);
+    indices.push_back(vals.size() - 1);
+    indices.push_back(vals.size());
+    indices.push_back(std::numeric_limits<uint32_t>::max());
+    std::vector<std::tuple<uint32_t, uint64_t, uint64_t>> got_ranges;
+    dec.RangesAt(indices, [&](uint32_t idx, uint64_t a, uint64_t b) {
+      got_ranges.emplace_back(idx, a, b);
+    });
+    ASSERT_EQ(got_ranges.size(), vals.size() - 1);
+    for (uint32_t i = 0; i + 1 < vals.size(); ++i) {
+      EXPECT_EQ(got_ranges[i], std::make_tuple(i, vals[i], vals[i + 1]));
+    }
+    const uint32_t single = 0;
+    uint64_t s0 = 0, s1 = 0;
+    dec.RangesAt(absl::MakeConstSpan(&single, 1),
+                 [&](uint32_t idx, uint64_t a, uint64_t b) {
+                   EXPECT_EQ(idx, 0);
+                   s0 = a;
+                   s1 = b;
+                 });
+    EXPECT_EQ(s0, vals[0]);
+    EXPECT_EQ(s1, vals[1]);
+
+    // UpperBounds on boundaries, duplicates, and out-of-range values.
+    std::vector<uint64_t> queries = {0, 1, 2};
+    for (size_t i = 0; i < vals.size();
+         i += std::max<size_t>(1, vals.size() / 64)) {
+      if (vals[i] > 0) queries.push_back(vals[i] - 1);
+      queries.push_back(vals[i]);
+      queries.push_back(vals[i] + 1);
+    }
+    queries.push_back(vals.back() + 100);
+    queries.push_back(std::numeric_limits<uint64_t>::max());
+
+    std::vector<uint32_t> got_idx;
+    dec.UpperBounds(absl::MakeConstSpan(queries),
+                    [&](uint32_t idx) { got_idx.push_back(idx); });
+    ASSERT_EQ(got_idx.size(), queries.size());
+    for (size_t i = 0; i < queries.size(); ++i) {
+      const uint32_t want = static_cast<uint32_t>(
+          std::upper_bound(vals.begin(), vals.end(), queries[i]) -
+          vals.begin());
+      EXPECT_EQ(got_idx[i], want) << "q=" << queries[i];
+    }
+
+    dec.RangesAt({}, [&](uint32_t, uint64_t, uint64_t) { ADD_FAILURE(); });
+    dec.UpperBounds(absl::Span<const uint32_t>{},
+                    [&](uint32_t) { ADD_FAILURE(); });
+  };
+
+  auto encode_and_verify = [&](const std::vector<uint64_t>& vals,
+                               std::optional<Options::Index> index =
+                                   std::nullopt,
+                               uint8_t* width_out = nullptr) {
+    if (!index.has_value()) {
+      Encoder2 enc;
+      for (uint64_t v : vals) ASSERT_TRUE(enc.Append(v));
+      auto dec = Decoder::Make(enc.Finalize());
+      ABSL_ASSERT_OK(dec);
+      if (width_out != nullptr) *width_out = dec->options().width();
+      verify_decoder(*dec, vals);
+      return;
+    }
+    Options opts(vals.size(), vals.back());
+    opts.indexes(*index);
+    std::vector<char> buf(Encoder::MaxEncodingBytes(opts));
+    Encoder enc(opts, absl::MakeSpan(buf));
+    for (uint64_t v : vals) enc.Append(v);
+    auto sz = enc.Finalize();
+    ABSL_ASSERT_OK(sz);
+    buf.resize(*sz);
+    auto dec = Decoder::Make(buf);
+    ABSL_ASSERT_OK(dec);
+    if (width_out != nullptr) *width_out = dec->options().width();
+    verify_decoder(*dec, vals);
+  };
+
+  // width == 0 across multiple kD1 blocks.
+  {
+    std::vector<uint64_t> vals;
+    for (uint64_t i = 0, cur = 0; i < 600; ++i) {
+      vals.push_back(cur);
+      if (i % 3 != 0) ++cur;
+    }
+    uint8_t width = 255;
+    encode_and_verify(vals, std::nullopt, &width);
+    EXPECT_EQ(width, 0);
+  }
+
+  // Typical width > 0 across kD1 boundaries and all index configurations.
+  {
+    std::vector<uint64_t> vals;
+    for (uint64_t i = 0, cur = 0; i < 700; ++i) {
+      vals.push_back(cur);
+      cur += (i % 5);
+    }
+    for (Options::Index index :
+         {Options::NONE, Options::ONES, Options::ZEROS, Options::ALL}) {
+      encode_and_verify(vals, index);
+    }
+  }
+
+  // Sparse block + wide low bits (width > 32 -> 2-word DecodeLowPair).
+  {
+    const std::vector<uint64_t> vals = {0,
+                                        0,
+                                        1,
+                                        (1ULL << 35) + 7,
+                                        (1ULL << 35) + 9,
+                                        (1ULL << 35) + 9,
+                                        (1ULL << 36) + 12345};
+    uint8_t width = 0;
+    encode_and_verify(vals, std::nullopt, &width);
+    EXPECT_GT(width, 32);
+  }
+
+  // Word-boundary case for BroadWordSearch(next=true): 63 elements in bucket 0
+  // place zero #0 at pos0 == 63 (pos0 % 64 == 63, exercising b0 == 63 shift and
+  // rem == 0 -> FindNextSetBitSlow), followed by zero #1 at bit 64 and a >64
+  // run of ones before zero #2.
+  {
+    std::vector<uint64_t> vals(63, 0);  // hi=0 -> bits 0..62 ones, zero #0 @63
+    // hi=1 empty -> zero #1 @64; hi=2 has 65 elements -> zero #2 @130.
+    for (int j = 0; j < 65; ++j) vals.push_back((2ULL << 2) | std::min(j, 3));
+    for (uint64_t hi = 3; hi < 600; ++hi) {
+      const int count = (hi == 63) ? 70 : (hi % 2);
+      for (int j = 0; j < count; ++j) {
+        vals.push_back((hi << 2) | std::min(j, 3));
+      }
+    }
+    Encoder2 enc;
+    for (uint64_t v : vals) ASSERT_TRUE(enc.Append(v));
+    auto dec = Decoder::Make(enc.Finalize());
+    ABSL_ASSERT_OK(dec);
+    ASSERT_EQ(dec->options().width(), 2);
+    for (uint64_t q = 0; q <= vals.back() + 2; ++q) {
+      const uint32_t want_ub = static_cast<uint32_t>(
+          std::upper_bound(vals.begin(), vals.end(), q) - vals.begin());
+      const uint32_t want_lb = static_cast<uint32_t>(
+          std::lower_bound(vals.begin(), vals.end(), q) - vals.begin());
+      EXPECT_EQ(dec->UpperBound(q), want_ub) << "q=" << q;
+      EXPECT_EQ(dec->LowerBound(q), want_lb) << "q=" << q;
+      EXPECT_EQ(dec->Exists(q), std::binary_search(vals.begin(), vals.end(), q))
+          << "q=" << q;
+    }
+    verify_decoder(*dec, vals);
+  }
 }
 
 namespace bm {
