@@ -240,6 +240,16 @@ static void SwapCurrentContextWithoutNotifying(Context& c) {
   });
 }
 
+// Like SwapCurrentContextWithoutNotifying, but operates only on the trace
+// context within the current context, not the full context. See that function
+// for details.
+static void SwapCurrentTraceContextWithoutNotifying(TraceContext& tc) {
+  per_thread_context.MutateInCriticalSection([&tc](Context& current_context) {
+    using std::swap;
+    swap(*current_context.trace(), tc);
+  });
+}
+
 ABSL_XRAY_ALWAYS_INSTRUMENT void SwapCurrentContext(Context* const c) {
   Context* absl_nonnull const current = per_thread_context.pointer();
 
