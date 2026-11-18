@@ -375,43 +375,12 @@ WithContext::~WithContext() {
   delete current;
 }
 
-// TODO: this function needs to use an "unpublish while modifying"
-// critical section to avoid allowing CurrentTraceContextNoAlloc to see a
-// potentially inconsistent trace context. Note that the TraceContext copy
-// constructor may invoke arbitrary user code via e.g.
-// TraceEventListener::GetEventListener, so can't be done inside the critical
-// section.
 WithTraceContext::WithTraceContext(const TraceContext& switch_to,
-                                   const perftools::tracing::StringRef label) {
-  TraceContext* absl_nonnull current = per_thread_context.pointer()->trace();
-
-  // Arrange for listeners to know that the trace context is changing.
-  current->BeforeSwapCurrent(ContextAccess(), switch_to);
-
-  const absl::Cleanup after = [&] {
-    NotifyTraceContextChanging(&previous_, current);
-    current->AfterSwapCurrent(ContextAccess(), label);
-  };
-
-  // Rare case (which should ideally be illegal): if someone has told us to
-  // switch the current context to itself then we can't use the logic below,
-  // which invalidates the `switch_to` reference's contents by moving from it
-  // before later using it. Just make a copy and bail out.
-  if (&switch_to == current) {
-    new (&previous_) TraceContext(*current);
-    return;
-  }
-
-  // Move the current context into previous_, so we can restore it later in our
-  // destructor.
-  new (&previous_) TraceContext(std::move(*current));
-
-  // Construct over the current context with the contents of the input.
-  //
-  // TODO: this is wrong for an arbitrary type, because we haven't
-  // destroyed `*current` yet. Document what makes it okay for TraceContext.
-  current = new (current) TraceContext(switch_to);
-}
+                                   const perftools::tracing::StringRef label)
+    : WithTraceContext{
+          TraceContext(switch_to),
+          label,
+      } {}
 
 // TODO: this function needs to use an "unpublish while modifying"
 // critical section to avoid allowing CurrentTraceContextNoAlloc to see a
