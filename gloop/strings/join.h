@@ -25,15 +25,8 @@
 #include <type_traits>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "absl/strings/str_cat.h"
-#include "absl/strings/str_join.h"
-#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-
-#ifdef SWIG
-%include "absl/strings/str_join.h"
-#endif
 
 namespace strings {
 
