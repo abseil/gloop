@@ -129,22 +129,38 @@ absl::NoDestructor<Context> background_context{Context::kDefault};
 // Note that this TODO applies to pretty much all of the modification functions
 // in this file (including RestoreContext), not just this one.
 Context* absl_nonnull SwapContext(ContextAccess access,
-                                  Context* absl_nonnull context,
-                                  perftools::tracing::StringRef label) {
-  Context* current = per_thread_context.pointer();
+                                  Context* absl_nonnull const context,
+                                  const perftools::tracing::StringRef label) {
+  Context* absl_nonnull const current = per_thread_context.pointer();
+
+  // Arrange for listeners to know that the context is changing.
   NotifyTraceContextChanging(current->trace(), context->trace());
   current->trace()->BeforeSwapCurrent(access, context->trace_context());
+
+  const absl::Cleanup after = [&] {
+    context->trace()->AfterSwapCurrent(access, label);
+  };
+
+  // Publish the new context object.
   per_thread_context.set_pointer(context);
-  context->trace()->AfterSwapCurrent(access, label);
+
   return current;
 }
 
 Context* absl_nonnull RestoreContext(ContextAccess access,
-                                     Context* absl_nonnull context) {
-  Context* current = per_thread_context.pointer();
+                                     Context* absl_nonnull const context) {
+  Context* absl_nonnull const current = per_thread_context.pointer();
+
+  // Arrange for listeners to know that the context is changing.
   current->trace()->BeforeRestoreCurrent(access, context->trace_context());
+
+  const absl::Cleanup after = [&] {
+    context->trace()->AfterRestoreCurrent(access);
+  };
+
+  // Publish the new context object.
   per_thread_context.set_pointer(context);
-  context->trace()->AfterRestoreCurrent(access);
+
   return current;
 }
 
@@ -207,13 +223,20 @@ TraceContext* internal::MutableCurrentContext::MutableCurrentTrace() {
 // potentially inconsistent trace context, and (when SignalSafeSharedContextPtr
 // goes away) allowing CurrentThreadStatusNoAlloc to see a potentially
 // inconsistent shared context.
-ABSL_XRAY_ALWAYS_INSTRUMENT void SwapCurrentContext(Context* c) {
-  using std::swap;
-  Context* current = per_thread_context.pointer();
+ABSL_XRAY_ALWAYS_INSTRUMENT void SwapCurrentContext(Context* const c) {
+  Context* absl_nonnull const current = per_thread_context.pointer();
+
+  // Arrange for listeners to know that the context is changing.
   NotifyTraceContextChanging(current->trace(), c->trace());
   current->trace()->BeforeSwapCurrent(ContextAccess(), c->trace_context());
+
+  const absl::Cleanup after = [&] {
+    current->trace()->AfterSwapCurrent(base::ContextAccess());
+  };
+
+  // Swap the contents of the two context objects.
+  using std::swap;
   swap(*current, *c);
-  current->trace()->AfterSwapCurrent(base::ContextAccess());
 }
 
 // TODO: this function needs to use an "unpublish while modifying"
@@ -225,12 +248,18 @@ ABSL_XRAY_ALWAYS_INSTRUMENT void SwapCurrentContext(Context* c) {
 // TODO: for this particular function the TODO above is not
 // sufficient to avoid re-entrancy because the move assignment operator may run
 // arbitrary user code in destructors.
-ABSL_XRAY_ALWAYS_INSTRUMENT void RestoreCurrentContext(Context* c) {
-  using std::swap;
-  Context* current = per_thread_context.pointer();
+ABSL_XRAY_ALWAYS_INSTRUMENT void RestoreCurrentContext(Context* const c) {
+  Context* absl_nonnull const current = per_thread_context.pointer();
+
+  // Arrange for listeners to know that the context is changing.
   current->trace()->BeforeRestoreCurrent(ContextAccess(), *c->trace());
+
+  const absl::Cleanup after = [&] {
+    current->trace()->AfterRestoreCurrent(ContextAccess());
+  };
+
+  // Overwrite the current context's contents.
   *current = std::move(*c);
-  current->trace()->AfterRestoreCurrent(ContextAccess());
 }
 
 // TODO: this function needs to use an "unpublish while modifying"
@@ -244,13 +273,20 @@ ABSL_XRAY_ALWAYS_INSTRUMENT void RestoreCurrentContext(Context* c) {
 // arbitrary user code in destructors.
 ABSL_XRAY_ALWAYS_INSTRUMENT void SetThreadContext(
     ThreadContextAccess access, Context context,
-    perftools::tracing::StringRef label) {
-  Context* current = per_thread_context.pointer();
-  NotifyTraceContextChanging(current->trace(), context.trace());
-  TraceContext* trace = current->trace();
+    const perftools::tracing::StringRef label) {
+  Context* absl_nonnull const current = per_thread_context.pointer();
+  TraceContext* absl_nonnull const trace = current->trace();
+
+  // Arrange for listeners to know that the context is changing.
+  NotifyTraceContextChanging(trace, context.trace());
   trace->BeforeSetThreadContext(access, context.trace_context(), label);
+
+  const absl::Cleanup after = [&] {
+    trace->AfterSetThreadContext(access, label);
+  };
+
+  // Overwrite the current context's contents.
   *current = std::move(context);
-  trace->AfterSetThreadContext(access, label);
 }
 
 // TODO: this function needs to use an "unpublish while modifying"
@@ -260,14 +296,22 @@ ABSL_XRAY_ALWAYS_INSTRUMENT void SetThreadContext(
 // inconsistent shared context.
 ABSL_XRAY_ALWAYS_INSTRUMENT
 Context ExchangeThreadContext(ThreadContextAccess access, Context context,
-                              perftools::tracing::StringRef label) {
-  using std::swap;
-  Context* current = per_thread_context.pointer();
-  NotifyTraceContextChanging(current->trace(), context.trace());
-  TraceContext* trace = current->trace();
+                              const perftools::tracing::StringRef label) {
+  Context* absl_nonnull const current = per_thread_context.pointer();
+  TraceContext* absl_nonnull const trace = current->trace();
+
+  // Arrange for listeners to know that the context is changing.
+  NotifyTraceContextChanging(trace, context.trace());
   trace->BeforeExchangeThreadContext(access, context.trace_context(), label);
+
+  const absl::Cleanup after = [&] {
+    trace->AfterExchangeThreadContext(access, label);
+  };
+
+  // Swap the contents of the two context objects.
+  using std::swap;
   swap(*current, context);
-  trace->AfterExchangeThreadContext(access, label);
+
   return context;
 }
 
@@ -332,38 +376,69 @@ WithContext::~WithContext() {
 // TraceEventListener::GetEventListener, so can't be done inside the critical
 // section.
 WithTraceContext::WithTraceContext(const TraceContext& switch_to,
-                                   perftools::tracing::StringRef label) {
-  TraceContext* current = per_thread_context.pointer()->trace();
+                                   const perftools::tracing::StringRef label) {
+  TraceContext* absl_nonnull current = per_thread_context.pointer()->trace();
+
+  // Arrange for listeners to know that the trace context is changing.
   current->BeforeSwapCurrent(ContextAccess(), switch_to);
-  if (&switch_to != current) {
-    new (&previous_) TraceContext(std::move(*current));
-    current = new (current) TraceContext(switch_to);
-  } else {
-    // This should be rare (and ideally illegal). Just make a copy of current.
+
+  const absl::Cleanup after = [&] {
+    NotifyTraceContextChanging(&previous_, current);
+    current->AfterSwapCurrent(ContextAccess(), label);
+  };
+
+  // Rare case (which should ideally be illegal): if someone has told us to
+  // switch the current context to itself then we can't use the logic below,
+  // which invalidates the `switch_to` reference's contents by moving from it
+  // before later using it. Just make a copy and bail out.
+  if (&switch_to == current) {
     new (&previous_) TraceContext(*current);
+    return;
   }
 
-  NotifyTraceContextChanging(&previous_, current);
-  current->AfterSwapCurrent(ContextAccess(), label);
+  // Move the current context into previous_, so we can restore it later in our
+  // destructor.
+  new (&previous_) TraceContext(std::move(*current));
+
+  // Construct over the current context with the contents of the input.
+  //
+  // TODO: this is wrong for an arbitrary type, because we haven't
+  // destroyed `*current` yet. Document what makes it okay for TraceContext.
+  current = new (current) TraceContext(switch_to);
 }
 
 // TODO: this function needs to use an "unpublish while modifying"
 // critical section to avoid allowing CurrentTraceContextNoAlloc to see a
 // potentially inconsistent trace context.
 WithTraceContext::WithTraceContext(TraceContext&& switch_to,
-                                   perftools::tracing::StringRef label) {
-  TraceContext* current = per_thread_context.pointer()->trace();
+                                   const perftools::tracing::StringRef label) {
+  TraceContext* absl_nonnull current = per_thread_context.pointer()->trace();
+
+  // Arrange for listeners to know that the context is changing.
   NotifyTraceContextChanging(current, &switch_to);
   current->BeforeSwapCurrent(ContextAccess(), switch_to);
-  if (&switch_to != current) {
-    new (&previous_) TraceContext(std::move(*current));
-    current = new (current) TraceContext(std::move(switch_to));
-  } else {
-    // Nobody should ever 'consume' the current context. Still, DTRT.
+
+  const absl::Cleanup after = [&] {
+    current->AfterSwapCurrent(ContextAccess(), label);
+  };
+
+  // Illegal case (which we still choose to handle in optimized builds): nobody
+  // should ever "consume" the current trace context.
+  if (&switch_to == current) {
     DLOG(FATAL) << "Illegal call consuming <CurrentTraceContext>";
     new (&previous_) TraceContext(*current);
+    return;
   }
-  current->AfterSwapCurrent(ContextAccess(), label);
+
+  // Move the current context into previous_, so we can restore it later in our
+  // destructor.
+  new (&previous_) TraceContext(std::move(*current));
+
+  // Construct over the current context with the contents of the input.
+  //
+  // TODO: this is wrong for an arbitrary type, because we haven't
+  // destroyed `*current` yet. Document what makes it okay for TraceContext.
+  current = new (current) TraceContext(std::move(switch_to));
 }
 
 // TODO: this function needs to use an "unpublish while modifying"
@@ -374,30 +449,51 @@ WithTraceContext::WithTraceContext(TraceContext&& switch_to,
 // sufficient to avoid re-entrancy because the move assignment operator may run
 // arbitrary user code in destructors.
 WithTraceContext::~WithTraceContext() {
-  TraceContext* current = per_thread_context.pointer()->trace();
+  TraceContext* absl_nonnull const current =
+      per_thread_context.pointer()->trace();
+
+  // Arrange for listeners to know that the trace context is changing.
   current->BeforeRestoreCurrent(ContextAccess(), previous_);
+
+  const absl::Cleanup after = [&] {
+    current->AfterRestoreCurrent(ContextAccess());
+  };
+
+  // Overwrite the current trace context's contents.
   *current = std::move(previous_);
-  current->AfterRestoreCurrent(ContextAccess());
+
   DCHECK(!previous_.CanRecordAnnotations() &&
          !previous_.has_sync_tracer());  // NOLINT
 }
 
-WithDeadline::WithDeadline(absl::Time new_deadline)
+WithDeadline::WithDeadline(const absl::Time new_deadline)
     : swapped_deadline_(new_deadline), is_deadline_swapped_(false) {
-  Context* current_context = per_thread_context.pointer();
-  // Check to see if the existing deadline is nearer than the new one.
+  Context* absl_nonnull const current_context = per_thread_context.pointer();
+
+  // If the existing deadline is nearer than the new one, then there's nothing
+  // for us to do.
   if (current_context->deadline() <= new_deadline) {
     return;
   }
+
+  // Otherwise swap the deadline (and remember that we've done so).
+  //
+  // Note that there are no signal-safety concerns with the non-atomic
+  // modification here because we don't expose the deadline to signal handlers.
   is_deadline_swapped_ = true;
   current_context->SwapDeadline(&swapped_deadline_);
 }
 
 WithDeadline::~WithDeadline() {
-  if (is_deadline_swapped_) {
-    Context* current_context = per_thread_context.pointer();
-    current_context->SwapDeadline(&swapped_deadline_);
+  // If we didn't change anything in the constructor then there is nothing for
+  // us to do.
+  if (!is_deadline_swapped_) {
+    return;
   }
+
+  // Restore the old deadline to the current context. There are no signal-safety
+  // concerns here for the same reason as in the constructor.
+  per_thread_context.pointer()->SwapDeadline(&swapped_deadline_);
 }
 
 // TODO: this function needs to use an "unpublish while modifying"
@@ -442,7 +538,7 @@ const CensusHandle& CensusAccess::GetCurrentHandle() {
 // TODO: this function needs to use an "unpublish while modifying"
 // critical section to avoid allowing CurrentTraceContextNoAlloc to see a
 // potentially inconsistent trace context.
-void CensusAccess::SwapCurrentHandle(CensusHandle* h) {
+void CensusAccess::SwapCurrentHandle(CensusHandle* const h) {
 #if BASE_HAVE_TRACECONTEXT
   using std::swap;
   swap(per_thread_context.pointer()->trace()->census_handle_, *h);
