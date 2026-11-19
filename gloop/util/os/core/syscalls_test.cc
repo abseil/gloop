@@ -377,6 +377,44 @@ TEST_F(AtcallTest, Readlinkat_ReadsLinks) {
             "bad-name" /* as arranged by `SetUp()` */);
 }
 
+TEST_F(AtcallTest, ReadlinkOrLstat_ReadsLinksWithoutStatting) {
+  char buf[100];  // Sufficient for our link.
+  struct ::stat st;
+  int lstat_status = 0;
+  ssize_t len = util_os_core::readlink_or_lstat(
+      broken_symlink_.path.c_str(), buf, sizeof(buf), &st, &lstat_status);
+  ASSERT_GT(len, 0);
+  ASSERT_LT(len, sizeof(buf));
+  EXPECT_EQ(absl::string_view(buf, len),
+            "bad-name" /* as arranged by `SetUp()` */);
+  EXPECT_EQ(lstat_status, -1);
+}
+
+TEST_F(AtcallTest, ReadlinkOrLstat_StatsPathsThatAreNotLinks) {
+  char buf[100];
+  struct ::stat st;
+  int lstat_status = -1;
+  ssize_t len = util_os_core::readlink_or_lstat(
+      reg_file_.path.c_str(), buf, sizeof(buf), &st, &lstat_status);
+  int err = errno;
+  EXPECT_EQ(len, -1);
+  EXPECT_EQ(err, EINVAL);
+  ASSERT_EQ(lstat_status, 0);
+  EXPECT_TRUE(S_ISREG(st.st_mode));
+}
+
+TEST_F(AtcallTest, ReadlinkOrLstat_FailsForNonexistentPath) {
+  char buf[100];
+  struct ::stat st;
+  int lstat_status = 0;
+  ssize_t len = util_os_core::readlink_or_lstat(
+      (dir_.path + "/bad-name").c_str(), buf, sizeof(buf), &st, &lstat_status);
+  int err = errno;
+  EXPECT_EQ(len, -1);
+  EXPECT_EQ(err, ENOENT);
+  EXPECT_EQ(lstat_status, -1);
+}
+
 TEST_F(AtcallTest, Renameat_WillNotMakeADirectoryASubdirectoryOfItself) {
   int res = util_os_core::renameat(AT_FDCWD, dir_.path.c_str(),  //
                                    subdir_.fd, "parent");

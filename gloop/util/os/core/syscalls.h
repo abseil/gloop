@@ -219,6 +219,24 @@ ssize_t readlink(const char* pathname, char* buf, size_t bufsiz);
 
 int readlinkat(int dirfd, const char* pathname, char* buf, size_t bufsiz);
 
+// Calls readlink(pathname, buf, bufsiz) and, only if that fails with EINVAL
+// (i.e. `pathname` is not a symbolic link), also calls lstat(pathname,
+// statbuf). Both syscalls share a single potentially blocking region, which is
+// cheaper than calling readlink() and lstat() separately. Callers that need to
+// tell symbolic links apart from other kinds of files should prefer this over
+// two separate calls.
+//
+// Returns the return value of readlink(), i.e. the number of bytes placed in
+// `buf`, or -1 on failure.
+//
+// `*lstat_status` is set to the return value of lstat(), or to -1 if lstat()
+// was not called. `*statbuf` is only written to if lstat() was called.
+//
+// errno is set by lstat() if lstat() was called and failed, and by readlink()
+// otherwise.
+ssize_t readlink_or_lstat(const char* pathname, char* buf, size_t bufsiz,
+                          struct ::stat* statbuf, int* lstat_status);
+
 int rename(const char* oldpath, const char* newpath);
 
 int renameat(int olddirfd, const char* oldpath,  //

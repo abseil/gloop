@@ -493,6 +493,30 @@ int readlinkat(int dirfd, const char* pathname, char* buf, size_t bufsiz) {
   return status;
 }
 
+ssize_t readlink_or_lstat(const char* pathname, char* buf, size_t bufsiz,
+                          struct ::stat* statbuf, int* lstat_status) {
+  base::scheduling::PotentiallyBlockingRegion region;
+  *lstat_status = -1;
+  ssize_t bytes_read;
+  do {
+    bytes_read = ::readlink(pathname, buf, bufsiz);
+  } while (bytes_read == -1 && errno == EINTR);
+  // EINVAL means that the path exists but is not a symbolic link, which is the
+  // only case in which the caller can make use of the file status.
+  if (bytes_read != -1 || errno != EINVAL) {
+    return bytes_read;
+  }
+  int status;
+  do {
+    status = ::lstat(pathname, statbuf);
+  } while (status == -1 && errno == EINTR);
+  if (status == 0) {
+    errno = EINVAL;
+  }
+  *lstat_status = status;
+  return bytes_read;
+}
+
 int rename(const char* oldpath, const char* newpath) {
   base::scheduling::PotentiallyBlockingRegion region;
   int status;
