@@ -222,6 +222,7 @@ class TraceContext {
   CensusHandle census_handle_;
   uint64_t rpc_id_ = 0;
 
+  friend class base::CensusAccess;
   friend class base::Context;
   friend class base::WithCensusHandle;
 };

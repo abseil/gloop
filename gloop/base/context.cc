@@ -509,22 +509,15 @@ void WithCensusHandle::SwapCurrentCensusHandle(CensusHandle& handle) {
 }
 
 const CensusHandle& CensusAccess::GetCurrentHandle() {
-#if BASE_HAVE_TRACECONTEXT
   return CurrentContext().trace()->census_handle_;
-#else
-  static CensusHandle* dummy_ch = new CensusHandle;
-  return *dummy_ch;
-#endif
 }
 
 // TODO: this function needs to use an "unpublish while modifying"
 // critical section to avoid allowing CurrentTraceContextNoAlloc to see a
 // potentially inconsistent trace context.
 void CensusAccess::SwapCurrentHandle(CensusHandle* const h) {
-#if BASE_HAVE_TRACECONTEXT
   using std::swap;
   swap(per_thread_context.pointer()->trace()->census_handle_, *h);
-#endif
 }
 
 const CensusHandle& CensusAccess::GetHandleFromContext(const Context& context) {
