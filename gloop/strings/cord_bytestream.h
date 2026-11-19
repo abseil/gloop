@@ -31,6 +31,7 @@
 #include "absl/numeric/bits.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "gloop/strings/bytestream.h"
 
 namespace strings {
@@ -41,6 +42,7 @@ class CordByteSink final : public ByteSink {
   CordByteSink(const CordByteSink&) = delete;
   CordByteSink& operator=(const CordByteSink&) = delete;
 
+  void Append(absl::string_view data) override { dest_->Append(data); }
   void Append(const char* absl_nonnull data, size_t n) override {
     dest_->Append(absl::string_view(data, n));
   }
@@ -120,6 +122,11 @@ class CordReader final : public ByteSource {
   // REQUIRES: n <= Available()
   // Copies the first n bytes into dest and advances past them.
   void ReadN(size_t n, char* absl_nonnull dest);
+  void ReadN(absl::Span<char> dest) {
+    if (!dest.empty()) {
+      ReadN(dest.size(), dest.data());
+    }
+  }
 
   // Return the next fragment of available data, or an empty string_view value
   // if no more data is available. The returned value is guaranteed to reference

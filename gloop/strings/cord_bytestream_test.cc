@@ -37,6 +37,7 @@
 #include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "gloop/strings/bytestream.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -253,7 +254,7 @@ static void TestReader(RandomEngine* rng, int iters) {
                                     r.Available());
         VLOG(1) << "Read: " << N;
         absl::FixedArray<char> data(N);
-        r.ReadN(N, data.data());
+        r.ReadN(absl::MakeSpan(data));
         ASSERT_EQ(absl::string_view(s.data() + expected_offset, N),
                   absl::string_view(data.data(), N));
         expected_offset += N;
@@ -332,6 +333,19 @@ TEST(CordByteStream, CordReaderEmptyReader) {
   uint64_t uint64_val = 0;
   EXPECT_FALSE(reader.Read64(&uint64_val));
   EXPECT_EQ(uint64_val, 0);
+
+  reader.ReadN(absl::Span<char>{});
+  EXPECT_EQ(reader.Position(), 0);
+}
+
+TEST(CordByteStream, CordByteSinkAppendStringView) {
+  absl::Cord cord;
+  strings::CordByteSink sink(&cord);
+  absl::string_view empty_view;
+  ASSERT_EQ(empty_view.data(), nullptr);
+  sink.Append(empty_view);
+  sink.Append(absl::string_view("hello"));
+  EXPECT_EQ(cord, "hello");
 }
 
 TEST(CordByteStream, CordReaderResetEmptyReaderToNonEmpty) {
