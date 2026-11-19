@@ -295,6 +295,18 @@ struct Info {
 // Returns info about the first elias fano array in the span.
 absl::StatusOr<Info> GetInfo(absl::Span<const char> span);
 
+// Returns OkStatus if the first elias fano array in the span is well formed,
+// meaning Decoder and ForwardDecoder can be used on it without reading out of
+// bounds and decode non-decreasing values ending with opts.max_value().
+//
+// Decoder::Make() and ForwardDecoder::Make() only check the options, so call
+// this first when the span comes from an untrusted source (e.g. it was read
+// from disk or received over the network).
+//
+// Takes time linear in the size of the encoding and does not allocate. Only
+// supports version 3.
+absl::Status Validate(absl::Span<const char> span);
+
 class Encoder {
  public:
   // Returns the min/max possible encoding bytes for an elias-fano encoding
@@ -475,6 +487,9 @@ class Decoder {
   // invalidated. Remember that moving a contiguous STL container
   // (e.g. std::string, but also std::vector) generally invalidates pointers
   // to that container.
+  //
+  // Only the options are checked. Call Validate() first if the span is
+  // untrusted.
   static absl::StatusOr<Decoder> Make(absl::Span<const char> span);
 
   // Returns an iterator to the element at position i.
@@ -752,6 +767,9 @@ class Decoder {
 class ForwardDecoder {
  public:
   // The memory block should contain data encoded with Encoder.
+  //
+  // Only the options are checked. Call Validate() first if the span is
+  // untrusted.
   static absl::StatusOr<ForwardDecoder> Make(absl::Span<const char> span);
 
   // Returns the current index.
