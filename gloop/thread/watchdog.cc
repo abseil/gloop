@@ -424,13 +424,14 @@ void WatchDog::SetCrashReasonFromStuckThread() {
 
     // Unwind from the stuck thread (current thread) to produce a useful
     // crashing stacktrace in Coroner.
-    static base::CrashReason reason;
+    ABSL_CONST_INIT static base::CrashReason reason;
     reason.message = watchdog->crash_reason_message_;
     reason.filename = __FILE__;
     reason.line_number = __LINE__;
     reason.depth =
         absl::GetStackTrace(reason.stack, std::size(reason.stack), 0);
-    reason.tc = tc;
+    reason.tc = tc;  // TODO: remove
+    reason.trace_ids = base::CurrentTraceIdsForCrashReporting();
     base::SetCrashReason(&reason);
   };
   // Iterate through all threads looking for the stuck thread and collect crash

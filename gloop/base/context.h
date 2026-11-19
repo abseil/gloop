@@ -45,6 +45,7 @@
 #include "gloop/base/censushandle.h"
 #include "gloop/base/config.h"
 #include "gloop/base/context_access.h"
+#include "gloop/base/crash.h"
 #include "gloop/base/tracecontext.h"
 #include "gloop/perftools/tracing/string_label.h"
 #include "gloop/perftools/tracing/trace_source_location.h"
@@ -337,6 +338,10 @@ const Context& CurrentContext();
 // Of course it's also not okay to call any methods of TraceContext that aren't
 // themselves signal safe, e.g. TraceContext::DebugString.
 const TraceContext* CurrentTraceContextNoAlloc();
+
+// Captures the optional `CrashReason::TraceIds` from the current trace context
+// for crash reporting purposes. Safe to call from a signal handler.
+std::optional<CrashReason::TraceIds> CurrentTraceIdsForCrashReporting();
 
 // Scoped object that sets the current thread's context to switch_to until
 // the object is destroyed.
