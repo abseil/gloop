@@ -43,24 +43,20 @@ TEST(OStringStream, TypeCompliance) {
   // ostringstream makes these 6 types publicly available, OStringStream
   // does, too.
   using std::ostringstream;
-  static_assert(std::is_same<OStringStream::allocator_type,
-                             ostringstream::allocator_type>::value,
+  static_assert(std::is_same_v<OStringStream::allocator_type,
+                               ostringstream::allocator_type>,
                 "");
   static_assert(
-      std::is_same<OStringStream::char_type, ostringstream::char_type>::value,
-      "");
-  static_assert(std::is_same<OStringStream::traits_type,
-                             ostringstream::traits_type>::value,
-                "");
+      std::is_same_v<OStringStream::char_type, ostringstream::char_type>, "");
   static_assert(
-      std::is_same<OStringStream::int_type, ostringstream::int_type>::value,
+      std::is_same_v<OStringStream::traits_type, ostringstream::traits_type>,
       "");
   static_assert(
-      std::is_same<OStringStream::pos_type, ostringstream::pos_type>::value,
-      "");
+      std::is_same_v<OStringStream::int_type, ostringstream::int_type>, "");
   static_assert(
-      std::is_same<OStringStream::off_type, ostringstream::off_type>::value,
-      "");
+      std::is_same_v<OStringStream::pos_type, ostringstream::pos_type>, "");
+  static_assert(
+      std::is_same_v<OStringStream::off_type, ostringstream::off_type>, "");
 }
 
 TEST(OStringStream, ConstructDestroy) {
