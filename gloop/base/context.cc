@@ -324,6 +324,23 @@ const TraceContext* CurrentTraceContextNoAlloc_ForTraceContext() {
   return CurrentTraceContextNoAlloc();
 }
 
+// Sets the current TraceContext from the specified one. It is assumed that the
+// referenced object will be destroyed immediately, and so may be modified
+// arbitrarily.
+static void RestoreCurrentTraceContextImpl(ContextAccess access,
+                                           TraceContext& tc) {
+  TraceContext* absl_nonnull const current =
+      per_thread_context.pointer()->trace();
+
+  // Arrange for listeners to know that the trace context is changing.
+  current->BeforeRestoreCurrent(access, tc);
+  const absl::Cleanup after = [&] { current->AfterRestoreCurrent(access); };
+
+  // Swap the contents of the two trace context objects, leaving it up to the
+  // caller to destroy the swapped-out version.
+  SwapCurrentTraceContextWithoutNotifying(tc);
+}
+
 ContextBuilder& ContextBuilder::set_trace_context(TraceContext tc) {
   context_.set_trace_context(std::move(tc));
   return *this;
@@ -421,26 +438,9 @@ WithTraceContext::WithTraceContext(TraceContext&& switch_to,
 }
 
 WithTraceContext::~WithTraceContext() {
-  // Ensure that once all the logic below is done, we destroy `previous_`.
-  //
-  // It's in a union only so that our constructor can delay its initialization.
-  // Emulate it being a normal member that is treated normally by the
-  // destructor.
-  const absl::Cleanup destroy = [&] { previous_.~TraceContext(); };
-
-  TraceContext* absl_nonnull const current =
-      per_thread_context.pointer()->trace();
-
-  // Arrange for listeners to know that the trace context is changing.
-  current->BeforeRestoreCurrent(ContextAccess(), previous_);
-
-  const absl::Cleanup after = [&] {
-    current->AfterRestoreCurrent(ContextAccess());
-  };
-
-  // Swap the contents of the current trace context with the previously saved
-  // one.
-  SwapCurrentTraceContextWithoutNotifying(previous_);
+  // Restore the previously-saved trace context, then destroy the object.
+  RestoreCurrentTraceContextImpl(ContextAccess(), previous_);
+  previous_.~TraceContext();
 }
 
 WithDeadline::WithDeadline(const absl::Time new_deadline)
