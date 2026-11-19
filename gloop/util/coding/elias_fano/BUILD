@@ -69,6 +69,7 @@ cc_test(
         "@abseil-cpp//absl/numeric:bits",
         "@abseil-cpp//absl/random",
         "@abseil-cpp//absl/random:distributions",
+        "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:status_matchers",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
