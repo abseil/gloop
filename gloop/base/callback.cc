@@ -18,14 +18,33 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+#include <atomic>
+
 #include "gloop/base/callback-types.h"
+#include "gloop/base/context.h"
 
 namespace base {
 namespace internal {
 
-CallbackBase::~CallbackBase() = default;
+CallbackBase::~CallbackBase() {
+  delete context_.load(std::memory_order_acquire);
+}
 
 void CallbackBase::UnusedKeyMethod() {}  // <link>
+
+::base::Context* CallbackBase::SlowContextPtr() { return nullptr; }
+
+::base::Context* CallbackBase::MaterializeDefaultContext() {
+  auto* created = new ::base::Context();
+  ::base::Context* expected = nullptr;
+  if (!context_.compare_exchange_strong(expected, created,
+                                        std::memory_order_acq_rel,
+                                        std::memory_order_acquire)) {
+    delete created;
+    return expected;
+  }
+  return created;
+}
 
 }  // namespace internal
 }  // namespace base

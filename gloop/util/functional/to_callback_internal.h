@@ -68,48 +68,38 @@ class CallbackToSig {
 };
 
 template <bool Permanent, typename Functor>
-class FunctorClosure final : public Closure {
+class FunctorClosure;
+
+template <typename Functor>
+class FunctorClosure</*Permanent=*/false, Functor> final : public Closure {
  public:
   // Always move-constructed.
   explicit FunctorClosure(
       Functor functor, perftools::tracing::StringLabel label =
                            perftools::tracing::TraceSourceLocation::current())
       : Closure(nullptr),
-        inline_context_(
-            std::conditional_t<Permanent, ::base::Context::DefaultInitType,
-                               ::base::Context::ThreadInitType>()),
+        inline_context_(::base::Context::ThreadInitType()),
         functor_(std::move(functor)),
-        label_(std::move(label)) {
-    // Ensure the context is non-null. We reset this pointer before ~Closure can
-    // double free it.
-    context_.reset(&inline_context_);
-  }
-
-  ~FunctorClosure() override {
-    // Ensure the context is not freed when the base class destructor is called.
-    context_.release();
-  }
+        label_(std::move(label)) {}
 
   // This type is neither copyable nor movable.
   FunctorClosure(const FunctorClosure&) = delete;
   FunctorClosure& operator=(const FunctorClosure&) = delete;
 
   void Run() override {
-    if constexpr (Permanent) {
-      functor()();
-    } else {
-      base::WithContext with(std::move(this->inline_context_), label_);
-      auto delete_self = absl::Cleanup([this] { delete this; });
-      functor()();
-    }
+    base::WithContext with(std::move(this->inline_context_), label_);
+    auto delete_self = absl::Cleanup([this] { delete this; });
+    functor()();
   }
 
-  bool IsRepeatable() const override { return Permanent; }
+  bool IsRepeatable() const override { return false; }
 
  private:
+  ::base::Context* SlowContextPtr() override { return &inline_context_; }
+
   // Returns `functor_` cast to the proper lvalue or rvalue function reference.
-  FunctorRef<Permanent, Functor> functor() {
-    return static_cast<FunctorRef<Permanent, Functor>>(functor_);
+  FunctorRef</*Permanent=*/false, Functor> functor() {
+    return static_cast<FunctorRef</*Permanent=*/false, Functor>>(functor_);
   }
 
   // This is stored inline to avoid an extra heap allocation and pointer
@@ -117,6 +107,32 @@ class FunctorClosure final : public Closure {
   base::Context inline_context_;
   Functor functor_;
   const perftools::tracing::StringLabel label_;
+};
+
+template <typename Functor>
+class FunctorClosure</*Permanent=*/true, Functor> final : public Closure {
+ public:
+  explicit FunctorClosure(Functor functor)
+      : Closure(nullptr), functor_(std::move(functor)) {}
+
+  // This type is neither copyable nor movable.
+  FunctorClosure(const FunctorClosure&) = delete;
+  FunctorClosure& operator=(const FunctorClosure&) = delete;
+
+  void Run() override { functor()(); }
+
+  bool IsRepeatable() const override { return true; }
+
+ private:
+  ::base::Context* SlowContextPtr() override {
+    return MaterializeDefaultContext();
+  }
+
+  FunctorRef</*Permanent=*/true, Functor> functor() {
+    return static_cast<FunctorRef</*Permanent=*/true, Functor>>(functor_);
+  }
+
+  Functor functor_;
 };
 
 template <typename F, typename Sig, typename E = void>

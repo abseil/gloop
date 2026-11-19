@@ -139,6 +139,8 @@ cc_test(
     size = "small",
     srcs = ["callback_unittest.cc"],
     deps = [
+        ":callback",
+        ":context",
         "//gloop:gloop_test_main",
         "//gloop/util/functional:from_callback",
         "//gloop/util/functional:to_callback",

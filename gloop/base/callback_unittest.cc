@@ -18,11 +18,16 @@
 #include "gloop/enforce_gloop_support.h"
 // clang-format on
 
+#include "gloop/base/callback.h"
+
+#include <cstddef>
 #include <string>
+#include <type_traits>
 
 #include "absl/functional/bind_front.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
+#include "gloop/base/context.h"
 #include "gloop/util/functional/from_callback.h"
 #include "gloop/util/functional/to_callback.h"
 #include "gloop/util/functional/with_context.h"
@@ -88,5 +93,32 @@ TEST(Callback, AllowsTypeConversionForPreboundArgsInFreeFunction) {
           absl::bind_front(GetStringLength, s));
   (cb)();
 }
+
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
+static_assert(!std::is_copy_constructible_v<Closure> &&
+              !std::is_copy_assignable_v<Closure>);
+
+struct TestClosure : public Closure {
+  TestClosure() = default;
+  explicit TestClosure(std::nullptr_t) : Closure(nullptr) {}
+  explicit TestClosure(::base::Context::DefaultInitType init) : Closure(init) {}
+  explicit TestClosure(::base::Context::ThreadInitType init) : Closure(init) {}
+  void Run() override {}
+};
+
+TEST(Callback, ClosureConstructorsInitializeOrOmitContext) {
+  EXPECT_NE(TestClosure().context_ptr(), nullptr);
+  EXPECT_NE(TestClosure(::base::Context::kDefault).context_ptr(), nullptr);
+  EXPECT_NE(TestClosure(::base::Context::kThread).context_ptr(), nullptr);
+  EXPECT_EQ(TestClosure(nullptr).context_ptr(), nullptr);
+}
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 }  // namespace
