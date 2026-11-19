@@ -112,13 +112,12 @@ enum class ControlFlowType : uint16_t {
   // Default value for undefined or unknown flow types.
   kUndefined,
 
-  // Generic control flow: there is a causal edge defined from the first to the
-  // second event in the set of time-ordered pairs of Generic Flow events with
-  // the same cooperative id. E.g., for a set of Flow events with the same coop
-  // id, in time order: A, B, C, and D. We expect the causal edges (A->B) and
-  // (C->D) in the causal graph.
-  // Applications should prefer to use explicit `Schedule` and `Continue` flow
-  // types to avoid ambiguity from the timing of possibly overlapping events.
+  // Generic control flow: Generic Flow events with the same cooperative id form
+  // a time-ordered chain, with a causal edge from each event to the next. E.g.,
+  // for a set of Generic Flow events with the same coop id, in time order: A,
+  // B, C, and D, we expect the causal edges (A->B), (B->C) and (C->D) in the
+  // causal graph. Applications needing strictly paired causality should use
+  // explicit `Schedule` and `Continue` flow types instead.
   kGeneric = 1,
 
   // Control flow schedule: there is a causal edge defined to a corresponding
