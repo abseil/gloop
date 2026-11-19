@@ -296,7 +296,7 @@ TEST(FibureFutureTest, MutableLambda) {
 
 TEST(FiberFutureTest, StdFunctionFiberFuture) {
   static constexpr int kFoobar = 42;
-  std::function<int(void)> func = [] { return kFoobar; };
+  std::function<int()> func = [] { return kFoobar; };
   FiberFuture<int> future(func);
   EXPECT_EQ(future.Get(), kFoobar);
 }
@@ -308,7 +308,7 @@ struct NotDefaultConstructible {
 
 TEST(FiberFutureTest, NotDefaultConstructible) {
   static constexpr int kFoobar = 42;
-  std::function<NotDefaultConstructible(void)> func = [] {
+  std::function<NotDefaultConstructible()> func = [] {
     return NotDefaultConstructible(kFoobar);
   };
   FiberFuture<NotDefaultConstructible> future(func);
@@ -337,7 +337,7 @@ class CustomFiber : public thread::Fiber {
 
 TEST(FiberFutureTest, StdFunctionCustomFiberFuture) {
   static constexpr int kFoobar = 42;
-  std::function<int(void)> func = [] { return kFoobar; };
+  std::function<int()> func = [] { return kFoobar; };
   FiberFuture<int, CustomFiber> future(func);
   EXPECT_EQ(future.Get(), kFoobar);
 }
