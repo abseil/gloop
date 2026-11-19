@@ -489,18 +489,23 @@ WithCensusHandle::~WithCensusHandle() {
 }
 
 // static
-//
-// TODO: this function needs to use an "unpublish while modifying"
-// critical section to avoid allowing CurrentTraceContextNoAlloc to see a
-// potentially inconsistent trace context.
 void WithCensusHandle::SwapCurrentCensusHandle(CensusHandle& handle) {
-  Context* absl_nonnull const current_context = per_thread_context.pointer();
-
-  using std::swap;
 #ifdef ENABLE_CONTEXT_ORIGIN
-  CurrentCensusHandleChanging(&current_context->tc_, &handle);
+  // Arrange for listeners to know that the census handle is changing.
+  CurrentCensusHandleChanging(&per_thread_context.pointer()->tc_, &handle);
 #endif
-  swap(current_context->tc_.census_handle_, handle);
+
+  // Use a critical section for the same reason as in
+  // SwapCurrentContextWithoutNotifying.
+  //
+  // Note that we still need a critical section, despite the fact that
+  // CensusHandle internally uses an atomic, because it provides no release
+  // semantics or post-unpublish compiler barrier.
+  per_thread_context.MutateInCriticalSection(
+      [&handle](Context& current_context) {
+        using std::swap;
+        swap(current_context.tc_.census_handle_, handle);
+      });
 }
 
 const CensusHandle& CensusAccess::GetCurrentHandle() {
