@@ -374,9 +374,6 @@ WithTraceContext::WithTraceContext(const TraceContext& switch_to,
           label,
       } {}
 
-// TODO: this function needs to use an "unpublish while modifying"
-// critical section to avoid allowing CurrentTraceContextNoAlloc to see a
-// potentially inconsistent trace context.
 WithTraceContext::WithTraceContext(TraceContext&& switch_to,
                                    const perftools::tracing::StringRef label) {
   TraceContext* absl_nonnull current = per_thread_context.pointer()->trace();
@@ -397,15 +394,30 @@ WithTraceContext::WithTraceContext(TraceContext&& switch_to,
     return;
   }
 
-  // Move the current context into previous_, so we can restore it later in our
-  // destructor.
-  new (&previous_) TraceContext(std::move(*current));
-
-  // Construct over the current context with the contents of the input.
+  // Unpublish the context while we swap out its trace context, ensuring that
+  // CurrentTraceContextNoAlloc can't see an inconsistent state if it's called
+  // from a signal handler that interrupts us while swapping.
   //
-  // TODO: this is wrong for an arbitrary type, because we haven't
-  // destroyed `*current` yet. Document what makes it okay for TraceContext.
-  current = new (current) TraceContext(std::move(switch_to));
+  // Note that we expect to meet MutateInCriticalSection's requirements of not
+  // calling back in to the thread-local from the critical section except
+  // through the safe_pointer method, because TraceContext's move constructor
+  // doesn't call any user code. It may take locks and allocate for reference
+  // tracking (http://shortn/_vF10T3sWFp), but neither of these should be
+  // accessing the current context except through *NoAlloc hooks.
+  current = per_thread_context.MutateInCriticalSection(
+      [this, &switch_to](Context& current_context) {
+        // Move the current trace context into previous_, so we can restore it
+        // later in our destructor.
+        new (&previous_) TraceContext(std::move(*current_context.trace()));
+
+        // Construct over the current trace context with the contents of the
+        // input.
+        //
+        // TODO: this is wrong for an arbitrary type, because we
+        // haven't destroyed *current_context.trace() yet. Document what makes
+        // it okay for TraceContext.
+        return new (current_context.trace()) TraceContext(std::move(switch_to));
+      });
 }
 
 WithTraceContext::~WithTraceContext() {

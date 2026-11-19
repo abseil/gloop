@@ -1070,6 +1070,9 @@ inline TraceContext::~TraceContext() {
   if (InternalHasTracer()) this->AbandonTracer();
 }
 
+// Note that it's important that this function not call any code that may access
+// the thread-local context. See WithTraceContext::WithTraceContext in
+// context.cc.
 inline TraceContext::TraceContext(TraceContext&& c) noexcept
     : rpc_id_(c.rpc_id_),
       parent_rpc_id_(c.parent_rpc_id_),
@@ -1092,6 +1095,7 @@ inline TraceContext::TraceContext(TraceContext&& c) noexcept
 #ifdef ENABLE_TRACER_REF_TRACKING
   c.tracer_owner_.reset();
 #endif
+
   // No rpc_add_ktrace needed here since the current TraceContext can not be
   // replaced via move constructor.
 }
