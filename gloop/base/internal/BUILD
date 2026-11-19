@@ -73,6 +73,18 @@ cc_library(
 )
 
 cc_library(
+    name = "init_google_temp_flags",
+    hdrs = ["init_google_temp_flags.h"],
+    visibility = [
+        "//gloop/base:__pkg__",
+    ],
+    deps = [
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/flags:flag",
+    ],
+)
+
+cc_library(
     name = "logging",
     hdrs = ["logging.h"],
     visibility = [

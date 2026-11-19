@@ -88,6 +88,7 @@
 #include "gloop/base/googleinit.h"
 #include "gloop/base/init_google_flags.h"
 #include "gloop/base/internal/init_google.h"
+#include "gloop/base/internal/init_google_temp_flags.h"
 #include "gloop/base/internal/logging_globals.h"
 #include "gloop/base/logging.h"
 #include "gloop/base/raw_logging.h"
@@ -151,6 +152,24 @@ ABSL_FLAG(bool, syslog_on_start, true,
 
 // TODO: This should move somewhere reasonable (selectserver.cc)
 ABSL_FLAG(std::string, data_version, "", "Data version of the server");
+
+ABSL_FLAG(int32_t, temp_bad_calls_before_init_google_returns_action, 3,
+          "behaviour on an illegal call before InitGoogle() returns.  "
+          "0=ignore; 1=INFO log; 2=ERROR log; 3=FATAL.  "
+          "This flag may be removed at will, and the behaviour will "
+          "be FATAL.  Please do not count on the flag continuing to exist; "
+          "instead fix your code not to make illegal calls before "
+          "InitGoogle() returns.");
+
+ABSL_FLAG(int32_t,
+          temp_grandfathered_bad_calls_before_init_google_returns_action, -1,
+          "behaviour on an illegal, but temporarily permitted calls before "
+          "InitGoogle() returns.  -1 is default for the allowlist entry.  "
+          "0=ignore; 1=INFO log; 2=ERROR log; 3=FATAL.  "
+          "This flag may be removed at will, and the behaviour will "
+          "be FATAL.  Please do not count on the flag continuing to exist; "
+          "instead fix your code not to make illegal calls before "
+          "InitGoogle() returns.");
 
 // Operating system name used for diagnostic error messages.  Only
 // defined for operating systems for which errors are reported.

@@ -1948,6 +1948,7 @@ cc_library(
         ":sysinfo",
         ":user_name",
         "//gloop/base/internal:init_google",
+        "//gloop/base/internal:init_google_temp_flags",
         "//gloop/base/internal:logging_globals",
         "//gloop/concurrent/rcu",
         "@abseil-cpp//absl/base",
