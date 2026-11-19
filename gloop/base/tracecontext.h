@@ -141,7 +141,6 @@ namespace base {
 
 class Context;
 class Tracer;
-class WithCensusHandle;
 
 }  // namespace base
 
@@ -224,7 +223,6 @@ class TraceContext {
 
   friend class base::CensusAccess;
   friend class base::Context;
-  friend class base::WithCensusHandle;
 };
 
 class CurrentTraceContext {
@@ -247,7 +245,6 @@ namespace base {
 
 class Context;
 class Tracer;
-class WithCensusHandle;
 
 namespace subtle {
 class WithLifetimeBoundContext;
@@ -911,7 +908,6 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI TraceContext {
   friend class TracerTest;
   friend class base::Context;
   friend class base::CensusAccess;
-  friend class base::WithCensusHandle;
 
   // For AbandonTracer.
   friend class perftools::tracing::OperationTraceSpan;

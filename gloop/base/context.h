@@ -72,7 +72,6 @@ class Fiber;
 
 namespace base {
 
-// Used to provide const ref access to the context's CensusHandle.
 class CensusAccess;
 
 namespace internal {
@@ -198,7 +197,6 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
   friend class ::thread::Fiber;
   // For SwapDeadline.
   friend class WithDeadline;
-  // For accessing a const reference to the CensusHandle.
   friend class CensusAccess;
   // For accessing census_handle_ref().
   friend class subtle::WithLifetimeBoundContext;

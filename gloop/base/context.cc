@@ -495,29 +495,25 @@ void WithCensusHandle::SwapCurrentCensusHandle(CensusHandle& handle) {
   CurrentCensusHandleChanging(&per_thread_context.pointer()->tc_, &handle);
 #endif
 
-  // Use a critical section for the same reason as in
-  // SwapCurrentContextWithoutNotifying.
-  //
-  // Note that we still need a critical section, despite the fact that
-  // CensusHandle internally uses an atomic, because it provides no release
-  // semantics or post-unpublish compiler barrier.
-  per_thread_context.MutateInCriticalSection(
-      [&handle](Context& current_context) {
-        using std::swap;
-        swap(current_context.tc_.census_handle_, handle);
-      });
+  CensusAccess::SwapCurrentHandle(&handle);
 }
 
 const CensusHandle& CensusAccess::GetCurrentHandle() {
   return CurrentContext().trace()->census_handle_;
 }
 
-// TODO: this function needs to use an "unpublish while modifying"
-// critical section to avoid allowing CurrentTraceContextNoAlloc to see a
-// potentially inconsistent trace context.
+// static
 void CensusAccess::SwapCurrentHandle(CensusHandle* const h) {
-  using std::swap;
-  swap(per_thread_context.pointer()->trace()->census_handle_, *h);
+  // Use a critical section for the same reason as in
+  // SwapCurrentContextWithoutNotifying.
+  //
+  // Note that we still need a critical section, despite the fact that
+  // CensusHandle internally uses an atomic, because it provides no release
+  // semantics or post-unpublish compiler barrier.
+  per_thread_context.MutateInCriticalSection([h](Context& current_context) {
+    using std::swap;
+    swap(current_context.tc_.census_handle_, *h);
+  });
 }
 
 const CensusHandle& CensusAccess::GetHandleFromContext(const Context& context) {

@@ -101,7 +101,6 @@ class SharedContext;
 
 }  // namespace internal
 
-// Only stats_census implementation should be using this.
 class CensusAccess {
  private:
   // Returns a reference to the current Context's handle.
@@ -117,6 +116,7 @@ class CensusAccess {
   static const CensusHandle& GetHandleFromContext(const Context& c);
 
   friend class ContextTest;
+  friend class WithCensusHandle;
   friend class ::stats_census::censushandle_internal::CensusHandleManager;
 };
 
