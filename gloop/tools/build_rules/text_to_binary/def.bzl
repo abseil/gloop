@@ -162,6 +162,7 @@ def _run_protoc_impl(ctx):
 
     args = ctx.actions.args()
     args.set_param_file_format("multiline")
+    args.use_param_file("@%s", use_always = True)
     args.add("--encode=%s" % ctx.attr.proto_name)
     args.add("--deterministic_output")
     args.add_joined(
@@ -170,24 +171,19 @@ def _run_protoc_impl(ctx):
         format_joined = "--descriptor_set_in=%s",
     )
 
-    # We always use a flagfile to avoid flattening the depset to check command line length.
-    flagfile = ctx.actions.declare_file(ctx.attr.name + ".flagfile")
-    ctx.actions.write(
-        output = flagfile,
-        content = args,
-    )
-
-    redirect = [
-        "< %s" % ctx.file.src.path,
-        "> %s" % out.path,
-    ]
+    shell_args = ctx.actions.args()
+    shell_args.add(ctx.executable._tool)
+    shell_args.add(ctx.file.src)
+    shell_args.add(out)
 
     ctx.actions.run_shell(
         outputs = ctx.outputs.outs,
-        inputs = depset([ctx.file.src, flagfile], transitive = [proto_descriptor_sets]),
+        inputs = depset([ctx.file.src], transitive = [proto_descriptor_sets]),
         tools = [ctx.executable._tool],
-        command = " ".join([ctx.executable._tool.path, "@%s" % flagfile.path] + redirect),
+        arguments = [shell_args, args],
+        command = '"$1" "$4" < "$2" > "$3"',
         mnemonic = "ProtoDataCompilerFlagfile",
+        execution_requirements = {"supports-path-mapping": "1"},
         use_default_shell_env = False,
     )
     return DefaultInfo(runfiles = ctx.runfiles(files = ctx.outputs.outs))
