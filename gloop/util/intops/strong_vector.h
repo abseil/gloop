@@ -74,6 +74,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/log/check.h"
 #include "gloop/util/intops/strong_int.h"
 
@@ -249,13 +250,27 @@ class StrongVector : protected std::vector<NativeType, Alloc> {
     return value;
   }
 
-  iterator insert(const_iterator pos, const value_type& x) {
+  iterator insert(const_iterator pos, const value_type& x)
+    requires(!std::is_pointer_v<value_type>)
+  {
     iterator result = ParentType::insert(pos, x);
     DCHECK(IsValidSize());
     return result;
   }
-  iterator insert(const_iterator pos, value_type&& x) {
+  iterator insert(const_iterator pos, value_type&& x)
+    requires(!std::is_pointer_v<value_type>)
+  {
     iterator result = ParentType::insert(pos, std::move(x));
+    DCHECK(IsValidSize());
+    return result;
+  }
+  // For vectors of raw pointers: the vector retains `x`, so the pointee must
+  // outlive the vector.
+  iterator insert(const_iterator pos,
+                  value_type x ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
+    requires(std::is_pointer_v<value_type>)
+  {
+    iterator result = ParentType::insert(pos, x);
     DCHECK(IsValidSize());
     return result;
   }
@@ -269,12 +284,24 @@ class StrongVector : protected std::vector<NativeType, Alloc> {
     DCHECK(IsValidSize());
   }
 
-  void push_back(const value_type& val) {
+  void push_back(const value_type& val)
+    requires(!std::is_pointer_v<value_type>)
+  {
     ParentType::push_back(val);
     DCHECK(IsValidSize());
   }
-  void push_back(value_type&& val) {
+  void push_back(value_type&& val)
+    requires(!std::is_pointer_v<value_type>)
+  {
     ParentType::push_back(std::move(val));
+    DCHECK(IsValidSize());
+  }
+  // For vectors of raw pointers: the vector retains `val`, so the pointee must
+  // outlive the vector.
+  void push_back(value_type val ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
+    requires(std::is_pointer_v<value_type>)
+  {
+    ParentType::push_back(val);
     DCHECK(IsValidSize());
   }
 

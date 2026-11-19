@@ -109,6 +109,7 @@ cc_library(
     deps = [
         ":intops",
         "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:fixed_array",
         "@abseil-cpp//absl/log:check",
     ],
