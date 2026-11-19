@@ -155,6 +155,7 @@ class TraceContext {
   explicit constexpr TraceContext(DefaultInitType) {}
   explicit TraceContext(ThreadInitType) {}
   TraceContext(const TraceContext&) = default;
+  TraceContext(TraceContext&&) = default;
   TraceContext& operator=(const TraceContext&) = default;
   TraceContext& operator=(TraceContext&&) = default;
   explicit TraceContext(const TraceContext*) {}
@@ -179,7 +180,6 @@ class TraceContext {
       perftools::tracing::StringRef label =
           perftools::tracing::TraceSourceLocation::current()) {}
   bool has_sync_tracer() const { return false; }
-  friend void swap(TraceContext&, TraceContext&) noexcept {}
   static const TraceContext* Current() { return nullptr; }
   bool CanRecordAnnotations() const { return false; }
   base::Tracer* tracer() const { return nullptr; }
