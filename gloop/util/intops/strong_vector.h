@@ -245,15 +245,43 @@ class StrongVector : protected std::vector<NativeType, Alloc> {
   }
 
   template <typename... Args>
+    requires(!strong_vector_internal::ViewElement<value_type> ||
+             sizeof...(Args) != 1 ||
+             (std::is_constructible_v<value_type, Args...> &&
+              !(std::is_convertible_v<Args, value_type> && ...)))
   iterator emplace(const_iterator pos, Args&&... args) {
     iterator result = ParentType::emplace(pos, std::forward<Args>(args)...);
     DCHECK(IsValidSize());
     return result;
   }
+  // For ViewElement types: the vector retains `x`, so the referenced object
+  // must outlive the vector.
+  iterator emplace(const_iterator pos,
+                   value_type x ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
+    requires(strong_vector_internal::ViewElement<value_type>)
+  {
+    iterator result = ParentType::emplace(pos, std::move(x));
+    DCHECK(IsValidSize());
+    return result;
+  }
 
   template <typename... Args>
+    requires(!strong_vector_internal::ViewElement<value_type> ||
+             sizeof...(Args) != 1 ||
+             (std::is_constructible_v<value_type, Args...> &&
+              !(std::is_convertible_v<Args, value_type> && ...)))
   reference emplace_back(Args&&... args) {
     reference value = ParentType::emplace_back(std::forward<Args>(args)...);
+    DCHECK(IsValidSize());
+    return value;
+  }
+  // For ViewElement types: the vector retains `val`, so the referenced object
+  // must outlive the vector.
+  reference emplace_back(
+      value_type val ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
+    requires(strong_vector_internal::ViewElement<value_type>)
+  {
+    reference value = ParentType::emplace_back(std::move(val));
     DCHECK(IsValidSize());
     return value;
   }
