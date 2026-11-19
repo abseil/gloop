@@ -449,10 +449,8 @@ class WithTraceContext {
  private:
   // `previous_` captures the current thread local `TraceContext` value in the
   // constructor directly before we swap it with the `switch_to` instance.
-  // We explicitly manage its life-cycle and do not explicitly destroy it as
-  // we always leave it in a 'moved from' state, and `TraceContext` explicitly
-  // guarantees a 'moved from' instance does not hold non-trivial data.
-  // http://eel.is/c++draft/basic.life#5
+  // We explicitly manage its lifecycle in order to accommodate the strange
+  // control flow in our constructor.
   union {
     TraceContext previous_;
   };

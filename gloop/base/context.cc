@@ -408,14 +408,14 @@ WithTraceContext::WithTraceContext(TraceContext&& switch_to,
   current = new (current) TraceContext(std::move(switch_to));
 }
 
-// TODO: this function needs to use an "unpublish while modifying"
-// critical section to avoid allowing CurrentTraceContextNoAlloc to see a
-// potentially inconsistent trace context.
-//
-// TODO: for this particular function the TODO above is not
-// sufficient to avoid re-entrancy because the move assignment operator may run
-// arbitrary user code in destructors.
 WithTraceContext::~WithTraceContext() {
+  // Ensure that once all the logic below is done, we destroy `previous_`.
+  //
+  // It's in a union only so that our constructor can delay its initialization.
+  // Emulate it being a normal member that is treated normally by the
+  // destructor.
+  const absl::Cleanup destroy = [&] { previous_.~TraceContext(); };
+
   TraceContext* absl_nonnull const current =
       per_thread_context.pointer()->trace();
 
@@ -426,11 +426,9 @@ WithTraceContext::~WithTraceContext() {
     current->AfterRestoreCurrent(ContextAccess());
   };
 
-  // Overwrite the current trace context's contents.
-  *current = std::move(previous_);
-
-  DCHECK(!previous_.CanRecordAnnotations() &&
-         !previous_.has_sync_tracer());  // NOLINT
+  // Swap the contents of the current trace context with the previously saved
+  // one.
+  SwapCurrentTraceContextWithoutNotifying(previous_);
 }
 
 WithDeadline::WithDeadline(const absl::Time new_deadline)
