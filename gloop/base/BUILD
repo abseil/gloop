@@ -1962,6 +1962,7 @@ cc_library(
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/flags:program_name",
         "@abseil-cpp//absl/flags:usage",
+        "@abseil-cpp//absl/flags:usage_internal",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:log_sink_registry",
@@ -2364,6 +2365,7 @@ cc_library(
         "@abseil-cpp//absl/flags:usage",
         "@abseil-cpp//absl/flags:usage_internal",
         "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/types:source_location",
     ],
     implementation_deps = [
@@ -2406,6 +2408,7 @@ cc_test(
         "@abseil-cpp//absl/flags:marshalling",
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/flags:reflection",
+        "@abseil-cpp//absl/flags:usage_internal",
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:die_if_null",

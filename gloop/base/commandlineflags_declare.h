@@ -25,9 +25,8 @@
 #ifndef THIRD_PARTY_GLOOP_BASE_COMMANDLINEFLAGS_DECLARE_H_
 #define THIRD_PARTY_GLOOP_BASE_COMMANDLINEFLAGS_DECLARE_H_
 
-#include <string>  // IWYU pragma: keep
-
-#include "absl/flags/declare.h"  // IWYU pragma: keep
+#include <cstdint>  // IWYU pragma: keep
+#include <string>   // IWYU pragma: keep
 
 #define GFLAGS_DLL_DECLARE_FLAG /* rewritten to be non-empty in windows dir */
 
