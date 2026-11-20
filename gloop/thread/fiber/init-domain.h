@@ -34,7 +34,6 @@
 #include <memory>
 #include <string>
 
-#include "absl/flags/declare.h"
 #include "gloop/base/scheduling/domain.h"
 #include "gloop/base/scheduling/scheduler.h"
 
