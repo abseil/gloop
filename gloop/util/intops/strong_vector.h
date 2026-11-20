@@ -72,6 +72,7 @@
 #include <limits>
 #include <memory>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "absl/base/attributes.h"
@@ -79,6 +80,13 @@
 #include "gloop/util/intops/strong_int.h"
 
 namespace util_intops {
+
+namespace strong_vector_internal {
+// Matches non-owning element types whose referenced object must outlive the
+// StrongVector (currently raw pointers; to be expanded to view types).
+template <typename T>
+concept ViewElement = std::is_pointer_v<T>;
+}  // namespace strong_vector_internal
 
 template <typename IntType, typename NativeType,
           typename Alloc = std::allocator<NativeType>>
@@ -251,26 +259,26 @@ class StrongVector : protected std::vector<NativeType, Alloc> {
   }
 
   iterator insert(const_iterator pos, const value_type& x)
-    requires(!std::is_pointer_v<value_type>)
+    requires(!strong_vector_internal::ViewElement<value_type>)
   {
     iterator result = ParentType::insert(pos, x);
     DCHECK(IsValidSize());
     return result;
   }
   iterator insert(const_iterator pos, value_type&& x)
-    requires(!std::is_pointer_v<value_type>)
+    requires(!strong_vector_internal::ViewElement<value_type>)
   {
     iterator result = ParentType::insert(pos, std::move(x));
     DCHECK(IsValidSize());
     return result;
   }
-  // For vectors of raw pointers: the vector retains `x`, so the pointee must
-  // outlive the vector.
+  // For ViewElement types: the vector retains `x`, so the referenced object
+  // must outlive the vector.
   iterator insert(const_iterator pos,
                   value_type x ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
-    requires(std::is_pointer_v<value_type>)
+    requires(strong_vector_internal::ViewElement<value_type>)
   {
-    iterator result = ParentType::insert(pos, x);
+    iterator result = ParentType::insert(pos, std::move(x));
     DCHECK(IsValidSize());
     return result;
   }
@@ -285,23 +293,23 @@ class StrongVector : protected std::vector<NativeType, Alloc> {
   }
 
   void push_back(const value_type& val)
-    requires(!std::is_pointer_v<value_type>)
+    requires(!strong_vector_internal::ViewElement<value_type>)
   {
     ParentType::push_back(val);
     DCHECK(IsValidSize());
   }
   void push_back(value_type&& val)
-    requires(!std::is_pointer_v<value_type>)
+    requires(!strong_vector_internal::ViewElement<value_type>)
   {
     ParentType::push_back(std::move(val));
     DCHECK(IsValidSize());
   }
-  // For vectors of raw pointers: the vector retains `val`, so the pointee must
-  // outlive the vector.
+  // For ViewElement types: the vector retains `val`, so the referenced object
+  // must outlive the vector.
   void push_back(value_type val ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS)
-    requires(std::is_pointer_v<value_type>)
+    requires(strong_vector_internal::ViewElement<value_type>)
   {
-    ParentType::push_back(val);
+    ParentType::push_back(std::move(val));
     DCHECK(IsValidSize());
   }
 
