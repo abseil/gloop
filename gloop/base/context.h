@@ -303,9 +303,8 @@ const Context& DefaultContext();
 const Context& CurrentContext();
 
 // Like calling CurrentContext and then Context::trace_context, but safe to use
-// in signal handlers.
-//
-// (…except that it's not actually safe: http://b/583569210)
+// in signal handlers. Its result may or may not be safe to use; see caveats
+// below.
 //
 // If the thread's context hasn't yet been created, return null. Otherwise
 // return a pointer to the result of Context::trace_context for the thread's
@@ -313,6 +312,30 @@ const Context& CurrentContext();
 //
 // Note that this may spuriously act as if the thread has no context if the
 // context is in the process of being modified on the calling thread.
+//
+// Caveats
+// -------
+//
+// The following known signal safety holes make it not technically okay to use
+// the result of this function when interrupting arbitrary code unless following
+// some strict and vague rules:
+//
+// *   Most modifications to the thread-local trace context come with
+//     notification logic that calls into the trace context in a non-atomic way.
+//     The signal handler must not access any trace context state affected by
+//     these calls.
+//
+// *   APIs backed by internal::MutableCurrentContext::MutableCurrentTrace allow
+//     arbitrary unsynchronized mutations to the thread-local trace context. The
+//     signal handler must not access any state that may be modified in this
+//     manner by interrupted code.
+//
+// *   static_threadlocal.h doesn't correctly synchronize with signal handlers
+//     unless BASE_INTERNAL_PER_THREAD_TLS is set, so the result may not be safe
+//     to use with more exotic toolchains.
+//
+// Of course it's also not okay to call any methods of TraceContext that aren't
+// themselves signal safe, e.g. TraceContext::DebugString.
 const TraceContext* CurrentTraceContextNoAlloc();
 
 // Scoped object that sets the current thread's context to switch_to until

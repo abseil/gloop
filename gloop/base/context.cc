@@ -119,14 +119,6 @@ namespace internal {
 
 absl::NoDestructor<Context> background_context{Context::kDefault};
 
-// TODO: even though this function only swaps the context pointer
-// at its heart, the various pieces of notification logic do modify the trace
-// context non-atomically, which may cause problems for signal handlers using
-// the result of CurrentTraceContextNoAlloc if they aren't careful only to touch
-// the parts not modified by that notification logic. This should at least be
-// documented as a (vague) requirement/warning on CurrentTraceContextNoAlloc.
-// Note that this TODO applies to pretty much all of the modification functions
-// in this file (including RestoreContext), not just this one.
 Context* absl_nonnull SwapContext(ContextAccess access,
                                   Context* absl_nonnull const context,
                                   const perftools::tracing::StringRef label) {
@@ -204,9 +196,6 @@ const TraceContext* CurrentTraceContextNoAlloc() {
   return context != nullptr ? &context->trace_context() : nullptr;
 }
 
-// TODO: promiscuous use of APIs backed by this function will very
-// likely remain a signal-safety issue even after fixing this file. Document
-// this.
 TraceContext* internal::MutableCurrentContext::MutableCurrentTrace() {
   return &per_thread_context.pointer()->tc_;
 }
