@@ -1093,8 +1093,7 @@ inline TraceContext::TraceContext(TraceContext&& c) noexcept
   c.tracer_owner_.reset();
 #endif
 
-  // No rpc_add_ktrace needed here since the current TraceContext can not be
-  // replaced via move constructor.
+  // No rpc_add_ktrace needed here.
 }
 
 inline TraceContext& TraceContext::operator=(TraceContext&& c) noexcept {
