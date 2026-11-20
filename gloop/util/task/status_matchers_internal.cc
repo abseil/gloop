@@ -25,6 +25,7 @@
 #include <utility>
 
 #include "absl/status/status.h"
+#include "absl/status/status_builder.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "gloop/util/status/error_space.h"

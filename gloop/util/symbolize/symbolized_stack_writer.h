@@ -30,6 +30,8 @@
 #ifndef THIRD_PARTY_GLOOP_UTIL_SYMBOLIZE_SYMBOLIZED_STACK_WRITER_H_
 #define THIRD_PARTY_GLOOP_UTIL_SYMBOLIZE_SYMBOLIZED_STACK_WRITER_H_
 
+#include <stdint.h>
+
 #include <memory>
 #include <string>
 

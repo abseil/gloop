@@ -133,6 +133,7 @@ cc_test(
     name = "to_callback_test",
     srcs = ["to_callback_test.cc"],
     deps = [
+        ":from_callback",
         ":to_callback",
         "//gloop:gloop_test_main",
         "//gloop/base:callback",

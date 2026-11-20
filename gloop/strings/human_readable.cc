@@ -31,6 +31,7 @@
 
 #include "absl/log/check.h"
 #include "absl/numeric/int128.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/charconv.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"

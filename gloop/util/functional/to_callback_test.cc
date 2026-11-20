@@ -30,6 +30,7 @@
 #include "absl/log/log.h"
 #include "gloop/base/callback.h"
 #include "gloop/base/context.h"
+#include "gloop/util/functional/from_callback.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 

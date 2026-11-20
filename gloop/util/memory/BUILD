@@ -89,6 +89,7 @@ cc_test(
         "//gloop/base:log_file_flags",
         "//gloop/util/random:acmrandom",
         "@abseil-cpp//absl/base:config",
+        "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/log:flags",
         "@google_benchmark//:benchmark",
