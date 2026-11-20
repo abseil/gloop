@@ -90,6 +90,15 @@
 
 namespace {
 namespace absl_flags = absl::flags_internal;
+
+// Returns true iff `op` is the operations function for flag value type `T`.
+// Compares type ids rather than `op == &FlagOps<T>` so that checking for a type
+// does not force `FlagOps<T>` (and everything it uses, e.g. double formatting)
+// to be linked into binaries that have no flags of that type.
+template <typename T>
+bool IsOpFor(absl_flags::FlagOpFn op) {
+  return absl_flags::FastTypeId(op) == absl::FastTypeId<T>();
+}
 }  // namespace
 
 namespace {
