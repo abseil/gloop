@@ -55,7 +55,7 @@ static const char* so_relative_path =
 
 class ThreadIdentitySharedLibraryTest : public ::testing::Test {
  public:
-  virtual ~ThreadIdentitySharedLibraryTest() {}
+  ~ThreadIdentitySharedLibraryTest() override {}
 
   static void SetUpTestCase() {
     // Blaze bundled our shared object into runfiles, go find it.
