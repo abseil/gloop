@@ -267,11 +267,6 @@ class TraceEventListener {
   // Messages do not necessarily have to be actual messages sent over the wire:
   // some applications may emit send and receive events to force causality in
   // complex processes where automatically recording causality is infeasible.
-  virtual void OnTraceSend(StringRef label, MsgOrigin origin, MsgId id);
-  virtual void OnTraceReceive(StringRef label, MsgOrigin origin, MsgId id);
-
-  // TraceSend / TraceReceive events including a status code.
-  // The default implementation invokes the above methods.
   virtual void OnTraceSend(StringRef label, MsgOrigin origin, MsgId id,
                            absl::StatusCode status_code);
   virtual void OnTraceReceive(StringRef label, MsgOrigin origin, MsgId id,
@@ -282,10 +277,6 @@ class TraceEventListener {
   // `EndPoint` identifies the end point and type of session.
   virtual void OnTraceSessionStart(StringRef label, MsgId id,
                                    EndPoint end_point);
-  virtual void OnTraceSessionEnd(StringRef label, MsgId id, EndPoint end_point);
-
-  // OnTraceSessionEnd event including a status code.
-  // The default implementation invokes the above method.
   virtual void OnTraceSessionEnd(StringRef label, MsgId id, EndPoint end_point,
                                  absl::StatusCode status_code);
 
@@ -295,13 +286,6 @@ class TraceEventListener {
   // and server `SessionStart()` / `SessionFinish()` events defining the
   // streaming session lifecycle. `sequence` is the sequence number assigned by
   // the RPC service identifying the message on both client and server side.
-  virtual void OnTraceStreamingSend(MsgOrigin origin, MsgId id, MsgSequence seq,
-                                    MsgFlags flags);
-  virtual void OnTraceStreamingReceive(MsgOrigin origin, MsgId id,
-                                       MsgSequence seq, MsgFlags flags);
-
-  // TraceStreamingSend / TraceStreamingReceive events including a status code.
-  // The default implementation invokes the above methods.
   virtual void OnTraceStreamingSend(MsgOrigin origin, MsgId id, MsgSequence seq,
                                     MsgFlags flags,
                                     absl::StatusCode status_code);

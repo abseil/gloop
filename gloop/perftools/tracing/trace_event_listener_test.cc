@@ -52,20 +52,6 @@ class DefaultTraceEventListener : public TraceEventListener {
   void ReleaseEventListener() override {}
 };
 
-// Mocks only the legacy overloads; the status code overloads use the
-// TraceEventListener defaults.
-// TODO: b/573156798 - remove once old methods are deleted.
-class LegacyTraceEventListener : public DefaultTraceEventListener {
- public:
-  MOCK_METHOD(void, OnTraceSend, (StringRef, MsgOrigin, MsgId));
-  MOCK_METHOD(void, OnTraceReceive, (StringRef, MsgOrigin, MsgId));
-  MOCK_METHOD(void, OnTraceSessionEnd, (StringRef, MsgId, EndPoint));
-  MOCK_METHOD(void, OnTraceStreamingSend,
-              (MsgOrigin, MsgId, MsgSequence, MsgFlags));
-  MOCK_METHOD(void, OnTraceStreamingReceive,
-              (MsgOrigin, MsgId, MsgSequence, MsgFlags));
-};
-
 TEST(TraceEventListener, Contains) {
   DefaultTraceEventListener listener1, listener2;
   EXPECT_TRUE(listener1.Contains(&listener1));
@@ -141,38 +127,6 @@ TEST(TraceEventListener, InvokeAllEvents) {
   listener.OnTraceEndRegion();
   listener.OnTraceControlFlow("Flow", ControlFlowType::kSchedule,
                               ControlFlowId{3421}, ControlFlowSequence(1));
-}
-
-TEST(TraceEventListener, StatusCodeMethodsInvokeLegacyMethodsByDefault) {
-  StrictMock<LegacyTraceEventListener> mock;
-  // LegacyTraceEventListener only mocks the legacy overloads, so we invoke the
-  // status code overloads through the base class to reach the defaults.
-  TraceEventListener& listener = mock;
-
-  EXPECT_CALL(mock, OnTraceSend(Eq("Send"), MsgOrigin::kClient, MsgId{1}));
-  listener.OnTraceSend("Send", MsgOrigin::kClient, MsgId{1},
-                       absl::StatusCode::kOk);
-
-  EXPECT_CALL(mock, OnTraceReceive(Eq("Recv"), MsgOrigin::kServer, MsgId{2}));
-  listener.OnTraceReceive("Recv", MsgOrigin::kServer, MsgId{2},
-                          absl::StatusCode::kCancelled);
-
-  EXPECT_CALL(
-      mock, OnTraceSessionEnd(Eq("End"), MsgId{3}, EndPoint::kStreamingClient));
-  listener.OnTraceSessionEnd("End", MsgId{3}, EndPoint::kStreamingClient,
-                             absl::StatusCode::kOk);
-
-  EXPECT_CALL(mock, OnTraceStreamingSend(MsgOrigin::kClient, MsgId{4},
-                                         MsgSequence{5}, MsgFlags::kDefault));
-  listener.OnTraceStreamingSend(MsgOrigin::kClient, MsgId{4}, MsgSequence{5},
-                                MsgFlags::kDefault, absl::StatusCode::kOk);
-
-  EXPECT_CALL(mock,
-              OnTraceStreamingReceive(MsgOrigin::kServer, MsgId{6},
-                                      MsgSequence{7}, MsgFlags::kDefault));
-  listener.OnTraceStreamingReceive(MsgOrigin::kServer, MsgId{6}, MsgSequence{7},
-                                   MsgFlags::kDefault,
-                                   absl::StatusCode::kInternal);
 }
 
 TEST(TraceEventListenerPtr, ConfirmValidUniquePtrImplementation) {

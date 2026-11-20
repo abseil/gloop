@@ -41,14 +41,17 @@ void TraceEventListener::OnTraceWait(BarrierId, StringRef) {}
 void TraceEventListener::OnTraceContinue(BarrierId) {}
 void TraceEventListener::OnTraceObserved(BarrierId, StringRef) {}
 void TraceEventListener::OnTraceSignal(BarrierId, StringRef) {}
-void TraceEventListener::OnTraceSend(StringRef, MsgOrigin, MsgId) {}
-void TraceEventListener::OnTraceReceive(StringRef, MsgOrigin, MsgId) {}
+void TraceEventListener::OnTraceSend(StringRef, MsgOrigin, MsgId,
+                                     absl::StatusCode) {}
+void TraceEventListener::OnTraceReceive(StringRef, MsgOrigin, MsgId,
+                                        absl::StatusCode) {}
 void TraceEventListener::OnTraceSessionStart(StringRef, MsgId, EndPoint) {}
-void TraceEventListener::OnTraceSessionEnd(StringRef, MsgId, EndPoint) {}
+void TraceEventListener::OnTraceSessionEnd(StringRef, MsgId, EndPoint,
+                                           absl::StatusCode) {}
 void TraceEventListener::OnTraceStreamingSend(MsgOrigin, MsgId, MsgSequence,
-                                              MsgFlags) {}
+                                              MsgFlags, absl::StatusCode) {}
 void TraceEventListener::OnTraceStreamingReceive(MsgOrigin, MsgId, MsgSequence,
-                                                 MsgFlags) {}
+                                                 MsgFlags, absl::StatusCode) {}
 void TraceEventListener::OnTraceMark(StringRef, TraceSourceLocation location) {}
 // void TraceEventListener::OnTraceBeginRegion(StringRef label) {
 //   OnTraceBeginRegion(label, TraceSourceLocation::current());
@@ -58,33 +61,6 @@ void TraceEventListener::OnTraceEndRegion() {}
 void TraceEventListener::OnTraceControlFlow(StringRef, ControlFlowType,
                                             ControlFlowId,
                                             ControlFlowSequence) {}
-
-// TODO: b/573156798 - default to old methods until complete.
-void TraceEventListener::OnTraceSend(StringRef label, MsgOrigin origin,
-                                     MsgId msg_id, absl::StatusCode) {
-  OnTraceSend(label, origin, msg_id);
-}
-void TraceEventListener::OnTraceReceive(StringRef label, MsgOrigin origin,
-                                        MsgId msg_id, absl::StatusCode) {
-  OnTraceReceive(label, origin, msg_id);
-}
-void TraceEventListener::OnTraceSessionEnd(StringRef label, MsgId msg_id,
-                                           EndPoint end_point,
-                                           absl::StatusCode) {
-  OnTraceSessionEnd(label, msg_id, end_point);
-}
-void TraceEventListener::OnTraceStreamingSend(MsgOrigin origin, MsgId msg_id,
-                                              MsgSequence sequence,
-                                              MsgFlags flags,
-                                              absl::StatusCode) {
-  OnTraceStreamingSend(origin, msg_id, sequence, flags);
-}
-void TraceEventListener::OnTraceStreamingReceive(MsgOrigin origin, MsgId msg_id,
-                                                 MsgSequence sequence,
-                                                 MsgFlags flags,
-                                                 absl::StatusCode) {
-  OnTraceStreamingReceive(origin, msg_id, sequence, flags);
-}
 
 TraceEventListener* TraceEventListener::GetBridgingEventListener(StringRef) {
   return nullptr;

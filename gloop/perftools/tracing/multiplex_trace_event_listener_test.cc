@@ -95,14 +95,6 @@ TEST(MultiplexTraceEventListener, Basics) {
   EXPECT_CALL(first, OnTraceSignal(BarrierId{7648223}, Eq("Ping")));
   EXPECT_CALL(second, OnTraceSignal(BarrierId{7648223}, Eq("Ping")));
 
-  EXPECT_CALL(first,
-              OnTraceSend(Eq("Send it!"), MsgOrigin::kClient, MsgId{3332}));
-  EXPECT_CALL(second,
-              OnTraceSend(Eq("Send it!"), MsgOrigin::kClient, MsgId{3332}));
-  EXPECT_CALL(first,
-              OnTraceReceive(Eq("Send it!"), MsgOrigin::kServer, MsgId{3332}));
-  EXPECT_CALL(second,
-              OnTraceReceive(Eq("Send it!"), MsgOrigin::kServer, MsgId{3332}));
   EXPECT_CALL(first, OnTraceSend(Eq("Send it!"), MsgOrigin::kClient,
                                  MsgId{3332}, absl::StatusCode::kCancelled));
   EXPECT_CALL(second, OnTraceSend(Eq("Send it!"), MsgOrigin::kClient,
@@ -119,28 +111,12 @@ TEST(MultiplexTraceEventListener, Basics) {
   EXPECT_CALL(second, OnTraceSessionStart(Eq("Start"), MsgId{842},
                                           EndPoint::kStreamingClient));
   EXPECT_CALL(second, OnTraceSessionEnd(Eq("End"), MsgId{842},
-                                        EndPoint::kStreamingServer));
-  EXPECT_CALL(first, OnTraceSessionEnd(Eq("End"), MsgId{842},
-                                       EndPoint::kStreamingServer));
-  EXPECT_CALL(second, OnTraceSessionEnd(Eq("End"), MsgId{842},
                                         EndPoint::kStreamingServer,
                                         absl::StatusCode::kUnavailable));
   EXPECT_CALL(first, OnTraceSessionEnd(Eq("End"), MsgId{842},
                                        EndPoint::kStreamingServer,
                                        absl::StatusCode::kUnavailable));
 
-  EXPECT_CALL(first,
-              OnTraceStreamingSend(MsgOrigin::kClient, MsgId{842},
-                                   MsgSequence{1}, MsgFlags::kHalfClose));
-  EXPECT_CALL(second,
-              OnTraceStreamingSend(MsgOrigin::kClient, MsgId{842},
-                                   MsgSequence{1}, MsgFlags::kHalfClose));
-  EXPECT_CALL(first,
-              OnTraceStreamingReceive(MsgOrigin::kClient, MsgId{842},
-                                      MsgSequence{2}, MsgFlags::kControl));
-  EXPECT_CALL(second,
-              OnTraceStreamingReceive(MsgOrigin::kClient, MsgId{842},
-                                      MsgSequence{2}, MsgFlags::kControl));
   EXPECT_CALL(first, OnTraceStreamingSend(MsgOrigin::kClient, MsgId{842},
                                           MsgSequence{1}, MsgFlags::kHalfClose,
                                           absl::StatusCode::kAborted));
@@ -182,22 +158,15 @@ TEST(MultiplexTraceEventListener, Basics) {
   listener.OnTraceContinue(BarrierId{3412442});
   listener.OnTraceObserved(BarrierId{3412442}, "Peekaboo");
   listener.OnTraceSignal(BarrierId{7648223}, "Ping");
-  listener.OnTraceSend("Send it!", MsgOrigin::kClient, MsgId{3332});
-  listener.OnTraceReceive("Send it!", MsgOrigin::kServer, MsgId{3332});
   listener.OnTraceSend("Send it!", MsgOrigin::kClient, MsgId{3332},
                        absl::StatusCode::kCancelled);
   listener.OnTraceReceive("Send it!", MsgOrigin::kServer, MsgId{3332},
                           absl::StatusCode::kDeadlineExceeded);
 
   listener.OnTraceSessionStart("Start", MsgId{842}, EndPoint::kStreamingClient);
-  listener.OnTraceSessionEnd("End", MsgId{842}, EndPoint::kStreamingServer);
   listener.OnTraceSessionEnd("End", MsgId{842}, EndPoint::kStreamingServer,
                              absl::StatusCode::kUnavailable);
 
-  listener.OnTraceStreamingSend(MsgOrigin::kClient, MsgId{842}, MsgSequence{1},
-                                MsgFlags::kHalfClose);
-  listener.OnTraceStreamingReceive(MsgOrigin::kClient, MsgId{842},
-                                   MsgSequence{2}, MsgFlags::kControl);
   listener.OnTraceStreamingSend(MsgOrigin::kClient, MsgId{842}, MsgSequence{1},
                                 MsgFlags::kHalfClose,
                                 absl::StatusCode::kAborted);

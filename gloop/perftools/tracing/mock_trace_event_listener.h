@@ -63,22 +63,15 @@ class MockTraceEventListener : public TraceEventListener {
   MOCK_METHOD(void, OnTraceObserved, (BarrierId, StringRef));
   MOCK_METHOD(void, OnTraceSignal, (BarrierId, StringRef));
 
-  MOCK_METHOD(void, OnTraceSend, (StringRef, MsgOrigin, MsgId));
-  MOCK_METHOD(void, OnTraceReceive, (StringRef, MsgOrigin, MsgId));
   MOCK_METHOD(void, OnTraceSend,
               (StringRef, MsgOrigin, MsgId, absl::StatusCode));
   MOCK_METHOD(void, OnTraceReceive,
               (StringRef, MsgOrigin, MsgId, absl::StatusCode));
 
   MOCK_METHOD(void, OnTraceSessionStart, (StringRef, MsgId, EndPoint));
-  MOCK_METHOD(void, OnTraceSessionEnd, (StringRef, MsgId, EndPoint));
   MOCK_METHOD(void, OnTraceSessionEnd,
               (StringRef, MsgId, EndPoint, absl::StatusCode));
 
-  MOCK_METHOD(void, OnTraceStreamingSend,
-              (MsgOrigin, MsgId, MsgSequence, MsgFlags));
-  MOCK_METHOD(void, OnTraceStreamingReceive,
-              (MsgOrigin, MsgId, MsgSequence, MsgFlags));
   MOCK_METHOD(void, OnTraceStreamingSend,
               (MsgOrigin, MsgId, MsgSequence, MsgFlags, absl::StatusCode));
   MOCK_METHOD(void, OnTraceStreamingReceive,
@@ -107,38 +100,6 @@ inline MockTraceEventListener::MockTraceEventListener() {
       .WillRepeatedly(::testing::Return(1));
 
   EXPECT_CALL(*this, ReleaseEventListener()).Times(::testing::AnyNumber());
-
-  // The status code overloads default to invoking the legacy overloads.
-  // TODO: b/573156798 - remove once all listeners implement the new methods.
-  using ::testing::_;
-  EXPECT_CALL(*this, OnTraceSend(_, _, _, _))
-      .Times(::testing::AnyNumber())
-      .WillRepeatedly(
-          [this](StringRef label, MsgOrigin origin, MsgId id,
-                 absl::StatusCode) { OnTraceSend(label, origin, id); });
-  EXPECT_CALL(*this, OnTraceReceive(_, _, _, _))
-      .Times(::testing::AnyNumber())
-      .WillRepeatedly(
-          [this](StringRef label, MsgOrigin origin, MsgId id,
-                 absl::StatusCode) { OnTraceReceive(label, origin, id); });
-  EXPECT_CALL(*this, OnTraceSessionEnd(_, _, _, _))
-      .Times(::testing::AnyNumber())
-      .WillRepeatedly([this](StringRef label, MsgId id, EndPoint end_point,
-                             absl::StatusCode) {
-        OnTraceSessionEnd(label, id, end_point);
-      });
-  EXPECT_CALL(*this, OnTraceStreamingSend(_, _, _, _, _))
-      .Times(::testing::AnyNumber())
-      .WillRepeatedly([this](MsgOrigin origin, MsgId id, MsgSequence seq,
-                             MsgFlags flags, absl::StatusCode) {
-        OnTraceStreamingSend(origin, id, seq, flags);
-      });
-  EXPECT_CALL(*this, OnTraceStreamingReceive(_, _, _, _, _))
-      .Times(::testing::AnyNumber())
-      .WillRepeatedly([this](MsgOrigin origin, MsgId id, MsgSequence seq,
-                             MsgFlags flags, absl::StatusCode) {
-        OnTraceStreamingReceive(origin, id, seq, flags);
-      });
 }
 
 }  // namespace perftools::tracing
