@@ -1473,8 +1473,9 @@ SysTopology::SysTopology(TopologyInfo ti) : topology_info_(ti) {
 
     // Add the new level to the vector of levels
     levelnames_[li.name] = levels_.size();
-    levels_.push_back(lii);
+    levels_.push_back(std::move(lii));
   }
+  levels_.shrink_to_fit();
 
   core_level_ = FindLevel("core");
   if (core_level_ == -1) core_level_ = 0;
