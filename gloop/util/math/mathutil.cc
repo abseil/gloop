@@ -32,6 +32,52 @@
 
 constexpr double MathUtil::kPi;
 
+#ifdef __LLVM_LIBC__
+namespace {
+
+// LLVM libc provides no `long double` transcendental entrypoints (`acosl`,
+// `cosl`, `cbrtl`, `powl`). The helpers below start from a `double` seed and
+// polish it to full `long double` precision with Newton iterations that only
+// use basic arithmetic plus `sqrtl`, `frexpl` and `ldexpl`.
+
+// Returns the real root y of 4y^3 - 3y = x (i.e. cos(theta / 3) when
+// x = cos(theta)) with the largest magnitude, for |x| <= 1. That root
+// satisfies |y| >= sqrt(3) / 2, so f'(y) = 12y^2 - 3 >= 6 and Newton converges
+// quadratically from the `double` seed: one step squares the ~2^-52 seed error
+// (enough for a 64-bit x87 mantissa), the second covers 113-bit IEEE quad.
+long double DominantChebyshevCubeRoot(long double const x) {
+  long double const abs_x = std::fabs(x) < 1 ? std::fabs(x) : 1;
+  long double y = std::cos(std::acos(static_cast<double>(abs_x)) / 3.0);
+  if (x < 0) y = -y;
+  for (int i = 0; i < 2; ++i) {
+    long double const y_squared = y * y;
+    y -= ((4 * y_squared - 3) * y - x) / (12 * y_squared - 3);
+  }
+  return y;
+}
+
+// Returns the cube root of u >= 0 to full `long double` precision. The
+// exponent is split off with `frexpl` and reattached with `ldexpl`, so the
+// result is correct over the whole `long double` range, not just the `double`
+// range.
+long double NonNegativeCbrt(long double const u) {
+  // Zero, infinity and NaN are their own cube roots.
+  if (!(u > 0) || u == std::numeric_limits<long double>::infinity()) return u;
+  int exponent;
+  long double m = std::frexp(u, &exponent);  // u = m * 2^exponent, m in [.5, 1)
+  int remainder = exponent % 3;
+  if (remainder < 0) remainder += 3;
+  m = std::ldexp(m, remainder);  // m in [0.5, 4)
+  long double y = std::cbrt(static_cast<double>(m));
+  for (int i = 0; i < 2; ++i) {
+    y -= (y * y * y - m) / (3 * y * y);
+  }
+  return std::ldexp(y, (exponent - remainder) / 3);
+}
+
+}  // namespace
+#endif  // __LLVM_LIBC__
+
 bool MathUtil::RealRootsForCubic(long double const a, long double const b,
                                  long double const c, long double* const r1,
                                  long double* const r2, long double* const r3) {
@@ -50,6 +96,33 @@ bool MathUtil::RealRootsForCubic(long double const a, long double const b,
 
   if (R_squared < Q_cubed) {
     long double const root_Q = std::sqrt(Q);
+#ifdef __LLVM_LIBC__
+    // With x = R / sqrt(Q^3) = cos(theta), the roots are
+    // -2 * sqrt(Q) * y_k - a / 3, where y_k = cos((theta + 2 * pi * k) / 3)
+    // for k = 0, 1, -1 (stored in r1, r2, r3) are the three roots of
+    // 4y^3 - 3y - x = 0. Compute the largest-magnitude one, y_s (y_0 for
+    // x >= 0, y_1 for x < 0), in full precision, and the other two from the
+    // deflated quadratic 4y^2 + 4 * y_s * y + 4 * y_s^2 - 3 = 0. The larger of
+    // those comes from the quadratic formula without cancellation, the smaller
+    // one from Vieta's y_0 * y_1 * y_-1 = x / 4. With d = 1 - |y_s|, the cubic
+    // gives 1 - |x| = d * (3 - 2d)^2, so the discriminant
+    // 3 * (1 - y_s^2) = 3 * d * (2 - d) is evaluated from 1 - |x| (exact for
+    // |x| >= 1/2) rather than from the cancelling 1 - |y_s|.
+    long double const x = R / std::sqrt(Q_cubed);
+    long double const y_s = DominantChebyshevCubeRoot(x);
+    long double const d = 1 - std::fabs(y_s);
+    long double const one_minus_abs_x = std::fabs(x) < 1 ? 1 - std::fabs(x) : 0;
+    long double const half_sqrt_disc =
+        std::sqrt(3 * one_minus_abs_x * (2 - d)) / (2 * (3 - 2 * d));
+    long double const y_far =
+        y_s < 0 ? -y_s / 2 + half_sqrt_disc : -y_s / 2 - half_sqrt_disc;
+    long double const y_mid = x / (4 * y_s * y_far);
+    long double const minus_two_root_Q = -2.0 * root_Q;
+
+    *r1 = minus_two_root_Q * (x < 0 ? y_far : y_s) - a_third;
+    *r2 = minus_two_root_Q * (x < 0 ? y_s : y_far) - a_third;
+    *r3 = minus_two_root_Q * y_mid - a_third;
+#else
     long double const two_pi_third = 2.0 * M_PI / 3.0;
     long double const theta_third = std::acos(R / std::sqrt(Q_cubed)) / 3.0;
     long double const minus_two_root_Q = -2.0 * root_Q;
@@ -57,13 +130,19 @@ bool MathUtil::RealRootsForCubic(long double const a, long double const b,
     *r1 = minus_two_root_Q * std::cos(theta_third) - a_third;
     *r2 = minus_two_root_Q * std::cos(theta_third + two_pi_third) - a_third;
     *r3 = minus_two_root_Q * std::cos(theta_third - two_pi_third) - a_third;
+#endif
 
     return true;
   }
 
+#ifdef __LLVM_LIBC__
+  long double const A =
+      -sgn(R) * NonNegativeCbrt(std::fabs(R) + std::sqrt(R_squared - Q_cubed));
+#else
   long double const A =
       -sgn(R) *
       std::pow(std::abs(R) + std::sqrt(R_squared - Q_cubed), 1.0 / 3.0L);
+#endif
 
   if (A != 0.0) {  // in which case, B from NR is zero
     *r1 = A + Q / A - a_third;
