@@ -230,6 +230,40 @@ TEST(LockFreeHashTest, Erase) {
   ASSERT_TRUE(h.find(1) == h.end());
 }
 
+using LockFreeHashDeathTest = ::testing::Test;
+
+TEST_F(LockFreeHashDeathTest, EraseEnd) {
+  HashMap h;
+  HashMap::iterator it = h.end();
+  EXPECT_DEATH_IF_SUPPORTED(
+      h.erase(it), "Invalid iterator|Check failed: \\*iter != end\\(\\)");
+}
+
+TEST_F(LockFreeHashDeathTest, EraseMissingKey) {
+  HashMap h;
+  HashMap::iterator it = h.find(42);
+  EXPECT_DEATH_IF_SUPPORTED(
+      h.erase(it), "Invalid iterator|Check failed: \\*iter != end\\(\\)");
+}
+
+TEST_F(LockFreeHashDeathTest, DoubleErase) {
+  HashMap h;
+  h[42] = 1;
+  HashMap::iterator it = h.find(42);
+  h.erase(it);
+  EXPECT_DEATH_IF_SUPPORTED(
+      h.erase(it), "Invalid iterator|Check failed: \\*iter != end\\(\\)");
+}
+
+TEST_F(LockFreeHashDeathTest, DoubleEraseWithCopiedIterator) {
+  HashMap h;
+  h[42] = 1;
+  HashMap::iterator it1 = h.find(42);
+  HashMap::iterator it2 = it1;
+  h.erase(it1);
+  EXPECT_DEATH_IF_SUPPORTED(h.erase(it2), "");
+}
+
 TEST(LockFreeHashTest, EraseWithKey) {
   HashMap h;
   EXPECT_TRUE(h.insert(std::make_pair(1, 1001)).second);

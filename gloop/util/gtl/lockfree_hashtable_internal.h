@@ -331,10 +331,10 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
   }
 
   iterator begin() { return Begin(AcquireArray()); }
-  iterator end() { return End(AcquireArray()); }
+  iterator end() { return End(); }
 
   const_iterator begin() const { return ConstBegin(AcquireArray()); }
-  const_iterator end() const { return ConstEnd(AcquireArray()); }
+  const_iterator end() const { return End(); }
 
   size_t size() const { return size_.load(std::memory_order_acquire); }
   bool empty() const { return size() == 0; }
@@ -493,7 +493,7 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
   }
 
   static void FreeArray(Array* array, size_t max_size) {
-    for (iterator iter = Begin(array); iter != End(array);) {
+    for (iterator iter = Begin(array); iter != End();) {
       Node* node = iter.node_;
       ++iter;
       UnrefNode(node);
@@ -505,12 +505,8 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
     return sizeof(Array) + sizeof(std::atomic<Node*>) * (max_size - 1);
   }
 
-  // Create an iterator that points to the end of "a".
-  static iterator End(Array* a) { return iterator(a, a->max_size, nullptr); }
-
-  static const_iterator ConstEnd(const Array* a) {
-    return const_iterator(a, a->max_size, nullptr);
-  }
+  // Create a past-the-end iterator.
+  static iterator End() { return iterator(nullptr, 0, nullptr); }
 
   // Create an iterator that points to the beginning of "a".
   static iterator Begin(Array* a) {
@@ -521,7 +517,7 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
         return iterator(a, i, p);
       }
     }
-    return End(a);
+    return End();
   }
 
   static const_iterator ConstBegin(const Array* a) {
@@ -581,7 +577,7 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
       p = p->link.load(std::memory_order_relaxed);
     }
     if (p != nullptr) return iterator(array, h, p);
-    return End(array);
+    return End();
   }
 
   iterator InsertInArray(Array* array, size_t hash, ValueNode* vn) {
@@ -620,7 +616,7 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
     size_t hash = HashKey(k);
     Array* array = AcquireArray();
     iterator iter = FindInArray(array, hash, k);
-    if (iter.index_ < array->max_size) {
+    if (iter.node_ != nullptr) {
       return std::make_pair(iter, false);
     }
 
@@ -629,7 +625,7 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
     // inserted before we got the lock.
     array = AcquireArray();
     iter = FindInArray(array, hash, k);
-    if (iter.index_ < array->max_size) {
+    if (iter.node_ != nullptr) {
       return std::make_pair(iter, false);
     }
 
@@ -723,10 +719,9 @@ class alignas(ABSL_CACHELINE_SIZE) LockFreeHashTable {
   void Resize() ABSL_EXCLUSIVE_LOCKS_REQUIRED(lock_) {
     Array* old_array = AcquireArray();
     Array* new_array = AllocateArray(old_array->max_size * 2);
-    iterator iter = begin();
 
     // Add Nodes in the old array to the new array.
-    while (iter != end()) {
+    for (iterator iter = Begin(old_array); iter != End();) {
       Node* node = iter.node_;
       ++iter;
       ValueNode* vn = GetValueNode(node);
