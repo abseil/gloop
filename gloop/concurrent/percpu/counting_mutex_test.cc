@@ -133,6 +133,16 @@ ABSL_FLAG(int, write_interval, 1000,
           "Number of reads across threads before a write");
 
 namespace concurrent {
+
+#if !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
+class CountingMutexTestPeer {
+ public:
+  static bool HasAllocatedHandle(const CountingMutex& mu) {
+    return mu.handle_.ptr != nullptr;
+  }
+};
+#endif  // !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
+
 namespace {
 
 // Returns a random ThreadMode value, kDefault excluded.
@@ -262,7 +272,9 @@ TEST(CountingMutexTest, ConcurrentlyAllocFreeManyMutexes) {
       std::deque<CountingMutex> mutexes;
       // Typical entries per region is 128 / 4 = 32, aim substantially higher.
       for (int i = 0; i < 1024; ++i) {
-        mutexes.emplace_back();
+        CountingMutex& mu = mutexes.emplace_back();
+        mu.lock_shared();
+        mu.unlock_shared();
       }
     });
   }
@@ -1416,6 +1428,142 @@ TEST(CountingMutexTest, CountingMutexLockMaybe) {
     mu.AssertHeld();
   }
   mu.AssertNotHeld();
+}
+
+#if !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
+TEST(CountingMutexTest, ExclusiveOnlyDoesNotAllocateHandle) {
+  // Exclusive-only mutexes should never allocate a per-CPU handle across
+  // construction, exclusive lock/unlock, Await, failed try_lock_shared, and
+  // destruction.
+  {
+    std::deque<CountingMutex> exclusive_only;
+    for (int i = 0; i < 128; ++i) {
+      CountingMutex& mu = exclusive_only.emplace_back();
+      EXPECT_FALSE(CountingMutexTestPeer::HasAllocatedHandle(mu));
+      mu.lock();
+      mu.unlock();
+      EXPECT_FALSE(CountingMutexTestPeer::HasAllocatedHandle(mu));
+    }
+  }
+
+  CountingMutex mu;
+  EXPECT_FALSE(CountingMutexTestPeer::HasAllocatedHandle(mu));
+
+  {
+    CountingMutexLock lock(mu);
+    EXPECT_FALSE(CountingMutexTestPeer::HasAllocatedHandle(mu));
+
+    bool cond_false = false;
+    EXPECT_FALSE(mu.AwaitWithTimeout(absl::Condition(&cond_false),
+                                     absl::Milliseconds(1)));
+    EXPECT_FALSE(CountingMutexTestPeer::HasAllocatedHandle(mu));
+
+    // A failed try_lock_shared while exclusively held must not allocate.
+    TestThread contender([&] {
+      bool locked = mu.try_lock_shared();
+      EXPECT_FALSE(locked);
+      if (locked) mu.unlock_shared();
+    });
+    contender.Join();
+    EXPECT_FALSE(CountingMutexTestPeer::HasAllocatedHandle(mu));
+  }
+  EXPECT_FALSE(CountingMutexTestPeer::HasAllocatedHandle(mu));
+
+  // First shared lock allocates the handle.
+  mu.lock_shared();
+  EXPECT_TRUE(CountingMutexTestPeer::HasAllocatedHandle(mu));
+  mu.unlock_shared();
+  EXPECT_TRUE(CountingMutexTestPeer::HasAllocatedHandle(mu));
+
+  // First try_lock_shared on a fresh mutex allocates the handle on success.
+  CountingMutex mu_try;
+  EXPECT_FALSE(CountingMutexTestPeer::HasAllocatedHandle(mu_try));
+  bool locked = mu_try.try_lock_shared();
+  EXPECT_TRUE(locked);
+  EXPECT_TRUE(CountingMutexTestPeer::HasAllocatedHandle(mu_try));
+  if (locked) mu_try.unlock_shared();
+}
+#endif  // !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
+
+TEST(CountingMutexTest, ConcurrentFirstSharedLockWithExclusiveAndAwait) {
+  // Repeatedly race first-time lock_shared()/try_lock_shared() on fresh
+  // unallocated mutexes against exclusive lock()/unlock() and Await().
+  constexpr int kRounds = 64;
+  constexpr int kReaders = 4;
+  constexpr int kWriters = 2;
+  constexpr int kTotalThreads = kReaders + kWriters + 1;
+
+  for (int round = 0; round < kRounds; ++round) {
+    CountingMutex mu;
+    int64_t value1 = 0;
+    int64_t value2 = 0;
+    bool ready = false;
+    std::atomic<int> started{0};
+    absl::Notification go;
+
+    std::vector<TestThread> threads;
+    threads.reserve(kTotalThreads);
+
+    // Readers racing on first shared lock / try_lock_shared.
+    for (int i = 0; i < kReaders; ++i) {
+      threads.emplace_back(ThreadMode::kThread, [&, i] {
+        started.fetch_add(1, std::memory_order_release);
+        go.WaitForNotification();
+        for (int iter = 0; iter < 16; ++iter) {
+          if (((i + iter) & 1) == 0) {
+            mu.lock_shared();
+          } else if (!mu.try_lock_shared()) {
+            continue;
+          }
+          EXPECT_EQ(value1, value2);
+          mu.unlock_shared();
+        }
+      });
+    }
+
+    // Writers racing with first shared lock and updating guarded state.
+    for (int i = 0; i < kWriters; ++i) {
+      threads.emplace_back(ThreadMode::kThread, [&] {
+        started.fetch_add(1, std::memory_order_release);
+        go.WaitForNotification();
+        for (int iter = 0; iter < 8; ++iter) {
+          CountingMutexLock lock(mu);
+          ++value1;
+          value2 = value1;
+          if (iter == 7) ready = true;
+        }
+      });
+    }
+
+    // Awaiter racing on Await() alongside first shared lock.
+    threads.emplace_back(ThreadMode::kThread, [&, round] {
+      started.fetch_add(1, std::memory_order_release);
+      go.WaitForNotification();
+      if ((round & 1) == 0) {
+        CountingMutexLock lock(mu);
+        mu.Await(absl::Condition(&ready));
+        EXPECT_EQ(value1, value2);
+      } else {
+        CountingMutexReaderLock lock(mu);
+        mu.Await(absl::Condition(&ready));
+        EXPECT_EQ(value1, value2);
+      }
+    });
+
+    while (started.load(std::memory_order_acquire) < kTotalThreads) {
+      std::this_thread::yield();
+    }
+    go.Notify();
+
+    for (TestThread& thread : threads) {
+      thread.Join();
+    }
+    EXPECT_EQ(value1, value2);
+    EXPECT_EQ(value1, kWriters * 8);
+#if !defined(__APPLE__) && !defined(__EMSCRIPTEN__)
+    EXPECT_TRUE(CountingMutexTestPeer::HasAllocatedHandle(mu));
+#endif
+  }
 }
 
 enum LockContention { kSingle, kShared };
