@@ -341,6 +341,13 @@ cc_library(
         "@abseil-cpp//absl/log",
         "@abseil-cpp//absl/time",
     ],
+    implementation_deps = [
+        ":multiplex_trace_event_listener",
+        ":noop_trace_event_listener",
+        ":perftools_verify",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:check",
+    ],
 )
 
 cc_test(
