@@ -113,9 +113,17 @@ TEST(PthreadDomainFiberNameTest, RenamesRecycledThread) {
         unnamed_name = CurrentThreadName();
       });
   queued.Notify();
-  first->Join();
-  named->Join();
+  // Join `unnamed` (the last queued fiber) first. Calling `Join()` on `first`
+  // or `named` while it is still exiting can hold `Selector::mu` in
+  // `SelectUntil()` while `Fiber::MarkFinished()` -> `PermanentEvent::Notify()`
+  // contends on `Selector::mu` before `PthreadDomainThread::Run()` unbinds the
+  // exiting fiber's `Schedulable` from `first_thread`. That `absl::Mutex`
+  // contention cooperatively blocks `first_thread` via `Downcalls::Wait()`,
+  // causing `PthreadDomain` to spawn a new OS thread for the next queued fiber
+  // instead of recycling `first_thread`.
   unnamed->Join();
+  named->Join();
+  first->Join();
 
   // Both queued fibers ran on the recycled thread of `first`, and each saw its
   // own name rather than the name of the fiber that ran before it.
