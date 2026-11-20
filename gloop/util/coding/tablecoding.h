@@ -29,7 +29,10 @@
 #include <cassert>
 #include <cstdint>
 
+#include "absl/base/attributes.h"
 #include "absl/log/check.h"
+#include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "gloop/util/coding/bitcoding.h"
 #include "gloop/util/coding/coder.h"
 
@@ -78,6 +81,36 @@ class TableEncoder {
   const uint32_t* table_;
 };
 
+namespace util_coding_internal {
+
+// Errors returned by TableDecoder::TryInitializeFromEncoder().  They are not
+// inlined, to keep each TableDecoder instantiation small.
+ABSL_ATTRIBUTE_NOINLINE inline absl::Status SymbolTooLargeError(
+    unsigned int max_symbol, unsigned int elem_bits, int maxlen_bits) {
+  return absl::InvalidArgumentError(
+      absl::StrCat("symbol ", max_symbol, " does not fit in a ", elem_bits,
+                   "-bit table entry with ", maxlen_bits, " length bits"));
+}
+
+ABSL_ATTRIBUTE_NOINLINE inline absl::Status InvalidEncodingError(
+    unsigned int symbol, uint32_t encoding, uint32_t length,
+    unsigned int maxlen) {
+  if (length == 0) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("symbol ", symbol, " has an empty encoding"));
+  }
+  if (length > maxlen) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "symbol ", symbol, " has a ", length,
+        "-bit encoding, but the decoder supports at most ", maxlen, " bits"));
+  }
+  return absl::InvalidArgumentError(
+      absl::StrCat("symbol ", symbol, " has encoding 0x", absl::Hex(encoding),
+                   ", which does not fit in its ", length, " bits"));
+}
+
+}  // namespace util_coding_internal
+
 // For decoding symbols from a bit buffer.  This class is made
 // a template so that fast versions for different lengths can
 // be generated via just a typedef.
@@ -104,7 +137,7 @@ class TableEncoder {
 // element type:
 //
 //      TableDecoder<10,4,uint16> decoder;
-//      decoder.InitializeFromEncoder(...);
+//      absl::Status status = decoder.TryInitializeFromEncoder(...);
 //      ...
 
 template <unsigned int maxlen_arg, int maxlen_bits = 5, class Elem = uint32_t>
@@ -112,31 +145,53 @@ class TableDecoder {
  public:
   TableDecoder() { memset(table_, 0, sizeof(table_)); }
 
+  // Initializes this decoder to decode the code in "encoder".  Returns an
+  // error, and leaves this decoder unusable, if the encoder has no symbols,
+  // its largest symbol does not fit in Elem alongside "maxlen_bits" length
+  // bits, an encoding is empty, longer than "maxlen", or has bits set beyond
+  // its length, or the encodings of two symbols overlap.
+  //
   // The initialization is intentionally separate from the constructor.
   // One advantage is that the same stack allocated TableDecoder object
   // can be used to decode multiple encodings over time.
-  void InitializeFromEncoder(const TableEncoder* encoder) {
+  absl::Status TryInitializeFromEncoder(const TableEncoder* encoder) {
+    if (encoder->MaxSymbol() < 0) {
+      return absl::InvalidArgumentError("TableEncoder has no symbols");
+    }
     // Check that Elem is big enough for a decoding entry: It needs to
     // be able to store the largest possible symbol, as well as "maxlen_bits".
     const unsigned int max_symbol = encoder->MaxSymbol();
-    DCHECK_GE(elem_bits, BitEncoder::BitsRequired(max_symbol) + maxlen_bits);
+    if (elem_bits < BitEncoder::BitsRequired(max_symbol) + maxlen_bits) {
+      return util_coding_internal::SymbolTooLargeError(max_symbol, elem_bits,
+                                                       maxlen_bits);
+    }
 
     // Create decoding table
     memset(table_, 0, sizeof(table_));
+    uint64_t num_patterns = 0;
     for (unsigned int sym = 0; sym <= max_symbol; sym++) {
       // Find all possible "maxlen" length bit patterns that start
       // with an encoding of "sym".
       uint32_t enc_length = encoder->EncodingLength(sym);
       uint32_t enc = encoder->Encoding(sym);
-      CHECK_LE(enc_length, maxlen);
+      if (enc_length == 0 || enc_length > maxlen || (enc >> enc_length) != 0) {
+        return util_coding_internal::InvalidEncodingError(sym, enc, enc_length,
+                                                          maxlen);
+      }
       unsigned int slop = maxlen - enc_length;
+      num_patterns += uint64_t{1} << slop;
       for (uint32_t extra = 0; extra < (1 << slop); extra++) {
         uint32_t pattern = (extra << enc_length) | enc;
-        DCHECK_LT(pattern, static_cast<uint32_t>(1 << maxlen));
-        // Should be prefix-free codes
-        DCHECK_EQ(table_[pattern], static_cast<Elem>(0));
         table_[pattern] = (enc_length << len_shift) | sym;
       }
+    }
+
+    // Should be prefix-free codes.  Otherwise two symbols share a pattern, and
+    // fewer table entries are filled than there are patterns.
+    uint32_t num_filled = 0;
+    for (const Elem entry : table_) num_filled += (entry != 0);
+    if (num_filled != num_patterns) {
+      return absl::InvalidArgumentError("the encodings of two symbols overlap");
     }
 
 #if 0
@@ -151,6 +206,19 @@ class TableDecoder {
              table_[i] & sym_mask);
     }
 #endif
+    return absl::OkStatus();
+  }
+
+  // Like TryInitializeFromEncoder(), but CHECK-fails if an encoding is longer
+  // than "maxlen", and DCHECK-fails on any other error.
+  ABSL_DEPRECATED("Use TryInitializeFromEncoder instead")
+  void InitializeFromEncoder(const TableEncoder* encoder) {
+    for (int sym = 0; sym <= encoder->MaxSymbol(); sym++) {
+      const uint32_t enc_length = encoder->EncodingLength(sym);
+      CHECK_LE(enc_length, maxlen);
+    }
+    const absl::Status status = TryInitializeFromEncoder(encoder);
+    DCHECK_OK(status);
   }
 
   // Read the next symbol from "bd" and return it.  If "bd" does
