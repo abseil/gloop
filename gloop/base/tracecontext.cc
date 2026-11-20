@@ -267,16 +267,19 @@ void TraceContext::SwapRefs(TraceContext* lhs, TraceContext* rhs) {
 }
 
 void TraceContext::SetTraceLevel(TraceLevel level) {
+  uint32_t add = 0;
+  uint32_t remove = 0;
   if (level >= kTransientTracing) {
-    mask_ |= kTraceMaskTransientTracingOn;
+    add |= kTraceMaskTransientTracingOn;
   } else {
-    mask_ &= ~kTraceMaskTransientTracingOn;
+    remove |= kTraceMaskTransientTracingOn;
   }
   if (level == kPersistentTracing) {
-    mask_ |= kTraceMaskRPCTracingOn;
+    add |= kTraceMaskRPCTracingOn;
   } else {
-    mask_ &= ~kTraceMaskRPCTracingOn;
+    remove |= kTraceMaskRPCTracingOn;
   }
+  UpdateMask(add, remove);
 }
 
 TraceContext& TraceContext::operator=(const TraceContext& c) {
