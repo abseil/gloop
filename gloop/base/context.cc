@@ -428,11 +428,12 @@ WithTraceContext::WithTraceContext(TraceContext&& switch_to,
         new (&previous_) TraceContext(std::move(*current_context.trace()));
 
         // Construct over the current trace context with the contents of the
-        // input.
-        //
-        // TODO: this is wrong for an arbitrary type, because we
-        // haven't destroyed *current_context.trace() yet. Document what makes
-        // it okay for TraceContext.
+        // input. This is fine, even though we haven't run ~TraceContext for the
+        // current trace context (i.e. the destination here), because we just
+        // moved from it above and TraceContext guarantees that its destructor
+        // has no work to do in this case (http://shortn/_kGipdGHQzf). The C++20
+        // standard says that we don't need to call the destructor in
+        // [basic.life]/5.
         return new (current_context.trace()) TraceContext(std::move(switch_to));
       });
 }
