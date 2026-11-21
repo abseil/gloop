@@ -235,6 +235,87 @@ TEST(ElfReader, IgnoreVsyscall) {
   ElfReader reader("[vsyscall]");
 }
 
+TEST(ElfReader, StaticExecutableWithoutDynsymDoesNotLog) {
+  // Build a minimal valid 64-bit static ET_EXEC ELF image with a PT_LOAD
+  // segment, no PT_DYNAMIC segment, and no .symtab / .dynsym sections.
+  constexpr char kShStrTab[] = "\0.shstrtab";
+  struct Image {
+    Elf64_Ehdr ehdr;
+    Elf64_Phdr phdr;
+    char shstrtab[sizeof(kShStrTab)];
+    alignas(8) Elf64_Shdr shdrs[2];
+  } image = {};
+
+  memcpy(image.ehdr.e_ident, ELFMAG, SELFMAG);
+  image.ehdr.e_ident[EI_CLASS] = ELFCLASS64;
+  image.ehdr.e_ident[EI_DATA] =
+      (__BYTE_ORDER == __BIG_ENDIAN) ? ELFDATA2MSB : ELFDATA2LSB;
+  image.ehdr.e_ident[EI_VERSION] = EV_CURRENT;
+  image.ehdr.e_type = ET_EXEC;
+#if defined(__x86_64__)
+  image.ehdr.e_machine = EM_X86_64;
+#elif defined(__aarch64__)
+  image.ehdr.e_machine = EM_AARCH64;
+#elif defined(__riscv)
+  image.ehdr.e_machine = EM_RISCV;
+#else
+  image.ehdr.e_machine = EM_NONE;
+#endif
+  image.ehdr.e_version = EV_CURRENT;
+  image.ehdr.e_phoff = offsetof(Image, phdr);
+  image.ehdr.e_shoff = offsetof(Image, shdrs);
+  image.ehdr.e_ehsize = sizeof(Elf64_Ehdr);
+  image.ehdr.e_phentsize = sizeof(Elf64_Phdr);
+  image.ehdr.e_phnum = 1;
+  image.ehdr.e_shentsize = sizeof(Elf64_Shdr);
+  image.ehdr.e_shnum = 2;
+  image.ehdr.e_shstrndx = 1;
+
+  image.phdr.p_type = PT_LOAD;
+  image.phdr.p_flags = PF_R | PF_X;
+  image.phdr.p_offset = 0;
+  image.phdr.p_vaddr = 0x400000;
+  image.phdr.p_paddr = 0x400000;
+  image.phdr.p_filesz = sizeof(Image);
+  image.phdr.p_memsz = sizeof(Image);
+  image.phdr.p_align = 0x1000;
+
+  memcpy(image.shstrtab, kShStrTab, sizeof(kShStrTab));
+  image.shdrs[1].sh_name = 1;
+  image.shdrs[1].sh_type = SHT_STRTAB;
+  image.shdrs[1].sh_offset = offsetof(Image, shstrtab);
+  image.shdrs[1].sh_size = sizeof(kShStrTab);
+  image.shdrs[1].sh_addralign = 1;
+
+  std::string path =
+      absl::StrCat(testing::TempDir(), "elf_reader_static_exec_XXXXXX");
+  const int fd = mkstemp(path.data());
+  ASSERT_NE(fd, -1) << base::StrError(errno);
+  ASSERT_EQ(write(fd, &image, sizeof(image)),
+            static_cast<ssize_t>(sizeof(image)));
+  ASSERT_EQ(close(fd), 0);
+
+  class NoopSink : public ElfReader::SymbolSink {
+   public:
+    void AddSymbol(const char*, uint64_t, uint64_t, int, int, int) override {}
+  };
+
+  absl::SetFlag(&FLAGS_elfreader_process_dynsyms, true);
+  ScopedMockLog log;
+  EXPECT_CALL(log, Log(_, _, _)).Times(0);
+  log.StartCapturingLogs();
+
+  ElfReader reader(path);
+  EXPECT_TRUE(reader.IsElf64File());
+  EXPECT_TRUE(reader.IsExecutableFile());
+  NoopSink sink;
+  reader.VisitSymbols(&sink);
+  std::unique_ptr<SymbolMap> symbol_map(util::SymbolMap::GetEmpty());
+  reader.AddSymbols(symbol_map.get(), 0, 0, 0);
+
+  unlink(path.c_str());
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {

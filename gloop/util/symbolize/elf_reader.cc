@@ -500,14 +500,16 @@ class SymbolIterator {
     // checks, leave num_symbols_in_section_ as zero, so this iterator is
     // already done().
     if (symbol_section_ == nullptr) {
-      // This can happen for fully-stripped fully-static a.out or for a
-      // fully-stipped DSO when section_type==SHT_SYMTAB.
+      // This can happen for statically-linked or fully-stripped binaries, or
+      // for a stripped DSO when section_type==SHT_SYMTAB. Use VLOG rather than
+      // LOG(INFO) because symbolization may run while callers hold locks that
+      // registered LogSinks also acquire.
       if (section_type == SHT_SYMTAB) {
         // Fully-stripped binaries are uncommon in google3, but do happen
         // in embedded environments. Warning about them is a bit annoying.
         VLOG(1) << "Unable to find SYMTAB section in " << reader->path_;
       } else {
-        LOG(INFO) << "Unable to find DYNSYM section in " << reader->path_;
+        VLOG(1) << "Unable to find DYNSYM section in " << reader->path_;
       }
       return;
     }
@@ -1192,6 +1194,19 @@ class ElfReaderImpl {
     return GetSectionInfoByIndex(shndx, info, read_contents);
   }
 
+  // Returns true if this ELF image can carry a dynamic symbol table: either it
+  // has no program headers (e.g. synthetic section-only inputs) or its program
+  // headers include PT_DYNAMIC. Statically-linked executables have program
+  // headers without PT_DYNAMIC and never carry .dynsym.
+  bool MayHaveDynamicSymbols() const {
+    const int num_phdr = GetNumProgramHeaders();
+    if (num_phdr == 0) return true;
+    for (int i = 0; i < num_phdr; ++i) {
+      if (program_headers_[i].p_type == PT_DYNAMIC) return true;
+    }
+    return false;
+  }
+
   // Return SegmentInfo vector read from program header.
   std::vector<ElfReader::SegmentInfo> GetSegmentInfo() const {
     const int num_phdr = GetNumProgramHeaders();
@@ -1804,7 +1819,7 @@ void ElfReader::AddSymbols(internal::SymbolMapSink* symbols,
     if (!impl->GetSymbolPositions(symbols, SHT_SYMTAB, mem_offset,
                                   file_offset)) {
       if (absl::GetFlag(FLAGS_elfreader_process_dynsyms) &&
-          !IsRelocatableFile()) {
+          !IsRelocatableFile() && impl->MayHaveDynamicSymbols()) {
         impl->GetSymbolPositions(symbols, SHT_DYNSYM, mem_offset, file_offset);
       }
     }
@@ -1814,7 +1829,7 @@ void ElfReader::AddSymbols(internal::SymbolMapSink* symbols,
     if (!impl->GetSymbolPositions(symbols, SHT_SYMTAB, mem_offset,
                                   file_offset)) {
       if (absl::GetFlag(FLAGS_elfreader_process_dynsyms) &&
-          !IsRelocatableFile()) {
+          !IsRelocatableFile() && impl->MayHaveDynamicSymbols()) {
         impl->GetSymbolPositions(symbols, SHT_DYNSYM, mem_offset, file_offset);
       }
     }
@@ -1829,7 +1844,7 @@ void ElfReader::VisitSymbols(ElfReader::SymbolSink* sink) {
     impl->VisitRelocationEntries();
     impl->VisitSymbols(SHT_SYMTAB, sink);
     if (absl::GetFlag(FLAGS_elfreader_process_dynsyms) &&
-        !IsRelocatableFile()) {
+        !IsRelocatableFile() && impl->MayHaveDynamicSymbols()) {
       impl->VisitSymbols(SHT_DYNSYM, sink);
     }
   } else if (IsElf64File()) {
@@ -1837,7 +1852,7 @@ void ElfReader::VisitSymbols(ElfReader::SymbolSink* sink) {
     impl->VisitRelocationEntries();
     impl->VisitSymbols(SHT_SYMTAB, sink);
     if (absl::GetFlag(FLAGS_elfreader_process_dynsyms) &&
-        !IsRelocatableFile()) {
+        !IsRelocatableFile() && impl->MayHaveDynamicSymbols()) {
       impl->VisitSymbols(SHT_DYNSYM, sink);
     }
   }
