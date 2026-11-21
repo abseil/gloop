@@ -28,7 +28,6 @@
 
 #include <atomic>
 #include <cstdint>
-#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -38,7 +37,6 @@
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
-#include "gloop/base/callback.h"
 #include "gloop/base/examine_stack.h"
 #include "gloop/util/functional/from_callback.h"
 
@@ -61,7 +59,7 @@ typedef ::util::functional::CallbackFunctor<WatchDog*> WatchdogCallback;
 // Example:
 // class MyThread : public Thread {
 //   virtual void Run() {
-//     WatchDog w("MyThread", 60);
+//     WatchDog w("MyThread", absl::Seconds(60));
 //     while (true) {
 //       w.Alive();
 //       DoSomethingUseful();
@@ -124,13 +122,6 @@ class WatchDog final {
   // code. If you must run such code, do something like "alarm(20);" at the top
   // of the callback to ensure that the process will die.
   void SetCallback(WatchdogCallback callback);
-
-  // Sets the timeout to the new value. Also marks the calling thread as alive,
-  // but does not affect whether or not the watchdog is enabled.
-  ABSL_DEPRECATED("Use SetTimeoutDuration() instead")
-  void SetTimeout(int32_t timeout_sec) {
-    SetTimeoutDuration(absl::Seconds(timeout_sec));
-  }
 
   // Set the timeout to the new value and return the previous timeout.
   // Also marks the calling thread as alive, but does not affect whether or not
