@@ -664,7 +664,8 @@ TEST(Hash, BasicStats) {
   LOG(INFO) << "Fingerprint(const char *, uint32)";
   for (int i = 0; i < strlen(s2); i++) {
     for (int j = i; j < strlen(s2); j++) {
-      uint64_t h = Fingerprint(s2 + i, static_cast<uint32_t>(j - i));
+      uint64_t h =
+          Fingerprint(absl::string_view(s2 + i, static_cast<uint32_t>(j - i)));
       min_hash64 = std::min<uint64_t>(min_hash64, h);
       max_hash64 = std::max<uint64_t>(max_hash64, h);
     }
@@ -673,7 +674,7 @@ TEST(Hash, BasicStats) {
   LOG(INFO) << " range(...) = " << std::hex << min_hash64 << " to "
             << max_hash64;
   LOG(INFO) << " sample Fingerprint: " << url << " -> " << std::hex
-            << Fingerprint(url.data(), url.size());
+            << Fingerprint(url);
 
   // Now, some of the functions that we've (1) left uncategorized, or
   // (2) explicitly labelled as CHANGEABLE over time.
