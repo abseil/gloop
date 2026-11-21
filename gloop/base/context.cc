@@ -43,6 +43,7 @@
 #include "absl/types/optional_ref.h"
 #include "gloop/base/censushandle.h"
 #include "gloop/base/context_access.h"
+#include "gloop/base/crash.h"
 #include "gloop/base/static_threadlocal.h"
 #include "gloop/base/tracecontext.h"
 #include "gloop/perftools/tracing/string_label.h"
@@ -194,6 +195,18 @@ const TraceContext* CurrentTraceContextNoAlloc() {
       per_thread_context.safe_pointer();
 
   return context != nullptr ? &context->trace_context() : nullptr;
+}
+
+std::optional<CrashReason::TraceIds> CurrentTraceIdsForCrashReporting() {
+  const TraceContext* const tc = CurrentTraceContextNoAlloc();
+  if (tc == nullptr) {
+    return std::nullopt;
+  }
+  return CrashReason::TraceIds{
+      .rpc_id = tc->rpc_id(),
+      .parent_rpc_id = tc->parent_rpc_id(),
+      .global_id = tc->global_id(),
+  };
 }
 
 TraceContext* internal::MutableCurrentContext::MutableCurrentTrace() {
