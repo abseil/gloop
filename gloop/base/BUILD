@@ -660,6 +660,22 @@ cc_library(
     }),
 )
 
+cc_library(
+    name = "percpu_test_util",
+    testonly = True,
+    srcs = ["percpu_test_util.cc"],
+    hdrs = ["percpu_test_util.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":percpu",
+        "//gloop:enforce_gloop_support",
+        "@abseil-cpp//absl/base:raw_logging_internal",
+    ],
+    implementation_deps = [
+        "@tcmalloc//tcmalloc/internal:linux_syscall_support",
+    ],
+)
+
 cc_test(
     name = "percpu_macros_test",
     srcs = ["percpu_macros_test.cc"],
@@ -765,6 +781,7 @@ cc_test(
     srcs = ["percpu_compat_test.cc"],
     deps = [
         ":percpu",
+        ":percpu_test_util",
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/log",
@@ -779,6 +796,7 @@ cc_test(
     env = {"PERCPU_VCPU_MODE": "mm"},
     deps = [
         ":percpu",
+        ":percpu_test_util",
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/log",

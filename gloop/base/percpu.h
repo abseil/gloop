@@ -226,28 +226,6 @@ void Fence();
 // TODO: Enforce this with the type system.
 void FenceCpu(int cpu);
 
-// Unregister the current thread from rseq if it is currently registered.
-//
-// Do not use this unless you know what you're doing! It is typically useful
-// only when testing the rseq implementation and working around rseq bugs.
-void UnregisterThread();
-
-class ScopedUnregisterRseq {
- public:
-  ScopedUnregisterRseq() : was_registered_(IsFastNoInit()) {
-    UnregisterThread();
-  }
-
-  ~ScopedUnregisterRseq() {
-    if (was_registered_) {
-      ABSL_RAW_CHECK(IsFast(), "unable to reinitialize rseq");
-    }
-  }
-
- private:
-  const bool was_registered_;
-};
-
 ////////////////////////////////////////////////////////////////////////
 // Implementation details
 ////////////////////////////////////////////////////////////////////////
@@ -311,8 +289,6 @@ inline bool IsFastNoInit() {
 }
 
 #if !PERCPU_USE_RSEQ
-
-inline void UnregisterThread() {}
 
 inline RseqVcpuMode GetRseqVcpuMode() { return RseqVcpuMode::kNone; }
 

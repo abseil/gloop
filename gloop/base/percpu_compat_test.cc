@@ -23,6 +23,7 @@
 #include "absl/base/config.h"
 #include "absl/log/log.h"
 #include "gloop/base/percpu.h"
+#include "gloop/base/percpu_test_util.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 

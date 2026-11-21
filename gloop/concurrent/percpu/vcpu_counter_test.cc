@@ -36,6 +36,7 @@
 #include "absl/base/no_destructor.h"
 #include "benchmark/benchmark.h"
 #include "gloop/base/percpu.h"
+#include "gloop/base/percpu_test_util.h"
 #include "gloop/base/sysinfo.h"
 #include "gloop/thread/threadpool.h"
 #include "gtest/gtest.h"

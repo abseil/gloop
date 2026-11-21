@@ -197,19 +197,6 @@ static int RegisterRseq(const uint32_t flags) {
   return 0;
 }
 
-static int UnregisterRseq() {
-  constexpr uint32_t kRSEQ_FLAG_UNREGISTER = (1 << 0);
-  if (syscall(__NR_rseq, &__rseq_abi, sizeof(__rseq_abi), kRSEQ_FLAG_UNREGISTER,
-              PERCPU_RSEQ_SIGNATURE)) {
-    return errno;
-  }
-
-  // Assumption check: we should now show up as unregistered again.
-  ABSL_RAW_DCHECK(!ThreadRegistered(), "CPU ID not uninitialized");
-
-  return 0;
-}
-
 // Perform process-wide initialization.
 //
 // This function sets per_cpu_state and other globals. It must be called no more
@@ -340,21 +327,6 @@ bool UsingRseqVirtualCpus() {
       return true;
     case RseqVcpuMode::kNone:
       return false;
-  }
-}
-
-void UnregisterThread() {
-  // If this thread is already not registered, there's nothing for us to do.
-  if (!ThreadRegistered()) {
-    return;
-  }
-
-  // Unregister our struct from the kernel.
-  if (const int err = UnregisterRseq(); err != 0) {
-#ifndef NDEBUG
-    ABSL_RAW_LOG(FATAL, "Failed to unregister. errno: %d", err);
-#endif
-    return;
   }
 }
 
