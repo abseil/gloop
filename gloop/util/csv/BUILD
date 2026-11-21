@@ -51,6 +51,7 @@ cc_test(
         ":csv",
         "//gloop:gloop_test_main",
         "//gloop/strings:bytestream",
+        "//gloop/strings:join",
         "//gloop/strings:split",
         "//gloop/util/gtl:unique_array",
         "@abseil-cpp//absl/status",
