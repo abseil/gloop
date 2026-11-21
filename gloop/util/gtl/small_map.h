@@ -618,9 +618,7 @@ class small_map {
       small_map& full_map = using_full_map() ? *this : that;
       small_map& inlined = !using_full_map() ? *this : that;
 
-      ManualConstructor<NormalMap> scratch;
-      full_map.functor_(&scratch);
-      *scratch = std::move(*full_map.map_);
+      NormalMap scratch(std::move(*full_map.map_));
       full_map.map_.Destroy();
 
       for (size_t i = 0; i < inlined.size(); ++i) {
@@ -628,8 +626,7 @@ class small_map {
         inlined.array_[i].Destroy();
       }
 
-      full_map.functor_(&inlined.map_);
-      *inlined.map_ = std::move(*scratch);
+      inlined.map_.Init(std::move(scratch));
 
       swap(full_map.size_, inlined.size_);
       swap(full_map.functor_, inlined.functor_);
@@ -821,8 +818,7 @@ class small_map {
         array_[i].Init(*src.array_[i]);
       }
     } else {
-      functor_(&map_);
-      *map_ = *src.map_;
+      map_.Init(*src.map_);
     }
   }
 
@@ -834,8 +830,7 @@ class small_map {
         array_[i].Init(std::move(*src.array_[i]));
       }
     } else {
-      functor_(&map_);
-      *map_ = std::move(*src.map_);
+      map_.Init(std::move(*src.map_));
     }
   }
 
