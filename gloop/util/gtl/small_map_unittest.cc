@@ -1181,6 +1181,91 @@ TEST(SmallMap, SubclassInitializationWithFunctionObject) {
   EXPECT_EQ(1, m.count(-1));
 }
 
+TEST(SmallMap, MapInitNotCalledOnCopyMoveOrSwap) {
+  struct CountingMapInit {
+    int* init_count = nullptr;
+    void operator()(
+        ManualConstructor<absl::flat_hash_map<int, int>>* map_ctor) const {
+      ++(*init_count);
+      map_ctor->Init(64);
+    }
+  };
+
+  using MapType = small_map<absl::flat_hash_map<int, int>, 4,
+                            std::equal_to<int>, CountingMapInit>;
+
+  int init_count = 0;
+  MapType original(CountingMapInit{&init_count});
+  original[1] = 10;
+  original[2] = 20;
+  original[3] = 30;
+  original[4] = 40;
+  EXPECT_EQ(init_count, 0);
+
+  original[5] = 50;
+  EXPECT_TRUE(original.using_full_map());
+  EXPECT_EQ(init_count, 1);
+
+  MapType copied(original);
+  EXPECT_EQ(init_count, 1);
+  EXPECT_TRUE(copied.using_full_map());
+  EXPECT_THAT(copied,
+              UnorderedElementsAre(Pair(1, 10), Pair(2, 20), Pair(3, 30),
+                                   Pair(4, 40), Pair(5, 50)));
+
+  MapType copy_assigned(CountingMapInit{&init_count});
+  copy_assigned[99] = 990;
+  copy_assigned = original;
+  EXPECT_EQ(init_count, 1);
+  EXPECT_TRUE(copy_assigned.using_full_map());
+  EXPECT_THAT(copy_assigned,
+              UnorderedElementsAre(Pair(1, 10), Pair(2, 20), Pair(3, 30),
+                                   Pair(4, 40), Pair(5, 50)));
+
+  MapType moved(std::move(copied));
+  EXPECT_EQ(init_count, 1);
+  EXPECT_TRUE(moved.using_full_map());
+  EXPECT_THAT(moved, UnorderedElementsAre(Pair(1, 10), Pair(2, 20), Pair(3, 30),
+                                          Pair(4, 40), Pair(5, 50)));
+
+  MapType move_assigned(CountingMapInit{&init_count});
+  move_assigned = std::move(copy_assigned);
+  EXPECT_EQ(init_count, 1);
+  EXPECT_TRUE(move_assigned.using_full_map());
+  EXPECT_THAT(move_assigned,
+              UnorderedElementsAre(Pair(1, 10), Pair(2, 20), Pair(3, 30),
+                                   Pair(4, 40), Pair(5, 50)));
+
+  MapType inlined(CountingMapInit{&init_count});
+  inlined[100] = 1000;
+  inlined[200] = 2000;
+  ASSERT_FALSE(inlined.using_full_map());
+
+  // Swap full with inlined, then inlined with full.
+  moved.swap(inlined);
+  EXPECT_EQ(init_count, 1);
+  EXPECT_FALSE(moved.using_full_map());
+  EXPECT_TRUE(inlined.using_full_map());
+  EXPECT_THAT(moved, UnorderedElementsAre(Pair(100, 1000), Pair(200, 2000)));
+  EXPECT_THAT(inlined,
+              UnorderedElementsAre(Pair(1, 10), Pair(2, 20), Pair(3, 30),
+                                   Pair(4, 40), Pair(5, 50)));
+
+  moved.swap(inlined);
+  EXPECT_EQ(init_count, 1);
+  EXPECT_TRUE(moved.using_full_map());
+  EXPECT_FALSE(inlined.using_full_map());
+  EXPECT_THAT(moved, UnorderedElementsAre(Pair(1, 10), Pair(2, 20), Pair(3, 30),
+                                          Pair(4, 40), Pair(5, 50)));
+  EXPECT_THAT(inlined, UnorderedElementsAre(Pair(100, 1000), Pair(200, 2000)));
+
+  // Swap full with full.
+  moved.swap(move_assigned);
+  EXPECT_EQ(init_count, 1);
+  EXPECT_TRUE(moved.using_full_map());
+  EXPECT_TRUE(move_assigned.using_full_map());
+}
+
 template <typename NormalMap>
 static size_t ExpectedSmallMapSize(int array_size) {
   // We're explicitly computing a sizeof for the SmallMap, since in practice
