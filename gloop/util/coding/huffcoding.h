@@ -28,7 +28,7 @@
 // 4. Create an encoder from a map (see TableEncoder in tablecoding.h)
 //
 // To create a decoder from a map (see TableDecoder in tablecoding.h) first
-// create an encoder and then use TableDecoder::InitializeFromEncoder().
+// create an encoder and then use TableDecoder::TryInitializeFromEncoder().
 
 #ifndef THIRD_PARTY_GLOOP_UTIL_CODING_HUFFCODING_H_
 #define THIRD_PARTY_GLOOP_UTIL_CODING_HUFFCODING_H_

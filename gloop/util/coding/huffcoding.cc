@@ -210,9 +210,8 @@ HuffmanCode* HuffmanCode::SafeRestore(const char* buffer, int size,
   uint32_t num = d.get32();
   if (num < 2) {
     // We require at least 2 symbols:
-    // - If num == 0, TableDecoder::InitializeFromEncoder will calculate
-    //   max_symbol = num - 1 which underflows to UINT_MAX, leading to an
-    //   infinite loop and out-of-bounds memory accesses.
+    // - If num == 0, there are no symbols to decode, and a TableDecoder cannot
+    //   be initialized from the resulting encoder.
     // - If num == 1, the Huffman code is incomplete (codespace sum < 1.0),
     //   leaving "holes" in the TableDecoder table. Probing a hole returns a 0
     //   entry, causing the decoder to decode symbol 0 while consuming 0 bits,
