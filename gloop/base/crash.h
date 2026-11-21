@@ -23,13 +23,13 @@
 #ifndef THIRD_PARTY_GLOOP_BASE_CRASH_H_
 #define THIRD_PARTY_GLOOP_BASE_CRASH_H_
 
-#include "gloop/base/config.h"
-
-#if BASE_HAVE_CRASHREASON
-
-class TraceContext;
+#include <cstdint>
+#include <optional>
 
 #include "absl/strings/string_view.h"
+#include "gloop/base/config.h"
+
+class TraceContext;
 
 namespace base {
 
@@ -49,10 +49,21 @@ struct CrashReason {
   // low-level code unless absolutely safe to do so.
   char trace_info[512] = {'\0'};
 
+  // Trace IDs to report when reporting the crash.
+  // See `CurrentTraceIdsForCrashReporting()` in context.h.
+  struct TraceIds {
+    uint64_t rpc_id = 0;
+    uint64_t parent_rpc_id = 0;
+    uint64_t global_id = 0;
+  };
+  std::optional<TraceIds> trace_ids;
+
   // Trace context override to use (instead of the current trace context) when
-  // reporting the crash.
-  const TraceContext* tc = nullptr;
+  // reporting the crash. TODO: remove
+  [[deprecated("Use `trace_ids` instead")]] const TraceContext* tc = nullptr;
 };
+
+#if BASE_HAVE_CRASHREASON
 
 // Stores "reason" as an explanation for why the process is about to
 // crash.  The reason and its contents must remain live for the life
@@ -62,8 +73,8 @@ void SetCrashReason(const CrashReason* reason);
 // Returns first reason passed to SetCrashReason(), or null.
 const CrashReason* GetCrashReason();
 
-}  // namespace base
-
 #endif  // BASE_HAVE_CRASHREASON
+
+}  // namespace base
 
 #endif  // THIRD_PARTY_GLOOP_BASE_CRASH_H_
