@@ -48,6 +48,7 @@
 #include "gloop/base/callback.h"
 #include "gloop/base/censushandle.h"
 #include "gloop/base/context_access.h"
+#include "gloop/base/crash.h"
 #include "gloop/base/tracecontext.h"
 #include "gloop/perftools/tracing/mock_trace_event_listener.h"
 #include "gloop/perftools/tracing/string_label.h"
