@@ -293,7 +293,7 @@ TEST(UnalignedLoad, SpanAndSubspan) {
 }
 
 TEST(UnalignedLoad, StringAndStringView) {
-  const std::string str = {"\x11\x22\x33\x44\x55", 5};
+  const std::string str = {"\x11\x22\x33\x44\x55"};
   const absl::string_view sv = str;
   if constexpr (LittleEndian::IsLittleEndian()) {
     EXPECT_EQ(UnalignedLoad<uint32_t>(str), 0x44332211u);
