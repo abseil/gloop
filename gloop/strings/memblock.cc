@@ -421,9 +421,10 @@ bool ReleaseMemoryInChunks(char* absl_nonnull start, size_t size) {
 
 MMappedMemBlock::~MMappedMemBlock() {
   if (munmap_) {
-    char* start = reinterpret_cast<char*>(orig_data());
+    char* const base = reinterpret_cast<char*>(orig_data());
+    size_t offset = 0;
     size_t size = orig_length();
-    bool memory_released = ReleaseMemoryInChunks(start, size);
+    bool memory_released = ReleaseMemoryInChunks(base, size);
     const size_t pages_per_chunk =
         absl::GetFlag(FLAGS_mmappedmemblock_munmap_pages_per_call);
     // Chunked munmap is only still potentially useful if ReleaseMemoryInChunks
@@ -439,16 +440,16 @@ MMappedMemBlock::~MMappedMemBlock() {
         //
         // There's a similar code in ReleaseMemoryInChunks, but we can't rely on
         // it here because we only run this code if ReleaseMemoryInChunks failed
-        if (munmap(start + page_size, page_size) == 0) {
+        if (munmap(base + offset + page_size, page_size) == 0) {
           // Right page size found. Unmap the first page.
-          PCHECK(munmap(start, page_size) == 0);
-          start += page_size * 2;
+          PCHECK(munmap(base + offset, page_size) == 0);
+          offset += page_size * 2;
           size -= page_size * 2;
           const size_t chunk_size = page_size * pages_per_chunk;
           // Unmap the remaining chunks
           while (size >= chunk_size) {
-            PCHECK(munmap(start, chunk_size) == 0);
-            start += chunk_size;
+            PCHECK(munmap(base + offset, chunk_size) == 0);
+            offset += chunk_size;
             size -= chunk_size;
           }
           break;
@@ -458,7 +459,7 @@ MMappedMemBlock::~MMappedMemBlock() {
       }
     }
     if (size != 0) {
-      PCHECK(munmap(start, size) == 0);
+      PCHECK(munmap(base + offset, size) == 0);
     }
   }
   absl::MutexLock l(total_lock);
