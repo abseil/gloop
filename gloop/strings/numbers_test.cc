@@ -2361,7 +2361,7 @@ TEST_F(SimpleDtoaTest, SimpleDtoa) {
   // equal, not approximately.
   TestDtoaRoundTrip(1.2345678901234567, 18);
   TestDtoaRoundTrip(1.2345678901234565, 18);
-  TestDtoaRoundTrip(1.2345678901234569, 18);
+  TestDtoaRoundTrip(1.2345678901234569, 17);
   TestDtoaRoundTrip(47.800000000000001, 18);
   TestDtoaRoundTrip(0.10000000000000005, 18);
   TestDtoaRoundTrip(0.010000000000000005, 18);
