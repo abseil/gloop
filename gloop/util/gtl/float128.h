@@ -214,7 +214,7 @@ class Float128 final {
 
  private:
 // An architecture-portable spelling for the compiler's built-in IEEE quad type.
-#ifdef __aarch64__
+#if defined(__aarch64__) || defined(__riscv)
   static_assert(std::numeric_limits<long double>::is_iec559 &&
                 std::numeric_limits<long double>::digits == 113 &&
                 std::numeric_limits<long double>::radix == 2 &&
