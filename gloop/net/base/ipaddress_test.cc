@@ -527,6 +527,40 @@ TEST(IPAddressTest, NonCanonicalIPv6StringValid) {
   EXPECT_EQ(ip1, ip2);
 }
 
+TEST(IPAddressTest, IPv6HexDigitAllByteValues) {
+  IPAddress lower;
+  IPAddress upper;
+  ASSERT_TRUE(
+      StringToIPAddress("0123:4567:89ab:cdef:fedc:ba98:7654:3210", &lower));
+  ASSERT_TRUE(
+      StringToIPAddress("0123:4567:89AB:CDEF:FEDC:BA98:7654:3210", &upper));
+  EXPECT_EQ(lower.ToString(), "123:4567:89ab:cdef:fedc:ba98:7654:3210");
+  EXPECT_EQ(upper, lower);
+
+  for (int byte_val = 0; byte_val < 256; ++byte_val) {
+    int expected = -1;
+    if (byte_val >= '0' && byte_val <= '9') {
+      expected = byte_val - '0';
+    } else if (byte_val >= 'a' && byte_val <= 'f') {
+      expected = byte_val - 'a' + 10;
+    } else if (byte_val >= 'A' && byte_val <= 'F') {
+      expected = byte_val - 'A' + 10;
+    }
+    std::string input = "2001:db8::";
+    input.push_back(static_cast<char>(byte_val));
+    IPAddress parsed;
+    if (expected >= 0) {
+      ASSERT_TRUE(StringToIPAddress(input, &parsed)) << "byte=" << byte_val;
+      EXPECT_EQ(static_cast<int>(parsed.ipv6_address().s6_addr[14]), 0)
+          << "byte=" << byte_val;
+      EXPECT_EQ(static_cast<int>(parsed.ipv6_address().s6_addr[15]), expected)
+          << "byte=" << byte_val;
+    } else {
+      EXPECT_FALSE(StringToIPAddress(input, &parsed)) << "byte=" << byte_val;
+    }
+  }
+}
+
 TEST(IPAddressTest, IPv6FieldOutOfRange) {
   IPAddress ip;
   EXPECT_FALSE(StringToIPAddress("::fffff", &ip));

@@ -25,6 +25,7 @@
 #include <stdio.h>  // for snprintf
 
 #include <algorithm>
+#include <array>
 #include <cerrno>
 #include <cstdint>
 #include <cstring>
@@ -572,10 +573,23 @@ bool StringToInAddr(absl::string_view ip, in_addr* absl_nonnull addr) {
 
 // Parses a single hex digit.  Returns its numeric value, or -1 on failure.
 int HexDigitValue(char ch) {
-  if ('0' <= ch && ch <= '9') return ch - '0';
-  if ('a' <= ch && ch <= 'f') return ch - 'a' + 10;
-  if ('A' <= ch && ch <= 'F') return ch - 'A' + 10;
-  return -1;
+  static constexpr std::array<int8_t, 256> kHexDigits = [] {
+    std::array<int8_t, 256> table{};
+    for (int8_t& entry : table) {
+      entry = -1;
+    }
+    for (uint8_t c = '0'; c <= '9'; ++c) {
+      table[c] = static_cast<int8_t>(c - '0');
+    }
+    for (uint8_t c = 'a'; c <= 'f'; ++c) {
+      table[c] = static_cast<int8_t>(c - 'a' + 10);
+    }
+    for (uint8_t c = 'A'; c <= 'F'; ++c) {
+      table[c] = static_cast<int8_t>(c - 'A' + 10);
+    }
+    return table;
+  }();
+  return kHexDigits[static_cast<uint8_t>(ch)];
 }
 
 // Parses an IPv6 address in RFC 4291 format.  This is the same format
