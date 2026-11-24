@@ -160,9 +160,11 @@ class TestTracer : public Tracer {
   using base::Tracer::kInitiatorTypeProdUid;
   using base::Tracer::kInitiatorValueMask;
   using base::Tracer::kNotSampled;
+  using base::Tracer::kSpeculativeRoot;
   using base::Tracer::kTraceInitiatingSpan;
   using base::Tracer::Ref;
   using base::Tracer::set_initiator_id;
+  using base::Tracer::set_speculative_root;
   using base::Tracer::set_tracer_attributes;
   using base::Tracer::SetStartTime;
   using base::Tracer::SetStartTimeNow;
@@ -257,6 +259,8 @@ class TestTracer : public Tracer {
   void TestEnableQueryCostTracing() { enable_query_cost_tracing(); }
 
   void TestSetHighValueTrace() { set_high_value_trace(); }
+
+  void TestSetSpeculativeRoot() { set_speculative_root(); }
 
   void TestSetInitiatorIdString(uint32_t hash) {
     set_initiator_id_string(hash);
@@ -511,21 +515,6 @@ TEST(Tracer, SetErrorStatus) {
   // result of `GetErrorStatus()`.
   EXPECT_THAT(tracer.status(), StatusIs(absl::StatusCode::kUnknown));
   EXPECT_TRUE(tracer.GetErrorStatus());
-}
-
-TEST(Tracer, InitiatorIdOfChildTrace) {
-  TestTracer tracer;
-  // Set a lot of bits but not the most-significant one. Clear the "initiating
-  // span" and "linked trace" bits to see that they are set by
-  // `TestSetInitiatorIdOnChildTrace`.
-  constexpr uint64_t kInitiatorBits = 0x7FFFFFFF00012345 &
-                                      ~TestTracer::kTraceInitiatingSpan &
-                                      ~TestTracer::kInitiatedByLinkContexts;
-
-  tracer.TestSetInitiatorIdOnChildTrace(kInitiatorBits);
-  EXPECT_EQ(tracer.initiator_id(), kInitiatorBits |
-                                       TestTracer::kTraceInitiatingSpan |
-                                       TestTracer::kInitiatedByLinkContexts);
 }
 
 TEST(Tracer, UnrefNoDeleteRefcountGreaterThanOne) {

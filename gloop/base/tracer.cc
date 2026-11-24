@@ -210,8 +210,8 @@ void Tracer::SetStartTime(absl::Time time) {
 }
 
 void Tracer::set_inherited_initiator_id(uint64_t value) {
-  // Reset the bit indicating this span is initiating the trace.
-  value &= ~kTraceInitiatingSpan;
+  // Reset root-only bits that must not propagate to downstream child spans.
+  value &= ~(kTraceInitiatingSpan | kSpeculativeRoot);
   initiator_id_.store(value, std::memory_order_relaxed);
 }
 
@@ -222,7 +222,9 @@ void Tracer::GetTraceContextStackTraces(
 
 void Tracer::set_initiator_id_on_child_trace(uint64_t value) {
   // Add the bits indicating this is a linked trace and the span is its root
-  // (the decision to sample was propagated from the parent at this span).
+  // (the decision to sample was propagated from the parent at this span), while
+  // clearing span-local kSpeculativeRoot.
+  value &= ~kSpeculativeRoot;
   value |= kInitiatedByLinkContexts;
   value |= kTraceInitiatingSpan;
   initiator_id_.store(value, std::memory_order_relaxed);
