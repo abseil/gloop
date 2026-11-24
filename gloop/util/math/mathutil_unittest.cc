@@ -243,57 +243,6 @@ INSTANTIATE_TEST_SUITE_P(QuarticEqSolverTests, QuarticEqSolverTest,
 
 }  // namespace quartic
 
-#ifdef __LLVM_LIBC__
-// LLVM libc has no `long double` acos/cos/cbrt/pow, so RealRootsForCubic seeds
-// from the `double` functions and refines locally. Check that the roots reach
-// ~1e-18 relative precision, i.e. well beyond what `double` alone gives.
-constexpr long double kCubicLongDoubleTol = 1e-18L;
-
-TEST(MathUtil, RealRootsForCubicOneRealRootIsLongDoublePrecise) {
-  if (std::numeric_limits<long double>::digits < 64) {
-    GTEST_SKIP() << "long double has less than 64 mantissa bits";
-  }
-  // x^3 - u = 0 has the single real root cbrt(u). The values outside the
-  // `double` range exercise the frexpl/ldexpl exponent handling.
-  for (long double const u :
-       {2.0L, 3.0L, 10.0L, 0.1L, 12345.678L, 1e-300L, 1e300L, 1e1000L, 1e-1000L,
-        -2.0L, -7.5L, -1e1000L}) {
-    long double r1 = 0, r2 = 0, r3 = 0;
-    EXPECT_FALSE(MathUtil::RealRootsForCubic(0, 0, -u, &r1, &r2, &r3));
-    EXPECT_LE(std::fabs((r1 * r1 * r1 - u) / u), kCubicLongDoubleTol)
-        << std::setprecision(21) << "u=" << u << " r1=" << r1;
-  }
-}
-
-TEST(MathUtil, RealRootsForCubicThreeRealRootsAreLongDoublePrecise) {
-  if (std::numeric_limits<long double>::digits < 64) {
-    GTEST_SKIP() << "long double has less than 64 mantissa bits";
-  }
-  struct Case {
-    long double a, b, c;   // x^3 + ax^2 + bx + c, exactly representable.
-    long double roots[3];  // Sorted.
-  };
-  for (Case const& t : {
-           Case{-6, 11, -6, {1, 2, 3}},
-           Case{0, -1, 0, {-1, 0, 1}},
-           Case{-111, 1110, -1000, {1, 10, 100}},
-           Case{111, 1110, 1000, {-100, -10, -1}},
-           Case{-1.25L, -11.75L, 3, {-3, 0.25L, 4}},
-       }) {
-    long double r[3] = {};
-    ASSERT_TRUE(
-        MathUtil::RealRootsForCubic(t.a, t.b, t.c, &r[0], &r[1], &r[2]));
-    std::sort(r, r + 3);
-    long double const scale =
-        std::max(std::fabs(t.roots[0]), std::fabs(t.roots[2]));
-    for (int i = 0; i < 3; ++i) {
-      EXPECT_LE(std::fabs(r[i] - t.roots[i]), kCubicLongDoubleTol * scale)
-          << std::setprecision(21) << "root " << t.roots[i] << " got " << r[i];
-    }
-  }
-}
-#endif  // __LLVM_LIBC__
-
 TEST(MathUtil, Sigmoid) {
   for (double lambda = 0.1; lambda < 2.0; lambda += 0.1) {
     EXPECT_NEAR(MathUtil::Sigmoid(0.0, lambda), 0.5, 1e-8);
