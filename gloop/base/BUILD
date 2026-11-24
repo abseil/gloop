@@ -275,6 +275,7 @@ cc_test(
         ":crash",
         ":sysinfo",
         ":tracecontext",
+        ":tracer",
         "//gloop:gloop_test_main",
         "//gloop/perftools/tracing:mock_trace_event_listener",
         "//gloop/perftools/tracing:test_only_access",
@@ -1521,6 +1522,7 @@ cc_test(
     srcs = ["examine_stack_unittest.cc"],
     deps = [
         ":examine_stack",
+        ":process_state",
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/base:core_headers",
@@ -2353,6 +2355,7 @@ cc_test(
     size = "small",
     srcs = ["varsetter_test.cc"],
     deps = [
+        ":commandlineflags",
         ":varsetter",
         "//gloop:gloop_test_main",
         "@abseil-cpp//absl/flags:flag",
