@@ -175,6 +175,49 @@ TEST(VcpuStripedObjectTest, PromotionDoesNotRoundToPowerOfTwo) {
   }
 }
 
+TEST(VcpuStripedObjectTest, SlotAddressStabilityAcrossPromotions) {
+  using testing::ElementsAreArray;
+
+  auto check = []<typename T>() {
+    VcpuStripedObject<T> obj;
+    std::vector<const T*> addrs;
+    for (int min_vcpu : {0, 7, 15, 31, 63}) {
+      VcpuStripedObjectTestPeer::Promote(obj, min_vcpu);
+      for (size_t i = 0; i < addrs.size(); ++i) {
+        EXPECT_EQ(
+            VcpuStripedObjectTestPeer::AcquireSlot(obj, static_cast<int>(i))
+                .get(),
+            addrs[i])
+            << "slot " << i << " at min_vcpu=" << min_vcpu;
+      }
+      for (size_t i = addrs.size(); i < obj.capacity(); ++i) {
+        addrs.push_back(
+            VcpuStripedObjectTestPeer::AcquireSlot(obj, static_cast<int>(i))
+                .get());
+      }
+    }
+    std::vector<const T*> swept;
+    obj.ForEach([&](const T& v) { swept.push_back(&v); });
+    EXPECT_THAT(swept, ElementsAreArray(addrs));
+  };
+
+  struct Immovable {
+    Immovable() = default;
+    Immovable(const Immovable&) = delete;
+    Immovable(Immovable&&) = delete;
+    Immovable& operator=(const Immovable&) = delete;
+    Immovable& operator=(Immovable&&) = delete;
+  };
+  {
+    SCOPED_TRACE("int64_t");
+    check.operator()<int64_t>();
+  }
+  {
+    SCOPED_TRACE("Immovable");
+    check.operator()<Immovable>();
+  }
+}
+
 TEST(VcpuStripedObjectTest, PointerMoveSemantics) {
   VcpuStripedObject<int64_t> obj;
   {

@@ -57,6 +57,12 @@
 //
 //   // Holds constructor arguments forwarded to each lazily-allocated slot:
 //   concurrent::percpu::VcpuStripedObject<HeavyHitters, size_t> hh_{100};
+//
+// Pointer stability:
+// ------------------
+// Striped T instances have stable addresses across table promotions until the
+// VcpuStripedObject is destroyed. Access after releasing `pointer` (or outside
+// a sweep) requires external synchronization.
 
 #include <algorithm>
 #include <atomic>
