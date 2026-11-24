@@ -36,9 +36,11 @@
 #include "absl/algorithm/container.h"
 #include "absl/log/check.h"
 #include "absl/numeric/bits.h"
+#include "absl/random/distributions.h"
 #include "absl/random/random.h"
 #include "absl/random/uniform_int_distribution.h"
 #include "absl/random/zipf_distribution.h"
+#include "absl/status/status.h"
 #include "absl/status/status_matchers.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
@@ -75,6 +77,7 @@ namespace {
 
 using ::fuzztest::Arbitrary;
 using ::fuzztest::BitFlagCombinationOf;
+using ::fuzztest::InRange;
 using ::fuzztest::VectorOf;
 
 uint32_t NumOnes(absl::Span<const uint64_t> bitmap) {
@@ -391,6 +394,7 @@ void Roundtrip(std::vector<uint64_t> values,
 
   const auto mem = enc.Finalize();
   ABSL_EXPECT_OK(GetInfo(mem));
+  ABSL_EXPECT_OK(Validate(mem));
 
   const auto opts = Options::Decode(mem);
   ABSL_EXPECT_OK(opts);
@@ -486,6 +490,267 @@ TEST(Finalize, Equivalent) {
   ABSL_ASSERT_OK(e2_encoded);
   ASSERT_EQ(*e2_encoded, e1_encoded);
 }
+
+std::string EncodeSorted(std::vector<uint64_t> values,
+                         Options::Index indexes = Options::ALL) {
+  absl::c_sort(values);
+  Encoder2 enc(indexes);
+  CHECK(enc.Append(values));
+  return std::string(enc.Finalize());
+}
+
+// 1000 values in [0, 2^20), so many consecutive values share high bits and
+// both indexes are dense.
+std::string DenseEncoding() {
+  absl::BitGen rng;
+  std::vector<uint64_t> values(1000);
+  for (auto& v : values) v = absl::Uniform<uint64_t>(rng, 0, 1 << 20);
+  return EncodeSorted(values);
+}
+
+// Same values as CodingTest.Sparse, which use both dense and sparse entries.
+std::string SparseEncoding() {
+  const uint32_t N = Options::kR;
+  std::vector<uint64_t> values(N, 1 << 4);
+  values.push_back(2 << 4);
+  values.push_back((N << 4) + values.back());
+  return EncodeSorted(values);
+}
+
+// Expects Validate() to reject `mem` with any single bit flipped in every
+// `step`-th byte of [begin, end).
+void ExpectBitFlipsRejected(std::string mem, size_t begin, size_t end,
+                            size_t step = 1) {
+  for (size_t i = begin; i < end; i += step) {
+    for (int bit = 0; bit < 8; ++bit) {
+      mem[i] ^= 1 << bit;
+      EXPECT_FALSE(Validate(mem).ok()) << "byte " << i << " bit " << bit;
+      mem[i] ^= 1 << bit;
+    }
+  }
+}
+
+// Checks that queries on a span accepted by Validate() stay in bounds and
+// decode non-decreasing values. Run under ASAN to catch out of bounds reads.
+void CheckDecodable(absl::Span<const char> mem) {
+  auto opts = Options::Decode(mem);
+  ABSL_ASSERT_OK(opts);
+  auto dec = Decoder::Make(mem);
+  ABSL_ASSERT_OK(dec);
+  std::vector<uint64_t> values(dec->begin(), dec->end());
+  ASSERT_EQ(values.size(), opts->size());
+  EXPECT_TRUE(absl::c_is_sorted(values));
+  if (!values.empty()) EXPECT_EQ(values.back(), opts->max_value());
+
+  auto fdec = ForwardDecoder::Make(mem);
+  ABSL_ASSERT_OK(fdec);
+  for (; !fdec->done(); fdec->Next()) {
+    EXPECT_EQ(fdec->value(), values[fdec->index()]);
+  }
+  fdec->Reset();
+  for (uint64_t v : values) {
+    fdec->AdvanceToValue(v);
+    ASSERT_FALSE(fdec->done());
+    EXPECT_EQ(fdec->value(), v);
+  }
+  // Also covers empty arrays, where max_value is the only valid argument.
+  fdec->Reset();
+  fdec->AdvanceToValue(opts->max_value());
+  EXPECT_EQ(fdec->index(), static_cast<uint32_t>(
+                               absl::c_lower_bound(values, opts->max_value()) -
+                               values.begin()));
+
+  // Small arrays have no indexes; their queries scan the unary stream instead.
+  const bool small = opts->bits() <= Options::kMaxBitsNoIndex;
+  if (small || opts->has_index(Options::ONES)) CheckOneIndexOps(mem, values);
+  if (small || opts->has_index(Options::ZEROS)) {
+    CheckZeroIndexOps(mem, values);
+    // Also covers empty arrays, which CheckZeroIndexOps() does not query.
+    for (uint64_t v : {uint64_t{0}, opts->max_value()}) {
+      EXPECT_EQ(dec->LowerBound(v),
+                static_cast<uint32_t>(absl::c_lower_bound(values, v) -
+                                      values.begin()));
+      EXPECT_EQ(dec->UpperBound(v),
+                static_cast<uint32_t>(absl::c_upper_bound(values, v) -
+                                      values.begin()));
+    }
+  }
+}
+
+// Calls CheckDecodable() if Validate() accepts `bytes`. Both run on an exactly
+// sized heap copy, so that ASAN catches reads even one byte past the end,
+// which a std::string's inline buffer or spare capacity would hide.
+void ExpectRejectedOrDecodable(absl::string_view bytes) {
+  const std::vector<char> mem(bytes.begin(), bytes.end());
+  if (Validate(mem).ok()) CheckDecodable(mem);
+}
+
+TEST(ValidateTest, AcceptsEmpty) { ABSL_EXPECT_OK(Validate(EncodeSorted({}))); }
+
+TEST(ValidateTest, AcceptsDenseAndSparse) {
+  ABSL_EXPECT_OK(Validate(DenseEncoding()));
+  const std::string mem = SparseEncoding();
+  auto info = GetInfo(mem);
+  ABSL_ASSERT_OK(info);
+  ASSERT_GT(info->sparse_index_bytes, 0);
+  ABSL_EXPECT_OK(Validate(mem));
+}
+
+TEST(ValidateTest, RejectsGarbage) {
+  EXPECT_FALSE(Validate("").ok());
+  EXPECT_FALSE(Validate("This is definitely not valid Elias-Fano data").ok());
+}
+
+TEST(ValidateTest, RejectsUnsupportedVersion) {
+  std::string mem = EncodeSorted({1, 2, 3});
+  ASSERT_EQ(mem[0], Options::VERSION3);
+  mem[0] = 1;
+  EXPECT_THAT(Validate(mem),
+              absl_testing::StatusIs(absl::StatusCode::kUnimplemented));
+}
+
+TEST(ValidateTest, RejectsUnknownIndexFlags) {
+  std::string mem = DenseEncoding();
+  ASSERT_EQ(mem[1], Options::ALL);
+  mem[1] = 0x7;
+  EXPECT_THAT(Validate(mem),
+              absl_testing::StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST(ValidateTest, RejectsTruncated) {
+  for (const std::string& mem : {DenseEncoding(), SparseEncoding()}) {
+    EXPECT_FALSE(Validate(mem.substr(0, mem.size() - 1)).ok());
+  }
+  // Cut in the middle of the sparse entries.
+  const std::string mem = SparseEncoding();
+  auto info = GetInfo(mem);
+  ABSL_ASSERT_OK(info);
+  EXPECT_FALSE(
+      Validate(mem.substr(0, mem.size() - info->sparse_index_bytes / 2)).ok());
+}
+
+TEST(ValidateTest, RejectsOptionsLargerThanSpan) {
+  // Options for 2^32 - 1 values with 24 low bits each, i.e. about 13 GB of
+  // high and low bits, followed by only a few bytes.
+  Options opts(std::numeric_limits<uint32_t>::max(), ~uint64_t{0} >> 8);
+  std::string mem(Options::EncodingLength(opts) + 64, '\0');
+  Options::Encode(opts, absl::MakeSpan(mem));
+  EXPECT_THAT(Validate(mem),
+              absl_testing::StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST(ValidateTest, RejectsEmptyWithNonZeroMaxValueOrWidth) {
+  // Encoder2 writes max_value 0 and width 0 for an empty array. Otherwise,
+  // e.g. ForwardDecoder::AdvanceToValue(max_value) would read past the end.
+  const std::vector<std::pair<uint64_t, uint8_t>> max_values_and_widths = {
+      {101, 1}, {50, 0}, {0, 1}, {0, Options::kMaxWidth}};
+  for (const auto& [max_value, width] : max_values_and_widths) {
+    Options opts(0, max_value);
+    opts.override_width(width);
+    std::string mem(Encoder::MinEncodingBytes(opts), '\0');
+    Options::Encode(opts, absl::MakeSpan(mem));
+    // Set the sentinel, so that only the options are wrong.
+    const size_t high = Options::EncodingLength(opts);
+    mem[high + opts.bits() / 8] = 1 << (opts.bits() % 8);
+    EXPECT_THAT(Validate(mem),
+                absl_testing::StatusIs(absl::StatusCode::kInvalidArgument))
+        << opts.DebugString();
+  }
+}
+
+TEST(ValidateTest, RejectsCorruptUnaryStreamAndDenseIndex) {
+  const std::string mem = DenseEncoding();
+  auto info = GetInfo(mem);
+  ABSL_ASSERT_OK(info);
+  ASSERT_EQ(info->sparse_index_bytes, 0);
+  const size_t high = info->meta_bytes;
+  const size_t dense = high + info->high_bytes + info->low_bytes;
+  ExpectBitFlipsRejected(mem, high, high + info->high_bytes);
+  ExpectBitFlipsRejected(mem, dense, dense + info->dense_index_bytes);
+}
+
+TEST(ValidateTest, RejectsCorruptSparseIndex) {
+  const std::string mem = SparseEncoding();
+  auto info = GetInfo(mem);
+  ABSL_ASSERT_OK(info);
+  const size_t dense = info->meta_bytes + info->high_bytes + info->low_bytes;
+  const size_t sparse = dense + info->dense_index_bytes;
+  // Validating this encoding is relatively slow, so only sample the bytes.
+  ExpectBitFlipsRejected(mem, dense, sparse, /*step=*/97);
+  ExpectBitFlipsRejected(mem, sparse, sparse + info->sparse_index_bytes,
+                         /*step=*/61);
+}
+
+TEST(ValidateTest, RejectsDecreasingValues) {
+  std::string mem = DenseEncoding();
+  auto info = GetInfo(mem);
+  ABSL_ASSERT_OK(info);
+  ASSERT_GT(info->opts.width(), 0);
+  // Flipping a low bit keeps the encoding readable, and it must be rejected
+  // iff the decoded values are no longer non-decreasing up to max_value.
+  const size_t low = info->meta_bytes + info->high_bytes;
+  int rejected = 0;
+  for (size_t i = low; i < low + info->low_bytes; ++i) {
+    for (int bit = 0; bit < 8; ++bit) {
+      mem[i] ^= 1 << bit;
+      auto dec = Decoder::Make(mem);
+      ABSL_ASSERT_OK(dec);
+      std::vector<uint64_t> values(dec->begin(), dec->end());
+      const bool want_ok =
+          absl::c_is_sorted(values) && values.back() == info->opts.max_value();
+      EXPECT_EQ(Validate(mem).ok(), want_ok) << "byte " << i << " bit " << bit;
+      rejected += !want_ok;
+      mem[i] ^= 1 << bit;
+    }
+  }
+  EXPECT_GT(rejected, 0);
+}
+
+void CorruptedEncodingIsRejectedOrDecodable(std::vector<uint64_t> values,
+                                            Options::Index indexes,
+                                            size_t offset, uint8_t mask) {
+  std::string mem = EncodeSorted(std::move(values), indexes);
+  mem[offset % mem.size()] ^= mask;
+  ExpectRejectedOrDecodable(mem);
+}
+FUZZ_TEST(ValidateTest, CorruptedEncodingIsRejectedOrDecodable)
+    .WithDomains(VectorOf(Arbitrary<uint64_t>()),
+                 BitFlagCombinationOf({Options::ONES, Options::ZEROS}),
+                 Arbitrary<size_t>(), Arbitrary<uint8_t>());
+
+void ArbitraryBytesAreRejectedOrDecodable(const std::string& mem) {
+  ExpectRejectedOrDecodable(mem);
+}
+FUZZ_TEST(ValidateTest, ArbitraryBytesAreRejectedOrDecodable);
+
+// Like ArbitraryBytesAreRejectedOrDecodable, but with a well formed options
+// header for small arrays, so that the fuzzer reaches the checks after it.
+void ArbitraryOptionsAreRejectedOrDecodable(uint32_t indexes, uint32_t size,
+                                            uint64_t max_value, uint32_t width,
+                                            const std::string& payload) {
+  std::string mem;
+  auto put_varint = [&mem](uint64_t v) {
+    for (; v >= 0x80; v >>= 7) mem.push_back(static_cast<char>(v | 0x80));
+    mem.push_back(static_cast<char>(v));
+  };
+  put_varint(Options::VERSION3);
+  put_varint(indexes);
+  put_varint(size);
+  put_varint(max_value);
+  put_varint(width);
+  mem.append(payload);
+  ExpectRejectedOrDecodable(mem);
+}
+FUZZ_TEST(ValidateTest, ArbitraryOptionsAreRejectedOrDecodable)
+    .WithDomains(InRange<uint32_t>(0, Options::ALL), InRange<uint32_t>(0, 64),
+                 InRange<uint64_t>(0, 256),
+                 InRange<uint32_t>(0, Options::kMaxWidth),
+                 Arbitrary<std::string>())
+    // Empty arrays with only the sentinel and the 7 trailing bytes, but a
+    // non-zero width or max_value.
+    .WithSeeds({{0, 0, 0, 1, std::string("\x01\0\0\0\0\0\0\0", 8)},
+                {0, 0, 101, 1,
+                 std::string("\0\0\0\0\0\0\x04\0\0\0\0\0\0\0", 14)}});
 
 namespace bm {
 
@@ -862,6 +1127,20 @@ void SmallJumpsForwardDecoder(benchmark::State* state) {
   }
 }
 CODING_BENCHMARK(SmallJumpsForwardDecoder);
+
+template <class State>
+void Validate(benchmark::State* state) {
+  int version = state->range(0);
+  int size = state->range(1);
+  int delta = state->range(2);
+  Options opts(size, static_cast<uint64_t>(size) << delta);
+  opts.version(version);
+  auto encoded = State::get()->GetEncoded(opts);
+  while (state->KeepRunningBatch(size)) {
+    CHECK_OK(elias_fano::Validate(encoded));
+  }
+}
+CODING_BENCHMARK(Validate);
 
 void WorstCase(benchmark::State& state) {
   static std::string* encoded = new std::string;

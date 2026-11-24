@@ -192,6 +192,189 @@ Options GetOptions(uint32_t size, uint64_t max_val, Options::Index index,
   return Options(size, max_val).version(version).indexes(index);
 }
 
+// Calls `f(pos)` with the position of every one (or zero if One is false) in
+// the first `bits` bits of the unary stream, in increasing order. Stops at the
+// first error returned by `f`.
+template <bool One, class F>
+absl::Status ForEachBit(const uint8_t* high, uint64_t bits, F f) {
+  for (uint64_t byte = 0; byte * 8 < bits; byte += 8) {
+    uint64_t x = One ? LittleEndian::Load64(&high[byte])
+                     : ~LittleEndian::Load64(&high[byte]);
+    if (bits - byte * 8 < 64) x &= (uint64_t{1} << (bits - byte * 8)) - 1;
+    for (; x != 0; x &= x - 1) {
+      ABSL_RETURN_IF_ERROR(f(byte * 8 + absl::countr_zero(x)));
+    }
+  }
+  return absl::OkStatus();
+}
+
+// Checks that the unary stream has exactly size() + 1 ones: one per element,
+// with the last element at bits() - 1 since it is max_value(), plus the
+// sentinel at bits(), which must be followed by zero padding only.
+absl::Status ValidateUnaryStream(const Options& opts, const uint8_t* high) {
+  const uint64_t bits = opts.bits();
+  const size_t high_bytes = opts.high_bytes();
+  if (high[high_bytes - 1] >> (bits % 8) != 1) {
+    return util::InvalidArgumentErrorBuilder()
+           << "bad sentinel or padding bits: " << opts.DebugString();
+  }
+  if (opts.size() != 0 &&
+      (high[(bits - 1) / 8] & (1 << ((bits - 1) % 8))) == 0) {
+    return util::InvalidArgumentErrorBuilder()
+           << "last element is not max_value: " << opts.DebugString();
+  }
+  uint64_t ones = 0;
+  for (size_t i = 0; i < high_bytes; i += 8) {
+    uint64_t x = LittleEndian::Load64(&high[i]);
+    // Ignore the bytes past the end of the unary stream.
+    if (high_bytes - i < 8) x &= ~uint64_t{0} >> (64 - 8 * (high_bytes - i));
+    ones += absl::popcount(x);
+  }
+  if (ones != uint64_t{opts.size()} + 1) {
+    return util::InvalidArgumentErrorBuilder()
+           << "unary stream has " << ones
+           << " ones, want size + 1: " << opts.DebugString();
+  }
+  return absl::OkStatus();
+}
+
+// Checks that the values are non-decreasing and end with max_value(). Values
+// out of order do not make Decoder read out of bounds, but its binary searches
+// would return wrong results.
+//
+// REQUIRES: ValidateUnaryStream() succeeded.
+absl::Status ValidateValues(const Options& opts, const uint8_t* high,
+                            const uint8_t* low) {
+  if (opts.size() == 0) {
+    // Encoder2 writes max_value() 0 and width() 0 for an empty array. Otherwise
+    // the decoders would search a unary stream without ones (max_value) or
+    // load low bits past the end of the span (width).
+    if (opts.max_value() != 0 || opts.width() != 0) {
+      return util::InvalidArgumentErrorBuilder()
+             << "empty array has non-zero max_value or width: "
+             << opts.DebugString();
+    }
+    return absl::OkStatus();
+  }
+  const uint8_t width = opts.width();
+  const uint64_t low_mask = (uint64_t{1} << width) - 1;
+  uint32_t i = 0;
+  uint64_t last_value = 0;
+  ABSL_RETURN_IF_ERROR(
+      ForEachBit<true>(high, opts.bits(), [&](uint64_t pos) -> absl::Status {
+        uint64_t value = (pos - i) << width;
+        if (width != 0) {
+          size_t low_pos = size_t{i} * width;
+          value |= (LittleEndian::Load64(&low[low_pos / 8]) >> (low_pos % 8)) &
+                   low_mask;
+        }
+        if (value < last_value) {
+          return util::InvalidArgumentErrorBuilder()
+                 << "value " << i
+                 << " is less than the previous value: " << opts.DebugString();
+        }
+        last_value = value;
+        ++i;
+        return absl::OkStatus();
+      }));
+  if (last_value != opts.max_value()) {
+    return util::InvalidArgumentErrorBuilder()
+           << "last value is " << last_value
+           << ", want max_value: " << opts.DebugString();
+  }
+  return absl::OkStatus();
+}
+
+// Checks that `entry`, and the sparse entries it points to if any, hold what
+// Encoder::WriteDeltas() writes for the next Options::kD1 ones (or zeros), at
+// positions base + deltas[i]. Keep the two in sync.
+absl::Status ValidateDeltas(const Options& opts, uint64_t base,
+                            absl::Span<const uint64_t> deltas,
+                            const internal::DenseEntry& entry,
+                            uint32_t dense_idx,
+                            const internal::SparseEntry* sparse,
+                            size_t max_sparse_size, uint32_t* sparse_size) {
+  DCHECK_EQ(deltas.size(), Options::kD1);
+  const uint64_t rank = uint64_t{dense_idx} * Options::kD1;
+  if (deltas.back() < Options::kR) {
+    bool ok = entry.base.Load() == base - rank;
+    for (uint32_t i = 0; i < Options::kD1 / Options::kD2; i++)
+      ok &= entry.delta[i].Load() == deltas[i * Options::kD2];
+    if (!ok) {
+      return util::InvalidArgumentErrorBuilder()
+             << "dense entry " << dense_idx
+             << " does not match the unary stream: " << opts.DebugString();
+    }
+    return absl::OkStatus();
+  }
+  bool ok = entry.base.Load() == *sparse_size &&
+            entry.delta[0].Load() == std::numeric_limits<uint16_t>::max();
+  // The encoder zero initializes the deltas it does not use.
+  for (uint32_t i = 1; i < Options::kD1 / Options::kD2; i++)
+    ok &= entry.delta[i].Load() == 0;
+  if (!ok) {
+    return util::InvalidArgumentErrorBuilder()
+           << "dense entry " << dense_idx
+           << " is not a valid sparse header: " << opts.DebugString();
+  }
+  if (max_sparse_size - *sparse_size < Options::kD1) {
+    return util::InvalidArgumentErrorBuilder()
+           << "span is too short for the sparse entries of dense entry "
+           << dense_idx << ": " << opts.DebugString();
+  }
+  for (uint32_t i = 0; i != Options::kD1; i++) {
+    if (sparse[*sparse_size + i].Load() != base + deltas[i] - (rank + i)) {
+      return util::InvalidArgumentErrorBuilder()
+             << "sparse entry " << *sparse_size + i
+             << " does not match the unary stream: " << opts.DebugString();
+    }
+  }
+  *sparse_size += Options::kD1;
+  return absl::OkStatus();
+}
+
+// Checks the index on ones (or zeros if One is false) by recomputing what
+// Encoder::BuildIndex() writes. Advances `sparse_size` past the sparse entries
+// used by the index.
+//
+// Note: Dense entries only store every Options::kD2-th position, so finding
+// those per word (popcount + Nthbit) instead of visiting every bit could make
+// Validate() roughly 2x faster. We visit every bit to match
+// Encoder::BuildIndex(), which keeps the two easy to compare.
+//
+// REQUIRES: ValidateUnaryStream() succeeded.
+template <bool One>
+absl::Status ValidateIndex(const Options& opts, const uint8_t* high,
+                           const internal::DenseEntry* dense,
+                           const internal::SparseEntry* sparse,
+                           size_t max_sparse_size, uint32_t* sparse_size) {
+  if ((One ? opts.one_bits() : opts.zero_bits()) == 0) return absl::OkStatus();
+  uint32_t i = 0;  // dense index
+  std::array<uint64_t, Options::kD1> deltas;
+  size_t num_deltas = 0;
+  uint64_t base = 0;
+  auto validate_deltas = [&] {
+    // Holds because ValidateUnaryStream() checked the number of ones.
+    DCHECK_LT(i, One ? opts.one_dense_size() : opts.zero_dense_size());
+    return ValidateDeltas(opts, base, deltas, dense[i], i, sparse,
+                          max_sparse_size, sparse_size);
+  };
+  ABSL_RETURN_IF_ERROR(
+      ForEachBit<One>(high, opts.bits(), [&](uint64_t pos) -> absl::Status {
+        if (num_deltas == Options::kD1) {
+          ABSL_RETURN_IF_ERROR(validate_deltas());
+          ++i;
+          num_deltas = 0;
+        }
+        if (num_deltas == 0) base = pos;
+        deltas[num_deltas++] = pos - base;
+        return absl::OkStatus();
+      }));
+  // Validate the last D1 deltas.
+  std::fill(deltas.begin() + num_deltas, deltas.end(), opts.bits() - base);
+  return validate_deltas();
+}
+
 }  // namespace
 
 size_t EncodedSize(absl::Span<const char> span) {
@@ -255,6 +438,58 @@ absl::StatusOr<Info> GetInfo(absl::Span<const char> span) {
           "Version ", res.opts.version(), " does not support GetInfo() yet"));
   }
   return res;
+}
+
+absl::Status Validate(absl::Span<const char> span) {
+  ABSL_ASSIGN_OR_RETURN(auto opts, Options::Decode(span));
+  if (opts.version() != Options::VERSION3) {
+    return absl::UnimplementedError(absl::StrCat(
+        "Version ", opts.version(), " does not support Validate() yet"));
+  }
+  if ((opts.index() & ~size_t{Options::ALL}) != 0) {
+    return util::InvalidArgumentErrorBuilder()
+           << "unknown index flags: " << opts.DebugString();
+  }
+  // The layout computes sizes in size_t, which can wrap around for crafted
+  // options when size_t is 32 bits. Check the sizes in 64 bits first.
+  const uint64_t min_bytes =
+      Options::EncodingLength(opts) + (opts.bits() + 1 + 7) / 8 +
+      (uint64_t{opts.size()} * opts.width() + 7) / 8 +
+      (uint64_t{opts.one_dense_size()} + opts.zero_dense_size()) *
+          sizeof(internal::DenseEntry);
+  if (span.size() < min_bytes) {
+    return util::InvalidArgumentErrorBuilder()
+           << "span has " << span.size() << " bytes, want at least "
+           << min_bytes << ": " << opts.DebugString();
+  }
+  // Like the decoders, the checks below load whole words from the high and low
+  // bits, relying on the 7 trailing bytes of the layout.
+  const L2 layout = MakeL2(opts, /*sparse_size=*/0);
+  if (span.size() < AllocSizeWithSlop(layout)) {
+    return util::InvalidArgumentErrorBuilder()
+           << "span has " << span.size() << " bytes, want at least "
+           << AllocSizeWithSlop(layout) << ": " << opts.DebugString();
+  }
+  const uint8_t* high;
+  const uint8_t* low;
+  const internal::DenseEntry* dense1;
+  const internal::DenseEntry* dense0;
+  const internal::SparseEntry* sparse;
+  std::tie(std::ignore, high, low, dense1, dense0, sparse) =
+      layout.Pointers(span.data());
+  const size_t max_sparse_size =
+      (span.size() - layout.Offset<5>()) / sizeof(internal::SparseEntry);
+
+  ABSL_RETURN_IF_ERROR(ValidateUnaryStream(opts, high));
+  ABSL_RETURN_IF_ERROR(ValidateValues(opts, high, low));
+  uint32_t sparse_size = 0;
+  if (opts.has_index(Options::ONES))
+    ABSL_RETURN_IF_ERROR(ValidateIndex<true>(opts, high, dense1, sparse,
+                                             max_sparse_size, &sparse_size));
+  if (opts.has_index(Options::ZEROS))
+    ABSL_RETURN_IF_ERROR(ValidateIndex<false>(opts, high, dense0, sparse,
+                                              max_sparse_size, &sparse_size));
+  return absl::OkStatus();
 }
 
 class Encoder::HighLowBitsGuard {
