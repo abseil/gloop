@@ -41,7 +41,7 @@ class TestAllocator : public SizeBasedAllocator {
   // This type is neither copyable nor movable.
   TestAllocator(const TestAllocator&) = delete;
   TestAllocator& operator=(const TestAllocator&) = delete;
-  ~TestAllocator() override {}
+  ~TestAllocator() override = default;
 
  private:
   void PickAllocationRange(uint32_t requested_size, Block* start,
