@@ -261,7 +261,11 @@ TEST(HuffCoding, TableDecoderOverlapDebugCrash) {
   te.SetTable(2, new uint32_t[2]{1u << 27, (2u << 27) | 2});
 
   TableDecoder<4> td;
-  EXPECT_DEBUG_DEATH(td.InitializeFromEncoder(&te), "overlap");
+#ifndef NDEBUG
+  EXPECT_DEATH_IF_SUPPORTED(td.InitializeFromEncoder(&te), "overlap");
+#else
+  td.InitializeFromEncoder(&te);
+#endif
 }
 
 TEST(HuffCoding, TableDecoderEncodingTooLong) {
