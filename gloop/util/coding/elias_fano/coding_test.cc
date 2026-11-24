@@ -240,13 +240,32 @@ void TestIteration(absl::Span<const char> mem,
 void CheckOneIndexOps(absl::Span<const char> mem,
                       absl::Span<const uint64_t> values) {
   auto dec = Decoder::Make(mem);
-  ABSL_EXPECT_OK(dec);
+  ABSL_ASSERT_OK(dec);
   EXPECT_EQ(dec->size(), values.size());
   for (size_t i = 0; i != values.size(); ++i) {
     EXPECT_EQ(*dec->IteratorAt(i), values[i]);
   }
+  const uint32_t num_ranges = values.size() > 1 ? values.size() - 1 : 0;
+  std::vector<uint32_t> indices(num_ranges);
+  absl::c_iota(indices, 0);
+  if (!values.empty()) indices.push_back(values.size() - 1);
+  indices.push_back(values.size());
+  indices.push_back(std::numeric_limits<uint32_t>::max());
+  uint32_t seen = 0;
+  dec->RangesAt(indices, [&](uint32_t idx, uint64_t a, uint64_t b) {
+    EXPECT_EQ(idx, seen);
+    if (idx < num_ranges) {
+      EXPECT_EQ(a, values[idx]);
+      EXPECT_EQ(b, values[idx + 1]);
+    } else {
+      ADD_FAILURE() << "out-of-range idx=" << idx;
+    }
+    ++seen;
+  });
+  EXPECT_EQ(seen, num_ranges);
+
   auto fdec = ForwardDecoder::Make(mem);
-  ABSL_EXPECT_OK(fdec);
+  ABSL_ASSERT_OK(fdec);
   EXPECT_EQ(fdec->size(), values.size());
   for (size_t i = 0; i != values.size(); ++i) {
     fdec->AdvanceToIndex(i);
@@ -256,11 +275,28 @@ void CheckOneIndexOps(absl::Span<const char> mem,
   EXPECT_TRUE(fdec->done());
 }
 
+template <typename Int>
+void CheckUpperBounds(const Decoder& dec, absl::Span<const uint64_t> values,
+                      const std::vector<Int>& queries) {
+  std::vector<uint32_t> got;
+  dec.UpperBounds(queries, [&](uint32_t idx) { got.push_back(idx); });
+  ASSERT_EQ(got.size(), queries.size());
+  for (size_t i = 0; i < queries.size(); ++i) {
+    const uint32_t want = static_cast<uint32_t>(
+        absl::c_upper_bound(values, uint64_t{queries[i]}) - values.begin());
+    EXPECT_EQ(got[i], want) << "q=" << queries[i];
+  }
+}
+
 void CheckZeroIndexOps(absl::Span<const char> mem,
                        absl::Span<const uint64_t> values) {
   auto dec = Decoder::Make(mem);
-  ABSL_EXPECT_OK(dec);
+  ABSL_ASSERT_OK(dec);
   EXPECT_EQ(dec->size(), values.size());
+  std::vector<uint64_t> queries64 = {0, 1};
+  std::vector<uint32_t> queries32;
+  queries32.reserve(48);
+  for (uint32_t q = 0; q < 40; ++q) queries32.push_back(q);
   size_t i = 0;
   for (auto x : *dec) {
     EXPECT_LE(i, values.size());
@@ -270,6 +306,14 @@ void CheckZeroIndexOps(absl::Span<const char> mem,
       // Get a pseudorandom value in between 'values[i-1]' and 'values[i]'
       uint64_t mid_val = values[i - 1] + (i * 0x9ddfea08eb382d69) % diff;
       EXPECT_EQ(dec->UpperBound(mid_val), i);
+      queries64.push_back(mid_val);
+      queries64.push_back(values[i]);
+      if (mid_val <= std::numeric_limits<uint32_t>::max()) {
+        queries32.push_back(static_cast<uint32_t>(mid_val));
+      }
+      if (values[i] <= std::numeric_limits<uint32_t>::max()) {
+        queries32.push_back(static_cast<uint32_t>(values[i]));
+      }
       if (mid_val != values[i - 1]) {
         EXPECT_EQ(dec->LowerBound(mid_val), i);
         EXPECT_FALSE(dec->Exists(mid_val));
@@ -282,10 +326,64 @@ void CheckZeroIndexOps(absl::Span<const char> mem,
     }
     ++i;
   }
+  if (!values.empty() && values.back() < std::numeric_limits<uint64_t>::max()) {
+    queries64.push_back(values.back() + 1);
+  }
+  queries64.push_back(std::numeric_limits<uint64_t>::max());
+  queries32.push_back(std::numeric_limits<uint32_t>::max());
+  CheckUpperBounds(*dec, values, queries64);
+  CheckUpperBounds(*dec, values, queries32);
+}
+
+void CheckBulkOps(absl::Span<const char> mem, absl::Span<const uint64_t> values,
+                  absl::Span<const uint32_t> fuzzed_indices,
+                  const std::vector<uint64_t>& fuzzed_queries64,
+                  const std::vector<uint32_t>& fuzzed_queries32) {
+  auto dec = Decoder::Make(mem);
+  ABSL_ASSERT_OK(dec);
+
+  // Mix in-range (unsorted/duplicate) and raw fuzzed indices so RangesAt
+  // exercises valid lookups alongside out-of-range skips across all index
+  // configurations (including Options::NONE).
+  const uint32_t num_ranges = values.size() > 1 ? values.size() - 1 : 0;
+  std::vector<uint32_t> indices;
+  indices.reserve(fuzzed_indices.size() + 3);
+  for (size_t i = 0; i < fuzzed_indices.size(); ++i) {
+    uint32_t idx = fuzzed_indices[i];
+    if (num_ranges > 0 && (i % 2 == 0)) idx %= num_ranges;
+    indices.push_back(idx);
+  }
+  if (!values.empty()) indices.push_back(values.size() - 1);
+  indices.push_back(values.size());
+  indices.push_back(std::numeric_limits<uint32_t>::max());
+
+  std::vector<std::tuple<uint32_t, uint64_t, uint64_t>> got_ranges;
+  dec->RangesAt(indices, [&](uint32_t idx, uint64_t a, uint64_t b) {
+    got_ranges.emplace_back(idx, a, b);
+  });
+  std::vector<std::tuple<uint32_t, uint64_t, uint64_t>> want_ranges;
+  for (uint32_t idx : indices) {
+    if (idx < num_ranges) {
+      want_ranges.emplace_back(idx, values[idx], values[idx + 1]);
+    }
+  }
+  EXPECT_EQ(got_ranges, want_ranges);
+
+  CheckUpperBounds(*dec, values, fuzzed_queries64);
+  CheckUpperBounds(*dec, values, fuzzed_queries32);
+
+  dec->RangesAt({}, [&](uint32_t, uint64_t, uint64_t) { ADD_FAILURE(); });
+  dec->UpperBounds(absl::Span<const uint64_t>{},
+                   [&](uint32_t) { ADD_FAILURE(); });
+  dec->UpperBounds(absl::Span<const uint32_t>{},
+                   [&](uint32_t) { ADD_FAILURE(); });
 }
 
 void Roundtrip(std::vector<uint64_t> values,
-               Options::Index indexes = Options::ALL) {
+               Options::Index indexes = Options::ALL,
+               const std::vector<uint32_t>& range_indices = {},
+               const std::vector<uint64_t>& queries64 = {},
+               const std::vector<uint32_t>& queries32 = {}) {
   absl::c_sort(values);
 
   Encoder2 enc(indexes);
@@ -303,10 +401,14 @@ void Roundtrip(std::vector<uint64_t> values,
   };
   if (supports_index_ops(Options::ONES)) CheckOneIndexOps(mem, values);
   if (supports_index_ops(Options::ZEROS)) CheckZeroIndexOps(mem, values);
+  CheckBulkOps(mem, values, range_indices, queries64, queries32);
 }
 FUZZ_TEST(CodingTest, Roundtrip)
     .WithDomains(VectorOf(Arbitrary<uint64_t>()),
-                 BitFlagCombinationOf({Options::ONES, Options::ZEROS}));
+                 BitFlagCombinationOf({Options::ONES, Options::ZEROS}),
+                 VectorOf(Arbitrary<uint32_t>()),
+                 VectorOf(Arbitrary<uint64_t>()),
+                 VectorOf(Arbitrary<uint32_t>()));
 
 TEST(CodingTest, CutAtWord) {
   // N = 32, max_value = 65 => l = 1

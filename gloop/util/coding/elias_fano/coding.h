@@ -220,6 +220,7 @@
 #include <cstdint>
 #include <iterator>
 #include <limits>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -578,6 +579,81 @@ class Decoder {
 
   absl::Span<const char> RawBytes() const;
 
+  // Invokes `on_range(i, *IteratorAt(i), *IteratorAt(i + 1))` (the half-open
+  // range `[*IteratorAt(i), *IteratorAt(i + 1))`) for each `i` in `indices`
+  // with `i + 1 < size()`, using internal 2-stage prefetching. Out-of-range
+  // indices (`i + 1 >= size()`) are skipped; `on_range` is not invoked for
+  // them.
+  template <typename F>
+  void RangesAt(absl::Span<const uint32_t> indices, F&& on_range) const {
+    if (indices.empty()) return;
+    const uint32_t* const ptr = indices.data();
+    const size_t n = indices.size();
+    const uint32_t num_ranges = opts_.size() > 0 ? opts_.size() - 1 : 0;
+    const uint8_t width = opts_.width();
+    const bool has_ones = opts_.has_index(Options::ONES);
+    constexpr size_t kStage1 = 32;
+    constexpr size_t kStage2 = 16;
+
+    for (size_t i = 0; i < n; ++i) {
+      if (has_ones) {
+        if (i + kStage1 < n) {
+          const uint32_t idx1 = ptr[i + kStage1];
+          if (ABSL_PREDICT_TRUE(idx1 < num_ranges)) {
+            absl::PrefetchToLocalCache(&dense1_[idx1 / Options::kD1]);
+            if (width > 0) {
+              absl::PrefetchToLocalCache(
+                  &low_[static_cast<size_t>((uint64_t{idx1} * width) / 8)]);
+            }
+          }
+        }
+        if (i + kStage2 < n) {
+          const uint32_t idx2 = ptr[i + kStage2];
+          if (ABSL_PREDICT_TRUE(idx2 < num_ranges)) {
+            if (const std::optional<uint64_t> hint =
+                    DenseHintPos(dense1_, idx2);
+                hint.has_value()) {
+              absl::PrefetchToLocalCache(&high_[*hint / 8]);
+            }
+          }
+        }
+      }
+
+      const uint32_t idx = ptr[i];
+      if (ABSL_PREDICT_FALSE(idx >= num_ranges)) continue;
+      // Inline dense-hint fast path: avoids `Select`/`BroadWordSearch` call
+      // overhead and its extra cache-line prefetch per lookup in batch scans.
+      // Route the 1/kD1 block boundary to `SelectOnePairSlow` because the zero
+      // gap to the next D1 block is unbounded.
+      const auto [pos0, pos1] = [&] {
+        if (ABSL_PREDICT_TRUE(has_ones &&
+                              idx % Options::kD1 != Options::kD1 - 1)) {
+          if (const std::optional<uint64_t> hint = DenseHintPos(dense1_, idx);
+              ABSL_PREDICT_TRUE(hint.has_value())) {
+            return BroadWordSearchInline(/*one=*/1, idx % Options::kD2,
+                                         /*next=*/true, BitPos{*hint});
+          }
+        }
+        return SelectOnePairSlow(idx);
+      }();
+      const auto [lo0, lo1] = DecodeLowPair(idx, width);
+      on_range(idx, ((pos0.value() - idx) << width) | lo0,
+               ((pos1.value() - (idx + 1)) << width) | lo1);
+    }
+  }
+
+  // Invokes `on_result(UpperBound(v))` for each `v` in `values`, using
+  // internal 2-stage prefetching (passing `size()` when
+  // `v >= options().max_value()`).
+  template <typename F>
+  void UpperBounds(absl::Span<const uint64_t> values, F&& on_result) const {
+    UpperBoundsImpl(values, std::forward<F>(on_result));
+  }
+  template <typename F>
+  void UpperBounds(absl::Span<const uint32_t> values, F&& on_result) const {
+    UpperBoundsImpl(values, std::forward<F>(on_result));
+  }
+
  private:
   Decoder(absl::Span<const char> span, Options opts);
 
@@ -649,27 +725,22 @@ class Decoder {
   // NOTE: The signature of this function is weird to facilitate tail calls.
   std::pair<BitPos, BitPos> Select(uint32_t one, uint32_t rank, bool next,
                                    BitPos hint_pos = BitPos{0}) const {
-    if (!opts_.has_index(one ? Options::ONES : Options::ZEROS)) {
-      ELIAS_FANO_MUSTTAIL return BroadWordSearch(one, rank, next, hint_pos);
+    if (ABSL_PREDICT_TRUE(
+            opts_.has_index(one ? Options::ONES : Options::ZEROS))) {
+      const internal::DenseEntry* dense = one ? dense1_ : dense0_;
+      DCHECK(!next || rank % Options::kD1 != Options::kD1 - 1)
+          << "Can't find two consecutive positions at the end of the index";
+      // If the first delta is zero then the position is in the dense index.
+      // Otherwise it is in the sparse.
+      const std::optional<uint64_t> hint = DenseHintPos(dense, rank);
+      if (ABSL_PREDICT_FALSE(!hint.has_value())) {
+        const uint32_t base = dense[rank / Options::kD1].base.Load();
+        ELIAS_FANO_MUSTTAIL return SelectSparse(base, rank, next, hint_pos);
+      }
+      rank %= Options::kD2;
+      hint_pos = BitPos(*hint);
     }
-    const internal::DenseEntry* dense = one ? dense1_ : dense0_;
-    DCHECK(!next || rank % Options::kD1 != Options::kD1 - 1)
-        << "Can't find two consecutive positions at the end of the index";
-    uint32_t d1_i = rank / Options::kD1;
-    const auto& entry = dense[d1_i];
-    uint64_t base = entry.base.Load();
-    // If the first delta is zero then the position is in the dense index.
-    // Otherwise it is in the sparse.
-    if (ABSL_PREDICT_TRUE(entry.delta[0].Load() == 0)) {
-      base += d1_i * Options::kD1;
-      uint32_t d2_i = (rank % Options::kD1) / Options::kD2;
-      ELIAS_FANO_MUSTTAIL return BroadWordSearch(
-          one, rank % Options::kD2, next,
-          BitPos(base + entry.delta[d2_i].Load()));
-    } else {
-      DCHECK_LE(base, std::numeric_limits<uint32_t>::max());
-      ELIAS_FANO_MUSTTAIL return SelectSparse(base, rank, next, hint_pos);
-    }
+    ELIAS_FANO_MUSTTAIL return BroadWordSearch(one, rank, next, hint_pos);
   }
 
   // Returns `[pos, npos]` the indexes of the rank-th and rank+1'th bits.
@@ -684,33 +755,149 @@ class Decoder {
   // Searches ones if `one` is non-zero, zeros otherwise.
   std::pair<BitPos, BitPos> BroadWordSearch(uint32_t one, uint32_t rank,
                                             bool next, BitPos hint_pos) const {
-    uint32_t i = hint_pos.value() / 8;
-    // Negate the word if we are counting zeros.
-    uint64_t x = one ? LittleEndian::Load64(&high_[i])
-                     : ~LittleEndian::Load64(&high_[i]);
-    x = x >> (hint_pos.value() % 8);
     // Prefetch the next line, which we're likely to reuse.
-    absl::PrefetchToLocalCache(&high_[i] + ABSL_CACHELINE_SIZE);
-    uint32_t cnt = absl::popcount(x);
-    if (cnt > rank) {
-      BitPos pos{hint_pos.value() + Nthbit(x, rank)};
-      if (!next) return {pos, BitPos{0}};
-      ++rank;
-      if (cnt > rank) return {pos, BitPos(hint_pos.value() + Nthbit(x, rank))};
-      return {pos, FindNextSetBitSlow(i, one)};
-    }
-    do {
-      i += 8;
+    absl::PrefetchToLocalCache(&high_[hint_pos.value() / 8] +
+                               ABSL_CACHELINE_SIZE);
+    return BroadWordSearchInline(one, rank, next, hint_pos);
+  }
+
+  // Searches `high_` starting from `hint_pos` for the `rank`-th matching bit
+  // (and `(rank + 1)`-th when `next` is true). Searches ones if `one` is
+  // non-zero, zeros otherwise.
+  //
+  // REQUIRES: `hint_pos <= opts_.bits()`, and the `rank`-th matching bit (plus
+  // `(rank + 1)`-th when `next` is true) exists in `high_`.
+  ABSL_ATTRIBUTE_ALWAYS_INLINE std::pair<BitPos, BitPos> BroadWordSearchInline(
+      uint32_t one, uint32_t rank, bool next, BitPos hint_pos) const {
+    uint32_t byte_idx = static_cast<uint32_t>(hint_pos.value() / 8);
+    uint64_t base_bit = hint_pos.value();
+    // Negate the word if we are counting zeros, then shift past `hint_pos`.
+    uint64_t x = (one ? LittleEndian::Load64(&high_[byte_idx])
+                      : ~LittleEndian::Load64(&high_[byte_idx])) >>
+                 (hint_pos.value() % 8);
+    for (uint32_t cnt = absl::popcount(x); ABSL_PREDICT_FALSE(cnt <= rank);
+         cnt = absl::popcount(x)) {
+      byte_idx += 8;
+      base_bit = uint64_t{byte_idx} * 8;
       rank -= cnt;
-      x = one ? LittleEndian::Load64(&high_[i])
-              : ~LittleEndian::Load64(&high_[i]);
-      cnt = absl::popcount(x);
-    } while (cnt <= rank);
-    BitPos pos{uint64_t{i} * 8 + Nthbit(x, rank)};
+      x = one ? LittleEndian::Load64(&high_[byte_idx])
+              : ~LittleEndian::Load64(&high_[byte_idx]);
+    }
+    const uint64_t b0 = Nthbit(x, rank);
+    const BitPos pos{base_bit + b0};
     if (!next) return {pos, BitPos{0}};
-    ++rank;
-    if (cnt > rank) return {pos, BitPos(uint64_t{i} * 8 + Nthbit(x, rank))};
-    return {pos, FindNextSetBitSlow(i, one)};
+    // Shift past `b0` in two steps (`b0 <= 63`) to check for the next matching
+    // bit in the same word before scanning further words.
+    const uint64_t rem = (x >> b0) >> 1;
+    if (rem != 0) {
+      return {pos, BitPos{pos.value() + 1 + absl::countr_zero(rem)}};
+    }
+    return {pos, FindNextSetBitSlow(byte_idx, one)};
+  }
+
+  // Shared implementation of `UpperBounds` for `uint32_t` and `uint64_t` spans.
+  template <typename Int, typename F>
+  void UpperBoundsImpl(absl::Span<const Int> values, F&& on_result) const {
+    if (values.empty()) return;
+    const Int* const ptr = values.data();
+    const size_t n = values.size();
+    const uint64_t max_val = opts_.max_value();
+    const uint32_t num_elems = opts_.size();
+    const uint32_t zero_bits = opts_.zero_bits();
+    const uint8_t width = opts_.width();
+    const bool has_zeros = opts_.has_index(Options::ZEROS);
+    constexpr size_t kStage1 = 32;
+    constexpr size_t kStage2 = 16;
+
+    for (size_t i = 0; i < n; ++i) {
+      if (has_zeros) {
+        if (i + kStage1 < n) {
+          const uint64_t v1 = static_cast<uint64_t>(ptr[i + kStage1]);
+          if (ABSL_PREDICT_TRUE(v1 < max_val)) {
+            const uint32_t hi1 = static_cast<uint32_t>(v1 >> width);
+            const uint32_t z1 = hi1 > 0 ? hi1 - 1 : 0;
+            if (ABSL_PREDICT_TRUE(z1 < zero_bits)) {
+              absl::PrefetchToLocalCache(&dense0_[z1 / Options::kD1]);
+            }
+          }
+        }
+        if (i + kStage2 < n) {
+          const uint64_t v2 = static_cast<uint64_t>(ptr[i + kStage2]);
+          if (ABSL_PREDICT_TRUE(v2 < max_val)) {
+            const uint32_t hi2 = static_cast<uint32_t>(v2 >> width);
+            const uint32_t z2 = hi2 > 0 ? hi2 - 1 : 0;
+            if (ABSL_PREDICT_TRUE(z2 < zero_bits)) {
+              if (const std::optional<uint64_t> hint =
+                      DenseHintPos(dense0_, z2);
+                  hint.has_value()) {
+                absl::PrefetchToLocalCache(&high_[*hint / 8]);
+                // `bit_pos - d2_zero_rank` is the 1-bit rank (element index)
+                // at the D2 boundary.
+                const uint64_t idx_est =
+                    *hint - (z2 & ~uint32_t{Options::kD2 - 1});
+                if (width > 0 && idx_est < num_elems) {
+                  absl::PrefetchToLocalCache(
+                      &low_[static_cast<size_t>((idx_est * width) / 8)]);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      const uint64_t v = static_cast<uint64_t>(ptr[i]);
+      uint32_t idx;
+      [[clang::always_inline]] idx = UpperBound(v);
+      on_result(idx);
+    }
+  }
+
+  // Computes the D2-aligned bit-position hint for `rank` in a dense index
+  // (`dense1_` or `dense0_`). Returns `std::nullopt` if the D1 block is sparse.
+  //
+  // REQUIRES: `dense` is non-null (the corresponding index is present) and
+  // `rank` is in range for that index (`< opts_.one_bits()` for `dense1_` or
+  // `< opts_.zero_bits()` for `dense0_`).
+  ABSL_ATTRIBUTE_ALWAYS_INLINE static std::optional<uint64_t> DenseHintPos(
+      const internal::DenseEntry* dense, uint32_t rank) {
+    const uint32_t d1_i = rank / Options::kD1;
+    const auto& entry = dense[d1_i];
+    if (ABSL_PREDICT_FALSE(entry.delta[0].Load() != 0)) return std::nullopt;
+    return uint64_t{entry.base.Load()} + uint64_t{d1_i} * Options::kD1 +
+           entry.delta[(rank % Options::kD1) / Options::kD2].Load();
+  }
+
+  // Decodes the pair of `width`-bit low values for consecutive elements `idx`
+  // and `idx + 1`.
+  //
+  // REQUIRES: `width == opts_.width()` and `idx + 1 < opts_.size()`.
+  ABSL_ATTRIBUTE_ALWAYS_INLINE std::pair<uint64_t, uint64_t> DecodeLowPair(
+      uint32_t idx, uint8_t width) const {
+    if (width == 0) return {0, 0};
+    const uint64_t pos = uint64_t{idx} * width;
+    const uint32_t bit_off = static_cast<uint32_t>(pos % 8);
+    const uint64_t word =
+        LittleEndian::Load64(&low_[static_cast<size_t>(pos / 8)]) >> bit_off;
+    const uint64_t lo0 = LowBits(word, width);
+    if (ABSL_PREDICT_TRUE(bit_off + 2 * uint32_t{width} <= 64)) {
+      return {lo0, LowBits(word >> width, width)};
+    }
+    const uint64_t pos1 = pos + width;
+    return {
+        lo0,
+        LowBits(LittleEndian::Load64(&low_[static_cast<size_t>(pos1 / 8)]) >>
+                    static_cast<uint32_t>(pos1 % 8),
+                width)};
+  }
+
+  // Out-of-line fallback returning the bit positions of the `i`-th and
+  // `(i + 1)`-th set bits when the ONES index is absent, hits a sparse block,
+  // or crosses a D1 block boundary.
+  //
+  // REQUIRES: `i + 1 < opts_.size()`.
+  ABSL_ATTRIBUTE_NOINLINE std::pair<BitPos, BitPos> SelectOnePairSlow(
+      uint32_t i) const {
+    return {Select(1, i, false).first, Select(1, i + 1, false).first};
   }
 
   friend struct testing::CodecAccess;
