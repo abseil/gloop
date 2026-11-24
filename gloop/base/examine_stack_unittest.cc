@@ -156,4 +156,28 @@ MATCHER(HasRegisterDump, "") {
   return regcount == regs.size();
 }
 
+#ifdef __linux__
+TEST(CollapseBuildPrefix, IgnoresPrefixShorterThanReplacement) {
+  std::string filename = "p-dbg/filename";
+  char dir[100] = "";
+  char out_buffer[100] = "";
+  std::string output;
+  CollapseBuildPrefix(filename.data(), dir, sizeof(dir), out_buffer,
+                      sizeof(out_buffer), DebugWriteToString, &output);
+  EXPECT_EQ(filename, "p-dbg/filename");
+  EXPECT_THAT(output, IsEmpty());
+}
+
+TEST(CollapseBuildPrefix, CollapsesPrefixEqualToReplacementLength) {
+  std::string filename = "k8-dbg/filename";
+  char dir[100] = "";
+  char out_buffer[100] = "";
+  std::string output;
+  CollapseBuildPrefix(filename.data(), dir, sizeof(dir), out_buffer,
+                      sizeof(out_buffer), DebugWriteToString, &output);
+  EXPECT_EQ(filename, "$build/filename");
+  EXPECT_EQ(output, "  build=k8-dbg\n");
+}
+#endif
+
 }  // namespace

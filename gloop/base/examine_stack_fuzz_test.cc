@@ -39,10 +39,14 @@ void MockWriter(const char* data, void* /*arg*/) {
 }
 
 bool ShouldMatch(const absl::string_view filename) {
-  for (const std::string p : {"-fastbuild", "-opt", "-dbg"}) {
-    for (const std::string q : {"", "-asan", "-msan", "-tsan"}) {
+  constexpr absl::string_view kBuild = "$build";
+  for (const absl::string_view q : {"", "-asan", "-msan", "-tsan"}) {
+    for (const absl::string_view p : {"-fastbuild", "-opt", "-dbg"}) {
       std::string suffix = absl::StrCat(p, q, "/");
-      if (absl::StrContains(filename, suffix)) return true;
+      const size_t pos = filename.find(suffix);
+      if (pos != absl::string_view::npos) {
+        return pos + suffix.size() - 1 >= kBuild.size();
+      }
     }
   }
   return false;
@@ -82,7 +86,8 @@ FUZZ_TEST(ExamineStackFuzz, FuzzCollapseBuildPrefixFields)
                  fuzztest::InRange<size_t>(1, 1000))
     .WithSeeds({{"path/to/bin/k8-dbg/filename", 100, 100},
                 {"another/path/arm-opt-asan/filename", 100, 100},
-                {"/abs/path/haswell-fastbuild/filename", 100, 100}});
+                {"/abs/path/haswell-fastbuild/filename", 100, 100},
+                {"p-dbg/filename", 100, 100}});
 
 }  // namespace
 }  // namespace base

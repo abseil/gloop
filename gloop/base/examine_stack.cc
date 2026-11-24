@@ -547,6 +547,11 @@ void CollapseBuildPrefix(char* filename, char* dir, size_t dir_size,
   }
   if (ptr != nullptr) {
     char* end = ptr + len - 1;
+    // Check that the prefix being replaced with "$build" fits in-place.
+    constexpr absl::string_view kBuild = "$build";
+    const size_t prefix_len = end - filename;
+    if (kBuild.size() > prefix_len) return;
+
     const size_t max_size = std::min<size_t>(end - filename, dir_size - 1);
     if (memcmp(dir, filename, max_size) != 0 || dir[max_size] != '\0') {
       strncpy(dir, filename, max_size);
@@ -557,7 +562,6 @@ void CollapseBuildPrefix(char* filename, char* dir, size_t dir_size,
     // filename and end alias each other, so move the rest of the string first
     // to avoid overwriting it with "$build".
     size_t rest_len = strlen(end);
-    constexpr absl::string_view kBuild = "$build";
     memmove(filename + kBuild.size(), end, rest_len + 1);
     memcpy(filename, kBuild.data(), kBuild.size());
   }
