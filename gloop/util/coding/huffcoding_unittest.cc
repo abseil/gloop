@@ -25,11 +25,14 @@
 #include <string.h>
 
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 #include "absl/log/check.h"
 #include "absl/memory/memory.h"
 #include "absl/random/random.h"
+#include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/string_view.h"
 #include "benchmark/benchmark.h"
 #include "gloop/util/coding/bitcoding.h"
@@ -38,6 +41,7 @@
 #include "gloop/util/gtl/unique_array.h"
 #include "gloop/util/hash/hash.h"
 #include "gloop/util/random/acmrandom.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 void Build(const char* label, int* count, int N, int max_length) {
@@ -60,57 +64,39 @@ void Build(const char* label, int* count, int N, int max_length) {
   TableEncoder te;
   h->InitializeEncoder(&te);
   switch (max_length) {
-    case 1: {
-      TableDecoder<1> td;
-      td.InitializeFromEncoder(&te);
+    case 1:
+      CHECK_OK(TableDecoder<1>().TryInitializeFromEncoder(&te));
       break;
-    }
-    case 2: {
-      TableDecoder<2> td;
-      td.InitializeFromEncoder(&te);
+    case 2:
+      CHECK_OK(TableDecoder<2>().TryInitializeFromEncoder(&te));
       break;
-    }
-    case 3: {
-      TableDecoder<3> td;
-      td.InitializeFromEncoder(&te);
+    case 3:
+      CHECK_OK(TableDecoder<3>().TryInitializeFromEncoder(&te));
       break;
-    }
-    case 4: {
-      TableDecoder<4> td;
-      td.InitializeFromEncoder(&te);
+    case 4:
+      CHECK_OK(TableDecoder<4>().TryInitializeFromEncoder(&te));
       break;
-    }
-    case 5: {
-      TableDecoder<5> td;
-      td.InitializeFromEncoder(&te);
+    case 5:
+      CHECK_OK(TableDecoder<5>().TryInitializeFromEncoder(&te));
       break;
-    }
-    case 6: {
-      TableDecoder<6> td;
-      td.InitializeFromEncoder(&te);
+    case 6:
+      CHECK_OK(TableDecoder<6>().TryInitializeFromEncoder(&te));
       break;
-    }
-    case 7: {
-      TableDecoder<7> td;
-      td.InitializeFromEncoder(&te);
+    case 7:
+      CHECK_OK(TableDecoder<7>().TryInitializeFromEncoder(&te));
       break;
-    }
-    case 8: {
-      TableDecoder<8> td;
-      td.InitializeFromEncoder(&te);
+    case 8:
+      CHECK_OK(TableDecoder<8>().TryInitializeFromEncoder(&te));
       break;
-    }
-    case 9: {
-      TableDecoder<9> td;
-      td.InitializeFromEncoder(&te);
+    case 9:
+      CHECK_OK(TableDecoder<9>().TryInitializeFromEncoder(&te));
       break;
-    }
   }
 
   // Check that decoder works
   if (max_length <= 10) {
     TableDecoder<10> td;
-    td.InitializeFromEncoder(&te);
+    CHECK_OK(td.TryInitializeFromEncoder(&te));
     ACMRandom rnd(ACMRandom::DeterministicSeed());
     for (int sym = 0; sym < N; sym++) {
       uint32_t enc_length = te.EncodingLength(sym);
@@ -183,6 +169,9 @@ std::vector<char> MakeSampleCode() {
 }
 
 namespace {
+
+using ::absl_testing::StatusIs;
+using ::testing::HasSubstr;
 
 TEST(HuffCoding, RestoreErrorsInternalCorruption) {
   std::vector<char> code = MakeSampleCode();
@@ -266,6 +255,86 @@ TEST(HuffCoding, TableDecoderMaxLenCrash) {
                             "enc_length <= maxlen");
 }
 
+TEST(HuffCoding, TableDecoderOverlapDebugCrash) {
+  // "0" is a prefix of "01".
+  TableEncoder te;
+  te.SetTable(2, new uint32_t[2]{1u << 27, (2u << 27) | 2});
+
+  TableDecoder<4> td;
+  EXPECT_DEBUG_DEATH(td.InitializeFromEncoder(&te), "overlap");
+}
+
+TEST(HuffCoding, TableDecoderEncodingTooLong) {
+  // The longest encoding in this code has 4 bits.
+  int count[6]{5, 9, 12, 13, 16, 45};
+  TableEncoder te;
+  absl::WrapUnique(HuffmanCode::Create(count, 6, 4))->InitializeEncoder(&te);
+
+  TableDecoder<3> td;
+  EXPECT_THAT(td.TryInitializeFromEncoder(&te),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("supports at most 3 bits")));
+  ABSL_EXPECT_OK(TableDecoder<4>().TryInitializeFromEncoder(&te));
+}
+
+TEST(HuffCoding, TableDecoderSymbolTooLarge) {
+  // The 4 length bits leave room for 16 symbols in each uint8_t entry.
+  TableDecoder<8, 4, uint8_t> td;
+  std::vector<int> count(17, 1);
+  TableEncoder te;
+  absl::WrapUnique(HuffmanCode::Create(count.data(), 16, 8))
+      ->InitializeEncoder(&te);
+  ABSL_EXPECT_OK(td.TryInitializeFromEncoder(&te));
+  absl::WrapUnique(HuffmanCode::Create(count.data(), 17, 8))
+      ->InitializeEncoder(&te);
+  EXPECT_THAT(td.TryInitializeFromEncoder(&te),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("symbol 16 does not fit")));
+}
+
+TEST(HuffCoding, TableDecoderEmptyEncoder) {
+  TableEncoder te;
+  TableDecoder<4> td;
+  EXPECT_THAT(
+      td.TryInitializeFromEncoder(&te),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("no symbols")));
+}
+
+TEST(HuffCoding, TableDecoderEncodingWiderThanLength) {
+  // Both symbols have 1-bit encodings; the second sets a bit past that length.
+  TableEncoder te;
+  te.SetTable(2, new uint32_t[2]{1u << 27, (1u << 27) | 1});
+  TableDecoder<4> td;
+  ABSL_EXPECT_OK(td.TryInitializeFromEncoder(&te));
+  te.SetTable(2, new uint32_t[2]{1u << 27, (1u << 27) | 3});
+  EXPECT_THAT(td.TryInitializeFromEncoder(&te),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("does not fit in its 1 bits")));
+}
+
+TEST(HuffCoding, TableDecoderEmptyEncoding) {
+  TableEncoder te;
+  te.SetTable(2, new uint32_t[2]{0, (1u << 27) | 1});
+  TableDecoder<4> td;
+  EXPECT_THAT(td.TryInitializeFromEncoder(&te),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("symbol 0 has an empty encoding")));
+}
+
+TEST(HuffCoding, TableDecoderOverlappingEncodings) {
+  // Encodings are stored least significant bit first.  The codes "0" and "10"
+  // are prefix-free, and leave "11" unused.
+  TableEncoder te;
+  te.SetTable(2, new uint32_t[2]{1u << 27, (2u << 27) | 1});
+  TableDecoder<4> td;
+  ABSL_EXPECT_OK(td.TryInitializeFromEncoder(&te));
+  // "0" is a prefix of "01".
+  te.SetTable(2, new uint32_t[2]{1u << 27, (2u << 27) | 2});
+  EXPECT_THAT(
+      td.TryInitializeFromEncoder(&te),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("overlap")));
+}
+
 void BM_HuffmanRestore(benchmark::State& b) {
   std::vector<char> code = MakeSampleCode();
   for (auto unused : b) {
@@ -275,5 +344,23 @@ void BM_HuffmanRestore(benchmark::State& b) {
   }
 }
 BENCHMARK(BM_HuffmanRestore);
+
+template <unsigned int maxlen, int maxlen_bits, class Elem>
+void BM_TableDecoderInitialize(benchmark::State& b) {
+  // Symbols with equal counts get codes of nearly equal length.
+  const std::vector<int> count(b.range(0), 1);
+  auto code =
+      absl::WrapUnique(HuffmanCode::Create(count.data(), count.size(), maxlen));
+  TableEncoder te;
+  code->InitializeEncoder(&te);
+  auto td = std::make_unique<TableDecoder<maxlen, maxlen_bits, Elem>>();
+  for (auto unused : b) {
+    CHECK_OK(td->TryInitializeFromEncoder(&te));
+    benchmark::DoNotOptimize(td->decoding_table());
+  }
+}
+BENCHMARK_TEMPLATE(BM_TableDecoderInitialize, 8, 4, uint16_t)->Arg(256);
+BENCHMARK_TEMPLATE(BM_TableDecoderInitialize, 12, 5, uint32_t)->Arg(256);
+BENCHMARK_TEMPLATE(BM_TableDecoderInitialize, 16, 5, uint32_t)->Arg(1024);
 
 }  // namespace
