@@ -19,6 +19,7 @@
 #define THIRD_PARTY_GLOOP_CONCURRENT_PERCPU_VCPU_COUNTER_NATIVE_H_
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <utility>
 
@@ -58,29 +59,41 @@ class VcpuCounter {
   // on other CPUs).
   void Add(int64_t increment) {
     if (ABSL_PREDICT_TRUE(base::subtle::percpu::IsFast())) {
+      const std::size_t cpu_id_offset =
+          base::subtle::percpu::__rseq_virtual_flat_cpu_id_offset.load(
+              std::memory_order_relaxed);
       int64_t scratch;
+#if defined(__aarch64__)
       int64_t value;
+#endif
       // clang-format off
       asm volatile(
           PERCPU_RSEQ_PROLOGUE(VcpuCounter_Add, scratch)
           "4:\n"
-          PERCPU_RSEQ_LOAD_VIRTUAL_FLAT_CPU_ID(scratch)
 #if defined(__aarch64__)
+          "ldrsh %[scratch], [%[percpu_rseq_abi], %[cpu_id_offset]]\n"
           "lsl %[scratch], %[scratch], %c[shift]\n"
           "ldr %[value], [%[handle], %[scratch]]\n"
           "add %[value], %[value], %[delta]\n"
           "str %[value], [%[handle], %[scratch]]\n"
 #else
+          "movswq (%[percpu_rseq_abi], %[cpu_id_offset]), %[scratch]\n"
           "shl %[shift], %[scratch]\n"
-          "mov (%[handle], %[scratch]), %[value]\n"
-          "add %[delta], %[value]\n"
-          "mov %[value], (%[handle], %[scratch])\n"
+          "addq %[delta], (%[handle], %[scratch])\n"
 #endif
           "5:\n"
-          : [scratch] "=&r"(scratch), [value] "=&r"(value)
+          : [scratch] "=&r"(scratch)
+#if defined(__aarch64__)
+            , [value] "=&r"(value)
+#endif
           : PERCPU_RSEQ_INPUTS,
+            [cpu_id_offset] "r"(cpu_id_offset),
             [handle] "r"(c_.rep),
-            [delta] "r"(increment),
+#if defined(__aarch64__)
+            [delta] "rI"(increment),
+#else
+            [delta] "er"(increment),
+#endif
             [shift] "n"(PERCPU_BYTES_PER_REGION_SHIFT)
           : PERCPU_RSEQ_CLOBBERS, "memory");
       // clang-format on
