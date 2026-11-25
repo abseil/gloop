@@ -298,14 +298,6 @@ void AddCancellableAt(Executor* executor, absl::Time when,
 
 #endif
 
-// As above, except with Closure instead of AnyInvocable.
-//
-// REQUIRES: executor != nullptr && closure != nullptr && handle != nullptr
-// REQUIRES: !cb->IsRepeatable() (i.e. cb is not a permanent callback)
-ABSL_DEPRECATED("Use the AnyInvocable-accepting overload instead.")
-void AddCancellableAt(Executor* executor, absl::Time when, Closure* closure,
-                      ExecutorHandle* handle);
-
 namespace executor_internal {
 
 // The result of a cancellation attempt. Convertible to bool where 0/false
@@ -347,12 +339,12 @@ using CancelResult = executor_internal::CancelResultImpl;
 // previous Cancel(), or the handle may be invalid).
 //
 // WARNING: Be careful when scheduling the callback retuned via cb_ptr.
-// As of 2026/09, schedulng a Closure* via AddCancellable and AddCancellableAt
-// requires wrapping it into an absl::AnyInvocable, and this overload of Cancel
-// wraps that absl::AnyInvocable into a Closure*. As a consequence, every call
-// to Cancel and AddCancellable / AddCancellableAt adds one more layer of
-// absl::AnyInvocable and one more layer of Closure* to the callback, which can
-// lead to stack overflows. See http://b/562020450.
+// As of 2026/09, schedulng a Closure* via AddCancellable requires wrapping it
+// into an absl::AnyInvocable, and this overload of Cancel wraps that
+// absl::AnyInvocable into a Closure*. As a consequence, every call to Cancel
+// and AddCancellable adds one more layer of absl::AnyInvocable and one more
+// layer of Closure* to the callback, which can lead to stack overflows. See
+// http://b/562020450.
 //
 // REQUIRES: cb_ptr != nullptr
 ABSL_DEPRECATED(

@@ -23,7 +23,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -77,12 +76,9 @@ class AddCancellableTest
                             absl::AnyInvocable<void() &&> callback,
                             ExecutorHandle* const h) {
     if (GetParam().use_absolute_time) {
-      if (GetParam().use_legacy_callback) {
-        AddCancellableAt(executor, absl::Now() + delay,
-                         util::functional::ToCallback(std::move(callback)), h);
-      } else {
-        AddCancellableAt(executor, absl::Now() + delay, std::move(callback), h);
-      }
+      CHECK(!GetParam().use_legacy_callback)
+          << "AddCancellableAt does not support Closure*";
+      AddCancellableAt(executor, absl::Now() + delay, std::move(callback), h);
     } else {
       if (GetParam().use_legacy_callback) {
         AddCancellable(executor, delay,
@@ -90,23 +86,6 @@ class AddCancellableTest
       } else {
         AddCancellable(executor, delay, std::move(callback), h);
       }
-    }
-  }
-
-  void AddCancellableHelperWithRepeatableCallback(Executor* const executor,
-                                                  const absl::Duration delay,
-                                                  Closure* const closure,
-                                                  ExecutorHandle* const h) {
-    CHECK(closure->IsRepeatable())
-        << "AddCancellableHelperWithRepeatableCallback only accepts "
-           "repeatable callbacks.";
-    CHECK(GetParam().use_legacy_callback)
-        << "AddCancellableHelperWithRepeatableCallback does not support "
-           "AnyInvocable";
-    if (GetParam().use_absolute_time) {
-      AddCancellableAt(executor, absl::Now() + delay, closure, h);
-    } else {
-      AddCancellable(executor, delay, closure, h);
     }
   }
 
@@ -644,14 +623,12 @@ TEST(Executor, ScheduleAtAnyInvocable) {
 
 INSTANTIATE_TEST_SUITE_P(
     , AddCancellableTest,
-    testing::ConvertGenerator(testing::Combine(testing::Bool(),
-                                               testing::Bool()),
-                              [](const std::tuple<bool, bool>& t) {
-                                AddCancellableTestCase tc;
-                                tc.use_absolute_time = std::get<0>(t);
-                                tc.use_legacy_callback = std::get<1>(t);
-                                return tc;
-                              }),
+    testing::Values(AddCancellableTestCase{.use_absolute_time = false,
+                                           .use_legacy_callback = false},
+                    AddCancellableTestCase{.use_absolute_time = false,
+                                           .use_legacy_callback = true},
+                    AddCancellableTestCase{.use_absolute_time = true,
+                                           .use_legacy_callback = false}),
     [](const testing::TestParamInfo<AddCancellableTest::ParamType>& info) {
       return absl::StrCat(
           info.param.use_absolute_time ? "AbsoluteTime_" : "RelativeTime_",

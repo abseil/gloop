@@ -556,16 +556,6 @@ void AddCancellableAt(Executor* executor, absl::Time when,
   executor->ScheduleAt(when, std::move(cancellable_callable));
 }
 
-void AddCancellableAt(Executor* executor, absl::Time when, Closure* closure,
-                      ExecutorHandle* handle) {
-  CHECK(!closure->IsRepeatable())
-      << "AddCancellableAt only accepts non-permanent callbacks";
-
-  AddCancellableAt(executor, when,
-                   util::functional::FromCallbackWithOwnership(closure),
-                   handle);
-}
-
 // Cancels the callback that corresponds to the given handle, if it was
 // scheduled to run using AddCancellable or AddCancellableAt, but has not yet
 // started running. Returns CancelResult::kCancelled and the callback if
