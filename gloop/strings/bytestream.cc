@@ -46,7 +46,7 @@ void ByteSource::CopyTo(ByteSink* absl_nonnull sink, size_t n) {
       break;
     }
     size_t fragment_size = std::min<size_t>(n, fragment.size());
-    sink->Append(absl::string_view(fragment.data(), fragment_size));
+    sink->Append(fragment.substr(0, fragment_size));
     Skip(fragment_size);
     n -= fragment_size;
   }
@@ -283,7 +283,7 @@ size_t LimitByteSource::Available() const {
 absl::string_view LimitByteSource::Peek() {
   absl::string_view piece(source_->Peek());
   if (piece.size() > limit_) {
-    piece = absl::string_view(piece.data(), limit_);
+    piece = piece.substr(0, limit_);
   }
 
   return piece;
