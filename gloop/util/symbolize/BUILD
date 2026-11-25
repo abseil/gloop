@@ -200,9 +200,17 @@ cc_library(
     ],
 )
 
-cc_test(
-    name = "symbolize_unittest",
+RO_SEGMENT = [
+    (
+        "",
+        [],
+    ),
+]
+
+[cc_test(
+    name = "symbolize" + suffix + "_unittest",
     srcs = ["symbolize_unittest.cc"],
+    linkopts = linkopts,
     malloc = "//gloop:malloc",  # b/179154437
     deps = [
         ":demangle",
@@ -220,7 +228,7 @@ cc_test(
         "@googletest//:gtest",
         "@tcmalloc//tcmalloc:malloc_extension",
     ],
-)
+) for suffix, linkopts in RO_SEGMENT]
 
 cc_test(
     name = "symbolized_stack_writer_unittest",
@@ -239,9 +247,10 @@ cc_test(
     ],
 )
 
-cc_test(
-    name = "symbolized_stacktrace_unittest",
+[cc_test(
+    name = "symbolized_stacktrace" + suffix + "_unittest",
     srcs = ["symbolized_stacktrace_unittest.cc"],
+    linkopts = linkopts,
     deps = [
         ":symbolize",
         "//gloop/base:examine_stack",
@@ -257,7 +266,7 @@ cc_test(
         "@google_benchmark//:benchmark",
         "@googletest//:gtest",
     ],
-)
+) for suffix, linkopts in RO_SEGMENT]
 
 # Build foobar.cc with -fbasic-block-sections=all.
 cc_library(
