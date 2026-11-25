@@ -60,7 +60,7 @@ strings::TypeId CordByteSink::GetTypeId() const {
   return strings::TypeId::For<CordByteSink>();
 }
 
-CordReader::~CordReader() {}
+CordReader::~CordReader() = default;
 
 bool CordReader::BtreeAdvance() {
   size_t available = length_ - used_;
