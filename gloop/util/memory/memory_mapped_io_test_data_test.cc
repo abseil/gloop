@@ -44,7 +44,7 @@ class MemoryMappedIOTestDataTest : public testing::Test {
  protected:
   MemoryMappedIOTestDataTest() = default;
 
-  ~MemoryMappedIOTestDataTest() override {}
+  ~MemoryMappedIOTestDataTest() override = default;
 
   void SetUp() override {
     // Called before *each* test.
