@@ -48,9 +48,11 @@
 #endif  // defined(BASE_PROCESS_STATE_USE_SYS_RESOURCE_H)
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <iterator>
 #include <limits>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -564,7 +566,8 @@ static void FormatSignalDescription(int signo, const void* uc,
     const unsigned char* pc = static_cast<const unsigned char*>(si.si_addr);
     // Clang ubsan generates ud1l ubsan_type(%eax),%eax in
     // -fsanitize-trap= mode.
-    if (pc[0] == 0x67 && pc[1] == 0x0f && pc[2] == 0xb9 && pc[3] == 0x40) {
+    if (base::AddressIsReadable(pc) && base::AddressIsReadable(pc + 3) &&
+        pc[0] == 0x67 && pc[1] == 0x0f && pc[2] == 0xb9 && pc[3] == 0x40) {
       absl::SNPrintF(signal_desc, signal_desc_size,
                      " (UD1"
                      "@%p), see <link>\n",
@@ -577,16 +580,19 @@ static void FormatSignalDescription(int signo, const void* uc,
 #if defined(__aarch64__)
   if (signo == SIGTRAP && si.si_code == TRAP_BRKPT && si.si_addr != nullptr) {
     const char* pc = (const char*)si.si_addr;
-    uint32_t insn;
-    memcpy(&insn, pc, sizeof(insn));
-    // Clang ubsan generates brk #(ubsan_type | 'U'<<8) in
-    // -fsanitize-trap= mode.
-    if ((insn & 0xffe0001f) == 0xd4200000 && ((insn >> 13) & 255) == 'U') {
-      absl::SNPrintF(signal_desc, signal_desc_size,
-                     " (TRAP"
-                     "@ %p), see <link>\n",
-                     pc);
-      return;
+    if (base::AddressIsReadable(pc) &&
+        base::AddressIsReadable(pc + sizeof(uint32_t) - 1)) {
+      uint32_t insn;
+      memcpy(&insn, pc, sizeof(insn));
+      // Clang ubsan generates brk #(ubsan_type | 'U'<<8) in
+      // -fsanitize-trap= mode.
+      if ((insn & 0xffe0001f) == 0xd4200000 && ((insn >> 13) & 255) == 'U') {
+        absl::SNPrintF(signal_desc, signal_desc_size,
+                       " (TRAP"
+                       "@ %p), see <link>\n",
+                       pc);
+        return;
+      }
     }
   }
 #endif
