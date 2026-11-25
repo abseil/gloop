@@ -66,6 +66,8 @@ using util_os_core::CpuSetMakeEmpty;
 using util_os_core::CpuSetRemove;
 using util_os_core::HexStringToCpuSet;
 
+using ::testing::_;
+using ::testing::HasSubstr;
 using ::testing::UnorderedElementsAre;
 
 ABSL_FLAG(bool, test_system, false, "Print best topology for system");
