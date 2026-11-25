@@ -25,11 +25,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 
+#include "absl/base/attributes.h"
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 #include "absl/numeric/bits.h"
 #include "absl/strings/cord.h"
+#include "absl/strings/cord_buffer.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "gloop/strings/bytestream.h"
@@ -42,9 +45,15 @@ class CordByteSink final : public ByteSink {
   CordByteSink(const CordByteSink&) = delete;
   CordByteSink& operator=(const CordByteSink&) = delete;
 
-  void Append(absl::string_view data) override { dest_->Append(data); }
-  void Append(const char* absl_nonnull data, size_t n) override {
-    dest_->Append(absl::string_view(data, n));
+  void Append(absl::string_view data) override {
+    if (ABSL_PREDICT_FALSE(append_buffer_.has_value())) {
+      AppendWithBuffer(data);
+      return;
+    }
+    dest_->Append(data);
+  }
+  void Append(const char* absl_nullable data, size_t n) override {
+    Append(absl::string_view(data, n));
   }
 
   void AppendExternalMemory(
@@ -53,12 +62,38 @@ class CordByteSink final : public ByteSink {
 
   size_t MinAppendExternalMemoryLength() const override;
 
+  // Returns a writable buffer of at least `min_capacity` bytes and sets
+  // `*result_capacity` to its size. May return either an internal buffer owned
+  // by `*this` (allowing the subsequent `Append()` to avoid copying) or
+  // `scratch`. The returned buffer is invalidated by any other operation on
+  // `*this` or by destroying `*this`.
+  char* absl_nonnull GetAppendBuffer(
+      size_t min_capacity, size_t desired_capacity_hint,
+      char* absl_nonnull scratch ABSL_ATTRIBUTE_LIFETIME_BOUND,
+      size_t scratch_capacity, size_t* absl_nonnull result_capacity)
+      ABSL_ATTRIBUTE_LIFETIME_BOUND override;
+
+  void Flush() override { ResetAppendBuffer(); }
+
   strings::TypeId GetTypeId() const override;
 
   absl::Cord* absl_nonnull cord() { return dest_; }
 
  private:
+  struct PendingAppendBuffer {
+    absl::CordBuffer buffer;
+    size_t requested_capacity;
+  };
+
+  void AppendWithBuffer(absl::string_view data);
+  void ResetAppendBuffer() {
+    if (ABSL_PREDICT_FALSE(append_buffer_.has_value())) {
+      append_buffer_.reset();
+    }
+  }
+
   absl::Cord* absl_nonnull dest_;
+  std::optional<PendingAppendBuffer> append_buffer_;
 };
 
 // A CordReader yields the sequence of bytes that make up the

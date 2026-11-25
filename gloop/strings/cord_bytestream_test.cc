@@ -24,7 +24,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <limits>
+#include <optional>
 #include <random>
 #include <string>
 
@@ -35,6 +37,7 @@
 #include "absl/log/log.h"
 #include "absl/random/random.h"
 #include "absl/strings/cord.h"
+#include "absl/strings/cord_buffer.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
@@ -805,6 +808,262 @@ TEST(CordByteStream, HugeCordOppositeConcatAndReader) {
   strings::StringByteSink sink(&str);
   reader.CopyTo(&sink, 3);
   EXPECT_EQ("hug", str);
+}
+
+TEST(CordByteStream, CordByteSinkGetAppendBufferZeroCopyFlat) {
+  const size_t inline_cap = absl::CordBuffer().capacity();
+  for (const bool use_string_view : {false, true}) {
+    for (size_t size = inline_cap + 1; size <= absl::CordBuffer::kDefaultLimit;
+         size = size < 128
+                    ? size + 1
+                    : std::min(absl::CordBuffer::kDefaultLimit, size + 67)) {
+      SCOPED_TRACE(
+          absl::StrCat("size=", size, " use_string_view=", use_string_view));
+      absl::Cord cord;
+      strings::CordByteSink sink(&cord);
+      char scratch[1];
+      size_t capacity = 0;
+      char* buf =
+          sink.GetAppendBuffer(1, size, scratch, sizeof(scratch), &capacity);
+      ASSERT_NE(buf, scratch);
+      ASSERT_GE(capacity, size);
+
+      const std::string payload(size, 'x');
+      std::memcpy(buf, payload.data(), size);
+      if (use_string_view) {
+        sink.Append(absl::string_view(buf, size));
+      } else {
+        sink.Append(buf, size);
+      }
+
+      // Destination Cord is updated immediately without Flush() or destruction.
+      EXPECT_EQ(cord, payload);
+      std::optional<absl::string_view> flat = cord.TryFlat();
+      ASSERT_TRUE(flat.has_value());
+      EXPECT_EQ(flat->data(), buf);
+      if (size == absl::CordBuffer::kDefaultLimit) {
+        break;
+      }
+    }
+  }
+}
+
+TEST(CordByteStream, CordByteSinkGetAppendBufferSmallAndEmpty) {
+  const size_t inline_cap = absl::CordBuffer().capacity();
+  for (size_t size = 0; size <= inline_cap; ++size) {
+    SCOPED_TRACE(absl::StrCat("size=", size));
+    absl::Cord cord;
+    strings::CordByteSink sink(&cord);
+    char scratch[1];
+    size_t capacity = 0;
+    char* buf =
+        sink.GetAppendBuffer(1, size, scratch, sizeof(scratch), &capacity);
+    ASSERT_NE(buf, scratch);
+    ASSERT_GE(capacity, std::max<size_t>(1, size));
+
+    const std::string payload(size, 'a');
+    if (size > 0) {
+      std::memcpy(buf, payload.data(), size);
+    }
+    sink.Append(buf, size);
+
+    EXPECT_EQ(cord, payload);
+    EXPECT_EQ(cord.EstimatedMemoryUsage(),
+              absl::Cord(payload).EstimatedMemoryUsage());
+  }
+}
+
+TEST(CordByteStream, CordByteSinkGetAppendBufferAboveDefaultLimitUsesScratch) {
+  absl::Cord cord;
+  strings::CordByteSink sink(&cord);
+  char scratch[16];
+  size_t capacity = 0;
+
+  char* buf = sink.GetAppendBuffer(1, absl::CordBuffer::kDefaultLimit + 1,
+                                   scratch, sizeof(scratch), &capacity);
+  EXPECT_EQ(buf, scratch);
+  EXPECT_EQ(capacity, sizeof(scratch));
+
+  buf = sink.GetAppendBuffer(1, 65536, scratch, sizeof(scratch), &capacity);
+  EXPECT_EQ(buf, scratch);
+  EXPECT_EQ(capacity, sizeof(scratch));
+}
+
+TEST(CordByteStream, CordByteSinkGetAppendBufferUnderfilledReleasesOversized) {
+  for (const size_t written :
+       {size_t{0}, size_t{10}, size_t{15}, size_t{200}}) {
+    SCOPED_TRACE(absl::StrCat("written=", written));
+    absl::Cord cord;
+    strings::CordByteSink sink(&cord);
+    char scratch[1];
+    size_t capacity = 0;
+    char* buf = sink.GetAppendBuffer(1, absl::CordBuffer::kDefaultLimit,
+                                     scratch, sizeof(scratch), &capacity);
+    ASSERT_GE(capacity, absl::CordBuffer::kDefaultLimit);
+
+    const std::string payload(written, 'z');
+    if (written > 0) {
+      std::memcpy(buf, payload.data(), written);
+    }
+    sink.Append(buf, written);
+
+    EXPECT_EQ(cord, payload);
+    EXPECT_EQ(cord.EstimatedMemoryUsage(),
+              absl::Cord(payload).EstimatedMemoryUsage());
+  }
+}
+
+TEST(CordByteStream, CordByteSinkGetAppendBufferAppendsToNonEmptyCord) {
+  absl::Cord cord("prefix:");
+  strings::CordByteSink sink(&cord);
+  char scratch[1];
+  size_t capacity = 0;
+  char* buf = sink.GetAppendBuffer(1, 256, scratch, sizeof(scratch), &capacity);
+  ASSERT_GE(capacity, 256);
+
+  // GetAppendBuffer must not disturb existing Cord contents before Append.
+  EXPECT_EQ(cord, "prefix:");
+
+  const std::string suffix(256, 'b');
+  std::memcpy(buf, suffix.data(), suffix.size());
+  sink.Append(buf, suffix.size());
+
+  EXPECT_EQ(cord, absl::StrCat("prefix:", suffix));
+}
+
+TEST(CordByteStream, CordByteSinkGetAppendBufferInvalidationPaths) {
+  char scratch[8];
+  size_t capacity = 0;
+
+  // Append with a different pointer drops the pending buffer.
+  {
+    absl::Cord cord("start:");
+    strings::CordByteSink sink(&cord);
+    char* buf =
+        sink.GetAppendBuffer(1, 256, scratch, sizeof(scratch), &capacity);
+    ASSERT_NE(buf, scratch);
+    sink.Append("other", 5);
+    EXPECT_EQ(cord, "start:other");
+  }
+
+  // A second GetAppendBuffer replaces the first uncommitted buffer.
+  {
+    absl::Cord cord;
+    strings::CordByteSink sink(&cord);
+    char* first =
+        sink.GetAppendBuffer(1, 256, scratch, sizeof(scratch), &capacity);
+    ASSERT_NE(first, scratch);
+    char* second =
+        sink.GetAppendBuffer(1, 128, scratch, sizeof(scratch), &capacity);
+    ASSERT_NE(second, scratch);
+    ASSERT_GE(capacity, 128);
+    const std::string payload(128, 'c');
+    std::memcpy(second, payload.data(), payload.size());
+    sink.Append(second, payload.size());
+    EXPECT_EQ(cord, payload);
+  }
+
+  // AppendExternalMemory invalidates any uncommitted buffer.
+  {
+    absl::Cord cord;
+    strings::CordByteSink sink(&cord);
+    char* buf =
+        sink.GetAppendBuffer(1, 256, scratch, sizeof(scratch), &capacity);
+    ASSERT_NE(buf, scratch);
+    std::string ext(1024, 'e');
+    bool released = false;
+    sink.AppendExternalMemory(
+        ext, &released, [](void* arg) { *static_cast<bool*>(arg) = true; });
+    EXPECT_EQ(cord, ext);
+    cord.Clear();
+    EXPECT_TRUE(released);
+  }
+
+  // Flush invalidates any uncommitted buffer without modifying the Cord.
+  {
+    absl::Cord cord("kept");
+    strings::CordByteSink sink(&cord);
+    char* buf =
+        sink.GetAppendBuffer(1, 256, scratch, sizeof(scratch), &capacity);
+    ASSERT_NE(buf, scratch);
+    sink.Flush();
+    EXPECT_EQ(cord, "kept");
+    sink.Append("!", 1);
+    EXPECT_EQ(cord, "kept!");
+  }
+
+  // Destroying the sink with an uncommitted buffer leaves existing Cord intact.
+  {
+    absl::Cord cord("intact");
+    {
+      strings::CordByteSink sink(&cord);
+      char* buf =
+          sink.GetAppendBuffer(1, 512, scratch, sizeof(scratch), &capacity);
+      ASSERT_NE(buf, scratch);
+    }
+    EXPECT_EQ(cord, "intact");
+  }
+
+  // CordReader::CopyTo(>=512) invalidates any uncommitted buffer.
+  {
+    absl::Cord cord;
+    strings::CordByteSink sink(&cord);
+    char* buf =
+        sink.GetAppendBuffer(1, 256, scratch, sizeof(scratch), &capacity);
+    ASSERT_NE(buf, scratch);
+    const absl::Cord copied(std::string(600, 'm'));
+    strings::CordReader reader(copied);
+    reader.CopyTo(&sink, copied.size());
+    sink.Append("tail", 4);
+    EXPECT_EQ(cord, absl::StrCat(std::string(600, 'm'), "tail"));
+  }
+
+  // Read-only cord() inspection does not invalidate a pending append buffer.
+  {
+    absl::Cord cord("prefix:");
+    strings::CordByteSink sink(&cord);
+    char* buf =
+        sink.GetAppendBuffer(1, 256, scratch, sizeof(scratch), &capacity);
+    ASSERT_NE(buf, scratch);
+    ASSERT_EQ(sink.cord()->size(), 7);
+    std::memset(buf, 'q', 256);
+    sink.Append(buf, 256);
+    EXPECT_EQ(cord, absl::StrCat("prefix:", std::string(256, 'q')));
+  }
+}
+
+TEST(CordByteStream, CordByteSinkAppendNullEmpty) {
+  absl::Cord cord;
+  strings::CordByteSink sink(&cord);
+  absl::string_view empty;
+  ASSERT_EQ(empty.data(), nullptr);
+  sink.Append(empty.data(), empty.size());
+
+  char scratch[8];
+  size_t capacity = 0;
+  char* buf = sink.GetAppendBuffer(1, 64, scratch, sizeof(scratch), &capacity);
+  ASSERT_NE(buf, scratch);
+  sink.Append(empty.data(), empty.size());
+  sink.Append("ok", 2);
+  EXPECT_EQ(cord, "ok");
+}
+
+TEST(CordByteStream, CordByteSinkGetAppendBufferPreconditionsDeath) {
+  absl::Cord cord;
+  strings::CordByteSink sink(&cord);
+  char scratch[8];
+  size_t capacity = 0;
+  EXPECT_DEATH_IF_SUPPORTED(
+      sink.GetAppendBuffer(0, 16, scratch, sizeof(scratch), &capacity), ".*");
+  EXPECT_DEATH_IF_SUPPORTED(
+      sink.GetAppendBuffer(16, 16, scratch, sizeof(scratch), &capacity), ".*");
+  EXPECT_DEATH_IF_SUPPORTED(
+      {
+        char* buf =
+            sink.GetAppendBuffer(1, 64, scratch, sizeof(scratch), &capacity);
+        sink.Append(buf, capacity + 1);
+      },
+      ".*");
 }
 
 }  // namespace

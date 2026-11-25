@@ -25,13 +25,18 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <optional>
+#include <utility>
 
+#include "absl/base/internal/raw_logging.h"
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
+#include "absl/cleanup/cleanup.h"
 #include "absl/flags/flag.h"
 #include "absl/log/log.h"
 #include "absl/numeric/bits.h"
 #include "absl/strings/cord.h"
+#include "absl/strings/cord_buffer.h"
 #include "absl/strings/string_view.h"
 #include "gloop/strings/bytestream.h"
 
@@ -48,6 +53,8 @@ namespace strings {
 void CordByteSink::AppendExternalMemory(
     absl::string_view data, void* absl_nullable arg,
     void (*absl_nonnull releaser)(void* absl_nullable)) {
+  // Any synchronous `releaser(arg)` must observe no pending append buffer.
+  ResetAppendBuffer();
   dest_->Append(
       absl::MakeCordFromExternal(data, [arg, releaser]() { releaser(arg); }));
 }
@@ -56,8 +63,51 @@ size_t CordByteSink::MinAppendExternalMemoryLength() const {
   return absl::cord_internal::kMaxBytesToCopy + 1;
 }
 
+char* absl_nonnull CordByteSink::GetAppendBuffer(
+    size_t min_capacity, size_t desired_capacity_hint,
+    char* absl_nonnull scratch, size_t scratch_capacity,
+    size_t* absl_nonnull result_capacity) {
+  ResetAppendBuffer();
+  const size_t requested = std::max(min_capacity, desired_capacity_hint);
+  if (min_capacity >= 1 && scratch_capacity >= min_capacity &&
+      requested <= absl::CordBuffer::kDefaultLimit) {
+    PendingAppendBuffer& pending = append_buffer_.emplace(PendingAppendBuffer{
+        absl::CordBuffer::CreateWithDefaultLimit(requested),
+        requested,
+    });
+    *result_capacity = pending.buffer.capacity();
+    return pending.buffer.data();
+  }
+  return ByteSink::GetAppendBuffer(min_capacity, desired_capacity_hint, scratch,
+                                   scratch_capacity, result_capacity);
+}
+
 strings::TypeId CordByteSink::GetTypeId() const {
   return strings::TypeId::For<CordByteSink>();
+}
+
+void CordByteSink::AppendWithBuffer(absl::string_view data) {
+  const absl::Cleanup reset_on_exit = [this] { append_buffer_.reset(); };
+
+  ABSL_RAW_CHECK(append_buffer_.has_value(),
+                 "AppendWithBuffer called without a pending buffer");
+  PendingAppendBuffer& pending = *append_buffer_;
+  if (data.data() == pending.buffer.data()) {
+    ABSL_RAW_CHECK(data.size() <= pending.buffer.capacity(),
+                   "Append length exceeds GetAppendBuffer capacity");
+    // Adopt zero-copy when well-utilized; otherwise copy into a right-sized
+    // node to avoid pinning oversized flats.
+    constexpr size_t kMinAdoptUtilizationNum = 3;
+    constexpr size_t kMinAdoptUtilizationDen = 4;
+    if (data.size() > absl::CordBuffer().capacity() &&
+        data.size() >= (pending.requested_capacity * kMinAdoptUtilizationNum) /
+                           kMinAdoptUtilizationDen) {
+      pending.buffer.SetLength(data.size());
+      dest_->Append(std::move(pending.buffer));
+      return;
+    }
+  }
+  dest_->Append(data);
 }
 
 CordReader::~CordReader() {}
@@ -191,6 +241,7 @@ absl::Cord CordReader::ReadCord(size_t n) {
 }
 
 void CordReader::CopyToCord(CordByteSink* absl_nonnull sink, size_t n) {
+  sink->Flush();
   sink->cord()->Append(ReadCord(n));
 }
 

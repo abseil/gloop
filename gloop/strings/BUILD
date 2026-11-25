@@ -163,6 +163,8 @@ cc_library(
         "@abseil-cpp//absl/types:span",
     ],
     implementation_deps = [
+        "@abseil-cpp//absl/base:raw_logging_internal",
+        "@abseil-cpp//absl/cleanup",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/log",
     ],
