@@ -109,6 +109,11 @@ void TraceContext::AdoptTracer(base::Tracer* tracer) {
   // until they're adopted by the TraceContext system, as only the TraceContext
   // has access to the private reference counting methods (as a friend class).
   ABSL_RAW_DCHECK(tracer, "Tracer must not be null");
+  ABSL_RAW_DCHECK(tracer != base::GetNoopTracer(),
+                  "Cannot adopt global NoopTracer");
+  if (tracer == base::GetNoopTracer()) {
+    return;
+  }
   ABSL_RAW_DCHECK(tracer->ref_count_.load(std::memory_order_relaxed) == 0,
                   "Tracer must not have references.");
 

@@ -517,6 +517,30 @@ TEST(Tracer, SetErrorStatus) {
   EXPECT_TRUE(tracer.GetErrorStatus());
 }
 
+TEST(Tracer, NoopTracerSingletonIgnoresMutations) {
+  Tracer* noop = base::GetNoopTracer();
+  ASSERT_NE(noop, nullptr);
+  EXPECT_FALSE(noop->IsStarted());
+  EXPECT_FALSE(noop->has_stop_time());
+
+  noop->SetStopTimeNow();
+  noop->add_lock_contention_delay_safe(absl::Milliseconds(10));
+
+  EXPECT_FALSE(noop->IsStarted());
+  EXPECT_FALSE(noop->has_stop_time());
+  EXPECT_EQ(noop->lock_contention_delay(), absl::ZeroDuration());
+  EXPECT_EQ(noop->initiator_id(), 0);
+  EXPECT_EQ(noop->inverse_sampling_probability(), 0.0);
+  EXPECT_EQ(noop->RefCountForTesting(), 0);
+
+  // GetNoopTracerForTesting() instances remain independent and mutable.
+  std::unique_ptr<Tracer> test_noop = base::GetNoopTracerForTesting();
+  EXPECT_NE(test_noop.get(), noop);
+  EXPECT_TRUE(test_noop->IsStarted());
+  test_noop->add_lock_contention_delay_safe(absl::Milliseconds(5));
+  EXPECT_EQ(test_noop->lock_contention_delay(), absl::Milliseconds(5));
+}
+
 TEST(Tracer, UnrefNoDeleteRefcountGreaterThanOne) {
   bool deleted = false;
   TestTracer* tracer = new TestTracer(&deleted);

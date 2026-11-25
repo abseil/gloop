@@ -100,17 +100,19 @@ class NoopTracer : public base::Tracer {
 };
 
 static absl::once_flag nooptracer_init;
-base::Tracer* noop_tracer_instance = nullptr;
-
-void CreateNoopTracer() { noop_tracer_instance = new NoopTracer; }
 
 }  // namespace
 
 namespace base {
 
+std::atomic<Tracer*> Tracer::noop_tracer_instance_{nullptr};
+
 Tracer* GetNoopTracer() {
-  absl::call_once(nooptracer_init, &CreateNoopTracer);
-  return noop_tracer_instance;
+  absl::call_once(nooptracer_init, []() {
+    Tracer::noop_tracer_instance_.store(new NoopTracer,
+                                        std::memory_order_relaxed);
+  });
+  return Tracer::noop_tracer_instance_.load(std::memory_order_relaxed);
 }
 
 std::unique_ptr<Tracer> GetNoopTracerForTesting() {
@@ -177,7 +179,7 @@ std::unique_ptr<Tracer> Tracer::UnrefSlow() {
 
 bool Tracer::NotifyBeforeDestroy(TracerNotification* new_notify,
                                  NotificationAccess) {
-  if (new_notify == nullptr) return false;
+  if (new_notify == nullptr || IsNoopSingleton()) return false;
   TracerNotification* old_notify = nullptr;
   // Only a single notification can be registered. Any subsequent attempts to
   // override an existing notification will fail.
@@ -190,6 +192,7 @@ bool Tracer::NotifyBeforeDestroy(TracerNotification* new_notify,
 }
 
 void Tracer::UpdateMask(uint32_t add, uint32_t remove) {
+  if (IsNoopSingleton()) return;
   // The tracer may be shared between trace contexts, so we must update its mask
   // atomically.
   uint32_t old_mask = trace_mask_.load(std::memory_order_relaxed);
@@ -202,6 +205,7 @@ void Tracer::UpdateMask(uint32_t add, uint32_t remove) {
 }
 
 void Tracer::SetStartTime(absl::Time time) {
+  if (IsNoopSingleton()) return;
   start_time_ = time;
   unref_time_.store(base::TimeUnixNanos(), std::memory_order_relaxed);
   stop_time_.store(base::TimeUnixNanos(), std::memory_order_relaxed);
@@ -210,6 +214,7 @@ void Tracer::SetStartTime(absl::Time time) {
 }
 
 void Tracer::set_inherited_initiator_id(uint64_t value) {
+  if (IsNoopSingleton()) return;
   // Reset root-only bits that must not propagate to downstream child spans.
   value &= ~(kTraceInitiatingSpan | kSpeculativeRoot);
   initiator_id_.store(value, std::memory_order_relaxed);
@@ -221,6 +226,7 @@ void Tracer::GetTraceContextStackTraces(
 }
 
 void Tracer::set_initiator_id_on_child_trace(uint64_t value) {
+  if (IsNoopSingleton()) return;
   // Add the bits indicating this is a linked trace and the span is its root
   // (the decision to sample was propagated from the parent at this span), while
   // clearing span-local kSpeculativeRoot.
@@ -263,6 +269,7 @@ std::optional<uint64_t> Tracer::CurrentProcessInitiatorId() {
 }
 
 void Tracer::set_invalid_inherited_initiator_id() {
+  if (IsNoopSingleton()) return;
   // The initiator id has been lost. Introduce a new initiator id based on prod
   // UID if available, tagged with a marker that remembers that we synthesized
   // an initiator. See <link> for details. If prod UID is
@@ -276,6 +283,7 @@ void Tracer::set_invalid_inherited_initiator_id() {
 }
 
 void Tracer::set_initiator_id(std::optional<uint64_t> initiate_as_prod_uid) {
+  if (IsNoopSingleton()) return;
   uint64_t initiator_id = initiate_as_prod_uid.has_value()
                               ? ((*initiate_as_prod_uid & kInitiatorValueMask) |
                                  kInitiatorTypeProdUid)
@@ -285,10 +293,12 @@ void Tracer::set_initiator_id(std::optional<uint64_t> initiate_as_prod_uid) {
 }
 
 void Tracer::set_initiated_by_batch_sampling() {
+  if (IsNoopSingleton()) return;
   initiator_id_.fetch_or(kBatchSampling, std::memory_order_relaxed);
 }
 
 void Tracer::set_initiator_id_string(uint32_t hash) {
+  if (IsNoopSingleton()) return;
   // There may be other unrelated bits already set in the initiator ID metadata,
   // which we don't want to change.
   constexpr uint64_t kUpdateBits =
@@ -307,31 +317,38 @@ absl::Duration Tracer::Elapsed() const {
 }
 
 void Tracer::enable_query_cost_tracing() {
+  if (IsNoopSingleton()) return;
   initiator_id_.fetch_or(kQueryCostTracingEnabled, std::memory_order_relaxed);
 }
 
 void Tracer::internal_enable_shared_fate() {
+  if (IsNoopSingleton()) return;
   initiator_id_.fetch_or(kSharedFate, std::memory_order_relaxed);
 }
 
 void Tracer::set_high_value_trace() {
+  if (IsNoopSingleton()) return;
   initiator_id_.fetch_or(kHighValueTrace, std::memory_order_relaxed);
 }
 
 void Tracer::set_speculative_root() {
+  if (IsNoopSingleton()) return;
   initiator_id_.fetch_or(kSpeculativeRoot, std::memory_order_relaxed);
 }
 
 void Tracer::set_initiated_by_tracing_cookie() {
+  if (IsNoopSingleton()) return;
   initiator_id_.fetch_or(kTracingCookie | kTraceInitiatingSpan,
                          std::memory_order_relaxed);
 }
 
 void Tracer::set_initiated_by_bucketed_sampling() {
+  if (IsNoopSingleton()) return;
   initiator_id_.fetch_or(kBucketedSampling, std::memory_order_relaxed);
 }
 
 ABSL_XRAY_ALWAYS_INSTRUMENT void Tracer::SetStopTime(absl::Time time) {
+  if (IsNoopSingleton()) return;
   ABSL_RAW_DCHECK(IsAlive(), "Tracer is not alive.");
   if (!has_stop_time()) {
     auto stop_time = base::TimeUnixNanos::FromTime(time);
