@@ -215,9 +215,10 @@ bool ShouldInstallDefaultSignalHandler(absl::string_view signal_group,
 #endif
 }
 
-// x_cgo_init is linked into the process if and only if it includes a Go runtime
-// (i.e. a go_library dependency, or a cc_library dependency of a go_binary).
-extern "C" ABSL_ATTRIBUTE_WEAK char x_cgo_init[];
+// crosscall2 is exported by Go's runtime/cgo package, so it is linked into the
+// process if and only if the process includes a Go runtime (i.e. a go_library
+// dependency, or a cc_library dependency of a go_binary).
+extern "C" ABSL_ATTRIBUTE_WEAK char crosscall2[];
 
 bool UseAlternateStackForSignal(int signal) {
 #ifndef GOOGLE_HAVE_POSIX_SIGNAL_ALT_STACK
@@ -227,7 +228,7 @@ bool UseAlternateStackForSignal(int signal) {
   // Always use an alternate stack if Go code is linked into the binary.  We'd
   // ideally like to do this always (even without Go) but are concerned about
   // the memory footprint.  See discussion on CL 112820896.
-  if (x_cgo_init != nullptr) return true;
+  if (crosscall2 != nullptr) return true;
 #endif
 
   // TODO: If the flag is false, does it actually do any harm to set
