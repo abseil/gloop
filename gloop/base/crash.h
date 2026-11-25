@@ -29,8 +29,6 @@
 #include "absl/strings/string_view.h"
 #include "gloop/base/config.h"
 
-class TraceContext;
-
 namespace base {
 
 struct CrashReason {
@@ -57,10 +55,6 @@ struct CrashReason {
     uint64_t global_id = 0;
   };
   std::optional<TraceIds> trace_ids;
-
-  // Trace context override to use (instead of the current trace context) when
-  // reporting the crash. TODO: remove
-  [[deprecated("Use `trace_ids` instead")]] const TraceContext* tc = nullptr;
 };
 
 #if BASE_HAVE_CRASHREASON

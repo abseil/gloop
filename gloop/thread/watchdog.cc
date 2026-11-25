@@ -29,6 +29,7 @@
 #include <atomic>
 #include <cstdint>
 #include <iterator>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -53,7 +54,6 @@
 #include "gloop/base/pthread_util.h"
 #include "gloop/base/raw_logging.h"
 #include "gloop/base/sysinfo.h"
-#include "gloop/base/tracecontext.h"
 #include "gloop/thread/thread.h"
 
 // Global WatchDog data.
@@ -414,12 +414,14 @@ void WatchDog::SetCrashReasonFromStuckThread() {
                                 const LiveThread* thread) {
     auto* watchdog = static_cast<WatchDog*>(arg);
 
-    const TraceContext* tc = base::CurrentTraceContextNoAlloc();
-    if (tc) {
+    const std::optional<base::CrashReason::TraceIds> trace_ids =
+        base::CurrentTraceIdsForCrashReporting();
+
+    if (trace_ids.has_value()) {
       ABSL_RAW_LOG(
           INFO,
           "stuck thread TraceContext: global_id = 0x%016lx, rpc_id = 0x%016lx",
-          tc->global_id(), tc->rpc_id());
+          trace_ids->global_id, trace_ids->rpc_id);
     }
 
     // Unwind from the stuck thread (current thread) to produce a useful
@@ -430,8 +432,8 @@ void WatchDog::SetCrashReasonFromStuckThread() {
     reason.line_number = __LINE__;
     reason.depth =
         absl::GetStackTrace(reason.stack, std::size(reason.stack), 0);
-    reason.tc = tc;  // TODO: remove
-    reason.trace_ids = base::CurrentTraceIdsForCrashReporting();
+    reason.trace_ids = trace_ids;
+
     base::SetCrashReason(&reason);
   };
   // Iterate through all threads looking for the stuck thread and collect crash
