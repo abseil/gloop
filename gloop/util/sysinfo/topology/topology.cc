@@ -64,6 +64,7 @@
 #include "absl/strings/str_replace.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
+#include "absl/strings/strip.h"
 #include "absl/strings/substitute.h"
 #include "absl/types/span.h"
 #include "gloop/base/commandlineflags.h"
@@ -116,6 +117,46 @@ std::string ChildMapToString(const ChildMap& m) {
         absl::StrAppend(out, "(", p.first, ", ", ss.str(), ")");
       });
 }
+
+// Parse a `<key><whitespace>:<whitespace><int>` line, as printed by
+// arch/x86/kernel/cpu/proc.c in the kernel.
+std::optional<int64_t> ParseColonIntField(absl::string_view line,
+                                          const absl::string_view key) {
+  // The line must start with the expected key.
+  if (!absl::ConsumePrefix(&line, key)) {
+    return std::nullopt;
+  }
+
+  // Afterward must be zero or more whitespace characters, followed by a colon,
+  // followed by potentially more whitespace.
+  line = absl::StripLeadingAsciiWhitespace(line);
+
+  if (!absl::ConsumePrefix(&line, ":")) {
+    return std::nullopt;
+  }
+
+  line = absl::StripLeadingAsciiWhitespace(line);
+
+  // Find the length of the prefix that is an optional sign character followed
+  // by decimal digits.
+  size_t len = 0;
+  if (!line.empty() && (line[0] == '+' || line[0] == '-')) {
+    ++len;
+  }
+
+  while (len < line.size() && absl::ascii_isdigit(line[len])) {
+    ++len;
+  }
+
+  // Parse that prefix as an integer.
+  int64_t value = 0;
+  if (!absl::SimpleAtoi(line.substr(0, len), &value)) {
+    return std::nullopt;
+  }
+
+  return value;
+}
+
 }  // namespace
 
 // Helper for extracting cache information from /sys
@@ -792,63 +833,65 @@ SysTopologyGenerator::TopologyInfoFromProcCPUInfo() const {
 
   // Scan /proc/cpuinfo looking for lines for cpu id, core id and
   // package id
-  int cpu = -1, next_cpu = -1, core = -1, package = -1;
+  SysTopology::Id cpu = -1, core = -1, package = -1;
+  auto append_cpu = [&]() {
+    if (cpu < 0) {
+      return;
+    }
+    VLOG(4) << "Found CPU " << cpu << ", core " << core << ", package "
+            << package;
+
+    ti.cpus.push_back(SysTopology::CPUInfo());
+    SysTopology::CPUInfo& ci = ti.cpus.back();
+    ci.id = cpu;
+
+    // Fake core ids if not available.
+    // Simplistic cpu info provided by xen (under Ubiquity) skips
+    // topology spec details.
+    // Package is set to 0 by default.
+    CHECK_GE(package, 0);
+    if (core == -1) {
+      core = package;
+    } else {
+      core |= package << 16;
+    }
+
+    ci.parent["core"] = core;
+    ci.parent["package"] = package;
+  };
 
   char buf[kScanfileBufsize];
+  while (fgets(buf, sizeof(buf), f) != nullptr) {
+    const absl::string_view line = buf;
+    VLOG(3) << "read line " << line;
 
-  while (true) {
-    char* read_line;
-    read_line = fgets(buf, sizeof(buf), f);
-
-    if (read_line) {
-      VLOG(3) << "read line " << buf;
-    } else {
-      VLOG(3) << "EOF";
-    }
-
-    if (!read_line || (sscanf(buf, "processor\t: %d", &next_cpu) == 1)) {
+    if (std::optional<int64_t> next_cpu = ParseColonIntField(line, "processor");
+        next_cpu.has_value()) {
       // We've found the start of a new processor section. If we have
       // existing cpu/core/package info, add a CPU to the list.
-      if (cpu >= 0) {
-        VLOG(4) << "Found CPU " << cpu << ", core " << core << ", package "
-                << package;
-
-        ti.cpus.push_back(SysTopology::CPUInfo());
-        SysTopology::CPUInfo& ci = ti.cpus.back();
-        ci.id = cpu;
-
-        // Fake core ids if not available.
-        // Simplistic cpu info provided by xen (under Ubiquity) skips
-        // topology spec details.
-        // Package is set to 0 by default.
-        CHECK_GE(package, 0);
-        if (core == -1) {
-          core = package;
-        } else {
-          core |= package << 16;
-        }
-
-        ci.parent["core"] = core;
-        ci.parent["package"] = package;
-      }
-
-      cpu = next_cpu;
+      append_cpu();
+      cpu = *next_cpu;
       VLOG(3) << "Read cpu id " << cpu;
-      next_cpu = -1;
       core = -1;
       package = 0;
+      continue;
     }
-
-    if (!read_line) break;
 
     // See if this line matches a core or package id
-    if (sscanf(buf, "core id : %d", &core) == 1) {
+    if (std::optional<int64_t> parsed_core =
+            ParseColonIntField(line, "core id");
+        parsed_core.has_value()) {
+      core = *parsed_core;
       VLOG(3) << "Read core id " << core;
-    }
-    if (sscanf(buf, "physical id : %d", &package) == 1) {
+    } else if (std::optional<int64_t> parsed_package =
+                   ParseColonIntField(line, "physical id");
+               parsed_package.has_value()) {
+      package = *parsed_package;
       VLOG(3) << "Read package id " << package;
     }
   }
+  VLOG(3) << "EOF";
+  append_cpu();
   fclose(f);
 
   if (ti.cpus.empty()) {
