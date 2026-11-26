@@ -112,6 +112,7 @@ cc_library(
     hdrs = ["callback-types.h"],
     visibility = [
         "//gloop/util/functional:__subpackages__",
+        "@protobuf//compiler/cpp:__pkg__",
     ],
     deps = [
         ":context",
