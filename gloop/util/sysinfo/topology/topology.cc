@@ -38,7 +38,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <fstream>
 #include <ios>
 #include <iterator>
 #include <map>
@@ -1129,15 +1128,20 @@ namespace {
 std::optional<::util::sysinfo::topology::TopologyInfo> LoadTopologyInfoProto(
     const std::string& path) {
   ::util::sysinfo::topology::TopologyInfo proto;
-  std::ifstream stream(path, std::ios::in | std::ios::binary);
-  if (!stream.good()) {
-    LOG(ERROR) << "Failed to open topology info file: " << path;
-    return {};
-  }
-  if (!proto.ParseFromIstream(&stream)) {
+
+  ABSL_ASSIGN_OR_RETURN(const std::string contents, ReadFileToString(path),
+                        _.With([&](const absl::Status&) {
+                          LOG(ERROR)
+                              << "Failed to open topology info file: " << path;
+
+                          return std::nullopt;
+                        }));
+
+  if (!proto.ParseFromString(contents)) {
     LOG(ERROR) << "Failed to parse topology proto from " << path;
     return {};
   }
+
   return proto;
 }
 }  // namespace
