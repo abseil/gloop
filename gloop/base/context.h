@@ -132,16 +132,9 @@ class ABSL_ATTRIBUTE_TRIVIAL_ABI Context {
   // Initialized to a default handle when constructed via Context::kDefault.
   CensusHandle census_handle() const { return tc_.census_handle(); }
 
-  // Sets the Census handle.
-  //
-  // Note: don't use this to modify the handle of CurrentContext (you can't
-  // because CurrentContext returns a const reference). Instead use
-  // stats_census::Tagger or WithCensusHandle.
-  void set_census_handle(const CensusHandle& handle) {
-    tc_.set_census_handle(handle);
-  }
-
-  void set_census_handle(CensusHandle&& handle) {
+  // Sets the Census handle. Most users will want stats_census::Tagger or
+  // WithCensusHandle.
+  void set_census_handle(CensusHandle handle) {
     tc_.set_census_handle(std::move(handle));
   }
 
