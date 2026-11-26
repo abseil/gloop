@@ -672,4 +672,31 @@ TEST_P(InvokeDebuggerWithCommandLongTokensTest, ExpansionOverflow) {
 INSTANTIATE_TEST_SUITE_P(LongTokens, InvokeDebuggerWithCommandLongTokensTest,
                          testing::Values("%w", "%p", "%f"));
 
+TEST(StackTraceDeathTest, UnreadableSignalAddrDoesNotFault) {
+  EXPECT_DEATH(raise(SIGTRAP), "\\*\\*\\* SIGTRAP .*received by PID ");
+
+  const size_t pagesize = getpagesize();
+  char* pages = static_cast<char*>(mmap(nullptr, 2 * pagesize, PROT_NONE,
+                                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
+  ASSERT_NE(pages, MAP_FAILED);
+  ASSERT_EQ(mprotect(pages, pagesize, PROT_READ), 0);
+
+  for (auto [signo, si_code] : std::initializer_list<std::pair<int, int>>{
+           {SIGILL, ILL_ILLOPN}, {SIGTRAP, TRAP_BRKPT}}) {
+    for (void* addr : {pages + pagesize, pages + pagesize - 1}) {
+      EXPECT_DEATH(
+          {
+            siginfo_t si = {};
+            si.si_signo = signo;
+            si.si_code = si_code;
+            si.si_addr = addr;
+            base::HandleOrRaiseFailureSignal(signo, &si, nullptr);
+            _exit(1);
+          },
+          "\\*\\*\\* SIG(ILL|TRAP) .*received by PID ");
+    }
+  }
+  munmap(pages, 2 * pagesize);
+}
+
 }  // namespace
