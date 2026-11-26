@@ -840,11 +840,25 @@ void SysTopologyGenerator::ReadNumaMemNodes(
     //     "Node 1 MemTotal:       131048880 kB"
     const std::string meminfo_filename =
         absl::StrCat(path_prefix_, kSysNodeDir, "node", node_id, "/meminfo");
-    std::string field_prefix = absl::StrCat("Node ", node_id, " MemTotal:");
-    long long size_kb = 0;  // NOLINT(google-runtime-int)
-    if (ReadProcKeyword(meminfo_filename.c_str(), 0, field_prefix.c_str(),
-                        "%lld", &size_kb)) {
-      info.size_kb = size_kb;
+
+    std::optional<int64_t> size_kb;
+    {
+      const std::string field_key = absl::StrCat("Node ", node_id, " MemTotal");
+
+      if (const absl::StatusOr<std::string> contents =
+              ReadFileToString(meminfo_filename);
+          contents.ok()) {
+        for (const absl::string_view line : absl::StrSplit(*contents, '\n')) {
+          size_kb = ParseColonIntField(line, field_key);
+          if (size_kb.has_value()) {
+            break;
+          }
+        }
+      }
+    }
+
+    if (size_kb.has_value()) {
+      info.size_kb = *size_kb;
     } else {
       LOG(WARNING) << "Failed to parse node 'MemTotal' from: "
                    << meminfo_filename;
