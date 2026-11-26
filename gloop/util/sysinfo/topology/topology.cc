@@ -23,9 +23,10 @@
 #include "gloop/util/sysinfo/topology/topology.h"
 
 #include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <sched.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -51,11 +52,13 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/base/internal/cpu_detect.h"
+#include "absl/cleanup/cleanup.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/numbers.h"
@@ -116,6 +119,49 @@ std::string ChildMapToString(const ChildMap& m) {
         ss << p.second;
         absl::StrAppend(out, "(", p.first, ", ", ss.str(), ")");
       });
+}
+
+// Read the file at the given path into a string.
+absl::StatusOr<std::string> ReadFileToString(const std::string& path) {
+  // Open the file.
+  int fd = -1;
+  do {
+    fd = open(path.c_str(), O_RDONLY | O_CLOEXEC);
+  } while (fd < 0 && errno == EINTR);
+
+  if (fd < 0) {
+    const int err = errno;
+    return absl::ErrnoToStatus(err, "opening");
+  }
+
+  // Ensure we close it again once we're done.
+  const absl::Cleanup close_fd = [fd] { close(fd); };
+
+  // Read its contents.
+  std::string contents;
+  char buf[4096];
+
+  while (true) {
+    // Read one block.
+    const ssize_t n = read(fd, buf, sizeof(buf));
+    if (n > 0) {
+      contents.append(buf, static_cast<size_t>(n));
+      continue;
+    }
+
+    // Are we done?
+    if (n == 0) {
+      return contents;
+    }
+
+    // The read failed.
+    const int err = errno;
+    if (err == EINTR) {
+      continue;
+    }
+
+    return absl::ErrnoToStatus(err, "reading");
+  }
 }
 
 // Parse a `<key><whitespace>:<whitespace><int>` line, as printed by
@@ -810,17 +856,14 @@ void SysTopologyGenerator::ReadNumaMemNodes(
 
 absl::StatusOr<SysTopology::TopologyInfo>
 SysTopologyGenerator::TopologyInfoFromProcCPUInfo() const {
-  FILE* f;
-
   SysTopology::TopologyInfo ti;
 
   const std::string cpuinfo_path =
       absl::Substitute("$0/proc/cpuinfo", path_prefix_);
-  f = OpenProcFile(cpuinfo_path.c_str(), -1);
-  if (!f) {
-    return absl::InternalError(
-        absl::Substitute("Couldn't open $0.", cpuinfo_path));
-  }
+
+  ABSL_ASSIGN_OR_RETURN(const std::string contents,
+                        ReadFileToString(cpuinfo_path),
+                        _ << "reading " << cpuinfo_path << " to string");
 
   ti.Clear();
   ti.levels.resize(3);
@@ -860,9 +903,7 @@ SysTopologyGenerator::TopologyInfoFromProcCPUInfo() const {
     ci.parent["package"] = package;
   };
 
-  char buf[kScanfileBufsize];
-  while (fgets(buf, sizeof(buf), f) != nullptr) {
-    const absl::string_view line = buf;
+  for (const absl::string_view line : absl::StrSplit(contents, '\n')) {
     VLOG(3) << "read line " << line;
 
     if (std::optional<int64_t> next_cpu = ParseColonIntField(line, "processor");
@@ -892,7 +933,6 @@ SysTopologyGenerator::TopologyInfoFromProcCPUInfo() const {
   }
   VLOG(3) << "EOF";
   append_cpu();
-  fclose(f);
 
   if (ti.cpus.empty()) {
     return absl::InternalError("No useful info in /proc/cpuinfo");
