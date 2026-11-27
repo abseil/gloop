@@ -178,10 +178,12 @@ cc_library(
         "//gloop:enforce_gloop_support",
         "//gloop/base:atomic_sequence_num",
         "//gloop/base:port",
+        "//gloop/util/gtl:c_memset",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/log:check",
         "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:span",
     ],
 )
 

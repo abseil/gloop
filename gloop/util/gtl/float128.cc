@@ -37,6 +37,8 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
+#include "gloop/util/gtl/c_memmove.h"
 
 // NOLINTBEGIN(google-runtime-int)
 // NOLINTBEGIN(runtime/int)
@@ -70,7 +72,8 @@ Float128::StringRepBuffer Float128::ToString(const int width, const char fill,
       // don't need to reallocate.
       assert(buf.size() >= static_cast<std::size_t>(width));
       const int padding = width - desired_nonnull_bytes;
-      std::memmove(buf.data() + padding, buf.data(), desired_nonnull_bytes);
+      gtl::c_memmove(absl::MakeSpan(buf).subspan(padding), buf,
+                     desired_nonnull_bytes);
       std::fill_n(buf.begin(), padding, fill);
       desired_nonnull_bytes = width;
     }

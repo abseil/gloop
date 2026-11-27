@@ -37,8 +37,10 @@
 #include "absl/base/internal/cycleclock.h"
 #include "absl/log/check.h"
 #include "absl/time/clock.h"
+#include "absl/types/span.h"
 #include "gloop/base/atomic_sequence_num.h"
 #include "gloop/base/port.h"
+#include "gloop/util/gtl/c_memset.h"
 
 namespace {
 ABSL_CONST_INIT base::SequenceNumber weak_seed_sequence;
@@ -78,7 +80,7 @@ uint32_t RandomBase::WeakSeed32() {
   // in the buffer after len, and zero those values.
   int remaining = buffer.size() - len;
   CHECK_GT(remaining, static_cast<int>(3 * sizeof(uint32_t)));
-  memset(buffer.data() + len, 0, 3 * sizeof(uint32_t));
+  gtl::c_memset_n(absl::MakeSpan(buffer).subspan(len), 0, 3 * sizeof(uint32_t));
 
   uint32_t a = Word32At(buffer.data());
   uint32_t b = Word32At(buffer.data() + sizeof(uint32_t));
