@@ -528,6 +528,124 @@ static uintptr_t StackPointerFromUcontext(const void* uc) {
 }
 #endif  // PORTABLE_BASE
 
+enum class SiField { kNone, kAddr, kPid };
+
+// Returns which siginfo_t field (si_addr or si_pid) is active for `(signo,
+// si)`. See `siginfo_layout()` in Linux `kernel/signal.c`, `sigaction(2)`, and
+// Darwin `<sys/signal.h>`.
+static SiField GetActiveSiField(int signo, const siginfo_t& si) {
+  const bool is_fault = signo == SIGSEGV || signo == SIGILL ||
+                        signo == SIGTRAP || signo == SIGFPE || signo == SIGBUS;
+#ifdef __linux__
+  if (si.si_code <= 0) {
+    // SI_TIMER uses _timer and SI_SIGIO uses _sigpoll; other <= 0 codes use
+    // _kill/_rt (si_pid).
+    if (si.si_code == SI_TIMER || si.si_code == SI_SIGIO) {
+      return SiField::kNone;
+    }
+    return SiField::kPid;
+  }
+  // SI_KERNEL leaves _sifields zeroed; ptrace events (> SI_KERNEL) do not set
+  // si_addr.
+  if (si.si_code >= SI_KERNEL) {
+    return SiField::kNone;
+  }
+  if (is_fault) {
+    return SiField::kAddr;
+  }
+  // Among 0 < si_code < SI_KERNEL non-fault signals, only SIGCHLD has si_pid
+  // (SIGPOLL uses _sigpoll, SIGSYS uses _sigsys).
+  if (signo == SIGCHLD) {
+    return SiField::kPid;
+  }
+  return SiField::kNone;
+#else
+  // TODO: Check si_code on non-Linux platforms (e.g. SI_USER on
+  // Darwin) instead of assuming fault signals always populate si_addr.
+  return is_fault ? SiField::kAddr : SiField::kPid;
+#endif
+}
+
+static void FormatSignalDescription(int signo, const void* uc,
+                                    const siginfo_t& si, char* signal_desc,
+                                    size_t signal_desc_size,
+                                    char* signal_sender,
+                                    size_t signal_sender_size) {
+#ifndef __APPLE__
+  if (signo == SIGPOLL) {
+    return;
+  }
+#endif
+
+  const SiField field = GetActiveSiField(signo, si);
+
+  if (field == SiField::kPid) {
+    absl::SNPrintF(signal_sender, signal_sender_size,
+                   ", si_code=%d, from PID %d", si.si_code, si.si_pid);
+    return;
+  }
+
+  if (signo == SIGSEGV && (field == SiField::kNone || si.si_addr == nullptr) &&
+      si.si_code != SEGV_MAPERR) {
+    // This very likely means that we've hit a general protection fault,
+    // and not a page fault. See b/27134779 for details.
+    absl::SNPrintF(signal_desc, signal_desc_size, ", si_code=%d, see <link>",
+                   si.si_code);
+    return;
+  }
+
+  if (field == SiField::kNone) {
+    absl::SNPrintF(signal_desc, signal_desc_size, ", si_code=%d", si.si_code);
+    return;
+  }
+
+#if defined(SEGV_PKUERR)
+  if (signo == SIGSEGV && si.si_code == SEGV_PKUERR) {
+    absl::SNPrintF(signal_desc, signal_desc_size, " (@%p), pkey=%d, see <link>",
+                   si.si_addr, si.si_pkey);
+    return;
+  }
+#endif  // SEGV_PKUERR
+
+#if !PORTABLE_BASE
+#endif
+
+#if defined(__x86_64__)
+  if (signo == SIGILL && si.si_code == ILL_ILLOPN && si.si_addr != nullptr) {
+    const unsigned char* pc = static_cast<const unsigned char*>(si.si_addr);
+    // Clang ubsan generates ud1l ubsan_type(%eax),%eax in
+    // -fsanitize-trap= mode.
+    if (pc[0] == 0x67 && pc[1] == 0x0f && pc[2] == 0xb9 && pc[3] == 0x40) {
+      absl::SNPrintF(signal_desc, signal_desc_size,
+                     " (UD1"
+                     "@%p), see <link>\n",
+                     pc);
+      return;
+    }
+  }
+#endif
+
+#if defined(__aarch64__)
+  if (signo == SIGTRAP && si.si_addr != nullptr) {
+    const char* pc = static_cast<const char*>(si.si_addr);
+    uint32_t insn;
+    memcpy(&insn, pc, sizeof(insn));
+    // Clang ubsan generates brk #(ubsan_type | 'U'<<8) in
+    // -fsanitize-trap= mode.
+    if ((insn & 0xffe0001f) == 0xd4200000 && ((insn >> 13) & 255) == 'U') {
+      absl::SNPrintF(signal_desc, signal_desc_size,
+                     " (TRAP"
+                     "@ %p), see <link>\n",
+                     pc);
+      return;
+    }
+  }
+#endif
+
+  absl::SNPrintF(signal_desc, signal_desc_size,
+                 " (@%p), si_code=%d, see <link>", si.si_addr, si.si_code);
+}
+
 static void FormatSignalMessage(char* buf, int bufsize, int signo,
                                 const void* uc, siginfo_t* si, bool dump_trace,
                                 int cpu) {
@@ -535,95 +653,19 @@ static void FormatSignalMessage(char* buf, int bufsize, int signo,
   char signal_desc[128] = {0};
   char signal_sender[32] = {0};
 
+  // We trust (here and elsewhere) absl::SNPrintF to be safe.
   if (cpu != -1) {
     absl::SNPrintF(on_cpu, sizeof(on_cpu), " on cpu %d", cpu);
   }
-  absl::SNPrintF(signal_desc, sizeof(signal_desc), "%s", SigName(signo));
-  int len = strlen(signal_desc);
-  // We trust (here and elsewhere) absl::SNPrintF to be safe.
   if (si) {
-    // SIGILL, SIGFPE, SIGSEGV, SIGBUS, SIGPOLL don't have si_pid.
-    // See /usr/include/bits/siginfo.h.
-    switch (signo) {
-      case SIGSEGV:
-        if (si->si_addr == nullptr && si->si_code != SEGV_MAPERR) {
-          // This very likely means that we've hit a general protection fault,
-          // and not a page fault. See b/27134779 for details.
-          absl::SNPrintF(signal_desc + len, sizeof(signal_desc) - len,
-                         ", si_code=%d, see <link>", si->si_code);
-          break;
-        }
-#if defined(SEGV_PKUERR)
-        if (si->si_code == SEGV_PKUERR) {
-          absl::SNPrintF(signal_desc + len, sizeof(signal_desc) - len,
-                         " (@%p), pkey=%d, see <link>", si->si_addr,
-                         si->si_pkey);
-          break;
-        }
-#endif  // SEGV_PKUERR
-#if !PORTABLE_BASE
-#endif
-
-        [[fallthrough]];
-      case SIGILL:
-#if defined(__x86_64__)
-        if (signo == SIGILL && si->si_code == ILL_ILLOPN) {
-          const unsigned char* pc =
-              static_cast<const unsigned char*>(si->si_addr);
-          // Clang ubsan generates ud1l ubsan_type(%eax),%eax in
-          // -fsanitize-trap= mode.
-          if (pc && pc[0] == 0x67 && pc[1] == 0x0f && pc[2] == 0xb9 &&
-              pc[3] == 0x40) {
-            absl::SNPrintF(signal_desc + len, sizeof(signal_desc) - len,
-                           " (UD1"
-                           "@%p), see <link>\n",
-                           pc);
-            break;
-          }
-        }
-        [[fallthrough]];
-#endif
-      case SIGTRAP:
-#if defined(__aarch64__)
-        if (signo == SIGTRAP && si->si_addr != nullptr) {
-          const char* pc = (const char*)si->si_addr;
-          uint32_t insn;
-          memcpy(&insn, pc, sizeof(insn));
-          // Clang ubsan generates brk #(ubsan_type | 'U'<<8) in
-          // -fsanitize-trap= mode.
-          if ((insn & 0xffe0001f) == 0xd4200000 &&
-              ((insn >> 13) & 255) == 'U') {
-            absl::SNPrintF(signal_desc + len, sizeof(signal_desc) - len,
-                           " (TRAP"
-                           "@ %p), see <link>\n",
-                           pc);
-            break;
-          }
-        }
-        [[fallthrough]];
-#endif
-      case SIGFPE:  // fall through
-      case SIGBUS: {
-        absl::SNPrintF(signal_desc + len, sizeof(signal_desc) - len,
-                       " (@%p), si_code=%d, see <link>", si->si_addr,
-                       si->si_code);
-        break;
-      }
-#ifndef __APPLE__
-      case SIGPOLL:
-        break;
-#endif
-      default:
-        absl::SNPrintF(signal_sender, sizeof(signal_sender),
-                       ", si_code=%d, from PID %d", si->si_code, si->si_pid);
-        break;
-    }
+    FormatSignalDescription(signo, uc, *si, signal_desc, sizeof(signal_desc),
+                            signal_sender, sizeof(signal_sender));
   }
 
   absl::SNPrintF(buf, bufsize,
-                 "*** %s received by PID %d (TID %d)%s%s; %s***\n", signal_desc,
-                 getpid(), GetTID(), on_cpu, signal_sender,
-                 dump_trace ? "stack trace: " : "");
+                 "*** %s%s received by PID %d (TID %d)%s%s; %s***\n",
+                 SigName(signo), signal_desc, getpid(), GetTID(), on_cpu,
+                 signal_sender, dump_trace ? "stack trace: " : "");
 }
 
 namespace base {
