@@ -578,7 +578,8 @@ static void FormatSignalDescription(int signo, const void* uc,
 #endif
     case SIGTRAP:
 #if defined(__aarch64__)
-      if (signo == SIGTRAP && si.si_addr != nullptr) {
+      if (signo == SIGTRAP && si.si_code == TRAP_BRKPT &&
+          si.si_addr != nullptr) {
         const char* pc = (const char*)si.si_addr;
         uint32_t insn;
         memcpy(&insn, pc, sizeof(insn));

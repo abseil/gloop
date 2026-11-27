@@ -689,4 +689,19 @@ TEST(StackTraceDeathTest, HandleSigsegvWithNullUcontextDoesNotFault) {
             Not(HasSubstr("stack unreadable"))));
 }
 
+TEST(StackTraceDeathTest, HandleSigtrapWithNonBrkptSiCodeDoesNotFault) {
+  siginfo_t si = {
+      .si_signo = SIGTRAP,
+      .si_code = TRAP_TRACE,
+  };
+  si.si_addr = reinterpret_cast<void*>(0x1234);
+  EXPECT_DEATH(
+      {
+        absl::SetFlag(&FLAGS_suppress_failure_output, false);
+        base::HandleOrRaiseFailureSignal(SIGTRAP, &si, nullptr);
+        _exit(1);
+      },
+      ContainsRegex("\\*\\*\\* SIGTRAP \\(@0x1234\\).*received by PID "));
+}
+
 }  // namespace
