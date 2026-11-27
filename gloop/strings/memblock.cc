@@ -62,16 +62,6 @@
 
 #if ABSL_HAVE_MMAP
 
-// munmap grabs a lock in the kernel for write, so if there's an ongoing munmap,
-// other mmaps and munmaps will block until it finishes.
-// For some services, big munmaps may take hundreds of milliseconds, which may
-// disrupt serving. This flag allows splitting big munmaps into smaller ones to
-// prevent that.
-ABSL_FLAG(uint64_t, mmappedmemblock_munmap_pages_per_call, 0,
-          "Number of pages to pass to each call of munmap when destroying an "
-          "MMappedMemBlock. Set to 0 to pass the whole region to munmap in "
-          "one call (default behaviour).");
-
 // madvise(MADV_DONTNEED) might take very long time to complete on a big memory
 // region, so for some services it makes sense to chunk it into smaller page to
 // reduce the contention for mmap semaphore inside kernel.
@@ -331,7 +321,7 @@ StringDataMemBlock::StringDataMemBlock(
 }
 
 #if ABSL_HAVE_MMAP
-MMappedMemBlock::MMappedMemBlock(void* data, size_t length)
+MMappedMemBlock::MMappedMemBlock(void* absl_nonnull data, size_t length)
     : MemBlock(data, length), munmap_(true) {
   VLOG(3) << "Created MMappedMemBlock: address=" << std::hex << data
           << ", length=" << std::dec << length;
@@ -353,16 +343,13 @@ namespace {
 // which locks the mmap semaphore for write, executes quickly.
 // Context and history in http://b/37752123#comment296 and
 // <internal thread>
-//
-// Returns false if madvise failed or was not done, true otherwise
-bool ReleaseMemoryInChunks(char* absl_nonnull start, size_t size) {
+void ReleaseMemoryInChunks(char* absl_nonnull start, size_t size) {
 // Not all platforms support MADV_DONTNEED. For example, Mac OS X doesn't.
 // So disable this code for the platforms that do.
 #ifdef MADV_DONTNEED
   const size_t pages_per_chunk =
       absl::GetFlag(FLAGS_mmappedmemblock_madvdontneed_pages_per_call);
   size_t page_size = sysconf(_SC_PAGESIZE);
-  bool all_chunks_succeeded = true;
   if (pages_per_chunk > 0) {
     while (size >= page_size * 2) {
       // Determine the actual page size, by trying to madvise the second page
@@ -379,7 +366,6 @@ bool ReleaseMemoryInChunks(char* absl_nonnull start, size_t size) {
       // CHECK-fail on error.
       if (madvise(start, page_size, MADV_DONTNEED) < 0) {
         PLOG(ERROR) << "madvise(MADV_DONT_NEED)";
-        all_chunks_succeeded = false;
       }
       start += page_size * 2;
       size -= page_size * 2;
@@ -390,7 +376,6 @@ bool ReleaseMemoryInChunks(char* absl_nonnull start, size_t size) {
         // CHECK-fail on error.
         if (madvise(start, chunk_size, MADV_DONTNEED) < 0) {
           PLOG(ERROR) << "madvise()";
-          all_chunks_succeeded = false;
         }
         if (sched_yield() < 0) {
           PLOG(ERROR) << "sched_yield()";
@@ -406,64 +391,25 @@ bool ReleaseMemoryInChunks(char* absl_nonnull start, size_t size) {
       // Allow EINVAL because it might happen due to the reasons that don't mean
       // a bug, such as the memory block coming from hugetlbfs
       if (errno != EINVAL) PLOG(ERROR) << "madvise(MADV_DONTNEED)";
-      return false;
     }
   }
-
-  return all_chunks_succeeded;
-#else
-  // MADV_DONTNEED is unsupported on the platform, just return
-  return false;
 #endif  // MADV_DONTNEED
 }
 
 }  // namespace
 
 MMappedMemBlock::~MMappedMemBlock() {
-  if (munmap_) {
+  const size_t size = orig_length();
+  if (munmap_ && size != 0) {
     char* const base = reinterpret_cast<char*>(orig_data());
-    size_t offset = 0;
-    size_t size = orig_length();
-    bool memory_released = ReleaseMemoryInChunks(base, size);
-    const size_t pages_per_chunk =
-        absl::GetFlag(FLAGS_mmappedmemblock_munmap_pages_per_call);
-    // Chunked munmap is only still potentially useful if ReleaseMemoryInChunks
-    // failed, such as mlocked memory. This functionality might be removed in
-    // the future.
-    if (pages_per_chunk > 0 && !memory_released) {
-      size_t page_size = sysconf(_SC_PAGESIZE);
-      while (size >= page_size * 2) {
-        // Determine the actual page size, by trying to munmap the second page
-        // with different sizes until it succeeds.
-        // Unmap second page and not the first because munmap only cares about
-        // the alignment of offset and not size.
-        //
-        // There's a similar code in ReleaseMemoryInChunks, but we can't rely on
-        // it here because we only run this code if ReleaseMemoryInChunks failed
-        if (munmap(base + offset + page_size, page_size) == 0) {
-          // Right page size found. Unmap the first page.
-          PCHECK(munmap(base + offset, page_size) == 0);
-          offset += page_size * 2;
-          size -= page_size * 2;
-          const size_t chunk_size = page_size * pages_per_chunk;
-          // Unmap the remaining chunks
-          while (size >= chunk_size) {
-            PCHECK(munmap(base + offset, chunk_size) == 0);
-            offset += chunk_size;
-            size -= chunk_size;
-          }
-          break;
-        }
-        PCHECK(errno == EINVAL);
-        page_size *= 2;
-      }
-    }
-    if (size != 0) {
-      PCHECK(munmap(base + offset, size) == 0);
-    }
+    // MemBlock::orig_data() is absl_nullable for other subclasses, while
+    // MMappedMemBlock requires a non-null pointer at construction.
+    DCHECK(base != nullptr);
+    ReleaseMemoryInChunks(base, size);
+    PCHECK(munmap(base, size) == 0);
   }
   absl::MutexLock l(total_lock);
-  total_mmapped -= orig_length();
+  total_mmapped -= size;
 }
 
 int64_t MMappedMemBlock::TotalMappedBytes() {
