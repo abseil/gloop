@@ -672,4 +672,14 @@ TEST_P(InvokeDebuggerWithCommandLongTokensTest, ExpansionOverflow) {
 INSTANTIATE_TEST_SUITE_P(LongTokens, InvokeDebuggerWithCommandLongTokensTest,
                          testing::Values("%w", "%p", "%f"));
 
+TEST(StackTraceDeathTest, RaiseSigtrapDoesNotFault) {
+#ifdef ABSL_HAVE_HWADDRESS_SANITIZER
+  GTEST_SKIP() << "HWASan exclusively handles SIGTRAP.";
+#elif defined(__linux__)
+  EXPECT_DEATH(raise(SIGTRAP), "\\*\\*\\* SIGTRAP received by PID .*from PID ");
+#else
+  EXPECT_DEATH(raise(SIGTRAP), "\\*\\*\\* SIGTRAP .*received by PID ");
+#endif
+}
+
 }  // namespace
