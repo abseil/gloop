@@ -538,8 +538,6 @@ static void FormatSignalMessage(char* buf, int bufsize, int signo,
   if (cpu != -1) {
     absl::SNPrintF(on_cpu, sizeof(on_cpu), " on cpu %d", cpu);
   }
-  absl::SNPrintF(signal_desc, sizeof(signal_desc), "%s", SigName(signo));
-  int len = strlen(signal_desc);
   // We trust (here and elsewhere) absl::SNPrintF to be safe.
   if (si) {
     // SIGILL, SIGFPE, SIGSEGV, SIGBUS, SIGPOLL don't have si_pid.
@@ -549,13 +547,13 @@ static void FormatSignalMessage(char* buf, int bufsize, int signo,
         if (si->si_addr == nullptr && si->si_code != SEGV_MAPERR) {
           // This very likely means that we've hit a general protection fault,
           // and not a page fault. See b/27134779 for details.
-          absl::SNPrintF(signal_desc + len, sizeof(signal_desc) - len,
+          absl::SNPrintF(signal_desc, sizeof(signal_desc),
                          ", si_code=%d, see <link>", si->si_code);
           break;
         }
 #if defined(SEGV_PKUERR)
         if (si->si_code == SEGV_PKUERR) {
-          absl::SNPrintF(signal_desc + len, sizeof(signal_desc) - len,
+          absl::SNPrintF(signal_desc, sizeof(signal_desc),
                          " (@%p), pkey=%d, see <link>", si->si_addr,
                          si->si_pkey);
           break;
@@ -574,7 +572,7 @@ static void FormatSignalMessage(char* buf, int bufsize, int signo,
           // -fsanitize-trap= mode.
           if (pc && pc[0] == 0x67 && pc[1] == 0x0f && pc[2] == 0xb9 &&
               pc[3] == 0x40) {
-            absl::SNPrintF(signal_desc + len, sizeof(signal_desc) - len,
+            absl::SNPrintF(signal_desc, sizeof(signal_desc),
                            " (UD1"
                            "@%p), see <link>\n",
                            pc);
@@ -593,7 +591,7 @@ static void FormatSignalMessage(char* buf, int bufsize, int signo,
           // -fsanitize-trap= mode.
           if ((insn & 0xffe0001f) == 0xd4200000 &&
               ((insn >> 13) & 255) == 'U') {
-            absl::SNPrintF(signal_desc + len, sizeof(signal_desc) - len,
+            absl::SNPrintF(signal_desc, sizeof(signal_desc),
                            " (TRAP"
                            "@ %p), see <link>\n",
                            pc);
@@ -604,7 +602,7 @@ static void FormatSignalMessage(char* buf, int bufsize, int signo,
 #endif
       case SIGFPE:  // fall through
       case SIGBUS: {
-        absl::SNPrintF(signal_desc + len, sizeof(signal_desc) - len,
+        absl::SNPrintF(signal_desc, sizeof(signal_desc),
                        " (@%p), si_code=%d, see <link>", si->si_addr,
                        si->si_code);
         break;
@@ -621,9 +619,9 @@ static void FormatSignalMessage(char* buf, int bufsize, int signo,
   }
 
   absl::SNPrintF(buf, bufsize,
-                 "*** %s received by PID %d (TID %d)%s%s; %s***\n", signal_desc,
-                 getpid(), GetTID(), on_cpu, signal_sender,
-                 dump_trace ? "stack trace: " : "");
+                 "*** %s%s received by PID %d (TID %d)%s%s; %s***\n",
+                 SigName(signo), signal_desc, getpid(), GetTID(), on_cpu,
+                 signal_sender, dump_trace ? "stack trace: " : "");
 }
 
 namespace base {
