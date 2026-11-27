@@ -529,6 +529,88 @@ static uintptr_t StackPointerFromUcontext(const void* uc) {
 }
 #endif  // PORTABLE_BASE
 
+// Formats details of `si` into `signal_desc` for fault signals, or the
+// sender's si_code and PID into `signal_sender` for other signals (except
+// SIGPOLL, which leaves both buffers untouched).
+static void FormatSignalDescription(int signo, const void* uc,
+                                    const siginfo_t& si, char* signal_desc,
+                                    size_t signal_desc_size,
+                                    char* signal_sender,
+                                    size_t signal_sender_size) {
+  // SIGILL, SIGFPE, SIGSEGV, SIGBUS, SIGPOLL don't have si_pid.
+  // See /usr/include/bits/siginfo.h.
+  switch (signo) {
+    case SIGSEGV:
+      if (si.si_addr == nullptr && si.si_code != SEGV_MAPERR) {
+        // This very likely means that we've hit a general protection fault,
+        // and not a page fault. See b/27134779 for details.
+        absl::SNPrintF(signal_desc, signal_desc_size,
+                       ", si_code=%d, see <link>", si.si_code);
+        return;
+      }
+#if defined(SEGV_PKUERR)
+      if (si.si_code == SEGV_PKUERR) {
+        absl::SNPrintF(signal_desc, signal_desc_size,
+                       " (@%p), pkey=%d, see <link>", si.si_addr, si.si_pkey);
+        return;
+      }
+#endif  // SEGV_PKUERR
+#if !PORTABLE_BASE
+#endif
+
+      [[fallthrough]];
+    case SIGILL:
+#if defined(__x86_64__)
+      if (signo == SIGILL && si.si_code == ILL_ILLOPN &&
+          si.si_addr != nullptr) {
+        const unsigned char* pc = static_cast<const unsigned char*>(si.si_addr);
+        // Clang ubsan generates ud1l ubsan_type(%eax),%eax in
+        // -fsanitize-trap= mode.
+        if (pc[0] == 0x67 && pc[1] == 0x0f && pc[2] == 0xb9 && pc[3] == 0x40) {
+          absl::SNPrintF(signal_desc, signal_desc_size,
+                         " (UD1"
+                         "@%p), see <link>\n",
+                         pc);
+          return;
+        }
+      }
+      [[fallthrough]];
+#endif
+    case SIGTRAP:
+#if defined(__aarch64__)
+      if (signo == SIGTRAP && si.si_addr != nullptr) {
+        const char* pc = (const char*)si.si_addr;
+        uint32_t insn;
+        memcpy(&insn, pc, sizeof(insn));
+        // Clang ubsan generates brk #(ubsan_type | 'U'<<8) in
+        // -fsanitize-trap= mode.
+        if ((insn & 0xffe0001f) == 0xd4200000 && ((insn >> 13) & 255) == 'U') {
+          absl::SNPrintF(signal_desc, signal_desc_size,
+                         " (TRAP"
+                         "@ %p), see <link>\n",
+                         pc);
+          return;
+        }
+      }
+      [[fallthrough]];
+#endif
+    case SIGFPE:  // fall through
+    case SIGBUS: {
+      absl::SNPrintF(signal_desc, signal_desc_size,
+                     " (@%p), si_code=%d, see <link>", si.si_addr, si.si_code);
+      return;
+    }
+#ifndef __APPLE__
+    case SIGPOLL:
+      return;
+#endif
+    default:
+      absl::SNPrintF(signal_sender, signal_sender_size,
+                     ", si_code=%d, from PID %d", si.si_code, si.si_pid);
+      return;
+  }
+}
+
 static void FormatSignalMessage(char* buf, int bufsize, int signo,
                                 const void* uc, siginfo_t* si, bool dump_trace,
                                 int cpu) {
@@ -536,88 +618,13 @@ static void FormatSignalMessage(char* buf, int bufsize, int signo,
   char signal_desc[128] = {0};
   char signal_sender[32] = {0};
 
+  // We trust (here and elsewhere) absl::SNPrintF to be async-signal safe.
   if (cpu != -1) {
     absl::SNPrintF(on_cpu, sizeof(on_cpu), " on cpu %d", cpu);
   }
-  // We trust (here and elsewhere) absl::SNPrintF to be safe.
   if (si) {
-    // SIGILL, SIGFPE, SIGSEGV, SIGBUS, SIGPOLL don't have si_pid.
-    // See /usr/include/bits/siginfo.h.
-    switch (signo) {
-      case SIGSEGV:
-        if (si->si_addr == nullptr && si->si_code != SEGV_MAPERR) {
-          // This very likely means that we've hit a general protection fault,
-          // and not a page fault. See b/27134779 for details.
-          absl::SNPrintF(signal_desc, sizeof(signal_desc),
-                         ", si_code=%d, see <link>", si->si_code);
-          break;
-        }
-#if defined(SEGV_PKUERR)
-        if (si->si_code == SEGV_PKUERR) {
-          absl::SNPrintF(signal_desc, sizeof(signal_desc),
-                         " (@%p), pkey=%d, see <link>", si->si_addr,
-                         si->si_pkey);
-          break;
-        }
-#endif  // SEGV_PKUERR
-#if !PORTABLE_BASE
-#endif
-
-        [[fallthrough]];
-      case SIGILL:
-#if defined(__x86_64__)
-        if (signo == SIGILL && si->si_code == ILL_ILLOPN &&
-            si->si_addr != nullptr) {
-          const unsigned char* pc =
-              static_cast<const unsigned char*>(si->si_addr);
-          // Clang ubsan generates ud1l ubsan_type(%eax),%eax in
-          // -fsanitize-trap= mode.
-          if (pc[0] == 0x67 && pc[1] == 0x0f && pc[2] == 0xb9 &&
-              pc[3] == 0x40) {
-            absl::SNPrintF(signal_desc, sizeof(signal_desc),
-                           " (UD1"
-                           "@%p), see <link>\n",
-                           pc);
-            break;
-          }
-        }
-        [[fallthrough]];
-#endif
-      case SIGTRAP:
-#if defined(__aarch64__)
-        if (signo == SIGTRAP && si->si_addr != nullptr) {
-          const char* pc = (const char*)si->si_addr;
-          uint32_t insn;
-          memcpy(&insn, pc, sizeof(insn));
-          // Clang ubsan generates brk #(ubsan_type | 'U'<<8) in
-          // -fsanitize-trap= mode.
-          if ((insn & 0xffe0001f) == 0xd4200000 &&
-              ((insn >> 13) & 255) == 'U') {
-            absl::SNPrintF(signal_desc, sizeof(signal_desc),
-                           " (TRAP"
-                           "@ %p), see <link>\n",
-                           pc);
-            break;
-          }
-        }
-        [[fallthrough]];
-#endif
-      case SIGFPE:  // fall through
-      case SIGBUS: {
-        absl::SNPrintF(signal_desc, sizeof(signal_desc),
-                       " (@%p), si_code=%d, see <link>", si->si_addr,
-                       si->si_code);
-        break;
-      }
-#ifndef __APPLE__
-      case SIGPOLL:
-        break;
-#endif
-      default:
-        absl::SNPrintF(signal_sender, sizeof(signal_sender),
-                       ", si_code=%d, from PID %d", si->si_code, si->si_pid);
-        break;
-    }
+    FormatSignalDescription(signo, uc, *si, signal_desc, sizeof(signal_desc),
+                            signal_sender, sizeof(signal_sender));
   }
 
   absl::SNPrintF(buf, bufsize,
