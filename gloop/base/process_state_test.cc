@@ -672,4 +672,21 @@ TEST_P(InvokeDebuggerWithCommandLongTokensTest, ExpansionOverflow) {
 INSTANTIATE_TEST_SUITE_P(LongTokens, InvokeDebuggerWithCommandLongTokensTest,
                          testing::Values("%w", "%p", "%f"));
 
+TEST(StackTraceDeathTest, HandleSigsegvWithNullUcontextDoesNotFault) {
+  siginfo_t si = {
+      .si_signo = SIGSEGV,
+      .si_code = SEGV_MAPERR,
+  };
+  si.si_addr = reinterpret_cast<void*>(0x1234);
+  EXPECT_DEATH(
+      {
+        absl::SetFlag(&FLAGS_suppress_failure_output, false);
+        base::HandleOrRaiseFailureSignal(SIGSEGV, &si, nullptr);
+        _exit(1);
+      },
+      AllOf(ContainsRegex("\\*\\*\\* SIGSEGV \\(@0x1234\\).*received by PID "),
+            Not(HasSubstr("Stack contents")),
+            Not(HasSubstr("stack unreadable"))));
+}
+
 }  // namespace

@@ -511,6 +511,7 @@ constexpr int kRedZoneSize = 0;
 #endif
 
 static uintptr_t StackPointerFromUcontext(const void* uc) {
+  if (uc == nullptr) return 0;
   const ucontext_t* const ucp = reinterpret_cast<const ucontext_t*>(uc);
 #if defined(__x86_64__)
   return ucp->uc_mcontext.gregs[REG_RSP];
@@ -859,6 +860,7 @@ static void DumpStackContents(StackDumpMode mode, void* uc, int signo,
 #if !PORTABLE_BASE
   char buf[250];
   uintptr_t usp = StackPointerFromUcontext(uc);
+  if (usp == 0) return;
   uintptr_t crash_addr = usp;
 
   // If the signal is one for which si->si_addr (the address that caused
