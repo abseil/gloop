@@ -566,12 +566,13 @@ static void FormatSignalMessage(char* buf, int bufsize, int signo,
         [[fallthrough]];
       case SIGILL:
 #if defined(__x86_64__)
-        if (signo == SIGILL && si->si_code == ILL_ILLOPN) {
+        if (signo == SIGILL && si->si_code == ILL_ILLOPN &&
+            si->si_addr != nullptr) {
           const unsigned char* pc =
               static_cast<const unsigned char*>(si->si_addr);
           // Clang ubsan generates ud1l ubsan_type(%eax),%eax in
           // -fsanitize-trap= mode.
-          if (pc && pc[0] == 0x67 && pc[1] == 0x0f && pc[2] == 0xb9 &&
+          if (pc[0] == 0x67 && pc[1] == 0x0f && pc[2] == 0xb9 &&
               pc[3] == 0x40) {
             absl::SNPrintF(signal_desc, sizeof(signal_desc),
                            " (UD1"
