@@ -131,6 +131,13 @@ class AdjustablePriorityQueue {
   const std::vector<T*>* Raw() const { return &elems_; }
 
  private:
+  // Attempts to sift `val` upwards from index `i`, peeling the first parent
+  // comparison/swap so callers on the common no-sift path avoid entering
+  // AdjustUpwards. Returns true if `val` moved (with its final position and
+  // heap index updated), or false if it stayed at `i` (leaving index `i`
+  // untouched for the caller to either record or sift downwards).
+  bool TryAdjustUpwards(size_t i, T* val);
+
   [[no_unique_address]] Comp c_;
   [[no_unique_address]] HeapIndexManip imanip_;
   std::vector<T*> elems_;
@@ -141,11 +148,25 @@ template <class Iter>
 AdjustablePriorityQueue<T, Comp, HeapIndexManip>::AdjustablePriorityQueue(
     Iter first, Iter last, const Comp& c, const HeapIndexManip& m)
     : c_(c), imanip_(m), elems_(first, last) {
-  if (elems_.empty()) return;
-  std::make_heap(elems_.begin(), elems_.end(),
-                 [this](T* a, T* b) { return c_(*a, *b); });
-  for (size_t i = 0; i < elems_.size(); i++) {
-    imanip_.SetHeapIndex(elems_[i], i);
+  const size_t size = elems_.size();
+  if (size == 0) return;
+  T** const data = elems_.data();
+  if (size > 1) {
+    // Heapify directly with AdjustDownwards instead of std::make_heap:
+    // AdjustDownwards operates on raw pointers with a single bounds check per
+    // level and holds T* in registers, avoiding std::make_heap's extra
+    // per-level checks and reloads. Heap indices are written once in the
+    // hoisted loop below rather than on every intermediate sift swap.
+    struct NoOpMaintainer {
+      void operator()(T*, size_t) const {}
+    } noop;
+    auto lower_priority = [this](T* a, T* b) { return c_(*a, *b); };
+    for (size_t i = size / 2; i-- > 0;) {
+      util::pq::AdjustDownwards(data, i, size, data[i], lower_priority, &noop);
+    }
+  }
+  for (size_t i = 0; i < size; ++i) {
+    imanip_.SetHeapIndex(data[i], i);
   }
 }
 
@@ -161,12 +182,14 @@ class LowerPriorityThan {
 
 template <class T, class C, class I>
 inline T* AdjustablePriorityQueue<T, C, I>::Top() {
-  return elems_[0];
+  DCHECK(!elems_.empty());
+  return elems_.data()[0];
 }
 
 template <class T, class C, class I>
 inline const T* AdjustablePriorityQueue<T, C, I>::Top() const {
-  return elems_[0];
+  DCHECK(!elems_.empty());
+  return elems_.data()[0];
 }
 
 template <class T, class C, class I>
@@ -201,7 +224,10 @@ class AQPSetHeapIndex {
   explicit AQPSetHeapIndex(AdjustablePriorityQueue<T, C, I>* queue)
       : queue_(queue) {}
   void operator()(size_t offset) const {
-    return queue_->imanip_.SetHeapIndex(queue_->elems_[offset], offset);
+    return queue_->imanip_.SetHeapIndex(queue_->elems_.data()[offset], offset);
+  }
+  void operator()(T* val, size_t offset) const {
+    return queue_->imanip_.SetHeapIndex(val, offset);
   }
 
  private:
@@ -209,67 +235,97 @@ class AQPSetHeapIndex {
 };
 
 template <class T, class C, class I>
-void AdjustablePriorityQueue<T, C, I>::Add(T* val) {
+inline bool AdjustablePriorityQueue<T, C, I>::TryAdjustUpwards(size_t i,
+                                                               T* val) {
+  if (i == 0) return false;
+  T** const data = elems_.data();
+  const size_t parent = (i - 1) / 2;
+  T* const parent_val = data[parent];
+  LowerPriorityThan<T, C> lower_priority(&c_);
+  if (!lower_priority(parent_val, val)) return false;
+  data[i] = parent_val;
+  imanip_.SetHeapIndex(parent_val, i);
   AQPSetHeapIndex<T, C, I> imanip(this);
+  util::pq::AdjustUpwards(data, parent, val, lower_priority, &imanip);
+  return true;
+}
+
+template <class T, class C, class I>
+void AdjustablePriorityQueue<T, C, I>::Add(T* val) {
+  const size_t i = elems_.size();
   // Extend the size of the vector by one.  We could just use
   // vector<T>::resize(), but maybe T is not default-constructible.
   elems_.push_back(val);
-  const ssize_t sminus1 = Size() - 1;
-  util::pq::AdjustUpwards(elems_.begin(), sminus1, val,
-                          LowerPriorityThan<T, C>(&c_), &imanip);
+  if (!TryAdjustUpwards(i, val)) {
+    imanip_.SetHeapIndex(val, i);
+  }
 }
 
 template <class T, class C, class I>
 void AdjustablePriorityQueue<T, C, I>::NoteChangedPriority(T* val) {
+  const size_t i = static_cast<size_t>(imanip_.GetHeapIndex(*val));
+  T** const data = elems_.data();
+  const size_t size = elems_.size();
+  DCHECK_LT(i, size);
+  DCHECK_EQ(data[i], val);
+  if (TryAdjustUpwards(i, val)) return;
   AQPSetHeapIndex<T, C, I> imanip(this);
-  LowerPriorityThan<T, C> lower_priority(&c_);
-  const ssize_t i = imanip_.GetHeapIndex(*val);
-  const ssize_t parent = (i - 1) / 2;
-  if (i > 0 && lower_priority(elems_[parent], val)) {
-    elems_[i] = elems_[parent];
-    imanip_.SetHeapIndex(elems_[i], i);
-    util::pq::AdjustUpwards(elems_.begin(), parent, val, lower_priority,
-                            &imanip);
-  } else {
-    const ssize_t size = Size();
-    util::pq::AdjustDownwards(elems_.begin(), i, size, val, lower_priority,
-                              &imanip);
-  }
+  util::pq::internal::AdjustDownwardsImpl<true>(
+      data, i, size, val, LowerPriorityThan<T, C>(&c_), &imanip);
 }
 
 template <class T, class C, class I>
 void AdjustablePriorityQueue<T, C, I>::Remove(T* val) {
-  const ssize_t end = elems_.size() - 1;
-  const ssize_t i = imanip_.GetHeapIndex(*val);
-  DCHECK_EQ(elems_[i], val);
+  const size_t size = elems_.size();
+  DCHECK_GT(size, size_t{0});
+  const size_t i = static_cast<size_t>(imanip_.GetHeapIndex(*val));
+  T** const data = elems_.data();
+  DCHECK_LT(i, size);
+  DCHECK_EQ(data[i], val);
+  if (size <= 1) {
+    elems_.clear();
+    return;
+  }
+  const size_t end = size - 1;
   if (i == end) {
     elems_.pop_back();
     return;
   }
-  elems_[i] = elems_[end];
-  imanip_.SetHeapIndex(elems_[i], i);
+  if (i == 0) {
+    Pop();
+    return;
+  }
+  T* const last = data[end];
   elems_.pop_back();
-  NoteChangedPriority(elems_[i]);
+  if (TryAdjustUpwards(i, last)) return;
+  AQPSetHeapIndex<T, C, I> imanip(this);
+  util::pq::AdjustDownwards(data, i, end, last, LowerPriorityThan<T, C>(&c_),
+                            &imanip);
 }
 
 template <class T, class C, class I>
 void AdjustablePriorityQueue<T, C, I>::Pop() {
   const size_t size = elems_.size();
   DCHECK_GT(size, size_t{0});
+  if (size <= 1) {
+    elems_.clear();
+    return;
+  }
+  T** const data = elems_.data();
+  const size_t new_size = size - 1;
+  T* const v = data[new_size];
+  elems_.pop_back();
   AQPSetHeapIndex<T, C, I> imanip(this);
   LowerPriorityThan<T, C> lower_priority(&c_);
-  T* v = elems_[size - 1];  // Load early as this also serves as Prefetch.
-  size_t i = util::pq::AdjustHoleDownwards(elems_.begin(), size_t{0}, size,
-                                           lower_priority, &imanip);
-  elems_.pop_back();
-  if (i + 1 == size) return;
-  util::pq::AdjustUpwards(elems_.begin(), i, v, lower_priority, &imanip);
+  const size_t i = util::pq::AdjustHoleDownwards(data, size_t{0}, new_size,
+                                                 lower_priority, &imanip);
+  util::pq::AdjustUpwards(data, i, v, lower_priority, &imanip);
 }
 
 template <class T, class C, class I>
 bool AdjustablePriorityQueue<T, C, I>::Contains(const T* val) const {
-  ssize_t i = imanip_.GetHeapIndex(*val);
-  return (i >= 0 && i < elems_.size() && elems_[i] == val);
+  const size_t i = static_cast<size_t>(imanip_.GetHeapIndex(*val));
+  return i < elems_.size() && elems_.data()[i] == val;
 }
 
 template <class T, class C, class I>
