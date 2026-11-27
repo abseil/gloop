@@ -23,6 +23,7 @@
 #include <sched.h>
 #include <sys/resource.h>
 
+#include <array>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -370,6 +371,7 @@ TEST(VcpuCounterTest, WorksFromMallocHook) {
 }
 
 absl::NoDestructor<VcpuCounter> c;
+absl::NoDestructor<std::array<VcpuCounter, 4>> c4;
 
 void BM_VcpuCounter_Add(benchmark::State& state) {
   int i = 0;
@@ -379,12 +381,31 @@ void BM_VcpuCounter_Add(benchmark::State& state) {
   }
 }
 
+void BM_VcpuCounter_AddConst(benchmark::State& state) {
+  for (auto s : state) {
+    c->Add(1);
+    benchmark::DoNotOptimize(c);
+  }
+}
+
+void BM_VcpuCounter_Add4(benchmark::State& state) {
+  for (auto s : state) {
+    (*c4)[0].Add(1);
+    (*c4)[1].Add(1);
+    (*c4)[2].Add(1);
+    (*c4)[3].Add(1);
+    benchmark::DoNotOptimize(c4);
+  }
+}
+
 void BM_VcpuCounter_Value(benchmark::State& state) {
   for (auto s : state) {
     benchmark::DoNotOptimize(c->value());
   }
 }
 BENCHMARK(BM_VcpuCounter_Add)->ThreadRange(1, NumCPUs());
+BENCHMARK(BM_VcpuCounter_AddConst)->ThreadRange(1, NumCPUs());
+BENCHMARK(BM_VcpuCounter_Add4)->ThreadRange(1, NumCPUs());
 BENCHMARK(BM_VcpuCounter_Value);
 
 void BM_VcpuCounterCreate(benchmark::State& state) {
