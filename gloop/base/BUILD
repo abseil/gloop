@@ -1762,6 +1762,7 @@ cc_library(
         "@abseil-cpp//absl/strings:string_view",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/types:source_location",
+        "@abseil-cpp//absl/types:span",
         "@tcmalloc//tcmalloc:malloc_extension",
     ] + select({
         "//conditions:default": [],

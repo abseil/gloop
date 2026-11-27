@@ -77,6 +77,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/types/source_location.h"
+#include "absl/types/span.h"
 #include "gloop/base/address_is_readable.h"
 #include "gloop/base/config.h"
 #include "gloop/base/coredump_flags.h"
@@ -281,9 +282,9 @@ void ExecuteCrashDataCallback(int signo, siginfo_t* si, void* uc, int cpu) {
 // InvokeDebugger helper routine: expand '%p', '%f' etc. tokens.
 // Returns false in case of difficulties (e.g. not enough space in the
 // buffer).
-static bool ExpandTokens(char* cmd_buffer, size_t buffer_size, const char* pid,
+static bool ExpandTokens(absl::Span<char> cmd_buffer, const char* pid,
                          const char* invoker) {
-  for (char* p = cmd_buffer; *p; ++p) {
+  for (char* p = cmd_buffer.data(); *p; ++p) {
     if (*p == '%') {
       switch (p[1]) {
         case '%': {  // '%%' => '%'
@@ -295,7 +296,8 @@ static bool ExpandTokens(char* cmd_buffer, size_t buffer_size, const char* pid,
           const char* arg = (p[1] == 'w') ? invoker : pid;
           size_t arg_len = strlen(arg);
           size_t tail_len = strlen(p + 2);
-          if ((p - cmd_buffer) + arg_len + tail_len >= buffer_size) {
+          if ((p - cmd_buffer.data()) + arg_len + tail_len >=
+              cmd_buffer.size()) {
             return false;
           }
           memmove(p + arg_len, p + 2, tail_len + 1);
@@ -309,7 +311,8 @@ static bool ExpandTokens(char* cmd_buffer, size_t buffer_size, const char* pid,
           size_t pid_len = strlen(pid);
           size_t arg_len = pid_len + 10;
           size_t tail_len = strlen(p + 2);
-          if ((p - cmd_buffer) + arg_len + tail_len >= buffer_size) {
+          if ((p - cmd_buffer.data()) + arg_len + tail_len >=
+              cmd_buffer.size()) {
             return false;
           }
           memmove(p + arg_len, p + 2, tail_len + 1);
@@ -386,9 +389,7 @@ void InvokeDebuggerWithCommand(const char* invoker_name,
     absl::SNPrintF(pid_buf, sizeof(pid_buf), "%d", pid);
     absl::SNPrintF(expanded_debugger_command, sizeof(expanded_debugger_command),
                    "%s", debugger_command);
-    if (ExpandTokens(expanded_debugger_command,
-                     sizeof(expanded_debugger_command), pid_buf,
-                     invoker_name)) {
+    if (ExpandTokens(expanded_debugger_command, pid_buf, invoker_name)) {
       ABSL_RAW_LOG(INFO, "Invoking %s -c '%s'", shell,
                    expanded_debugger_command);
       execl(shell, shell, "-c", expanded_debugger_command, nullptr);
@@ -528,9 +529,8 @@ static uintptr_t StackPointerFromUcontext(const void* uc) {
 }
 #endif  // PORTABLE_BASE
 
-static void FormatSignalMessage(char* buf, int bufsize, int signo,
-                                const void* uc, siginfo_t* si, bool dump_trace,
-                                int cpu) {
+static void FormatSignalMessage(absl::Span<char> buf, int signo, const void* uc,
+                                siginfo_t* si, bool dump_trace, int cpu) {
   char on_cpu[32] = {0};
   char signal_desc[128] = {0};
   char signal_sender[32] = {0};
@@ -620,7 +620,7 @@ static void FormatSignalMessage(char* buf, int bufsize, int signo,
     }
   }
 
-  absl::SNPrintF(buf, bufsize,
+  absl::SNPrintF(buf.data(), buf.size(),
                  "*** %s received by PID %d (TID %d)%s%s; %s***\n", signal_desc,
                  getpid(), GetTID(), on_cpu, signal_sender,
                  dump_trace ? "stack trace: " : "");
@@ -773,7 +773,7 @@ static void LoopingSignalHandler(int signo, siginfo_t* si, void* uc) {
   base::internal::EmitSymbolizerURL(uc);
 
   char buf[250];
-  FormatSignalMessage(buf, sizeof(buf), signo, uc, si, true, -1);
+  FormatSignalMessage(buf, signo, uc, si, true, -1);
   (void)write(STDERR_FILENO, buf, strlen(buf));
 
   DumpPCAndStackTraceForSignalHandler(uc, DebugWriteToStderr, nullptr);
@@ -1154,8 +1154,7 @@ static void FailureSignalHandler(int signo, siginfo_t* si, void* uc) {
   base::internal::EmitSymbolizerURL(uc);
 
   char sigmsg[250];
-  FormatSignalMessage(sigmsg, sizeof(sigmsg), signo, uc, si, dump_trace,
-                      my_cpu);
+  FormatSignalMessage(sigmsg, signo, uc, si, dump_trace, my_cpu);
   (void)write(STDERR_FILENO, sigmsg, strlen(sigmsg));
 
   if (dump_trace) {
@@ -1203,7 +1202,7 @@ static void FailureSignalHandler(int signo, siginfo_t* si, void* uc) {
         absl::LogSeverityAtLeast::kInfinity);
 
     if (!dump_trace) {
-      FormatSignalMessage(sigmsg, sizeof(sigmsg), signo, uc, si, true, my_cpu);
+      FormatSignalMessage(sigmsg, signo, uc, si, true, my_cpu);
     }
 
     if (signo == SIGTERM) {
