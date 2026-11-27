@@ -30,6 +30,8 @@
 #include "absl/strings/cord.h"
 #include "absl/strings/resize_and_overwrite.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
+#include "gloop/util/gtl/c_memcpy.h"
 #include "google/protobuf/io/coded_stream.h"
 #include "google/protobuf/io/zero_copy_stream_impl_lite.h"
 #include "google/protobuf/message_lite.h"
@@ -249,7 +251,7 @@ class BufferedSerializedProto {
   explicit BufferedSerializedProto(absl::string_view serialized)
       : bytes_(kInitialBuf + serialized.size()),
         cmp_(bytes_.data() + kInitialBuf) {
-    memcpy(bytes_.data() + kInitialBuf, serialized.data(), serialized.size());
+    gtl::c_memcpy(absl::MakeSpan(bytes_).subspan(kInitialBuf), serialized);
   }
 
   // Returns a pointer to the writable buffer area prior to the serialized

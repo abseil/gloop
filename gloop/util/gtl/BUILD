@@ -1139,6 +1139,7 @@ cc_library(
     srcs = ["float128.cc"],
     hdrs = ["float128.h"],
     deps = [
+        ":c_memmove",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:config",
         "@abseil-cpp//absl/base:core_headers",
@@ -1147,6 +1148,7 @@ cc_library(
         "@abseil-cpp//absl/numeric:int128",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/types:span",
         "@googletest//:gtest_prod",
     ],
 )
@@ -1224,6 +1226,7 @@ cc_library(
     srcs = ["message_hasher.cc"],
     hdrs = ["message_hasher.h"],
     deps = [
+        ":c_memcpy",
         "//gloop:enforce_gloop_support",
         "@abseil-cpp//absl/base:core_headers",
         "@abseil-cpp//absl/container:fixed_array",
@@ -1238,6 +1241,7 @@ cc_library(
         "@abseil-cpp//absl/strings:cord",
         "@abseil-cpp//absl/strings:resize_and_overwrite",
         "@abseil-cpp//absl/strings:string_view",
+        "@abseil-cpp//absl/types:span",
         "@protobuf//:protobuf_lite",
         "@protobuf//src/google/protobuf/io",
     ],

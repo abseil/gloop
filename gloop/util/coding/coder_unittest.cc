@@ -37,6 +37,7 @@
 #include "absl/log/check.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "benchmark/benchmark.h"
 #include "gloop/util/coding/varint.h"
 #include "gloop/util/gtl/c_memcmp.h"
@@ -214,7 +215,7 @@ TEST(CoderUnitTEst, TestEncodeDecode) {
   CHECK_EQ(u64, uint64_t{0xc245e44536da3256u});
   // Test invalid long (Encoder::kVarintMax64 + 1) encoded data.
   gtl::c_memset_n(buf, 0xff, Encoder::kVarintMax64);
-  memset(buf.data() + Encoder::kVarintMax64, 1, 1);
+  gtl::c_memset_n(absl::MakeSpan(buf).subspan(Encoder::kVarintMax64), 1, 1);
   dec.reset(buf.data(), kBufSize);
   enc.reset(buf2.data(), kBufSize);
   CHECK(!enc.put_varint64_from_decoder(&dec));
