@@ -676,28 +676,25 @@ void SymbolMap::PopulateSymbols(SymbolMap& symbols) {
     // With --mlock_style=all, we may have duplicates in the image_info.
     // b/196670643. Filter them out.
     std::sort(image_info.begin(), image_info.end(), info_lt);
-    const Info* prev = nullptr;
+    image_info.erase(std::unique(image_info.begin(), image_info.end(),
+                                 [&](const Info& a, const Info& b) {
+                                   return !info_lt(a, b) && !info_lt(b, a);
+                                 }),
+                     image_info.end());
+  }
 
-    uint64_t main_base = GetMainExecutableBaseAddress();
-    for (const auto& info : image_info) {
-      if (prev != nullptr && !info_lt(info, *prev) && !info_lt(*prev, info)) {
-        VLOG(5) << "Discarding duplicate entry for " << info.file_name;
-        continue;
-      }
-      prev = &info;
-
-      uint64_t file_offset = 0;
-      ElfReader reader(info.file_name, file_offset,
-                       !symbols.copy_symbol_names_);
-      if (reader.IsElf32File() || reader.IsElf64File()) {
-        // TODO: ask the ELF reader in advance how many symbols there
-        // will be, so we can avoid the need for repeated reallocations.
-        reader.AddSymbols(&symbols, info.mem_offset, info.file_offset,
-                          info.length);
-        // If this is the main binary, check if is stripped.
-        if (info.mem_offset == main_base) {
-          symbols.stripped_ = !reader.HasSymbolNames();
-        }
+  uint64_t main_base = GetMainExecutableBaseAddress();
+  for (const auto& info : image_info) {
+    uint64_t file_offset = 0;
+    ElfReader reader(info.file_name, file_offset, !symbols.copy_symbol_names_);
+    if (reader.IsElf32File() || reader.IsElf64File()) {
+      // TODO: ask the ELF reader in advance how many symbols there
+      // will be, so we can avoid the need for repeated reallocations.
+      reader.AddSymbols(&symbols, info.mem_offset, info.file_offset,
+                        info.length);
+      // If this is the main binary, check if is stripped.
+      if (info.mem_offset == main_base) {
+        symbols.stripped_ = !reader.HasSymbolNames();
       }
     }
   }
