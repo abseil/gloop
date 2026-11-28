@@ -78,7 +78,6 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:resize_and_overwrite",
         "@abseil-cpp//absl/strings:string_view",
-        "@tcmalloc//tcmalloc:malloc_extension",
     ],
 )
 
