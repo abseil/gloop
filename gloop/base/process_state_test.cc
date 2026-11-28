@@ -35,21 +35,25 @@
 #include <ucontext.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <iterator>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"  // IWYU pragma: keep
 #include "absl/base/const_init.h"
+#include "absl/base/nullability.h"
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
+#include "absl/types/span.h"
 #include "gloop/base/config.h"
 #include "gloop/base/internal/logging_directories.h"
 #include "gloop/base/signal-handler.h"
@@ -704,4 +708,74 @@ TEST(StackTraceDeathTest, HandleSigtrapWithNonBrkptSiCodeDoesNotFault) {
       ContainsRegex("\\*\\*\\* SIGTRAP \\(@0x1234\\).*received by PID "));
 }
 
+TEST(StackTraceDeathTest, RaiseSigtrapDoesNotFault) {
+#ifdef ABSL_HAVE_HWADDRESS_SANITIZER
+  GTEST_SKIP() << "HWASan exclusively handles SIGTRAP.";
+#else
+  EXPECT_DEATH(raise(SIGTRAP), "\\*\\*\\* SIGTRAP .*received by PID ");
+#endif
+}
+
+struct UnreadableSignalCase {
+  int signo;
+  int si_code;
+  absl::Span<const char> insn;
+};
+
+class UnreadableSignalAddrDeathTest
+    : public ::testing::TestWithParam<
+          std::tuple<UnreadableSignalCase, std::optional<int>>> {
+ protected:
+  void SetUp() override {
+    void* mem = mmap(nullptr, 2 * pagesize_, PROT_NONE,
+                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    ASSERT_NE(mem, MAP_FAILED);
+    pages_ = static_cast<char*>(mem);
+    ASSERT_EQ(mprotect(pages_, pagesize_, PROT_READ | PROT_WRITE), 0);
+
+    // `offset` is relative to the first unreadable byte (PROT_NONE), or nullopt
+    // for nullptr.
+    const auto& [sig, offset] = GetParam();
+    char* const unreadable = pages_ + pagesize_;
+    char* const addr = offset.has_value() ? unreadable + *offset : nullptr;
+    if (addr != nullptr && addr < unreadable) {
+      memcpy(addr, sig.insn.data(),
+             std::min<size_t>(sig.insn.size(), unreadable - addr));
+    }
+    si_ = {
+        .si_signo = sig.signo,
+        .si_code = sig.si_code,
+    };
+    si_.si_addr = addr;
+  }
+
+  void TearDown() override {
+    if (pages_ != nullptr) {
+      munmap(pages_, 2 * pagesize_);
+    }
+  }
+
+  const int pagesize_ = getpagesize();
+  char* absl_nullable pages_ = nullptr;
+  siginfo_t si_ = {};
+};
+
+TEST_P(UnreadableSignalAddrDeathTest, DoesNotFault) {
+  EXPECT_DEATH(
+      {
+        base::HandleOrRaiseFailureSignal(si_.si_signo, &si_, nullptr);
+        _exit(1);
+      },
+      "\\*\\*\\* SIG(ILL|TRAP) (.|\\n)*received by PID ");
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Signals, UnreadableSignalAddrDeathTest,
+    testing::Combine(
+        testing::Values(
+            // x86-64 ud1l 0x70(%eax), %eax
+            UnreadableSignalCase{SIGILL, ILL_ILLOPN, "\x67\x0f\xb9\x40\x70"},
+            // AArch64 brk #0x5500 (little-endian 0xd42aa000)
+            UnreadableSignalCase{SIGTRAP, TRAP_BRKPT, "\x00\xa0\x2a\xd4"}),
+        testing::Values(std::nullopt, -5, -4, -3, -2, -1, 0, 1)));
 }  // namespace
