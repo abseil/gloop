@@ -52,6 +52,8 @@ cc_test(
         "//gloop/base:arena",
         "//gloop/base:init_google",
         "//gloop/base:log_file_flags",
+        "//gloop/util/gtl:c_memcmp",
+        "//gloop/util/gtl:c_memset",
         "//gloop/util/random:distributions",
         "//gloop/util/random:mt_random",
         "//gloop/util/random:random_base",

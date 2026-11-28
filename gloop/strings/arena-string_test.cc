@@ -39,6 +39,8 @@
 #include "gloop/base/arena.h"
 #include "gloop/base/init_google.h"
 #include "gloop/base/log_file_flags.h"
+#include "gloop/util/gtl/c_memcmp.h"
+#include "gloop/util/gtl/c_memset.h"
 #include "gloop/util/random/distributions.h"
 #include "gloop/util/random/mt_random.h"
 #include "gloop/util/random/random_base.h"
@@ -136,7 +138,7 @@ TEST(ArenaStringTest, EncodeDecode) {
       ArenaString::EncSize(1 << absl::GetFlag(FLAGS_log_max_length)) +
       buf_extra;
   absl::FixedArray<char, 0> buf(buf_size);
-  memset(buf.data(), 0, buf.size());
+  gtl::c_memset(buf, 0);
 
   for (int i = 0; i < absl::GetFlag(FLAGS_test_size); i++) {
     // using a skewed distribution over string lengths focuses the test on short
@@ -163,7 +165,7 @@ TEST(ArenaStringTest, EncodeDecode) {
     EXPECT_EQ(str, dec);
 
     // clear buf
-    memset(buf.data(), 0, ArenaString::EncSize(str.size()));
+    gtl::c_memset_n(buf, 0, ArenaString::EncSize(str.size()));
   }
 }
 
@@ -272,7 +274,7 @@ static void BM_copy_arenastring(benchmark::State& state) {
     data = ArenaString::Encode(a, &buf[(--n & 7)]);
   }
   a = ArenaString::Decode(data);
-  CHECK_EQ(0, memcmp(x.data(), a.data(), len));
+  CHECK_EQ(0, gtl::c_memcmp(x, a, len));
   CHECK_EQ(len, a.size());
 }
 BENCHMARK(BM_copy_arenastring)->Range(0, 4 << 10);
@@ -292,7 +294,7 @@ static void BM_copy_stringpiece(benchmark::State& state) {
     memcpy(&buf[(n & 7)], data, len);
     a = absl::string_view(&buf[(--n & 7)], len);
   }
-  CHECK_EQ(0, memcmp(x.data(), a.data(), len));
+  CHECK_EQ(0, gtl::c_memcmp(x, a, len));
   CHECK_EQ(len, a.size());
 }
 BENCHMARK(BM_copy_stringpiece)->Range(0, 4 << 10);
