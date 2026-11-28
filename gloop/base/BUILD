@@ -1770,7 +1770,10 @@ cc_library(
 
 cc_test(
     name = "process_state_test",
-    size = "small",
+    # ~45 death tests, each re-executing the binary. Usually ~10s even under
+    # -c dbg --config=ubsan, but can exceed the small (60s) timeout on a loaded
+    # machine.
+    size = "medium",
     srcs = ["process_state_test.cc"],
     features = [
         # This test uses alloca to push SP past stack limits.
