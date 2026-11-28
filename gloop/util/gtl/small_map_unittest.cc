@@ -1181,6 +1181,74 @@ TEST(SmallMap, SubclassInitializationWithFunctionObject) {
   EXPECT_EQ(1, m.count(-1));
 }
 
+TEST(SmallMap, MapInitNotCalledOnCopyMoveOrSwap) {
+  struct CountingInit {
+    int* init_calls = nullptr;
+    void operator()(
+        ManualConstructor<absl::flat_hash_map<int, int>>* map_ctor) const {
+      ++(*init_calls);
+      map_ctor->Init(64);
+    }
+  };
+
+  using CountingMap = small_map<absl::flat_hash_map<int, int>, 4,
+                                std::equal_to<int>, CountingInit>;
+
+  int init_calls = 0;
+  CountingMap src(CountingInit{&init_calls});
+  for (int i = 0; i < 6; ++i) {
+    src[i] = i * 10;
+  }
+  ASSERT_TRUE(src.using_full_map());
+  EXPECT_EQ(init_calls, 1);
+
+  // Copy construction and copy assignment should copy the underlying map
+  // directly without invoking MapInit.
+  CountingMap copy(src);
+  EXPECT_EQ(init_calls, 1);
+  EXPECT_EQ(copy, src);
+
+  CountingMap assigned(CountingInit{&init_calls});
+  assigned = src;
+  EXPECT_EQ(init_calls, 1);
+  EXPECT_EQ(assigned, src);
+
+  // Move construction and move assignment should move the underlying map
+  // directly without invoking MapInit.
+  CountingMap moved(std::move(copy));
+  EXPECT_EQ(init_calls, 1);
+  EXPECT_EQ(moved, src);
+
+  CountingMap move_assigned(CountingInit{&init_calls});
+  move_assigned = std::move(moved);
+  EXPECT_EQ(init_calls, 1);
+  EXPECT_EQ(move_assigned, src);
+
+  // Self-move assignment should be safe and not invoke MapInit.
+  auto& self_ref = move_assigned;
+  move_assigned = std::move(self_ref);
+  EXPECT_EQ(init_calls, 1);
+  EXPECT_EQ(move_assigned, src);
+
+  // Swapping a full map with an inlined map (and back) should not invoke
+  // MapInit.
+  CountingMap inlined(CountingInit{&init_calls});
+  inlined[100] = 200;
+  ASSERT_FALSE(inlined.using_full_map());
+
+  move_assigned.swap(inlined);
+  EXPECT_EQ(init_calls, 1);
+  EXPECT_TRUE(inlined.using_full_map());
+  EXPECT_FALSE(move_assigned.using_full_map());
+  EXPECT_EQ(inlined, src);
+  EXPECT_THAT(move_assigned, UnorderedElementsAre(Pair(100, 200)));
+
+  inlined.swap(move_assigned);
+  EXPECT_EQ(init_calls, 1);
+  EXPECT_EQ(move_assigned, src);
+  EXPECT_THAT(inlined, UnorderedElementsAre(Pair(100, 200)));
+}
+
 template <typename NormalMap>
 static size_t ExpectedSmallMapSize(int array_size) {
   // We're explicitly computing a sizeof for the SmallMap, since in practice
